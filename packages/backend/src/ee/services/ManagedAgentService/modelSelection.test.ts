@@ -1,4 +1,4 @@
-import { MODEL_PRESETS } from '../ai/models/presets';
+import { MODEL_PRESETS, vertexPreset } from '../ai/models/presets';
 import { pickAutopilotModel } from './modelSelection';
 
 const sonnet = MODEL_PRESETS.anthropic.find(
@@ -60,6 +60,19 @@ describe('pickAutopilotModel', () => {
                 availableModels: [sonnet, gpt],
             }),
         ).toEqual({ provider: 'openai', modelName: gpt.name });
+    });
+
+    it('uses the selectable Vertex instance model when it is the default', () => {
+        expect(
+            pickAutopilotModel({
+                orgDefault: null,
+                instanceDefault: {
+                    provider: 'vertex',
+                    name: 'gemini-3.8-flash',
+                },
+                availableModels: [vertexPreset('gemini-3.8-flash')],
+            }),
+        ).toEqual({ provider: 'vertex', modelName: 'gemini-3.8-flash' });
     });
 
     it('prefers Opus 4.7 over the chat default on Anthropic when the org may use it', () => {

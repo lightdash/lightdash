@@ -3,7 +3,7 @@ import { tool } from 'ai';
 import type { AiAgentSkill } from '../skills/types';
 import { LoadAgentSkillFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 const formatResourceList = (
     resources: Array<{ name: string; description: string }>,
@@ -47,6 +47,9 @@ export const getLoadSkill = ({ loadSkill }: { loadSkill: LoadAgentSkillFn }) =>
                         metadata: {
                             status: 'error' as const,
                         },
+                        structuredContent: {
+                            error: `Skill "${name}" was not found.`,
+                        },
                     };
                 }
 
@@ -58,8 +61,9 @@ export const getLoadSkill = ({ loadSkill }: { loadSkill: LoadAgentSkillFn }) =>
                     );
 
                     if (!resource) {
-                        return {
-                            result: `Resource "${resourceName}" was not found for skill "${skill.name}".
+                        // One string, two views: the structured error must
+                        // carry exactly what the text tells the model.
+                        const result = `Resource "${resourceName}" was not found for skill "${skill.name}".
 
 Available resources:
 ${formatResourceList(
@@ -67,10 +71,13 @@ ${formatResourceList(
         name: item.name,
         description: item.description,
     })) ?? [],
-)}`,
+)}`;
+                        return {
+                            result,
                             metadata: {
                                 status: 'error' as const,
                             },
+                            structuredContent: { error: result },
                         };
                     }
 
@@ -84,6 +91,14 @@ ${resource.content.trim()}`,
                             status: 'success' as const,
                             skill: skill.metadata,
                         },
+                        structuredContent: {
+                            kind: 'resource',
+                            skill: skill.name,
+                            resource: {
+                                name: resource.name,
+                                content: resource.content.trim(),
+                            },
+                        },
                     };
                 }
 
@@ -93,14 +108,19 @@ ${resource.content.trim()}`,
                         status: 'success' as const,
                         skill: skill.metadata,
                     },
-                };
-            } catch (error) {
-                return {
-                    result: toolErrorHandler(error, 'Error loading skill'),
-                    metadata: {
-                        status: 'error' as const,
+                    structuredContent: {
+                        kind: 'skill',
+                        skill: skill.name,
+                        body: skill.body.trim(),
+                        resources:
+                            skill.resources?.map((item) => ({
+                                name: item.name,
+                                description: item.description,
+                            })) ?? [],
                     },
                 };
+            } catch (error) {
+                return toolErrorOutput(error, 'Error loading skill');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

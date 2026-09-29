@@ -6,6 +6,7 @@ import {
     type AppVersionStatusHistoryEntry,
     type DataAppAutoAnalysis,
     type DataAppCodingAgent,
+    type DataAppCodingAgentSessionUsage,
     type DataAppGenerationUsage,
     type DataAppTemplate,
     type DataAppVizPreview,
@@ -158,6 +159,9 @@ export type DbAppThread = {
     ai_thread_uuid: string | null;
     coding_agent: DataAppCodingAgent;
     coding_agent_session_id: string | null;
+    // The CLI's running totals for coding_agent_session_id; null until a run
+    // on that session reported usage.
+    coding_agent_session_usage: DataAppCodingAgentSessionUsage | null;
     created_at: Date;
     created_by_user_uuid: string;
 };
@@ -176,10 +180,18 @@ export type AppThreadsTable = Knex.CompositeTableType<
         Partial<
             Pick<
                 DbAppThread,
-                'app_thread_uuid' | 'coding_agent_session_id' | 'created_at'
+                | 'app_thread_uuid'
+                | 'coding_agent_session_id'
+                | 'coding_agent_session_usage'
+                | 'created_at'
             >
         >,
-    Partial<Pick<DbAppThread, 'coding_agent_session_id'>>
+    Partial<
+        Pick<
+            DbAppThread,
+            'coding_agent_session_id' | 'coding_agent_session_usage'
+        >
+    >
 >;
 
 /**

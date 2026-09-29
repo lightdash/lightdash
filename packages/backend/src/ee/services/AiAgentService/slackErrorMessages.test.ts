@@ -49,6 +49,9 @@ const setup = (
                 slackThreadTs: 'thread-ts',
             }),
         },
+        orgAiCopilotConfigResolver: {
+            isOrgBedrockRouted: async () => false,
+        },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     return { service, request, postMessage, featureFlagService };
 };

@@ -81,7 +81,12 @@ import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagMod
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
-import type { AiKeyManagement, AiUsageEvent } from './aiUsage';
+import {
+    isAiUsageEvent,
+    omitExternalUserId,
+    type AiKeyManagement,
+    type AiUsageEvent,
+} from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
     UpgradeEventName,
@@ -2653,6 +2658,24 @@ export type UserAttributesPageEvent = BaseTrack & {
     };
 };
 
+export type RoadmapViewedEvent = BaseTrack & {
+    event: 'roadmap.viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+    };
+};
+
+export type RoadmapProjectFollowRequestedEvent = BaseTrack & {
+    event: 'roadmap.project_follow_requested';
+    userId: string;
+    properties: {
+        organizationId: string;
+        roadmapProjectId: string;
+        noteLength: number;
+    };
+};
+
 export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
     event: 'user_attribute.created' | 'user_attribute.updated';
     userId: string;
@@ -3257,6 +3280,9 @@ export type McpToolCallEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
+        toolCallId: string;
+        actorType: 'user' | 'service_account';
+        queryId?: string;
         projectId?: string;
         agentId?: string;
         toolName: string;
@@ -4231,6 +4257,8 @@ type TypedEvent =
     | Validation
     | ValidationErrorDismissed
     | UserAttributesPageEvent
+    | RoadmapViewedEvent
+    | RoadmapProjectFollowRequestedEvent
     | UserAttributeCreateAndUpdateEvent
     | UserAttributeDeleteEvent
     | MetricFlowQueryEvent
@@ -4491,6 +4519,16 @@ export class LightdashAnalytics extends Analytics {
                           lastName: payload.properties.lastName,
                           email: payload.properties.email,
                       },
+            });
+            return;
+        }
+
+        if (isAiUsageEvent(payload)) {
+            super.track({
+                ...LightdashAnalytics.ensureActor(payload),
+                event: `${this.lightdashContext.app.name}.${payload.event}`,
+                context: { ...this.lightdashContext },
+                properties: omitExternalUserId(payload.properties),
             });
             return;
         }

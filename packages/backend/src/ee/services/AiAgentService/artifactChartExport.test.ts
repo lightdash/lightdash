@@ -158,6 +158,7 @@ describe('artifact export access', () => {
     it('rechecks embedded conversation scope before exporting', async () => {
         const { access, getExplore } = setup({
             embedSpaceUuid: 'other-space',
+            externalUserId: null,
             spaceAccess: ['other-space'],
             userAttributeOverrides: {},
         });

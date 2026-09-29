@@ -34,12 +34,15 @@ import type {
     VizPointMenuIntent,
     VizPointMenuResult,
     VizUnderlyingDataIntent,
+    VizSubtotalsRequest,
+    VizSubtotalsResult,
 } from './types';
 import {
     VIZ_DRILL_DOWN_PATH,
     VIZ_POINT_MENU_PATH,
     VIZ_UNDERLYING_DATA_OPEN_PATH,
     VIZ_UNDERLYING_DATA_PATH,
+    VIZ_SUBTOTALS_PATH,
 } from './types';
 
 // Mirrors the explorer's `useInfiniteQueryResults` polling rhythm so the
@@ -1271,6 +1274,16 @@ export function createApiTransport(
                 'POST',
                 VIZ_UNDERLYING_DATA_OPEN_PATH,
                 intent,
+            );
+        },
+
+        async getVizSubtotals(
+            request: VizSubtotalsRequest,
+        ): Promise<VizSubtotalsResult> {
+            return fetchFn<VizSubtotalsResult>(
+                'POST',
+                VIZ_SUBTOTALS_PATH,
+                request,
             );
         },
 

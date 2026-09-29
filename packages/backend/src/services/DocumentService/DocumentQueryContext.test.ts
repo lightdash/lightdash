@@ -10,7 +10,7 @@ import {
 } from '@lightdash/common';
 import { buildAccount } from '../ProjectService/ProjectService.mock';
 import { DocumentQueryContext } from './DocumentQueryContext';
-import type { DocumentService } from './DocumentService';
+import { DocumentService } from './DocumentService';
 
 const account = buildAccount() as RegisteredAccount;
 const projectUuid = 'project';
@@ -57,7 +57,10 @@ const setup = (savedDocument = document, cellIndex = reference.cellIndex) => {
     const getVersion = vi.fn().mockResolvedValue(savedDocument);
     const authorize = () =>
         DocumentQueryContext.authorize({
-            documentService: { getVersion } as unknown as DocumentService,
+            documentService: {
+                getVersion,
+                getChartCell: DocumentService.prototype.getChartCell,
+            } as unknown as DocumentService,
             account,
             projectUuid,
             reference: { ...reference, cellIndex },

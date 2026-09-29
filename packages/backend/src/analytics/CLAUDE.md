@@ -78,6 +78,7 @@ analytics.track({
 - Use `trackAccount()` method when you have account context - it automatically extracts user/org IDs
 - `userId` is set for registered users (account.user.id), while `anonymousId` is used for embed users
 - For embed users, `anonymousId` is set to 'embed' and `externalId` is stored in properties
+- `ai.usage` is the exception: its `externalUserId` reaches the usage ledger and the usage stream only, never logs or Rudderstack
 - The `analyticsMock` export is for testing - it has tracking disabled
 - Event types are strictly typed - unknown events will cause TypeScript errors
 - Special handling exists for user verification and update events to respect privacy settings

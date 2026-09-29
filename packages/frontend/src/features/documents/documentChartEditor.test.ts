@@ -76,13 +76,26 @@ it('starts a new chart with its selected explore and no selected fields', () => 
     expect(state.unsavedChartVersion.metricQuery.metrics).toEqual([]);
 });
 
-it('refuses custom visualization types instead of silently truncating their configuration', () => {
-    const version = getDocumentChartVersion(chart);
+it('round-trips a custom chart type binding through the chart editor', () => {
+    const binding = {
+        dataAppVizUuid: 'viz-1',
+        dataAppVizVersion: 2,
+        fieldMapping: { category: 'orders_status' },
+        optionValues: { stacked: true },
+    };
+    const version = getDocumentChartVersion({
+        ...chart,
+        chartConfig: {
+            type: ChartType.DATA_APP_VIZ,
+            config: { ...binding, dataAppVizSlug: 'grouped-bars' },
+        },
+    });
+    // The editor works on the runtime binding; the slug is only for portability.
+    expect(version.chartConfig).toEqual({
+        type: ChartType.DATA_APP_VIZ,
+        config: binding,
+    });
     expect(
-        getDocumentChartFromVersion(
-            { ...version, chartConfig: { type: ChartType.DATA_APP_VIZ } },
-            'Custom',
-            '',
-        ),
-    ).toBeNull();
+        getDocumentChartFromVersion(version, 'Custom', '').chartConfig,
+    ).toEqual({ type: ChartType.DATA_APP_VIZ, config: binding });
 });

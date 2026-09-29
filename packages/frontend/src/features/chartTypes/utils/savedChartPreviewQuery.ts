@@ -18,6 +18,8 @@ import { pollForResults } from '../../queryRunner/executeQuery';
 export const SAVED_CHART_PREVIEW_ROW_LIMIT = 500;
 
 export type SavedChartPreviewQueryResult = {
+    /** The executed query that produced these rows. */
+    queryUuid: string;
     rows: ResultRow[];
     /** Actual result fields, including aliases introduced by saved merges. */
     metricQuery?: MetricQuery;
@@ -60,6 +62,7 @@ export const executeSavedChartPreviewQuery = async ({
         }
 
         return {
+            queryUuid: query.queryUuid,
             rows: results.rows,
             metricQuery: query.metricQuery,
             itemsMap: query.fields,

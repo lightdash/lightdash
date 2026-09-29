@@ -14727,11 +14727,43 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalFetchSavedChartContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chartVersionUuid: { ref: 'UUID' },
+                savedChartUuid: { ref: 'UUID', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalFetchDocumentContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                cellIndex: { dataType: 'double', required: true },
+                documentVersionUuid: { ref: 'UUID', required: true },
+                documentUuid: { ref: 'UUID', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalFetchRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                chartContext: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ExternalFetchSavedChartContext' },
+                        { ref: 'ExternalFetchDocumentContext' },
+                    ],
+                },
                 body: { dataType: 'any' },
                 query: { ref: 'Record_string.string_' },
                 path: { dataType: 'string', required: true },
@@ -18674,6 +18706,12 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 inputGuidance: { dataType: 'string' },
+                hierarchy: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        field: { dataType: 'string', required: true },
+                    },
+                },
                 colorPalette: {
                     dataType: 'union',
                     subSchemas: [
@@ -22427,6 +22465,164 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiRouterDecision-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleSheetsExtensionReportDraftOperator: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['equals'] },
+                { dataType: 'enum', enums: ['notEquals'] },
+                { dataType: 'enum', enums: ['include'] },
+                { dataType: 'enum', enums: ['startsWith'] },
+                { dataType: 'enum', enums: ['isNull'] },
+                { dataType: 'enum', enums: ['notNull'] },
+                { dataType: 'enum', enums: ['greaterThan'] },
+                { dataType: 'enum', enums: ['greaterThanOrEqual'] },
+                { dataType: 'enum', enums: ['lessThan'] },
+                { dataType: 'enum', enums: ['lessThanOrEqual'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleSheetsExtensionReportDraftFilter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                operator: {
+                    ref: 'GoogleSheetsExtensionReportDraftOperator',
+                    required: true,
+                },
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleSheetsExtensionReportDraftSettings: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                groupRows: { dataType: 'boolean', required: true },
+                totals: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        columns: { dataType: 'boolean', required: true },
+                        rows: { dataType: 'boolean', required: true },
+                    },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            descending: { dataType: 'boolean', required: true },
+                            fieldId: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                filters: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'GoogleSheetsExtensionReportDraftFilter',
+                    },
+                    required: true,
+                },
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                columns: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                rows: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GeneratedGoogleSheetsExtensionReportDraft: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                report: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'GoogleSheetsExtensionReportDraftSettings' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                message: { dataType: 'string', required: true },
+                status: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['ready'] },
+                        { dataType: 'enum', enums: ['clarification'] },
+                        { dataType: 'enum', enums: ['unsupported'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GenerateGoogleSheetsExtensionReportDraftRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                protectedFilters: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'GoogleSheetsExtensionReportDraftFilter',
+                    },
+                    required: true,
+                },
+                clarifications: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            message: { dataType: 'string', required: true },
+                            prompt: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                timezone: { dataType: 'string', required: true },
+                current: {
+                    ref: 'GoogleSheetsExtensionReportDraftSettings',
+                    required: true,
+                },
+                prompt: { dataType: 'string', required: true },
+                exploreName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiGenerateCustomVizResponse: {
         dataType: 'refAlias',
         type: {
@@ -24650,6 +24846,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['data_app'] },
                 { dataType: 'enum', enums: ['slack'] },
                 { dataType: 'enum', enums: ['web_app'] },
+                { dataType: 'enum', enums: ['api'] },
                 { dataType: 'enum', enums: ['evals'] },
                 { dataType: 'enum', enums: ['scheduler'] },
             ],
@@ -30092,105 +30289,260 @@ const models: TsoaRoute.Models = {
                                             ],
                                         },
                                         {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                skill: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType:
-                                                                'nestedObjectLiteral',
-                                                            nestedProperties: {
-                                                                contentHash: {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        skill: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
                                                                     dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
+                                                                        'nestedObjectLiteral',
+                                                                    nestedProperties:
+                                                                        {
+                                                                            contentHash:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            versionNumber:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'double',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            uuid: {
+                                                                                dataType:
+                                                                                    'union',
+                                                                                subSchemas:
+                                                                                    [
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'string',
+                                                                                        },
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'enum',
+                                                                                            enums: [
+                                                                                                null,
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                                required: true,
+                                                                            },
+                                                                            builtIn:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'boolean',
+                                                                                    required: true,
+                                                                                },
+                                                                            name: {
                                                                                 dataType:
                                                                                     'string',
+                                                                                required: true,
                                                                             },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    required: true,
+                                                                        },
                                                                 },
-                                                                versionNumber: {
+                                                                {
                                                                     dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
-                                                                                dataType:
-                                                                                    'double',
-                                                                            },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    required: true,
+                                                                        'undefined',
                                                                 },
-                                                                uuid: {
-                                                                    dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
-                                                                                dataType:
-                                                                                    'string',
-                                                                            },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    required: true,
-                                                                },
-                                                                builtIn: {
-                                                                    dataType:
-                                                                        'boolean',
-                                                                    required: true,
-                                                                },
-                                                                name: {
-                                                                    dataType:
-                                                                        'string',
-                                                                    required: true,
-                                                                },
-                                                            },
+                                                            ],
                                                         },
-                                                        {
-                                                            dataType:
-                                                                'undefined',
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
                                                         },
-                                                    ],
+                                                    },
                                                 },
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
-                                                        },
-                                                        {
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
                                                             dataType: 'enum',
                                                             enums: ['success'],
+                                                            required: true,
                                                         },
-                                                    ],
-                                                    required: true,
+                                                    },
                                                 },
-                                            },
+                                            ],
+                                        },
+                                        {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        skill: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'nestedObjectLiteral',
+                                                                    nestedProperties:
+                                                                        {
+                                                                            contentHash:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            versionNumber:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'double',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            uuid: {
+                                                                                dataType:
+                                                                                    'union',
+                                                                                subSchemas:
+                                                                                    [
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'string',
+                                                                                        },
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'enum',
+                                                                                            enums: [
+                                                                                                null,
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                                required: true,
+                                                                            },
+                                                                            builtIn:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'boolean',
+                                                                                    required: true,
+                                                                                },
+                                                                            name: {
+                                                                                dataType:
+                                                                                    'string',
+                                                                                required: true,
+                                                                            },
+                                                                        },
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'undefined',
+                                                                },
+                                                            ],
+                                                        },
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'enum',
+                                                            enums: ['error'],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                            ],
                                         },
                                         {
                                             dataType: 'intersection',
@@ -30973,31 +31325,138 @@ const models: TsoaRoute.Models = {
                                             },
                                         },
                                         {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'rejected',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'timeout',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
                                                         },
-                                                        {
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
                                                             dataType: 'enum',
                                                             enums: ['success'],
+                                                            required: true,
                                                         },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['rejected'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['timeout'],
-                                                        },
-                                                    ],
-                                                    required: true,
+                                                    },
                                                 },
-                                            },
+                                            ],
+                                        },
+                                        {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'rejected',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'timeout',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'rejected',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'timeout',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                            ],
                                         },
                                         {
                                             dataType: 'nestedObjectLiteral',
@@ -40848,6 +41307,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: ['data_app'] },
                             { dataType: 'enum', enums: ['slack'] },
                             { dataType: 'enum', enums: ['web_app'] },
+                            { dataType: 'enum', enums: ['api'] },
                             { dataType: 'enum', enums: ['evals'] },
                             { dataType: 'enum', enums: ['scheduler'] },
                         ],
@@ -44662,6 +45122,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                bedrock: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgProviderModelVisibility' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -44722,6 +45189,7 @@ const models: TsoaRoute.Models = {
                 anthropic: { dataType: 'boolean', required: true },
                 google: { dataType: 'boolean', required: true },
                 openai: { dataType: 'boolean', required: true },
+                bedrock: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -44761,6 +45229,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                bedrock: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -44769,6 +45245,22 @@ const models: TsoaRoute.Models = {
     AiProviderApiKeyHints: {
         dataType: 'refAlias',
         type: { ref: 'Record_ByoAiProvider.string-or-null_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrgBedrockConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                allowedModels: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                region: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiOrganizationSettings: {
@@ -44782,6 +45274,14 @@ const models: TsoaRoute.Models = {
                         { dataType: 'double' },
                         { dataType: 'enum', enums: [null] },
                     ],
+                },
+                bedrockConfig: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OrgBedrockConfig' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
                 },
                 providerApiKeyHints: {
                     ref: 'AiProviderApiKeyHints',
@@ -44866,6 +45366,11 @@ const models: TsoaRoute.Models = {
                 },
                 isTrial: { dataType: 'boolean', required: true },
                 isCopilotEnabled: { dataType: 'boolean', required: true },
+                bedrockModelOptions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AiModelOption' },
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -44944,35 +45449,18 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiOrganizationSettings_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Record_ByoAiProvider.string-or-null__': {
+    UpdateOrgBedrockConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                anthropic: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
+                apiKey: { dataType: 'string' },
+                allowedModels: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
                 },
-                google: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                openai: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                },
+                region: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -44981,7 +45469,37 @@ const models: TsoaRoute.Models = {
     UpdateAiProviderApiKeys: {
         dataType: 'refAlias',
         type: {
-            ref: 'Partial_Record_ByoAiProvider.string-or-null__',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                bedrock: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'UpdateOrgBedrockConfig' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                openai: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                google: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                anthropic: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+            },
             validators: {},
         },
     },
@@ -50858,6 +51376,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['renameResources'] },
                 { dataType: 'enum', enums: ['materializePreAggregate'] },
                 { dataType: 'enum', enums: ['cleanQueryHistory'] },
+                { dataType: 'enum', enums: ['cleanAiUsageLedger'] },
                 { dataType: 'enum', enums: ['downloadAsyncQueryResults'] },
                 { dataType: 'enum', enums: ['syncSlackChannels'] },
                 { dataType: 'enum', enums: ['generateSlackChannelSyncJobs'] },
@@ -62764,73 +63283,28 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'union',
-                subSchemas: [
-                    { ref: 'BigNumberConfig' },
-                    { ref: 'CartesianChartConfig' },
-                    { ref: 'CustomVisConfig' },
-                    { ref: 'PieChartConfig' },
-                    { ref: 'FunnelChartConfig' },
-                    { ref: 'TableChartConfig' },
-                    { ref: 'TreemapChartConfig' },
-                    { ref: 'GaugeChartConfig' },
-                    { ref: 'MapChartConfig' },
-                    { ref: 'SankeyChartConfig' },
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            config: {
-                                dataType: 'intersection',
-                                subSchemas: [
-                                    {
-                                        dataType: 'nestedObjectLiteral',
-                                        nestedProperties: {
-                                            optionValues: {
-                                                ref: 'DataAppVizOptionValues',
-                                            },
-                                            fieldMapping: {
-                                                ref: 'Record_string.string_',
-                                                required: true,
-                                            },
-                                        },
-                                    },
-                                    {
-                                        dataType: 'nestedObjectLiteral',
-                                        nestedProperties: {
-                                            dataAppVizUuid: {
-                                                dataType: 'string',
-                                            },
-                                            dataAppVizSlug: {
-                                                dataType: 'string',
-                                            },
-                                        },
-                                    },
-                                ],
-                            },
-                            type: {
-                                ref: 'ChartType.DATA_APP_VIZ',
-                                required: true,
-                            },
-                        },
-                    },
-                ],
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentChartConfig: {
+    ChartAsCodeConfig_DataAppVizChartConfigAsCode_: {
         dataType: 'refAlias',
         type: {
-            ref: 'ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___',
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'BigNumberConfig' },
+                { ref: 'CartesianChartConfig' },
+                { ref: 'CustomVisConfig' },
+                { ref: 'PieChartConfig' },
+                { ref: 'FunnelChartConfig' },
+                { ref: 'TableChartConfig' },
+                { ref: 'TreemapChartConfig' },
+                { ref: 'GaugeChartConfig' },
+                { ref: 'MapChartConfig' },
+                { ref: 'SankeyChartConfig' },
+                { ref: 'DataAppVizChartConfigAsCode' },
+            ],
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_':
+    'Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_':
         {
             dataType: 'refAlias',
             type: {
@@ -62861,7 +63335,10 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    chartConfig: { ref: 'DocumentChartConfig', required: true },
+                    chartConfig: {
+                        ref: 'ChartAsCodeConfig_DataAppVizChartConfigAsCode_',
+                        required: true,
+                    },
                     pivotConfig: {
                         dataType: 'union',
                         subSchemas: [
@@ -62919,7 +63396,7 @@ const models: TsoaRoute.Models = {
     SemanticChartAsCode: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_',
+            ref: 'Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_',
             validators: {},
         },
     },
@@ -81458,6 +81935,182 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getDocumentDataAppVizRenderMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            dataType: 'string',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        cellIndex: {
+            in: 'path',
+            name: 'cellIndex',
+            required: true,
+            dataType: 'double',
+        },
+        documentVersionUuid: {
+            in: 'query',
+            name: 'documentVersionUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/documents/:documentUuid/cells/:cellIndex/render-metadata',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.getDocumentDataAppVizRenderMetadata,
+        ),
+
+        async function AppGenerateController_getDocumentDataAppVizRenderMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getDocumentDataAppVizRenderMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDocumentDataAppVizRenderMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getDocumentDataAppVizPreviewToken: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            dataType: 'string',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        cellIndex: {
+            in: 'path',
+            name: 'cellIndex',
+            required: true,
+            dataType: 'double',
+        },
+        version: {
+            in: 'path',
+            name: 'version',
+            required: true,
+            dataType: 'double',
+        },
+        documentVersionUuid: {
+            in: 'query',
+            name: 'documentVersionUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/documents/:documentUuid/cells/:cellIndex/versions/:version/preview-token',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.getDocumentDataAppVizPreviewToken,
+        ),
+
+        async function AppGenerateController_getDocumentDataAppVizPreviewToken(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getDocumentDataAppVizPreviewToken,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDocumentDataAppVizPreviewToken',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsAppGenerateController_clarifyApp: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -83880,6 +84533,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listDecisions',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiController_generateGoogleSheetsExtensionReportDraft: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'GenerateGoogleSheetsExtensionReportDraftRequest',
+        },
+    };
+    app.post(
+        '/api/v1/ai/:projectUuid/google-sheets-extension/report-draft',
+        ...fetchMiddlewares<RequestHandler>(AiController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiController.prototype.generateGoogleSheetsExtensionReportDraft,
+        ),
+
+        async function AiController_generateGoogleSheetsExtensionReportDraft(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiController_generateGoogleSheetsExtensionReportDraft,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiController>(AiController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'generateGoogleSheetsExtensionReportDraft',
                     controller,
                     response,
                     next,

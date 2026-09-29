@@ -109,6 +109,7 @@ export type DbUserDetails = {
     is_tracking_anonymized: boolean;
     is_marketing_opted_in: boolean;
     email: string | undefined;
+    is_verified?: boolean;
     organization_uuid?: string;
     organization_name?: string;
     organization_created_at?: Date;
@@ -239,7 +240,7 @@ export class UserModel {
         const cacheKey = `${userUuid}::${organizationUuid}`;
         // Try to get from cache first
         const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
-        if (cachedUser?.isSetupComplete) {
+        if (cachedUser?.isSetupComplete && cachedUser.isEmailVerified) {
             // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
         }
@@ -249,7 +250,7 @@ export class UserModel {
             organizationUuid,
         );
         // Store in cache
-        if (sessionUser.isSetupComplete) {
+        if (sessionUser.isSetupComplete && sessionUser.isEmailVerified) {
             sessionUserCache?.set(cacheKey, sessionUser);
         }
         return { sessionUser, cacheHit: false };
@@ -1540,6 +1541,7 @@ export class UserModel {
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
             ...lightdashUser,
+            isEmailVerified: user.is_verified === true,
         };
     }
 
@@ -1716,6 +1718,7 @@ export class UserModel {
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
+            isEmailVerified: user.is_verified === true,
         };
     }
 
@@ -1742,6 +1745,7 @@ export class UserModel {
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
+            isEmailVerified: user.is_verified === true,
         };
     }
 
@@ -1764,6 +1768,7 @@ export class UserModel {
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
             userId: user.user_id,
+            isEmailVerified: user.is_verified === true,
         };
     }
 
@@ -1882,6 +1887,7 @@ export class UserModel {
                 abilityRules: abilityBuilder.rules,
                 ability: abilityBuilder.build(),
                 userId: row.user_id,
+                isEmailVerified: row.is_verified === true,
             },
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),

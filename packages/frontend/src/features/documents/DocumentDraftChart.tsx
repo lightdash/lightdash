@@ -1,4 +1,4 @@
-import { ChartType, type SemanticChartAsCode } from '@lightdash/common';
+import { type SemanticChartAsCode } from '@lightdash/common';
 import { useMemo, type ReactNode } from 'react';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { buildQueryArgs } from '../../hooks/explorer/buildQueryArgs';
@@ -23,18 +23,12 @@ const DocumentDraftChart = ({
     actions,
 }: Props) => {
     const { canViewExplore } = useContextMenuPermissions({ projectUuid });
-    const version = useMemo(
-        () =>
-            chart.chartConfig.type === ChartType.DATA_APP_VIZ
-                ? null
-                : getDocumentChartVersion(chart),
-        [chart],
-    );
+    const version = useMemo(() => getDocumentChartVersion(chart), [chart]);
     const explore = useExploreByProjectUuid(chart.tableName, projectUuid, {
-        enabled: canViewExplore && version !== null,
+        enabled: canViewExplore,
     });
     const queryArgs = useMemo(() => {
-        if (!version || !canViewExplore) {
+        if (!canViewExplore) {
             return null;
         }
         return buildQueryArgs({

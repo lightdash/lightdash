@@ -243,6 +243,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Map values to a configurable two-to-five-colour gradient with automatic or fixed bounds.',
         wiring: 'Declare a gradient config option, then call createGradientColorScale(context.options[name], values) once per render with the numeric values the chart wants the scale to cover. Call the returned function for each mark and provide a fallback for undefined colours.',
     },
+    {
+        key: 'viz-subtotals',
+        appliesTo: ['chart_type'],
+        label: 'Expandable subtotals',
+        description:
+            'Show aggregated rows for each level of a hierarchy, such as totals per country above the cities in it.',
+        wiring: 'Declare hierarchy: { field: "<dimension slot name>" } for a multiple dimension slot. useVizContext().rows stays at the most detailed level; when useVizContext().subtotals.enabled, call subtotals.get({ level, parentValues }) for the aggregated rows of a shallower level, where level 0 with an empty parentValues array returns the top level. Subtotals belong to the rows they were fetched for: discard them and fetch again whenever rows change.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

@@ -30,6 +30,7 @@ const renderCanvas = (
             isClarifyRoundOpen={false}
             clarifierUnavailable={false}
             previewContext={null}
+            onVizSubtotalsIntent={null}
             configurePanel={<div>Options panel</div>}
             onPickExample={null}
             onSdkManifest={vi.fn()}

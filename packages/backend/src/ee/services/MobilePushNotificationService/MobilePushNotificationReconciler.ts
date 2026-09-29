@@ -1,3 +1,4 @@
+import { isAiAppThreadCreatedFrom } from '@lightdash/common';
 import {
     type LightdashAnalytics,
     type MobilePushNotificationEvent,
@@ -301,7 +302,7 @@ export class MobilePushNotificationReconciler {
             ownership.projectUuid !== activity.projectUuid ||
             ownership.agentUuid !== activity.agentUuid ||
             ownership.ownerUserUuid !== activity.userUuid ||
-            ownership.createdFrom !== 'web_app' ||
+            !isAiAppThreadCreatedFrom(ownership.createdFrom) ||
             ownership.ownerIsServiceAccount
         ) {
             await this.notificationStore.deleteLiveActivity({

@@ -63,6 +63,7 @@ const source: SavedChartPreviewRun = {
         status: 'ready',
         chartName: 'Orders',
         spaceName: null,
+        queryUuid: 'source-query',
         itemsMap,
         columns: Object.values(itemsMap),
         rows: [],
@@ -153,15 +154,21 @@ const renderPreview = () =>
 
 describe('useSavedChartBindingPreview', () => {
     beforeEach(() => {
-        vi.mocked(executeSavedChartPreviewQuery)
-            .mockReset()
-            .mockResolvedValue({ rows: [], itemsMap, pivotDetails: null });
+        vi.mocked(executeSavedChartPreviewQuery).mockReset().mockResolvedValue({
+            queryUuid: 'bound-query',
+            rows: [],
+            itemsMap,
+            pivotDetails: null,
+        });
     });
     it('reuses the native backend pivot when it matches the bindings', async () => {
         const { result } = renderPreview();
         await waitFor(() => expect(result.current.data.status).toBe('ready'));
         expect(executeSavedChartPreviewQuery).not.toHaveBeenCalled();
         expect(result.current.fieldMapping).toEqual(originalMapping);
+        expect(result.current.data).toMatchObject({
+            queryUuid: 'source-query',
+        });
     });
     it('debounces regrouping the same fields and keeps the applied mapping while pending', async () => {
         const { result, rerender } = renderPreview();
@@ -192,6 +199,10 @@ describe('useSavedChartBindingPreview', () => {
             }),
         );
         await waitFor(() => expect(result.current.fieldMapping).toEqual(next));
+        expect(result.current.data).toMatchObject({
+            status: 'ready',
+            queryUuid: 'bound-query',
+        });
     });
     it('requests flat backend results when the series is cleared', async () => {
         const { result, rerender } = renderPreview();

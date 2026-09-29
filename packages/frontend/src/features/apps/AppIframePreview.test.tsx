@@ -31,6 +31,7 @@ type HarnessProps = {
     forceColorScheme?: 'light' | 'dark';
     previewToken?: string;
     src?: string;
+    chartContext?: { savedChartUuid: string; chartVersionUuid?: string };
 };
 
 const Harness: FC<HarnessProps> = ({
@@ -38,6 +39,7 @@ const Harness: FC<HarnessProps> = ({
     forceColorScheme,
     previewToken = 'tok',
     src = SRC,
+    chartContext,
 }) => (
     <MantineProvider forceColorScheme={hostColorScheme}>
         <AppIframePreview
@@ -48,6 +50,7 @@ const Harness: FC<HarnessProps> = ({
             appUuid="a"
             identityKey="a:1"
             forceColorScheme={forceColorScheme}
+            chartContext={chartContext}
         />
     </MantineProvider>
 );
@@ -63,6 +66,17 @@ describe('AppIframePreview', () => {
         render(<Harness hostColorScheme="dark" />);
         expect(useAppSdkBridgeMock).toHaveBeenCalledWith(
             expect.objectContaining({ previewToken: 'tok' }),
+        );
+    });
+
+    it('passes host chart context to the bridge', () => {
+        const chartContext = {
+            savedChartUuid: 'saved-chart-uuid',
+            chartVersionUuid: 'chart-version-uuid',
+        };
+        render(<Harness hostColorScheme="light" chartContext={chartContext} />);
+        expect(useAppSdkBridgeMock).toHaveBeenCalledWith(
+            expect.objectContaining({ chartContext }),
         );
     });
 

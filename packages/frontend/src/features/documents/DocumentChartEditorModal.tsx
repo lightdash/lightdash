@@ -1,14 +1,9 @@
-import {
-    ChartType,
-    deepEqual,
-    type SemanticChartAsCode,
-} from '@lightdash/common';
+import { deepEqual, type SemanticChartAsCode } from '@lightdash/common';
 import { Button, Group, Stack, TextInput } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useState } from 'react';
 import { Provider } from 'react-redux';
 import { useBeforeUnload } from 'react-router';
-import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { useMantineModalClose } from '../../components/common/MantineModal/useMantineModalClose';
 import Page from '../../components/common/Page/Page';
@@ -77,20 +72,12 @@ const EditorSession = ({
             getQuerySignature(initialVersion),
             getQuerySignature(version),
         );
-    const unsupported = version.chartConfig.type === ChartType.DATA_APP_VIZ;
     const rightSidebar = useChartGalleryRightSidebar({ enabled: true });
     const applyChart = form.onSubmit(({ name, description }) => {
-        if (!isValidQuery || unsupported || !name.trim()) {
+        if (!isValidQuery || !name.trim()) {
             return;
         }
-        const result = getDocumentChartFromVersion(
-            version,
-            name.trim(),
-            description,
-        );
-        if (result) {
-            onApply(result);
-        }
+        onApply(getDocumentChartFromVersion(version, name.trim(), description));
     });
     useBeforeUnload((event) => {
         if (dirty) {
@@ -113,11 +100,7 @@ const EditorSession = ({
                     <Button
                         type="submit"
                         form={CHART_FORM_ID}
-                        disabled={
-                            !isValidQuery ||
-                            !form.values.name.trim() ||
-                            unsupported
-                        }
+                        disabled={!isValidQuery || !form.values.name.trim()}
                     >
                         Apply to Document
                     </Button>
@@ -160,13 +143,6 @@ const EditorSession = ({
                                 <RefreshButton />
                             </Group>
                         </form>
-                        {unsupported && (
-                            <Callout variant="warning">
-                                Custom chart types are not supported in
-                                Documents. Choose a built-in chart type to
-                                apply.
-                            </Callout>
-                        )}
                         <Explorer hideHeader />
                     </Stack>
                 </Page>

@@ -3,6 +3,7 @@ import type {
     AiCallFeature,
     AiCallRuntimeContextKey,
     AiKeyManagement,
+    AiUsageChannel,
 } from '../../../../analytics/aiUsage';
 
 export type { AiCallFeature };
@@ -26,6 +27,10 @@ export type AiCallAttribution = {
     provider?: string | null;
     // Whether the call ran on a Lightdash-managed key or the org's own key.
     keyManagement?: AiKeyManagement | null;
+    // Surface the call's thread was created from.
+    channel?: AiUsageChannel | null;
+    // The host application's id for an embedded viewer.
+    externalUserId?: string | null;
 };
 
 /**
@@ -69,7 +74,7 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
      * The key origin for the call. This field is necessary, unlike the optional
      * `keyManagement` on AiCallAttribution. Use a Lightdash-managed key, a
      * self-managed (BYO) key, or null. Use null only for a path that does not
-     * record the key origin, for example embeddings or internal evaluations.
+     * record the key origin.
      */
     keyManagement: AiKeyManagement | null;
     /**
@@ -99,7 +104,16 @@ export const ATTRIBUTION_KEYS = [
     'model',
     'provider',
     'keyManagement',
+    'channel',
+    'externalUserId',
 ] as const satisfies readonly (keyof AiCallAttribution)[];
+
+/**
+ * Attribution that is the customer's own data. It travels in the runtime
+ * context so `ai.usage` can record it, and is withheld from telemetry providers.
+ */
+const CUSTOMER_ONLY_ATTRIBUTION_KEYS: readonly (typeof ATTRIBUTION_KEYS)[number][] =
+    ['externalUserId'];
 
 /**
  * Attribution dimensions that may be sent to telemetry providers.
@@ -119,7 +133,9 @@ export const ATTRIBUTION_KEYS = [
  */
 const TELEMETRY_REPORTED_KEYS: AiCallRuntimeContextKey[] = [
     'feature',
-    ...ATTRIBUTION_KEYS,
+    ...ATTRIBUTION_KEYS.filter(
+        (key) => !CUSTOMER_ONLY_ATTRIBUTION_KEYS.includes(key),
+    ),
 ];
 
 /**

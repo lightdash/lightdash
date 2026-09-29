@@ -1,4 +1,5 @@
 export * from './AiAgent';
+export * from './aiCredits';
 export * from './agentOnboarding/types';
 export * from './aiDeepResearch/evidence';
 export * from './aiDeepResearch/markdown';
@@ -17,6 +18,7 @@ export * from './apps/deliveryCapture';
 export * from './apps/elementReference';
 export * from './apps/sdkFeatures';
 export * from './apps/dataAppVizSchemaChanges';
+export * from './apps/dataAppVizChartConfigValidation';
 export * from './apps/dataAppVizFieldMapping';
 export * from './apps/types';
 export * from './apps/chartTypeIcons';

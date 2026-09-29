@@ -38,6 +38,8 @@ export type SavedChartPreviewData =
               | null;
           chartName: string | null;
           spaceName: string | null;
+          /** The executed query that produced these rows. */
+          queryUuid: string;
           rows: ResultRow[];
           itemsMap: ItemsMap;
           /** Result columns, dimensions before metrics. */
@@ -141,6 +143,7 @@ export const useSavedChartPreviewData = ({
                     metricQuery:
                         data.metricQuery ?? savedChart.data.metricQuery,
                 },
+                queryUuid: data.queryUuid,
                 rows: data.rows,
                 itemsMap: data.itemsMap,
                 columns: [...dimensions, ...metrics],

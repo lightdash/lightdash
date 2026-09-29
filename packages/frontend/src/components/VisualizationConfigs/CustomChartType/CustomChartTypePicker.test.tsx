@@ -44,7 +44,7 @@ const setData = (data: DataAppViz[]) => {
 };
 
 type Handlers = {
-    onSelectVega?: () => void;
+    onSelectVega?: (() => void) | null;
     onSelectProjectType?: (dataAppViz: DataAppViz) => void;
     onClear?: (() => void) | null;
     onCreateNew?: (() => void) | null;
@@ -68,7 +68,11 @@ const render = (
             }
             selectedDataAppViz={options.selectedDataAppViz ?? null}
             disabled={false}
-            onSelectVega={handlers.onSelectVega ?? vi.fn()}
+            onSelectVega={
+                handlers.onSelectVega === undefined
+                    ? vi.fn()
+                    : handlers.onSelectVega
+            }
             onSelectProjectType={handlers.onSelectProjectType ?? vi.fn()}
             onClear={
                 handlers.onClear === undefined ? vi.fn() : handlers.onClear
@@ -106,6 +110,16 @@ describe('CustomChartTypePicker', () => {
         expect(screen.getByText('Built in')).toBeDefined();
         expect(screen.getByText('Vega (JSON editor)')).toBeDefined();
         expect(screen.getByText('Custom')).toBeDefined();
+        expect(screen.getByText('Bar race')).toBeDefined();
+    });
+
+    it('hides the built-in Vega option when it is not offered', () => {
+        setData([makeDataAppViz({ dataAppVizUuid: 'a', name: 'Bar race' })]);
+        render({ onSelectVega: null }, { selected: null });
+        openDropdown();
+
+        expect(screen.queryByText('Built in')).toBeNull();
+        expect(screen.queryByText('Vega (JSON editor)')).toBeNull();
         expect(screen.getByText('Bar race')).toBeDefined();
     });
 

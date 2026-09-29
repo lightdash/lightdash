@@ -3,6 +3,7 @@ import {
     AiOrganizationSettings,
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
+    BYO_AI_API_KEY_PROVIDERS,
     BYO_AI_PROVIDERS,
     CreateAiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
@@ -36,7 +37,15 @@ const storedAiOrgProviderApiKeyFields = {
     anthropic: z.string().optional(),
     google: z.string().optional(),
     openai: z.string().optional(),
-} satisfies Record<ByoAiProvider, z.ZodOptional<z.ZodString>>;
+    // Bedrock needs a region alongside the key to address an inference profile.
+    bedrock: z
+        .object({
+            apiKey: z.string().min(1),
+            region: z.string().min(1),
+            allowedModels: z.array(z.string()).min(1),
+        })
+        .optional(),
+} satisfies Record<ByoAiProvider, z.ZodTypeAny>;
 
 // Keep known provider keys strongly typed and exhaustive, but strip unknown
 // future-provider keys so mixed-version deploys do not invalidate the whole blob.
@@ -61,12 +70,14 @@ const emptyProviderApiKeyHints = (): AiProviderApiKeyHints => ({
     anthropic: null,
     google: null,
     openai: null,
+    bedrock: null,
 });
 
 const emptyProviderApiKeysSet = (): AiProviderApiKeysSet => ({
     anthropic: false,
     google: false,
     openai: false,
+    bedrock: false,
 });
 
 export const applyProviderApiKeyUpdates = (
@@ -74,7 +85,7 @@ export const applyProviderApiKeyUpdates = (
     updates: UpdateAiProviderApiKeys,
 ): AiOrgProviderApiKeys => {
     const next: AiOrgProviderApiKeys = { ...existing };
-    BYO_AI_PROVIDERS.forEach((provider) => {
+    BYO_AI_API_KEY_PROVIDERS.forEach((provider) => {
         const update = updates[provider];
         if (update === undefined) return;
         if (update === null) {
@@ -87,6 +98,28 @@ export const applyProviderApiKeyUpdates = (
         }
         next[provider] = trimmed;
     });
+
+    const { bedrock } = updates;
+    if (bedrock !== undefined) {
+        if (bedrock === null) {
+            delete next.bedrock;
+        } else {
+            // An omitted key keeps the stored one, so region and model edits
+            // don't require re-entering the key.
+            const apiKey =
+                bedrock.apiKey === undefined
+                    ? existing.bedrock?.apiKey
+                    : bedrock.apiKey.trim();
+            if (!apiKey) {
+                throw new ParameterError('API key for bedrock cannot be empty');
+            }
+            next.bedrock = {
+                apiKey,
+                region: bedrock.region,
+                allowedModels: bedrock.allowedModels,
+            };
+        }
+    }
     return next;
 };
 
@@ -104,10 +137,13 @@ export const buildProviderApiKeyHints = (
 ): AiProviderApiKeyHints | null => {
     if (!BYO_AI_PROVIDERS.some((provider) => keys[provider])) return null;
     const hints = emptyProviderApiKeyHints();
-    BYO_AI_PROVIDERS.forEach((provider) => {
+    BYO_AI_API_KEY_PROVIDERS.forEach((provider) => {
         const key = keys[provider];
         hints[provider] = key ? buildProviderApiKeyHint(key) : null;
     });
+    hints.bedrock = keys.bedrock
+        ? buildProviderApiKeyHint(keys.bedrock.apiKey)
+        : null;
     return hints;
 };
 
@@ -194,6 +230,12 @@ export class AiOrganizationSettingsModel {
             providerApiKeyHints: normalizeProviderApiKeyHints(
                 db.provider_api_key_hints,
             ),
+            bedrockConfig: keys.bedrock
+                ? {
+                      region: keys.bedrock.region,
+                      allowedModels: keys.bedrock.allowedModels,
+                  }
+                : null,
             threadRetentionHours: db.thread_retention_hours,
         };
     }

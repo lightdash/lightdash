@@ -29,6 +29,8 @@ const FIELD_CHANGE_DEBOUNCE_MS = 400;
 
 /** A finished run, in the shape the saved-chart preview produces. */
 export type LivePreviewRun = {
+    /** The executed query that produced these rows. */
+    queryUuid: string;
     rows: ResultRow[];
     itemsMap: ItemsMap;
     /** Result columns, dimensions before metrics. */
@@ -298,6 +300,7 @@ export const useExplorePreviewData = ({
         return {
             run: {
                 status: 'ready',
+                queryUuid: data.queryUuid,
                 rows: data.rows,
                 itemsMap: data.itemsMap,
                 columns: [...dimensions, ...metrics],

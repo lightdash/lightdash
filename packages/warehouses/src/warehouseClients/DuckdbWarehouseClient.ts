@@ -73,6 +73,7 @@ type DuckdbConnection = {
         values?: AnyType[] | Record<string, AnyType>,
     ) => Promise<DuckdbStreamResult>;
     extractStatements: (sql: string) => Promise<DuckdbExtractedStatements>;
+    getTableNames: (sql: string, qualified: boolean) => readonly string[];
     interrupt: () => void;
     closeSync?: () => void;
     disconnectSync?: () => void;
@@ -734,9 +735,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.sharedResourceLimits = isParquet
             ? {
                   memoryLimit: '256MB',
-                  // Remote Parquet scans are I/O-bound. Overlap footer and
-                  // column reads; this limit belongs only to the private reader.
-                  threads: 32,
+                  // Overlap remote reads without exhausting the memory budget
+                  // with per-thread scan and aggregation buffers.
+                  threads: 4,
                   ...options?.sharedResourceLimits,
               }
             : options?.sharedResourceLimits;
@@ -983,6 +984,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private static async bootstrapQuerySession(
         db: DuckdbConnection,
         client: DuckdbWarehouseClient,
+        querySql?: string,
     ): Promise<DuckdbBootstrapTiming> {
         const bootstrapStart = performance.now();
         const httpfsStart = performance.now();
@@ -1028,7 +1030,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
 
         if (client.parquetConfig) {
-            await client.bootstrapParquetViews(db);
+            await client.bootstrapParquetViews(db, querySql);
         }
 
         if (client.ducklakeConfig) {
@@ -1066,7 +1068,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         };
     }
 
-    private async bootstrapParquetViews(db: DuckdbConnection): Promise<void> {
+    private async bootstrapParquetViews(
+        db: DuckdbConnection,
+        querySql?: string,
+    ): Promise<void> {
         const source = await this.parquetConfig!.resolveSource();
         const escape = DuckdbWarehouseClient.escapeDuckdbString;
         const literal = (value: string) => `'${escape(value)}'`;
@@ -1186,6 +1191,16 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const files = source.tables.flatMap(({ urls }) => urls);
         await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
         await db.run('SET enable_external_access = false;');
+        // Binding a remote view reads its Parquet footers. Avoid opening every
+        // retained stream for a query that only needs one model and its joins.
+        // Resolve references after restricting file access; keep the full set
+        // when DuckDB cannot resolve them (for example, an unbound USING join).
+        const referencedTables = querySql
+            ? new Set(db.getTableNames(querySql, false))
+            : undefined;
+        const tables = source.tables.filter(
+            ({ name }) => !referencedTables?.size || referencedTables.has(name),
+        );
         for (const { name, columns } of source.emptyTables ?? []) {
             // eslint-disable-next-line no-await-in-loop
             await db.run(
@@ -1193,7 +1208,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         // eslint-disable-next-line no-restricted-syntax
-        for (const { name, urls } of source.tables) {
+        for (const { name, urls } of tables) {
             // eslint-disable-next-line no-await-in-loop
             await db.run(
                 `CREATE VIEW "${name}" AS SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true);`,
@@ -1823,6 +1838,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private async withEphemeralQuerySession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
+        querySql?: string,
     ): Promise<T> {
         const sessionStart = performance.now();
 
@@ -1839,6 +1855,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 await DuckdbWarehouseClient.bootstrapQuerySession(
                     connection,
                     this,
+                    querySql,
                 );
 
             const queryStart = performance.now();
@@ -1936,6 +1953,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             phase: WarehouseQueryPhase,
             durationMs: number,
         ) => void,
+        querySql?: string,
     ): Promise<T> {
         const releaseOrganizationConcurrency =
             !this.embeddedConfig &&
@@ -1959,7 +1977,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         try {
             if (this.parquetConfig) {
                 try {
-                    return await this.withEphemeralQuerySession(callback);
+                    return await this.withEphemeralQuerySession(
+                        callback,
+                        querySql,
+                    );
                 } catch (error) {
                     if (error instanceof ParameterError) throw error;
                     throw new WarehouseQueryError(
@@ -2645,6 +2666,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             options?.tags?.organization_uuid,
             () => !hasEmittedRows,
             reportPhase,
+            sql,
         );
     }
 

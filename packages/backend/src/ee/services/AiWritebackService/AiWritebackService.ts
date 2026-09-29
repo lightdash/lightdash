@@ -71,6 +71,7 @@ import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { selectWritebackSource } from '../ai/decisions/writebackSource';
+import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import {
     anthropicClaudeCodeAllowedHosts,
@@ -247,6 +248,7 @@ type AiWritebackServiceDeps = {
     projectService: ProjectService;
     userModel: UserModel;
     schedulerClient: CommercialSchedulerClient;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 /** One repository in the authorized source-code set, plus its scoped token. */
@@ -474,6 +476,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
     private readonly aiWritebackRunModel: AiWritebackRunModel;
@@ -529,6 +533,7 @@ export class AiWritebackService extends BaseService {
         projectService,
         userModel,
         schedulerClient,
+        orgAiCopilotConfigResolver,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -536,6 +541,7 @@ export class AiWritebackService extends BaseService {
         this.projectModel = projectModel;
         this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.featureFlagModel = featureFlagModel;
+        this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.aiWritebackRunModel = aiWritebackRunModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
@@ -1759,6 +1765,7 @@ export class AiWritebackService extends BaseService {
      *   branch (updates the existing PR), pause the sandbox again.
      */
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
+        await this.assertWritebackProviderSupported(args.user.organizationUuid);
         return this.runCodingAgent(args, this.dbtWritebackConfig());
     }
 
@@ -1800,6 +1807,7 @@ export class AiWritebackService extends BaseService {
         updatedAt: Date;
     }> {
         const { user, projectUuid, aiThreadUuid, source } = args;
+        await this.assertWritebackProviderSupported(user.organizationUuid);
         if (!isUserWithOrg(user)) {
             throw new WritebackAccessError(
                 'no_org',
@@ -2051,10 +2059,32 @@ export class AiWritebackService extends BaseService {
      * {@link run} wires the dbt-writeback config; the general `editRepo` agent
      * wires its own lean, no-Bash config.
      */
+    /**
+     * Repository editing builds Claude Code credentials from the instance
+     * config and picks its dbt source through the instance decision provider,
+     * neither of which is organization-aware. Rather than send prompts and
+     * repository context outside a Bedrock org's region, refuse until writeback
+     * can run on the organization's own Bedrock configuration.
+     */
+    private async assertWritebackProviderSupported(
+        organizationUuid: string | undefined,
+    ): Promise<void> {
+        if (
+            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                organizationUuid,
+            )
+        ) {
+            throw new ForbiddenError(
+                'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
+            );
+        }
+    }
+
     private async runCodingAgent(
         args: AiWritebackRunArgs,
         config: CodingAgentConfig,
     ): Promise<AiWritebackRunResult> {
+        await this.assertWritebackProviderSupported(args.user.organizationUuid);
         const {
             user,
             projectUuid,
@@ -3060,14 +3090,19 @@ export class AiWritebackService extends BaseService {
             };
         }
 
-        const decisions = await resolveAiDecisionClient(
-            this.lightdashConfig.ai?.decisions,
-            () =>
-                this.featureFlagModel.get({
-                    user: { organizationUuid },
-                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                }),
-        );
+        const decisions =
+            (await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                organizationUuid,
+            ))
+                ? undefined
+                : await resolveAiDecisionClient(
+                      this.lightdashConfig.ai?.decisions,
+                      () =>
+                          this.featureFlagModel.get({
+                              user: { organizationUuid },
+                              featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                          }),
+                  );
         if (decisions) {
             const options = candidates.map(
                 AiWritebackService.toDbtSourceOption,
@@ -4445,6 +4480,7 @@ export class AiWritebackService extends BaseService {
      * written to the coding-agent write audit (allowed and denied alike).
      */
     async runEditRepo(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
+        await this.assertWritebackProviderSupported(args.user.organizationUuid);
         this.logger.info('AI coding agent run requested', {
             event: 'ai_coding_agent.run.requested',
             projectUuid: args.projectUuid,

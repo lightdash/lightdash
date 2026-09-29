@@ -70,28 +70,34 @@ const getMockTotalError = (kind: CalculateTotalKind) => {
 export const isTotalsNotSupportedError = (error: unknown): boolean =>
     isApiError(error) && error.error.name === 'NotSupportedError';
 
-// Resolves to null when the backend reports there is nothing to total.
-const startCalculateTotalQuery = async ({
+const requestCalculateTotalQuery = async ({
     projectUuid,
     sourceQueryUuid,
     kind,
     subtotalDimensions,
     invalidateCache,
-}: StartCalculateTotalArgs): Promise<ApiExecuteAsyncMetricQueryResults | null> => {
+}: StartCalculateTotalArgs): Promise<ApiExecuteAsyncMetricQueryResults> => {
     const mockError = getMockTotalError(kind);
     if (mockError) return Promise.reject(mockError);
 
+    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+        url: `/projects/${projectUuid}/query/${sourceQueryUuid}/calculate-total`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify({
+            kind,
+            subtotalDimensions,
+            invalidateCache,
+        }),
+    });
+};
+
+// Resolves to null when the backend reports there is nothing to total.
+const startCalculateTotalQuery = async (
+    args: StartCalculateTotalArgs,
+): Promise<ApiExecuteAsyncMetricQueryResults | null> => {
     try {
-        return await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
-            url: `/projects/${projectUuid}/query/${sourceQueryUuid}/calculate-total`,
-            version: 'v2',
-            method: 'POST',
-            body: JSON.stringify({
-                kind,
-                subtotalDimensions,
-                invalidateCache,
-            }),
-        });
+        return await requestCalculateTotalQuery(args);
     } catch (error) {
         if (isTotalsNotSupportedError(error)) return null;
         throw error;
@@ -481,6 +487,38 @@ const fetchSubtotals = async (args: {
     );
 
     return Object.fromEntries(entries) as GroupedSubtotals;
+};
+
+// One subtotal level as formatted rows: a row per group, times series value
+// when the source query is pivoted. A refusal rejects with the backend's reason.
+export const fetchColumnSubtotalRows = async ({
+    projectUuid,
+    sourceQueryUuid,
+    subtotalDimensions,
+}: {
+    projectUuid: string;
+    sourceQueryUuid: string;
+    subtotalDimensions: string[];
+}): Promise<ResultRow[]> => {
+    const started = await requestCalculateTotalQuery({
+        projectUuid,
+        sourceQueryUuid,
+        kind: 'columnSubtotal',
+        subtotalDimensions,
+    });
+
+    const query = await pollForResults(projectUuid, started.queryUuid);
+    if (
+        query.status === QueryHistoryStatus.ERROR ||
+        query.status === QueryHistoryStatus.EXPIRED
+    ) {
+        throw new Error(query.error || 'Error computing subtotals');
+    }
+    if (query.status !== QueryHistoryStatus.READY) {
+        throw new Error('Unexpected query status while polling subtotals');
+    }
+
+    return fetchAllResultRows(projectUuid, started.queryUuid);
 };
 
 export const useAsyncCalculateSubtotals = ({

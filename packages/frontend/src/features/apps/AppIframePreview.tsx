@@ -4,6 +4,7 @@ import {
     type DataAppInsightsPayload,
     type DataAppVizContext,
     type DashboardFilters,
+    type ExternalFetchRequest,
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useComputedColorScheme } from '@mantine/core';
@@ -129,6 +130,8 @@ type Props = {
     dataAppVizContext?: DataAppVizContext;
     /** Enables the restricted bridge contract used by custom chart types. */
     dataAppVizMode?: boolean;
+    /** Host-owned saved chart identity for the external-connection proxy. */
+    chartContext?: ExternalFetchRequest['chartContext'];
     /** Rewrites the viz underlying-data virtual route into the real API
      *  request. Only set by DataAppVizRenderer when the capability is on. */
     rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
@@ -147,6 +150,9 @@ type Props = {
         intentBody: unknown,
         iframeRect: DOMRect | null,
     ) => { shown: boolean };
+    onVizSubtotalsIntent?: (
+        intentBody: unknown,
+    ) => Promise<{ rows: DataAppVizContext['rows'] }>;
     // Round-trip the app's `useUrlState` controls through the page's `?state=`
     // param. Leave unset where the page URL isn't the app's share surface
     // (dashboard tiles, screenshots).
@@ -213,10 +219,12 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             capabilities,
             dataAppVizContext,
             dataAppVizMode,
+            chartContext,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             onVizPointMenuIntent,
+            onVizSubtotalsIntent,
             urlStateSync,
             onSdkManifest,
             onVizRendered,
@@ -337,10 +345,12 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onExternalRequestEvent,
             dataAppVizContext,
             dataAppVizMode,
+            chartContext,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             onVizPointMenuIntent: handleVizPointMenuIntent,
+            onVizSubtotalsIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
             onVizRendered,

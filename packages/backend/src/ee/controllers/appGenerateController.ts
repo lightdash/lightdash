@@ -466,6 +466,77 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * @summary Get data app visualization render metadata for a Document chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/documents/{documentUuid}/cells/{cellIndex}/render-metadata',
+    )
+    @OperationId('getDocumentDataAppVizRenderMetadata')
+    async getDocumentDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: string,
+        @Path() documentUuid: UUID,
+        @Path() cellIndex: number,
+        @Query() documentVersionUuid: UUID,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().getDocumentDataAppVizRenderMetadata(
+                    req.account,
+                    projectUuid,
+                    {
+                        documentUuid,
+                        versionUuid: documentVersionUuid,
+                        cellIndex,
+                    },
+                    dataAppVizUuid,
+                ),
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization preview token for a Document chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/documents/{documentUuid}/cells/{cellIndex}/versions/{version}/preview-token',
+    )
+    @OperationId('getDocumentDataAppVizPreviewToken')
+    async getDocumentDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: string,
+        @Path() documentUuid: UUID,
+        @Path() cellIndex: number,
+        @Path() version: number,
+        @Query() documentVersionUuid: UUID,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        const token =
+            await this.getAppGenerateService().getDocumentDataAppVizPreviewToken(
+                req.account,
+                projectUuid,
+                {
+                    documentUuid,
+                    versionUuid: documentVersionUuid,
+                    cellIndex,
+                },
+                dataAppVizUuid,
+                version,
+            );
+        return {
+            status: 'ok',
+            results: { token },
+        };
+    }
+
+    /**
      * Pre-build clarifying questions. Returns 0–4 short questions whose
      * answers will materially refine the prompt before the (slow) build
      * pipeline starts. Stateless — answers are sent back as

@@ -14,6 +14,10 @@ import {
     UsageDimensionsRefresher,
     type DimensionRefreshSummary,
 } from './UsageDimensionsRefresher';
+import {
+    UsageUserActivityBuilder,
+    type UserActivitySummary,
+} from './UsageUserActivityBuilder';
 
 const RAW_KEY_PREFIX = 'events/raw/';
 const COMPACTED_KEY_PREFIX = 'events/compacted';
@@ -179,9 +183,12 @@ export class UsageEventsCompactor extends S3BaseClient {
         this.usageDimensionsModel = args.usageDimensionsModel;
     }
 
-    async run(
-        now: Date = new Date(),
-    ): Promise<CompactionRunSummary & { dimensions: DimensionRefreshSummary }> {
+    async run(now: Date = new Date()): Promise<
+        CompactionRunSummary & {
+            dimensions: DimensionRefreshSummary;
+            users: UserActivitySummary;
+        }
+    > {
         try {
             const summary = await this.compactEvents(now);
             const dimensions = await new UsageDimensionsRefresher(
@@ -194,7 +201,14 @@ export class UsageEventsCompactor extends S3BaseClient {
                     `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
                 );
             }
-            return { ...summary, dimensions };
+            const users = await new UsageUserActivityBuilder(
+                this.s3Config,
+            ).runAll(now);
+            if (users.failed > 0)
+                throw new Error(
+                    `User activity: ${users.failed} partitions failed; previous output retained`,
+                );
+            return { ...summary, dimensions, users };
         } finally {
             this.s3?.destroy();
         }

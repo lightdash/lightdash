@@ -6,6 +6,7 @@ import { type ChartTypeAppMeta } from '../../../features/chartTypes/builder/appM
 import ChartTypeBuilderWorkspace from '../../../features/chartTypes/builder/ChartTypeBuilderWorkspace';
 import { type ChartTypeBuilderWorkspaceState } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 import { type VizBuildRequest } from '../../../features/chartTypes/hooks/useDataAppVizBuild';
+import { type VizSubtotalSource } from '../../../features/chartTypes/hooks/useVizSubtotalSource';
 import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
 import { ConfigTabs as DataAppVizConfigTabs } from '../../VisualizationConfigs/DataAppVizConfig/DataAppVizConfigTabs';
 import { deriveAuthoringStatus } from './authoringStatus';
@@ -18,6 +19,8 @@ type Props = {
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     workspace: ChartTypeBuilderWorkspaceState;
     previewContext: DataAppVizContext | null;
+    /** Answers the preview's subtotal requests; null when it has none. */
+    onVizSubtotalsIntent: VizSubtotalSource['get'] | null;
     sampleRows: Record<string, string>[];
     buildContext?: VizBuildRequest['context'];
     /** The host's results-staleness warning; renders nothing while clean. */
@@ -33,6 +36,7 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
     upgrade,
     workspace,
     previewContext,
+    onVizSubtotalsIntent,
     sampleRows,
     buildContext,
     warning,
@@ -76,6 +80,7 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
                 projectUuid={projectUuid}
                 workspace={workspace}
                 previewContext={previewContext}
+                onVizSubtotalsIntent={onVizSubtotalsIntent}
                 sampleRows={sampleRows}
                 currentBuildContext={buildContext}
                 syncPreviewUrlState={false}

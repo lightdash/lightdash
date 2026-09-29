@@ -1,4 +1,5 @@
 import {
+    isAiAppThreadCreatedFrom,
     MOBILE_PUSH_LIVE_ACTIVITY_START_MAX_ATTEMPTS,
     NotFoundError,
     ParameterError,
@@ -379,7 +380,7 @@ export class MobilePushNotificationService {
                 ownership.projectUuid === args.projectUuid &&
                 ownership.agentUuid === args.agentUuid &&
                 ownership.ownerUserUuid === args.userUuid &&
-                ownership.createdFrom === 'web_app' &&
+                isAiAppThreadCreatedFrom(ownership.createdFrom) &&
                 !ownership.ownerIsServiceAccount &&
                 prompt?.organizationUuid === args.organizationUuid &&
                 prompt.projectUuid === args.projectUuid &&
@@ -850,7 +851,7 @@ export class MobilePushNotificationService {
             ownership.agentUuid !== args.agentUuid ||
             ownership.ownerUserUuid !== args.user.userUuid ||
             ownership.threadUuid !== args.threadUuid ||
-            ownership.createdFrom !== 'web_app' ||
+            !isAiAppThreadCreatedFrom(ownership.createdFrom) ||
             ownership.ownerIsServiceAccount ||
             prompt?.organizationUuid !== organizationUuid ||
             prompt.projectUuid !== args.projectUuid ||

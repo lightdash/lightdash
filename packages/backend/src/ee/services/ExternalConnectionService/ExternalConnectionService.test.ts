@@ -180,6 +180,8 @@ function buildService(opts: {
         allowedPrivateHostCidrs: {},
         externalConnectionModel: model as never,
         appModel: {} as never,
+        appGenerateService: {} as never,
+        embedService: {} as never,
         spacePermissionService: {
             resolveAccess: vi.fn().mockResolvedValue({
                 organizationUuid: orgUuid,

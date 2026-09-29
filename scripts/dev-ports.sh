@@ -10,6 +10,10 @@
 #
 # Registry location: ~/.lightdash/dev-instances/<instance-id>.json
 #
+# New claims start at slot 0. Set LD_SLOT_START, or write a number to
+# ~/.lightdash/slot-start, to give a machine its own port range: a remote dev
+# machine can then forward its ports to a laptop without colliding.
+#
 # Usage:
 #   dev-ports.sh claim [--instance-id NAME]   Claim a port slot (idempotent)
 #   dev-ports.sh release [--instance-id NAME] Release a port slot
@@ -26,6 +30,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 REGISTRY_DIR="$HOME/.lightdash/dev-instances"
+SLOT_START_FILE="$HOME/.lightdash/slot-start"
 
 # Shared service ports (fixed, single instance for all worktrees)
 SHARED_MINIO_PORT=9000
@@ -95,24 +100,38 @@ compute_ports() {
 }
 
 get_taken_slots() {
-    local slots=""
-    if [ -d "$REGISTRY_DIR" ]; then
-        for f in "$REGISTRY_DIR"/*.json; do
-            [ -f "$f" ] || continue
-            local s
-            s=$(python3 -c "import json; print(json.load(open('$f'))['slot'])" 2>/dev/null || true)
-            if [ -n "$s" ]; then
-                slots="$slots $s"
-            fi
-        done
+    python3 - "$REGISTRY_DIR" <<'PYTHON'
+import glob, json, os, sys
+slots = []
+for filename in glob.glob(os.path.join(sys.argv[1], '*.json')):
+    try:
+        with open(filename) as stream:
+            slots.append(str(json.load(stream)['slot']))
+    except (OSError, ValueError, KeyError):
+        pass
+print(' '.join(slots))
+PYTHON
+}
+
+first_slot() {
+    local start="${LD_SLOT_START:-}"
+    if [ -z "$start" ] && [ -f "$SLOT_START_FILE" ]; then
+        start=$(tr -d '[:space:]' < "$SLOT_START_FILE")
     fi
-    echo "$slots"
+    case "${start:-0}" in
+        *[!0-9]*)
+            echo "ERROR: slot start must be a whole number, got '$start'" >&2
+            return 1
+            ;;
+    esac
+    echo "${start:-0}"
 }
 
 find_next_slot() {
     local taken
     taken=$(get_taken_slots)
-    local slot=0
+    local slot
+    slot=$(first_slot) || return 1
     while true; do
         if ! echo "$taken" | grep -qw "$slot"; then
             echo "$slot"
@@ -124,10 +143,35 @@ find_next_slot() {
 
 check_port_available() {
     local port="$1"
-    if lsof -iTCP:"$port" -sTCP:LISTEN -P -n >/dev/null 2>&1; then
-        return 1
+    local output status candidate
+    if command -v lsof >/dev/null 2>&1; then
+        if output=$(lsof -iTCP:"$port" -sTCP:LISTEN -P -n -w 2>&1); then
+            return 1
+        else
+            status=$?
+        fi
+        if [ "$status" -eq 1 ] && [ -z "$output" ]; then
+            return 0
+        fi
+        echo "ERROR: lsof could not verify TCP ports (exit $status): $output" >&2
+        return 2
     fi
-    return 0
+    if command -v ss >/dev/null 2>&1; then
+        if output=$(ss -H -ltn 2>&1); then
+            for candidate in ${port//,/ }; do
+                if printf '%s\n' "$output" | awk -v port="$candidate" '$4 ~ (":" port "$") { found=1 } END { exit !found }'; then
+                    return 1
+                fi
+            done
+            return 0
+        else
+            status=$?
+        fi
+        echo "ERROR: ss could not verify TCP ports (exit $status): $output" >&2
+        return 2
+    fi
+    echo "ERROR: Cannot verify TCP ports: install lsof or ss (iproute2) before claiming a slot." >&2
+    return 2
 }
 
 validate_slot_ports() {
@@ -142,12 +186,9 @@ validate_slot_ports() {
         all_ports="$FRONTEND_PORT $all_ports"
     fi
 
-    for port in $all_ports; do
-        if ! check_port_available "$port"; then
-            return 1
-        fi
-    done
-    return 0
+    local port_list
+    port_list=$(printf '%s\n' $all_ports | paste -sd, -)
+    [ -n "$port_list" ] && check_port_available "$port_list"
 }
 
 write_instance_file() {
@@ -195,6 +236,10 @@ ENDJSON
 }
 
 cmd_claim() {
+    if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1; then
+        echo "ERROR: Cannot verify TCP ports: install lsof or ss (iproute2) before claiming a slot." >&2
+        return 1
+    fi
     local id
     id=$(get_instance_id)
     local file="$REGISTRY_DIR/${id}.json"
@@ -266,6 +311,12 @@ cmd_claim() {
         fi
         if validate_slot_ports "$slot"; then
             break
+        else
+            local probe_status=$?
+            if [ "$probe_status" -ne 1 ]; then
+                rmdir "$lockdir" 2>/dev/null || true
+                return "$probe_status"
+            fi
         fi
         echo "Slot $slot has port conflicts, trying next..." >&2
         slot=$((slot + 1))

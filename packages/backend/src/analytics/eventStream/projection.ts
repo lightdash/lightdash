@@ -8,7 +8,8 @@ export type StreamName =
     | 'ai_usage'
     | 'agent_steps'
     | 'data_app_events'
-    | 'export_events';
+    | 'export_events'
+    | 'mcp_tool_calls';
 
 /**
  * Common envelope stamped on every row pushed into the usage event stream.

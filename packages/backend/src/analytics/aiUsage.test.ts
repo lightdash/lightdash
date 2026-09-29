@@ -3,7 +3,9 @@ import {
     AiUsageEvent,
     embeddingModelUsageToTokens,
     emitAiUsage,
+    getAiUsageChannel,
     languageModelUsageToTokens,
+    registerAiUsageLedger,
     registerAiUsageTracker,
 } from './aiUsage';
 
@@ -136,6 +138,67 @@ describe('emitAiUsage', () => {
     afterEach(() => {
         vi.clearAllMocks();
         registerAiUsageTracker(() => {});
+        registerAiUsageLedger(async () => {});
+    });
+
+    const emitAgentCall = (outcome?: 'complete' | 'failed') =>
+        emitAiUsage(
+            {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    userUuid: 'user-1',
+                },
+            },
+            tokens,
+            outcome === undefined ? undefined : { outcome },
+        );
+
+    it('stamps each call with one id that the ledger and the analytics event share', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        const ledger = vi.fn<(event: AiUsageEvent) => Promise<void>>(
+            async () => {},
+        );
+        registerAiUsageTracker(track);
+        registerAiUsageLedger(ledger);
+
+        emitAgentCall();
+        emitAgentCall();
+
+        const ledgerIds = ledger.mock.calls.map(
+            ([event]) => event.properties.eventId,
+        );
+        const trackedIds = track.mock.calls.map(
+            ([event]) => event.properties.eventId,
+        );
+        expect(ledgerIds).toEqual(trackedIds);
+        expect(new Set(ledgerIds).size).toBe(2);
+    });
+
+    it('records the outcome the caller reports, defaulting to complete', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAgentCall();
+        emitAgentCall('failed');
+
+        expect(track.mock.calls[0][0].properties.outcome).toBe('complete');
+        expect(track.mock.calls[1][0].properties.outcome).toBe('failed');
+    });
+
+    it('keeps a failing ledger write out of the AI path', async () => {
+        registerAiUsageLedger(async () => {
+            throw new Error('connection reset');
+        });
+
+        expect(() => emitAgentCall()).not.toThrow();
+        await new Promise<void>((resolve) => {
+            setImmediate(resolve);
+        });
+        expect(Logger.warn).toHaveBeenCalledWith(
+            expect.stringContaining('connection reset'),
+        );
     });
 
     it('emits a structured log line and a tracked event', () => {
@@ -161,6 +224,8 @@ describe('emitAiUsage', () => {
         );
 
         const expectedProperties = {
+            eventId: expect.any(String),
+            outcome: 'complete',
             feature: 'agent',
             functionId: 'generateAgentResponse',
             organizationId: 'org-1',
@@ -172,18 +237,21 @@ describe('emitAiUsage', () => {
             model: 'claude-sonnet-5',
             provider: 'anthropic',
             keyManagement: null,
+            channel: null,
+            externalUserId: null,
             managedAgentRunId: null,
             deepResearchRunId: null,
             deepResearchPhase: null,
             ...tokens,
         };
+        const { externalUserId, ...loggedProperties } = expectedProperties;
 
         expect(Logger.info).toHaveBeenCalledWith(
             expect.stringContaining('AI usage:'),
             {
                 event: 'ai.usage',
                 userId: 'user-1',
-                ...expectedProperties,
+                ...loggedProperties,
             },
         );
         // Token data must be in the message string itself so the default
@@ -231,6 +299,64 @@ describe('emitAiUsage', () => {
             tokens,
         );
         expect(track.mock.calls[0][0].properties.keyManagement).toBeNull();
+    });
+
+    it('gives the embedded viewer id to the usage sinks and keeps it out of the logs', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+        vi.mocked(Logger.info).mockClear();
+
+        emitAiUsage(
+            {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    channel: 'embed',
+                    externalUserId: 'viewer@customer.example',
+                },
+            },
+            tokens,
+        );
+
+        expect(track.mock.calls[0][0].properties.externalUserId).toBe(
+            'viewer@customer.example',
+        );
+        expect(JSON.stringify(vi.mocked(Logger.info).mock.calls)).not.toContain(
+            'viewer@customer.example',
+        );
+    });
+
+    it('reports the channel of the call and drops unknown values', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAiUsage(
+            {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    channel: 'slack',
+                },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.channel).toBe('slack');
+
+        track.mockClear();
+        emitAiUsage(
+            {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    channel: 'carrier-pigeon',
+                },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.channel).toBeNull();
     });
 
     it('does not misattribute another feature’s generic run UUID to Autopilot', () => {
@@ -300,4 +426,23 @@ describe('emitAiUsage', () => {
         );
         expect(Logger.info).toHaveBeenCalledTimes(1);
     });
+});
+
+describe('getAiUsageChannel', () => {
+    it.each([
+        ['web_app', null, 'web'],
+        ['web_app', 'space-1', 'embed'],
+        ['api', null, 'api'],
+        ['slack', null, 'slack'],
+        ['evals', null, 'evals'],
+        ['scheduler', null, 'scheduler'],
+        ['data_app', null, 'data_app'],
+    ] as const)(
+        'labels a %s thread (embed space %s) as %s',
+        (createdFrom, embedSpaceUuid, channel) => {
+            expect(getAiUsageChannel({ createdFrom, embedSpaceUuid })).toBe(
+                channel,
+            );
+        },
+    );
 });

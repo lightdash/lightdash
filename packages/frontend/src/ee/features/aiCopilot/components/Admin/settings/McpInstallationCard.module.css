@@ -1,0 +1,29 @@
+.tabScroller {
+    overflow-x: auto;
+}
+
+.tabList {
+    flex-wrap: nowrap;
+    width: max-content;
+    min-width: 100%;
+}
+
+.clientIcon,
+.vscodeIcon {
+    width: var(--mantine-spacing-md);
+    height: var(--mantine-spacing-md);
+}
+
+.vscodeIcon {
+    filter: grayscale(1);
+}
+
+.step {
+    width: 100%;
+    align-items: flex-start;
+}
+
+.stepLabel {
+    width: 100%;
+    min-width: 0;
+}

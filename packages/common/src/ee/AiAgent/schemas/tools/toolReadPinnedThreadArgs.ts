@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
+import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_READ_PINNED_THREAD_DESCRIPTION = ({
@@ -33,6 +34,32 @@ export const toolReadPinnedThreadArgsSchema = createToolSchema()
     })
     .build();
 
+export const toolReadPinnedThreadStructuredContentSchema = z.object({
+    threadUuid: z
+        .string()
+        .describe('Uuid of the pinned conversation that was read.'),
+    messages: z
+        .array(
+            z.object({
+                index: z
+                    .number()
+                    .describe('Zero-based position in the transcript.'),
+                role: z.enum(['user', 'assistant']),
+                createdAt: z
+                    .string()
+                    .describe('ISO timestamp of when the message was sent.'),
+                message: z
+                    .string()
+                    .describe(
+                        'Message text, cut to the same per-message and transcript budget as `result`.',
+                    ),
+            }),
+        )
+        .describe('The transcript in chronological order.'),
+});
+
+// Composed by hand: `structuredToolOutputSchema` only accepts object metadata,
+// and this tool's metadata is a discriminated union that must stay unchanged.
 export const toolReadPinnedThreadOutputSchema = z.object({
     result: z.string(),
     metadata: z.discriminatedUnion('status', [
@@ -44,10 +71,18 @@ export const toolReadPinnedThreadOutputSchema = z.object({
             status: z.literal('error'),
         }),
     ]),
+    structuredContent: z.union([
+        toolReadPinnedThreadStructuredContentSchema,
+        toolErrorStructuredContentSchema,
+    ]),
 });
 
 export type ToolReadPinnedThreadArgs = z.infer<
     typeof toolReadPinnedThreadArgsSchema
+>;
+
+export type ToolReadPinnedThreadStructuredContent = z.infer<
+    typeof toolReadPinnedThreadStructuredContentSchema
 >;
 
 export type ToolReadPinnedThreadOutput = z.infer<

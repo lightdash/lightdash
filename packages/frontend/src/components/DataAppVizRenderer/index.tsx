@@ -4,8 +4,10 @@ import {
     deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
     hasCustomBinDimension,
+    MERGE_TABLE_NAME,
     type ApiError,
     type DataAppVizContext,
+    type ExternalFetchRequest,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
@@ -27,13 +29,19 @@ import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { type SdkManifest } from '../../features/apps/hooks/useAppSdkBridge';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
+import { useDocumentRenderTarget } from '../../features/chartTypes/documentRenderTarget/useDocumentRenderTarget';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
 } from '../../features/chartTypes/hooks/useDataAppVizRender';
 import { useDataAppVizResolvedColors } from '../../features/chartTypes/hooks/useDataAppVizResolvedColors';
+import { useVizSubtotalSource } from '../../features/chartTypes/hooks/useVizSubtotalSource';
 import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { captureChartTypeError } from '../../features/chartTypes/utils/captureChartTypeError';
+import {
+    getVizHierarchyDimensions,
+    hasVizSubtotalValues,
+} from '../../features/chartTypes/utils/vizSubtotals';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
@@ -183,6 +191,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const pivotDetails = resultsData?.pivotDetails ?? null;
 
     const chartVersionUuid = useChartVersionPreview();
+    const documentTarget = useDocumentRenderTarget();
     const savedDataAppVizConfig =
         savedChartReference?.chartConfig.type === ChartType.DATA_APP_VIZ
             ? savedChartReference.chartConfig.config
@@ -201,13 +210,33 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             isEmbedded: !!embedToken,
             savedChartUuid: renderSavedChartUuid,
             chartVersionUuid,
+            document: documentTarget,
         }),
-        [embedToken, renderSavedChartUuid, chartVersionUuid],
+        [embedToken, renderSavedChartUuid, chartVersionUuid, documentTarget],
     );
+    // External connections authorize through whatever renders the chart, in
+    // the same order as the render target: a Document cell, then a saved chart.
+    const chartContext = useMemo<
+        ExternalFetchRequest['chartContext'] | undefined
+    >(() => {
+        if (!embedToken && documentTarget) {
+            return {
+                documentUuid: documentTarget.documentUuid,
+                documentVersionUuid: documentTarget.versionUuid,
+                cellIndex: documentTarget.cellIndex,
+            };
+        }
+        return renderSavedChartUuid
+            ? {
+                  savedChartUuid: renderSavedChartUuid,
+                  chartVersionUuid,
+              }
+            : undefined;
+    }, [embedToken, documentTarget, renderSavedChartUuid, chartVersionUuid]);
     // Embedded previews retain their recorded version; Chart Studio's
     // chart-less edit canvas previews the latest generated version.
     const renderPinnedVersion =
-        embedToken || renderSavedChartUuid || !isEditMode
+        embedToken || renderSavedChartUuid || documentTarget || !isEditMode
             ? config?.dataAppVizVersion
             : undefined;
     const { data: renderMetadata, error: renderMetadataError } =
@@ -290,6 +319,32 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 : undefined,
         [fields, itemsMap, fieldMapping],
     );
+    // The backend refuses column subtotals over merged results.
+    const isMergedResult =
+        resultsData?.metricQuery?.exploreName === MERGE_TABLE_NAME;
+    const hierarchyDimensions = useMemo(
+        () =>
+            reconciledFieldMapping &&
+            !isMergedResult &&
+            hasVizSubtotalValues(itemsMap ?? EMPTY_ITEMS_MAP)
+                ? getVizHierarchyDimensions(
+                      readyMetadata?.schema,
+                      reconciledFieldMapping,
+                  )
+                : null,
+        [
+            readyMetadata?.schema,
+            reconciledFieldMapping,
+            isMergedResult,
+            itemsMap,
+        ],
+    );
+    const subtotalSource = useVizSubtotalSource({
+        projectUuid,
+        sourceQueryUuid,
+        dimensions: hierarchyDimensions,
+    });
+    const subtotalDimensions = subtotalSource?.dimensions ?? null;
     const resolvedColors = useDataAppVizResolvedColors({
         itemsMap: itemsMap ?? EMPTY_ITEMS_MAP,
         rows: rows ?? EMPTY_ROWS,
@@ -521,6 +576,9 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             },
             drillDown: { enabled: drillDownEnabled },
             pointMenu: { enabled: pointMenuEnabled },
+            subtotals: subtotalDimensions
+                ? { enabled: true, dimensions: subtotalDimensions }
+                : { enabled: false, dimensions: [] },
         };
     }, [
         reconciledFieldMapping,
@@ -531,6 +589,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         colorPalette,
         resolvedColors,
         pivotDetails,
+        subtotalDimensions,
         underlyingDataEnabled,
         underlyingDataOpenEnabled,
         drillDownEnabled,
@@ -814,6 +873,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     identityKey={dataAppVizUuid}
                     dataAppVizContext={renderRequest.context}
                     dataAppVizMode
+                    chartContext={chartContext}
                     vizRenderId={renderRequest.id}
                     onVizContextRequest={handleVizContextRequest}
                     onScreenshotAvailabilityChange={
@@ -830,6 +890,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     onVizUnderlyingDataIntent={onVizUnderlyingDataIntent}
                     onVizDrillDownIntent={onVizDrillDownIntent}
                     onVizPointMenuIntent={onVizPointMenuIntent}
+                    onVizSubtotalsIntent={subtotalSource?.get}
                 />
             </Box>
             {pointMenuState && (

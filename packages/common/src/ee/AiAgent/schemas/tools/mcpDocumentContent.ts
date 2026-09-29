@@ -12,7 +12,11 @@ const chartSchema = z
         description: z.string().optional(),
         tableName: z.string().min(1),
         metricQuery: toolChartAsCodeMetricQuerySchema,
-        chartConfig: z.unknown(),
+        chartConfig: z
+            .unknown()
+            .describe(
+                'Chart-as-code chartConfig. A custom chart type uses { type: "data_app_viz", config: { dataAppVizSlug, dataAppVizVersion, fieldMapping, optionValues } }: the slug of a chart type installed in this project, an optional pinned version (latest renderable when omitted), its field slots bound to query field IDs, and its options. When editing, keep existing custom chart configs unchanged.',
+            ),
         tableConfig: z.unknown().optional(),
         pivotConfig: z.unknown().optional(),
         parameters: z.unknown().optional(),

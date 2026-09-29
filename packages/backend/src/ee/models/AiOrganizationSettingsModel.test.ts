@@ -54,6 +54,64 @@ describe('applyProviderApiKeyUpdates', () => {
     });
 });
 
+describe('applyProviderApiKeyUpdates: bedrock', () => {
+    const config = {
+        apiKey: 'ABSKbedrock',
+        region: 'ap-northeast-1',
+        allowedModels: ['claude-sonnet-4-5'],
+    };
+
+    it('stores the config with its key', () => {
+        expect(applyProviderApiKeyUpdates({}, { bedrock: config })).toEqual({
+            bedrock: config,
+        });
+    });
+
+    it('keeps the stored key when the update omits one', () => {
+        expect(
+            applyProviderApiKeyUpdates(
+                { bedrock: config },
+                {
+                    bedrock: {
+                        region: 'us-east-1',
+                        allowedModels: ['claude-haiku-4-5'],
+                    },
+                },
+            ),
+        ).toEqual({
+            bedrock: {
+                apiKey: 'ABSKbedrock',
+                region: 'us-east-1',
+                allowedModels: ['claude-haiku-4-5'],
+            },
+        });
+    });
+
+    it('rejects a new config with no key', () => {
+        expect(() =>
+            applyProviderApiKeyUpdates(
+                {},
+                { bedrock: { region: 'us-east-1', allowedModels: ['x'] } },
+            ),
+        ).toThrow('API key for bedrock cannot be empty');
+    });
+
+    it('removes the config on null', () => {
+        expect(
+            applyProviderApiKeyUpdates({ bedrock: config }, { bedrock: null }),
+        ).toEqual({});
+    });
+
+    it('leaves the config untouched when the update omits bedrock', () => {
+        expect(
+            applyProviderApiKeyUpdates(
+                { bedrock: config },
+                { anthropic: 'sk-ant-123' },
+            ),
+        ).toEqual({ bedrock: config, anthropic: 'sk-ant-123' });
+    });
+});
+
 describe('buildProviderApiKeyHint', () => {
     it('formats an anthropic key like the Anthropic console', () => {
         expect(
@@ -97,6 +155,7 @@ describe('buildProviderApiKeyHints', () => {
             anthropic: null,
             google: null,
             openai: 'sk-proj-Abc...j3kl',
+            bedrock: null,
         });
     });
 
@@ -108,6 +167,7 @@ describe('buildProviderApiKeyHints', () => {
             anthropic: null,
             google: 'AIz...7890',
             openai: null,
+            bedrock: null,
         });
         expect(JSON.stringify(hints)).not.toContain(key);
     });
@@ -133,6 +193,7 @@ describe('provider API key read contracts', () => {
             anthropic: 'sk-ant...1234',
             google: null,
             openai: null,
+            bedrock: null,
         });
     });
 
@@ -148,8 +209,9 @@ describe('provider API key read contracts', () => {
             anthropic: 'sk-ant...1234',
             google: null,
             openai: null,
+            bedrock: null,
         });
-        expect(Object.keys(normalized)).toHaveLength(3);
+        expect(Object.keys(normalized)).toHaveLength(4);
         expect(JSON.stringify(normalized)).not.toContain(unknownSecret);
     });
 
@@ -158,6 +220,11 @@ describe('provider API key read contracts', () => {
             buildProviderApiKeysSet({
                 google: 'AIza-fake-gemini-key-1234567890',
             }),
-        ).toEqual({ anthropic: false, google: true, openai: false });
+        ).toEqual({
+            anthropic: false,
+            google: true,
+            openai: false,
+            bedrock: false,
+        });
     });
 });

@@ -9,6 +9,7 @@ import {
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
+    APP_SDK_VIZ_SUBTOTALS_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     extractAppSdkRouteProjectUuid,
@@ -23,6 +24,7 @@ import {
     type DataAppInsightAction,
     type DataAppInsightsPayload,
     type DataAppVizContext,
+    type ExternalFetchRequest,
     type ExternalFetchResponse,
     type QueryExecutionContext,
 } from '@lightdash/common';
@@ -297,6 +299,8 @@ export type UseAppSdkBridgeParams = {
     dataAppVizContext?: DataAppVizContext;
     /** Chart types render host-provided rows and cannot query independently. */
     dataAppVizMode?: boolean;
+    /** Saved chart identity supplied by the host for external fetch authorization. */
+    chartContext?: ExternalFetchRequest['chartContext'];
     /**
      * Rewrites the viz underlying-data virtual route
      * (`APP_SDK_VIZ_UNDERLYING_DATA_PATH`) into the real API request, which
@@ -331,6 +335,9 @@ export type UseAppSdkBridgeParams = {
      * Absent = the capability is reported unavailable to the iframe.
      */
     onVizPointMenuIntent?: (intentBody: unknown) => { shown: boolean };
+    onVizSubtotalsIntent?: (
+        intentBody: unknown,
+    ) => Promise<{ rows: DataAppVizContext['rows'] }>;
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
@@ -384,10 +391,12 @@ export function useAppSdkBridge({
     onExternalRequestEvent,
     dataAppVizContext,
     dataAppVizMode = false,
+    chartContext,
     rewriteVizUnderlyingDataRequest,
     onVizUnderlyingDataIntent,
     onVizDrillDownIntent,
     onVizPointMenuIntent,
+    onVizSubtotalsIntent,
     onUrlStateChange,
     onSdkManifest,
     onVizRendered,
@@ -766,18 +775,17 @@ export function useAppSdkBridge({
 
                 emitExternal({ status: 'pending' });
 
-                // Build the EE request body from app-supplied fields ONLY.
-                // No URL, no headers, no connection UUID — the backend resolves
-                // the alias and attaches the connection's secrets. The
-                // ALLOWED_ROUTES allowlist is deliberately NOT consulted here:
-                // this is a dedicated, separately-authorized endpoint.
+                // Host-supplied chart context only; the backend resolves the
+                // alias, attaches secrets, and authorizes this endpoint, so
+                // ALLOWED_ROUTES is deliberately not consulted here.
                 const externalFetchPath = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/external-fetch`;
-                const externalFetchBody = {
+                const externalFetchBody: ExternalFetchRequest = {
                     connectionAlias: alias,
                     method: externalMethod ?? 'GET',
                     path: externalPath,
                     query: externalQuery,
                     body: externalBody,
+                    chartContext,
                 };
 
                 try {
@@ -943,6 +951,27 @@ export function useAppSdkBridge({
                                 ? err.message
                                 : 'Invalid point-menu request.',
                     });
+                }
+                return;
+            }
+
+            if (path === APP_SDK_VIZ_SUBTOTALS_PATH) {
+                const unavailable = {
+                    error: 'Subtotals are not available for this visualization.',
+                };
+                if (
+                    !dataAppVizMode ||
+                    method.toUpperCase() !== 'POST' ||
+                    !onVizSubtotalsIntent
+                ) {
+                    respond(unavailable);
+                    return;
+                }
+                // The failure reason stays in the host; the iframe is untrusted.
+                try {
+                    respond({ result: await onVizSubtotalsIntent(body) });
+                } catch {
+                    respond(unavailable);
                 }
                 return;
             }
@@ -1307,6 +1336,7 @@ export function useAppSdkBridge({
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             onVizPointMenuIntent,
+            onVizSubtotalsIntent,
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,
@@ -1314,6 +1344,7 @@ export function useAppSdkBridge({
             vizRenderId,
             onVizContextRequest,
             dataAppVizMode,
+            chartContext,
             health.data,
             user.data,
             deliveryCapture,

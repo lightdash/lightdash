@@ -59,6 +59,9 @@ export class AiModelCatalog {
             case 'google':
                 // Not implemented yet — callers fail closed
                 return null;
+            case 'bedrock':
+                // Model access depends on the AWS account, not the key alone.
+                return null;
             default:
                 return assertUnreachable(
                     provider,

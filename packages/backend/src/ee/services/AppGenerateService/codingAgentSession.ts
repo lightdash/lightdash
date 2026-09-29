@@ -1,4 +1,11 @@
-import { assertUnreachable } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type DataAppCodingAgentSessionUsage,
+} from '@lightdash/common';
+import type {
+    ClaudeGenerationUsage,
+    ClaudeModelUsage,
+} from './ClaudeStreamProcessor';
 
 /** What is known about the data app thread a coding agent turn runs in. */
 export type CodingAgentThreadState = {
@@ -244,3 +251,130 @@ export const findCodingAgentCompactionOutcome = (
     }
     return null;
 };
+
+/** The CLI's running totals for a session, as of its last result event. */
+export type CodingAgentSessionUsageSnapshot = DataAppCodingAgentSessionUsage;
+
+const subtractModelUsage = (
+    current: Record<string, ClaudeModelUsage> | undefined,
+    previous: Record<string, ClaudeModelUsage> | null,
+): Record<string, ClaudeModelUsage> | undefined => {
+    if (!current) return undefined;
+    const own: Record<string, ClaudeModelUsage> = {};
+    Object.entries(current).forEach(([modelId, usage]) => {
+        const before = previous?.[modelId];
+        const delta: ClaudeModelUsage = {
+            inputTokens: Math.max(
+                0,
+                usage.inputTokens - (before?.inputTokens ?? 0),
+            ),
+            outputTokens: Math.max(
+                0,
+                usage.outputTokens - (before?.outputTokens ?? 0),
+            ),
+            cacheReadInputTokens: Math.max(
+                0,
+                usage.cacheReadInputTokens -
+                    (before?.cacheReadInputTokens ?? 0),
+            ),
+            cacheCreationInputTokens: Math.max(
+                0,
+                usage.cacheCreationInputTokens -
+                    (before?.cacheCreationInputTokens ?? 0),
+            ),
+        };
+        if (
+            delta.inputTokens +
+                delta.outputTokens +
+                delta.cacheReadInputTokens +
+                delta.cacheCreationInputTokens >
+            0
+        ) {
+            own[modelId] = delta;
+        }
+    });
+    return Object.keys(own).length > 0 ? own : undefined;
+};
+
+/**
+ * A run's own share of what the CLI reported. Claude Code keeps
+ * `total_cost_usd`, `duration_api_ms` and `modelUsage` for the life of a
+ * session, so a resumed run reports them since the session began; the token
+ * counts and `num_turns` on the same event are the run's own. Totals below
+ * the previous snapshot mean the CLI restarted its count (or never kept
+ * one), so the run is taken as reported.
+ */
+export const codingAgentSessionUsageDelta = (args: {
+    sessionId: string;
+    result: ClaudeGenerationUsage;
+    previous: CodingAgentSessionUsageSnapshot | null;
+}): {
+    usage: ClaudeGenerationUsage;
+    snapshot: CodingAgentSessionUsageSnapshot;
+} => {
+    const { sessionId, result, previous } = args;
+    const snapshot: CodingAgentSessionUsageSnapshot = {
+        sessionId,
+        costUsd: result.costUsd,
+        durationApiMs: result.durationApiMs,
+        modelUsage: result.modelUsage ?? null,
+    };
+    const continuesSession =
+        previous !== null &&
+        previous.sessionId === sessionId &&
+        result.costUsd >= previous.costUsd &&
+        result.durationApiMs >= previous.durationApiMs;
+    if (!continuesSession) {
+        return { usage: result, snapshot };
+    }
+    const { modelUsage: reportedModelUsage, ...ownCounts } = result;
+    const modelUsage = subtractModelUsage(
+        reportedModelUsage,
+        previous.modelUsage,
+    );
+    return {
+        usage: {
+            ...ownCounts,
+            costUsd: result.costUsd - previous.costUsd,
+            durationApiMs: result.durationApiMs - previous.durationApiMs,
+            ...(modelUsage ? { modelUsage } : {}),
+        },
+        snapshot,
+    };
+};
+
+/**
+ * Running totals of one thread's session, shared by every CLI run in a build
+ * (generation attempts, build fixes, compaction) so each reports its own
+ * share. `persist` stores each new snapshot for the thread's next build.
+ */
+export class CodingAgentSessionUsageLedger {
+    private snapshot: CodingAgentSessionUsageSnapshot | null;
+
+    private readonly persist: (
+        snapshot: CodingAgentSessionUsageSnapshot,
+    ) => void;
+
+    constructor(
+        snapshot: CodingAgentSessionUsageSnapshot | null,
+        persist: (snapshot: CodingAgentSessionUsageSnapshot) => void,
+    ) {
+        this.snapshot = snapshot;
+        this.persist = persist;
+    }
+
+    /** The run's own usage; remembers the CLI's totals for the next run. */
+    record(
+        sessionId: string,
+        result: ClaudeGenerationUsage,
+    ): ClaudeGenerationUsage {
+        const { usage, snapshot } = codingAgentSessionUsageDelta({
+            sessionId,
+            result,
+            previous: this.snapshot,
+        });
+        this.snapshot = snapshot;
+        this.persist(snapshot);
+        return usage;
+    }
+}

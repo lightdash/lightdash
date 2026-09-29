@@ -1,20 +1,19 @@
-import {
-    getErrorMessage,
-    type DataAppVizContext,
-    type DataAppVizSchema,
-} from '@lightdash/common';
+import { getErrorMessage, type DataAppVizSchema } from '@lightdash/common';
 import { Button, Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizOptionTabs from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionTabs';
-import { useDataAppVizTestContext } from '../hooks/useDataAppVizTestContext';
+import {
+    useDataAppVizTestContext,
+    type DataAppVizTestPreview,
+} from '../hooks/useDataAppVizTestContext';
 import DataAppVizTestInputs from './DataAppVizTestInputs';
 
 type Props = {
     projectUuid: string;
     schema: DataAppVizSchema;
-    onContextChange: (ctx: DataAppVizContext | null) => void;
+    onContextChange: (preview: DataAppVizTestPreview | null) => void;
 };
 
 // Interactive panel below the viz result card: pick an explore, map each

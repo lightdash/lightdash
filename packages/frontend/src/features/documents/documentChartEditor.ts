@@ -1,5 +1,5 @@
 import {
-    ChartType,
+    getDocumentRuntimeChartConfig,
     type CreateSavedChartVersion,
     type FilterGroup,
     type FilterGroupInput,
@@ -51,32 +51,25 @@ const normalizeFilterGroup = (
 
 export const getDocumentChartVersion = (
     chart: SemanticChartAsCode,
-): CreateSavedChartVersion => {
-    if (chart.chartConfig.type === ChartType.DATA_APP_VIZ) {
-        throw new Error('Custom chart types are not supported in Documents.');
-    }
-    return {
-        tableName: chart.tableName,
-        metricQuery: {
-            ...chart.metricQuery,
-            filters: {
-                dimensions: normalizeFilterGroup(
-                    chart.metricQuery.filters.dimensions,
-                ),
-                metrics: normalizeFilterGroup(
-                    chart.metricQuery.filters.metrics,
-                ),
-                tableCalculations: normalizeFilterGroup(
-                    chart.metricQuery.filters.tableCalculations,
-                ),
-            },
+): CreateSavedChartVersion => ({
+    tableName: chart.tableName,
+    metricQuery: {
+        ...chart.metricQuery,
+        filters: {
+            dimensions: normalizeFilterGroup(
+                chart.metricQuery.filters.dimensions,
+            ),
+            metrics: normalizeFilterGroup(chart.metricQuery.filters.metrics),
+            tableCalculations: normalizeFilterGroup(
+                chart.metricQuery.filters.tableCalculations,
+            ),
         },
-        chartConfig: chart.chartConfig,
-        tableConfig: chart.tableConfig ?? { columnOrder: [] },
-        pivotConfig: chart.pivotConfig,
-        parameters: chart.parameters,
-    };
-};
+    },
+    chartConfig: getDocumentRuntimeChartConfig(chart.chartConfig),
+    tableConfig: chart.tableConfig ?? { columnOrder: [] },
+    pivotConfig: chart.pivotConfig,
+    parameters: chart.parameters,
+});
 
 export const buildDocumentChartEditorState = (
     chart: SemanticChartAsCode | null,
@@ -114,21 +107,16 @@ export const getDocumentChartFromVersion = (
     version: CreateSavedChartVersion,
     name: string,
     description: string,
-): SemanticChartAsCode | null => {
-    if (version.chartConfig.type === ChartType.DATA_APP_VIZ) {
-        return null;
-    }
-    return {
-        name,
-        description,
-        tableName: version.tableName,
-        metricQuery: version.metricQuery,
-        chartConfig: version.chartConfig,
-        tableConfig: version.tableConfig,
-        pivotConfig: version.pivotConfig,
-        parameters: version.parameters,
-    };
-};
+): SemanticChartAsCode => ({
+    name,
+    description,
+    tableName: version.tableName,
+    metricQuery: version.metricQuery,
+    chartConfig: version.chartConfig,
+    tableConfig: version.tableConfig,
+    pivotConfig: version.pivotConfig,
+    parameters: version.parameters,
+});
 
 /** The parts of a chart version a person changes deliberately, excluding derived visualization config. */
 export const getQuerySignature = (version: CreateSavedChartVersion) => ({

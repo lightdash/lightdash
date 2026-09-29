@@ -41,6 +41,7 @@ import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiAgentSkillModel } from './models/AiAgentSkillModel';
+import { AiCreditRateCardModel } from './models/AiCreditRateCardModel';
 import { AiDeepResearchRunModel } from './models/AiDeepResearchRunModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
@@ -448,6 +449,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        aiModelCatalog,
+                    }),
                 }),
             onboardingAgentService: ({
                 context,
@@ -557,6 +564,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                     coderService: repository.getCoderService(),
+                    documentService: repository.getDocumentService(),
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
@@ -580,6 +588,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             roadmapService: ({ context }) =>
                 new RoadmapService({
+                    analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                 }),
             embedService: ({ repository, context, models }) =>
@@ -980,6 +989,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
+                    appGenerateService:
+                        repository.getAppGenerateService<AppGenerateService>(),
+                    embedService: repository.getEmbedService<EmbedService>(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                     googleTokenProvider:
@@ -1542,6 +1554,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     database,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),
+            aiCreditRateCardModel: ({ database }) =>
+                new AiCreditRateCardModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
             slackAuthenticationModel: ({ database }) =>
@@ -1636,6 +1650,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getEmailWhitelabelService(),
                 warehouseConnectCodeModel:
                     context.models.getWarehouseConnectCodeModel(),
+                aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
                 learnSandboxService:
                     context.serviceRepository.getLearnSandboxService(),
                 managedAgentService:

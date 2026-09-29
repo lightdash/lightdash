@@ -361,6 +361,7 @@ export const buildSampleVizContext = (
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
         pointMenu: { enabled: false },
+        subtotals: { enabled: false, dimensions: [] },
         ...(demo?.rows
             ? buildDemoSample(schema, fields, demo.rows, shouldPivot)
             : shouldPivot

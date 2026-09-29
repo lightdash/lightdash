@@ -176,6 +176,7 @@ function buildService(
             resolveAccess: vi.fn().mockResolvedValue({}),
         } as never,
         coderService: {} as never,
+        documentService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: promoteService as never,

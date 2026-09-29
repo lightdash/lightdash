@@ -8,6 +8,7 @@ const noChanges: DataAppVizSchemaChanges = {
     fields: { added: [], removed: [], changed: [] },
     configOptions: { added: [], removed: [], changed: [] },
     colorPalette: 'unchanged',
+    hierarchy: 'unchanged',
 };
 
 const changes: DataAppVizSchemaChanges = {

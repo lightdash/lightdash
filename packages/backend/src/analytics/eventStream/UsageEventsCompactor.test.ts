@@ -98,10 +98,12 @@ const createCompactor = (metrics: MetricsMock) =>
     });
 
 const mockListedKeys = (keys: string[]) => {
-    s3Mocks.listObjectsV2.mockResolvedValue({
-        Contents: keys.map((Key) => ({ Key })),
+    s3Mocks.listObjectsV2.mockImplementation(async ({ Prefix }) => ({
+        Contents: keys
+            .filter((key) => key.startsWith(Prefix))
+            .map((Key) => ({ Key })),
         IsTruncated: false,
-    });
+    }));
 };
 
 describe('parseRawKey', () => {

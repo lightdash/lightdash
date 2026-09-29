@@ -6,13 +6,24 @@
  * Redirect sanitisation and internal-link resolution both funnel through this,
  * so hardening it — a newly found bypass form, say — covers both call sites.
  */
+const SAME_ORIGIN_PROBE = 'https://same-origin.invalid';
+
+const resolvesToSameOrigin = (url: string): boolean => {
+    try {
+        return new URL(url, SAME_ORIGIN_PROBE).origin === SAME_ORIGIN_PROBE;
+    } catch {
+        return false;
+    }
+};
+
 export const isRootRelativePath = (
     url: string | null | undefined,
 ): url is string =>
     !!url &&
     url.startsWith('/') &&
     !url.startsWith('//') &&
-    !url.startsWith('/\\');
+    !url.startsWith('/\\') &&
+    resolvesToSameOrigin(url);
 
 /**
  * Post-login redirect targets come from the URL (`?redirect=`) or router state

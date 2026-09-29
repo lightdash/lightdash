@@ -37,7 +37,8 @@ case "$EVENT_ACTION" in
         if [[ "${ISSUE_BODY:-}" == *'<!-- upgrade-automation:auto-freeze -->'* ]]; then
             exit 0
         fi
-        post_slack "[upgrade-freeze-on] $ISSUE_URL | actor: $ACTOR_LOGIN | $frozen_target are paused. Close the issue to resume."
+        post_slack "[upgrade-freeze-on] $ISSUE_URL | actor: $ACTOR_LOGIN | $frozen_target are paused. Close the issue to resume." \
+            "${FREEZE_IMAGE_URL//\{actor\}/$ACTOR_LOGIN}"
         ;;
     closed|unlabeled)
         if [[ "$EVENT_ACTION" == "unlabeled" && "$ISSUE_STATE" != "open" ]]; then

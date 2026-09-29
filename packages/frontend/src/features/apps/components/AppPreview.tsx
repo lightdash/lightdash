@@ -41,6 +41,9 @@ export type AppPreviewProps = {
     onLineageCancelled?: () => void;
     dataAppVizContext?: DataAppVizContext;
     dataAppVizMode?: boolean;
+    onVizSubtotalsIntent?: (
+        intentBody: unknown,
+    ) => Promise<{ rows: DataAppVizContext['rows'] }>;
     onSdkManifest?: (manifest: SdkManifest) => void;
     /** Whether the app may mirror its own state into the page URL. */
     urlStateSync?: boolean;
@@ -73,6 +76,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             onLineageCancelled,
             dataAppVizContext,
             dataAppVizMode,
+            onVizSubtotalsIntent,
             onSdkManifest,
             urlStateSync = true,
             insights,
@@ -143,6 +147,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 capabilities={{ gsheetExport: true }}
                 dataAppVizContext={dataAppVizContext}
                 dataAppVizMode={dataAppVizMode}
+                onVizSubtotalsIntent={onVizSubtotalsIntent}
                 urlStateSync={urlStateSync}
                 onSdkManifest={onSdkManifest}
                 insights={insights}

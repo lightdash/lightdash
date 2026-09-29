@@ -1070,6 +1070,38 @@ describe('AiDeepResearchExecutor', () => {
         expect(generateDeepResearchReport).toHaveBeenCalledTimes(1);
     });
 
+    it('adds the report tokens to the run totals without spending the token budget', async () => {
+        const finalizerTokens = {
+            inputTokens: 900_000,
+            outputTokens: 100_000,
+            cacheReadTokens: null,
+            cacheWriteTokens: null,
+            reasoningTokens: null,
+            totalTokens: 1_000_000,
+        };
+        const generateDeepResearchReport = vi.fn(
+            async (_user: AnyType, options: AnyType) => {
+                await options.onUsage(finalizerTokens);
+                return report;
+            },
+        );
+        const { executor, aiDeepResearchRunModel } = buildExecutor({
+            generateDeepResearchReport,
+        });
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result).toMatchObject({ status: 'completed', report });
+        expect(
+            aiDeepResearchRunModel.accumulateTokenUsage,
+        ).toHaveBeenCalledWith(
+            run().ai_deep_research_run_uuid,
+            finalizerTokens,
+        );
+    });
+
     it('does not finalize when the coordinator already submitted a report', async () => {
         const generateAgentThreadResponse = respondByRole();
         const { executor } = buildExecutor({ generateAgentThreadResponse });

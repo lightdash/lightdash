@@ -70,6 +70,7 @@ import {
 const CREATED_FROM_LABELS: Record<AiThreadCreatedFrom, string> = {
     slack: 'Slack',
     web_app: 'Web',
+    api: 'API',
     evals: 'Evals',
     scheduler: 'Scheduler',
     data_app: 'Data app',

@@ -1,6 +1,12 @@
-import type { AiDeepResearchPhase } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type AiDeepResearchPhase,
+    type AiThreadCreatedFrom,
+} from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
+import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import Logger from '../logging/logger';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
@@ -18,6 +24,7 @@ export const AI_CALL_FEATURES = [
     'deep-research',
     'agent-subtask',
     'chart-metadata',
+    'google-sheets-extension',
     'chart-similarity',
     'chart-type-fields',
     'chart-type-explore',
@@ -53,24 +60,63 @@ const FEATURES: ReadonlySet<string> = new Set(AI_CALL_FEATURES);
 const isAiCallFeature = (value: unknown): value is AiCallFeature =>
     typeof value === 'string' && FEATURES.has(value);
 
+const aiKeyManagementSchema = z.enum(['lightdash-managed', 'self-managed']);
+
 /**
  * Whether the AI call ran on Lightdash's own (instance) provider key or the
  * customer's self-managed (bring-your-own) key. Lets analytics/CS tell who is
  * on a Lightdash-managed key — e.g. to follow up on upgrades, or spot orgs
  * using our key when they shouldn't. Null when the origin isn't known for the
- * call (e.g. embeddings/instance-only paths).
+ * call.
  */
-export type AiKeyManagement = 'lightdash-managed' | 'self-managed';
+export type AiKeyManagement = z.infer<typeof aiKeyManagementSchema>;
 
-const AI_KEY_MANAGEMENT_VALUES: readonly AiKeyManagement[] = [
-    'lightdash-managed',
-    'self-managed',
-];
+const aiUsageChannelSchema = z.enum([
+    'web',
+    'slack',
+    'embed',
+    'api',
+    'mcp',
+    'evals',
+    'scheduler',
+    'data_app',
+]);
+
+/**
+ * Where the call's thread was created, never the request that continues it.
+ * `mcp` is reserved: MCP does not run agent threads, so no call reports it yet.
+ */
+export type AiUsageChannel = z.infer<typeof aiUsageChannelSchema>;
+
+const parseChannel = (value: string | null): AiUsageChannel | null =>
+    aiUsageChannelSchema.safeParse(value).data ?? null;
+
+export type AiThreadOrigin = {
+    createdFrom: AiThreadCreatedFrom;
+    embedSpaceUuid: string | null;
+};
+
+export const getAiUsageChannel = ({
+    createdFrom,
+    embedSpaceUuid,
+}: AiThreadOrigin): AiUsageChannel => {
+    switch (createdFrom) {
+        case 'web_app':
+            // An embedded chat is a web thread scoped to the embed's space.
+            return embedSpaceUuid === null ? 'web' : 'embed';
+        case 'api':
+        case 'slack':
+        case 'evals':
+        case 'scheduler':
+        case 'data_app':
+            return createdFrom;
+        default:
+            return assertUnreachable(createdFrom, 'Unknown AI thread origin');
+    }
+};
 
 const parseKeyManagement = (value: string | null): AiKeyManagement | null =>
-    value !== null && (AI_KEY_MANAGEMENT_VALUES as string[]).includes(value)
-        ? (value as AiKeyManagement)
-        : null;
+    aiKeyManagementSchema.safeParse(value).data ?? null;
 
 /**
  * Token counts for a single AI call, normalized across providers and call
@@ -128,13 +174,23 @@ export const embeddingModelUsageToTokens = (
 };
 
 /**
+ * Whether the work the call belonged to finished. Failed data app generations
+ * still spend tokens and are recorded, but the balance excludes them.
+ */
+export type AiUsageOutcome = 'complete' | 'failed';
+
+/**
  * One event per AI model call, emitted 100% unsampled (unlike traces) so
  * token usage can be accounted per org/user/feature. Consumed by the usage
- * event stream sink (`ai_usage` stream) and Rudderstack.
+ * event stream sink (`ai_usage` stream), Rudderstack and the usage ledger.
  */
 export type AiUsageEvent = BaseTrack & {
     event: 'ai.usage';
     properties: {
+        // Generated once per call so the ledger, the stream and the warehouse
+        // rows can be matched.
+        eventId: string;
+        outcome: AiUsageOutcome;
         feature: AiCallFeature;
         functionId: string;
         organizationId: string | null;
@@ -146,11 +202,26 @@ export type AiUsageEvent = BaseTrack & {
         model: string | null;
         provider: string | null;
         keyManagement: AiKeyManagement | null;
+        channel: AiUsageChannel | null;
+        // The host application's id for an embedded viewer. Customer data:
+        // it reaches the ledger and the usage stream, never logs or Rudderstack.
+        externalUserId: string | null;
         managedAgentRunId: string | null;
         deepResearchRunId: string | null;
         deepResearchPhase: AiDeepResearchPhase | null;
     } & AiUsageTokens;
 };
+
+export const omitExternalUserId = ({
+    externalUserId,
+    ...properties
+}: AiUsageEvent['properties']): Omit<
+    AiUsageEvent['properties'],
+    'externalUserId'
+> => properties;
+
+export const isAiUsageEvent = (event: BaseTrack): event is AiUsageEvent =>
+    event.event === 'ai.usage';
 
 type AiUsageTrackFn = (event: AiUsageEvent) => void;
 
@@ -164,6 +235,19 @@ let aiUsageTrackFn: AiUsageTrackFn | null = null;
  */
 export const registerAiUsageTracker = (fn: AiUsageTrackFn): void => {
     aiUsageTrackFn = fn;
+};
+
+type AiUsageLedgerFn = (event: AiUsageEvent) => Promise<unknown>;
+
+let aiUsageLedgerFn: AiUsageLedgerFn | null = null;
+
+/**
+ * Second sink, registered once the database exists. Runs after the model has
+ * answered and is never awaited by the caller, so a slow or failing insert
+ * cannot hold a stream open or surface in the AI path.
+ */
+export const registerAiUsageLedger = (fn: AiUsageLedgerFn): void => {
+    aiUsageLedgerFn = fn;
 };
 
 /**
@@ -193,6 +277,8 @@ export type AiCallRuntimeContextKey =
     | 'model'
     | 'provider'
     | 'keyManagement'
+    | 'channel'
+    | 'externalUserId'
     | 'appUuid'
     | 'runUuid'
     | 'deepResearchRunUuid'
@@ -217,6 +303,7 @@ const getMetadataString = (
 export const emitAiUsage = (
     telemetry: AiCallTelemetryConfig,
     tokens: AiUsageTokens,
+    { outcome = 'complete' }: { outcome?: AiUsageOutcome } = {},
 ): void => {
     try {
         const metadata = telemetry.runtimeContext;
@@ -230,6 +317,8 @@ export const emitAiUsage = (
             );
         }
         const properties: AiUsageEvent['properties'] = {
+            eventId: uuidv4(),
+            outcome,
             feature: metadata.feature,
             functionId: telemetry.telemetry.functionId,
             organizationId: getMetadataString(metadata, 'organizationUuid'),
@@ -243,6 +332,8 @@ export const emitAiUsage = (
             keyManagement: parseKeyManagement(
                 getMetadataString(metadata, 'keyManagement'),
             ),
+            channel: parseChannel(getMetadataString(metadata, 'channel')),
+            externalUserId: getMetadataString(metadata, 'externalUserId'),
             managedAgentRunId:
                 metadata.feature === 'managed-agent'
                     ? getMetadataString(metadata, 'runUuid')
@@ -267,20 +358,26 @@ export const emitAiUsage = (
                 `inputTokens=${properties.inputTokens} outputTokens=${properties.outputTokens} ` +
                 `cacheReadTokens=${properties.cacheReadTokens} cacheWriteTokens=${properties.cacheWriteTokens} ` +
                 `reasoningTokens=${properties.reasoningTokens} totalTokens=${properties.totalTokens} ` +
-                `organizationId=${properties.organizationId} projectId=${properties.projectId} userId=${userUuid} managedAgentRunId=${properties.managedAgentRunId}`,
+                `organizationId=${properties.organizationId} projectId=${properties.projectId} userId=${userUuid} channel=${properties.channel} managedAgentRunId=${properties.managedAgentRunId}`,
             {
                 event: 'ai.usage',
                 userId: userUuid,
-                ...properties,
+                ...omitExternalUserId(properties),
             },
         );
 
-        aiUsageTrackFn?.({
+        const event: AiUsageEvent = {
             event: 'ai.usage',
             ...(userUuid !== null
                 ? { userId: userUuid }
                 : { anonymousId: 'anonymous' }),
             properties,
+        };
+        aiUsageTrackFn?.(event);
+        aiUsageLedgerFn?.(event).catch((error) => {
+            Logger.warn(
+                `Failed to record AI usage ${properties.eventId} in the ledger: ${error}`,
+            );
         });
     } catch (error) {
         Logger.warn(`Failed to emit AI usage: ${error}`);

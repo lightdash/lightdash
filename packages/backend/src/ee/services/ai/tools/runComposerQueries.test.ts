@@ -7,6 +7,7 @@ import {
     type AiWebAppPrompt,
     type SemanticLayerSourceQuery,
     type ToolComposerQueriesArgs,
+    type ToolComposerQueriesOutput,
 } from '@lightdash/common';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
@@ -14,10 +15,7 @@ import type { PlanComposerViz } from '../decisions/vizPlanner';
 import { getRunComposerQueries } from './runComposerQueries';
 
 type ComposerTool = ReturnType<typeof getRunComposerQueries>;
-type ComposerOutput = {
-    result: string;
-    metadata?: { status: string };
-};
+type ComposerOutput = ToolComposerQueriesOutput;
 
 const makePrompt = (): AiWebAppPrompt => ({
     organizationUuid: 'org-uuid',
@@ -26,6 +24,8 @@ const makePrompt = (): AiWebAppPrompt => ({
     promptUuid: 'prompt-uuid',
     threadUuid: 'thread-uuid',
     threadCreatedFrom: 'web_app',
+    threadEmbedSpaceUuid: null,
+    externalUserId: null,
     createdByUserUuid: 'user-uuid',
     userUuid: 'user-uuid',
     prompt: 'Join revenue with signups',

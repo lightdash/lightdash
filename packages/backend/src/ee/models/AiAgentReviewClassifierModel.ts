@@ -1,5 +1,6 @@
 import {
-    AiSlackThreadCreatedFrom,
+    AI_USER_THREAD_CREATED_FROM,
+    AiUserThreadCreatedFrom,
     ConflictError,
     HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES,
     isHiddenAiAgentReviewRootCause,
@@ -334,7 +335,7 @@ type BaseCandidateRow = {
     organization_uuid: string;
     project_uuid: string;
     agent_uuid: string;
-    created_from: AiSlackThreadCreatedFrom;
+    created_from: AiUserThreadCreatedFrom;
     prompt: string;
     response: string | null;
     error_message: string | null;
@@ -902,7 +903,7 @@ export class AiAgentReviewClassifierModel {
                         'remediation.work_thread_uuid = thread.ai_thread_uuid OR remediation.preview_thread_uuid = thread.ai_thread_uuid',
                     );
             })
-            .whereIn('thread.created_from', ['web_app', 'slack'])
+            .whereIn('thread.created_from', AI_USER_THREAD_CREATED_FROM)
             .where((builder) => {
                 void builder
                     .whereNotNull('prompt.response')

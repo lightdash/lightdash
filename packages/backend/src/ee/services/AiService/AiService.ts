@@ -75,6 +75,12 @@ import {
     generateFormulaTableCalculation as generateFormulaTableCalculationFromContext,
     sanitizeCustomFormat as sanitizeFormulaCustomFormat,
 } from '../ai/agents/formulaTableCalculationGenerator';
+import { generateGoogleSheetsExtensionReportDraft as generateGoogleSheetsExtensionReportDraftFromContext } from '../ai/agents/googleSheetsExtensionReportDraftGenerator';
+import { parseGoogleSheetsExtensionReportDraftRequest } from '../ai/agents/googleSheetsExtensionReportDraftSchema';
+import {
+    GeneratedGoogleSheetsExtensionReportDraft,
+    GenerateGoogleSheetsExtensionReportDraftRequest,
+} from '../ai/agents/googleSheetsExtensionReportDraftTypes';
 import {
     generateTableCalculation as generateTableCalculationFromContext,
     sanitizeCustomFormat,
@@ -419,6 +425,30 @@ export class AiService extends BaseService {
         });
 
         return vegaConfigResult;
+    }
+
+    async generateGoogleSheetsExtensionReportDraft(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateGoogleSheetsExtensionReportDraftRequest,
+    ): Promise<GeneratedGoogleSheetsExtensionReportDraft> {
+        await this.assertCanManageExplore(user, projectUuid);
+        const request = parseGoogleSheetsExtensionReportDraftRequest(payload);
+        const explore = await this.projectService.getExplore(
+            fromSession(user),
+            projectUuid,
+            request.exploreName,
+            undefined,
+            false,
+        );
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        return generateGoogleSheetsExtensionReportDraftFromContext(
+            modelOptions,
+            explore,
+            request,
+        );
     }
 
     async generateChartMetadata(

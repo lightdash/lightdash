@@ -137,6 +137,9 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
     return new AiWritebackService({
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
+        orgAiCopilotConfigResolver: {
+            isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+        } as AnyType,
         projectModel: {
             get: vi.fn(),
             getDbtSourceIdentity: vi.fn().mockResolvedValue({
@@ -4474,5 +4477,38 @@ describe('AiWritebackService.cancelRun', () => {
             service.cancelRun(userWithOrg(true), 'run-1'),
         ).rejects.toThrow('not found');
         expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiWritebackService regional boundary', () => {
+    const bedrockService = () =>
+        buildService({
+            orgAiCopilotConfigResolver: {
+                isOrgBedrockRouted: vi.fn().mockResolvedValue(true),
+            },
+        });
+    const args = {
+        user: { organizationUuid: 'org', userUuid: 'user' },
+        projectUuid: 'project',
+        prompt: 'edit the repo',
+        source: 'ask_ai',
+    } as AnyType;
+
+    it('refuses to run the coding agent for a Bedrock organization', async () => {
+        await expect(bedrockService().run(args)).rejects.toThrow(
+            'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
+        );
+    });
+
+    it('refuses to enqueue writeback for a Bedrock organization', async () => {
+        await expect(bedrockService().enqueueWriteback(args)).rejects.toThrow(
+            'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
+        );
+    });
+
+    it('refuses repository editing for a Bedrock organization', async () => {
+        await expect(bedrockService().runEditRepo(args)).rejects.toThrow(
+            'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
+        );
     });
 });

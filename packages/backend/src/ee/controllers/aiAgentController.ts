@@ -110,6 +110,7 @@ import Logger from '../../logging/logger';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
+import { getAppThreadCreatedFrom } from '../services/AiAgentService/threadOrigin';
 
 const parseSuggestionContext = (context: string | undefined) => {
     if (!context) return undefined;
@@ -1288,6 +1289,7 @@ export class AiAgentController extends BaseController {
                 toSessionUser(req.account),
                 agentUuid,
                 body,
+                getAppThreadCreatedFrom(req.account.authentication.type),
             ),
         };
     }

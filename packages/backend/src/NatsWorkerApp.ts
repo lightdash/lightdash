@@ -5,7 +5,10 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
 import { Knex } from 'knex';
-import { registerAiUsageTracker } from './analytics/aiUsage';
+import {
+    registerAiUsageLedger,
+    registerAiUsageTracker,
+} from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
@@ -153,6 +156,9 @@ export default class NatsWorkerApp {
             database: this.database,
             utils,
         });
+        registerAiUsageLedger((event) =>
+            models.getAiUsageLedgerModel().recordEvent(event),
+        );
 
         const clients = new ClientRepository({
             clientProviders: args.clientProviders,

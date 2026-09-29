@@ -2,6 +2,7 @@ import type {
     AiAgentAdminFilters,
     AiAgentAdminSort,
     AiAgentAdminSortField,
+    AiUserThreadCreatedFrom,
 } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -40,7 +41,7 @@ export const useAiAgentAdminFilters = () => {
     const projectsParam = useSearchParams<string>('projects');
     const agentsParam = useSearchParams<string>('agents');
     const usersParam = useSearchParams<string>('users');
-    const sourceParam = useSearchParams<'web_app' | 'slack'>('source');
+    const sourceParam = useSearchParams<AiUserThreadCreatedFrom>('source');
     const feedbackParam = useSearchParams<'thumbs_up' | 'thumbs_down'>(
         'feedback',
     );

@@ -2,10 +2,12 @@ import {
     ChartType,
     DimensionType,
     FieldType,
+    MERGE_TABLE_NAME,
     MetricType,
     type ApiAppVersionSummary,
     type DataAppViz,
     type DataAppVizContext,
+    type DataAppVizFieldMapping,
     type ItemsMap,
 } from '@lightdash/common';
 import { act, screen } from '@testing-library/react';
@@ -20,12 +22,14 @@ import {
     useChartTypeBuilderWorkspace,
     type ChartTypeBuilderWorkspaceState,
 } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { type VizSubtotalSource } from '../../../features/chartTypes/hooks/useVizSubtotalSource';
 import { clarificationStub } from '../../../features/chartTypes/testing/clarificationRoundStub';
 import { buildStub } from '../../../features/chartTypes/testing/dataAppVizBuildStub';
 import {
     createExplorerStore,
     explorerActions,
 } from '../../../features/explorer/store';
+import * as asyncCalculateTotal from '../../../hooks/useAsyncCalculateTotal';
 import { ChartColorMappingContext } from '../../../hooks/useChartColorConfig/context';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
@@ -36,8 +40,12 @@ const {
     showToastSuccess,
     setFetchAll,
     previewContexts,
+    previewSubtotals,
     deleteApp,
 } = vi.hoisted(() => ({
+    previewSubtotals: {
+        handler: null as VizSubtotalSource['get'] | null,
+    },
     showToastError: vi.fn(),
     showToastSuccess: vi.fn(),
     setFetchAll: vi.fn(),
@@ -53,6 +61,10 @@ vi.mock(
 );
 vi.mock('../VisualizationCard/useExplorerResultsData', () => ({
     useExplorerResultsData: vi.fn(),
+}));
+vi.mock('../../../hooks/useAsyncCalculateTotal', async (importOriginal) => ({
+    ...(await importOriginal<typeof asyncCalculateTotal>()),
+    fetchColumnSubtotalRows: vi.fn(),
 }));
 vi.mock('../VisualizationCard/useExplorerChartColorPalette', () => ({
     useExplorerChartColorPalette: () => ['#explorer-1', '#explorer-2'],
@@ -86,12 +98,15 @@ vi.mock(
     () => ({
         default: ({
             previewContext,
+            onVizSubtotalsIntent,
             configurationSidebar,
         }: {
             configurationSidebar?: ReactNode;
             previewContext: DataAppVizContext | null;
+            onVizSubtotalsIntent: VizSubtotalSource['get'] | null;
         }) => {
             previewContexts.push(previewContext);
+            previewSubtotals.handler = onVizSubtotalsIntent;
             return <div data-testid="workspace">{configurationSidebar}</div>;
         },
     }),
@@ -254,7 +269,7 @@ const renderAuthoring = ({
     step = 'choose' as 'choose' | 'configure',
     chartConfig = null as null | {
         dataAppVizUuid: string;
-        fieldMapping: Record<string, string>;
+        fieldMapping: DataAppVizFieldMapping;
         optionValues: Record<string, unknown>;
     },
 } = {}) => {
@@ -301,6 +316,7 @@ describe('ExplorerChartTypeAuthoring', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         previewContexts.length = 0;
+        previewSubtotals.handler = null;
         dataAppsEnabled.current = true;
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
@@ -539,6 +555,133 @@ describe('ExplorerChartTypeAuthoring', () => {
         const context = previewContexts.at(-1);
         expect(context?.fieldMapping.category).toBe('orders_region');
         expect(context?.options).toEqual({ showLegend: false });
+    });
+
+    describe('hierarchy subtotals', () => {
+        const hierarchyViz = {
+            ...dataAppViz,
+            schema: {
+                ...dataAppViz.schema,
+                fields: [
+                    {
+                        name: 'levels',
+                        label: 'Levels',
+                        type: 'dimension',
+                        required: true,
+                        multiple: true,
+                    },
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric',
+                        required: true,
+                    },
+                ],
+                hierarchy: { field: 'levels' },
+            },
+        } satisfies DataAppViz;
+        const hierarchyChartConfig = {
+            dataAppVizUuid: 'viz-1',
+            fieldMapping: {
+                levels: ['orders_region', 'orders_status'],
+                value: 'orders_count',
+            },
+            optionValues: {},
+        };
+        const setResults = (exploreName: string, fields: ItemsMap = itemsMap) =>
+            vi.mocked(useExplorerResultsData).mockReturnValue({
+                resultsData: {
+                    rows,
+                    fields,
+                    pivotDetails: null,
+                    queryUuid: 'explorer-query',
+                    metricQuery: { exploreName },
+                    setFetchAll,
+                },
+            } as unknown as ReturnType<typeof useExplorerResultsData>);
+
+        beforeEach(() => {
+            vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+                workspaceStub({ dataAppViz: hierarchyViz }),
+            );
+        });
+
+        it('serves the preview from the query behind the Explorer rows', async () => {
+            setResults('orders');
+            const subtotalRows = [
+                {
+                    orders_region: {
+                        value: { raw: 'west', formatted: 'West' },
+                    },
+                },
+            ];
+            vi.mocked(
+                asyncCalculateTotal.fetchColumnSubtotalRows,
+            ).mockResolvedValue(subtotalRows);
+            renderAuthoring({ chartConfig: hierarchyChartConfig });
+
+            expect(previewContexts.at(-1)?.subtotals).toEqual({
+                enabled: true,
+                dimensions: ['orders_region', 'orders_status'],
+            });
+            await expect(
+                previewSubtotals.handler?.({ level: 0, parentValues: [] }),
+            ).resolves.toEqual({ rows: subtotalRows });
+            expect(
+                asyncCalculateTotal.fetchColumnSubtotalRows,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sourceQueryUuid: 'explorer-query',
+                    subtotalDimensions: ['orders_region'],
+                }),
+            );
+        });
+
+        it('offers no subtotals over merged results', () => {
+            setResults(MERGE_TABLE_NAME);
+            renderAuthoring({ chartConfig: hierarchyChartConfig });
+
+            expect(previewContexts.at(-1)?.subtotals).toEqual({
+                enabled: false,
+                dimensions: [],
+            });
+            expect(previewSubtotals.handler).toBeNull();
+        });
+
+        it('offers no subtotals when the results have nothing to subtotal', () => {
+            setResults('orders', {
+                orders_status: itemsMap.orders_status,
+                orders_region: itemsMap.orders_region,
+            });
+            renderAuthoring({
+                chartConfig: {
+                    ...hierarchyChartConfig,
+                    fieldMapping: {
+                        levels: ['orders_region', 'orders_status'],
+                    },
+                },
+            });
+
+            expect(previewContexts.at(-1)?.subtotals).toEqual({
+                enabled: false,
+                dimensions: [],
+            });
+            expect(previewSubtotals.handler).toBeNull();
+        });
+
+        it('offers no subtotals to a chart type without a hierarchy', () => {
+            vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+                workspaceStub(),
+            );
+            setResults('orders');
+            renderAuthoring();
+
+            expect(previewContexts.at(-1)?.subtotals).toEqual({
+                enabled: false,
+                dimensions: [],
+            });
+            expect(previewSubtotals.handler).toBeNull();
+        });
     });
 
     it('puts the chart back and returns to the prior step when nothing was built', async () => {

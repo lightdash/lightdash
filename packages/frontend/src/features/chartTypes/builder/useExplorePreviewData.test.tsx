@@ -85,6 +85,7 @@ const explore = (name = 'orders'): LoadedExplore => ({
 });
 
 const result = (marker: string) => ({
+    queryUuid: `query-${marker}`,
     rows: [{ marker: { value: { raw: marker, formatted: marker } } }],
     itemsMap,
     pivotDetails: null,
@@ -140,6 +141,7 @@ describe('useExplorePreviewData', () => {
         await vi.waitFor(() => expect(hook.current.run.status).toBe('ready'));
         expect(hook.current.run).toMatchObject({
             status: 'ready',
+            queryUuid: 'query-first',
             fieldMapping: initialMapping,
         });
         expect(
@@ -203,6 +205,7 @@ describe('useExplorePreviewData', () => {
         await vi.waitFor(() =>
             expect(hook.current.run).toMatchObject({
                 status: 'ready',
+                queryUuid: 'query-second',
                 fieldMapping: swappedMapping,
             }),
         );

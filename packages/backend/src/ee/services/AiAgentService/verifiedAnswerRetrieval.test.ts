@@ -26,7 +26,7 @@ const baseline = candidate('baseline', 0.99);
 const expanded = candidate('expanded', 0.1);
 const user = { userUuid: 'user', organizationUuid: 'org' } as SessionUser;
 
-const setup = () => {
+const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
     vi.mocked(generateEmbedding).mockResolvedValue({
         embedding: [1, 0],
         provider: 'provider',
@@ -57,6 +57,11 @@ const setup = () => {
         lightdashConfig: lightdashConfigMock,
         aiAgentModel,
         analytics: { track: vi.fn() },
+        orgAiCopilotConfigResolver: {
+            isOrgBedrockRouted: vi
+                .fn()
+                .mockResolvedValue(options?.isOrgBedrockRouted ?? false),
+        },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const authorize = vi
         .spyOn(service, 'getAgent')
@@ -172,6 +177,18 @@ describe('verified answer retrieval', () => {
         ).toEqual({ relevantVerifiedAnswers: [] });
         expect(aiAgentModel.searchArtifactsBySimilarity).not.toHaveBeenCalled();
         expect(request).not.toHaveBeenCalled();
+    });
+
+    it('does not embed for a Bedrock-routed org', async () => {
+        const { service, aiAgentModel, args } = setup({
+            isOrgBedrockRouted: true,
+        });
+        vi.mocked(generateEmbedding).mockClear();
+        expect(
+            await service.getRelevantVerifiedAnswerContextForAgent(user, args),
+        ).toEqual({ relevantVerifiedAnswers: [] });
+        expect(generateEmbedding).not.toHaveBeenCalled();
+        expect(aiAgentModel.searchArtifactsBySimilarity).not.toHaveBeenCalled();
     });
 });
 

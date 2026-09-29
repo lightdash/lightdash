@@ -6,7 +6,6 @@ import { Box, Drawer, Text } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
-import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import { useMcpActivityStats } from '../../../hooks/useMcpActivity';
 import { useMcpActivityFilters } from '../../../hooks/useMcpActivityFilters';
 import {
@@ -19,12 +18,9 @@ import {
 } from '../McpActivityOverview';
 import overviewClasses from '../McpActivityOverview.module.css';
 import McpActivityTable from '../McpActivityTable';
-import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
 import drawerClasses from './ThreadPreviewDrawer.module.css';
 
 export const McpActivitySettingsPage = () => {
-    const { data: settings } = useAiOrganizationSettings();
-
     const [selectedCall, setSelectedCall] = useState<McpActivityItem | null>(
         null,
     );
@@ -54,7 +50,7 @@ export const McpActivitySettingsPage = () => {
 
     return (
         <SettingsPage
-            title="MCP activity"
+            title="MCP analytics"
             description="Monitor MCP tool calls and investigate errors across your organization."
             actions={
                 <Text fz="xs" c="dimmed">
@@ -62,8 +58,6 @@ export const McpActivitySettingsPage = () => {
                 </Text>
             }
         >
-            {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
-
             <Box className={overviewClasses.layout}>
                 <Box className={overviewClasses.strip}>
                     <McpActivityStatTiles

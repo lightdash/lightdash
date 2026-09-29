@@ -85,6 +85,7 @@ export const executeExplorePreviewQuery = async ({
         }
 
         return {
+            queryUuid: started.queryUuid,
             rows: results.rows,
             itemsMap: started.fields,
             pivotDetails: results.pivotDetails,

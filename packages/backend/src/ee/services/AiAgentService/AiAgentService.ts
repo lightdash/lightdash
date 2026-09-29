@@ -5,6 +5,7 @@ import {
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
     AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
+    AI_USER_THREAD_CREATED_FROM,
     AiAgent,
     AiAgentBattleProfile,
     AiAgentEvalRunJobPayload,
@@ -111,6 +112,7 @@ import {
     InsufficientGitPermissionsError,
     isAgentToolName,
     isAiAgentSqlArtifactVizQuery,
+    isAiAppThreadCreatedFrom,
     isAiComposerChartArtifactConfig,
     isAiDeepResearchRunTerminal,
     isAiMergeChartArtifactConfig,
@@ -216,6 +218,7 @@ import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
+import { getAiUsageChannel } from '../../../analytics/aiUsage';
 import {
     AiAgentArtifactsRetrievedEvent,
     AiAgentArtifactVersionVerifiedEvent,
@@ -338,7 +341,10 @@ import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
-import { generateDeepResearchReport as generateDeepResearchReportFromEvidence } from '../ai/agents/reportFinalizer';
+import {
+    generateDeepResearchReport as generateDeepResearchReportFromEvidence,
+    type AiDeepResearchFinalizerUsageFn,
+} from '../ai/agents/reportFinalizer';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
@@ -538,6 +544,10 @@ import {
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
+import {
+    getPromptUsageAttribution,
+    type AiUsageViewerAttribution,
+} from './usageAttribution';
 import { getWritebackConnectionSupport } from './writebackConnection';
 
 type ThreadMessageContext = Array<
@@ -703,6 +713,8 @@ export const assertDeepResearchPromptExecution = ({
 
 type EmbedAiAgentRuntimeOptions = {
     embedSpaceUuid: string;
+    // The host application's id for the viewer, when its token carries one.
+    externalUserId: string | null;
     spaceAccess: string[];
     userAttributeOverrides: UserAttributeValueMap;
 };
@@ -2056,6 +2068,13 @@ export class AiAgentService extends BaseService {
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ) {
+        if (
+            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                user.organizationUuid,
+            )
+        ) {
+            return undefined;
+        }
         return resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
             this.featureFlagService.get({
                 user,
@@ -2386,6 +2405,8 @@ export class AiAgentService extends BaseService {
             tokenAgentUuid: content.agentUuid,
             runtimeOptions: {
                 embedSpaceUuid: spaceUuid,
+                externalUserId:
+                    account.authentication.data.user?.externalId || null,
                 spaceAccess: [spaceUuid],
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
@@ -3058,7 +3079,7 @@ export class AiAgentService extends BaseService {
                 organizationUuid,
                 agentUuid,
                 userUuid,
-                createdFrom: ['web_app', 'slack'],
+                createdFrom: [...AI_USER_THREAD_CREATED_FROM],
             });
             const sorted = [...threads].sort(
                 (a, b) =>
@@ -3540,7 +3561,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             // Only filter by userUuid if not requesting all users or if user lacks admin permissions
             userUuid: canViewAllThreads ? undefined : user.userUuid,
-            createdFrom: ['web_app', 'slack'],
+            createdFrom: [...AI_USER_THREAD_CREATED_FROM],
         });
         const liveStatuses = await this.getLiveStatusesForVisibleThreads(
             organizationUuid,
@@ -3648,7 +3669,7 @@ export class AiAgentService extends BaseService {
                     : accessibleAgentUuids,
                 createdFrom: filters?.createdFrom
                     ? [filters.createdFrom]
-                    : ['web_app', 'slack'],
+                    : [...AI_USER_THREAD_CREATED_FROM],
                 search: filters?.search,
                 paginateArgs,
             });
@@ -4294,10 +4315,11 @@ export class AiAgentService extends BaseService {
                 prompt: body.prompt,
                 context,
                 modelConfig,
+                externalUserId: runtimeOptions?.externalUserId ?? null,
             });
             await this.persistSkillInvocation(promptUuid);
             this.enqueueMobilePushThreadReconciliation(threadUuid);
-            if (createdFrom === 'web_app') {
+            if (isAiAppThreadCreatedFrom(createdFrom)) {
                 await this.startMobilePushLiveActivitiesForPrompt({
                     user,
                     projectUuid: agent.projectUuid,
@@ -4497,6 +4519,7 @@ export class AiAgentService extends BaseService {
             context,
             modelConfig: body.modelConfig,
             hidden: body.hidden,
+            externalUserId: runtimeOptions?.externalUserId ?? null,
         });
         await this.persistSkillInvocation(messageUuid);
         this.enqueueMobilePushThreadReconciliation(threadUuid);
@@ -6797,6 +6820,38 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    // Usage attribution must never fail the call it describes.
+    private async getThreadUsageAttribution({
+        threadUuid,
+        promptUuid,
+    }: {
+        threadUuid: string;
+        promptUuid: string | null;
+    }): Promise<AiUsageViewerAttribution> {
+        try {
+            const prompt = promptUuid
+                ? await this.aiAgentModel.findWebAppPrompt(promptUuid)
+                : undefined;
+            if (prompt) {
+                return getPromptUsageAttribution(prompt);
+            }
+            const origin = await this.aiAgentModel.findThreadOrigin(threadUuid);
+            return {
+                channel: origin ? getAiUsageChannel(origin) : null,
+                externalUserId: null,
+            };
+        } catch (error) {
+            this.logger.warn(
+                'Could not resolve the usage attribution of a thread',
+                {
+                    threadUuid,
+                    error: getErrorMessage(error),
+                },
+            );
+            return { channel: null, externalUserId: null };
+        }
+    }
+
     private async maybeCompactThreadBeforeResponse(
         user: SessionUser,
         {
@@ -6922,6 +6977,7 @@ export class AiAgentService extends BaseService {
                 organizationUuid: user.organizationUuid ?? null,
                 threadUuid,
                 promptUuid: previousPrompt.ai_prompt_uuid,
+                ...getPromptUsageAttribution(prompt),
             },
         };
 
@@ -8065,15 +8121,23 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            promptUuid,
+            projectUuid,
+            runUuid,
             evidencePack,
             reason,
             model,
+            onUsage,
         }: {
             agentUuid: string;
             threadUuid: string;
+            promptUuid: string;
+            projectUuid: string;
+            runUuid: string;
             evidencePack: AiDeepResearchEvidencePack;
             reason: string;
             model: AiDeepResearchExecutionContextSnapshot['model'];
+            onUsage: AiDeepResearchFinalizerUsageFn;
         },
     ): Promise<AiDeepResearchSubmittedReport> {
         const copilotConfig =
@@ -8137,15 +8201,23 @@ export class AiAgentService extends BaseService {
             }),
             telemetry: {
                 organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
                 agentUuid,
                 threadUuid,
+                promptUuid,
                 userUuid: user.userUuid,
+                ...(await this.getThreadUsageAttribution({
+                    threadUuid,
+                    promptUuid,
+                })),
             },
         };
 
         return generateDeepResearchReportFromEvidence(modelOptions, {
             evidencePack,
             reason,
+            runUuid,
+            onUsage,
         });
     }
 
@@ -8183,6 +8255,11 @@ export class AiAgentService extends BaseService {
                     agentUuid,
                     threadUuid,
                     userUuid: user.userUuid,
+                    // A title belongs to the thread, not to one viewer.
+                    ...(await this.getThreadUsageAttribution({
+                        threadUuid,
+                        promptUuid: null,
+                    })),
                 },
             };
 
@@ -9185,6 +9262,14 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
+            if (
+                await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                    payload.organizationUuid,
+                )
+            ) {
+                return;
+            }
+
             const embeddingResult = await generateEmbedding(
                 text,
                 this.lightdashConfig,
@@ -9654,6 +9739,13 @@ export class AiAgentService extends BaseService {
         limit?: number;
         userUuid?: string;
     }): Promise<RelevantVerifiedAnswerContext> {
+        if (
+            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                organizationUuid,
+            )
+        ) {
+            return { relevantVerifiedAnswers: [] };
+        }
         const [embeddingResult, decisions] = await Promise.all([
             generateEmbedding(searchQuery, this.lightdashConfig, {
                 organizationUuid,
@@ -12622,6 +12714,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         agentUuid: prompt.agentUuid,
                         threadUuid: prompt.threadUuid,
                         userUuid: user.userUuid,
+                        ...getPromptUsageAttribution(prompt),
                     },
                 },
                 { ...generatorContext, styleReferenceTitle: current.title },
@@ -14043,6 +14136,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             messageHistory,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
+            ...getPromptUsageAttribution(prompt),
 
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
@@ -20266,7 +20360,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     async assessResult(
         resultUuid: string,
         canAccessData: boolean,
-        telemetry?: AiCallAttribution,
+        telemetry?: Omit<AiCallAttribution, 'keyManagement'>,
     ): Promise<boolean | null> {
         Logger.info(`Assessing result ${resultUuid}`);
         const { query, response, expectedAnswer, artifact, toolResults } =
@@ -20274,9 +20368,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         // TODO: Implement judge configuration in the future!
         // reusing existing configuration for now
-        const { model: judge, callOptions } = getModel(
-            this.lightdashConfig.ai.copilot,
-        );
+        const {
+            model: judge,
+            callOptions,
+            keyManagement,
+        } = getModel(this.lightdashConfig.ai.copilot);
 
         // Build context from artifacts and tool results
         const contextParts: string[] = [];
@@ -20317,6 +20413,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   context: contextParts.length > 0 ? contextParts : undefined,
                   judge,
                   callOptions,
+                  keyManagement,
                   scorerType: 'factuality',
                   telemetry,
               })
@@ -20330,6 +20427,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       context: contextParts,
                       judge,
                       callOptions,
+                      keyManagement,
                       scorerType: 'contextRelevancy',
                       telemetry,
                   })

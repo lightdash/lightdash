@@ -43,6 +43,7 @@ import {
     getContentAsCodePathFromLtreePath,
     getCustomSqlFieldKey,
     getDataAppVizPreviewSchema,
+    getDocumentRuntimeChartConfig,
     getEffectiveFieldAiHints,
     getErrorMessage,
     getSdkFeaturesForTarget,
@@ -52,6 +53,7 @@ import {
     isDashboardChartTileType,
     isDataAppAutoAnalysis,
     isExploreError,
+    isExternalFetchDocumentContext,
     isSemverVersion,
     isValidDataAppSlug,
     MAX_APP_FILES_PER_VERSION,
@@ -126,10 +128,12 @@ import {
     type DataAppVizSchema,
     type DataAppVizsFilter,
     type DataAppVizUpgradeImpact,
+    type DocumentQueryReference,
     type EmbedProjectApp,
     type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
+    type ExternalFetchRequest,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -141,6 +145,7 @@ import {
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type RegisteredAccount,
     type RegistryChartTypeListItem,
     type RegistryChartTypeState,
     type SavedChart,
@@ -163,13 +168,14 @@ import {
     emitAiUsage,
     languageModelUsageToTokens,
     type AiKeyManagement,
+    type AiUsageOutcome,
 } from '../../../analytics/aiUsage';
 import {
     LightdashAnalytics,
     type DataAppUploadIdentitySource,
     type DataAppUploadRejectedEvent,
 } from '../../../analytics/LightdashAnalytics';
-import { fromSession } from '../../../auth/account';
+import { fromSession, toSessionUser } from '../../../auth/account';
 import { createObjectUrlSigner } from '../../../clients/Aws/ObjectUrlSigner';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -208,6 +214,7 @@ import {
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
+import type { DocumentService } from '../../../services/DocumentService/DocumentService';
 import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
@@ -325,6 +332,7 @@ import {
     codingAgentContextTokensPerTurn,
     codingAgentRetryStart,
     codingAgentSessionFlags,
+    CodingAgentSessionUsageLedger,
     decideCodingAgentSessionStart,
     findCodingAgentCompactionOutcome,
     findCodingAgentSessionId,
@@ -453,6 +461,7 @@ type AppGenerateServiceDeps = {
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
     coderService: CoderService;
+    documentService: DocumentService;
     dashboardService: DashboardService;
     projectService: ProjectService;
     promoteService: PromoteService;
@@ -771,6 +780,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly coderService: CoderService;
 
+    private readonly documentService: DocumentService;
+
     private readonly dashboardService: DashboardService;
 
     private readonly projectService: ProjectService;
@@ -814,6 +825,7 @@ export class AppGenerateService extends BaseService {
         savedChartService,
         spacePermissionService,
         coderService,
+        documentService,
         dashboardService,
         projectService,
         promoteService,
@@ -843,6 +855,7 @@ export class AppGenerateService extends BaseService {
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
         this.coderService = coderService;
+        this.documentService = documentService;
         this.dashboardService = dashboardService;
         this.projectService = projectService;
         this.promoteService = promoteService;
@@ -2561,6 +2574,7 @@ export class AppGenerateService extends BaseService {
         keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
         functionId: 'appClaudeGeneration' | 'appClaudeCompaction',
+        outcome: AiUsageOutcome,
     ): void {
         const emit = (
             resolvedModel: string,
@@ -2605,6 +2619,7 @@ export class AppGenerateService extends BaseService {
                         tokens.cacheCreationInputTokens +
                         tokens.outputTokens,
                 },
+                { outcome },
             );
 
         // The run is launched with a tier alias (`opus`, `sonnet`) that the
@@ -2707,6 +2722,7 @@ export class AppGenerateService extends BaseService {
                     ),
                 generationUsage,
                 'appClaudeGeneration',
+                'failed',
             );
             await this.recordGenerationUsage(payload, generationUsage);
         }
@@ -3995,6 +4011,8 @@ export class AppGenerateService extends BaseService {
         // Null for follow-up turns of the same version (build fixes), whose
         // session the generating turn already recorded.
         sessionHooks: CodingAgentSessionHooks | null,
+        // Null when the run is not on a thread's session (metadata).
+        sessionUsage: CodingAgentSessionUsageLedger | null,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
@@ -4190,7 +4208,15 @@ export class AppGenerateService extends BaseService {
                     stderr: redactOutput(raw.stderr),
                 }));
             const toolCallCount = processor.totalToolCalls;
-            const usage = processor.lastUsage;
+            // A resumed session reports running totals; keep this run's share.
+            const runSessionId =
+                session.kind === 'resume'
+                    ? session.sessionId
+                    : learnedSessionId;
+            const usage =
+                processor.lastUsage && sessionUsage && runSessionId
+                    ? sessionUsage.record(runSessionId, processor.lastUsage)
+                    : processor.lastUsage;
             const { timeToFirstTokenMs, turnDurationsMs } = processor;
             telemetry = addClaudeGenerationAttempt(
                 telemetry,
@@ -4530,6 +4556,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         sessionStart: CodingAgentSessionStart,
         sessionHooks: CodingAgentSessionHooks | null,
+        sessionUsage: CodingAgentSessionUsageLedger | null,
         codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         reasoningEffort: DataAppClaudeEffort,
@@ -4553,6 +4580,7 @@ export class AppGenerateService extends BaseService {
             version,
             sessionStart,
             sessionHooks,
+            sessionUsage,
             codingAgentEnv,
             claudeModel,
             reasoningEffort,
@@ -4741,6 +4769,7 @@ export class AppGenerateService extends BaseService {
         sandbox: SandboxHandle,
         appUuid: string,
         version: number,
+        sessionUsage: CodingAgentSessionUsageLedger | null,
         codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
@@ -4847,6 +4876,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 { kind: 'continue' }, // keep thread context from generation
                 null,
+                sessionUsage,
                 codingAgentEnv,
                 claudeModel,
                 claudeEffort,
@@ -5112,6 +5142,7 @@ export class AppGenerateService extends BaseService {
     ): {
         sessionStart: CodingAgentSessionStart;
         sessionHooks: CodingAgentSessionHooks;
+        sessionUsage: CodingAgentSessionUsageLedger;
     } {
         const { appUuid } = args.tracking;
         const sessionStart = decideCodingAgentSessionStart({
@@ -5147,7 +5178,22 @@ export class AppGenerateService extends BaseService {
                 });
             },
         };
-        return { sessionStart, sessionHooks };
+        const sessionUsage = new CodingAgentSessionUsageLedger(
+            thread.coding_agent_session_usage,
+            (snapshot) => {
+                this.appModel
+                    .setThreadCodingAgentSessionUsage(
+                        thread.app_thread_uuid,
+                        snapshot,
+                    )
+                    .catch((error: unknown) => {
+                        this.logger.warn(
+                            `App ${appUuid}: failed to record coding agent session usage: ${getErrorMessage(error)}`,
+                        );
+                    });
+            },
+        );
+        return { sessionStart, sessionHooks, sessionUsage };
     }
 
     /**
@@ -5162,6 +5208,7 @@ export class AppGenerateService extends BaseService {
     ): Promise<{
         sessionStart: CodingAgentSessionStart;
         sessionHooks: CodingAgentSessionHooks;
+        sessionUsage: CodingAgentSessionUsageLedger;
         appThreadUuid: string;
         // Set by a retry whose earlier attempt already compacted this version.
         compactedOnEarlierAttempt: boolean;
@@ -5263,6 +5310,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         sessionId: string,
         copilot: CodingAgentConfig,
+        sessionUsage: CodingAgentSessionUsageLedger,
     ): Promise<CodingAgentCompactionRun> {
         const start = performance.now();
         const done = (
@@ -5305,7 +5353,10 @@ export class AppGenerateService extends BaseService {
                 },
             );
             const outcome = findCodingAgentCompactionOutcome(result.stdout);
-            const usage = findClaudeResultUsage(result.stdout);
+            const reported = findClaudeResultUsage(result.stdout);
+            const usage = reported
+                ? sessionUsage.record(sessionId, reported)
+                : null;
             const cliVersion =
                 findCodingAgentSessionInit(result.stdout)?.cliVersion ?? null;
             if (outcome?.result === 'success') {
@@ -5933,6 +5984,7 @@ export class AppGenerateService extends BaseService {
         const {
             sessionStart,
             sessionHooks,
+            sessionUsage,
             appThreadUuid,
             compactedOnEarlierAttempt,
         } = await this.resolveCodingAgentSession(
@@ -6050,6 +6102,7 @@ export class AppGenerateService extends BaseService {
                     appUuid,
                     decision.sessionToCompact,
                     copilot,
+                    sessionUsage,
                 );
                 durations.compactMs = compaction.durationMs;
             }
@@ -6079,6 +6132,7 @@ export class AppGenerateService extends BaseService {
                     version,
                     sessionStart,
                     sessionHooks,
+                    sessionUsage,
                     codingAgentEnv,
                     claudeModel,
                     claudeEffort,
@@ -6242,6 +6296,7 @@ export class AppGenerateService extends BaseService {
                     sandbox,
                     appUuid,
                     version,
+                    sessionUsage,
                     codingAgentEnv,
                     claudeModel,
                     claudeEffort,
@@ -6425,6 +6480,7 @@ export class AppGenerateService extends BaseService {
             claudeKeyManagement,
             generationUsage,
             'appClaudeGeneration',
+            'complete',
         );
         // Kept apart from the generation so `contextTokensPerTurn` on the
         // next version only sees the turns that ran on the summary.
@@ -6436,6 +6492,7 @@ export class AppGenerateService extends BaseService {
                 claudeKeyManagement,
                 compaction.usage,
                 'appClaudeCompaction',
+                'complete',
             );
         }
         await this.recordGenerationUsage(payload, generationUsage);
@@ -8027,7 +8084,7 @@ export class AppGenerateService extends BaseService {
                 // Best-effort breadcrumb in the thread's session so the next
                 // turn knows the working tree was reset. Skipped when the
                 // thread would start a new session anyway.
-                const { sessionStart, sessionHooks } =
+                const { sessionStart, sessionHooks, sessionUsage } =
                     this.resolveThreadSession(currentThread, {
                         sandboxWasResumed: true,
                         threadHasVersionThatReachedAgent:
@@ -8053,6 +8110,7 @@ export class AppGenerateService extends BaseService {
                         copilot,
                         sessionStart,
                         sessionHooks,
+                        sessionUsage,
                     );
                 }
             } catch (error) {
@@ -8328,6 +8386,7 @@ export class AppGenerateService extends BaseService {
         copilot: CodingAgentConfig,
         sessionStart: CodingAgentSessionStart,
         sessionHooks: CodingAgentSessionHooks,
+        sessionUsage: CodingAgentSessionUsageLedger,
     ): Promise<void> {
         let claudeCodeEnv: Record<string, string>;
         try {
@@ -8389,6 +8448,16 @@ export class AppGenerateService extends BaseService {
                     `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(redactSandboxEnvSecrets(result.stderr, claudeCodeEnv, CLAUDE_CODE_SECRET_ENV_KEYS), 500)}`,
                 );
                 return;
+            }
+            // The notice is one more turn on the session, so its totals go
+            // on the ledger and the next build reports only its own share.
+            const noticeSessionId =
+                start.kind === 'resume'
+                    ? start.sessionId
+                    : findCodingAgentSessionId(result.stdout);
+            const noticeUsage = findClaudeResultUsage(result.stdout);
+            if (noticeSessionId !== null && noticeUsage !== null) {
+                sessionUsage.record(noticeSessionId, noticeUsage);
             }
             if (start.kind !== 'resume') {
                 const learnedSessionId = findCodingAgentSessionId(
@@ -10286,6 +10355,86 @@ export class AppGenerateService extends BaseService {
         return { dataAppViz, chart };
     }
 
+    async assertCanAccessDataAppVisualization(
+        account: RegisteredAccount,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        chartContext: ExternalFetchRequest['chartContext'],
+    ): Promise<void> {
+        if (isExternalFetchDocumentContext(chartContext)) {
+            await this.getAuthorizedDataAppVizForDocument(
+                account,
+                projectUuid,
+                {
+                    documentUuid: chartContext.documentUuid,
+                    versionUuid: chartContext.documentVersionUuid,
+                    cellIndex: chartContext.cellIndex,
+                },
+                dataAppVizUuid,
+            );
+            return;
+        }
+        const user = toSessionUser(account);
+        if (chartContext) {
+            await this.getAuthorizedDataAppVizForChart(
+                user,
+                projectUuid,
+                chartContext.savedChartUuid,
+                dataAppVizUuid,
+                chartContext.chartVersionUuid,
+            );
+        } else {
+            await this.getAuthorizedDataAppVizForAuthoring(
+                user,
+                projectUuid,
+                dataAppVizUuid,
+            );
+        }
+    }
+
+    /**
+     * Viewing a Document chart that renders this viz. Authorization follows
+     * the Document, and the requested cell of the requested Document version
+     * must actually reference the viz, so a viewer can only render what the
+     * Document shows.
+     */
+    private async getAuthorizedDataAppVizForDocument(
+        account: RegisteredAccount,
+        projectUuid: string,
+        reference: DocumentQueryReference,
+        dataAppVizUuid: string,
+    ) {
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        await assertChartTypesEnabled(this.featureFlagModel, {
+            userUuid: account.user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+        });
+
+        const { chart } = await this.documentService.getChartCell(
+            account,
+            projectUuid,
+            reference,
+        );
+        if (
+            chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
+        ) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
+
+        return {
+            dataAppViz,
+            chartConfig: getDocumentRuntimeChartConfig(chart.chartConfig),
+        };
+    }
+
     private resolveVizRenderMetadata(
         appUuid: string,
         pinnedVersion?: number,
@@ -10391,6 +10540,60 @@ export class AppGenerateService extends BaseService {
             dataAppViz.app_id,
             version,
             user.userUuid,
+            dataAppViz.organization_uuid,
+            projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
+        );
+    }
+
+    async getDocumentDataAppVizRenderMetadata(
+        account: RegisteredAccount,
+        projectUuid: string,
+        reference: DocumentQueryReference,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const { dataAppViz, chartConfig } =
+            await this.getAuthorizedDataAppVizForDocument(
+                account,
+                projectUuid,
+                reference,
+                dataAppVizUuid,
+            );
+        return this.resolveVizRenderMetadata(
+            dataAppViz.app_id,
+            getDataAppVizVersionPin(chartConfig),
+        );
+    }
+
+    async getDocumentDataAppVizPreviewToken(
+        account: RegisteredAccount,
+        projectUuid: string,
+        reference: DocumentQueryReference,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        const { dataAppViz, chartConfig } =
+            await this.getAuthorizedDataAppVizForDocument(
+                account,
+                projectUuid,
+                reference,
+                dataAppVizUuid,
+            );
+
+        await assertDataAppVizPreviewVersionAllowed(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+            getDataAppVizVersionPin(chartConfig),
+        );
+
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecrets,
+            dataAppViz.app_id,
+            version,
+            account.user.userUuid,
             dataAppViz.organization_uuid,
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(

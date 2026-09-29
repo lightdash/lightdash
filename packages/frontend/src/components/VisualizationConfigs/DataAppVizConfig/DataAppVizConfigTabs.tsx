@@ -35,6 +35,7 @@ import Callout from '../../common/Callout';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useIsVegaEditorAvailable } from '../ChartConfigPanel/CustomVis/useIsVegaEditorAvailable';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 import { type CustomChartTypeOption } from '../CustomChartType/customChartTypeOption';
@@ -144,6 +145,7 @@ export const ConfigTabs: FC = memo(() => {
     // The gallery sidebar already shows the picked type, so the picker and
     // the type card are redundant there.
     const isInsideChartGallery = useIsInsideChartGallery();
+    const isVegaEditorAvailable = useIsVegaEditorAvailable();
     // In-place authoring needs data-apps; without it, fall back to the
     // standalone builder link the panel always offered.
     const dataAppsEnabled =
@@ -326,7 +328,11 @@ export const ConfigTabs: FC = memo(() => {
                         selected={selectedOption}
                         selectedDataAppViz={dataAppViz ?? null}
                         hasColumns={hasColumns}
-                        onSelectVega={() => setChartType(ChartType.CUSTOM)}
+                        onSelectVega={
+                            isVegaEditorAvailable
+                                ? () => setChartType(ChartType.CUSTOM)
+                                : null
+                        }
                         onSelectProjectType={(picked) =>
                             selectProjectChartType(picked, effectiveItemsMap)
                         }

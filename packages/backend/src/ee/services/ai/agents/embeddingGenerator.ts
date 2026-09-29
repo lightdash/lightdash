@@ -5,9 +5,11 @@ import {
     emitAiUsage,
 } from '../../../../analytics/aiUsage';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { resolveKeyManagement } from '../models';
 import { getAzureProvider } from '../models/azure-openai-gpt-4.1';
 import { getBedrockEmbeddingModel } from '../models/bedrock';
 import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
+import type { AiProvider } from '../models/types';
 import {
     AiCallAttribution,
     getAiCallTelemetry,
@@ -18,7 +20,7 @@ const EMBEDDING_DIMENSIONS = 1536;
 function getEmbeddingModelConfig(config: LightdashConfig):
     | {
           model: EmbeddingModel;
-          provider: string;
+          provider: AiProvider;
           modelName: string;
       }
     | undefined {
@@ -64,7 +66,9 @@ function getEmbeddingModelConfig(config: LightdashConfig):
 export async function generateEmbedding(
     text: string,
     config: LightdashConfig,
-    telemetry: AiCallAttribution & { extra?: Record<string, string> } = {},
+    telemetry: Omit<AiCallAttribution, 'keyManagement'> & {
+        extra?: Record<string, string>;
+    } = {},
 ): Promise<{
     embedding: number[];
     provider: string;
@@ -88,9 +92,8 @@ export async function generateEmbedding(
         ...attribution,
         model: modelName,
         provider,
-        // The embeddings use an instance-only path. This path does not record
-        // the key origin.
-        keyManagement: null,
+        // Embeddings always run on the instance key, never an org's own key.
+        keyManagement: resolveKeyManagement(config.ai.copilot, provider),
         extra,
     });
     const result = await embed({

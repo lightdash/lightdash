@@ -1291,6 +1291,11 @@ export class ProjectModel {
         seedUserUuid: string | null,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            // Deep research is an Enterprise Edition feature. The table may not
+            // exist on self-hosted instances without an EE license.
+            if (!(await trx.schema.hasTable(AiDeepResearchRunsTableName))) {
+                return;
+            }
             // Only the seed's runs (made by whoever enabled Learn) travel
             // into copies; nothing another learner or admin ran afterwards.
             const runs = await trx(AiDeepResearchRunsTableName)

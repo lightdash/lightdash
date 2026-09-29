@@ -12,7 +12,8 @@ type Props = {
     /** Auto-binding only runs at pick time, so picking before the query has
      *  columns would leave the slots empty for good. */
     hasColumns: boolean;
-    onSelectVega: () => void;
+    /** Null hides the built-in Vega option. */
+    onSelectVega: (() => void) | null;
     onSelectProjectType: (dataAppViz: DataAppViz) => void;
     /** Null where an empty selection is not a state the caller can be left in. */
     onClear: (() => void) | null;

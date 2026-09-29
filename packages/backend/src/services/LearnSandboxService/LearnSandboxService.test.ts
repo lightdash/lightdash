@@ -17,6 +17,8 @@ import {
 import {
     mkdir,
     mkdtemp,
+    readdir,
+    readFile,
     realpath,
     rm,
     utimes,
@@ -802,6 +804,7 @@ describe('LearnSandboxService.runCommand', () => {
 
     const originalEnv = { ...process.env };
     let workspaceRoot: string;
+    let partialParseRoot: string;
     let bin: string;
 
     beforeEach(async () => {
@@ -813,6 +816,7 @@ describe('LearnSandboxService.runCommand', () => {
         workspaceRoot = await realpath(
             await mkdtemp(path.join(tmpdir(), 'learn-run-ws-')),
         );
+        partialParseRoot = path.join(workspaceRoot, '.partial-parse');
         bin = await mkdtemp(path.join(tmpdir(), 'learn-bin-'));
         process.env.LEARN_SANDBOX_PATH_PREFIX = bin;
         resetSandboxDbtVersionCache();
@@ -824,7 +828,12 @@ describe('LearnSandboxService.runCommand', () => {
         await rm(bin, { recursive: true, force: true });
     });
 
-    const buildService = () => {
+    // Partial parsing stays off unless a test asks for it: its baseline
+    // builds in the background after a command and would otherwise race
+    // the afterEach cleanup.
+    const buildService = ({
+        partialParse = false,
+    }: { partialParse?: boolean } = {}) => {
         const pat = {
             createPersonalAccessToken: vi.fn(async () => ({
                 uuid: 'pat-1',
@@ -849,6 +858,7 @@ describe('LearnSandboxService.runCommand', () => {
             userService,
             schedulerClient,
             workspaceRoot,
+            partialParseRoot: partialParse ? partialParseRoot : null,
         });
         return { service, pat, userService };
     };
@@ -908,6 +918,7 @@ describe('LearnSandboxService.runCommand', () => {
             userService,
             schedulerClient,
             workspaceRoot,
+            partialParseRoot: null,
         });
         await svc.runCommand({
             commandUuid: 'c1',
@@ -985,7 +996,13 @@ describe('LearnSandboxService.runCommand', () => {
         expect(text).toContain('project=copy');
     });
 
-    const runWithFakeDbt = async (script: string[]) => {
+    const runWithFakeDbt = async (
+        script: string[],
+        {
+            keepOverlay = false,
+            service = buildService().service,
+        }: { keepOverlay?: boolean; service?: LearnSandboxService } = {},
+    ) => {
         await writeFile(path.join(bin, 'dbt'), [...script, ''].join('\n'), {
             mode: 0o755,
         });
@@ -997,12 +1014,14 @@ describe('LearnSandboxService.runCommand', () => {
             argv: ['dbt', 'parse'],
             pat_uuid: null,
         });
-        files.listFiles.mockResolvedValue([]);
+        if (!keepOverlay) {
+            files.listFiles.mockResolvedValue([]);
+        }
         const appended: { text: string }[] = [];
         files.appendOutput.mockImplementation(async (_id, chunks) => {
             appended.push(...chunks);
         });
-        await buildService().service.runCommand({
+        await service.runCommand({
             commandUuid: 'c-v',
             projectUuid: 'copy',
             organizationUuid: 'org',
@@ -1034,6 +1053,72 @@ describe('LearnSandboxService.runCommand', () => {
             'c-v',
             expect.objectContaining({ status: 'done', exit_code: 0 }),
         );
+    });
+
+    // A fake dbt for the partial-parse tests. The baseline build is the
+    // only dbt run without a LIGHTDASH_PROJECT; it logs itself and writes
+    // a msgpack that records whether a learner's overlay file was present.
+    const partialParseDbt = (baselineExit: number) => [
+        '#!/bin/sh',
+        'if [ "$1" = "--version" ]; then',
+        '  printf "Core:\\n  - installed: 1.12.3\\n"',
+        '  exit 0',
+        'fi',
+        'if [ -z "$LIGHTDASH_PROJECT" ]; then',
+        `  echo baseline >> "${partialParseRoot}.calls"`,
+        '  mkdir -p "$DBT_TARGET_PATH"',
+        '  if grep -rq OVERLAY_MARKER models; then state=tainted; else state=pristine; fi',
+        '  echo "$state" > "$DBT_TARGET_PATH/partial_parse.msgpack"',
+        `  exit ${baselineExit}`,
+        'fi',
+        'echo "partial=$DBT_PARTIAL_PARSE seeded=$(cat "$DBT_TARGET_PATH/partial_parse.msgpack" 2>/dev/null || echo none)"',
+    ];
+    const baselineCalls = async () =>
+        (await readFile(`${partialParseRoot}.calls`, 'utf8').catch(() => ''))
+            .split('\n')
+            .filter(Boolean).length;
+    const baselineFiles = async () =>
+        (await readdir(partialParseRoot).catch(() => [] as string[])).filter(
+            (name) => name.endsWith('.msgpack'),
+        );
+
+    it('seeds later commands with a partial parse of the pristine bundle', async () => {
+        files.listFiles.mockResolvedValue([
+            { path: 'models/marker.yml', content: '# OVERLAY_MARKER\n' },
+        ]);
+        const { service } = buildService({ partialParse: true });
+        const first = await runWithFakeDbt(partialParseDbt(0), {
+            keepOverlay: true,
+            service,
+        });
+        // No baseline yet: a full parse, and the baseline builds afterwards.
+        expect(first).toContain('partial=false seeded=none');
+        await vi.waitFor(async () => {
+            expect(await baselineFiles()).toHaveLength(1);
+        });
+        const second = await runWithFakeDbt(partialParseDbt(0), {
+            keepOverlay: true,
+            service,
+        });
+        // Built from the bundle alone: the learner's overlay never reaches
+        // the baseline another learner's workspace is seeded with.
+        expect(second).toContain('partial=true seeded=pristine');
+        expect(await baselineCalls()).toBe(1);
+    });
+
+    it('keeps running full parses when the baseline cannot be built, without retrying on every command', async () => {
+        const { service } = buildService({ partialParse: true });
+        await runWithFakeDbt(partialParseDbt(1), { service });
+        await vi.waitFor(async () => {
+            expect(await baselineCalls()).toBe(1);
+        });
+        const second = await runWithFakeDbt(partialParseDbt(1), { service });
+        expect(second).toContain('partial=false seeded=none');
+        await new Promise((resolve) => {
+            setTimeout(resolve, 200);
+        });
+        expect(await baselineCalls()).toBe(1);
+        expect(await baselineFiles()).toHaveLength(0);
     });
 
     it('marks a non-zero exit as error and still revokes the PAT', async () => {
@@ -1076,6 +1161,7 @@ describe('LearnSandboxService.runCommand', () => {
             userService,
             schedulerClient,
             workspaceRoot,
+            partialParseRoot: null,
         });
         await svc.runCommand({
             commandUuid: 'c2',

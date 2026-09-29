@@ -10,6 +10,7 @@ import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
+    type AiKeyManagement,
 } from '../../../../analytics/aiUsage';
 import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
@@ -152,6 +153,7 @@ type Params = {
     expectedOutcome: string;
     judge: ReturnType<typeof getOpenaiGptmodel>['model'];
     callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'];
+    keyManagement: AiKeyManagement;
     expectedArgsValidation?: {
         toolName: string;
         expectedArgs: object;
@@ -294,6 +296,7 @@ export const evaluateToolCallSequence = async (
     toolCallsScores: ToolCallsScores,
     judge: ReturnType<typeof getOpenaiGptmodel>['model'],
     callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'],
+    keyManagement: AiKeyManagement,
 ): Promise<ToolEvaluationResponse> => {
     const toolCallsDescription = toolCallsScores.scores
         .map((score) => score.description)
@@ -303,9 +306,7 @@ export const evaluateToolCallSequence = async (
         functionId: 'evaluateToolCallSequence',
         feature: 'llm-judge',
         ...getLanguageModelAttribution(judge),
-        // This is an instance-only evaluation path. It does not record the
-        // key origin.
-        keyManagement: null,
+        keyManagement,
     });
     const result = await generateText({
         model: judge,
@@ -398,6 +399,7 @@ export const llmAsJudgeForTools = async ({
     expectedOutcome,
     judge,
     callOptions,
+    keyManagement,
     expectedArgsValidation = [],
 }: Params): Promise<ToolJudgeResult> => {
     const toolCallsScores = await scoreToolCalls(
@@ -411,6 +413,7 @@ export const llmAsJudgeForTools = async ({
         toolCallsScores,
         judge,
         callOptions,
+        keyManagement,
     );
 
     return {

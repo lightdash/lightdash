@@ -177,7 +177,7 @@ export const buildLearnCatalogue = (): LearnModule[] => {
 };
 
 /**
- * Where a module sits in the teaching order the docs imply
+ * Where a module sits in the teaching order the docs sidebar sets
  * (scripts/scope-tours/order.ts). A module the order does not name, because
  * no walkthrough exists for it yet, sorts after every one that it does.
  */

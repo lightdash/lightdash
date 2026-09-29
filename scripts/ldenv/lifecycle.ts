@@ -1,0 +1,973 @@
+import { existsSync } from 'node:fs';
+import { mkdir, readFile, realpath, rm } from 'node:fs/promises';
+import path from 'node:path';
+import {
+    benchmarkDependencies,
+    moduleLayout,
+    buildDiff,
+    changedFiles,
+    cloneBuilds,
+    prepareForkCode,
+    dependencies,
+    install,
+    runTiers,
+    sourceHashes,
+    sourceHash,
+} from './cache';
+import { cleanupOrphans, removeOwnedWarm } from './cleanup';
+import {
+    inheritLicensePair,
+    restoreInstanceEnv,
+    writeInstanceEnv,
+} from './env';
+import {
+    claimPorts,
+    compose,
+    databaseIdentifier,
+    diskGuard,
+    dotenv,
+    dropDatabase,
+    ensurePostgres,
+    localSecrets,
+    machine,
+    releasePorts,
+    requireLicense,
+    sharedEnvironment,
+    sharedServices,
+    sql,
+} from './infra';
+import {
+    atomicWrite,
+    backgroundWork,
+    foregroundWork,
+    git,
+    hashFile,
+    home,
+    listJson,
+    runner,
+    saveInstance,
+    statePath,
+    withLock,
+    writeJson,
+} from './io';
+import { resumeExistingInstance } from './live';
+import {
+    assertInstance,
+    savedBackendMode,
+    dotenvText,
+    instanceEnvironment,
+    instanceId,
+    newInstance,
+    matchingTiers,
+    parseRecipe,
+    selectParent,
+    seedCommands,
+    tierEnvironment,
+    type Environment,
+    type Instance,
+    type Parent,
+    type Ports,
+} from './model';
+import {
+    parentDatabase,
+    postgresPort,
+    warehouseDatabase as warehouseDatabaseName,
+} from './namespace';
+import { retireParent } from './parent-gc';
+import {
+    background,
+    bridge,
+    cancelMonitor,
+    currentState,
+    dbtEnvironment,
+    finishStart,
+    startProcesses,
+    warmCompileCache,
+    seedProjectUuid,
+    stopProcesses,
+} from './processes';
+import { canStartApiAlongsideWatchers, waitForCompilers } from './readiness';
+import { markTimeline, traced } from './timeline';
+import { populateViteCache, restoreViteCache } from './vite';
+
+export const controlRoot = path.resolve(__dirname, '../..');
+export const manifests = path.join(home, 'manifests');
+export const parents = () => listJson<Parent>(manifests);
+export const instances = () => listJson<Instance>(path.join(home, 'instances'));
+export async function rootDirectory(
+    directory = process.cwd(),
+): Promise<string> {
+    return realpath(await git(directory, ['rev-parse', '--show-toplevel']));
+}
+export async function recordedRootDirectory(
+    directory = process.cwd(),
+    operations = { rootDirectory, exists: existsSync },
+): Promise<string> {
+    try {
+        return await operations.rootDirectory(directory);
+    } catch (error) {
+        const resolved = await realpath(directory).catch(() => null);
+        if (resolved && operations.exists(statePath(instanceId(resolved))))
+            return resolved;
+        throw error;
+    }
+}
+export async function recipeAt(root: string) {
+    return parseRecipe(await readFile(path.join(root, 'rainbow.toml'), 'utf8'));
+}
+export async function ancestor(
+    root: string,
+    sha: string,
+    ref = 'HEAD',
+): Promise<boolean> {
+    try {
+        await git(root, ['merge-base', '--is-ancestor', sha, ref]);
+        return true;
+    } catch {
+        return false;
+    }
+}
+export async function environment(
+    root: string,
+    instance: Instance,
+    secrets: Environment,
+): Promise<Environment> {
+    const config = await compose(root);
+    const recipe = await recipeAt(root);
+    if (!instance.ports) throw new Error('Ports not allocated');
+    const env = instanceEnvironment({
+        base: await dotenv(path.join(root, '.env.development')),
+        recipe: recipe.env,
+        local: secrets,
+        shared: await sharedEnvironment(root, config),
+        worktree: root,
+        id: instance.id,
+        database: instance.database,
+        machine: await machine(),
+        ports: instance.ports,
+    });
+    return { ...env, ...(await dbtEnvironment(root)) };
+}
+const parentPorts: Ports = {
+    pg: 15432,
+    frontend: 3000,
+    api: 8080,
+    scheduler: 8081,
+    debug: 9229,
+    sdkTest: 3030,
+    maple: 4320,
+    prometheus: 9090,
+};
+export async function timed<T>(
+    timings: Record<string, number>,
+    key: string,
+    action: () => Promise<T>,
+): Promise<T> {
+    const start = Date.now();
+    markTimeline(timings, key, 'start', start);
+    process.stdout.write(`PHASE: ${key}\n`);
+    try {
+        return await action();
+    } finally {
+        timings[key] = Date.now() - start;
+        markTimeline(timings, key, 'end');
+        process.stdout.write(`TIME: ${key}=${timings[key]}ms\n`);
+    }
+}
+export async function parentBuildSecrets(
+    root: string,
+    operations = { localSecrets, parents },
+): Promise<Environment> {
+    const secrets = await operations.localSecrets(root);
+    if (!secrets.LIGHTDASH_LICENSE_KEY) {
+        const newest = (await operations.parents()).sort((a, b) =>
+            b.builtAt.localeCompare(a.builtAt),
+        )[0];
+        if (newest)
+            inheritLicensePair(
+                secrets,
+                await operations.localSecrets(newest.path),
+            );
+    }
+    return secrets;
+}
+export async function buildParent(
+    root: string,
+    ref: string,
+    refresh = false,
+    benchmarkDeps = false,
+): Promise<Parent> {
+    postgresPort();
+    return backgroundWork(() =>
+        withLock('parent-build', async () => {
+            const sha = await git(root, [
+                'rev-parse',
+                '--verify',
+                `${ref}^{commit}`,
+            ]);
+            if (!/^[a-f0-9]{40}$/.test(sha))
+                throw new Error('Invalid parent commit');
+            const existing = (await parents()).find(
+                (parent) => parent.sha === sha,
+            );
+            if (existing) {
+                if (!existing.warehouseDatabase)
+                    throw new Error(
+                        'This parent predates shared warehouses; rebuild it before use',
+                    );
+                if ((await moduleLayout(existing.path)) !== 'global')
+                    return refreshArtifacts(root, existing);
+                if (benchmarkDeps) {
+                    await benchmarkDependencies(
+                        existing,
+                        await dotenv(
+                            path.join(existing.path, '.env.development.local'),
+                        ),
+                    );
+                }
+                if (!existing.compileCacheWarmedAt) {
+                    const env = await dotenv(
+                        path.join(existing.path, '.env.development.local'),
+                    );
+                    await timed(existing.timings, 'compileCacheWarm', () =>
+                        warmCompileCache(existing.path, env),
+                    );
+                    existing.compileCacheWarmedAt = new Date().toISOString();
+                    await withLock('parents', () =>
+                        writeJson(
+                            path.join(manifests, `${sha}.json`),
+                            existing,
+                        ),
+                    );
+                }
+                existing.seedProjectUuid ??= await seedProjectUuid(
+                    existing.path,
+                );
+                await timed(existing.timings, 'viteCachePopulate', async () => {
+                    const result = await populateViteCache(
+                        existing.path,
+                        await dotenv(
+                            path.join(existing.path, '.env.development.local'),
+                        ),
+                    );
+                    existing.viteCache = result;
+                    process.stdout.write(
+                        `VITE CACHE: ${result.status}: ${result.reason}\n`,
+                    );
+                });
+                await withLock('parents', () =>
+                    writeJson(path.join(manifests, `${sha}.json`), existing),
+                );
+                return existing;
+            }
+            await diskGuard();
+            const secrets = await parentBuildSecrets(root);
+            requireLicense(secrets);
+            const directory = path.join(home, 'parents', sha.slice(0, 12));
+            if (existsSync(directory))
+                throw new Error(
+                    `Unpublished parent remains at ${directory}. Inspect its log and remove only this unpublished worktree and database before retrying.`,
+                );
+            const timings: Record<string, number> = {};
+            const started = Date.now();
+            await timed(timings, 'postgres', () => ensurePostgres(root));
+            await sharedServices(root, await compose(root), true);
+            await mkdir(path.dirname(directory), { recursive: true });
+            await git(root, ['worktree', 'add', '--detach', directory, sha]);
+            const database = parentDatabase(sha);
+            const metadata = newInstance(directory, sha);
+            metadata.database = database;
+            metadata.ports = parentPorts;
+            const env = await environment(directory, metadata, secrets);
+            await atomicWrite(
+                path.join(directory, '.env.development.local'),
+                dotenvText(env),
+            );
+            const recipe = await recipeAt(directory);
+            const initialHashes = await sourceHashes(directory);
+            const warehouseHash = await sourceHash(
+                directory,
+                'examples/full-jaffle-shop-demo',
+            );
+            const warehouseDatabase = warehouseDatabaseName(warehouseHash);
+            const seeds = seedCommands(recipe.seed.run);
+            const previous = refresh
+                ? await selectParent(await parents(), (candidate) =>
+                      ancestor(root, candidate, sha),
+                  ).catch(() => null)
+                : null;
+            const changed = previous
+                ? await changedFiles(directory, previous.sha)
+                : [];
+            const canAdvance =
+                previous &&
+                previous.warehouseHash === warehouseHash &&
+                !matchingTiers(recipe.tiers, changed).some(
+                    (tier) => tier.preset === 'pnpm' || tier.run,
+                );
+            if (canAdvance) {
+                await timed(timings, 'dependencies', () =>
+                    dependencies(
+                        previous,
+                        directory,
+                        env,
+                        `parent-${sha.slice(0, 12)}`,
+                    ),
+                );
+                await timed(timings, 'artifacts', () =>
+                    cloneBuilds(previous, directory),
+                );
+                await timed(timings, 'databaseClone', () =>
+                    sql(
+                        root,
+                        `CREATE DATABASE ${databaseIdentifier(database)} TEMPLATE ${databaseIdentifier(previous.database)};`,
+                    ),
+                );
+            } else {
+                await timed(timings, 'install', () =>
+                    install(
+                        directory,
+                        false,
+                        env,
+                        `parent-${sha.slice(0, 12)}`,
+                    ),
+                );
+                await timed(timings, 'build', () =>
+                    runner.shell(
+                        'pnpm formula:build && pnpm common-build && pnpm warehouses-build && pnpm generate-api',
+                        {
+                            cwd: directory,
+                            env,
+                            log: path.join(
+                                home,
+                                'logs',
+                                `${sha.slice(0, 12)}-build.log`,
+                            ),
+                        },
+                    ),
+                );
+                await sql(
+                    root,
+                    `CREATE DATABASE ${databaseIdentifier(database)};`,
+                );
+                const migration = recipe.tiers.find((tier) =>
+                    tier.files.some((glob) =>
+                        glob.includes('/database/migrations/'),
+                    ),
+                );
+                if (!migration?.run)
+                    throw new Error('Recipe does not contain a migration tier');
+                await timed(timings, 'migrate', () =>
+                    runner.shell(migration.run!, {
+                        cwd: directory,
+                        env: tierEnvironment(env, migration.env),
+                        log: path.join(
+                            home,
+                            'logs',
+                            `${sha.slice(0, 12)}-migrate.log`,
+                        ),
+                    }),
+                );
+                const warehouseExists = await sql(
+                    root,
+                    `SELECT datname FROM pg_database WHERE datname='${warehouseDatabase}';`,
+                );
+                if (!warehouseExists) {
+                    await sql(
+                        root,
+                        `CREATE DATABASE ${databaseIdentifier(warehouseDatabase)};`,
+                    );
+                    await timed(timings, 'warehouseSeed', () =>
+                        runner.shell(seeds.warehouse, {
+                            cwd: directory,
+                            env: {
+                                ...tierEnvironment(env, recipe.seed.env),
+                                PGDATABASE: warehouseDatabase,
+                            },
+                            log: path.join(
+                                home,
+                                'logs',
+                                `${warehouseDatabase}-seed.log`,
+                            ),
+                        }),
+                    );
+                    await sql(
+                        root,
+                        `CREATE TABLE public.ldenv_warehouse_complete (hash text PRIMARY KEY); INSERT INTO public.ldenv_warehouse_complete VALUES ('${warehouseHash}');`,
+                        warehouseDatabase,
+                    );
+                }
+                const warehouseMarker = await sql(
+                    root,
+                    'SELECT hash FROM public.ldenv_warehouse_complete;',
+                    warehouseDatabase,
+                );
+                if (warehouseMarker !== warehouseHash)
+                    throw new Error(
+                        'Warehouse seed marker does not match source hash',
+                    );
+                await timed(timings, 'applicationSeed', () =>
+                    runner.shell(seeds.application, {
+                        cwd: directory,
+                        env: {
+                            ...tierEnvironment(env, recipe.seed.env),
+                            PGDATABASE: warehouseDatabase,
+                            PGCONNECTIONURI: `postgresql://postgres:password@127.0.0.1:${env.PGPORT}/${database}`,
+                        },
+                        log: path.join(
+                            home,
+                            'logs',
+                            `${sha.slice(0, 12)}-seed.log`,
+                        ),
+                    }),
+                );
+            }
+            const check = await sql(
+                root,
+                "SELECT (EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') AND EXISTS(SELECT 1 FROM embedding) AND EXISTS(SELECT 1 FROM cached_explore))::text;",
+                database,
+            );
+            if (check !== 'true')
+                throw new Error(
+                    'Seed checks failed; parent remains unpublished',
+                );
+            await sql(
+                root,
+                `CREATE TABLE IF NOT EXISTS public.ldenv_seed_complete (sha text PRIMARY KEY, completed_at timestamptz NOT NULL DEFAULT now()); DELETE FROM public.ldenv_seed_complete; INSERT INTO public.ldenv_seed_complete(sha) VALUES ('${sha}');`,
+                database,
+            );
+            await sql(
+                root,
+                `ALTER DATABASE ${databaseIdentifier(database)} ALLOW_CONNECTIONS false; SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${database}'; ALTER DATABASE ${databaseIdentifier(database)} IS_TEMPLATE true;`,
+            );
+            const manifest: Parent = {
+                seedProjectUuid: await seedProjectUuid(directory),
+                sha,
+                warehouseDatabase,
+                warehouseHash,
+                path: directory,
+                database,
+                builtAt: new Date().toISOString(),
+                lockHash: await hashFile(
+                    path.join(directory, 'pnpm-lock.yaml'),
+                ),
+                sourceHashes: {
+                    ...initialHashes,
+                    'packages/backend/src/generated': (
+                        await sourceHashes(directory)
+                    )['packages/backend/src/generated'],
+                },
+                migrations: [],
+                timings,
+                seedComplete: true,
+                nodeVersion: process.version,
+                pnpmVersion: await runner.run('pnpm', ['--version'], {
+                    cwd: directory,
+                }),
+                platform: process.platform,
+                arch: process.arch,
+            };
+            manifest.migrations = (
+                await git(directory, [
+                    'ls-files',
+                    '--',
+                    'packages/backend/src/database/migrations',
+                    'packages/backend/src/ee/database/migrations',
+                ])
+            )
+                .split('\n')
+                .filter(Boolean);
+            if (benchmarkDeps)
+                await timed(timings, 'dependencyBenchmark', () =>
+                    benchmarkDependencies(manifest, env),
+                );
+            await timed(timings, 'compileCacheWarm', () =>
+                warmCompileCache(directory, env),
+            );
+            await timed(timings, 'viteCachePopulate', async () => {
+                const result = await populateViteCache(directory, env);
+                manifest.viteCache = result;
+                process.stdout.write(
+                    `VITE CACHE: ${result.status}: ${result.reason}\n`,
+                );
+            });
+            manifest.compileCacheWarmedAt = new Date().toISOString();
+            timings.total = Date.now() - started;
+            await withLock('parents', () =>
+                writeJson(path.join(manifests, `${sha}.json`), manifest),
+            );
+            return manifest;
+        }),
+    );
+}
+async function refreshArtifacts(
+    root: string,
+    previous: Parent,
+): Promise<Parent> {
+    const started = Date.now();
+    const directory = path.join(
+        home,
+        'parents',
+        `${previous.sha.slice(0, 12)}-cache-${Date.now()}`,
+    );
+    await git(root, ['worktree', 'add', '--detach', directory, previous.sha]);
+    const metadata = newInstance(directory, previous.sha);
+    metadata.database = previous.database;
+    metadata.ports = parentPorts;
+    const env = await environment(
+        directory,
+        metadata,
+        await localSecrets(previous.path),
+    );
+    await atomicWrite(
+        path.join(directory, '.env.development.local'),
+        dotenvText(env),
+    );
+    const timings: Record<string, number> = {};
+    await timed(timings, 'install', () =>
+        install(directory, true, env, `parent-${previous.sha.slice(0, 12)}`),
+    );
+    await timed(timings, 'build', () =>
+        runner.shell(
+            'pnpm formula:build && pnpm common-build && pnpm warehouses-build && pnpm generate-api',
+            {
+                cwd: directory,
+                env,
+                log: path.join(
+                    home,
+                    'logs',
+                    `${previous.sha.slice(0, 12)}-refresh.log`,
+                ),
+            },
+        ),
+    );
+    await timed(timings, 'compileCacheWarm', () =>
+        warmCompileCache(directory, env),
+    );
+    const viteCache = await timed(timings, 'viteCachePopulate', async () => {
+        const result = await populateViteCache(directory, env);
+        process.stdout.write(
+            `VITE CACHE: ${result.status}: ${result.reason}\n`,
+        );
+        return result;
+    });
+    const refreshed: Parent = {
+        compileCacheWarmedAt: new Date().toISOString(),
+        ...previous,
+        viteCache,
+        seedProjectUuid: await seedProjectUuid(directory),
+        path: directory,
+        retiredPaths: [...(previous.retiredPaths ?? []), previous.path],
+        builtAt: new Date().toISOString(),
+        pnpmVersion: await runner.run('pnpm', ['--version'], {
+            cwd: directory,
+        }),
+        sourceHashes: await sourceHashes(directory),
+        timings: { ...timings, total: Date.now() - started },
+    };
+    await withLock('parents', () =>
+        writeJson(path.join(manifests, `${previous.sha}.json`), refreshed),
+    );
+    return refreshed;
+}
+export async function up(
+    ...args: Parameters<typeof upInstance>
+): Promise<Instance> {
+    postgresPort();
+    return foregroundWork(() => upInstance(...args));
+}
+async function upInstance(
+    root: string,
+    requested: string | null,
+    noWait: boolean,
+    kind: Instance['kind'] = 'worktree',
+    inheritedSecrets: Environment | null = null,
+): Promise<Instance> {
+    const upStartedAt = Date.now();
+    postgresPort();
+    return withLock(instanceId(root), async () => {
+        const existing = await currentState(instanceId(root));
+        if (existing) return resumeExistingInstance(existing, noWait, start);
+        const secrets = inheritedSecrets ?? (await localSecrets(root));
+        if (!secrets.LIGHTDASH_LICENSE_KEY) {
+            const parent = await selectParent(
+                await parents(),
+                (sha) => ancestor(root, sha),
+                requested,
+            );
+            const inherited = await localSecrets(parent.path);
+            inheritLicensePair(secrets, inherited);
+        }
+        requireLicense(secrets);
+        const pinned = await dotenv(path.join(root, '.env.development.local'));
+        if (pinned.LD_INSTANCE_ID && pinned.LD_INSTANCE_ID !== instanceId(root))
+            throw new Error(
+                'This worktree is configured for another instance; refusing to replace its env',
+            );
+        let instance: Instance | null = null;
+        let apiStarted = false;
+        try {
+            const parent = await withLock('parents', async () => {
+                const selected = await selectParent(
+                    await parents(),
+                    (sha) => ancestor(root, sha),
+                    requested,
+                );
+                if (
+                    selected.platform !== process.platform ||
+                    selected.arch !== process.arch ||
+                    selected.nodeVersion !== process.version
+                )
+                    throw new Error(
+                        'Parent runtime differs; build a parent with this Node/platform first',
+                    );
+                instance = newInstance(root, selected.sha, kind);
+                await saveInstance(instance);
+                return selected;
+            });
+            const state = instance! as Instance;
+            markTimeline(
+                state.timings,
+                'process',
+                'start',
+                Math.floor(performance.timeOrigin),
+            );
+            markTimeline(state.timings, 'up', 'start', upStartedAt);
+            markTimeline(state.timings, 'preflight', 'start', upStartedAt);
+            markTimeline(state.timings, 'preflight', 'end');
+            await timed(state.timings, 'postgres', () => ensurePostgres(root));
+            const config = await compose(root);
+            await timed(state.timings, 'sharedCheck', () =>
+                sharedServices(root, config, true),
+            );
+            const preliminary = instanceEnvironment({
+                base: {},
+                recipe: {},
+                local: secrets,
+                shared: {},
+                worktree: root,
+                id: state.id,
+                database: state.database,
+                machine: await machine(),
+                ports: parentPorts,
+            });
+            const results = await traced(state.timings, 'parallelSetup', () =>
+                Promise.allSettled([
+                    timed(state.timings, 'ports', async () => {
+                        state.ports = await claimPorts(root, state.id);
+                    }),
+                    timed(state.timings, 'databaseClone', () =>
+                        sql(
+                            root,
+                            `CREATE DATABASE ${databaseIdentifier(state.database)} TEMPLATE ${databaseIdentifier(parent.database)};`,
+                        ),
+                    ),
+                    timed(state.timings, 'codeClone', async () => {
+                        await prepareForkCode(
+                            parent,
+                            root,
+                            preliminary,
+                            state.id,
+                            state.timings,
+                        );
+                    }),
+                ]),
+            );
+            const failure = results.find(
+                (result) => result.status === 'rejected',
+            );
+            if (failure?.status === 'rejected') throw failure.reason;
+            const marker = await traced(state.timings, 'seedMarker', () =>
+                sql(
+                    root,
+                    'SELECT sha FROM public.ldenv_seed_complete;',
+                    state.database,
+                ),
+            );
+            if (marker !== parent.sha)
+                throw new Error('Cloned seed marker does not match parent');
+            const env = await traced(state.timings, 'environment', async () => {
+                const values = await environment(root, state, secrets);
+                await writeInstanceEnv(state, values);
+                return values;
+            });
+            const [diff, recipe] = await traced(
+                state.timings,
+                'diffAndRecipe',
+                () => Promise.all([buildDiff(parent, root), recipeAt(root)]),
+            );
+            const frontend = async () => {
+                await timed(state.timings, 'viteCacheRestore', async () => {
+                    const result = await restoreViteCache(
+                        parent.path,
+                        root,
+                        env,
+                    );
+                    state.viteCache = result;
+                    state.timings.viteCacheHit =
+                        result.status === 'hit' ? 1 : 0;
+                    process.stdout.write(
+                        `VITE CACHE: ${result.status}: ${result.reason}\n`,
+                    );
+                });
+                await timed(state.timings, 'frontendStart', () =>
+                    startProcesses(state, 'frontend'),
+                );
+            };
+            const warehouse = () =>
+                timed(state.timings, 'warehouse', () =>
+                    bridge(
+                        state,
+                        'dbt-path',
+                        parent.seedProjectUuid
+                            ? {
+                                  LDENV_SEED_PROJECT_UUID:
+                                      parent.seedProjectUuid,
+                              }
+                            : {},
+                    ),
+                );
+            let preparations: PromiseSettledResult<void>[];
+            const overlapWatchers =
+                matchingTiers(recipe.tiers, diff).length === 0 &&
+                canStartApiAlongsideWatchers(diff);
+            process.stdout.write(
+                `API WATCHER OVERLAP: ${overlapWatchers ? 'yes' : 'no'}\n`,
+            );
+            if (overlapWatchers) {
+                await timed(state.timings, 'pm2', () =>
+                    startProcesses(state, 'api'),
+                );
+                apiStarted = true;
+                markTimeline(state.timings, 'preparations', 'start');
+                preparations = await Promise.allSettled([
+                    frontend(),
+                    warehouse(),
+                    timed(state.timings, 'watchersLaunch', () =>
+                        startProcesses(state, 'watchers'),
+                    ),
+                ]);
+            } else {
+                markTimeline(state.timings, 'preparations', 'start');
+                await frontend();
+                await runTiers(
+                    root,
+                    recipe,
+                    diff,
+                    env,
+                    state.timings,
+                    state.id,
+                );
+                preparations = await Promise.allSettled([
+                    warehouse(),
+                    prepareWatchers(state),
+                ]);
+            }
+            const preparationFailure = preparations.find(
+                (result) => result.status === 'rejected',
+            );
+            if (preparationFailure?.status === 'rejected')
+                throw preparationFailure.reason;
+            markTimeline(state.timings, 'preparations', 'end');
+            if (
+                kind === 'warming' &&
+                savedBackendMode(env.LDENV_BACKEND) === 'tsx'
+            )
+                await timed(state.timings, 'compileCacheWarm', () =>
+                    warmCompileCache(root, env),
+                );
+            await traced(state.timings, 'preparedStateSave', () =>
+                saveInstance(state),
+            );
+            return await start(state, noWait, overlapWatchers, apiStarted);
+        } catch (error) {
+            if (instance) {
+                const state = instance as Instance;
+                state.phase = 'failed';
+                state.error = runner.redact(
+                    error instanceof Error ? error.message : String(error),
+                );
+                if (apiStarted) {
+                    try {
+                        await stopProcesses(state, true);
+                    } catch (cleanupError) {
+                        state.error += `; API cleanup failed: ${runner.redact(
+                            cleanupError instanceof Error
+                                ? cleanupError.message
+                                : String(cleanupError),
+                        )}`;
+                    }
+                }
+                await saveInstance(state);
+            }
+            throw error;
+        }
+    });
+}
+async function prepareWatchers(instance: Instance): Promise<void> {
+    await timed(instance.timings, 'watchersSettle', async () => {
+        await timed(instance.timings, 'watchersLaunch', () =>
+            startProcesses(instance, 'watchers'),
+        );
+        await timed(instance.timings, 'watchersWait', () =>
+            waitForCompilers(instance),
+        );
+    });
+}
+export async function start(
+    ...args: Parameters<typeof startInstance>
+): Promise<Instance> {
+    postgresPort();
+    return foregroundWork(() => startInstance(...args));
+}
+async function startInstance(
+    instance: Instance,
+    noWait: boolean,
+    overlapWatchers = false,
+    apiStarted = false,
+): Promise<Instance> {
+    markTimeline(instance.timings, 'startInstance', 'start');
+    postgresPort();
+    assertInstance(instance);
+    if (instance.phase === 'stopped' || instance.phase === 'failed') {
+        instance.startedAt = new Date().toISOString();
+        instance.processStartedAt = instance.startedAt;
+        instance.timings = {};
+    }
+    if (!apiStarted) {
+        await traced(instance.timings, 'startPostgres', () =>
+            ensurePostgres(controlRoot),
+        );
+        await traced(instance.timings, 'startShared', async () =>
+            sharedServices(
+                instance.worktree,
+                await compose(instance.worktree),
+                true,
+            ),
+        );
+    }
+    instance.phase = 'starting';
+    instance.error = null;
+    instance.readyAt = null;
+    if (!instance.timings.frontendStart)
+        await timed(instance.timings, 'frontendStart', () =>
+            startProcesses(instance, 'frontend'),
+        );
+    if (!instance.timings.watchersSettle && !overlapWatchers)
+        await prepareWatchers(instance);
+    if (!apiStarted)
+        await timed(instance.timings, 'pm2', () =>
+            startProcesses(instance, 'api'),
+        );
+    if (overlapWatchers && !noWait)
+        await timed(instance.timings, 'watchersSettle', () =>
+            timed(instance.timings, 'watchersWait', () =>
+                waitForCompilers(instance),
+            ),
+        );
+    await traced(instance.timings, 'startingStateSave', () =>
+        saveInstance(instance),
+    );
+    if (noWait) {
+        instance.monitorPid = await traced(
+            instance.timings,
+            'monitorLaunch',
+            () =>
+                background(['monitor', instance.id], `${instance.id}-monitor`),
+        );
+        await traced(instance.timings, 'monitorStateSave', () =>
+            saveInstance(instance),
+        );
+    } else await finishStart(instance);
+    markTimeline(instance.timings, 'startInstance', 'end');
+    return instance;
+}
+export async function down(instance: Instance): Promise<void> {
+    postgresPort();
+    assertInstance(instance);
+    await cancelMonitor(instance);
+    await stopProcesses(instance, true);
+    await ensurePostgres(controlRoot);
+    await dropDatabase(controlRoot, instance.database);
+    await releasePorts(controlRoot, instance.id, instance.worktree);
+    const retainedBackup = await restoreInstanceEnv(instance);
+    if (retainedBackup)
+        process.stdout.write(
+            `ENV RESTORE SKIPPED: current env differs; original retained at ${retainedBackup}\n`,
+        );
+    await removeOwnedWarm(instance, controlRoot);
+    await rm(path.join(home, 'bundles', instance.id), {
+        recursive: true,
+        force: true,
+    });
+    await rm(statePath(instance.id));
+}
+export async function garbageCollect(
+    root: string,
+    sweepOrphans = false,
+    operations = { instances, down, withLock, cleanupOrphans },
+    protectedId?: string,
+): Promise<void> {
+    for (const candidate of await operations.instances()) {
+        try {
+            assertInstance(candidate);
+            if (candidate.id === protectedId || existsSync(candidate.worktree))
+                continue;
+            await operations.withLock(candidate.id, async () => {
+                const instance = (await operations.instances()).find(
+                    (item) => item.id === candidate.id,
+                );
+                if (
+                    !instance ||
+                    instance.id === protectedId ||
+                    existsSync(instance.worktree)
+                )
+                    return;
+                assertInstance(instance);
+                await operations.down(instance);
+            });
+        } catch (error) {
+            process.stderr.write(
+                `GC SKIPPED ${candidate.id}: ${runner.redact(error instanceof Error ? error.message : String(error))}\n`,
+            );
+        }
+    }
+    if (sweepOrphans) await operations.cleanupOrphans(root, false);
+}
+export async function parentGc(root: string, keep: number): Promise<void> {
+    postgresPort();
+    if (!Number.isInteger(keep) || keep < 1)
+        throw new Error('--keep must be at least 1');
+    await withLock('parent-build', () =>
+        withLock('parents', async () => {
+            const pinned = new Set(
+                (await instances()).map((instance) => instance.parent),
+            );
+            const all = (await parents()).sort((a, b) =>
+                b.builtAt.localeCompare(a.builtAt),
+            );
+            const retired = await listJson<Parent>(
+                path.join(manifests, 'retired'),
+            );
+            for (const parent of [...all.slice(keep), ...retired].filter(
+                (item) => !pinned.has(item.sha),
+            )) {
+                await retireParent(root, parent);
+                if (
+                    parent.warehouseDatabase &&
+                    ![
+                        ...(await parents()),
+                        ...(await listJson<Parent>(
+                            path.join(manifests, 'retired'),
+                        )),
+                    ].some(
+                        (item) =>
+                            item.warehouseDatabase === parent.warehouseDatabase,
+                    )
+                ) {
+                    await dropDatabase(root, parent.warehouseDatabase);
+                }
+            }
+        }),
+    );
+}

@@ -8,6 +8,7 @@ import {
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
+import { overlayOrgProviderApiKeys } from '../OrgAiCopilotConfigResolver';
 import {
     applyStreamingCapability,
     filterModelsForOrg,
@@ -1148,5 +1149,87 @@ describe('getFastModelForAccessibleKey', () => {
 
         expect(model.modelId).toBe('gemini-3.5-flash-lite');
         expect(model.provider).toContain('google');
+    });
+});
+
+describe('organization Bedrock routing', () => {
+    const configForRegion = (region: string, allowedModels: string[]) =>
+        overlayOrgProviderApiKeys(baseCopilotConfig, {
+            bedrock: { apiKey: 'org-bedrock-key', region, allowedModels },
+        });
+
+    it('routes Japanese regions to jp inference profiles', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(getModel(config).model.modelId).toBe(
+            'jp.anthropic.claude-sonnet-4-5-20250929-v1:0',
+        );
+    });
+
+    it('routes Osaka to jp as well, never the wider apac profile', () => {
+        const config = configForRegion('ap-northeast-3', ['claude-sonnet-4-5']);
+        expect(getModel(config).model.modelId).toContain('jp.');
+    });
+
+    it('routes US regions to us inference profiles', () => {
+        const config = configForRegion('us-east-1', ['claude-sonnet-4-5']);
+        expect(getModel(config).model.modelId).toBe(
+            'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+        );
+    });
+
+    it('keeps background tasks on the org region', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(
+            getFastModelForAccessibleKey(config, null).model.modelId,
+        ).toContain('jp.');
+    });
+
+    it('makes bedrock the default provider and the only BYO provider', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(config.defaultProvider).toBe('bedrock');
+        expect(config.byoProviders).toEqual(['bedrock']);
+    });
+
+    it('fails closed for an agent pinned to another provider', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(config.providers.anthropic).toBeUndefined();
+        expect(config.providers.openai).toBeUndefined();
+        expect(() => getModel(config, { provider: 'anthropic' })).toThrow(
+            'anthropic provider configuration is required',
+        );
+    });
+
+    it('wins over an existing org key from another provider', () => {
+        const config = overlayOrgProviderApiKeys(baseCopilotConfig, {
+            anthropic: 'sk-ant-org',
+            bedrock: {
+                apiKey: 'org-bedrock-key',
+                region: 'ap-northeast-1',
+                allowedModels: ['claude-sonnet-4-5'],
+            },
+        });
+        expect(config.defaultProvider).toBe('bedrock');
+        expect(config.byoProviders).toEqual(['bedrock']);
+        expect(config.providers.anthropic).toBeUndefined();
+        expect(getModel(config).model.modelId).toContain('jp.');
+    });
+
+    it('falls back to an allowed model when a pinned model is not allowed', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(
+            getModel(config, {
+                modelName: 'claude-haiku-4-5',
+                trustPinnedModelName: true,
+            }).model.modelId,
+        ).toBe('jp.anthropic.claude-sonnet-4-5-20250929-v1:0');
+    });
+
+    it('offers only the allowed models to the picker', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(
+            getAvailableModels(config)
+                .filter((preset) => preset.provider === 'bedrock')
+                .map((preset) => preset.name),
+        ).toEqual(['claude-sonnet-4-5']);
     });
 });

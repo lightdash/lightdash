@@ -15179,8 +15179,53 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ExternalFetchSavedChartContext": {
+                "properties": {
+                    "chartVersionUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "savedChartUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["savedChartUuid"],
+                "type": "object",
+                "description": "A saved chart (optionally at a specific version) rendering a chart type."
+            },
+            "ExternalFetchDocumentContext": {
+                "properties": {
+                    "cellIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "documentVersionUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "documentUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": [
+                    "cellIndex",
+                    "documentVersionUuid",
+                    "documentUuid"
+                ],
+                "type": "object",
+                "description": "A chart cell of a specific Document version rendering a chart type."
+            },
             "ExternalFetchRequest": {
                 "properties": {
+                    "chartContext": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ExternalFetchSavedChartContext"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalFetchDocumentContext"
+                            }
+                        ],
+                        "description": "Host-supplied identity of what is rendering a custom chart type."
+                    },
                     "body": {},
                     "query": {
                         "$ref": "#/components/schemas/Record_string.string_"
@@ -19970,6 +20015,16 @@
                         "type": "string",
                         "description": "Explains the row shape, ordering, and recovery needed to use this viz."
                     },
+                    "hierarchy": {
+                        "properties": {
+                            "field": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["field"],
+                        "type": "object",
+                        "description": "Ordered dimension slot whose levels can be subtotalled."
+                    },
                     "colorPalette": {
                         "allOf": [
                             {
@@ -23998,6 +24053,180 @@
             "ApiAiRouterDecisionListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiRouterDecision-Array_"
             },
+            "GoogleSheetsExtensionReportDraftOperator": {
+                "type": "string",
+                "enum": [
+                    "equals",
+                    "notEquals",
+                    "include",
+                    "startsWith",
+                    "isNull",
+                    "notNull",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "lessThan",
+                    "lessThanOrEqual"
+                ]
+            },
+            "GoogleSheetsExtensionReportDraftFilter": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftOperator"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["values", "operator", "fieldId"],
+                "type": "object"
+            },
+            "GoogleSheetsExtensionReportDraftSettings": {
+                "properties": {
+                    "groupRows": {
+                        "type": "boolean"
+                    },
+                    "totals": {
+                        "properties": {
+                            "columns": {
+                                "type": "boolean"
+                            },
+                            "rows": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["columns", "rows"],
+                        "type": "object"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sorts": {
+                        "items": {
+                            "properties": {
+                                "descending": {
+                                    "type": "boolean"
+                                },
+                                "fieldId": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["descending", "fieldId"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftFilter"
+                        },
+                        "type": "array"
+                    },
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "columns": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "rows": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "groupRows",
+                    "totals",
+                    "limit",
+                    "sorts",
+                    "filters",
+                    "values",
+                    "columns",
+                    "rows"
+                ],
+                "type": "object"
+            },
+            "GeneratedGoogleSheetsExtensionReportDraft": {
+                "properties": {
+                    "report": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftSettings"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ready", "clarification", "unsupported"]
+                    }
+                },
+                "required": ["report", "message", "status"],
+                "type": "object"
+            },
+            "GenerateGoogleSheetsExtensionReportDraftRequest": {
+                "properties": {
+                    "protectedFilters": {
+                        "items": {
+                            "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftFilter"
+                        },
+                        "type": "array",
+                        "description": "Filter settings stay in the client; these filters must remain unchanged."
+                    },
+                    "clarifications": {
+                        "items": {
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "prompt": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["message", "prompt"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "current": {
+                        "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftSettings"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "protectedFilters",
+                    "clarifications",
+                    "timezone",
+                    "current",
+                    "prompt",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
             "ApiAiGenerateCustomVizResponse": {
                 "properties": {
                     "results": {
@@ -26310,7 +26539,14 @@
             },
             "AiThreadCreatedFrom": {
                 "type": "string",
-                "enum": ["data_app", "slack", "web_app", "evals", "scheduler"]
+                "enum": [
+                    "data_app",
+                    "slack",
+                    "web_app",
+                    "api",
+                    "evals",
+                    "scheduler"
+                ]
             },
             "AiAgentBattleProfile": {
                 "type": "string",
@@ -30163,48 +30399,126 @@
                                                 "type": "object"
                                             },
                                             {
-                                                "properties": {
-                                                    "skill": {
+                                                "allOf": [
+                                                    {
                                                         "properties": {
-                                                            "contentHash": {
+                                                            "skill": {
+                                                                "properties": {
+                                                                    "contentHash": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "versionNumber": {
+                                                                        "type": "number",
+                                                                        "format": "double",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "uuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "builtIn": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "contentHash",
+                                                                    "versionNumber",
+                                                                    "uuid",
+                                                                    "builtIn",
+                                                                    "name"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
                                                                 "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "versionNumber": {
-                                                                "type": "number",
-                                                                "format": "double",
-                                                                "nullable": true
-                                                            },
-                                                            "uuid": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "builtIn": {
-                                                                "type": "boolean"
-                                                            },
-                                                            "name": {
-                                                                "type": "string"
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
                                                             }
                                                         },
-                                                        "required": [
-                                                            "contentHash",
-                                                            "versionNumber",
-                                                            "uuid",
-                                                            "builtIn",
-                                                            "name"
-                                                        ],
+                                                        "required": ["status"],
                                                         "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "skill": {
+                                                                "properties": {
+                                                                    "contentHash": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "versionNumber": {
+                                                                        "type": "number",
+                                                                        "format": "double",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "uuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "builtIn": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "contentHash",
+                                                                    "versionNumber",
+                                                                    "uuid",
+                                                                    "builtIn",
+                                                                    "name"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "allOf": [
@@ -30599,6 +30913,71 @@
                                                 },
                                                 "required": ["status"],
                                                 "type": "object"
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -40206,6 +40585,7 @@
                             "data_app",
                             "slack",
                             "web_app",
+                            "api",
                             "evals",
                             "scheduler"
                         ]
@@ -43742,6 +44122,9 @@
                     },
                     "openai": {
                         "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
+                    },
+                    "bedrock": {
+                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
                     }
                 },
                 "type": "object",
@@ -43779,9 +44162,12 @@
                     },
                     "openai": {
                         "type": "boolean"
+                    },
+                    "bedrock": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["anthropic", "google", "openai"],
+                "required": ["anthropic", "google", "openai", "bedrock"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
@@ -43801,20 +44187,47 @@
                     "openai": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "bedrock": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["anthropic", "google", "openai"],
+                "required": ["anthropic", "google", "openai", "bedrock"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
             "AiProviderApiKeyHints": {
                 "$ref": "#/components/schemas/Record_ByoAiProvider.string-or-null_"
             },
+            "OrgBedrockConfig": {
+                "properties": {
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "region": {
+                        "type": "string"
+                    }
+                },
+                "required": ["allowedModels", "region"],
+                "type": "object"
+            },
             "AiOrganizationSettings": {
                 "properties": {
                     "threadRetentionHours": {
                         "type": "number",
                         "format": "double",
+                        "nullable": true
+                    },
+                    "bedrockConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OrgBedrockConfig"
+                            }
+                        ],
                         "nullable": true
                     },
                     "providerApiKeyHints": {
@@ -43888,6 +44301,7 @@
                     }
                 },
                 "required": [
+                    "bedrockConfig",
                     "providerApiKeyHints",
                     "providerApiKeysSet",
                     "defaultAiAgentModelConfig",
@@ -43925,12 +44339,19 @@
                     },
                     "isCopilotEnabled": {
                         "type": "boolean"
+                    },
+                    "bedrockModelOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiModelOption"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": [
                     "defaultAiAgentModelOptions",
                     "isTrial",
-                    "isCopilotEnabled"
+                    "isCopilotEnabled",
+                    "bedrockModelOptions"
                 ],
                 "type": "object"
             },
@@ -44007,9 +44428,35 @@
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "Partial_Record_ByoAiProvider.string-or-null__": {
+            "UpdateOrgBedrockConfig": {
                 "properties": {
-                    "anthropic": {
+                    "apiKey": {
+                        "type": "string"
+                    },
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "region": {
+                        "type": "string"
+                    }
+                },
+                "required": ["allowedModels", "region"],
+                "type": "object"
+            },
+            "UpdateAiProviderApiKeys": {
+                "properties": {
+                    "bedrock": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdateOrgBedrockConfig"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "openai": {
                         "type": "string",
                         "nullable": true
                     },
@@ -44017,16 +44464,12 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "openai": {
+                    "anthropic": {
                         "type": "string",
                         "nullable": true
                     }
                 },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "UpdateAiProviderApiKeys": {
-                "$ref": "#/components/schemas/Partial_Record_ByoAiProvider.string-or-null__"
+                "type": "object"
             },
             "UpdateAiOrganizationSettings": {
                 "properties": {
@@ -49782,6 +50225,7 @@
                     "renameResources",
                     "materializePreAggregate",
                     "cleanQueryHistory",
+                    "cleanAiUsageLedger",
                     "downloadAsyncQueryResults",
                     "syncSlackChannels",
                     "generateSlackChannelSyncJobs",
@@ -61831,7 +62275,7 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___": {
+            "ChartAsCodeConfig_DataAppVizChartConfigAsCode_": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/BigNumberConfig"
@@ -61864,48 +62308,12 @@
                         "$ref": "#/components/schemas/SankeyChartConfig"
                     },
                     {
-                        "properties": {
-                            "config": {
-                                "allOf": [
-                                    {
-                                        "properties": {
-                                            "optionValues": {
-                                                "$ref": "#/components/schemas/DataAppVizOptionValues"
-                                            },
-                                            "fieldMapping": {
-                                                "$ref": "#/components/schemas/Record_string.string_"
-                                            }
-                                        },
-                                        "required": ["fieldMapping"],
-                                        "type": "object"
-                                    },
-                                    {
-                                        "properties": {
-                                            "dataAppVizUuid": {
-                                                "type": "string"
-                                            },
-                                            "dataAppVizSlug": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "type": "object"
-                                    }
-                                ]
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/ChartType.DATA_APP_VIZ"
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/DataAppVizChartConfigAsCode"
                     }
                 ],
                 "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
             },
-            "DocumentChartConfig": {
-                "$ref": "#/components/schemas/ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___"
-            },
-            "Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
+            "Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -61936,7 +62344,7 @@
                         ]
                     },
                     "chartConfig": {
-                        "$ref": "#/components/schemas/DocumentChartConfig"
+                        "$ref": "#/components/schemas/ChartAsCodeConfig_DataAppVizChartConfigAsCode_"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -61980,7 +62388,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "SemanticChartAsCode": {
-                "$ref": "#/components/schemas/Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
+                "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
             "MergeChartAsCode": {
                 "allOf": [
@@ -67520,7 +67928,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.362.1",
+        "version": "2.377.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

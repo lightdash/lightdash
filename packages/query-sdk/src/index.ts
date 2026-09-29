@@ -120,6 +120,7 @@ export type {
     VizContextOptionValue,
     VizContextPivotDetails,
     VizContextRow,
+    VizSubtotals,
     VizFieldFormat,
     VizFieldMetadata,
     VizUnderlyingData,

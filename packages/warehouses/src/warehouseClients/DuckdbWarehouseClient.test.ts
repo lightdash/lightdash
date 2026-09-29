@@ -130,10 +130,12 @@ const createMockConnection = (
     opts?: {
         extractStatements?: Mock;
         interrupt?: Mock;
+        getTableNames?: Mock;
     },
 ) => ({
     connect: async () => ({
         run: runMock,
+        getTableNames: opts?.getTableNames ?? vi.fn(() => []),
         stream: streamMock,
         extractStatements:
             opts?.extractStatements ?? createMockExtractStatements(),
@@ -196,10 +198,53 @@ describe('internal Parquet projects', () => {
         const bind = statements.findIndex((sql) =>
             sql.startsWith('CREATE VIEW'),
         );
-        expect(run).toHaveBeenCalledWith('SET threads = 32;');
+        expect(run).toHaveBeenCalledWith('SET threads = 4;');
         expect(statements[bind]).toContain('union_by_name = true');
         const instance = await createInstanceMock.mock.results[0].value;
         expect(instance.closeSync).toHaveBeenCalledTimes(2);
+    });
+
+    it('binds only the queried model and its joined lookup tables', async () => {
+        const getTableNames = vi.fn(() => ['query_events', 'lightdash_users']);
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () => getMockStreamResult([[{ count: 2 }]], [5])),
+                run,
+                { getTableNames },
+            ),
+        );
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => ({
+                ...source(),
+                tables: [
+                    ...source().tables,
+                    {
+                        name: 'lightdash_users',
+                        urls: [`${scope}dim=users/users.parquet`],
+                    },
+                    {
+                        name: 'ai_usage',
+                        urls: [`${scope}stream=ai_usage/part.parquet`],
+                    },
+                ],
+            }),
+        });
+        const sql =
+            'SELECT count(*) FROM query_events LEFT JOIN lightdash_users ON query_events.user_id = lightdash_users.user_id';
+        await client.runQuery(sql);
+        expect(getTableNames).toHaveBeenCalledWith(sql, false);
+        const views = run.mock.calls
+            .map(([statement]) => statement as string)
+            .filter((statement) => statement.startsWith('CREATE VIEW'));
+        expect(views).toHaveLength(2);
+        expect(views.some((view) => view.includes('"query_events"'))).toBe(
+            true,
+        );
+        expect(views.some((view) => view.includes('"lightdash_users"'))).toBe(
+            true,
+        );
+        expect(views.some((view) => view.includes('"ai_usage"'))).toBe(false);
     });
 
     it('honors explicit thread limits during metadata binding and execution', async () => {
@@ -210,7 +255,7 @@ describe('internal Parquet projects', () => {
         await client.runQuery('SELECT count(*) FROM query_events');
         expect(run).toHaveBeenCalledWith("SET memory_limit = '128MB';");
         expect(run).toHaveBeenCalledWith('SET threads = 1;');
-        expect(run).not.toHaveBeenCalledWith('SET threads = 32;');
+        expect(run).not.toHaveBeenCalledWith('SET threads = 4;');
         expect(run).not.toHaveBeenCalledWith('SET threads = 2;');
     });
 

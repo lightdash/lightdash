@@ -5103,9 +5103,19 @@ export class McpService extends BaseService {
                               ],
                           }
                         : result;
+                const queryResult = z
+                    .object({
+                        structuredContent: z.object({
+                            result: z.object({ queryUuid: z.string().uuid() }),
+                        }),
+                    })
+                    .safeParse(result);
                 this.recordToolCall({
                     toolName,
                     toolArgs,
+                    queryUuid: queryResult.success
+                        ? queryResult.data.structuredContent.result.queryUuid
+                        : undefined,
                     extra,
                     durationMs: Date.now() - startedAt,
                     status: response?.isError === true ? 'error' : 'success',
@@ -5143,6 +5153,7 @@ export class McpService extends BaseService {
         extra,
         ...params
     }: {
+        queryUuid?: string;
         toolName: string;
         toolArgs: object;
         extra: RequestHandlerExtra<ServerRequest, ServerNotification>;
@@ -5168,6 +5179,7 @@ export class McpService extends BaseService {
 
     private async persistToolCall({
         context,
+        queryUuid,
         toolName,
         toolArgs,
         durationMs,
@@ -5177,6 +5189,7 @@ export class McpService extends BaseService {
         trackAnalytics,
     }: {
         context: McpProtocolContext;
+        queryUuid?: string;
         toolName: string;
         toolArgs: object;
         durationMs: number;
@@ -5238,6 +5251,18 @@ export class McpService extends BaseService {
                 userId: user.userUuid,
                 properties: {
                     organizationId: organizationUuid,
+                    toolCallId: crypto.randomUUID(),
+                    actorType:
+                        authType === 'service-account'
+                            ? 'service_account'
+                            : 'user',
+                    queryId:
+                        queryUuid ??
+                        ('queryUuid' in toolArgs &&
+                        typeof toolArgs.queryUuid === 'string' &&
+                        isValidUuid(toolArgs.queryUuid)
+                            ? toolArgs.queryUuid
+                            : undefined),
                     projectId: projectUuid ?? undefined,
                     agentId: agentUuid ?? undefined,
                     toolName,

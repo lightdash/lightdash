@@ -8,6 +8,7 @@ import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedCo
 import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
 import AppPreview from '../../apps/components/AppPreview';
 import { type SdkManifest } from '../../apps/hooks/useAppSdkBridge';
+import { type VizSubtotalSource } from '../hooks/useVizSubtotalSource';
 import classes from './BuilderCanvas.module.css';
 import BuilderPromptExamples from './BuilderPromptExamples';
 import { type ExploreSourceControls } from './exploreSource';
@@ -33,6 +34,8 @@ type Props = {
     clarifierUnavailable: boolean;
     /** Sample data plus configuration from the panel; null renders the app bare. */
     previewContext: DataAppVizContext | null;
+    /** Answers the preview's subtotal requests; null when it has none. */
+    onVizSubtotalsIntent: VizSubtotalSource['get'] | null;
     /** The card's configuration column; null until a version declares a schema. */
     configurePanel: ReactNode;
     /** Fills the composer with a starter prompt; null while no composer is
@@ -105,6 +108,7 @@ const BuilderCanvas: FC<Props> = ({
     isClarifyRoundOpen,
     clarifierUnavailable,
     previewContext,
+    onVizSubtotalsIntent,
     configurePanel,
     onPickExample,
     onSdkManifest,
@@ -162,6 +166,9 @@ const BuilderCanvas: FC<Props> = ({
                                 version={previewVersion}
                                 refreshKey={0}
                                 dataAppVizContext={previewContext ?? undefined}
+                                onVizSubtotalsIntent={
+                                    onVizSubtotalsIntent ?? undefined
+                                }
                                 dataAppVizMode
                                 {...elementPickerProps}
                                 onScreenshotAvailabilityChange={

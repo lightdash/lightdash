@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 
 export const TOOL_LOAD_SKILL_DESCRIPTION =
     'Load a skill by name, or one of its resources. Always load the skill itself first, then resources on demand. When the skill takes arguments, pass what the user asked for in `arguments` so its placeholders are filled.';
@@ -31,13 +34,47 @@ export const servedSkillMetadataSchema = z.object({
 });
 
 export type ServedSkillMetadata = z.infer<typeof servedSkillMetadataSchema>;
+const toolLoadSkillResourceReferenceSchema = z.object({
+    name: z
+        .string()
+        .describe('Resource name to pass as `resourceName` to load it.'),
+    description: z.string(),
+});
 
-export const toolLoadSkillOutputSchema = z.object({
-    result: z.string(),
+export const toolLoadSkillStructuredContentSchema = z.discriminatedUnion(
+    'kind',
+    [
+        z.object({
+            kind: z.literal('skill'),
+            skill: z.string().describe('Name of the loaded skill.'),
+            body: z.string().describe('The skill instructions.'),
+            resources: z
+                .array(toolLoadSkillResourceReferenceSchema)
+                .describe(
+                    'Sub-resources the skill offers; empty when it has none.',
+                ),
+        }),
+        z.object({
+            kind: z.literal('resource'),
+            skill: z
+                .string()
+                .describe('Name of the skill the resource belongs to.'),
+            resource: z.object({
+                name: z.string(),
+                content: z.string().describe('The resource file contents.'),
+            }),
+        }),
+    ],
+);
+export const toolLoadSkillOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema.extend({
         skill: servedSkillMetadataSchema.optional(),
     }),
+    structuredContent: toolLoadSkillStructuredContentSchema,
 });
 
 export type ToolLoadSkillArgs = z.infer<typeof toolLoadSkillArgsSchema>;
+export type ToolLoadSkillStructuredContent = z.infer<
+    typeof toolLoadSkillStructuredContentSchema
+>;
 export type ToolLoadSkillOutput = z.infer<typeof toolLoadSkillOutputSchema>;

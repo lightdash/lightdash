@@ -14,6 +14,7 @@ import {
     type RoadmapResponse,
 } from '@lightdash/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { RoadmapService } from './RoadmapService';
 
@@ -91,6 +92,7 @@ const buildService = ({
     baseUrl = 'https://roadmap.lightdash.com',
 }: { licenseKey?: string; baseUrl?: string } = {}) =>
     new RoadmapService({
+        analytics: analyticsMock,
         lightdashConfig: {
             license: { licenseKey },
             roadmap: { baseUrl },

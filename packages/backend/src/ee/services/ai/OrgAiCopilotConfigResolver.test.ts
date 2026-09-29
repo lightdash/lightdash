@@ -238,6 +238,26 @@ describe('resolveEffectiveModelVisibility', () => {
         ).toEqual({
             google: { enabled: false },
             openai: { enabled: false },
+            bedrock: { enabled: false },
+        });
+    });
+
+    it('hides the other BYO providers when bedrock is configured', () => {
+        expect(
+            resolveEffectiveModelVisibility(
+                {
+                    bedrock: {
+                        apiKey: 'ABSK',
+                        region: 'ap-northeast-1',
+                        allowedModels: ['claude-sonnet-4-5'],
+                    },
+                },
+                null,
+            ),
+        ).toEqual({
+            anthropic: { enabled: false },
+            google: { enabled: false },
+            openai: { enabled: false },
         });
     });
 
@@ -247,7 +267,10 @@ describe('resolveEffectiveModelVisibility', () => {
                 { anthropic: 'sk-ant-x', openai: 'sk-x' },
                 null,
             ),
-        ).toEqual({ google: { enabled: false } });
+        ).toEqual({
+            google: { enabled: false },
+            bedrock: { enabled: false },
+        });
     });
 
     it('hides Anthropic and Google with only an OpenAI key', () => {
@@ -256,6 +279,7 @@ describe('resolveEffectiveModelVisibility', () => {
         ).toEqual({
             anthropic: { enabled: false },
             google: { enabled: false },
+            bedrock: { enabled: false },
         });
     });
 
@@ -265,6 +289,7 @@ describe('resolveEffectiveModelVisibility', () => {
         ).toEqual({
             anthropic: { enabled: false },
             openai: { enabled: false },
+            bedrock: { enabled: false },
         });
     });
 
@@ -277,6 +302,7 @@ describe('resolveEffectiveModelVisibility', () => {
         ).toEqual({
             google: { enabled: false },
             openai: { enabled: true },
+            bedrock: { enabled: false },
         });
     });
 
@@ -294,6 +320,7 @@ describe('resolveEffectiveModelVisibility', () => {
         ).toEqual({
             google: { enabled: false },
             openai: { enabled: false },
+            bedrock: { enabled: false },
             anthropic: { enabled: true, allowedModels: ['claude-opus-4-8'] },
         });
     });
@@ -470,6 +497,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             expect(effective).toEqual({
                 google: { enabled: false },
                 openai: { enabled: false },
+                bedrock: { enabled: false },
                 anthropic: { enabled: false },
             });
         });
@@ -546,6 +574,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 modelVisibility: {
                     google: { enabled: false },
                     openai: { enabled: false },
+                    bedrock: { enabled: false },
                 },
                 keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
             });
@@ -561,6 +590,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 modelVisibility: {
                     google: { enabled: false },
                     openai: { enabled: false },
+                    bedrock: { enabled: false },
                 },
                 keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
             });
@@ -576,6 +606,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 modelVisibility: {
                     anthropic: { enabled: true },
                     google: { enabled: false },
+                    bedrock: { enabled: false },
                 },
                 keyAccessibleModelIds: null,
             });
@@ -591,6 +622,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 modelVisibility: {
                     google: { enabled: false },
                     openai: { enabled: false },
+                    bedrock: { enabled: false },
                 },
                 keyAccessibleModelIds: { anthropic: null },
             });
@@ -607,6 +639,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 modelVisibility: {
                     google: { enabled: false },
                     openai: { enabled: false },
+                    bedrock: { enabled: false },
                 },
                 keyAccessibleModelIds: { anthropic: null },
             });
@@ -614,7 +647,11 @@ describe('OrgAiCopilotConfigResolver', () => {
     });
 
     describe('getReviewJudgeAvailability', () => {
-        const none = { hasActiveByoKey: false, canJudgeOnByoKey: false };
+        const none = {
+            hasActiveByoKey: false,
+            canJudgeOnByoKey: false,
+            byoJudgeProvider: null,
+        };
 
         it('returns no BYO without an organization uuid', async () => {
             const resolver = makeResolver();
@@ -630,6 +667,25 @@ describe('OrgAiCopilotConfigResolver', () => {
             ).toEqual(none);
         });
 
+        it('judges on bedrock rather than the instance provider', async () => {
+            const resolver = makeResolver({
+                orgKeys: {
+                    bedrock: {
+                        apiKey: 'ABSK',
+                        region: 'ap-northeast-1',
+                        allowedModels: ['claude-sonnet-4-5'],
+                    },
+                },
+            });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual({
+                hasActiveByoKey: true,
+                canJudgeOnByoKey: true,
+                byoJudgeProvider: 'bedrock',
+            });
+        });
+
         it('can judge when the anthropic key serves haiku', async () => {
             const resolver = makeResolver({
                 orgKeys: { anthropic: 'sk-ant-x' },
@@ -637,7 +693,11 @@ describe('OrgAiCopilotConfigResolver', () => {
             });
             expect(
                 await resolver.getReviewJudgeAvailability('org-uuid'),
-            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: true });
+            ).toEqual({
+                hasActiveByoKey: true,
+                canJudgeOnByoKey: true,
+                byoJudgeProvider: 'anthropic',
+            });
         });
 
         it('cannot judge when the anthropic key lacks haiku', async () => {
@@ -647,7 +707,11 @@ describe('OrgAiCopilotConfigResolver', () => {
             });
             expect(
                 await resolver.getReviewJudgeAvailability('org-uuid'),
-            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+            ).toEqual({
+                hasActiveByoKey: true,
+                canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
+            });
         });
 
         it('fails closed when the catalog returns null', async () => {
@@ -657,7 +721,11 @@ describe('OrgAiCopilotConfigResolver', () => {
             });
             expect(
                 await resolver.getReviewJudgeAvailability('org-uuid'),
-            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+            ).toEqual({
+                hasActiveByoKey: true,
+                canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
+            });
         });
 
         it('has an active key but cannot judge with only an openai key', async () => {
@@ -666,7 +734,11 @@ describe('OrgAiCopilotConfigResolver', () => {
             });
             expect(
                 await resolver.getReviewJudgeAvailability('org-uuid'),
-            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+            ).toEqual({
+                hasActiveByoKey: true,
+                canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
+            });
         });
 
         it('does not judge with a BYO Anthropic key through an instance gateway', async () => {
@@ -678,7 +750,11 @@ describe('OrgAiCopilotConfigResolver', () => {
 
             expect(
                 await resolver.getReviewJudgeAvailability('org-uuid'),
-            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+            ).toEqual({
+                hasActiveByoKey: true,
+                canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
+            });
         });
     });
 });

@@ -17,6 +17,7 @@ import {
     ItemsMap,
     SuggestChartTypeExploreRequest,
     SuggestChartTypeFieldsRequest,
+    UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -37,12 +38,42 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import {
+    GeneratedGoogleSheetsExtensionReportDraft,
+    GenerateGoogleSheetsExtensionReportDraftRequest,
+} from '../services/ai/agents/googleSheetsExtensionReportDraftTypes';
 import { AiService } from '../services/AiService/AiService';
 
 @Route('/api/v1/ai/:projectUuid')
 @Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiController extends BaseController {
+    /** @summary Draft Google Sheets report settings without running a query */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/google-sheets-extension/report-draft')
+    @OperationId('generateGoogleSheetsExtensionReportDraft')
+    async generateGoogleSheetsExtensionReportDraft(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: GenerateGoogleSheetsExtensionReportDraftRequest,
+    ): Promise<{
+        status: 'ok';
+        results: GeneratedGoogleSheetsExtensionReportDraft;
+    }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiService().generateGoogleSheetsExtensionReportDraft(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body,
+                ),
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/custom-viz')

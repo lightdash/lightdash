@@ -12,8 +12,8 @@ import {
     IconConfetti,
     IconMail,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
-import { Navigate, useNavigate } from 'react-router';
+import { useCallback, useEffect, type FC } from 'react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
@@ -24,6 +24,7 @@ import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
+import { sanitizeRedirectUrl } from '../utils/redirectUrl';
 import classes from './VerifyEmail.module.css';
 
 const VerificationSuccess: FC<{
@@ -72,9 +73,29 @@ const VerifyEmailPage: FC = () => {
     const { show: showIntercom } = useIntercom();
     const { isNewLayout } = useAuthLayoutVariant();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const redirectParam = searchParams.get('redirect');
+    const redirectTo =
+        redirectParam === null ? null : sanitizeRedirectUrl(redirectParam);
     const emailOnlySignupFlag = useServerFeatureFlag(
         FeatureFlags.NewOnboarding,
     );
+    const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
+    const isVerifiedEmailOnlySignup = isEmailOnlySignup && !!data?.isVerified;
+
+    const continueAfterVerification = useCallback(() => {
+        if (redirectTo === null) {
+            void navigate('/');
+            return;
+        }
+        window.location.href = redirectTo;
+    }, [navigate, redirectTo]);
+
+    useEffect(() => {
+        if (isVerifiedEmailOnlySignup && redirectTo !== null) {
+            window.location.href = redirectTo;
+        }
+    }, [isVerifiedEmailOnlySignup, redirectTo]);
 
     if (
         health.isInitialLoading ||
@@ -84,10 +105,8 @@ const VerifyEmailPage: FC = () => {
         return <PageSpinner />;
     }
 
-    const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
-
-    if (isEmailOnlySignup && data?.isVerified) {
-        return <Navigate to="/" />;
+    if (isVerifiedEmailOnlySignup) {
+        return redirectTo === null ? <Navigate to="/" /> : <PageSpinner />;
     }
 
     return (
@@ -121,12 +140,8 @@ const VerifyEmailPage: FC = () => {
             {!isEmailOnlySignup && data && (
                 <VerificationSuccess
                     isOpen={data.isVerified}
-                    onClose={() => {
-                        void navigate('/');
-                    }}
-                    onContinue={() => {
-                        void navigate('/');
-                    }}
+                    onClose={continueAfterVerification}
+                    onContinue={continueAfterVerification}
                 />
             )}
         </AuthLayout>

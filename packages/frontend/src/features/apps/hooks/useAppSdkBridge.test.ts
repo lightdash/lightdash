@@ -1011,6 +1011,7 @@ describe('external-fetch branch', () => {
 
     function renderBridgeExternal(
         onExternalRequestEvent: (event: ExternalRequestEvent) => void,
+        chartContext?: { savedChartUuid: string; chartVersionUuid?: string },
     ) {
         const iframeRef = {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
@@ -1024,6 +1025,7 @@ describe('external-fetch branch', () => {
                 appUuid: APP_UUID,
                 previewToken: PREVIEW_TOKEN,
                 onExternalRequestEvent,
+                chartContext,
             }),
         );
     }
@@ -1075,6 +1077,44 @@ describe('external-fetch branch', () => {
         });
         // No app-supplied headers leak through.
         expect(Object.keys(init.headers)).toEqual(['Content-Type']);
+    });
+
+    it('stamps host chart context and ignores an iframe-supplied override', async () => {
+        renderBridgeExternal(() => undefined, {
+            savedChartUuid: 'host-chart-uuid',
+            chartVersionUuid: 'host-version-uuid',
+        });
+        mockFetchOk({ status: 'ok', results: { status: 200 } });
+
+        postExternalFetch({
+            alias: 'stripe',
+            path: '/v1/charges',
+            chartContext: { savedChartUuid: 'other-chart-uuid' },
+        });
+
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(JSON.parse(init.body)).toMatchObject({
+            chartContext: {
+                savedChartUuid: 'host-chart-uuid',
+                chartVersionUuid: 'host-version-uuid',
+            },
+        });
+    });
+
+    it('omits iframe chart context when the host has no saved chart', async () => {
+        renderBridgeExternal(() => undefined);
+        mockFetchOk({ status: 'ok', results: { status: 200 } });
+
+        postExternalFetch({
+            alias: 'stripe',
+            path: '/v1/charges',
+            chartContext: { savedChartUuid: 'other-chart-uuid' },
+        });
+
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(JSON.parse(init.body)).not.toHaveProperty('chartContext');
     });
 
     it('authenticates external fetches in embed mode with the embed JWT', async () => {
@@ -1306,6 +1346,7 @@ describe('data-app-viz-context push', () => {
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
         pointMenu: { enabled: false },
+        subtotals: { enabled: false, dimensions: [] },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
@@ -2254,6 +2295,128 @@ describe('viz point-menu virtual route', () => {
         pollQueryResult();
 
         await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    });
+});
+
+describe('viz subtotal virtual route', () => {
+    const VIRTUAL_PATH = '/__sdk/viz/subtotals';
+    const INTENT = { level: 1, parentValues: ['Portugal'] };
+    const UNAVAILABLE = 'Subtotals are not available for this visualization.';
+
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    function requestSubtotals({
+        onVizSubtotalsIntent,
+        dataAppVizMode = true,
+        method = 'POST',
+    }: {
+        onVizSubtotalsIntent?: (intentBody: unknown) => Promise<{
+            rows: DataAppVizContext['rows'];
+        }>;
+        dataAppVizMode?: boolean;
+        method?: string;
+    }) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                dataAppVizMode,
+                onVizSubtotalsIntent,
+            }),
+        );
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method,
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+        return postMessageSpy;
+    }
+
+    const expectResponse = (
+        postMessageSpy: ReturnType<typeof requestSubtotals>,
+        response: Record<string, unknown>,
+    ) =>
+        vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ id: POST_ID, ...response }),
+                '*',
+            ),
+        );
+
+    it('answers from the host without granting iframe query access', async () => {
+        const rows = [
+            {
+                orders_country: {
+                    value: { raw: 'Portugal', formatted: 'Portugal' },
+                },
+            },
+        ];
+        const onVizSubtotalsIntent = vi.fn().mockResolvedValue({ rows });
+        const postMessageSpy = requestSubtotals({ onVizSubtotalsIntent });
+
+        await expectResponse(postMessageSpy, { result: { rows } });
+        expect(onVizSubtotalsIntent).toHaveBeenCalledWith(INTENT);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports subtotals as unavailable when the host has no handler', async () => {
+        const postMessageSpy = requestSubtotals({});
+
+        await expectResponse(postMessageSpy, { error: UNAVAILABLE });
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports subtotals as unavailable outside viz mode', async () => {
+        const onVizSubtotalsIntent = vi.fn();
+        const postMessageSpy = requestSubtotals({
+            onVizSubtotalsIntent,
+            dataAppVizMode: false,
+        });
+
+        await expectResponse(postMessageSpy, { error: UNAVAILABLE });
+        expect(onVizSubtotalsIntent).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports subtotals as unavailable for a method other than POST', async () => {
+        const onVizSubtotalsIntent = vi.fn();
+        const postMessageSpy = requestSubtotals({
+            onVizSubtotalsIntent,
+            method: 'GET',
+        });
+
+        await expectResponse(postMessageSpy, { error: UNAVAILABLE });
+        expect(onVizSubtotalsIntent).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("keeps the handler's failure reason away from the iframe", async () => {
+        const postMessageSpy = requestSubtotals({
+            onVizSubtotalsIntent: vi
+                .fn()
+                .mockRejectedValue(
+                    new Error('relation "orders" does not exist'),
+                ),
+        });
+
+        await expectResponse(postMessageSpy, { error: UNAVAILABLE });
     });
 });
 

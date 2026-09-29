@@ -185,6 +185,34 @@ describe('serializeCustomChartTypeSchema', () => {
         ).toContain('- status "Status" (dimension, required, multiple)');
     });
 
+    it('names the hierarchy field after the fields block', () => {
+        expect(
+            serializeCustomChartTypeSchema({
+                ...minimal,
+                schema: {
+                    ...minimal.schema,
+                    fields: [{ ...minimal.schema.fields[0], multiple: true }],
+                    hierarchy: { field: 'status' },
+                },
+            }),
+        ).toBe(
+            [
+                'name: Status Donut',
+                'slug: status-donut',
+                'fields:',
+                '- status "Status" (dimension, required, multiple)',
+                'hierarchy: status',
+                'configOptions: none',
+            ].join('\n'),
+        );
+    });
+
+    it('omits the hierarchy line when none is declared', () => {
+        expect(serializeCustomChartTypeSchema(cohortWaterfall)).not.toContain(
+            'hierarchy',
+        );
+    });
+
     it('quotes multiline guidance and descriptions as single values', () => {
         const withMultilineHelp: CustomChartType = {
             ...minimal,

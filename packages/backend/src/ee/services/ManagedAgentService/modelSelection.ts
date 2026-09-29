@@ -56,7 +56,7 @@ const pickProviderDefault = ({
         };
     }
     if (instanceDefault) {
-        // Azure has no preset catalog: the configured deployment is the model.
+        // Azure uses an instance-configured deployment without a preset catalog.
         const usable =
             instanceDefault.provider === 'azure' ||
             isModelConfigAvailable(
