@@ -59,6 +59,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     configurationSidebar,
 }) => {
     const {
+        owner,
         dataAppVizUuid,
         build,
         clarification,
@@ -103,7 +104,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
             (version) => version.version === history.latestReadyVersion,
         )?.resources?.vizSchema ??
         (viewedVersion === null && !workspace.isFetchingSchema
-            ? workspace.dataAppViz?.schema
+            ? (workspace.schema ?? undefined)
             : undefined);
     const buildContext =
         currentBuildContext ??
@@ -139,6 +140,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                         <Box className={classes.content}>
                             <BuilderCanvas
                                 projectUuid={projectUuid}
+                                owner={owner}
                                 appUuid={dataAppVizUuid}
                                 previewVersion={previewVersion}
                                 isBuilding={isBuilding}
@@ -165,6 +167,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     ref={promptBarRef}
                                     sessionKey={promptSessionKey}
                                     projectUuid={projectUuid}
+                                    owner={owner}
                                     composerAppUuid={composerAppUuid}
                                     hasVersions={history.versions.length > 0}
                                     latestVersion={history.latest}
@@ -251,6 +254,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 >
                                     <VersionHistoryPanel
                                         projectUuid={projectUuid}
+                                        owner={owner}
                                         appUuid={dataAppVizUuid}
                                         versions={history.versions}
                                         latestReadyVersion={

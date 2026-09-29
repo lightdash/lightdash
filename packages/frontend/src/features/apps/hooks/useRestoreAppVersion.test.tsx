@@ -37,6 +37,7 @@ describe('useRestoreAppVersion', () => {
             projectUuid: 'project-1',
             appUuid: 'viz-1',
             version: 3,
+            owner: 'project',
         });
 
         await waitFor(() => {

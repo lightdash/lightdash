@@ -38,7 +38,7 @@ describe('useAppPreviewToken', () => {
             </QueryClientProvider>
         );
         const { result } = renderHook(
-            () => useAppPreviewToken('project-1', 'app-1', 2),
+            () => useAppPreviewToken('project-1', 'app-1', 2, 'project'),
             { wrapper },
         );
 
@@ -67,7 +67,7 @@ describe('useAppPreviewToken', () => {
             </QueryClientProvider>
         );
         const { result } = renderHook(
-            () => useAppPreviewToken('project-1', 'app-1', 2),
+            () => useAppPreviewToken('project-1', 'app-1', 2, 'project'),
             { wrapper },
         );
 

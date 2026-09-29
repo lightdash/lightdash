@@ -45,6 +45,7 @@ describe('useUpdateApp', () => {
         await result.current.mutateAsync({
             projectUuid: 'project-1',
             appUuid: 'app-uuid',
+            owner: 'project',
             icon: 'chart-bar',
         });
 

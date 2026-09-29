@@ -59,6 +59,7 @@ describe('usePinnedContext', () => {
             expect(useGetAppMock).toHaveBeenCalledWith(
                 projectUuid,
                 dataAppUuidOrSlug,
+                'project',
             );
             expect(result.current.isReady).toBe(true);
             expect(result.current.contextInput).toEqual([

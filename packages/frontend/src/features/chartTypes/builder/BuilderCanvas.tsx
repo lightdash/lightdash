@@ -9,6 +9,7 @@ import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
 import AppPreview from '../../apps/components/AppPreview';
 import { type SdkManifest } from '../../apps/hooks/useAppSdkBridge';
 import { type VizSubtotalSource } from '../hooks/useVizSubtotalSource';
+import { type ChartTypeOwner } from '../utils/chartTypeOwner';
 import classes from './BuilderCanvas.module.css';
 import BuilderPromptExamples from './BuilderPromptExamples';
 import { type ExploreSourceControls } from './exploreSource';
@@ -18,6 +19,7 @@ import SavedChartSourceCard from './SavedChartSourceCard';
 
 type Props = {
     projectUuid: string;
+    owner: ChartTypeOwner;
     /** Null while no app exists yet (create flow before the first build). */
     appUuid: string | null;
     /** The version the preview renders; null when nothing is renderable. */
@@ -100,6 +102,7 @@ const SkeletonBars: FC<{ projectUuid: string }> = ({ projectUuid }) => {
  */
 const BuilderCanvas: FC<Props> = ({
     projectUuid,
+    owner,
     appUuid,
     previewVersion,
     isBuilding,
@@ -162,6 +165,7 @@ const BuilderCanvas: FC<Props> = ({
                             <AppPreview
                                 ref={previewRef}
                                 projectUuid={projectUuid}
+                                owner={owner}
                                 appUuid={appUuid}
                                 version={previewVersion}
                                 refreshKey={0}

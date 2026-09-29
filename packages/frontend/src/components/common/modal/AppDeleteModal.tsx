@@ -27,7 +27,7 @@ const AppDeleteModal: FC<AppDeleteModalProps> = ({
     const { mutateAsync: deleteApp, isLoading: isDeleting } = useDeleteApp();
 
     const handleConfirm = async () => {
-        await deleteApp({ projectUuid, appUuid: uuid });
+        await deleteApp({ projectUuid, appUuid: uuid, owner: 'project' });
         onConfirm?.();
     };
 

@@ -3,6 +3,10 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import {
+    appApiBase,
+    type ChartTypeOwner,
+} from '../../chartTypes/utils/chartTypeOwner';
 
 type UploadFileParams = {
     projectUuid: string;
@@ -12,6 +16,7 @@ type UploadFileParams = {
      *  backend can label it for the agent. Optional — defaults to a
      *  regular attachment. */
     kind?: 'screenshot';
+    owner: ChartTypeOwner;
 };
 
 type UploadFileResult = ApiAppFileUploadResponse['results'];
@@ -21,12 +26,13 @@ const uploadFile = async ({
     file,
     appUuid,
     kind,
+    owner,
 }: UploadFileParams): Promise<UploadFileResult> => {
     const params = new URLSearchParams();
     if (file.name) params.set('filename', file.name);
     if (kind) params.set('kind', kind);
     const query = params.toString();
-    const url = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/upload-file${
+    const url = `/api/v1${appApiBase(owner, projectUuid)}/${appUuid}/upload-file${
         query ? `?${query}` : ''
     }`;
     const response = await fetch(url, {

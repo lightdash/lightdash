@@ -11,10 +11,12 @@ import AppVersionHistoryPanel from '../../apps/components/AppVersionHistoryPanel
 import VersionHistoryDisclosure from '../../apps/components/VersionHistoryDisclosure';
 import VizSchemaChangesList from '../components/VizSchemaChangesList';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
+import { type ChartTypeOwner } from '../utils/chartTypeOwner';
 import RestoreVersionModal from './RestoreVersionModal';
 
 type Props = {
     projectUuid: string;
+    owner: ChartTypeOwner;
     appUuid: string;
     /** Newest first, as `useAppVersionHistory` returns them. */
     versions: ApiAppVersionSummary[];
@@ -76,6 +78,7 @@ const getVersionSchemaChanges = (
  */
 const VersionHistoryPanel: FC<Props> = ({
     projectUuid,
+    owner,
     appUuid,
     versions,
     latestReadyVersion,
@@ -135,6 +138,7 @@ const VersionHistoryPanel: FC<Props> = ({
             {restoreTarget !== null && (
                 <RestoreVersionModal
                     projectUuid={projectUuid}
+                    owner={owner}
                     appUuid={appUuid}
                     version={restoreTarget}
                     onClose={() => setRestoreTarget(null)}

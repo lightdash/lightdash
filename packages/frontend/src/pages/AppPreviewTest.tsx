@@ -50,7 +50,7 @@ export default function AppPreviewTest() {
     // Always fetch app to get creator info + latest ready version when needed.
     // The backend enforces space-aware view permissions and will 403 if the
     // user doesn't have access — we surface that as the error state below.
-    const appQuery = useGetApp(projectUuid, appUuid);
+    const appQuery = useGetApp(projectUuid, appUuid, 'project');
     const firstPage = appQuery.data?.pages[0];
 
     // Authoritative across ALL versions — the ready version may be older than
@@ -96,13 +96,14 @@ export default function AppPreviewTest() {
         appUuid,
         !explicitVersion && isBuildInProgress,
         handleBuildDone,
+        'project',
     );
 
     const {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, version);
+    } = useAppPreviewToken(projectUuid, appUuid, version, 'project');
 
     // Panel is opt-in here (most viewers aren't technical), but bridge events
     // are captured regardless so earlier queries show once it's opened.

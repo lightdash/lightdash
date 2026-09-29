@@ -7,10 +7,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
+import {
+    appApiBase,
+    appQueryKey,
+    type ChartTypeOwner,
+} from '../../chartTypes/utils/chartTypeOwner';
 
 type UpdateAppParams = {
     projectUuid: string;
     appUuid: string;
+    owner: ChartTypeOwner;
 } & ApiUpdateAppRequest;
 
 type UpdateAppResult = ApiUpdateAppResponse['results'];
@@ -18,11 +24,12 @@ type UpdateAppResult = ApiUpdateAppResponse['results'];
 const updateApp = async ({
     projectUuid,
     appUuid,
+    owner,
     ...body
 }: UpdateAppParams): Promise<UpdateAppResult> => {
     const data = await lightdashApi<UpdateAppResult>({
         method: 'PATCH',
-        url: `/ee/projects/${projectUuid}/apps/${appUuid}`,
+        url: `${appApiBase(owner, projectUuid)}/${appUuid}`,
         body: JSON.stringify(body),
     });
     return data;
@@ -46,7 +53,11 @@ export const useUpdateApp = (options?: {
 
             identifiers.forEach((identifier) => {
                 void queryClient.invalidateQueries({
-                    queryKey: ['app', variables.projectUuid, identifier],
+                    queryKey: appQueryKey(
+                        variables.owner,
+                        variables.projectUuid,
+                        identifier,
+                    ),
                 });
                 // Chart types are apps too; refresh the viz detail read by
                 // their picker, header and builder.
@@ -62,6 +73,11 @@ export const useUpdateApp = (options?: {
             void queryClient.invalidateQueries({
                 queryKey: ['data-app-vizs'],
             });
+            if (variables.owner === 'organization') {
+                void queryClient.invalidateQueries({
+                    queryKey: ['organization-data-app-vizs'],
+                });
+            }
             void invalidateContent(queryClient, variables.projectUuid);
             const field = variables.name
                 ? 'name'

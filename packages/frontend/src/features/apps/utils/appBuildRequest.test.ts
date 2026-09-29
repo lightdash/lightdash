@@ -44,6 +44,7 @@ describe('toAppGeneratePayload', () => {
     it('carries every snapshotted field onto the generate call', () => {
         expect(toAppGeneratePayload('project-1', request(), [])).toEqual({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             prompt: 'a dashboard that shows performance',
             template: 'dashboard',
             creationExperience: 'app_builder',
@@ -106,6 +107,7 @@ describe('toAppClarifyParams', () => {
             ],
             dashboard: { uuid: 'dashboard-1', includeSampleData: false },
             fileIds: ['file-1'],
+            target: { owner: 'project' },
         });
     });
 

@@ -30,6 +30,8 @@ type Props = {
     selectedConnections: SelectedConnection[];
     onSelectConnection: (connection: SelectedConnection) => void;
     onDeselectConnection: (uuid: string) => void;
+    /** Organization chart types take no external connections. */
+    canAddConnections: boolean;
     linkedAppUuid: string | null;
 };
 
@@ -41,6 +43,7 @@ const ChartTypeComposerActions: FC<Props> = ({
     selectedConnections,
     onSelectConnection,
     onDeselectConnection,
+    canAddConnections,
     linkedAppUuid,
 }) => {
     const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
@@ -83,17 +86,19 @@ const ChartTypeComposerActions: FC<Props> = ({
                                 onAttach();
                             }}
                         />
-                        <NavLink
-                            component="button"
-                            label="Add external connections"
-                            leftSection={
-                                <MantineIcon icon={IconPlugConnected} />
-                            }
-                            rightSection={
-                                <MantineIcon icon={IconChevronRight} />
-                            }
-                            onClick={() => onPanelChange('connections')}
-                        />
+                        {canAddConnections && (
+                            <NavLink
+                                component="button"
+                                label="Add external connections"
+                                leftSection={
+                                    <MantineIcon icon={IconPlugConnected} />
+                                }
+                                rightSection={
+                                    <MantineIcon icon={IconChevronRight} />
+                                }
+                                onClick={() => onPanelChange('connections')}
+                            />
+                        )}
                     </Stack>
                 ) : (
                     <>
@@ -110,7 +115,7 @@ const ChartTypeComposerActions: FC<Props> = ({
                                 Add external connections
                             </Text>
                         </Group>
-                        {panel === 'connections' && (
+                        {panel === 'connections' && canAddConnections && (
                             <ConnectionPickerView
                                 selectedConnections={selectedConnections}
                                 onSelect={onSelectConnection}

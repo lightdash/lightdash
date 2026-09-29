@@ -1,6 +1,7 @@
 import { getAppDisplayName } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -24,11 +25,13 @@ import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
 import ClearAgentContextAction from '../../apps/components/ClearAgentContextAction';
 import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
+import { type ChartTypeOwner } from '../utils/chartTypeOwner';
 import { type ChartTypeAppMeta } from './appMeta';
 import classes from './ChartTypeBuilderHeader.module.css';
 
 type Props = {
     projectUuid: string;
+    owner: ChartTypeOwner;
     appUuidOrSlug?: string;
     backLink: {
         label: string;
@@ -54,6 +57,7 @@ type Props = {
 
 const ChartTypeBuilderHeader: FC<Props> = ({
     projectUuid,
+    owner,
     appUuidOrSlug,
     backLink,
     app,
@@ -100,6 +104,9 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                         >
                             Chart Studio
                         </Text>
+                        {owner === 'organization' && (
+                            <Badge size="sm">Organization library</Badge>
+                        )}
                         {(hasName || isNamePending) && (
                             <Box className={classes.divider} />
                         )}
@@ -175,6 +182,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 {app && (
                     <ClearAgentContextAction
                         projectUuid={projectUuid}
+                        owner={owner}
                         appUuid={app.appUuid}
                         disabled={isBuilding}
                     />
@@ -222,6 +230,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     onClose={() => setIsEditingDetails(false)}
                     onConfirm={() => setIsEditingDetails(false)}
                     projectUuid={projectUuid}
+                    owner={owner}
                     uuid={app.appUuid}
                     appUuidOrSlug={appUuidOrSlug}
                     initialName={getAppDisplayName(app.name, app.appUuid)}

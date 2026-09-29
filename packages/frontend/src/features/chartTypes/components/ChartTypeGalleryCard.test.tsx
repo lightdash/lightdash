@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -65,14 +66,16 @@ const organizationViz: OrganizationDataAppViz = {
 
 const renderOrganizationCard = () =>
     renderWithProviders(
-        <ChartTypeGalleryCard
-            dataAppViz={organizationViz}
-            projectUuid="project-1"
-            hasRegistryUpdate={false}
-            onClick={vi.fn()}
-            onPreview={null}
-            onDelete={vi.fn()}
-        />,
+        <MemoryRouter>
+            <ChartTypeGalleryCard
+                dataAppViz={organizationViz}
+                projectUuid="project-1"
+                hasRegistryUpdate={false}
+                onClick={vi.fn()}
+                onPreview={null}
+                onDelete={vi.fn()}
+            />
+        </MemoryRouter>,
     );
 
 describe('ChartTypeGalleryCard', () => {
@@ -134,7 +137,7 @@ describe('ChartTypeGalleryCard', () => {
             ).not.toBeInTheDocument();
         });
 
-        it('offers only Delete to managers', async () => {
+        it('offers Edit in the organization builder and Delete to managers', async () => {
             vi.mocked(useCanManageOrganizationChartTypes).mockReturnValue(true);
             renderOrganizationCard();
 
@@ -153,8 +156,11 @@ describe('ChartTypeGalleryCard', () => {
                 }),
             ).not.toBeInTheDocument();
             expect(
-                screen.queryByRole('link', { name: 'Edit Radial gauge' }),
-            ).not.toBeInTheDocument();
+                screen.getByRole('link', { name: 'Edit Radial gauge' }),
+            ).toHaveAttribute(
+                'href',
+                '/projects/project-1/chart-studio/organization/radial-gauge',
+            );
         });
     });
 });

@@ -109,6 +109,7 @@ describe('useDataAppVizBuild', () => {
                 useDataAppVizBuild({
                     creationExperience: 'chart_type_builder',
                     projectUuid: 'project-1',
+                    target: { owner: 'project' },
                     itemsMap,
                     dataAppVizUuid,
                     onCreated,
@@ -638,6 +639,7 @@ describe('useDataAppVizBuild', () => {
                 projectUuid: 'project-1',
                 appUuid: 'viz-1',
                 version: 1,
+                owner: 'project',
             },
             expect.anything(),
         );
@@ -701,6 +703,7 @@ describe('useDataAppVizBuild', () => {
                 projectUuid: 'project-1',
                 appUuid: 'viz-1',
                 version: 2,
+                owner: 'project',
             },
             expect.anything(),
         );
@@ -785,6 +788,7 @@ describe('useDataAppVizBuild', () => {
                 projectUuid: 'project-1',
                 appUuid: 'viz-1',
                 version: 1,
+                owner: 'project',
             },
             expect.anything(),
         );
@@ -798,6 +802,7 @@ describe('useDataAppVizBuild', () => {
         expect(deleteApp).toHaveBeenCalledWith({
             projectUuid: 'project-1',
             appUuid: 'viz-1',
+            owner: 'project',
         });
     });
 });

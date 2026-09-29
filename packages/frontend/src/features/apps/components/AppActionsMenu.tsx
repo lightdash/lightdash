@@ -289,7 +289,12 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     const { mutate: updateApp } = useUpdateApp({ appUuidOrSlug: appUuid });
     const setAutoAnalysis = useCallback(
         (value: DataAppAutoAnalysis) =>
-            updateApp({ projectUuid, appUuid, autoAnalysis: value }),
+            updateApp({
+                projectUuid,
+                appUuid,
+                owner: 'project',
+                autoAnalysis: value,
+            }),
         [updateApp, projectUuid, appUuid],
     );
 
@@ -642,6 +647,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
             )}
             {isUpdateModalOpen && (
                 <AppUpdateModal
+                    owner="project"
                     opened
                     projectUuid={projectUuid}
                     uuid={appUuid}

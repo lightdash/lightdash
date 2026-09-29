@@ -1,68 +1,38 @@
-import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
-import { Button, Stack, Text } from '@mantine/core';
-import { IconPlus, IconPuzzle } from '@tabler/icons-react';
+import { Stack, Text } from '@mantine/core';
+import { IconPuzzle } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import { Can } from '../../../providers/Ability';
-import useApp from '../../../providers/App/useApp';
-import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
+import NewChartTypeButton from './NewChartTypeButton';
 
 type Props = {
     projectUuid: string;
 };
 
-const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
-    const { user } = useApp();
-    const projectRoute = useOptionalProjectRoute();
-    const projectUrlIdentifier =
-        projectRoute?.projectUrlIdentifier ?? projectUuid;
-    // Building a new chart type is authoring, so the CTA needs data apps.
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => (
+    <Stack align="center" gap="sm" py="7xl">
+        <MantineIcon
+            icon={IconPuzzle}
+            color="ldGray.5"
+            stroke={1.5}
+            size="lg"
+        />
 
-    return (
-        <Stack align="center" gap="sm" py="7xl">
-            <MantineIcon
-                icon={IconPuzzle}
-                color="ldGray.5"
-                stroke={1.5}
-                size="lg"
-            />
+        <Text size="md" fw={600} c="ldGray.8">
+            No chart types yet
+        </Text>
 
-            <Text size="md" fw={600} c="ldGray.8">
-                No chart types yet
-            </Text>
+        <Text ta="center" fz="xs" c="dimmed" maw={400} lh={1.5}>
+            Chart types are custom visualizations you build once and reuse
+            across your project.
+        </Text>
 
-            <Text ta="center" fz="xs" c="dimmed" maw={400} lh={1.5}>
-                Chart types are custom visualizations you build once and reuse
-                across your project.
-            </Text>
-
-            {dataAppsEnabled && (
-                <Can
-                    I="create"
-                    this={subject('DataApp', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid,
-                    })}
-                >
-                    <Button
-                        mt="xs"
-                        component={Link}
-                        to={chartTypeBuilderPath(projectUrlIdentifier)}
-                        leftSection={<MantineIcon icon={IconPlus} size={18} />}
-                    >
-                        New chart type
-                    </Button>
-                </Can>
-            )}
-        </Stack>
-    );
-};
+        <NewChartTypeButton
+            projectUuid={projectUuid}
+            owner="project"
+            size="sm"
+            mt="xs"
+        />
+    </Stack>
+);
 
 export default ChartTypeGalleryEmptyState;

@@ -16,6 +16,7 @@ import { useChartTypeBuilderWorkspace } from '../../../features/chartTypes/build
 import { type VizBuildRequest } from '../../../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../../../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { useVizSubtotalSource } from '../../../features/chartTypes/hooks/useVizSubtotalSource';
+import { PROJECT_BUILD_TARGET } from '../../../features/chartTypes/utils/chartTypeOwner';
 import {
     buildExplorerVizContext,
     resolveExplorerVizFieldMapping,
@@ -81,6 +82,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
 
     const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
+        target: PROJECT_BUILD_TARGET,
         dataAppVizUuid: authoring.dataAppVizUuid,
         // The pre-builder explorer surface reported this source; the
         // embedded builder is its successor.
@@ -279,6 +281,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             deleteApp({
                 projectUuid,
                 appUuid: dataAppVizUuid,
+                owner: 'project',
                 successTitle: 'Chart type discarded',
             });
         }

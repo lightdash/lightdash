@@ -1,28 +1,15 @@
-import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     type DataAppViz,
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Paper,
-    SimpleGrid,
-    Stack,
-    Tabs,
-    Text,
-    TextInput,
-} from '@mantine/core';
-import { useDebouncedValue, useIntersection } from '@mantine/hooks';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router';
+import { Group, Stack, Tabs, Text } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
+import { useMemo, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router';
 import { BetaBadge } from '../components/common/BetaBadge';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import InlineErrorState from '../components/common/InlineErrorState';
-import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ChartTypeDeleteModal from '../features/chartTypes/components/ChartTypeDeleteModal';
@@ -30,7 +17,9 @@ import ChartTypeDetailModal from '../features/chartTypes/components/ChartTypeDet
 import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGalleryCard';
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
 import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
+import ChartTypeListSection from '../features/chartTypes/components/ChartTypeListSection';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
+import NewChartTypeButton from '../features/chartTypes/components/NewChartTypeButton';
 import OrganizationChartTypesSection from '../features/chartTypes/components/OrganizationChartTypesSection';
 import { useChartTypesEnabled } from '../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
@@ -40,33 +29,21 @@ import {
 } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useOrganizationLibraryAccess } from '../features/chartTypes/hooks/useOrganizationLibraryAccess';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
-import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import {
+    GalleryTab,
+    type GalleryTabValue,
+} from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import { Can } from '../providers/Ability';
-import useApp from '../providers/App/useApp';
-
-// Values are URL `tab` params, kept stable across label renames.
-const GalleryTab = {
-    PROJECT_LIBRARY: 'installed-charts',
-    ORGANIZATION_LIBRARY: 'organization-library',
-    LIGHTDASH_LIBRARY: 'chart-library',
-} as const;
-
-type GalleryTabValue = (typeof GalleryTab)[keyof typeof GalleryTab];
 
 const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
-    const { user } = useApp();
     const [searchParams, setSearchParams] = useSearchParams();
     const chartTypesEnabled = useChartTypesEnabled();
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
     const chartTypeRegistryFlag = useServerFeatureFlag(
         FeatureFlags.ChartTypeRegistry,
     );
@@ -87,19 +64,11 @@ const ChartTypeGallery = () => {
     const [deleteUuid, setDeleteUuid] = useState<string | null>(null);
     const [previewUuid, setPreviewUuid] = useState<string | null>(null);
 
-    const {
-        data,
-        isInitialLoading,
-        isFetching,
-        error,
-        refetch,
-        hasNextPage,
-        fetchNextPage,
-        isFetchingNextPage,
-    } = useDataAppVisualizations(projectUuid, debouncedSearch);
-    const { ref: paginationRef, entry: paginationEntry } = useIntersection({
-        rootMargin: '200px',
-    });
+    const dataAppVizsQuery = useDataAppVisualizations(
+        projectUuid,
+        debouncedSearch,
+    );
+    const { data, isInitialLoading, error } = dataAppVizsQuery;
 
     const dataAppVizs: DataAppViz[] = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -162,25 +131,6 @@ const ChartTypeGallery = () => {
               ? GalleryTab.ORGANIZATION_LIBRARY
               : GalleryTab.PROJECT_LIBRARY;
 
-    useEffect(() => {
-        if (
-            activeTab === GalleryTab.PROJECT_LIBRARY &&
-            paginationEntry?.isIntersecting &&
-            hasNextPage &&
-            !isFetching &&
-            !error
-        ) {
-            void fetchNextPage();
-        }
-    }, [
-        activeTab,
-        paginationEntry,
-        hasNextPage,
-        isFetching,
-        error,
-        fetchNextPage,
-    ]);
-
     const handleTabChange = (value: string | null) => {
         const newParams = new URLSearchParams(searchParams);
         if (
@@ -209,101 +159,38 @@ const ChartTypeGallery = () => {
     }
 
     const chartTypesContent = (
-        <Stack gap="md">
-            {!isEmptyGallery && (
-                <Group justify="flex-end" gap="xs">
-                    <TextInput
-                        size="xs"
-                        w={220}
-                        placeholder="Search by name or description"
-                        leftSection={
-                            <MantineIcon icon={IconSearch} size={15} />
-                        }
-                        value={search}
-                        onChange={(e) => setSearch(e.currentTarget.value)}
-                    />
-                    {dataAppsEnabled && (
-                        <Can
-                            I="create"
-                            this={subject('DataApp', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <Button
-                                size="xs"
-                                component={Link}
-                                to={chartTypeBuilderPath(
-                                    projectUrlIdentifier ?? projectUuid,
-                                )}
-                                leftSection={
-                                    <MantineIcon icon={IconPlus} size={15} />
-                                }
-                            >
-                                New chart type
-                            </Button>
-                        </Can>
-                    )}
-                </Group>
-            )}
-
-            {isInitialLoading ? (
-                <EmptyStateLoader title="Loading chart types…" />
-            ) : error ? (
-                <InlineErrorState
-                    message="Failed to load chart types"
-                    onRetry={() => refetch()}
+        <ChartTypeListSection
+            query={dataAppVizsQuery}
+            items={dataAppVizs}
+            search={search}
+            onSearchChange={setSearch}
+            debouncedSearch={debouncedSearch}
+            isEmpty={isEmptyGallery}
+            headerActions={
+                <NewChartTypeButton
+                    projectUuid={projectUuid}
+                    owner="project"
+                    size="xs"
                 />
-            ) : dataAppVizs.length === 0 ? (
-                debouncedSearch ? (
-                    <Paper variant="dotted" p="xl">
-                        <Text ta="center" fz="xs" c="dimmed">
-                            No chart types match &ldquo;
-                            {debouncedSearch}&rdquo;
-                        </Text>
-                    </Paper>
-                ) : (
-                    <ChartTypeGalleryEmptyState projectUuid={projectUuid} />
-                )
-            ) : (
-                <>
-                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-                        {dataAppVizs.map((viz) => (
-                            <ChartTypeGalleryCard
-                                key={viz.dataAppVizUuid}
-                                dataAppViz={viz}
-                                projectUuid={projectUuid}
-                                hasRegistryUpdate={
-                                    registryEntryFor(viz)?.state ===
-                                    'update_available'
-                                }
-                                onClick={() =>
-                                    setSelectedUuid(viz.dataAppVizUuid)
-                                }
-                                onPreview={() =>
-                                    setPreviewUuid(viz.dataAppVizUuid)
-                                }
-                                onDelete={() =>
-                                    setDeleteUuid(viz.dataAppVizUuid)
-                                }
-                            />
-                        ))}
-                    </SimpleGrid>
-                    {hasNextPage && (
-                        <Box
-                            ref={paginationRef}
-                            data-testid="chart-types-pagination"
-                            mih="xl"
-                            role="status"
-                        >
-                            {isFetchingNextPage && (
-                                <EmptyStateLoader description="Loading more chart types…" />
-                            )}
-                        </Box>
-                    )}
-                </>
+            }
+            emptyState={
+                <ChartTypeGalleryEmptyState projectUuid={projectUuid} />
+            }
+            errorMessage="Failed to load chart types"
+            paginationTestId="chart-types-pagination"
+            renderItem={(viz) => (
+                <ChartTypeGalleryCard
+                    dataAppViz={viz}
+                    projectUuid={projectUuid}
+                    hasRegistryUpdate={
+                        registryEntryFor(viz)?.state === 'update_available'
+                    }
+                    onClick={() => setSelectedUuid(viz.dataAppVizUuid)}
+                    onPreview={() => setPreviewUuid(viz.dataAppVizUuid)}
+                    onDelete={() => setDeleteUuid(viz.dataAppVizUuid)}
+                />
             )}
-        </Stack>
+        />
     );
 
     return (

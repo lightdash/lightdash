@@ -56,6 +56,7 @@ export const usePinnedContext = ({
     const { data: appData } = useGetApp(
         projectUuid,
         dataAppUuidOrSlug ?? undefined,
+        'project',
     );
     const dataApp = appData?.pages[0];
     const isReady =

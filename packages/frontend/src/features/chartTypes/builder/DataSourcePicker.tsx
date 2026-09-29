@@ -45,6 +45,8 @@ import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useAttachResourceLink } from '../../apps/hooks/useAttachResourceLink';
+import DataProjectSelect from './DataProjectSelect';
+import { useDataProjectSwitch } from './dataProjectSwitch';
 import classes from './DataSourcePicker.module.css';
 import { type ExploreSourceControls } from './exploreSource';
 import { type SavedChartSourceControls } from './savedChartSource';
@@ -116,6 +118,7 @@ const PickerBody: FC<BodyProps> = ({
     ref,
 }) => {
     const projectUuid = useProjectUuid();
+    const dataProject = useDataProjectSwitch();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 250);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -554,6 +557,14 @@ const PickerBody: FC<BodyProps> = ({
 
     return (
         <>
+            {dataProject && (
+                <Box px={4} pt={4}>
+                    <DataProjectSelect
+                        dataProject={dataProject}
+                        onSwitch={onClose}
+                    />
+                </Box>
+            )}
             <Combobox.Search
                 size="xs"
                 placeholder={`Search ${kinds.replace(' or ', ' and ')}`}

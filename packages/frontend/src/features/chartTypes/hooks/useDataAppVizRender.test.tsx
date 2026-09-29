@@ -102,10 +102,19 @@ describe('useDataAppVizRender', () => {
 
         expect(metadataQuery.queryKey).toEqual([
             'data-app-viz-render-metadata',
-            'project-1',
+            null,
             'viz-1',
             'organization',
             undefined,
+            undefined,
+            undefined,
+        ]);
+        expect(tokenQuery.queryKey).toEqual([
+            'data-app-viz-preview-token',
+            null,
+            'viz-1',
+            4,
+            'organization',
             undefined,
             undefined,
         ]);

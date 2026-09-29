@@ -682,6 +682,28 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'chart-studio/organization/new',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const OrganizationChartTypeBuilder = await loadLazyRouteDefault(
+                './pages/OrganizationChartTypeBuilder',
+                () => import('./pages/OrganizationChartTypeBuilder'),
+            );
+            return { Component: OrganizationChartTypeBuilder };
+        },
+    },
+    {
+        path: 'chart-studio/organization/:dataAppVizUuid',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const OrganizationChartTypeBuilder = await loadLazyRouteDefault(
+                './pages/OrganizationChartTypeBuilder',
+                () => import('./pages/OrganizationChartTypeBuilder'),
+            );
+            return { Component: OrganizationChartTypeBuilder };
+        },
+    },
+    {
         path: 'chart-studio/:dataAppVizUuid',
         handle: { hideAILauncher: true },
         lazy: async () => {

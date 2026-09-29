@@ -2,7 +2,8 @@ import { type ApiError, type ApiGetAppResponse } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import {
-    ORGANIZATION_CHART_TYPES_API_BASE,
+    appApiBase,
+    appQueryKey,
     type ChartTypeOwner,
 } from '../../chartTypes/utils/chartTypeOwner';
 
@@ -32,19 +33,14 @@ const fetchAppVersions = async (
 export const useGetApp = (
     projectUuid: string | undefined,
     appUuidOrSlug: string | undefined,
-    owner: ChartTypeOwner = 'project',
+    owner: ChartTypeOwner,
 ) => {
     const isOrganization = owner === 'organization';
     const query = useInfiniteQuery<GetAppResult, ApiError>({
-        // Organization chart types are the same from every project.
-        queryKey: isOrganization
-            ? ['organization-chart-type', appUuidOrSlug]
-            : ['app', projectUuid, appUuidOrSlug],
+        queryKey: appQueryKey(owner, projectUuid, appUuidOrSlug),
         queryFn: ({ pageParam }) =>
             fetchAppVersions(
-                isOrganization
-                    ? ORGANIZATION_CHART_TYPES_API_BASE
-                    : `/ee/projects/${projectUuid}/apps`,
+                appApiBase(owner, projectUuid),
                 appUuidOrSlug!,
                 pageParam as number | undefined,
             ),

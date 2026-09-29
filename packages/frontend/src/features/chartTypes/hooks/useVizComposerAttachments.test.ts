@@ -31,6 +31,7 @@ const setup = (uploadFile: ReturnType<typeof vi.fn>) => {
         useVizComposerAttachments({
             projectUuid: 'project-1',
             appUuid: 'app-1',
+            owner: 'project',
         }),
     );
 };

@@ -63,6 +63,7 @@ import {
     type VizBuildRequest,
 } from '../hooks/useDataAppVizBuild';
 import { useVizComposerAttachments } from '../hooks/useVizComposerAttachments';
+import { type ChartTypeOwner } from '../utils/chartTypeOwner';
 import { normalizeVizBuildContext } from '../utils/vizBuildContext';
 import classes from './BuilderPromptBar.module.css';
 import ChartTypeComposerActions, {
@@ -75,6 +76,8 @@ import { type SavedChartSourceControls } from './savedChartSource';
 
 type Props = {
     projectUuid: string;
+    /** Organization chart types take no external connections. */
+    owner: ChartTypeOwner;
     /** The viz, or the pre-claimed draft uuid while nothing exists yet. */
     composerAppUuid: string;
     /** Stable across the create route adopting its claimed app uuid. */
@@ -185,6 +188,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
     function PromptPill(
         {
             projectUuid,
+            owner,
             composerAppUuid,
             hasVersions,
             isNewChart,
@@ -211,7 +215,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const attachments = useVizComposerAttachments({
             projectUuid,
             appUuid: composerAppUuid,
+            owner,
         });
+        const canUseConnections = owner === 'project';
         const composerRef = useRef<PromptComposerHandle>(null);
         const fileInputRef = useRef<HTMLInputElement>(null);
         const nextQueueId = useRef(0);
@@ -246,7 +252,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const [composerPanel, setComposerPanel] = useState<ComposerPanel>(null);
         const { data: linkedConnections = [] } = useAppExternalConnections(
             projectUuid,
-            hasVersions ? composerAppUuid : undefined,
+            hasVersions && canUseConnections ? composerAppUuid : undefined,
         );
         const pendingConnections = selectedConnections.filter(
             (connection) =>
@@ -300,7 +306,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         // A finished build may have linked connections; refresh the count.
         useEffect(() => {
-            if (!hasVersions) return;
+            if (!hasVersions || !canUseConnections) return;
             void queryClient.invalidateQueries({
                 queryKey: [
                     'app-external-connections',
@@ -309,6 +315,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 ],
             });
         }, [
+            canUseConnections,
             composerAppUuid,
             hasVersions,
             latestReadyVersion,
@@ -805,6 +812,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     ])
                                 }
                                 onDeselectConnection={deselectConnection}
+                                canAddConnections={canUseConnections}
                                 linkedAppUuid={
                                     hasVersions ? composerAppUuid : null
                                 }

@@ -1,25 +1,19 @@
 import { type OrganizationDataAppViz } from '@lightdash/common';
-import {
-    Box,
-    Group,
-    Paper,
-    SimpleGrid,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine/core';
-import { useDebouncedValue, useIntersection } from '@mantine/hooks';
-import { IconBuildingSkyscraper, IconSearch } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
-import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
-import InlineErrorState from '../../../components/common/InlineErrorState';
+import { Stack, Text } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
+import { IconBuildingSkyscraper } from '@tabler/icons-react';
+import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationDataAppVisualizations } from '../hooks/useDataAppVisualizations';
 import ChartTypeDeleteModal from './ChartTypeDeleteModal';
 import ChartTypeDetailModal from './ChartTypeDetailModal';
 import ChartTypeGalleryCard from './ChartTypeGalleryCard';
+import ChartTypeListSection from './ChartTypeListSection';
+import NewChartTypeButton from './NewChartTypeButton';
 
-const OrganizationLibraryEmptyState: FC = () => (
+const OrganizationLibraryEmptyState: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => (
     <Stack align="center" gap="sm" py="7xl">
         <MantineIcon
             icon={IconBuildingSkyscraper}
@@ -34,6 +28,12 @@ const OrganizationLibraryEmptyState: FC = () => (
             Chart types built in the organization library can be used in every
             project of your organization.
         </Text>
+        <NewChartTypeButton
+            projectUuid={projectUuid}
+            owner="organization"
+            size="sm"
+            mt="xs"
+        />
     </Stack>
 );
 
@@ -44,7 +44,8 @@ type Props = {
 
 /**
  * The organization library tab: the organization's chart types, the same
- * from every project and read-only apart from deletion by managers.
+ * from every project. Organization chart type managers build, edit and
+ * delete them.
  */
 const OrganizationChartTypesSection: FC<Props> = ({ projectUuid }) => {
     const [search, setSearch] = useState('');
@@ -52,19 +53,8 @@ const OrganizationChartTypesSection: FC<Props> = ({ projectUuid }) => {
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [deleteUuid, setDeleteUuid] = useState<string | null>(null);
 
-    const {
-        data,
-        isInitialLoading,
-        isFetching,
-        error,
-        refetch,
-        hasNextPage,
-        fetchNextPage,
-        isFetchingNextPage,
-    } = useOrganizationDataAppVisualizations(debouncedSearch, true);
-    const { ref: paginationRef, entry: paginationEntry } = useIntersection({
-        rootMargin: '200px',
-    });
+    const query = useOrganizationDataAppVisualizations(debouncedSearch, true);
+    const { data, isInitialLoading, error } = query;
 
     const chartTypes: OrganizationDataAppViz[] = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -83,90 +73,38 @@ const OrganizationChartTypesSection: FC<Props> = ({ projectUuid }) => {
     const isEmptyLibrary =
         !isInitialLoading && !error && !debouncedSearch && totalCount === 0;
 
-    useEffect(() => {
-        if (
-            paginationEntry?.isIntersecting &&
-            hasNextPage &&
-            !isFetching &&
-            !error
-        ) {
-            void fetchNextPage();
-        }
-    }, [paginationEntry, hasNextPage, isFetching, error, fetchNextPage]);
-
     return (
         <>
-            <Stack gap="md">
-                {!isEmptyLibrary && (
-                    <Group justify="flex-end" gap="xs">
-                        <TextInput
-                            size="xs"
-                            w={220}
-                            placeholder="Search by name or description"
-                            leftSection={
-                                <MantineIcon icon={IconSearch} size={15} />
-                            }
-                            value={search}
-                            onChange={(e) => setSearch(e.currentTarget.value)}
-                        />
-                    </Group>
-                )}
-
-                {isInitialLoading ? (
-                    <EmptyStateLoader title="Loading chart types…" />
-                ) : error ? (
-                    <InlineErrorState
-                        message="Failed to load organization chart types"
-                        onRetry={() => refetch()}
+            <ChartTypeListSection
+                query={query}
+                items={chartTypes}
+                search={search}
+                onSearchChange={setSearch}
+                debouncedSearch={debouncedSearch}
+                isEmpty={isEmptyLibrary}
+                headerActions={
+                    <NewChartTypeButton
+                        projectUuid={projectUuid}
+                        owner="organization"
+                        size="xs"
                     />
-                ) : chartTypes.length === 0 ? (
-                    debouncedSearch ? (
-                        <Paper variant="dotted" p="xl">
-                            <Text ta="center" fz="xs" c="dimmed">
-                                No chart types match &ldquo;
-                                {debouncedSearch}&rdquo;
-                            </Text>
-                        </Paper>
-                    ) : (
-                        <OrganizationLibraryEmptyState />
-                    )
-                ) : (
-                    <>
-                        <SimpleGrid
-                            cols={{ base: 1, sm: 2, lg: 3 }}
-                            spacing="md"
-                        >
-                            {chartTypes.map((viz) => (
-                                <ChartTypeGalleryCard
-                                    key={viz.dataAppVizUuid}
-                                    dataAppViz={viz}
-                                    projectUuid={projectUuid}
-                                    hasRegistryUpdate={false}
-                                    onClick={() =>
-                                        setSelectedUuid(viz.dataAppVizUuid)
-                                    }
-                                    onPreview={null}
-                                    onDelete={() =>
-                                        setDeleteUuid(viz.dataAppVizUuid)
-                                    }
-                                />
-                            ))}
-                        </SimpleGrid>
-                        {hasNextPage && (
-                            <Box
-                                ref={paginationRef}
-                                data-testid="organization-chart-types-pagination"
-                                mih="xl"
-                                role="status"
-                            >
-                                {isFetchingNextPage && (
-                                    <EmptyStateLoader description="Loading more chart types…" />
-                                )}
-                            </Box>
-                        )}
-                    </>
+                }
+                emptyState={
+                    <OrganizationLibraryEmptyState projectUuid={projectUuid} />
+                }
+                errorMessage="Failed to load organization chart types"
+                paginationTestId="organization-chart-types-pagination"
+                renderItem={(viz) => (
+                    <ChartTypeGalleryCard
+                        dataAppViz={viz}
+                        projectUuid={projectUuid}
+                        hasRegistryUpdate={false}
+                        onClick={() => setSelectedUuid(viz.dataAppVizUuid)}
+                        onPreview={null}
+                        onDelete={() => setDeleteUuid(viz.dataAppVizUuid)}
+                    />
                 )}
-            </Stack>
+            />
 
             {selected && (
                 <ChartTypeDetailModal

@@ -6,6 +6,7 @@ import {
     type AppExternalConnectionReference,
     type DataAppTemplate,
 } from '@lightdash/common';
+import { PROJECT_BUILD_TARGET } from '../../chartTypes/utils/chartTypeOwner';
 import { type ClarifyParams } from '../hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../hooks/useDataAppModelSelection';
 import { type GenerateAppParams } from '../hooks/useGenerateApp';
@@ -34,6 +35,7 @@ export const toAppClarifyParams = (
     charts: request.charts,
     dashboard: request.dashboard,
     fileIds: request.fileIds,
+    target: PROJECT_BUILD_TARGET,
 });
 
 export const toAppGeneratePayload = (
@@ -54,6 +56,7 @@ export const toAppGeneratePayload = (
     // An empty round is the same as no round at all to the backend.
     clarifications: clarifications.length > 0 ? clarifications : undefined,
     spaceUuid: request.spaceUuid,
+    target: PROJECT_BUILD_TARGET,
     ...request.modelRequest,
     designUuid: request.designUuid,
 });

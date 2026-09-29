@@ -102,7 +102,8 @@ const getRenderMetadataQueryKey = (
     pinnedVersion: number | undefined,
 ) => [
     'data-app-viz-render-metadata',
-    projectUuid,
+    // One organization chart type is the same from every project.
+    target.owner === 'organization' ? null : projectUuid,
     dataAppVizUuid,
     getRenderRouteKey(target),
     target.savedChartUuid,
@@ -154,7 +155,7 @@ export const useDataAppVizPreviewToken = (
     return useQuery<string, ApiError>({
         queryKey: [
             'data-app-viz-preview-token',
-            projectUuid,
+            target.owner === 'organization' ? null : projectUuid,
             dataAppVizUuid,
             version,
             getRenderRouteKey(target),

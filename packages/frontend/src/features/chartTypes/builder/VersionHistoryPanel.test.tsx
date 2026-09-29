@@ -25,6 +25,7 @@ vi.mock('./RestoreVersionModal', () => ({
 
 const defaultProps = {
     projectUuid: 'project-1',
+    owner: 'project' as const,
     appUuid: 'app-1',
     latestReadyVersion: 2 as number | null,
     viewedVersion: null as number | null,

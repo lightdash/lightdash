@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Group, Loader, Text } from '@mantine/core';
 import { forwardRef } from 'react';
+import { type ChartTypeOwner } from '../../chartTypes/utils/chartTypeOwner';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../AppIframePreview';
@@ -20,6 +21,8 @@ import { usePreviewOrigin } from '../previewOrigin';
 export type AppPreviewProps = {
     projectUuid: string;
     appUuid: string;
+    /** Which routes mint the preview token. */
+    owner: ChartTypeOwner;
     version: number;
     /** Bumping this changes the iframe URL to force a reload: the new query
      *  string defeats caching and flushes in-iframe state. */
@@ -59,6 +62,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
         {
             projectUuid,
             appUuid,
+            owner,
             version,
             refreshKey,
             invalidateCache,
@@ -90,7 +94,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             data: token,
             isLoading,
             error,
-        } = useAppPreviewToken(projectUuid, appUuid, version);
+        } = useAppPreviewToken(projectUuid, appUuid, version, owner);
 
         const previewOrigin = usePreviewOrigin();
         const previewUrl = token

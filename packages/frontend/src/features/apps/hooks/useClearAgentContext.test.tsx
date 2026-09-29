@@ -30,7 +30,7 @@ const renderWithClient = () => {
                     queryKey: ['app', 'project-1', 'app-1'],
                     queryFn: fetchApp,
                 }),
-                clear: useClearAgentContext('project-1', 'app-1'),
+                clear: useClearAgentContext('project-1', 'app-1', 'project'),
             }),
             { wrapper },
         ),

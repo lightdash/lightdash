@@ -465,6 +465,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             )}
             {appToRename && (
                 <AppUpdateModal
+                    owner="project"
                     opened
                     projectUuid={appToRename.projectUuid}
                     uuid={appToRename.appUuid}

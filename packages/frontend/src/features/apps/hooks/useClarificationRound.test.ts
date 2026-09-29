@@ -37,6 +37,7 @@ const toClarifyParams = (item: TestRequest) => ({
     prompt: item.description,
     template: 'data_app_viz' as const,
     fileIds: item.fileIds.length > 0 ? item.fileIds : undefined,
+    target: { owner: 'project' as const },
 });
 
 describe('useClarificationRound', () => {
@@ -82,6 +83,7 @@ describe('useClarificationRound', () => {
             prompt: 'show revenue split by team',
             template: 'data_app_viz',
             fileIds: undefined,
+            target: { owner: 'project' },
             signal: expect.any(AbortSignal),
         });
         expect(onBuild).not.toHaveBeenCalled();

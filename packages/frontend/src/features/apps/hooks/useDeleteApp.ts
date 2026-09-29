@@ -4,7 +4,7 @@ import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { captureChartTypeError } from '../../chartTypes/utils/captureChartTypeError';
 import {
-    ORGANIZATION_CHART_TYPES_API_BASE,
+    appApiBase,
     type ChartTypeOwner,
 } from '../../chartTypes/utils/chartTypeOwner';
 
@@ -12,7 +12,7 @@ type DeleteAppParams = {
     projectUuid: string;
     appUuid: string;
     // Organization chart types delete through the organization routes.
-    owner?: ChartTypeOwner;
+    owner: ChartTypeOwner;
     // For surfaces that say "chart type" instead of "data app".
     successTitle?: string;
 };
@@ -24,10 +24,7 @@ const deleteApp = async ({
 }: DeleteAppParams): Promise<void> => {
     await lightdashApi<undefined>({
         method: 'DELETE',
-        url:
-            owner === 'organization'
-                ? `${ORGANIZATION_CHART_TYPES_API_BASE}/${appUuid}`
-                : `/ee/projects/${projectUuid}/apps/${appUuid}`,
+        url: `${appApiBase(owner, projectUuid)}/${appUuid}`,
     });
 };
 

@@ -22,6 +22,7 @@ const renderCanvas = (
     renderWithProviders(
         <BuilderCanvas
             projectUuid="project-1"
+            owner="project"
             appUuid="app-1"
             previewVersion={1}
             isBuilding={false}

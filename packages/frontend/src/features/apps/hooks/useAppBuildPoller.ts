@@ -5,6 +5,12 @@ import {
 } from '@lightdash/common';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import {
+    appApiBase,
+    appQueryKey,
+    vizSchemaQueryKey,
+    type ChartTypeOwner,
+} from '../../chartTypes/utils/chartTypeOwner';
 
 type GetAppResult = ApiGetAppResponse['results'];
 
@@ -62,10 +68,11 @@ export const invalidateDataAppVisualizationOnReady = (
     projectUuid: string,
     appUuid: string,
     version: ApiAppVersionSummary,
+    owner: ChartTypeOwner,
 ): void => {
     if (version.status !== 'ready') return;
     void queryClient.invalidateQueries({
-        queryKey: ['data-app-viz', projectUuid, appUuid],
+        queryKey: vizSchemaQueryKey(owner, projectUuid, appUuid),
     });
 };
 
@@ -82,6 +89,7 @@ export function useAppBuildPoller(
     appUuid: string | undefined,
     isBuilding: boolean,
     onDone: (version: ApiAppVersionSummary) => void,
+    owner: ChartTypeOwner,
 ) {
     const queryClient = useQueryClient();
     const onDoneRef = useRef(onDone);
@@ -96,14 +104,14 @@ export function useAppBuildPoller(
         const blobUrl = URL.createObjectURL(blob);
         const worker = new Worker(blobUrl);
 
-        const apiUrl = `${window.location.origin}/api/v1/ee/projects/${projectUuid}/apps/${appUuid}?limit=1`;
+        const apiUrl = `${window.location.origin}/api/v1${appApiBase(owner, projectUuid)}/${appUuid}?limit=1`;
         worker.postMessage({ type: 'start', url: apiUrl, interval: 3000 });
 
         worker.onmessage = (e: MessageEvent) => {
             if (e.data.type === 'data' && e.data.results) {
                 const poll: GetAppResult = e.data.results;
                 queryClient.setQueryData(
-                    ['app', projectUuid, appUuid],
+                    appQueryKey(owner, projectUuid, appUuid),
                     (
                         old:
                             | {
@@ -148,6 +156,7 @@ export function useAppBuildPoller(
                         projectUuid,
                         appUuid,
                         latest,
+                        owner,
                     );
                     onDoneRef.current(latest);
                 }
@@ -158,5 +167,5 @@ export function useAppBuildPoller(
             worker.terminate();
             URL.revokeObjectURL(blobUrl);
         };
-    }, [isBuilding, projectUuid, appUuid, queryClient]);
+    }, [isBuilding, projectUuid, appUuid, owner, queryClient]);
 }

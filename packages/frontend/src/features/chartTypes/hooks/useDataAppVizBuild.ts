@@ -20,10 +20,13 @@ import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
 import { useGenerateApp } from '../../apps/hooks/useGenerateApp';
 import { useIterateApp } from '../../apps/hooks/useIterateApp';
 import { autoMapDataAppVizFields } from '../utils/autoMapDataAppVizFields';
+import { type ChartTypeBuildTarget } from '../utils/chartTypeOwner';
 import { normalizeVizBuildContext } from '../utils/vizBuildContext';
 
 type Args = {
     projectUuid: string | undefined;
+    /** Where builds are sent: the project, or the organization library. */
+    target: ChartTypeBuildTarget;
     itemsMap: ItemsMap;
     /** The visualization being revised; null while authoring a new one. */
     dataAppVizUuid: string | null;
@@ -122,6 +125,7 @@ export type DataAppVizBuildState = {
  */
 export const useDataAppVizBuild = ({
     projectUuid,
+    target,
     itemsMap,
     dataAppVizUuid,
     creationExperience,
@@ -177,6 +181,7 @@ export const useDataAppVizBuild = ({
         building?.appUuid,
         building !== null,
         handleDone,
+        target.owner,
     );
 
     const send = useCallback(
@@ -238,6 +243,7 @@ export const useDataAppVizBuild = ({
                             request.clarifications.length > 0
                                 ? request.clarifications
                                 : undefined,
+                        target,
                     },
                     {
                         onSuccess: ({ appUuid, version }) => {
@@ -270,6 +276,7 @@ export const useDataAppVizBuild = ({
                     ...(request.codexModel
                         ? { codexModel: request.codexModel }
                         : { claudeModel: request.claudeModel }),
+                    target,
                 },
                 {
                     onSuccess: ({ version }) =>
@@ -285,6 +292,7 @@ export const useDataAppVizBuild = ({
         },
         [
             projectUuid,
+            target,
             dataAppVizUuid,
             creationExperience,
             chartReference,
@@ -306,6 +314,7 @@ export const useDataAppVizBuild = ({
                           projectUuid,
                           appUuid: building.appUuid,
                           version: building.version,
+                          owner: target.owner,
                       },
                       {
                           onSuccess: () => {
@@ -348,12 +357,14 @@ export const useDataAppVizBuild = ({
                               projectUuid,
                               appUuid: draft.appUuid,
                               version: draft.version,
+                              owner: target.owner,
                           },
                           {
                               onSettled: () =>
                                   deleteApp({
                                       projectUuid,
                                       appUuid: draft.appUuid,
+                                      owner: target.owner,
                                   }),
                           },
                       );

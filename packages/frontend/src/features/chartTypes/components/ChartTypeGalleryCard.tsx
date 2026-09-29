@@ -34,6 +34,7 @@ import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { useCanManageOrganizationChartTypes } from '../hooks/useOrganizationLibraryAccess';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
+import { getChartTypeOwner } from '../utils/chartTypeOwner';
 import ChartTypeForkModal from './ChartTypeForkModal';
 import classes from './ChartTypeGalleryCard.module.css';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
@@ -60,17 +61,18 @@ const ChartTypeGalleryCard: FC<Props> = ({
     onDelete,
 }) => {
     const navigate = useNavigate();
-    // Organization chart types have no project; they are read-only here
-    // except for deletion by organization chart type managers.
-    const isOrganizationChartType = dataAppViz.projectUuid === null;
+    // Organization chart types have no project; organization chart type
+    // managers edit and delete them.
+    const owner = getChartTypeOwner(dataAppViz);
+    const isOrganizationChartType = owner === 'organization';
     const owningProjectUuid = dataAppViz.projectUuid ?? undefined;
     const canEditInProject = useCanEditDataApp(owningProjectUuid, dataAppViz);
     const canManageOrganizationChartTypes =
         useCanManageOrganizationChartTypes();
-    const canEdit = !isOrganizationChartType && canEditInProject;
-    const canDelete = isOrganizationChartType
+    const canEdit = isOrganizationChartType
         ? canManageOrganizationChartTypes
         : canEditInProject;
+    const canDelete = canEdit;
     const canPreviewInExplorer = onPreview !== null;
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -100,9 +102,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                 <Box className={classes.preview}>
                     <ChartTypeSamplePreview
                         projectUuid={projectUuid}
-                        owner={
-                            isOrganizationChartType ? 'organization' : 'project'
-                        }
+                        owner={owner}
                         dataAppVizUuid={dataAppViz.dataAppVizUuid}
                         icon={dataAppViz.icon}
                     />
@@ -155,6 +155,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                       to={chartTypeBuilderPath(
                                           projectUrlIdentifier,
                                           dataAppViz.slug,
+                                          owner,
                                       )}
                                       aria-label={`Edit ${displayName}`}
                                       onClick={(e) => e.stopPropagation()}
@@ -231,6 +232,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                             chartTypeBuilderPath(
                                 projectUrlIdentifier,
                                 result.slug,
+                                'project',
                             ),
                         )
                     }

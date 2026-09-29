@@ -7,6 +7,7 @@ import {
 import { useCallback, useRef, useState } from 'react';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { type ChartTypeBuildTarget } from '../../chartTypes/utils/chartTypeOwner';
 import { useClarifyApp } from './useClarifyApp';
 
 /** What the clarifier is asked about, derived from the caller's request. */
@@ -16,6 +17,7 @@ export type ClarifyParams = {
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
     fileIds?: string[];
+    target: ChartTypeBuildTarget;
 };
 
 type Args<TRequest> = {

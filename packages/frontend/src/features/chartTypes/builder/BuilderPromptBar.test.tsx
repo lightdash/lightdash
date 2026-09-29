@@ -26,6 +26,7 @@ import {
     type VizBuildRequest,
 } from '../hooks/useDataAppVizBuild';
 import { clarificationStub } from '../testing/clarificationRoundStub';
+import { type ChartTypeOwner } from '../utils/chartTypeOwner';
 import BuilderPromptBar from './BuilderPromptBar';
 import { type SavedChartSourceControls } from './savedChartSource';
 
@@ -65,7 +66,9 @@ vi.mock('../../externalConnections/hooks/useExternalConnections', () => ({
     }),
 }));
 vi.mock('../../externalConnections/hooks/useAppExternalConnections', () => ({
-    useAppExternalConnections: () => ({ data: connections.linked }),
+    useAppExternalConnections: (_projectUuid: string, appUuid?: string) => ({
+        data: appUuid ? connections.linked : [],
+    }),
 }));
 vi.mock(
     '../../externalConnections/hooks/useUnlinkAppExternalConnection',
@@ -299,6 +302,7 @@ const promptBar = ({
     savedChartSource: source = null,
     elementPicker,
     onCaptureScreenshot,
+    owner = 'project',
 }: {
     build?: DataAppVizBuildState;
     isBuilding?: boolean;
@@ -314,10 +318,12 @@ const promptBar = ({
     savedChartSource?: SavedChartSourceControls | null;
     elementPicker?: UseElementPickerResult;
     onCaptureScreenshot?: () => Promise<File>;
+    owner?: ChartTypeOwner;
 } = {}) => (
     <MemoryRouter>
         <ControlledPromptBar
             projectUuid="p1"
+            owner={owner}
             composerAppUuid="draft-1"
             sessionKey="session-1"
             hasVersions={hasVersions}
@@ -621,6 +627,46 @@ describe('BuilderPromptBar', () => {
             screen.getByRole('button', { name: 'Attach an image or file' }),
         );
         expect(click).toHaveBeenCalledOnce();
+    });
+
+    it('offers no external connections for organization chart types', async () => {
+        const send = vi.fn();
+        connections.linked = [
+            {
+                alias: 'stores_api',
+                connection: {
+                    externalConnectionUuid: 'stores',
+                    name: 'Stores API',
+                    origin: 'https://stores.example.com',
+                },
+            },
+        ];
+        renderWithProviders(
+            promptBar({ owner: 'organization', build: buildState({ send }) }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Composer options' }),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Attach an image or file' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add external connections' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', {
+                name: 'Manage connection: Stores API',
+            }),
+        ).not.toBeInTheDocument();
+        await userEvent.keyboard('{Escape}');
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'Plot the stores',
+        );
+        await userEvent.click(screen.getByLabelText('Send'));
+        expect(send).toHaveBeenCalledWith(
+            expect.objectContaining({ externalConnections: [] }),
+        );
     });
 
     it('keeps back navigation available in the connections panel', async () => {

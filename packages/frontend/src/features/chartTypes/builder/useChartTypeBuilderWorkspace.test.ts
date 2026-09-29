@@ -75,6 +75,7 @@ const renderWorkspace = (args: Partial<ChartTypeBuilderWorkspaceArgs> = {}) =>
         {
             initialProps: {
                 projectUuid: 'project-1',
+                target: { owner: 'project' },
                 dataAppVizUuid: 'viz-1',
                 creationExperience: 'chart_type_builder' as const,
                 itemsMap: {},
@@ -115,6 +116,7 @@ describe('useChartTypeBuilderWorkspace', () => {
 
         rerender({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             dataAppVizUuid: 'viz-1',
             creationExperience: 'chart_type_builder',
             itemsMap: {},
@@ -136,6 +138,7 @@ describe('useChartTypeBuilderWorkspace', () => {
 
         rerender({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             dataAppVizUuid: 'viz-2',
             creationExperience: 'chart_type_builder',
             itemsMap: {},
@@ -157,6 +160,7 @@ describe('useChartTypeBuilderWorkspace', () => {
 
         rerender({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             dataAppVizUuid: 'viz-1',
             creationExperience: 'chart_type_builder',
             itemsMap: {},
@@ -191,6 +195,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         );
         rerender({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             dataAppVizUuid: 'viz-1',
             creationExperience: 'chart_type_builder',
             itemsMap: {},
@@ -257,6 +262,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         );
         rerender({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             dataAppVizUuid: 'viz-1',
             creationExperience: 'chart_type_builder',
             itemsMap: {},
@@ -288,6 +294,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         );
         rerender({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             dataAppVizUuid: 'viz-1',
             creationExperience: 'chart_type_builder',
             itemsMap: {},
@@ -304,6 +311,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         );
         rerender({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             dataAppVizUuid: null,
             creationExperience: 'chart_type_builder',
             itemsMap: {},
@@ -312,10 +320,12 @@ describe('useChartTypeBuilderWorkspace', () => {
         expect(vi.mocked(useAppVersionHistory)).toHaveBeenLastCalledWith(
             'project-1',
             'viz-claimed',
+            'project',
         );
 
         rerender({
             projectUuid: 'project-1',
+            target: { owner: 'project' },
             dataAppVizUuid: 'viz-1',
             creationExperience: 'chart_type_builder',
             itemsMap: {},

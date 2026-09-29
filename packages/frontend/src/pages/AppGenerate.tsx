@@ -167,6 +167,7 @@ import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTes
 import { type DataAppVizTestPreview } from '../features/chartTypes/hooks/useDataAppVizTestContext';
 import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { PROJECT_BUILD_TARGET } from '../features/chartTypes/utils/chartTypeOwner';
 import { normalizeVizBuildContext } from '../features/chartTypes/utils/vizBuildContext';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
@@ -706,7 +707,7 @@ const AppGenerate: FC = () => {
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-    } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid);
+    } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid, 'project');
 
     // The URL may reference the app by slug; the API resolves it and returns
     // the canonical uuid. Adopt it so every downstream call (iterate, polling,
@@ -817,7 +818,13 @@ const AppGenerate: FC = () => {
 
     // Web Worker that polls the API while a version is building.
     // Workers aren't throttled in background tabs, unlike main-thread timers.
-    useAppBuildPoller(projectUuid, activeAppUuid, isBuilding, onBuildDone);
+    useAppBuildPoller(
+        projectUuid,
+        activeAppUuid,
+        isBuilding,
+        onBuildDone,
+        'project',
+    );
 
     // Clear local messages once server data takes over (avoids duplicates).
     // Use the version count as dependency so this doesn't fire on every poll.
@@ -1018,6 +1025,7 @@ const AppGenerate: FC = () => {
                     appUuid: activeAppUuid,
                     prompt,
                     creationExperience: 'app_builder',
+                    target: PROJECT_BUILD_TARGET,
                     ...modelRequest,
                     designUuid,
                 },
@@ -1483,6 +1491,7 @@ const AppGenerate: FC = () => {
                 to={chartTypeBuilderPath(
                     projectRoute?.projectUrlIdentifier ?? projectUuid ?? '',
                     appData?.pages[0]?.slug ?? activeAppUuid,
+                    'project',
                 )}
                 replace
             />
@@ -1716,6 +1725,7 @@ const AppGenerate: FC = () => {
                             file: att.file,
                             appUuid: targetAppUuid,
                             kind: att.kind,
+                            owner: 'project',
                         });
                         ids.push(result.fileId);
                     } catch (err) {
@@ -1822,6 +1832,7 @@ const AppGenerate: FC = () => {
                         projectUuid,
                         appUuid: activeAppUuid,
                         prompt: trimmed,
+                        target: PROJECT_BUILD_TARGET,
                         vizContext,
                         creationExperience: 'app_builder',
                         fileIds,
@@ -1867,6 +1878,7 @@ const AppGenerate: FC = () => {
                 projectUuid,
                 appUuid: activeAppUuid,
                 version: latestBuildingVersion.version,
+                owner: 'project',
             },
             {
                 onSuccess: () => {
@@ -3085,6 +3097,7 @@ const AppGenerate: FC = () => {
                                             <Group gap="xs">
                                                 {activeAppUuid && (
                                                     <ClearAgentContextAction
+                                                        owner="project"
                                                         projectUuid={
                                                             projectUuid
                                                         }
@@ -3312,6 +3325,7 @@ const AppGenerate: FC = () => {
                                                 projectUuid,
                                                 appUuid: activeAppUuid,
                                                 version: restoreTargetVersion,
+                                                owner: 'project',
                                             },
                                             {
                                                 onSuccess: () => {
@@ -3341,6 +3355,7 @@ const AppGenerate: FC = () => {
                             >
                                 {previewApp ? (
                                     <AppPreview
+                                        owner="project"
                                         ref={previewRef}
                                         projectUuid={projectUuid}
                                         appUuid={previewApp.appUuid}

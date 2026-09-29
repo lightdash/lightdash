@@ -130,7 +130,7 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
         ],
     );
 
-    useAppBuildPoller(projectUuid, appUuid, true, onDone);
+    useAppBuildPoller(projectUuid, appUuid, true, onDone, 'project');
 
     useEffect(() => {
         const timeout = setTimeout(() => {

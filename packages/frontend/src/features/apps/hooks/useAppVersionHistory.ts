@@ -46,7 +46,7 @@ export type AppVersionHistory = {
 export const useAppVersionHistory = (
     projectUuid: string,
     appUuid: string | null,
-    owner: ChartTypeOwner = 'project',
+    owner: ChartTypeOwner,
 ): AppVersionHistory => {
     const {
         data,

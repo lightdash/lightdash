@@ -207,6 +207,7 @@ describe('AiDataAppPreviewPanel versions', () => {
             'project-uuid',
             'app-uuid',
             1,
+            'project',
         );
         expect(latestIframeProps().identityKey).toBe('app-uuid:1');
         expect(screen.getByText('Viewing v1')).toBeInTheDocument();

@@ -286,6 +286,8 @@ export const ConfigTabs: React.FC = memo(() => {
                                       void navigate({
                                           pathname: chartTypeBuilderPath(
                                               projectUrlIdentifier ?? '',
+                                              null,
+                                              'project',
                                           ),
                                           search: location.search,
                                       })

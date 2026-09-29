@@ -271,6 +271,7 @@ export const ConfigTabs: FC = memo(() => {
                                     pathname: chartTypeBuilderPath(
                                         projectUrlIdentifier ?? '',
                                         dataAppViz.slug,
+                                        'project',
                                     ),
                                     search: location.search,
                                 }}
@@ -340,6 +341,8 @@ export const ConfigTabs: FC = memo(() => {
                                       void navigate({
                                           pathname: chartTypeBuilderPath(
                                               projectUrlIdentifier ?? '',
+                                              null,
+                                              'project',
                                           ),
                                           search: location.search,
                                       })
@@ -397,6 +400,8 @@ export const ConfigTabs: FC = memo(() => {
                                         to={{
                                             pathname: chartTypeBuilderPath(
                                                 projectUrlIdentifier ?? '',
+                                                null,
+                                                'project',
                                             ),
                                             search: location.search,
                                         }}

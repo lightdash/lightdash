@@ -8,6 +8,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { DataProjectSwitchContext } from './dataProjectSwitch';
 import DataSourcePicker from './DataSourcePicker';
 import {
     type AttachedExplore,
@@ -41,6 +42,15 @@ const CHARTS = [
 
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',
+}));
+vi.mock('../../../hooks/useProjects', () => ({
+    useProjects: () => ({
+        isInitialLoading: false,
+        data: [
+            { projectUuid: 'project-1', name: 'Jaffle shop' },
+            { projectUuid: 'project-2', slug: 'analytics', name: 'Analytics' },
+        ],
+    }),
 }));
 
 const { exploresState } = vi.hoisted(() => ({
@@ -563,6 +573,52 @@ describe('DataSourcePicker', () => {
             expect(
                 screen.getByRole('option', { name: 'Payments' }),
             ).toBeInTheDocument();
+        });
+    });
+
+    describe('organization chart types', () => {
+        it('lists the project data is previewed from and switches it', async () => {
+            const onChange = vi.fn();
+            const onOpenedChange = vi.fn();
+            renderWithProviders(
+                <DataProjectSwitchContext.Provider
+                    value={{ projectUuid: 'project-1', onChange }}
+                >
+                    <DataSourcePicker
+                        opened
+                        onOpenedChange={onOpenedChange}
+                        savedChartSource={savedChartSource()}
+                        exploreSource={exploreSource()}
+                        position="bottom"
+                        width={340}
+                    >
+                        <Button>Open</Button>
+                    </DataSourcePicker>
+                </DataProjectSwitchContext.Provider>,
+            );
+
+            const select = screen.getByLabelText('Preview data project');
+            expect(select).toHaveValue('Jaffle shop');
+            await userEvent.click(select);
+            await userEvent.click(
+                await screen.findByRole('option', { name: 'Analytics' }),
+            );
+
+            expect(onChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid: 'project-2',
+                    slug: 'analytics',
+                }),
+            );
+            expect(onOpenedChange).toHaveBeenCalledWith(false);
+        });
+
+        it('offers no project switch in the project builder', () => {
+            renderPicker();
+
+            expect(
+                screen.queryByLabelText('Preview data project'),
+            ).not.toBeInTheDocument();
         });
     });
 });

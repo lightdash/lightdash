@@ -15,6 +15,7 @@ import { type FC } from 'react';
 import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
 import ChartTypeIconPicker from '../../../features/chartTypes/components/ChartTypeIconPicker';
+import { type ChartTypeOwner } from '../../../features/chartTypes/utils/chartTypeOwner';
 import MantineModal from '../MantineModal';
 import classes from './AppUpdateModal.module.css';
 
@@ -22,6 +23,8 @@ interface AppUpdateModalProps {
     opened: ModalProps['opened'];
     onClose: ModalProps['onClose'];
     projectUuid: string;
+    /** Organization chart types update through the organization routes. */
+    owner: ChartTypeOwner;
     uuid: string;
     /** Original detail-query identifier when the app was loaded by slug. */
     appUuidOrSlug?: string;
@@ -46,6 +49,7 @@ type FormState = z.infer<typeof updateAppSchema>;
 
 const AppUpdateModal: FC<AppUpdateModalProps> = ({
     projectUuid,
+    owner,
     uuid,
     appUuidOrSlug,
     initialName,
@@ -91,6 +95,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
             await mutateAsync({
                 projectUuid,
                 appUuid: uuid,
+                owner,
                 ...patch,
             });
         }

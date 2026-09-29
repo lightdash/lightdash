@@ -55,6 +55,7 @@ const meta = {
         opened: true,
         onClose: fn(),
         projectUuid: 'project-uuid',
+        owner: 'project',
         uuid: 'chart-type-uuid',
         initialName: 'Stacked area chart',
         initialDescription: 'Compare revenue across regions over time.',

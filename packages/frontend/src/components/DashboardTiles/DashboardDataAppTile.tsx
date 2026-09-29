@@ -217,6 +217,7 @@ const DataAppTile: FC<Props> = (props) => {
     const appQuery = useGetApp(
         shouldFetch ? projectUuid : undefined,
         shouldFetch ? appUuid : undefined,
+        'project',
     );
 
     // Authoritative across ALL versions — the ready version may be older than
@@ -259,7 +260,7 @@ const DataAppTile: FC<Props> = (props) => {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
+    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion, 'project');
 
     // Bump the iframe URL whenever the active filters change so the app
     // reloads and its mount-time metric queries re-fire — by then the bridge

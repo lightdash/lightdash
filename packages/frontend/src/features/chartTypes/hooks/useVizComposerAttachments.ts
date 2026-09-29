@@ -7,6 +7,7 @@ import {
     getAppFileValidationError,
     isSupportedAppImage,
 } from '../../apps/utils/appFileAttachments';
+import { type ChartTypeOwner } from '../utils/chartTypeOwner';
 
 export type VizAttachment = {
     fileId: string | null;
@@ -18,6 +19,7 @@ export type VizAttachment = {
 type Args = {
     projectUuid: string | undefined;
     appUuid: string;
+    owner: ChartTypeOwner;
 };
 
 export type VizComposerAttachments = {
@@ -32,6 +34,7 @@ export type VizComposerAttachments = {
 export const useVizComposerAttachments = ({
     projectUuid,
     appUuid,
+    owner,
 }: Args): VizComposerAttachments => {
     const [attachments, setAttachments] = useState<VizAttachment[]>([]);
     const { mutateAsync: uploadFile } = useAppFileUpload();
@@ -111,6 +114,7 @@ export const useVizComposerAttachments = ({
                         appUuid,
                         file,
                         kind: options?.kind,
+                        owner,
                     })
                         .then(({ fileId }) =>
                             setAttachments((prev) =>
@@ -159,6 +163,7 @@ export const useVizComposerAttachments = ({
         [
             projectUuid,
             appUuid,
+            owner,
             uploadFile,
             showToastError,
             showToastWarning,

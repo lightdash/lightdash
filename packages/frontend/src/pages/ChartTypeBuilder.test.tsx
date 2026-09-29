@@ -50,6 +50,8 @@ import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSave
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
+import { useOrganizationChartTypeSchema } from '../features/chartTypes/hooks/useOrganizationChartTypeSchema';
+import { useOrganizationChartTypeManageAccess } from '../features/chartTypes/hooks/useOrganizationLibraryAccess';
 import { type VizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import { clarificationStub } from '../features/chartTypes/testing/clarificationRoundStub';
 import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
@@ -58,7 +60,7 @@ import { ChartColorMappingContext } from '../hooks/useChartColorConfig/context';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
-import ChartTypeBuilder from './ChartTypeBuilder';
+import ChartTypeBuilder, { ChartTypeBuilderPage } from './ChartTypeBuilder';
 
 vi.mock('../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
     useAmbientAiEnabled: vi.fn(),
@@ -71,6 +73,15 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 vi.mock('../hooks/useExplores', () => ({ useExplores: vi.fn() }));
+vi.mock('../hooks/useProjects', () => ({
+    useProjects: () => ({
+        isInitialLoading: false,
+        data: [
+            { projectUuid: 'p1', slug: 'jaffle-shop', name: 'Jaffle shop' },
+            { projectUuid: 'p2', slug: 'analytics', name: 'Analytics' },
+        ],
+    }),
+}));
 vi.mock('../hooks/useProjectRoute', () => ({
     useOptionalProjectRoute: () => ({ projectUrlIdentifier: 'jaffle-shop' }),
 }));
@@ -100,6 +111,12 @@ vi.mock('../features/chartTypes/hooks/useDataAppVizBuild', () => ({
 }));
 vi.mock('../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
+}));
+vi.mock('../features/chartTypes/hooks/useOrganizationChartTypeSchema', () => ({
+    useOrganizationChartTypeSchema: vi.fn(),
+}));
+vi.mock('../features/chartTypes/hooks/useOrganizationLibraryAccess', () => ({
+    useOrganizationChartTypeManageAccess: vi.fn(),
 }));
 vi.mock('../features/chartTypes/builder/useExplorePreviewData', () => ({
     useAttachedExplore: vi.fn(),
@@ -289,6 +306,14 @@ const builderRoutes = (path: string) => (
             <LocationDisplay />
             <Routes>
                 <Route
+                    path="/projects/:projectUuid/chart-studio/organization/new"
+                    element={<ChartTypeBuilderPage owner="organization" />}
+                />
+                <Route
+                    path="/projects/:projectUuid/chart-studio/organization/:dataAppVizUuid"
+                    element={<ChartTypeBuilderPage owner="organization" />}
+                />
+                <Route
                     path="/projects/:projectUuid/chart-studio/new"
                     element={<ChartTypeBuilder />}
                 />
@@ -374,6 +399,14 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
         } as ReturnType<typeof useDataAppVisualization>);
+        vi.mocked(useOrganizationChartTypeSchema).mockReturnValue({
+            data: undefined,
+            isFetching: false,
+        } as ReturnType<typeof useOrganizationChartTypeSchema>);
+        vi.mocked(useOrganizationChartTypeManageAccess).mockReturnValue({
+            canManage: false,
+            isLoading: false,
+        });
         vi.mocked(useSavedChartPreviewData).mockReturnValue({
             data: { status: 'notRun' },
             retry: vi.fn(),
@@ -389,6 +422,163 @@ describe('ChartTypeBuilder', () => {
             mutate: vi.fn(),
             isLoading: false,
         } as unknown as ReturnType<typeof useUpgradeApp>);
+    });
+
+    describe('organization chart types', () => {
+        const orgViz = '1e9a3b2c-0000-4000-8000-0000000000aa';
+        beforeEach(() => {
+            vi.mocked(useOrganizationChartTypeManageAccess).mockReturnValue({
+                canManage: true,
+                isLoading: false,
+            });
+        });
+
+        it('sends users who cannot manage them back to the organization library', () => {
+            vi.mocked(useOrganizationChartTypeManageAccess).mockReturnValue({
+                canManage: false,
+                isLoading: false,
+            });
+            renderBuilder('/projects/p1/chart-studio/organization/new');
+
+            expect(screen.getByText('gallery')).toBeInTheDocument();
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/jaffle-shop/chart-studio?tab=organization-library',
+            );
+        });
+
+        it('waits for the manage check before deciding', () => {
+            vi.mocked(useOrganizationChartTypeManageAccess).mockReturnValue({
+                canManage: false,
+                isLoading: true,
+            });
+            renderBuilder('/projects/p1/chart-studio/organization/new');
+
+            expect(screen.queryByText('gallery')).not.toBeInTheDocument();
+        });
+
+        it('builds on sample data by default', () => {
+            renderBuilder('/projects/p1/chart-studio/organization/new');
+
+            expect(useDataAppVizBuild).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    projectUuid: 'p1',
+                    target: { owner: 'organization', dataProjectUuid: null },
+                }),
+            );
+            expect(
+                screen.getByPlaceholderText('Describe a new chart type…'),
+            ).toBeInTheDocument();
+        });
+
+        it('reads the route project once an explore is picked', () => {
+            renderBuilder(
+                '/projects/p1/chart-studio/organization/new?exploreName=orders',
+            );
+
+            expect(useDataAppVizBuild).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    target: { owner: 'organization', dataProjectUuid: 'p1' },
+                }),
+            );
+        });
+
+        it('reads the route project once a saved chart is picked', () => {
+            renderBuilder(
+                '/projects/p1/chart-studio/organization/new?savedChartUuid=1e9a3b2c-0000-4000-8000-000000000010',
+            );
+
+            expect(useDataAppVizBuild).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    target: { owner: 'organization', dataProjectUuid: 'p1' },
+                }),
+            );
+        });
+
+        it('adopts the claimed app into the organization route', () => {
+            vi.mocked(useDataAppVizBuild).mockReturnValue(
+                buildStub({ isBuilding: true, appUuid: orgViz }),
+            );
+            renderBuilder('/projects/p1/chart-studio/organization/new');
+
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                `/projects/jaffle-shop/chart-studio/organization/${orgViz}`,
+            );
+        });
+
+        it('reports an organization chart type the user cannot read as not found', () => {
+            setApp(null, { error: { statusCode: 403 } });
+            renderBuilder(`/projects/p1/chart-studio/organization/${orgViz}`);
+
+            expect(
+                screen.getByText('Chart type not found'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'Back to all chart types' }),
+            ).toHaveAttribute(
+                'href',
+                '/projects/jaffle-shop/chart-studio?tab=organization-library',
+            );
+        });
+
+        it('moves to another data project, keeping all but the picked source', async () => {
+            renderBuilder(
+                '/projects/p1/chart-studio/organization/new?exploreName=orders&colorPaletteUuid=palette-1',
+            );
+
+            fireEvent.click(
+                screen.getAllByRole('button', {
+                    name: /Choose table|Change/,
+                })[0],
+            );
+            fireEvent.click(
+                await screen.findByLabelText('Preview data project'),
+            );
+            fireEvent.click(
+                await screen.findByRole('option', { name: 'Analytics' }),
+            );
+
+            await waitFor(() =>
+                expect(screen.getByTestId('location')).toHaveTextContent(
+                    '/projects/analytics/chart-studio/organization/new?colorPaletteUuid=palette-1',
+                ),
+            );
+        });
+
+        it('opens an organization chart type labelled as the organization library', () => {
+            setApp(appMeta({ appUuid: orgViz }));
+            vi.mocked(useAppVersionHistory).mockReturnValue(
+                historyStub([appVersion({ version: 1 })], 1),
+            );
+            renderBuilder(`/projects/p1/chart-studio/organization/${orgViz}`);
+
+            expect(useGetApp).toHaveBeenCalledWith(
+                'p1',
+                orgViz,
+                'organization',
+            );
+            expect(useAppVersionHistory).toHaveBeenCalledWith(
+                'p1',
+                orgViz,
+                'organization',
+            );
+            expect(
+                screen.getByText('Organization library'),
+            ).toBeInTheDocument();
+            expect(screen.getByText('Stream graph')).toBeInTheDocument();
+            // No Explorer preview or SDK upgrade route for organization chart types.
+            expect(
+                screen.queryByText('Preview in explorer'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Upgrade available'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'All chart types' }),
+            ).toHaveAttribute(
+                'href',
+                '/projects/jaffle-shop/chart-studio?tab=organization-library',
+            );
+        });
     });
 
     it('redirects home when data apps are disabled', () => {
@@ -482,7 +672,7 @@ describe('ChartTypeBuilder', () => {
 
         renderBuilder('/projects/p1/chart-studio/stream-graph');
 
-        expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph');
+        expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph', 'project');
         expect(screen.getByText('Stream graph')).toBeInTheDocument();
         expect(
             screen.getByText('Chart Studio', { exact: true }),

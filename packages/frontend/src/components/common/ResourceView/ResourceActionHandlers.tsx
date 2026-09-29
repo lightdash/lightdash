@@ -257,6 +257,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     if (!projectUuid) return null;
                     return (
                         <AppUpdateModal
+                            owner="project"
                             opened
                             projectUuid={projectUuid}
                             uuid={action.item.data.uuid}

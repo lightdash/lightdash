@@ -11,6 +11,7 @@ import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
 import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
 import { useDataAppVizDeleteImpact } from '../hooks/useDataAppVizDeleteImpact';
+import { getChartTypeOwner } from '../utils/chartTypeOwner';
 
 type Props = {
     projectUuid: string;
@@ -29,7 +30,7 @@ const ChartTypeDeleteModal: FC<Props> = ({
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
 
-    const owner = dataAppViz.projectUuid === null ? 'organization' : 'project';
+    const owner = getChartTypeOwner(dataAppViz);
     const { mutateAsync: deleteApp, isLoading: isDeleting } = useDeleteApp();
     const {
         data: impact,

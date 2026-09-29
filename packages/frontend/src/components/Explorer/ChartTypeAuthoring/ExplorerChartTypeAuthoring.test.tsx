@@ -197,6 +197,7 @@ const readyVersion = {
 const workspaceStub = (
     overrides: Partial<ChartTypeBuilderWorkspaceState> = {},
 ): ChartTypeBuilderWorkspaceState => ({
+    owner: 'project',
     dataAppVizUuid: 'viz-1',
     build: buildStub(),
     clarification: clarificationStub(),
@@ -244,6 +245,12 @@ const workspaceStub = (
     promptBarRef: { current: null },
     onPickExample: null,
     ...overrides,
+    // The schema follows the previewed viz unless a test sets it.
+    schema:
+        overrides.schema ??
+        ('dataAppViz' in overrides
+            ? (overrides.dataAppViz?.schema ?? null)
+            : dataAppViz.schema),
 });
 
 const newTypeWorkspace = () =>

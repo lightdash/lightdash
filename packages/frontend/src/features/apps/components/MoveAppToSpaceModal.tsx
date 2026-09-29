@@ -109,6 +109,7 @@ export const MoveAppToSpaceModal: FC<Props> = ({
             : undefined,
         app.uuid,
         app.latestVersionNumber ?? undefined,
+        'project',
     );
     const visiblePreviewTokenError = getVisiblePreviewTokenError(
         previewTokenError,

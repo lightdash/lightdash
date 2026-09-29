@@ -136,7 +136,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     } = dataAppPreview;
 
     const previewOrigin = usePreviewOrigin();
-    const appQuery = useGetApp(projectUuid, appUuid);
+    const appQuery = useGetApp(projectUuid, appUuid, 'project');
     const app = appQuery.data?.pages[0];
 
     // Authoritative across ALL versions — the ready version may be older than
@@ -245,7 +245,12 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, effectiveVersion ?? undefined);
+    } = useAppPreviewToken(
+        projectUuid,
+        appUuid,
+        effectiveVersion ?? undefined,
+        'project',
+    );
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
 
     const isForbidden =

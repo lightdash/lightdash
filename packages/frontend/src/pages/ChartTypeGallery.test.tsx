@@ -220,10 +220,7 @@ const setOrganizationLibrary = ({
     isVisible: boolean;
     canManage: boolean;
 }) => {
-    vi.mocked(useOrganizationLibraryAccess).mockReturnValue({
-        isVisible,
-        canManage,
-    });
+    vi.mocked(useOrganizationLibraryAccess).mockReturnValue({ isVisible });
     vi.mocked(useCanManageOrganizationChartTypes).mockReturnValue(canManage);
 };
 
@@ -668,6 +665,56 @@ describe('ChartTypeGallery', () => {
                     'Chart types built in the organization library can be used in every project of your organization.',
                 ),
             ).toBeInTheDocument();
+        });
+
+        it('offers New chart type in the organization builder to managers', () => {
+            setOrganizationLibrary({ isVisible: true, canManage: true });
+            setData([]);
+            setOrganizationData([makeOrganizationDataAppViz({})]);
+            renderPage(
+                '/projects/project-1/chart-studio?tab=organization-library',
+            );
+
+            expect(
+                screen.getByRole('link', { name: 'New chart type' }),
+            ).toHaveAttribute(
+                'href',
+                '/projects/jaffle-shop/chart-studio/organization/new',
+            );
+            expect(
+                screen.getByRole('link', { name: 'Edit Org funnel' }),
+            ).toHaveAttribute(
+                'href',
+                '/projects/jaffle-shop/chart-studio/organization/org-funnel',
+            );
+        });
+
+        it('offers New chart type from the empty organization library to managers', () => {
+            setOrganizationLibrary({ isVisible: true, canManage: true });
+            setData([makeDataAppViz({})]);
+            renderPage(
+                '/projects/project-1/chart-studio?tab=organization-library',
+            );
+
+            expect(
+                screen.getByRole('link', { name: 'New chart type' }),
+            ).toHaveAttribute(
+                'href',
+                '/projects/jaffle-shop/chart-studio/organization/new',
+            );
+        });
+
+        it('offers no New chart type to organization library viewers', () => {
+            setOrganizationLibrary({ isVisible: true, canManage: false });
+            setData([]);
+            setOrganizationData([makeOrganizationDataAppViz({})]);
+            renderPage(
+                '/projects/project-1/chart-studio?tab=organization-library',
+            );
+
+            expect(
+                screen.queryByRole('link', { name: 'New chart type' }),
+            ).not.toBeInTheDocument();
         });
 
         it('opens a read-only detail dialog for non-managers', () => {

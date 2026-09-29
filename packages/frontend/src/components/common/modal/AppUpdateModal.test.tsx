@@ -14,6 +14,7 @@ describe('AppUpdateModal', () => {
                 opened
                 onClose={vi.fn()}
                 projectUuid="project-uuid"
+                owner="project"
                 uuid="app-uuid"
                 initialName="Stacked area chart"
                 initialDescription=""

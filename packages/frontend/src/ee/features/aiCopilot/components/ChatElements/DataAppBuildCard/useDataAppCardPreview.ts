@@ -49,7 +49,7 @@ export const useDataAppCardPreview = ({
 }: Args) => {
     const dispatch = useAiAgentStoreDispatch();
     const preview = useAiAgentStoreSelector(selectDataAppPreview);
-    const appQuery = useGetApp(projectUuid, appUuid ?? undefined);
+    const appQuery = useGetApp(projectUuid, appUuid ?? undefined, 'project');
     const source = toAppSource(appQuery);
     const latestReadyVersion =
         source.kind === 'loaded' ? source.app.latestReadyVersion : null;

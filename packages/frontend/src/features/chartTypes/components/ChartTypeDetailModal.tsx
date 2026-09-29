@@ -24,6 +24,10 @@ import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { useCanManageOrganizationChartTypes } from '../hooks/useOrganizationLibraryAccess';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
+import {
+    getChartTypeOwner,
+    isOrganizationDataAppViz,
+} from '../utils/chartTypeOwner';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeForkModal from './ChartTypeForkModal';
 import ChartTypeReleaseStageBadge from './ChartTypeReleaseStageBadge';
@@ -57,20 +61,20 @@ const ChartTypeDetailModal: FC<Props> = ({
     onDelete,
 }) => {
     const navigate = useNavigate();
-    // Organization chart types are read-only here: no edit, fork or explorer
-    // preview, and only organization chart type managers can delete them.
-    const isOrganizationChartType = dataAppViz.projectUuid === null;
-    const owner = isOrganizationChartType ? 'organization' : 'project';
+    // Organization chart types have no fork or explorer preview; only
+    // organization chart type managers edit and delete them.
+    const owner = getChartTypeOwner(dataAppViz);
+    const isOrganizationChartType = isOrganizationDataAppViz(dataAppViz);
     const owningProjectUuid = dataAppViz.projectUuid ?? undefined;
     const canEditInProject = useCanEditDataApp(owningProjectUuid, dataAppViz);
     const canCreateInProject = useCanCreateDataApp(owningProjectUuid);
-    const canEdit = !isOrganizationChartType && canEditInProject;
     const canFork = !isOrganizationChartType && canCreateInProject;
     const canManageOrganizationChartTypes =
         useCanManageOrganizationChartTypes();
-    const canDelete = isOrganizationChartType
+    const canEdit = isOrganizationChartType
         ? canManageOrganizationChartTypes
-        : canEdit;
+        : canEditInProject;
+    const canDelete = canEdit;
     // Forking and editing are authoring: they need data apps, unlike
     // install/upgrade/uninstall which follow the chart type library.
     const dataAppsEnabled =
@@ -195,6 +199,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                                   to={chartTypeBuilderPath(
                                       projectUrlIdentifier,
                                       dataAppViz.slug,
+                                      owner,
                                   )}
                                   variant="default"
                                   leftSection={
@@ -315,6 +320,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                             chartTypeBuilderPath(
                                 projectUrlIdentifier,
                                 result.slug,
+                                'project',
                             ),
                         )
                     }

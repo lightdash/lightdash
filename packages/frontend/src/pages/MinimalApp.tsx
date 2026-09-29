@@ -69,7 +69,7 @@ export default function MinimalApp() {
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
-    const appQuery = useGetApp(projectUuid, appUuid);
+    const appQuery = useGetApp(projectUuid, appUuid, 'project');
     // Authoritative across ALL versions — the ready version may be older than
     // the fetched page of versions, so never scan `versions` for it.
     const latestReadyVersion =
@@ -79,7 +79,7 @@ export default function MinimalApp() {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
+    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion, 'project');
 
     const previewOrigin = usePreviewOrigin();
 

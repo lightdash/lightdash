@@ -4,9 +4,11 @@ import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 import { useRestoreAppVersion } from '../../apps/hooks/useRestoreAppVersion';
+import { type ChartTypeOwner } from '../utils/chartTypeOwner';
 
 type Props = {
     projectUuid: string;
+    owner: ChartTypeOwner;
     appUuid: string;
     version: number;
     onClose: () => void;
@@ -14,6 +16,7 @@ type Props = {
 
 const RestoreVersionModal: FC<Props> = ({
     projectUuid,
+    owner,
     appUuid,
     version,
     onClose,
@@ -38,7 +41,7 @@ const RestoreVersionModal: FC<Props> = ({
             confirmLoading={isRestoring}
             onConfirm={() =>
                 restoreVersion(
-                    { projectUuid, appUuid, version },
+                    { projectUuid, appUuid, version, owner },
                     { onSuccess: onClose },
                 )
             }

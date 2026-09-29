@@ -5,6 +5,7 @@ import {
     type AppChartReference,
     type DataAppCreationExperience,
     type DataAppViz,
+    type DataAppVizSchema,
     type ItemsMap,
 } from '@lightdash/common';
 import {
@@ -46,18 +47,19 @@ import {
     type DataAppVizBuildState,
     type VizBuildRequest,
 } from '../hooks/useDataAppVizBuild';
+import { useOrganizationChartTypeSchema } from '../hooks/useOrganizationChartTypeSchema';
+import {
+    type ChartTypeBuildTarget,
+    type ChartTypeOwner,
+} from '../utils/chartTypeOwner';
 import { type BuilderPromptBarHandle } from './BuilderPromptBar';
 
 const noop = () => undefined;
 
-const toVizClarifyParams = (request: VizBuildRequest): ClarifyParams => ({
-    prompt: request.description,
-    template: DATA_APP_VIZ_TEMPLATE,
-    fileIds: request.fileIds.length > 0 ? request.fileIds : undefined,
-});
-
 export type ChartTypeBuilderWorkspaceArgs = {
     projectUuid: string | undefined;
+    /** Where builds are sent: the project, or the organization library. */
+    target: ChartTypeBuildTarget;
     /** The viz being revised; null while authoring a new one. A host that
      *  adopts the uuid a first build claims passes it back here without
      *  resetting the session. */
@@ -72,6 +74,7 @@ export type ChartTypeBuilderWorkspaceArgs = {
 };
 
 export type ChartTypeBuilderWorkspaceState = {
+    owner: ChartTypeOwner;
     dataAppVizUuid: string | null;
     build: DataAppVizBuildState;
     clarification: ClarificationRound<VizBuildRequest>;
@@ -89,8 +92,11 @@ export type ChartTypeBuilderWorkspaceState = {
     /** The pinned version from history; null when following the current one. */
     viewedVersion: number | null;
     onViewVersion: (version: number | null) => void;
-    /** The schema of the previewed version. */
+    /** The previewed project viz; undefined for organization chart types,
+     *  whose routes have no visualization detail. */
     dataAppViz: DataAppViz | undefined;
+    /** The schema of the previewed version. */
+    schema: DataAppVizSchema | null;
     isFetchingSchema: boolean;
     hasHistory: boolean;
     isHistoryOpen: boolean;
@@ -116,6 +122,7 @@ export type ChartTypeBuilderWorkspaceState = {
  *  previewed version. Hosts supply the uuid and what the preview renders against. */
 export const useChartTypeBuilderWorkspace = ({
     projectUuid,
+    target,
     dataAppVizUuid,
     creationExperience,
     itemsMap,
@@ -123,6 +130,7 @@ export const useChartTypeBuilderWorkspace = ({
 }: ChartTypeBuilderWorkspaceArgs): ChartTypeBuilderWorkspaceState => {
     const build = useDataAppVizBuild({
         projectUuid,
+        target,
         creationExperience,
         chartReference,
         itemsMap,
@@ -140,18 +148,32 @@ export const useChartTypeBuilderWorkspace = ({
         [sendBuild],
     );
 
+    const toClarifyParams = useCallback(
+        (request: VizBuildRequest): ClarifyParams => ({
+            prompt: request.description,
+            template: DATA_APP_VIZ_TEMPLATE,
+            fileIds: request.fileIds.length > 0 ? request.fileIds : undefined,
+            target,
+        }),
+        [target],
+    );
+
     // Questions only before the first build: once a version exists, intent is
     // grounded in what is on screen.
     const clarification = useClarificationRound<VizBuildRequest>({
         projectUuid,
         isFirstBuild: dataAppVizUuid === null,
-        toClarifyParams: toVizClarifyParams,
+        toClarifyParams,
         onBuild: onClarifiedBuild,
     });
     const { reset: resetClarification } = clarification;
 
     const historyUuid = dataAppVizUuid ?? build.appUuid;
-    const history = useAppVersionHistory(projectUuid ?? '', historyUuid);
+    const history = useAppVersionHistory(
+        projectUuid ?? '',
+        historyUuid,
+        target.owner,
+    );
 
     // Covers builds sent here and builds found already running in history.
     const historyLatestInProgress =
@@ -223,6 +245,7 @@ export const useChartTypeBuilderWorkspace = ({
         historyUuid ?? undefined,
         externalBuildRunning,
         noop,
+        target.owner,
     );
 
     // Derived pin: ignored when it belongs to another app, a newer version
@@ -260,8 +283,23 @@ export const useChartTypeBuilderWorkspace = ({
 
     // The schema follows the preview: the options beside a version are the
     // ones that version declares.
-    const { data: dataAppViz, isFetching: isFetchingSchema } =
-        useDataAppVisualization(projectUuid, dataAppVizUuid, previewVersion);
+    const isOrganization = target.owner === 'organization';
+    const projectVizQuery = useDataAppVisualization(
+        projectUuid,
+        isOrganization ? null : dataAppVizUuid,
+        previewVersion,
+    );
+    const organizationSchemaQuery = useOrganizationChartTypeSchema(
+        isOrganization ? dataAppVizUuid : null,
+        previewVersion,
+    );
+    const dataAppViz = projectVizQuery.data;
+    const schema = isOrganization
+        ? (organizationSchemaQuery.data ?? null)
+        : (dataAppViz?.schema ?? null);
+    const isFetchingSchema = isOrganization
+        ? organizationSchemaQuery.isFetching
+        : projectVizQuery.isFetching;
 
     const onViewVersion = useCallback(
         (version: number | null) => {
@@ -331,6 +369,7 @@ export const useChartTypeBuilderWorkspace = ({
     const isPromptBarMounted = !isLoadingExisting;
 
     return {
+        owner: target.owner,
         dataAppVizUuid,
         build,
         clarification,
@@ -349,6 +388,7 @@ export const useChartTypeBuilderWorkspace = ({
         viewedVersion,
         onViewVersion,
         dataAppViz,
+        schema,
         isFetchingSchema,
         hasHistory,
         isHistoryOpen,

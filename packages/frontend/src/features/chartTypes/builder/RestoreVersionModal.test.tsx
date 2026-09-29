@@ -23,6 +23,7 @@ const renderModal = (onClose = vi.fn()) => {
     renderWithProviders(
         <RestoreVersionModal
             projectUuid="project-1"
+            owner="project"
             appUuid="app-1"
             version={3}
             onClose={onClose}
@@ -49,7 +50,12 @@ describe('RestoreVersionModal', () => {
         fireEvent.click(screen.getByText('Restore version'));
 
         expect(restoreMutate).toHaveBeenCalledWith(
-            { projectUuid: 'project-1', appUuid: 'app-1', version: 3 },
+            {
+                projectUuid: 'project-1',
+                appUuid: 'app-1',
+                version: 3,
+                owner: 'project',
+            },
             expect.anything(),
         );
     });

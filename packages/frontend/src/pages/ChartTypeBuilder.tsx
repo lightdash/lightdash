@@ -41,6 +41,10 @@ import { type ChartTypeRows } from '../features/chartTypes/builder/chartTypeRows
 import { ChartTypeRowsModal } from '../features/chartTypes/builder/ChartTypeSampleData';
 import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
 import {
+    DataProjectSwitchContext,
+    type DataProjectSwitch,
+} from '../features/chartTypes/builder/dataProjectSwitch';
+import {
     type AttachedExplore,
     type ExploreSourceControls,
     type PickedExplore,
@@ -66,12 +70,21 @@ import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSave
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
+import { useOrganizationChartTypeManageAccess } from '../features/chartTypes/hooks/useOrganizationLibraryAccess';
 import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
 } from '../features/chartTypes/utils/autoMapDataAppVizFields';
-import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import {
+    chartTypeBuilderPath,
+    chartTypeGalleryPath,
+} from '../features/chartTypes/utils/chartTypeBuilderPath';
+import {
+    PROJECT_BUILD_TARGET,
+    type ChartTypeBuildTarget,
+    type ChartTypeOwner,
+} from '../features/chartTypes/utils/chartTypeOwner';
 import { buildExplorePreviewMetricQuery } from '../features/chartTypes/utils/explorePreviewQuery';
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
@@ -96,6 +109,7 @@ import {
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 import classes from './ChartTypeBuilder.module.css';
 
 // Stable identities, so the workspace does not rebind between renders.
@@ -118,8 +132,13 @@ const EXPLORE_PARAM = 'exploreName';
  * The dedicated chart type builder. Mounted at both `chart-studio/new`
  * (create) and `chart-studio/:dataAppVizUuid` (edit); the create flow
  * adopts the new uuid into the URL once the first build is accepted.
+ * Organization chart types mount it under `chart-studio/organization/`,
+ * where the route's project only supplies real preview data.
  */
-const ChartTypeBuilder: FC = () => {
+export const ChartTypeBuilderPage: FC<{ owner: ChartTypeOwner }> = ({
+    owner,
+}) => {
+    const isOrganization = owner === 'organization';
     const { dataAppVizUuid: urlVizUuid } = useParams();
     const projectUuid = useProjectUuid();
     const projectRoute = useOptionalProjectRoute();
@@ -138,15 +157,23 @@ const ChartTypeBuilder: FC = () => {
     }, [location.search]);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const isAmbientAiEnabled = useAmbientAiEnabled() === true;
-    const canCreate = useCanCreateDataApp(projectUuid);
+    const canCreateInProject = useCanCreateDataApp(projectUuid);
+    const organizationAccess = useOrganizationChartTypeManageAccess();
+    const canCreate = isOrganization
+        ? organizationAccess.canManage
+        : canCreateInProject;
 
     // `useGetApp` accepts slugs, so the raw URL param is the right key.
-    const appQuery = useGetApp(projectUuid, urlVizUuid);
+    const appQuery = useGetApp(projectUuid, urlVizUuid, owner);
     const appMeta = appQuery.data?.pages[0] ?? null;
-    const canEdit = useCanEditDataApp(projectUuid, {
+    const canEditInProject = useCanEditDataApp(projectUuid, {
         spaceUuid: appMeta?.spaceUuid ?? null,
         createdByUserUuid: appMeta?.createdByUserUuid ?? null,
     });
+    const canEdit = isOrganization
+        ? organizationAccess.canManage
+        : canEditInProject;
+    const galleryPath = chartTypeGalleryPath(projectUrlIdentifier ?? '', owner);
     // The app this session's first build created, adopted into the URL. The
     // create permission that built it covers it until its row loads.
     const [claimedVizUuid, setClaimedVizUuid] = useState<string | null>(null);
@@ -198,8 +225,23 @@ const ChartTypeBuilder: FC = () => {
         [savedChartUuid],
     );
 
+    // An organization build reads the project's data only when one of its
+    // explores or saved charts is picked; otherwise it builds on sample data.
+    const dataProjectUuid =
+        projectUuid && (savedChartUuid !== null || exploreName !== null)
+            ? projectUuid
+            : null;
+    const buildTarget = useMemo<ChartTypeBuildTarget>(
+        () =>
+            isOrganization
+                ? { owner: 'organization', dataProjectUuid }
+                : PROJECT_BUILD_TARGET,
+        [isOrganization, dataProjectUuid],
+    );
+
     const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
+        target: buildTarget,
         dataAppVizUuid: activeVizUuid ?? null,
         creationExperience: 'chart_type_builder',
         itemsMap:
@@ -254,6 +296,7 @@ const ChartTypeBuilder: FC = () => {
                     pathname: chartTypeBuilderPath(
                         projectUrlIdentifier,
                         build.appUuid,
+                        owner,
                     ),
                     search: location.search,
                 },
@@ -264,15 +307,48 @@ const ChartTypeBuilder: FC = () => {
         urlVizUuid,
         build.appUuid,
         projectUrlIdentifier,
+        owner,
         location.search,
         navigate,
     ]);
+
+    // Another data project is the same chart type previewed from there. The
+    // picked source belonged to the old project, so only it is dropped.
+    const dataProjectSwitch = useMemo<DataProjectSwitch | null>(
+        () =>
+            isOrganization && projectUuid
+                ? {
+                      projectUuid,
+                      onChange: (nextProject) => {
+                          const next = new URLSearchParams(location.search);
+                          next.delete(SAVED_CHART_PARAM);
+                          next.delete(EXPLORE_PARAM);
+                          void navigate({
+                              pathname: chartTypeBuilderPath(
+                                  getProjectUrlIdentifier(nextProject),
+                                  urlVizUuid ?? build.appUuid,
+                                  'organization',
+                              ),
+                              search: next.toString(),
+                          });
+                      },
+                  }
+                : null,
+        [
+            isOrganization,
+            projectUuid,
+            navigate,
+            location.search,
+            urlVizUuid,
+            build.appUuid,
+        ],
+    );
 
     const colorPalette = useResolvedColorPalette(
         projectUuid,
         panel.colorPaletteUuid,
     );
-    const schema = workspace.dataAppViz?.schema ?? null;
+    const schema = workspace.schema;
 
     // With an explore attached, the bindings are the query. They bind against
     // the explore's whole field list, never the run's columns, so the field
@@ -1010,17 +1086,21 @@ const ChartTypeBuilder: FC = () => {
         );
     }
 
-    const isCreateFlow = urlVizUuid === undefined && build.appUuid === null;
-    if (isCreateFlow && !canCreate) {
-        return (
-            <Navigate
-                to={`/projects/${projectUrlIdentifier}/chart-studio`}
-                replace
-            />
-        );
+    if (isOrganization) {
+        if (organizationAccess.isLoading) return null;
+        if (!organizationAccess.canManage) {
+            return <Navigate to={galleryPath} replace />;
+        }
     }
 
-    if (appQuery.error?.error.statusCode === 404) {
+    const isCreateFlow = urlVizUuid === undefined && build.appUuid === null;
+    if (isCreateFlow && !canCreate) {
+        return <Navigate to={galleryPath} replace />;
+    }
+
+    // An organization chart type the user cannot read is not found to them.
+    const appErrorStatus = appQuery.error?.error.statusCode;
+    if (appErrorStatus === 404 || (isOrganization && appErrorStatus === 403)) {
         return (
             <Box className={classes.root}>
                 <Box className={classes.notFound}>
@@ -1030,7 +1110,7 @@ const ChartTypeBuilder: FC = () => {
                         action={
                             <Button
                                 component={Link}
-                                to={`/projects/${projectUrlIdentifier}/chart-studio`}
+                                to={galleryPath}
                                 variant="default"
                             >
                                 Back to all chart types
@@ -1044,7 +1124,7 @@ const ChartTypeBuilder: FC = () => {
 
     if (appMeta) {
         // A data app that isn't a chart type belongs in the app builder.
-        if (appMeta.template !== DATA_APP_VIZ_TEMPLATE) {
+        if (!isOrganization && appMeta.template !== DATA_APP_VIZ_TEMPLATE) {
             return (
                 <Navigate
                     to={`/projects/${projectUuid}/apps/${appMeta.appUuid}`}
@@ -1053,22 +1133,12 @@ const ChartTypeBuilder: FC = () => {
             );
         }
         if (!canEdit) {
-            return (
-                <Navigate
-                    to={`/projects/${projectUrlIdentifier}/chart-studio`}
-                    replace
-                />
-            );
+            return <Navigate to={galleryPath} replace />;
         }
         // Server-enforced (registry apps are read-only); this only keeps
         // the builder UI from being reached for an official chart type.
         if (appMeta.registrySlug !== null) {
-            return (
-                <Navigate
-                    to={`/projects/${projectUrlIdentifier}/chart-studio`}
-                    replace
-                />
-            );
+            return <Navigate to={galleryPath} replace />;
         }
     }
 
@@ -1110,77 +1180,95 @@ const ChartTypeBuilder: FC = () => {
           }
         : {
               label: 'All chart types',
-              to: `/projects/${projectUrlIdentifier}/chart-studio`,
+              to: galleryPath,
           };
 
+    // Organization chart types have no Explorer preview or SDK upgrade route.
     return (
-        <Box className={classes.root}>
-            <DocumentTitle title="Chart Studio" />
-            <ChartTypeBuilderHeader
-                projectUuid={projectUuid}
-                appUuidOrSlug={urlVizUuid}
-                backLink={backLink}
-                app={appMeta}
-                latestReadyVersion={history.latestReadyVersion}
-                hasHistory={workspace.hasHistory}
-                isHistoryOpen={isHistoryOpen}
-                isBuilding={isBuilding}
-                isCreating={isBuilding && history.latestReadyVersion === null}
-                upgrade={
-                    activeVizUuid && history.latestReadyVersion !== null
-                        ? { ...workspace.sdkUpgradeOffer, disabled: isBuilding }
-                        : null
-                }
-                onUpgradeStarted={workspace.openHistory}
-                onToggleHistory={workspace.toggleHistory}
-                previewInExplorerLink={explorerDestination}
-                previewInExplorerDisabled={
-                    explorerDestination === null &&
-                    (savedChartUuid !== null || exploreName !== null)
-                }
-                onPreviewInExplorer={
-                    activeVizUuid ? () => setIsPreviewTableOpen(true) : null
-                }
-            />
-            {!isResolvingApp && (
-                <ChartTypeBuilderWorkspace
+        <DataProjectSwitchContext.Provider value={dataProjectSwitch}>
+            <Box className={classes.root}>
+                <DocumentTitle title="Chart Studio" />
+                <ChartTypeBuilderHeader
                     projectUuid={projectUuid}
-                    workspace={workspace}
-                    previewContext={previewContext}
-                    onVizSubtotalsIntent={subtotalSource?.get ?? null}
-                    sampleRows={sampleRows}
-                    currentBuildContext={currentBuildContext}
-                    savedChartSource={savedChartSource}
-                    exploreSource={exploreSource}
-                    syncPreviewUrlState
-                    configurePanel={configurePanel}
+                    owner={owner}
+                    appUuidOrSlug={urlVizUuid}
+                    backLink={backLink}
+                    app={appMeta}
+                    latestReadyVersion={history.latestReadyVersion}
+                    hasHistory={workspace.hasHistory}
+                    isHistoryOpen={isHistoryOpen}
+                    isBuilding={isBuilding}
+                    isCreating={
+                        isBuilding && history.latestReadyVersion === null
+                    }
+                    upgrade={
+                        !isOrganization &&
+                        activeVizUuid &&
+                        history.latestReadyVersion !== null
+                            ? {
+                                  ...workspace.sdkUpgradeOffer,
+                                  disabled: isBuilding,
+                              }
+                            : null
+                    }
+                    onUpgradeStarted={workspace.openHistory}
+                    onToggleHistory={workspace.toggleHistory}
+                    previewInExplorerLink={
+                        isOrganization ? null : explorerDestination
+                    }
+                    previewInExplorerDisabled={
+                        explorerDestination === null &&
+                        (savedChartUuid !== null || exploreName !== null)
+                    }
+                    onPreviewInExplorer={
+                        activeVizUuid && !isOrganization
+                            ? () => setIsPreviewTableOpen(true)
+                            : null
+                    }
                 />
-            )}
-            <ChartTypeRowsModal
-                data={liveRows}
-                opened={isRowsModalOpen && liveRows !== null}
-                onClose={() => setIsRowsModalOpen(false)}
-                title="Query results"
-                subtitle={`${liveRows?.pivotDetails ? 'Pivoted preview of rows' : 'Rows'} returned by ${
-                    exploreSource.attached?.label ??
-                    savedChartSource.attached?.chartName ??
-                    'the saved chart'
-                }.`}
-            />
-            {isPreviewTableOpen && activeVizUuid && (
-                <ChartTypePreviewTableModal
-                    projectUuid={projectUuid}
-                    dataAppVizUuid={activeVizUuid}
-                    registrySlug={appMeta?.registrySlug ?? null}
-                    onClose={() => setIsPreviewTableOpen(false)}
-                    onSelectTable={(tableName) => {
-                        const destination = getExplorerDestination(tableName);
-                        if (destination) void navigate(destination);
-                    }}
+                {!isResolvingApp && (
+                    <ChartTypeBuilderWorkspace
+                        projectUuid={projectUuid}
+                        workspace={workspace}
+                        previewContext={previewContext}
+                        onVizSubtotalsIntent={subtotalSource?.get ?? null}
+                        sampleRows={sampleRows}
+                        currentBuildContext={currentBuildContext}
+                        savedChartSource={savedChartSource}
+                        exploreSource={exploreSource}
+                        syncPreviewUrlState
+                        configurePanel={configurePanel}
+                    />
+                )}
+                <ChartTypeRowsModal
+                    data={liveRows}
+                    opened={isRowsModalOpen && liveRows !== null}
+                    onClose={() => setIsRowsModalOpen(false)}
+                    title="Query results"
+                    subtitle={`${liveRows?.pivotDetails ? 'Pivoted preview of rows' : 'Rows'} returned by ${
+                        exploreSource.attached?.label ??
+                        savedChartSource.attached?.chartName ??
+                        'the saved chart'
+                    }.`}
                 />
-            )}
-        </Box>
+                {isPreviewTableOpen && activeVizUuid && !isOrganization && (
+                    <ChartTypePreviewTableModal
+                        projectUuid={projectUuid}
+                        dataAppVizUuid={activeVizUuid}
+                        registrySlug={appMeta?.registrySlug ?? null}
+                        onClose={() => setIsPreviewTableOpen(false)}
+                        onSelectTable={(tableName) => {
+                            const destination =
+                                getExplorerDestination(tableName);
+                            if (destination) void navigate(destination);
+                        }}
+                    />
+                )}
+            </Box>
+        </DataProjectSwitchContext.Provider>
     );
 };
+
+const ChartTypeBuilder: FC = () => <ChartTypeBuilderPage owner="project" />;
 
 export default ChartTypeBuilder;

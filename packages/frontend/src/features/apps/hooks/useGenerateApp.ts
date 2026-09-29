@@ -1,5 +1,8 @@
 import {
+    assertUnreachable,
     type ApiError,
+    type GenerateAppRequestBody,
+    type GenerateOrganizationChartTypeRequestBody,
     type AppVizBuildContext,
     type ApiGenerateAppResponse,
     type AppChartReference,
@@ -13,6 +16,10 @@ import {
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import {
+    appApiBase,
+    type ChartTypeBuildTarget,
+} from '../../chartTypes/utils/chartTypeOwner';
 
 export type GenerateAppParams = {
     projectUuid: string;
@@ -34,6 +41,8 @@ export type GenerateAppParams = {
     designUuid?: string | null;
     // External connections to link to the app before generation.
     externalConnections?: AppExternalConnectionReference[];
+    /** Organization chart types build through the organization routes. */
+    target: ChartTypeBuildTarget;
 };
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
@@ -54,29 +63,43 @@ const generateApp = async ({
     codexModel,
     designUuid,
     externalConnections,
+    target,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
+    const shared: Omit<
+        GenerateOrganizationChartTypeRequestBody,
+        'dataProjectUuid'
+    > = {
+        prompt,
+        vizContext,
+        creationExperience,
+        fileIds,
+        appUuid,
+        charts,
+        dashboard,
+        clarifications,
+        claudeModel,
+        codexModel,
+        // Send only when defined: `null` means "no theme"; `undefined`
+        // means "honor org default" and omitting from the JSON body lets
+        // the backend distinguish the two.
+        ...(designUuid !== undefined ? { designUuid } : {}),
+    };
+    // Organization chart types have no template, space or connections.
+    let body: GenerateAppRequestBody | GenerateOrganizationChartTypeRequestBody;
+    switch (target.owner) {
+        case 'organization':
+            body = { ...shared, dataProjectUuid: target.dataProjectUuid };
+            break;
+        case 'project':
+            body = { ...shared, template, spaceUuid, externalConnections };
+            break;
+        default:
+            return assertUnreachable(target, 'Unknown chart type owner');
+    }
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
-        url: `/ee/projects/${projectUuid}/apps/`,
-        body: JSON.stringify({
-            prompt,
-            vizContext,
-            template,
-            creationExperience,
-            fileIds,
-            appUuid,
-            charts,
-            dashboard,
-            clarifications,
-            spaceUuid,
-            claudeModel,
-            codexModel,
-            externalConnections,
-            // Send only when defined: `null` means "no theme"; `undefined`
-            // means "honor org default" and omitting from the JSON body lets
-            // the backend distinguish the two.
-            ...(designUuid !== undefined ? { designUuid } : {}),
-        }),
+        url: `${appApiBase(target.owner, projectUuid)}/`,
+        body: JSON.stringify(body),
     });
     return data;
 };

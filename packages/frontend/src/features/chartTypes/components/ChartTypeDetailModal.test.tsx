@@ -139,7 +139,7 @@ describe('ChartTypeDetailModal', () => {
             );
         });
 
-        it('offers only Delete to managers', () => {
+        it('offers Edit in the organization builder and Delete to managers', () => {
             vi.mocked(useCanManageOrganizationChartTypes).mockReturnValue(true);
             renderModal(organizationViz);
 
@@ -149,9 +149,10 @@ describe('ChartTypeDetailModal', () => {
             expect(
                 screen.queryByRole('button', { name: 'Preview in explorer' }),
             ).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('link', { name: 'Edit' }),
-            ).not.toBeInTheDocument();
+            expect(screen.getByRole('link', { name: 'Edit' })).toHaveAttribute(
+                'href',
+                '/projects/project-1/chart-studio/organization/radial-gauge',
+            );
         });
     });
 });

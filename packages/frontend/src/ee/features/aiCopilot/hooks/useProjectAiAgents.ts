@@ -1684,7 +1684,12 @@ export const useRestoreAiAgentThreadDataAppVersionMutation = (
                         threadUuid,
                     ),
                 }),
-                invalidateAppQueries(queryClient, projectUuid, appUuid),
+                invalidateAppQueries(
+                    queryClient,
+                    projectUuid,
+                    appUuid,
+                    'project',
+                ),
             ]),
     });
 };

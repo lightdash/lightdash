@@ -1,33 +1,55 @@
 import {
+    assertUnreachable,
     type ApiDataAppVizDeleteImpactResponse,
     type ApiError,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import {
-    ORGANIZATION_CHART_TYPES_API_BASE,
-    type ChartTypeOwner,
-} from '../utils/chartTypeOwner';
+import { appApiBase, type ChartTypeOwner } from '../utils/chartTypeOwner';
+
+const deleteImpactRoute = (
+    owner: ChartTypeOwner,
+    projectUuid: string,
+    dataAppVizUuid: string,
+) => {
+    switch (owner) {
+        case 'organization':
+            return {
+                queryKey: [
+                    'organization-chart-type-delete-impact',
+                    dataAppVizUuid,
+                ],
+                url: `${appApiBase(owner, projectUuid)}/${dataAppVizUuid}/delete-impact`,
+            };
+        case 'project':
+            return {
+                queryKey: [
+                    'data-app-viz-delete-impact',
+                    projectUuid,
+                    dataAppVizUuid,
+                ],
+                url: `${appApiBase(owner, projectUuid)}/visualizations/${dataAppVizUuid}/delete-impact`,
+            };
+        default:
+            return assertUnreachable(owner, 'Unknown chart type owner');
+    }
+};
 
 export const useDataAppVizDeleteImpact = (
     projectUuid: string,
     dataAppVizUuid: string,
-    owner: ChartTypeOwner = 'project',
-) =>
-    useQuery<ApiDataAppVizDeleteImpactResponse['results'], ApiError>({
-        queryKey:
-            owner === 'organization'
-                ? ['organization-chart-type-delete-impact', dataAppVizUuid]
-                : ['data-app-viz-delete-impact', projectUuid, dataAppVizUuid],
+    owner: ChartTypeOwner,
+) => {
+    const route = deleteImpactRoute(owner, projectUuid, dataAppVizUuid);
+    return useQuery<ApiDataAppVizDeleteImpactResponse['results'], ApiError>({
+        queryKey: route.queryKey,
         queryFn: () =>
             lightdashApi<ApiDataAppVizDeleteImpactResponse['results']>({
                 method: 'GET',
-                url:
-                    owner === 'organization'
-                        ? `${ORGANIZATION_CHART_TYPES_API_BASE}/${dataAppVizUuid}/delete-impact`
-                        : `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/delete-impact`,
+                url: route.url,
             }),
         staleTime: 0,
         refetchOnMount: 'always',
         retry: false,
     });
+};

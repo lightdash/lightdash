@@ -170,6 +170,7 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
             </Group>
             {app && isEditingDetails && (
                 <AppUpdateModal
+                    owner="project"
                     opened
                     onClose={() => setIsEditingDetails(false)}
                     onConfirm={() => {
