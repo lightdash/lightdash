@@ -580,6 +580,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             roadmapService: ({ context }) =>
                 new RoadmapService({
+                    analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                 }),
             embedService: ({ repository, context, models }) =>
