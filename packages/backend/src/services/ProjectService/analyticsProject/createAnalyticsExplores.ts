@@ -5,6 +5,7 @@ import {
     FieldType,
     friendlyName,
     JoinRelationship,
+    MetricType,
     WarehouseTypes,
     type Explore,
     type Metric,
@@ -25,6 +26,11 @@ import {
     systemStreamMetrics,
     userActivityMetrics,
 } from '../../../analytics/systemExplores/systemStreamMetrics';
+import {
+    toolActivityColumns,
+    toolActivityMetrics,
+    toolActivitySql,
+} from '../../../analytics/systemExplores/toolActivity';
 
 const dimensionFields = {
     charts: { key: 'chart_id', label: 'Chart name' },
@@ -45,7 +51,11 @@ const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
 export const createAnalyticsExplores = (): Explore[] => {
     const sqlBuilder = warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB);
     const compiler = new ExploreCompiler(sqlBuilder);
-    const streams = [...analyticsStreams, 'user_activity'] as const;
+    const streams = [
+        ...analyticsStreams.filter((name) => name !== 'mcp_tool_calls'),
+        'user_activity',
+        'tool_activity',
+    ] as const;
 
     const buildTable = (name: (typeof streams)[number]) => {
         const label = friendlyName(name);
@@ -55,11 +65,25 @@ export const createAnalyticsExplores = (): Explore[] => {
             fieldType: FieldType.METRIC as const,
             hidden: false,
         };
+        const model = {
+            user_activity: {
+                columns: userActivityColumns,
+                metrics: userActivityMetrics,
+            },
+            tool_activity: {
+                columns: toolActivityColumns,
+                metrics: toolActivityMetrics,
+            },
+        };
+        const modelDefinition =
+            name === 'user_activity' || name === 'tool_activity'
+                ? model[name]
+                : {
+                      columns: compactedStreamSchemas[name],
+                      metrics: systemStreamMetrics[name],
+                  };
         const metrics: Record<string, Metric> = Object.fromEntries(
-            (name === 'user_activity'
-                ? userActivityMetrics
-                : systemStreamMetrics[name]
-            ).map(({ column, ...definition }) => [
+            modelDefinition.metrics.map(({ column, ...definition }) => [
                 definition.name,
                 {
                     ...base,
@@ -70,13 +94,24 @@ export const createAnalyticsExplores = (): Explore[] => {
             ]),
         );
 
+        if (name === 'tool_activity') {
+            metrics.error_rate = {
+                ...base,
+                name: 'error_rate',
+                label: 'Error rate',
+                description:
+                    'Failed calls divided by calls with a known success/error outcome; unknown outcomes are excluded',
+                type: MetricType.NUMBER,
+                sql: "1.0 * SUM(CASE WHEN ${status} = 'error' THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN ${status} IN ('success', 'error') THEN 1 ELSE 0 END), 0)",
+            };
+        }
         const table = {
             name,
             label,
             ...(name === 'query_events'
                 ? { primaryKey: ['org_id', 'query_id'] }
                 : {}),
-            sqlTable: `"${name}"`,
+            sqlTable: name === 'tool_activity' ? toolActivitySql : `"${name}"`,
             database: 'memory',
             schema: 'main',
             lineageGraph: { nodes: [], edges: [] },
@@ -84,13 +119,12 @@ export const createAnalyticsExplores = (): Explore[] => {
                 qualifyColumnReferences: true,
                 tableName: name,
                 tableLabel: label,
-                columns: (name === 'user_activity'
-                    ? userActivityColumns
-                    : compactedStreamSchemas[name]
-                ).map(({ name: reference, type }) => ({
-                    reference,
-                    type: dimensionTypes[type],
-                })),
+                columns: modelDefinition.columns.map(
+                    ({ name: reference, type }) => ({
+                        reference,
+                        type: dimensionTypes[type],
+                    }),
+                ),
                 warehouseSqlBuilder: sqlBuilder,
             }),
             metrics,
@@ -113,7 +147,11 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'query_events' || name === 'export_events'
                 ? ['charts', 'dashboards', 'users']
                 : ['users'];
-        if (name === 'ai_usage' || name === 'agent_steps')
+        if (
+            name === 'ai_usage' ||
+            name === 'agent_steps' ||
+            name === 'tool_activity'
+        )
             dimensions.push('agents');
         const dimensionTables = Object.fromEntries(
             dimensions.map((dimension) => {

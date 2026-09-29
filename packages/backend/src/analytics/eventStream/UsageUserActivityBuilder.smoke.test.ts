@@ -12,6 +12,7 @@ import { createAnalyticsExplores } from '../../services/ProjectService/analytics
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
+import { mcpToolCallsProjections } from './mcpToolCallsStream';
 import { compactedStreamSchemas } from './registry';
 import { UsageEventsCompactor } from './UsageEventsCompactor';
 import { UsageUserActivityBuilder } from './UsageUserActivityBuilder';
@@ -157,6 +158,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
             try {
                 for (const stream of analyticsStreams) {
                     const event = {
+                        mcp_tool_calls: "'mcp_tool_call'",
                         query_events: "'query.completed'",
                         ai_usage: "'ai.usage'",
                         export_events:
@@ -204,6 +206,25 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                     [{ ...exportRows[0], org_id: otherOrg }],
                     otherOrg,
                 );
+                const mcpRows = ['success', 'error'].map((status, index) => ({
+                    ...mcpToolCallsProjections.mcp_tool_call({
+                        event: 'mcp_tool_call',
+                        userId: userUuid(index),
+                        properties: {
+                            organizationId: org,
+                            projectId: 'project-0',
+                            toolCallId: `mcp-${index}`,
+                            actorType: index === 0 ? 'user' : 'service_account',
+                            toolName: index === 0 ? 'list_explores' : 'run_sql',
+                            status: status as 'success' | 'error',
+                            durationMs: 100 * (index + 1),
+                            authType: index === 0 ? 'oauth' : 'service-account',
+                            clientName: 'Smoke client',
+                        },
+                    })!.row,
+                    event_ts: `${date}T12:00:00.000Z`,
+                }));
+                await raw('mcp_tool_calls', [...mcpRows, mcpRows[0]]);
                 const start = performance.now();
                 let peakRss = process.memoryUsage().rss;
                 const sample = setInterval(() => {
@@ -211,7 +232,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 }, 25);
                 try {
                     expect((await compact()).users).toMatchObject({
-                        published: 6,
+                        published: 7,
                         failed: 0,
                     });
                 } finally {
@@ -219,11 +240,59 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 }
                 console.log(
                     JSON.stringify({
-                        syntheticEvents: rows * 5 + 5,
+                        syntheticEvents: rows * 6 + 8,
                         elapsedMs: Math.round(performance.now() - start),
                         sampledPeakRssMiB: Math.round(peakRss / 1024 / 1024),
                         duckdbMemoryLimit: '256MB',
                         threads: 1,
+                    }),
+                );
+                const toolStart = performance.now();
+                const toolTotals = (
+                    await query('tool_activity', [
+                        'total_calls',
+                        'failed_calls',
+                        'avg_duration_ms',
+                        'error_rate',
+                    ])
+                )[0];
+                expect(Number(toolTotals.tool_activity_total_calls)).toBe(
+                    rows + 2,
+                );
+                expect(Number(toolTotals.tool_activity_failed_calls)).toBe(1);
+                expect(Number(toolTotals.tool_activity_avg_duration_ms)).toBe(
+                    150,
+                );
+                expect(Number(toolTotals.tool_activity_error_rate)).toBe(0.5);
+                const toolUsers = await query(
+                    'tool_activity',
+                    ['total_calls'],
+                    true,
+                );
+                expect(
+                    toolUsers.reduce(
+                        (sum, row) =>
+                            sum + Number(row.tool_activity_total_calls),
+                        0,
+                    ),
+                ).toBe(rows + 2);
+                expect(
+                    toolUsers.find((row) => row.tool_activity_user_id === null)
+                        ?.lightdash_users_name,
+                ).toBe('Unknown user');
+                expect(
+                    Number(
+                        (await query('user_activity', ['total_mcp_calls']))[0]
+                            .user_activity_total_mcp_calls,
+                    ),
+                ).toBe(rows + 3);
+                console.log(
+                    JSON.stringify({
+                        toolActivityQueriesMs: Math.round(
+                            performance.now() - toolStart,
+                        ),
+                        logicalCalls: rows + 2,
+                        capturedMcpEvents: rows + 3,
                     }),
                 );
                 const userMetrics = [
@@ -307,7 +376,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 });
                 expect((await compact()).users).toMatchObject({
                     published: 0,
-                    unchanged: 6,
+                    unchanged: 7,
                     failed: 0,
                 });
                 expect(
@@ -323,7 +392,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 );
                 expect((await compact()).users).toMatchObject({
                     published: 1,
-                    unchanged: 5,
+                    unchanged: 6,
                     failed: 0,
                 });
                 expect(
@@ -360,7 +429,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 await s3.deleteObject({ Bucket: storage.bucket, Key: key });
                 expect((await compact()).users).toMatchObject({
                     published: 1,
-                    unchanged: 5,
+                    unchanged: 6,
                     failed: 0,
                 });
                 const cli = await promisify(execFile)(
@@ -397,7 +466,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         timeout: 120000,
                     },
                 );
-                expect(cli.stdout).toContain('unchanged: 5');
+                expect(cli.stdout).toContain('unchanged: 6');
                 // Other org has no query/AI/app/step files: its empty views still query.
                 const otherReader = new DuckdbWarehouseClient({
                     type: 'duckdb_parquet',

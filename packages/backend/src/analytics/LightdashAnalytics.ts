@@ -3275,6 +3275,9 @@ export type McpToolCallEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
+        toolCallId: string;
+        actorType: 'user' | 'service_account';
+        queryId?: string;
         projectId?: string;
         agentId?: string;
         toolName: string;
