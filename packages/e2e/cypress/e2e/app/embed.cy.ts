@@ -441,11 +441,19 @@ describe('Embedded AI agent dashboard viewer', () => {
                         cy.contains('Payments total revenue');
                         cy.contains(`What's the average spend per customer?`);
 
-                        getTile(`What's the average spend per customer?`)
-                            .findByRole('button', { name: 'Tile actions' })
-                            .should('not.exist');
+                        openTileMenu(`What's the average spend per customer?`);
+                        cy.findByRole('menuitem', {
+                            name: 'Explore from here',
+                        }).should('be.visible');
+                        cy.findByRole('menuitem', {
+                            name: 'Edit chart',
+                        }).should('not.exist');
+                        cy.findByRole('menuitem', {
+                            name: 'Edit tile content',
+                        }).should('not.exist');
                         cy.contains('Download data').should('not.exist');
                         cy.contains('Export image').should('not.exist');
+                        cy.get('body').type('{esc}');
 
                         cy.findByRole('button', { name: 'Back to AI' }).click();
                         cy.location('pathname').should('eq', threadsPath);
