@@ -530,6 +530,68 @@ describe('Opus model lifecycle', () => {
     );
 });
 
+describe('Sonnet model lifecycle', () => {
+    const config = {
+        ...baseCopilotConfig,
+        providers: {
+            anthropic: {
+                apiKey: 'test',
+                modelName: 'claude-sonnet-5',
+                customHeaders: {},
+                supportsStreaming: true,
+            },
+            bedrock: {
+                apiKey: 'test',
+                region: 'us-east-1',
+                modelName: 'claude-sonnet-5',
+                embeddingModelName: 'amazon.titan-embed-text-v2:0',
+                customHeaders: {},
+                supportsStreaming: true,
+            },
+        },
+    };
+
+    it.each(['anthropic', 'bedrock'] as const)(
+        'resolves saved Sonnet 5 configurations and enables adaptive reasoning for Sonnet 5.5 on %s',
+        (provider) => {
+            const oldModel = getModel(config, { provider });
+            expect(oldModel.model.modelId).toBe(
+                provider === 'anthropic'
+                    ? 'claude-sonnet-5'
+                    : 'us.anthropic.claude-sonnet-5',
+            );
+            const newModel = getModel(config, {
+                provider,
+                modelName: 'claude-sonnet-5-5',
+                enableReasoning: true,
+            });
+            expect(newModel.model.modelId).toBe(
+                provider === 'anthropic'
+                    ? 'claude-sonnet-5-5'
+                    : 'us.anthropic.claude-sonnet-5-5',
+            );
+            expect(newModel.callOptions.temperature).toBeUndefined();
+            expect(newModel.providerOptions).toMatchObject(
+                provider === 'anthropic'
+                    ? {
+                          anthropic: {
+                              thinking: { type: 'adaptive' },
+                              effort: 'medium',
+                          },
+                      }
+                    : {
+                          bedrock: {
+                              reasoningConfig: {
+                                  type: 'adaptive',
+                                  maxReasoningEffort: 'medium',
+                              },
+                          },
+                      },
+            );
+        },
+    );
+});
+
 describe('OpenRouter model options', () => {
     it('surfaces the default and allowlisted models for the picker', () => {
         const models = getAvailableModels({

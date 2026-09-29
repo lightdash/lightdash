@@ -19,7 +19,7 @@ RUN apt-get update \
 # the Claude CLI install through it, mirroring the writeback image.
 RUN npm install -g sfw
 
-RUN sfw npm install -g @anthropic-ai/claude-code
+RUN sfw npm install -g @anthropic-ai/claude-code@2.1.284
 
 # Host-curated general skills dir the agent reads (GENERAL_SKILLS_DIR in
 # constants.ts), shipped empty for v1. Created so the agent's Read scope over it
