@@ -13,6 +13,30 @@ require_value deploy_conclusion "${DEPLOY_CONCLUSION:-}"
 require_value deployed_sha "${DEPLOYED_SHA:-}"
 require_value github_token "${GH_TOKEN:-}"
 
+deploy_conclusion=$DEPLOY_CONCLUSION
+if [[ -n "${DEPLOY_JOB_NAME:-}" ]]; then
+    export DEPLOY_JOB_NAME
+    deploy_run_id=${DEPLOY_RUN_URL##*/actions/runs/}
+    deploy_run_id=${deploy_run_id%%/*}
+    job_conclusion=""
+    if [[ "$deploy_run_id" =~ ^[0-9]+$ ]]; then
+        job_conclusion=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$deploy_run_id/jobs?filter=latest&per_page=100" \
+            --jq '.jobs[] | select(.name == $ENV.DEPLOY_JOB_NAME) | .conclusion' 2>/dev/null | tail -n 1 || true)
+    fi
+    case "$job_conclusion" in
+        success|failure|cancelled|timed_out)
+            deploy_conclusion=$job_conclusion
+            ;;
+        skipped)
+            deploy_conclusion=cancelled
+            ;;
+        *)
+            echo "Deploy job \"$DEPLOY_JOB_NAME\" has no readable conclusion; using the run conclusion $DEPLOY_CONCLUSION." >&2
+            ;;
+    esac
+    echo "Deploy job \"$DEPLOY_JOB_NAME\" conclusion: ${job_conclusion:-unknown}; verifying as $deploy_conclusion."
+fi
+
 branch_prefix=${BRANCH_PREFIX:-lightdash-upgrade}
 if [[ ! "$branch_prefix" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
     echo "branch_prefix must match ^[A-Za-z0-9][A-Za-z0-9._-]*$" >&2
@@ -71,7 +95,7 @@ if [[ -n "$merged_upgrade_prs" ]]; then
             echo "Unable to inspect verification comments on merged upgrade pull request #$candidate_number." >&2
             exit 1
         fi
-        if [[ "$existing_successful_verification" == "true" && "$DEPLOY_CONCLUSION" == "success" ]]; then
+        if [[ "$existing_successful_verification" == "true" && "$deploy_conclusion" == "success" ]]; then
             exit 0
         fi
         pr_number=$candidate_number
@@ -109,7 +133,7 @@ trap 'rm -f "$response_body" "$response_headers" "$summary_file" "$issue_body"' 
 
 # A cancelled run proves neither failure nor success, so poll: the running
 # version decides, and nothing deployed still freezes.
-if [[ "$DEPLOY_CONCLUSION" == "success" || "$DEPLOY_CONCLUSION" == "cancelled" ]]; then
+if [[ "$deploy_conclusion" == "success" || "$deploy_conclusion" == "cancelled" ]]; then
     while [[ $(date +%s) -lt $deadline ]]; do
         remaining_seconds=$((deadline - $(date +%s)))
         curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
@@ -162,7 +186,7 @@ if [[ "$DEPLOY_CONCLUSION" == "success" || "$DEPLOY_CONCLUSION" == "cancelled" ]
         sleep 20
     done
 else
-    last_reason="deploy_workflow_$DEPLOY_CONCLUSION"
+    last_reason="deploy_workflow_$deploy_conclusion"
 fi
 
 finished_at=$(date +%s)
