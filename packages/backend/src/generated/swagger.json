@@ -19970,6 +19970,16 @@
                         "type": "string",
                         "description": "Explains the row shape, ordering, and recovery needed to use this viz."
                     },
+                    "hierarchy": {
+                        "properties": {
+                            "field": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["field"],
+                        "type": "object",
+                        "description": "Ordered dimension slot whose levels can be subtotalled."
+                    },
                     "colorPalette": {
                         "allOf": [
                             {
@@ -67664,7 +67674,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.364.0",
+        "version": "2.365.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

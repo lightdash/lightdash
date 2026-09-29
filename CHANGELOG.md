@@ -1,3 +1,15 @@
+# [2.365.0](https://github.com/lightdash/lightdash/compare/2.364.0...2.365.0) (2026-09-29)
+
+
+### Features
+
+* declare custom chart hierarchies and subtotal SDK requests ([#30137](https://github.com/lightdash/lightdash/issues/30137)) ([350eaf7](https://github.com/lightdash/lightdash/commit/350eaf7c67d92455e41dd401cf85ef0d2729bcd5))
+* **roadmap:** track roadmap page views and follow requests ([#30173](https://github.com/lightdash/lightdash/issues/30173)) ([aca16d3](https://github.com/lightdash/lightdash/commit/aca16d3781e15143ef44832e443a8f93cf720c0f))
+* serve custom chart subtotals from the chart's own query ([#30138](https://github.com/lightdash/lightdash/issues/30138)) ([9179d49](https://github.com/lightdash/lightdash/commit/9179d4934767446e3038d0042a64710a7d98db10))
+* serve custom chart subtotals in Chart Studio previews ([#30139](https://github.com/lightdash/lightdash/issues/30139)) ([129d129](https://github.com/lightdash/lightdash/commit/129d129bd1450025f4b0125b9602cb9b3123c3fc))
+* serve custom chart subtotals in the Explorer authoring preview ([#30154](https://github.com/lightdash/lightdash/issues/30154)) ([3a5e891](https://github.com/lightdash/lightdash/commit/3a5e8913e59dddf40217dacb20611a42f0f57d9d))
+* show hierarchy changes in chart type version history ([#30155](https://github.com/lightdash/lightdash/issues/30155)) ([9671c7b](https://github.com/lightdash/lightdash/commit/9671c7b84bbb0b8f10e397fc054e05a140323c30))
+
 # [2.364.0](https://github.com/lightdash/lightdash/compare/2.363.0...2.364.0) (2026-09-29)
 
 

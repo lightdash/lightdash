@@ -18674,6 +18674,12 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 inputGuidance: { dataType: 'string' },
+                hierarchy: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        field: { dataType: 'string', required: true },
+                    },
+                },
                 colorPalette: {
                     dataType: 'union',
                     subSchemas: [
