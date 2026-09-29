@@ -49,7 +49,7 @@ The plan action creates the pin commit through the GitHub API, so GitHub verifie
 | `hold_reminder_interval` | `LIGHTDASH_HOLD_REMINDER_INTERVAL` | Minimum time between repeated `[upgrade-hold]` Slack messages for one held pull request. Accepts seconds or an `s`, `m`, or `h` suffix and defaults to `24h`. `0` disables reminders. |
 | `anthropic_api_key` | `ANTHROPIC_API_KEY` secret | Optional Anthropic API key. When set, a held pull request gains one Claude-written paragraph above the release facts. Empty, and the section is facts only. |
 
-The composite actions also take `github_token`. The verify action receives `deploy_run_url`, `deploy_conclusion`, and `deployed_sha` from `workflow_run`; customers normally leave those template expressions unchanged. The freeze announcer receives issue-event metadata from the workflow and sends its optional Slack notification through the same `escalation` webhook.
+The composite actions also take `github_token`. The verify action receives `deploy_run_url`, `deploy_conclusion`, and `deployed_sha` from `workflow_run`; customers normally leave those template expressions unchanged. When one deployment run deploys several instances, set the verify action's optional `deploy_job_name` to this instance's job name. Verification then uses that job's conclusion, so another instance's failed job does not freeze this one. A skipped job is verified from the running version, and a job that cannot be read falls back to the run conclusion. The freeze announcer receives issue-event metadata from the workflow and sends its optional Slack notification through the same `escalation` webhook.
 
 ## Plan outputs
 

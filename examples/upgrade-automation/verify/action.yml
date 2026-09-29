@@ -37,6 +37,10 @@ inputs:
   deploy_conclusion:
     description: Conclusion of the completed deployment workflow run
     required: true
+  deploy_job_name:
+    description: Optional name of this instance's job in the deployment workflow run; when set, verification uses that job's conclusion instead of the run conclusion, so another instance's failed job does not fail this one
+    required: false
+    default: ''
   deployed_sha:
     description: Commit SHA deployed by the completed workflow run
     required: true
@@ -59,6 +63,7 @@ runs:
         FREEZE_LABEL: ${{ inputs.freeze_label }}
         DEPLOY_RUN_URL: ${{ inputs.deploy_run_url }}
         DEPLOY_CONCLUSION: ${{ inputs.deploy_conclusion }}
+        DEPLOY_JOB_NAME: ${{ inputs.deploy_job_name }}
         DEPLOYED_SHA: ${{ inputs.deployed_sha }}
         GH_TOKEN: ${{ inputs.github_token }}
       run: "$GITHUB_ACTION_PATH/../scripts/verify.sh"
