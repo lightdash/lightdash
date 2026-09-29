@@ -170,6 +170,7 @@ const buildService = (role: SpaceMemberRole) => {
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
         coderService: {} as never,
+        documentService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,

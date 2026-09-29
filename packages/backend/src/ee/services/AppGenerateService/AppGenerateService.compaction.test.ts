@@ -127,6 +127,7 @@ function buildService(
         savedChartService: {} as never,
         spacePermissionService: {} as never,
         coderService: {} as never,
+        documentService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,

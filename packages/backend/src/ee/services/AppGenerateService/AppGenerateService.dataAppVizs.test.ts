@@ -75,6 +75,7 @@ function buildService(
     overrides: {
         savedChartModel?: unknown;
         savedChartService?: unknown;
+        documentService?: unknown;
         featureFlags?: Record<string, boolean>;
     } = {},
 ) {
@@ -120,6 +121,7 @@ function buildService(
             }),
         } as never,
         coderService: {} as never,
+        documentService: (overrides.documentService ?? {}) as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -719,6 +721,198 @@ describe('AppGenerateService data app vizs', () => {
                     },
                 }),
             },
+        });
+
+        describe('rendering a Document chart', () => {
+            const ACCOUNT = {
+                user: { userUuid: 'reader-1' },
+                organization: { organizationUuid: 'org-1' },
+            } as never;
+            const reference = {
+                documentUuid: 'document-1',
+                versionUuid: 'document-version-3',
+                cellIndex: 2,
+            };
+            const documentDeps = (
+                chartConfig: unknown = {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'data-app-viz-1',
+                        dataAppVizSlug: 'radial-gauge',
+                        dataAppVizVersion: 2,
+                        fieldMapping: {},
+                    },
+                },
+                getChartCell = vi.fn().mockResolvedValue({
+                    source: 'semantic',
+                    chart: { chartConfig },
+                }),
+            ) => ({ documentService: { getChartCell }, getChartCell });
+            const pinnedAppModel = () => ({
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            });
+
+            it('mints a reader token for the version the Document cell pins', async () => {
+                const appModel = pinnedAppModel();
+                const { getChartCell, ...deps } = documentDeps();
+                const service = buildService(appModel, deps);
+
+                const token = await service.getDocumentDataAppVizPreviewToken(
+                    ACCOUNT,
+                    'project-1',
+                    reference,
+                    'data-app-viz-1',
+                    2,
+                );
+
+                expect(getChartCell).toHaveBeenCalledWith(
+                    ACCOUNT,
+                    'project-1',
+                    reference,
+                );
+                expect(
+                    verifyPreviewToken(
+                        token,
+                        testLightdashSecrets,
+                        'data-app-viz-1',
+                        2,
+                    ),
+                ).toMatchObject({
+                    ok: true,
+                    payload: {
+                        appUuid: 'data-app-viz-1',
+                        version: 2,
+                        userUuid: 'reader-1',
+                        organizationUuid: 'org-1',
+                        projectUuid: 'project-1',
+                    },
+                });
+            });
+
+            it('renders the version the Document cell pins', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(appModel, documentDeps());
+
+                await expect(
+                    service.getDocumentDataAppVizRenderMetadata(
+                        ACCOUNT,
+                        'project-1',
+                        reference,
+                        'data-app-viz-1',
+                    ),
+                ).resolves.toMatchObject({ state: 'ready', version: 2 });
+                expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+            });
+
+            it('propagates the Document denial and mints no token', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(
+                    appModel,
+                    documentDeps(
+                        undefined,
+                        vi
+                            .fn()
+                            .mockRejectedValue(
+                                new NotFoundError('Document not found'),
+                            ),
+                    ),
+                );
+
+                await expect(
+                    service.getDocumentDataAppVizPreviewToken(
+                        ACCOUNT,
+                        'project-1',
+                        reference,
+                        'data-app-viz-1',
+                        2,
+                    ),
+                ).rejects.toThrow(NotFoundError);
+                expect(appModel.getVersion).not.toHaveBeenCalled();
+            });
+
+            it.each([
+                ['another viz', 'another-viz'],
+                ['a built-in chart', undefined],
+            ])(
+                'rejects a cell that renders %s',
+                async (_case, dataAppVizUuid) => {
+                    const appModel = pinnedAppModel();
+                    const service = buildService(
+                        appModel,
+                        documentDeps(
+                            dataAppVizUuid
+                                ? {
+                                      type: ChartType.DATA_APP_VIZ,
+                                      config: {
+                                          dataAppVizUuid,
+                                          fieldMapping: {},
+                                      },
+                                  }
+                                : { type: ChartType.TABLE },
+                        ),
+                    );
+
+                    await expect(
+                        service.getDocumentDataAppVizPreviewToken(
+                            ACCOUNT,
+                            'project-1',
+                            reference,
+                            'data-app-viz-1',
+                            2,
+                        ),
+                    ).rejects.toThrow(
+                        'Not authorized to access this visualization',
+                    );
+                    expect(appModel.getVersion).not.toHaveBeenCalled();
+                },
+            );
+
+            it('rejects a token for a version other than the cell pin', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(appModel, documentDeps());
+
+                await expect(
+                    service.getDocumentDataAppVizPreviewToken(
+                        ACCOUNT,
+                        'project-1',
+                        reference,
+                        'data-app-viz-1',
+                        4,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(appModel.getVersion).not.toHaveBeenCalled();
+            });
+
+            it('stays off when chart types are disabled', async () => {
+                const appModel = pinnedAppModel();
+                const { getChartCell, ...deps } = documentDeps();
+                const service = buildService(appModel, {
+                    ...deps,
+                    featureFlags: {
+                        [FeatureFlags.EnableDataApps]: false,
+                        [FeatureFlags.ChartTypeRegistry]: false,
+                    },
+                });
+
+                await expect(
+                    service.getDocumentDataAppVizPreviewToken(
+                        ACCOUNT,
+                        'project-1',
+                        reference,
+                        'data-app-viz-1',
+                        2,
+                    ),
+                ).rejects.toThrow();
+                expect(getChartCell).not.toHaveBeenCalled();
+            });
         });
 
         it('lets an interactive viewer preview a viz while authoring', async () => {

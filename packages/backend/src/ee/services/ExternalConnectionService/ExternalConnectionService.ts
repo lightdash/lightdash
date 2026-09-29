@@ -757,7 +757,7 @@ export class ExternalConnectionService extends BaseService {
                 throw error;
             }
             await this.appGenerateService.assertCanAccessDataAppVisualization(
-                user,
+                account,
                 projectUuid,
                 appUuid,
                 chartContext,

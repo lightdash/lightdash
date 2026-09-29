@@ -43,6 +43,7 @@ import {
     getContentAsCodePathFromLtreePath,
     getCustomSqlFieldKey,
     getDataAppVizPreviewSchema,
+    getDocumentRuntimeChartConfig,
     getEffectiveFieldAiHints,
     getErrorMessage,
     getSdkFeaturesForTarget,
@@ -52,6 +53,7 @@ import {
     isDashboardChartTileType,
     isDataAppAutoAnalysis,
     isExploreError,
+    isExternalFetchDocumentContext,
     isSemverVersion,
     isValidDataAppSlug,
     MAX_APP_FILES_PER_VERSION,
@@ -126,6 +128,7 @@ import {
     type DataAppVizSchema,
     type DataAppVizsFilter,
     type DataAppVizUpgradeImpact,
+    type DocumentQueryReference,
     type EmbedProjectApp,
     type Explore,
     type ExternalConnectionMethod,
@@ -142,6 +145,7 @@ import {
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type RegisteredAccount,
     type RegistryChartTypeListItem,
     type RegistryChartTypeState,
     type SavedChart,
@@ -171,7 +175,7 @@ import {
     type DataAppUploadIdentitySource,
     type DataAppUploadRejectedEvent,
 } from '../../../analytics/LightdashAnalytics';
-import { fromSession } from '../../../auth/account';
+import { fromSession, toSessionUser } from '../../../auth/account';
 import { createObjectUrlSigner } from '../../../clients/Aws/ObjectUrlSigner';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -210,6 +214,7 @@ import {
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
+import type { DocumentService } from '../../../services/DocumentService/DocumentService';
 import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
@@ -456,6 +461,7 @@ type AppGenerateServiceDeps = {
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
     coderService: CoderService;
+    documentService: DocumentService;
     dashboardService: DashboardService;
     projectService: ProjectService;
     promoteService: PromoteService;
@@ -774,6 +780,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly coderService: CoderService;
 
+    private readonly documentService: DocumentService;
+
     private readonly dashboardService: DashboardService;
 
     private readonly projectService: ProjectService;
@@ -817,6 +825,7 @@ export class AppGenerateService extends BaseService {
         savedChartService,
         spacePermissionService,
         coderService,
+        documentService,
         dashboardService,
         projectService,
         promoteService,
@@ -846,6 +855,7 @@ export class AppGenerateService extends BaseService {
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
         this.coderService = coderService;
+        this.documentService = documentService;
         this.dashboardService = dashboardService;
         this.projectService = projectService;
         this.promoteService = promoteService;
@@ -10346,11 +10356,25 @@ export class AppGenerateService extends BaseService {
     }
 
     async assertCanAccessDataAppVisualization(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         dataAppVizUuid: string,
         chartContext: ExternalFetchRequest['chartContext'],
     ): Promise<void> {
+        if (isExternalFetchDocumentContext(chartContext)) {
+            await this.getAuthorizedDataAppVizForDocument(
+                account,
+                projectUuid,
+                {
+                    documentUuid: chartContext.documentUuid,
+                    versionUuid: chartContext.documentVersionUuid,
+                    cellIndex: chartContext.cellIndex,
+                },
+                dataAppVizUuid,
+            );
+            return;
+        }
+        const user = toSessionUser(account);
         if (chartContext) {
             await this.getAuthorizedDataAppVizForChart(
                 user,
@@ -10366,6 +10390,49 @@ export class AppGenerateService extends BaseService {
                 dataAppVizUuid,
             );
         }
+    }
+
+    /**
+     * Viewing a Document chart that renders this viz. Authorization follows
+     * the Document, and the requested cell of the requested Document version
+     * must actually reference the viz, so a viewer can only render what the
+     * Document shows.
+     */
+    private async getAuthorizedDataAppVizForDocument(
+        account: RegisteredAccount,
+        projectUuid: string,
+        reference: DocumentQueryReference,
+        dataAppVizUuid: string,
+    ) {
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        await assertChartTypesEnabled(this.featureFlagModel, {
+            userUuid: account.user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+        });
+
+        const { chart } = await this.documentService.getChartCell(
+            account,
+            projectUuid,
+            reference,
+        );
+        if (
+            chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
+        ) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
+
+        return {
+            dataAppViz,
+            chartConfig: getDocumentRuntimeChartConfig(chart.chartConfig),
+        };
     }
 
     private resolveVizRenderMetadata(
@@ -10473,6 +10540,60 @@ export class AppGenerateService extends BaseService {
             dataAppViz.app_id,
             version,
             user.userUuid,
+            dataAppViz.organization_uuid,
+            projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
+        );
+    }
+
+    async getDocumentDataAppVizRenderMetadata(
+        account: RegisteredAccount,
+        projectUuid: string,
+        reference: DocumentQueryReference,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const { dataAppViz, chartConfig } =
+            await this.getAuthorizedDataAppVizForDocument(
+                account,
+                projectUuid,
+                reference,
+                dataAppVizUuid,
+            );
+        return this.resolveVizRenderMetadata(
+            dataAppViz.app_id,
+            getDataAppVizVersionPin(chartConfig),
+        );
+    }
+
+    async getDocumentDataAppVizPreviewToken(
+        account: RegisteredAccount,
+        projectUuid: string,
+        reference: DocumentQueryReference,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        const { dataAppViz, chartConfig } =
+            await this.getAuthorizedDataAppVizForDocument(
+                account,
+                projectUuid,
+                reference,
+                dataAppVizUuid,
+            );
+
+        await assertDataAppVizPreviewVersionAllowed(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+            getDataAppVizVersionPin(chartConfig),
+        );
+
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecrets,
+            dataAppViz.app_id,
+            version,
+            account.user.userUuid,
             dataAppViz.organization_uuid,
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(
