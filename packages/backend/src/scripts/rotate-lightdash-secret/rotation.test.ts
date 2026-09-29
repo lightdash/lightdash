@@ -72,6 +72,7 @@ describe('ciphertext registry', () => {
             'organization_sso_configurations.config',
             'embedding.encoded_secret',
             'managed_agent_settings.service_account_token',
+            'mobile_setup_codes.verification_code_encrypted',
             'mobile_push_installations.encrypted_device_token',
             'mobile_push_installations.encrypted_push_to_start_token',
             'ai_agent_live_activities.encrypted_push_token',

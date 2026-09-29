@@ -1,4 +1,8 @@
-import { AnyType, TOKEN_EXCHANGE_GRANT_TYPE } from '@lightdash/common';
+import {
+    AnyType,
+    MOBILE_SETUP_CODE_GRANT_TYPE,
+    TOKEN_EXCHANGE_GRANT_TYPE,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { type LightdashConfig } from '../config/parseConfig';
@@ -314,6 +318,7 @@ describe('OAuth2Model.getClient token exchange grant', () => {
             'authorization_code',
             'refresh_token',
             TOKEN_EXCHANGE_GRANT_TYPE,
+            MOBILE_SETUP_CODE_GRANT_TYPE,
         ]);
     });
 
@@ -341,6 +346,7 @@ describe('OAuth2Model.getClient token exchange grant', () => {
         expect(client && client.grants).toEqual([
             'refresh_token',
             TOKEN_EXCHANGE_GRANT_TYPE,
+            MOBILE_SETUP_CODE_GRANT_TYPE,
         ]);
     });
 });

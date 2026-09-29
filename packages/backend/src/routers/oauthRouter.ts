@@ -4,6 +4,8 @@ import {
     generateOAuthRedirectPage,
     getErrorMessage,
     isManagedSignInError,
+    MOBILE_SETUP_CODE_GRANT_TYPE,
+    MobileSetupCodeError,
     OAuthIntrospectResponse,
     parseScopeString,
     type OAuthUserInfoResponse,
@@ -16,7 +18,9 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
+import { createMobileSetupRateLimit } from '../middlewares/mobileSetupRateLimit';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
+import { MobileSetupRejection } from '../services/MobileSetupService/MobileSetupRejection';
 import {
     OAuthScope,
     OAuthService,
@@ -296,8 +300,33 @@ oauthRouter.post('/authorize', async (req, res) => {
     }
 });
 
+oauthRouter.post(
+    '/mobile-setup/challenge',
+    createMobileSetupRateLimit(),
+    async (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        res.set('Pragma', 'no-cache');
+        try {
+            const result = await getOAuthService(req).beginMobileSetupChallenge(
+                req.body ?? {},
+            );
+            res.json(result);
+        } catch (error) {
+            res.status(400).json({
+                error: 'invalid_grant',
+                error_description:
+                    error instanceof MobileSetupRejection
+                        ? error.code
+                        : MobileSetupCodeError.UNKNOWN,
+            });
+        }
+    },
+);
+
 // Post token - use OAuth2Server
 oauthRouter.post('/token', async (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    res.set('Pragma', 'no-cache');
     const oauthService = getOAuthService(req);
 
     const oauthReq = new OAuth2Server.Request(req);
@@ -306,6 +335,9 @@ oauthRouter.post('/token', async (req, res, next) => {
     try {
         const token = await oauthService.token(oauthReq, oauthRes);
         res.json({
+            ...(typeof token.lightdash_project_uuid === 'string'
+                ? { lightdash_project_uuid: token.lightdash_project_uuid }
+                : {}),
             access_token: token.accessToken,
             token_type: 'Bearer',
             expires_in: token.accessTokenExpiresAt
@@ -565,6 +597,7 @@ export function oauthConfig(baseUrl: string) {
             'authorization_code',
             'refresh_token',
             'client_credentials',
+            MOBILE_SETUP_CODE_GRANT_TYPE,
         ],
         token_endpoint_auth_methods_supported: [
             'client_secret_basic',

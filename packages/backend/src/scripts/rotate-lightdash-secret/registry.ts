@@ -107,6 +107,11 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'service_account_token',
     },
     {
+        table: 'mobile_setup_codes',
+        primaryKeyColumn: 'mobile_setup_code_uuid',
+        column: 'verification_code_encrypted',
+    },
+    {
         table: 'mobile_push_installations',
         primaryKeyColumn: 'mobile_push_installation_uuid',
         column: 'encrypted_device_token',

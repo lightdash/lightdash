@@ -284,6 +284,11 @@ import type {
     ApiMetricsExplorerTotalResults,
 } from './metricsExplorer';
 import {
+    type ApiMobileSetupCodeMintResponse,
+    type ApiMobileSetupCodeStatusResponse,
+    type MobileAppHealth,
+} from './mobileSetup';
+import {
     type CreateOAuthClientResponse,
     type OAuthClientSummary,
 } from './oauth';
@@ -661,6 +666,7 @@ export type HealthState = {
             ios: string | null;
         };
     };
+    mobileApp: MobileAppHealth;
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
@@ -1662,6 +1668,8 @@ type ApiResults =
     | ApiResultsCacheProjectSettingsResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
+    | ApiMobileSetupCodeMintResponse['results']
+    | ApiMobileSetupCodeStatusResponse['results']
     | ApiContentVerificationDeleteResponse['results']
     | ApiVerifiedContentListResponse['results']
     | OAuthClientSummary[]

@@ -15,6 +15,7 @@ import * as expressWinston from 'express-winston';
 import ExecutionContext from 'node-execution-context';
 import * as winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { sanitizeRequestUrl } from '../utils/sanitizeAuthTelemetry';
 import { AuditActor, AuditLogEvent, AuditResource } from './auditLog';
 
 const levels = {
@@ -287,8 +288,7 @@ declare global {
     }
 }
 
-export const sanitizeRequestUrl = (url: string): string =>
-    url.replace(/([?&]downloadToken=)[^&#\s]*/gi, '$1[REDACTED]');
+export { sanitizeRequestUrl } from '../utils/sanitizeAuthTelemetry';
 
 const safeRequestHeaderNames = new Set([
     'content-length',

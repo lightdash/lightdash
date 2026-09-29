@@ -1,0 +1,15 @@
+/* Cameras need dark-on-light, so the code keeps a white surface in both schemes. */
+.surface {
+    background-color: #ffffff;
+    border-radius: var(--mantine-radius-default);
+    padding: var(--mantine-spacing-md);
+    width: fit-content;
+    line-height: 0;
+}
+
+.surface svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 220px;
+}

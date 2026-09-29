@@ -18,6 +18,13 @@ export default function mockHealthResponse(
                 ios: null,
             },
         },
+        mobileApp: {
+            enabled: false,
+            setupLinkBaseUrl: 'http://localhost:3000/mobile-setup',
+            appStoreUrl: null,
+            playStoreUrl:
+                'https://play.google.com/store/apps/details?id=com.lightdash.mobile',
+        },
         localDbtEnabled: true,
         isAuthenticated: true,
         requiresOrgRegistration: false,

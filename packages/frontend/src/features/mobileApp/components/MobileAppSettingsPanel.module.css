@@ -1,0 +1,14 @@
+.qrPlaceholder {
+    width: 252px;
+    height: 252px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-default);
+}
+
+.verificationCode {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: calc(var(--mantine-font-size-xl) * 2);
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    font-variant-numeric: tabular-nums;
+}

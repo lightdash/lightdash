@@ -21,6 +21,13 @@ export const BaseResponse: HealthState = {
             ios: null,
         },
     },
+    mobileApp: {
+        enabled: false,
+        setupLinkBaseUrl: 'https://test.lightdash.cloud/mobile-setup',
+        appStoreUrl: null,
+        playStoreUrl:
+            'https://play.google.com/store/apps/details?id=com.lightdash.mobile',
+    },
     isAuthenticated: false,
     requiresOrgRegistration: false,
     localDbtEnabled: true,

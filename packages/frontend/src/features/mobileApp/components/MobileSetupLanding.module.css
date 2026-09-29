@@ -1,0 +1,19 @@
+.page {
+    min-height: 100vh;
+    background-color: var(--ld-color-page);
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+}
+
+.content {
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.origin {
+    width: 100%;
+}
+
+/* An instance origin can be long; never let it push the page sideways. */
+.originValue {
+    overflow-wrap: anywhere;
+}

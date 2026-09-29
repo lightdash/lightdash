@@ -21,3 +21,16 @@ describe('sanitizeRequestUrl', () => {
         );
     });
 });
+
+it.each(['c', 'code', 'code_verifier', 'verification_code'])(
+    'redacts setup secret %s',
+    (key) => {
+        expect(
+            sanitizeRequestUrl(
+                `/mobile-setup?v=2&${key}=secret&i=https%3A%2F%2Fexample.com`,
+            ),
+        ).toBe(
+            `/mobile-setup?v=2&${key}=[REDACTED]&i=https%3A%2F%2Fexample.com`,
+        );
+    },
+);

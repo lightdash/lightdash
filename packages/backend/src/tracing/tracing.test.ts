@@ -547,3 +547,26 @@ describe('LightdashTraceContextPropagator', () => {
         });
     });
 });
+
+describe('mobile setup trace privacy', () => {
+    it.each([
+        '/mobile-setup?c=secret',
+        '/api/v1/oauth/mobile-setup/challenge',
+        '/api/v1/oauth/token',
+        '/api/v1/oauth/revoke',
+    ])('does not trace %s', (url) => {
+        const http = createOtelInstrumentations().find(
+            ({ instrumentationName }) =>
+                instrumentationName === '@opentelemetry/instrumentation-http',
+        );
+        const configuration = http?.getConfig() as {
+            ignoreIncomingRequestHook: (request: {
+                url: string;
+                headers: Record<string, string>;
+            }) => boolean;
+        };
+        expect(
+            configuration.ignoreIncomingRequestHook({ url, headers: {} }),
+        ).toBe(true);
+    });
+});
