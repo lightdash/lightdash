@@ -1,3 +1,10 @@
+## [2.362.1](https://github.com/lightdash/lightdash/compare/2.362.0...2.362.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **upgrade-automation:** name the frozen instance in freeze announcements ([#30152](https://github.com/lightdash/lightdash/issues/30152)) ([290f11e](https://github.com/lightdash/lightdash/commit/290f11e7ec57eac925aa87a8f00c7b1bf5426720))
+
 # [2.362.0](https://github.com/lightdash/lightdash/compare/2.361.2...2.362.0) (2026-09-29)
 
 
