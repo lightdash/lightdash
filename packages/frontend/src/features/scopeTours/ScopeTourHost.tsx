@@ -29,6 +29,7 @@ import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
+import { libraryPath } from '../learn/libraryFilters';
 import { readLearnOrigin } from '../learn/origin';
 import { useLearnProgress, useLearnProgressActions } from '../learn/progress';
 import { tourFor } from './tourFor';
@@ -311,7 +312,9 @@ const ScopeTourHost: FC = () => {
             return;
         }
         void leaveCopy(
-            `/projects/${returnProject}/${returnTo === 'learn' ? 'learn' : 'home'}`,
+            returnTo === 'learn'
+                ? libraryPath(returnProject ?? upstream)
+                : `/projects/${returnProject}/home`,
             upstream,
         );
     };
@@ -331,7 +334,7 @@ const ScopeTourHost: FC = () => {
     const handleBackToLibrary = () => {
         if (!upstream) return;
         setFinishedScope(null);
-        void leaveCopy(`/projects/${returnProject}/learn`, upstream);
+        void leaveCopy(libraryPath(returnProject ?? upstream), upstream);
     };
     // One copy per tour start. `isLoading` is not set synchronously, and the
     // effect below re-runs as its inputs settle, so a ref does the gating; a

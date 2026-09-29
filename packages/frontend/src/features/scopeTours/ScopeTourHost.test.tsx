@@ -126,10 +126,21 @@ vi.mock('./trainingCopy', () => ({
 }));
 
 vi.mock('../learn/LearnDoneModal', () => ({
-    LearnDoneModal: ({ onNext }: { onNext: (scope: string) => void }) => (
-        <button type="button" onClick={() => onNext(NEXT_SCOPE)}>
-            next module
-        </button>
+    LearnDoneModal: ({
+        onNext,
+        onBack,
+    }: {
+        onNext: (scope: string) => void;
+        onBack: () => void;
+    }) => (
+        <>
+            <button type="button" onClick={() => onNext(NEXT_SCOPE)}>
+                next module
+            </button>
+            <button type="button" onClick={onBack}>
+                back to library
+            </button>
+        </>
     ),
 }));
 
@@ -302,6 +313,34 @@ describe('ScopeTourHost analytics', () => {
         fireEvent.click(screen.getByText('next module'));
 
         expect(learnEvents()[1].properties).toMatchObject({ isRestart: true });
+    });
+
+    it('returns to the library as the learner left it', () => {
+        sessionStorage.setItem(
+            'lightdash.learn.librarySearch',
+            '?extra=1&group=developer',
+        );
+        renderHost();
+
+        fireEvent.click(screen.getByText('got it'));
+        fireEvent.click(screen.getByText('back to library'));
+
+        expect(navigate).toHaveBeenCalledWith(
+            '/projects/training-1/learn?extra=1&group=developer',
+            expect.anything(),
+        );
+    });
+
+    it('returns to the library as the learner left it on skip', () => {
+        sessionStorage.setItem('lightdash.learn.librarySearch', '?extra=1');
+        renderHost();
+
+        fireEvent.click(screen.getByText('skip'));
+
+        expect(navigate).toHaveBeenCalledWith(
+            '/projects/training-1/learn?extra=1',
+            expect.anything(),
+        );
     });
 
     it('ends the tour as a dismissal when the learner goes back to the library', () => {

@@ -27,6 +27,7 @@ import InlineErrorState from '../../components/common/InlineErrorState';
 import ResizableSplitter from '../../components/common/ResizableSplitter';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import { libraryPath } from '../learn/libraryFilters';
 import FileTree from './FileTree';
 import { useCommandOutput } from './hooks/useCommandOutput';
 import { useRunCommand } from './hooks/useRunCommand';
@@ -292,7 +293,7 @@ const Workspace: FC<WorkspaceProps> = ({
                 </Group>
                 <Anchor
                     component={Link}
-                    to={`/projects/${trainingProjectUuid}/learn`}
+                    to={libraryPath(trainingProjectUuid)}
                     fz="sm"
                     data-learn-back-to-library
                 >
