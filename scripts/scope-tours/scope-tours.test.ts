@@ -683,13 +683,45 @@ export const Card = () => (
     }
 
     {
-        // A page's concept comes from its title, and the title is usually the
-        // first line of the frontmatter. Reading it with a pattern that wants
-        // a newline in front returns nothing for every page, and the teaching
-        // order silently degrades to a tie-break instead of failing.
-        const { conceptOf } = await import('./order');
-        assert.strictEqual(conceptOf('explore/homepage'), 'homepage');
-        assert.strictEqual(conceptOf('explore/no-such-page'), undefined);
+        // The teaching order is the docs sidebar: a group's landing page
+        // before the pages under it, nested groups in place, tabs in turn.
+        const { navOrder } = await import('./order');
+        writeFileSync(
+            path.join(docs, 'docs.json'),
+            JSON.stringify({
+                navigation: {
+                    tabs: [
+                        {
+                            tab: 'Docs',
+                            groups: [
+                                {
+                                    group: 'Explore',
+                                    pages: [
+                                        'explore/dashboards',
+                                        {
+                                            group: 'Metrics catalog',
+                                            root: 'explore/metrics-catalog',
+                                            pages: [
+                                                'explore/metrics-catalog/trees',
+                                            ],
+                                        },
+                                        'explore/homepage',
+                                    ],
+                                },
+                            ],
+                        },
+                        { tab: 'AI', pages: ['agents'] },
+                    ],
+                },
+            }),
+        );
+        assert.deepStrictEqual(navOrder(), [
+            'explore/dashboards',
+            'explore/metrics-catalog',
+            'explore/metrics-catalog/trees',
+            'explore/homepage',
+            'agents',
+        ]);
     }
 
     // A lesson becomes a fixed twelve-step tour over the workspace and the explore.

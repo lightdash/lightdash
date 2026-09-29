@@ -1,16 +1,11 @@
 /**
- * A teaching order for the Learn library, inferred from the docs.
+ * A teaching order for the Learn library, read from the docs' navigation.
  *
- * The library sorts alphabetically inside each section, which tells a learner
- * nothing about what to do first. The docs do not state prerequisites and
- * their links mean "see also", so neither can be read as a curriculum. What
- * the prose does carry is which concept leans on which: each docs page owns
- * a concept named by its own title, and a page that repeatedly reaches for
- * another page's concept without being reached for in return is the later
- * lesson. That asymmetry is the order.
- *
- * Sections stay as the library already has them, so Foundations resolve
- * before anything else and the inference only orders within a section.
+ * The docs sidebar (docs.json) is the order the docs authors chose to
+ * present each topic in. The library keeps its own sections, so Foundations
+ * resolve before anything else, and within a section modules follow the
+ * sidebar position of the docs page they cite, then that page's own heading
+ * order.
  *
  * Writes the order the library sorts by. Run it when the markers or the docs
  * change; CI regenerates and fails on a diff, as it does for the tours.
@@ -28,49 +23,24 @@ import {
 } from '../../packages/frontend/src/features/learn/catalogue';
 import { docsDir, findMarkers, frontendSrc, listTsx, slugify } from './lib';
 
-/** Words that name the act of using a feature, never the feature itself. */
-const TITLE_VERBS = new Set([
-    'a',
-    'an',
-    'and',
-    'build',
-    'building',
-    'create',
-    'creating',
-    'curate',
-    'for',
-    'how',
-    'in',
-    'interacting',
-    'of',
-    'on',
-    'set',
-    'share',
-    'sharing',
-    'the',
-    'to',
-    'up',
-    'use',
-    'using',
-    'with',
-    'work',
-    'working',
-    'your',
-]);
-
-const body = (page: string): string => {
+/**
+ * A docs page's headings, in page order, as anchors. Code blocks are
+ * skipped, and link targets and tags removed so a heading slugs as it reads.
+ */
+const headingsOf = (page: string): string[] => {
+    let source: string;
     try {
-        return readFileSync(path.join(docsDir, `${page}.mdx`), 'utf8')
-            .replace(/```[\s\S]*?```/g, '')
-            // Link targets and image paths repeat the words of the prose
-            // around them, so a single cross-reference would otherwise read
-            // as the page returning to that concept.
-            .replace(/\]\([^)]*\)/g, ']')
-            .replace(/<[^>]*>/g, ' ')
-            .toLowerCase();
+        source = readFileSync(path.join(docsDir, `${page}.mdx`), 'utf8');
     } catch {
-        return '';
+        return [];
     }
+    return source
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/\]\([^)]*\)/g, ']')
+        .replace(/<[^>]*>/g, ' ')
+        .split('\n')
+        .filter((line) => /^#{2,3} /.test(line))
+        .map((line) => slugify(line.replace(/^#+ /, '').trim()));
 };
 
 /** Where a walkthrough opens in the docs: the page and heading it first cites. */
@@ -108,131 +78,68 @@ export const citationForScope = (): Map<string, Citation> => {
  */
 export const headingRank = (page: string, anchor: string): number => {
     if (!anchor || anchor === 'intro') return 0;
-    const headings = body(page)
-        .split('\n')
-        .filter((line) => /^#{2,3} /.test(line))
-        .map((line) => slugify(line.replace(/^#+ /, '').trim()));
+    const headings = headingsOf(page);
     const at = headings.indexOf(anchor);
     return at < 0 ? headings.length : at + 1;
 };
 
 /**
- * The concept a docs page owns, from its own title: the nouns left once the
- * verbs of doing are removed. "Interacting with dashboards" owns dashboards.
+ * Every page in the docs sidebar, top to bottom. A group's landing page
+ * (`root`) comes before the pages under it.
  */
-export const conceptOf = (page: string): string | undefined => {
-    let source: string;
-    try {
-        source = readFileSync(path.join(docsDir, `${page}.mdx`), 'utf8');
-    } catch {
-        return undefined;
-    }
-    const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1];
-    const title = frontmatter
-        ?.match(/^title:\s*"?([^"\n]+?)"?\s*$/m)?.[1]
-        ?.trim();
-    if (!title) return undefined;
-    const words = title
-        .toLowerCase()
-        .replace(/[^a-z ]/g, ' ')
-        .split(/\s+/)
-        .filter((word) => word.length > 0 && !TITLE_VERBS.has(word));
-    if (words.length === 0) return undefined;
-    return words.slice(-2).join(' ');
+export const navOrder = (): string[] => {
+    const config = JSON.parse(
+        readFileSync(path.join(docsDir, 'docs.json'), 'utf8'),
+    ) as { navigation?: unknown };
+    const pages: string[] = [];
+    const walk = (node: unknown): void => {
+        if (typeof node === 'string') {
+            pages.push(node);
+        } else if (Array.isArray(node)) {
+            node.forEach(walk);
+        } else if (node && typeof node === 'object') {
+            const entry = node as Record<string, unknown>;
+            if (typeof entry.root === 'string') pages.push(entry.root);
+            [
+                'navigation',
+                'languages',
+                'versions',
+                'tabs',
+                'dropdowns',
+                'anchors',
+                'groups',
+                'pages',
+            ].forEach((key) => walk(entry[key]));
+        }
+    };
+    walk(config.navigation);
+    return pages;
 };
 
 /**
- * How many of a page's sentences reach for a concept. Counting sentences
- * rather than words is what separates a page explaining itself in another
- * page's terms from one that names it once on the way past.
- */
-const mentions = (text: string, concept: string): number => {
-    const pattern = new RegExp(`\\b${concept.replace(/ /g, '\\s+')}s?\\b`);
-    return text
-        .split(/(?<=[.!?])\s+|\n/)
-        .filter((sentence) => pattern.test(sentence)).length;
-};
-
-/**
- * Pages b that page a leans on: a reaches for b's concept at least twice and
- * more than twice as often as b reaches back. The margin keeps a passing
- * mention from reading as a dependency.
- */
-export const leansOn = (pages: string[]): Map<string, Set<string>> => {
-    const concept = new Map(
-        pages.map((page) => [page, conceptOf(page)] as const),
-    );
-    const text = new Map(pages.map((page) => [page, body(page)] as const));
-    return new Map(
-        pages.map((a) => {
-            const deps = new Set<string>();
-            pages.forEach((b) => {
-                const [ca, cb] = [concept.get(a), concept.get(b)];
-                if (a === b || !ca || !cb) return;
-                // Two pages can own one concept, an overview and its detail
-                // page. The docs say which is which by nesting one under the
-                // other, and the overview is the lesson that comes first.
-                if (ca === cb) {
-                    if (a.startsWith(`${b}/`)) deps.add(b);
-                    return;
-                }
-                const forward = mentions(text.get(a) ?? '', cb);
-                const back = mentions(text.get(b) ?? '', ca);
-                if (forward >= 2 && forward > back * 2) deps.add(b);
-            });
-            return [a, deps] as const;
-        }),
-    );
-};
-
-/**
- * A section's order: its topics (the docs pages its modules cite) settled by
- * which concept leans on which, and inside a topic the docs' own heading
- * order, which is the order that page teaches its parts in.
+ * A section's order: modules by where the page they cite sits in the
+ * sidebar, then by where their heading sits on that page. A module citing
+ * no page, or a page the sidebar leaves out, sorts last.
  */
 const orderWithin = (
     modules: LearnModule[],
     cite: Map<string, Citation>,
-    deps: Map<string, Set<string>>,
+    nav: string[],
 ): LearnModule[] => {
-    const pageOf = (module: LearnModule) => cite.get(module.scope)?.page ?? '';
-    const topics = [...new Set(modules.map(pageOf))];
-    const placed = new Set<string>();
-    const ordered: string[] = [];
-    while (ordered.length < topics.length) {
-        const left = topics.filter((topic) => !placed.has(topic));
-        const unmet = (topic: string) =>
-            [...(deps.get(topic) ?? [])].filter((dep) => left.includes(dep))
-                .length;
-        const fewest = Math.min(...left.map(unmet));
-        const next = left
-            .filter((topic) => unmet(topic) === fewest)
-            .sort((a, b) => {
-                const size = (topic: string) =>
-                    Math.min(
-                        ...modules
-                            .filter((module) => pageOf(module) === topic)
-                            .map((module) => module.stepCount),
-                    );
-                return size(a) - size(b) || a.localeCompare(b);
-            })[0];
-        ordered.push(next);
-        placed.add(next);
-    }
-    return ordered.flatMap((topic) =>
-        modules
-            .filter((module) => pageOf(module) === topic)
-            .sort((a, b) => {
-                const rank = (module: LearnModule) => {
-                    const c = cite.get(module.scope);
-                    return c ? headingRank(c.page, c.anchor) : 0;
-                };
-                return (
-                    rank(a) - rank(b) ||
-                    a.stepCount - b.stepCount ||
-                    a.title.localeCompare(b.title)
-                );
-            }),
+    const position = (module: LearnModule) => {
+        const at = nav.indexOf(cite.get(module.scope)?.page ?? '');
+        return at < 0 ? nav.length : at;
+    };
+    const rank = (module: LearnModule) => {
+        const c = cite.get(module.scope);
+        return c ? headingRank(c.page, c.anchor) : 0;
+    };
+    return [...modules].sort(
+        (a, b) =>
+            position(a) - position(b) ||
+            rank(a) - rank(b) ||
+            a.stepCount - b.stepCount ||
+            a.title.localeCompare(b.title),
     );
 };
 
@@ -241,27 +148,29 @@ export const curriculum = (): LearnModule[] => {
     const modules = buildLearnCatalogue().filter(
         (module) => module.kind === 'scope' && module.available,
     );
-    const pages = [
+    const nav = navOrder();
+    // Fail loudly: a cited page missing from the sidebar sorts last, and the
+    // result still looks plausible without it.
+    const unlisted = [
         ...new Set(
             modules
                 .map((module) => cite.get(module.scope)?.page)
-                .filter((p): p is string => p !== undefined),
+                .filter(
+                    (page): page is string =>
+                        page !== undefined && !nav.includes(page),
+                ),
         ),
     ];
-    // Fail loudly: a page whose concept will not resolve contributes nothing
-    // to the order, and the result still looks plausible without it.
-    const nameless = pages.filter((page) => conceptOf(page) === undefined);
-    if (nameless.length > 0) {
+    if (unlisted.length > 0) {
         throw new Error(
-            `No concept could be read from the title of: ${nameless.join(', ')}`,
+            `Not in the docs sidebar (docs.json): ${unlisted.join(', ')}`,
         );
     }
-    const deps = leansOn(pages);
     return GROUP_ORDER.flatMap((group) =>
         orderWithin(
             modules.filter((module) => module.group === group),
             cite,
-            deps,
+            nav,
         ),
     );
 };
@@ -273,14 +182,12 @@ export const curriculumPath = path.join(
 );
 
 const fileFor = (modules: LearnModule[]): string => {
-    const lines = modules
-        .map((module) => `    '${module.scope}',`)
-        .join('\n');
+    const lines = modules.map((module) => `    '${module.scope}',`).join('\n');
     return `// Generated by scripts/scope-tours/order.ts. Do not edit by hand.
-// The order the library teaches its modules in, inferred from the docs:
-// sections as the library has them, topics within a section ordered by which
-// concept the docs lean on, and modules within a topic by the docs' own
-// heading order. A scope missing here sorts last.
+// The order the library teaches its modules in, read from the docs: sections
+// as the library has them, modules within a section by the docs sidebar
+// position of the page they cite, then by that page's heading order. A scope
+// missing here sorts last.
 export const CURRICULUM: string[] = [
 ${lines}
 ];
