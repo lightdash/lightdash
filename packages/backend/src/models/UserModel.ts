@@ -11,6 +11,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getAllScopesForRole,
+    getTrainingProjectLockedSubjects,
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
@@ -1416,6 +1417,24 @@ export class UserModel {
         };
     }
 
+    /** The organization's shared training project, if one has been provisioned. */
+    private async getOrganizationTrainingProject(
+        organizationId: number,
+        trx: Knex = this.database,
+    ): Promise<
+        | { project_uuid: string; created_by_user_uuid: string | null }
+        | undefined
+    > {
+        return trx(ProjectTableName)
+            .select<{
+                project_uuid: string;
+                created_by_user_uuid: string | null;
+            }>('project_uuid', 'created_by_user_uuid')
+            .where('organization_id', organizationId)
+            .where('project_type', ProjectType.TRAINING)
+            .first();
+    }
+
     /**
      * The organization's training project, if one has been provisioned, plus
      * this user's own preview copies of it (made for walkthroughs). Other
@@ -1432,14 +1451,10 @@ export class UserModel {
             createdByUserUuid: string | null;
         }[]
     > {
-        const training = await trx(ProjectTableName)
-            .select<{
-                project_uuid: string;
-                created_by_user_uuid: string | null;
-            }>('project_uuid', 'created_by_user_uuid')
-            .where('organization_id', organizationId)
-            .where('project_type', ProjectType.TRAINING)
-            .first();
+        const training = await this.getOrganizationTrainingProject(
+            organizationId,
+            trx,
+        );
         if (!training) {
             return [];
         }
@@ -1470,6 +1485,21 @@ export class UserModel {
     }
 
     /**
+     * Nobody writes to the shared training project, org admins and its
+     * assigned admin included: walkthrough copies are cloned from it, so a
+     * write there would reach every learner's next copy. Inverted rules
+     * override the org-wide `manage` an org admin already holds.
+     */
+    private static lockTrainingProject(
+        projectUuid: string,
+        builder: AbilityBuilder<MemberAbility>,
+    ): void {
+        getTrainingProjectLockedSubjects().forEach((lockedSubject) => {
+            builder.cannot('manage', lockedSubject, { projectUuid });
+        });
+    }
+
+    /**
      * The trainee layer: every member of an organization, whatever their org
      * role, gets `getTrainingProjectScopes()` on the org's training project
      * (`projects.project_type = 'TRAINING'`) and on their own preview copies
@@ -1487,16 +1517,26 @@ export class UserModel {
         learnEnabled: boolean,
         trx: Knex = this.database,
     ): Promise<void> {
-        // Learn off for the org: no trainee scopes, even if a training
-        // project is left over, so switching off also closes the sandbox.
-        if (!learnEnabled) return;
+        // Learn off for the org, or this user may not see Learn: no trainee
+        // scopes, so switching off also closes the sandbox. The lock still
+        // applies, so the seed cannot be edited meanwhile and then cloned
+        // once Learn is back.
         if (
+            !learnEnabled ||
             !organizationUuid ||
             builder
                 .build()
                 .cannot('view', caslSubject('Learn', { organizationUuid }))
-        )
+        ) {
+            const training = await this.getOrganizationTrainingProject(
+                organizationId,
+                trx,
+            );
+            if (training) {
+                UserModel.lockTrainingProject(training.project_uuid, builder);
+            }
             return;
+        }
         const trainingProjects = await this.getTrainingProjects(
             organizationId,
             userUuid,
@@ -1507,6 +1547,11 @@ export class UserModel {
         const viewerScopes = getTrainingProjectViewerScopes();
         const traineeScopes = getTrainingProjectScopes();
         trainingProjects.forEach((project) => {
+            // Before the viewer grants: CASL's last matching rule wins, so
+            // they re-open `view` on the locked subjects and nothing else.
+            if (project.projectType === ProjectType.TRAINING) {
+                UserModel.lockTrainingProject(project.projectUuid, builder);
+            }
             buildAbilityFromScopes(
                 {
                     projectUuid: project.projectUuid,
