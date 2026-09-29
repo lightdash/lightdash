@@ -1,5 +1,7 @@
 import {
+    ChartType,
     ConflictError,
+    ParameterError,
     toolCreateContentOutputSchema,
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolExecutionOptions } from 'ai';
@@ -28,6 +30,47 @@ const document: DocumentContentResult = {
                     type: 'markdown',
                     content: {
                         markdown: '# Findings\n\n## Detail\n\nEvidence.',
+                    },
+                },
+            ],
+        },
+    },
+};
+const customChartDocument: DocumentContentResult = {
+    ...document,
+    content: {
+        ...document.content,
+        content: {
+            cells: [
+                {
+                    type: 'chart',
+                    content: {
+                        source: 'semantic',
+                        chart: {
+                            name: 'Growth by country',
+                            tableName: 'orders',
+                            metricQuery: {
+                                exploreName: 'orders',
+                                dimensions: ['orders_country'],
+                                metrics: ['orders_growth'],
+                                filters: {},
+                                sorts: [],
+                                limit: 100,
+                                tableCalculations: [],
+                            },
+                            chartConfig: {
+                                type: ChartType.DATA_APP_VIZ,
+                                config: {
+                                    dataAppVizSlug: 'sprouts',
+                                    dataAppVizVersion: 3,
+                                    fieldMapping: {
+                                        category: 'orders_country',
+                                        value: 'orders_growth',
+                                    },
+                                    optionValues: { showStage: true },
+                                },
+                            },
+                        },
                     },
                 },
             ],
@@ -113,6 +156,49 @@ describe('AI Agent Document authoring', () => {
         expect(toolCreateContentOutputSchema.safeParse(result).success).toBe(
             true,
         );
+    });
+
+    test('creates a Document with a custom chart type by slug and version', async () => {
+        const createContent = vi.fn().mockResolvedValue(customChartDocument);
+        const tool = getCreateContent({
+            createContent,
+            documentsEnabled: true,
+        });
+        if (!tool.execute) {
+            throw new Error('Missing executor');
+        }
+        const result = await tool.execute(
+            { type: 'document', content: customChartDocument.content },
+            options,
+        );
+        expect(createContent).toHaveBeenCalledWith({
+            type: 'document',
+            content: customChartDocument.content,
+        });
+        expect(result).toMatchObject({ metadata: { status: 'success' } });
+    });
+
+    test('returns an unknown custom chart type to the model with a next step', async () => {
+        const message =
+            'Custom chart type "sprouts" was not found in this project. Install the chart type in this project, or pick a different chart type.';
+        const createContent = vi
+            .fn()
+            .mockRejectedValue(new ParameterError(message));
+        const tool = getCreateContent({
+            createContent,
+            documentsEnabled: true,
+        });
+        if (!tool.execute) {
+            throw new Error('Missing executor');
+        }
+        const result = await tool.execute(
+            { type: 'document', content: customChartDocument.content },
+            options,
+        );
+        expect(result).toMatchObject({
+            metadata: { status: 'error' },
+            result: expect.stringContaining(message),
+        });
     });
 
     test('rejects disabled creation even when called directly', async () => {

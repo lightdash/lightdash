@@ -1477,6 +1477,11 @@ export const buildPrepareStep = ({
     };
 };
 
+const isChartExportEnabled = (args: AiAgentArgs) =>
+    !!args.decisions &&
+    args.enableDataAccess &&
+    args.execution.mode === 'standard';
+
 export const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
@@ -1993,9 +1998,7 @@ export const getAgentTools = (
               }),
         generateVisualization,
         ...(runQuery ? { runQuery } : {}),
-        ...(args.decisions &&
-        args.enableDataAccess &&
-        args.execution.mode === 'standard'
+        ...(isChartExportEnabled(args)
             ? {
                   exportChartAsCode: getExportChartAsCode(
                       agentContext,
@@ -2255,6 +2258,7 @@ export const getPromptMcpServers = (
 
 const getCapabilitySectionArgs = (
     args: AiAgentArgs,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ): CapabilitySectionArgs => ({
     availableSkills: args.availableSkills,
     enableFastMetadata: !!args.decisions && args.execution.mode === 'standard',
@@ -2263,6 +2267,10 @@ const getCapabilitySectionArgs = (
         args.enableDataAccess &&
         args.enableContentTools &&
         args.enableDocuments,
+    // Custom charts reach Documents through findCustomChartTypes and
+    // exportChartAsCode, so the guidance needs both tools.
+    enableDocumentCustomCharts:
+        customChartTypeLibrary.totalCount > 0 && isChartExportEnabled(args),
     enableGenerateDataApp: args.enableGenerateDataApp,
     slackChannelId: args.slackChannelId,
     canRunSql: args.canRunSql,
@@ -2351,12 +2359,9 @@ export const getAgentMessages = (
         ...getDeepResearchInstructions(),
     ].filter((instruction): instruction is string => !!instruction);
     const systemPrompt = getSystemPromptV2({
-        ...getCapabilitySectionArgs(args),
+        ...getCapabilitySectionArgs(args, customChartTypeLibrary),
         deferredSections,
-        enableChartExport:
-            !!args.decisions &&
-            args.enableDataAccess &&
-            args.execution.mode === 'standard',
+        enableChartExport: isChartExportEnabled(args),
         agentName: args.agentSettings.name,
         instructions:
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
@@ -2564,7 +2569,7 @@ const prepareAgentTurn = async ({
         turnIntent,
         toolIntents,
         getDeferredToolInstructions(
-            getCapabilitySectionArgs(args),
+            getCapabilitySectionArgs(args, customChartTypeLibrary),
             deferredSections,
         ),
     );

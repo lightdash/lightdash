@@ -94,6 +94,37 @@ describe('MCP Document content', () => {
         ).toEqual({ type: 'document', slug: document.slug });
     });
 
+    test('preserves custom chart type references by slug and version', () => {
+        const custom = {
+            type: 'chart',
+            content: {
+                source: 'semantic',
+                chart: {
+                    ...chart,
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizSlug: 'sprouts',
+                            dataAppVizVersion: 3,
+                            fieldMapping: {
+                                category: 'orders_status',
+                                value: 'orders_count',
+                            },
+                            optionValues: { showStage: true },
+                        },
+                    },
+                },
+            },
+        };
+        const parsed = documentAsCodeSchema.parse({
+            ...document,
+            content: { cells: [custom] },
+        });
+        expect(
+            parseDocumentContent(parsed.schemaVersion, parsed.content).cells,
+        ).toEqual([custom]);
+    });
+
     test.each(['sql', 'composer', 'saved_chart', 'artifact'])(
         'rejects unsupported chart source %s',
         (source) => {
