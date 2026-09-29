@@ -40,7 +40,8 @@ type Props = {
     /** The selected project type, so its label survives a filtered page. */
     selectedDataAppViz: DataAppViz | null;
     disabled: boolean;
-    onSelectVega: () => void;
+    /** Null hides the built-in Vega option. */
+    onSelectVega: (() => void) | null;
     /** Receives the whole viz so the caller can bind its contract without
      *  waiting on a fetch for the newly selected uuid. */
     onSelectProjectType: (dataAppViz: DataAppViz) => void;
@@ -169,9 +170,10 @@ const CustomChartTypePicker: FC<Props> = ({
         return items;
     }, [data?.pages, selectedDataAppViz]);
 
-    const builtInItems = matchesSearch(VEGA_ITEM, debouncedSearch)
-        ? [VEGA_ITEM]
-        : [];
+    const builtInItems =
+        onSelectVega !== null && matchesSearch(VEGA_ITEM, debouncedSearch)
+            ? [VEGA_ITEM]
+            : [];
     const hasOptions = builtInItems.length > 0 || projectItems.length > 0;
 
     const handleSubmit = (value: string) => {
@@ -190,7 +192,7 @@ const CustomChartTypePicker: FC<Props> = ({
         const option = fromOptionValue(value);
         if (!option) return;
         if (option.kind === 'builtInVega') {
-            onSelectVega();
+            onSelectVega?.();
             return;
         }
         const picked = dataAppVizsByUuid.get(option.dataAppVizUuid);
