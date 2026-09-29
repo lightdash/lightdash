@@ -6,6 +6,7 @@ import {
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import Logger from '../logging/logger';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
@@ -59,6 +60,8 @@ const FEATURES: ReadonlySet<string> = new Set(AI_CALL_FEATURES);
 const isAiCallFeature = (value: unknown): value is AiCallFeature =>
     typeof value === 'string' && FEATURES.has(value);
 
+const aiKeyManagementSchema = z.enum(['lightdash-managed', 'self-managed']);
+
 /**
  * Whether the AI call ran on Lightdash's own (instance) provider key or the
  * customer's self-managed (bring-your-own) key. Lets analytics/CS tell who is
@@ -66,20 +69,9 @@ const isAiCallFeature = (value: unknown): value is AiCallFeature =>
  * using our key when they shouldn't. Null when the origin isn't known for the
  * call.
  */
-export type AiKeyManagement = 'lightdash-managed' | 'self-managed';
+export type AiKeyManagement = z.infer<typeof aiKeyManagementSchema>;
 
-const AI_KEY_MANAGEMENT_VALUES: readonly AiKeyManagement[] = [
-    'lightdash-managed',
-    'self-managed',
-];
-
-/**
- * Surface an AI call was made from, so usage can be broken down by where
- * people use the agent. Taken from where the thread was created, never from the
- * request that happens to continue it. `mcp` is reserved: no call reports it
- * yet, because MCP does not run agent threads.
- */
-export const AI_USAGE_CHANNELS = [
+const aiUsageChannelSchema = z.enum([
     'web',
     'slack',
     'embed',
@@ -88,14 +80,18 @@ export const AI_USAGE_CHANNELS = [
     'evals',
     'scheduler',
     'data_app',
-] as const;
+]);
 
-export type AiUsageChannel = (typeof AI_USAGE_CHANNELS)[number];
+/**
+ * Surface an AI call was made from, so usage can be broken down by where
+ * people use the agent. Taken from where the thread was created, never from the
+ * request that happens to continue it. `mcp` is reserved: no call reports it
+ * yet, because MCP does not run agent threads.
+ */
+export type AiUsageChannel = z.infer<typeof aiUsageChannelSchema>;
 
 const parseChannel = (value: string | null): AiUsageChannel | null =>
-    value !== null && (AI_USAGE_CHANNELS as readonly string[]).includes(value)
-        ? (value as AiUsageChannel)
-        : null;
+    aiUsageChannelSchema.safeParse(value).data ?? null;
 
 export const getAiUsageChannel = ({
     createdFrom,
@@ -120,9 +116,7 @@ export const getAiUsageChannel = ({
 };
 
 const parseKeyManagement = (value: string | null): AiKeyManagement | null =>
-    value !== null && (AI_KEY_MANAGEMENT_VALUES as string[]).includes(value)
-        ? (value as AiKeyManagement)
-        : null;
+    aiKeyManagementSchema.safeParse(value).data ?? null;
 
 /**
  * Token counts for a single AI call, normalized across providers and call
