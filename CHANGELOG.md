@@ -1,3 +1,16 @@
+# [2.372.0](https://github.com/lightdash/lightdash/compare/2.371.1...2.372.0) (2026-09-29)
+
+
+### Features
+
+* **ai:** record the channel each AI call was made from ([#30162](https://github.com/lightdash/lightdash/issues/30162)) ([a7dbac2](https://github.com/lightdash/lightdash/commit/a7dbac2e29979267740d8e42c237dabf506fdb2e))
+* **ai:** record which embedded viewer each AI call was made for ([#30163](https://github.com/lightdash/lightdash/issues/30163)) ([781d45d](https://github.com/lightdash/lightdash/commit/781d45d12ab2925bdfea697e8d65faf5e39cb04f))
+
+
+### Performance Improvements
+
+* **learn:** read the sandbox dbt version from package metadata (CS-333) ([#30175](https://github.com/lightdash/lightdash/issues/30175)) ([285cf16](https://github.com/lightdash/lightdash/commit/285cf16fe1642eddb7e90d6d838c7a1b23c217eb)), closes [#30141](https://github.com/lightdash/lightdash/issues/30141)
+
 ## [2.371.1](https://github.com/lightdash/lightdash/compare/2.371.0...2.371.1) (2026-09-29)
 
 
