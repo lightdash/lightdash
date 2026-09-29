@@ -33,6 +33,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
     ) => void
 > = {
     member(member, { can }) {
+        can('view', 'Learn', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });

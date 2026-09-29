@@ -509,6 +509,65 @@ describe('UserModel', () => {
             ).toBe(false);
         });
 
+        it.each([false, true])(
+            'grants training access only with the organization Learn scope (granted: %s)',
+            async (canViewLearn) => {
+                const model = createHumanModel();
+                model.customRoleScopes = vi.fn(async () => ({
+                    'learner-role': [
+                        'view:OrganizationMemberProfile',
+                        ...(canViewLearn ? ['view:Learn'] : []),
+                    ],
+                    'org-extra': [],
+                    'project-extra': [],
+                }));
+                model.getTrainingProjects = vi.fn(async () => [
+                    {
+                        projectUuid: 'training-project',
+                        projectType: ProjectType.TRAINING,
+                        createdByUserUuid: null,
+                    },
+                    {
+                        projectUuid: 'training-copy',
+                        projectType: ProjectType.PREVIEW,
+                        createdByUserUuid: humanDetails.user_uuid,
+                    },
+                ]);
+                const { abilityBuilder } =
+                    await model.generateUserAbilityBuilder({
+                        ...humanDetails,
+                        role_uuid: 'learner-role',
+                    });
+                const ability = abilityBuilder.build();
+                for (const projectUuid of [
+                    'training-project',
+                    'training-copy',
+                ]) {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('Project', { projectUuid }),
+                        ),
+                    ).toBe(canViewLearn);
+                }
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('SavedChart', { projectUuid: 'training-copy' }),
+                    ),
+                ).toBe(canViewLearn);
+                if (!canViewLearn) {
+                    expect(
+                        ability.rules.some((rule) =>
+                            ['training-project', 'training-copy'].includes(
+                                rule.conditions?.projectUuid,
+                            ),
+                        ),
+                    ).toBe(false);
+                }
+            },
+        );
+
         it('grants the trainee layer on the org training project only', async () => {
             const model = createHumanModel();
             model.getTrainingProjects = vi.fn(async () => [

@@ -774,6 +774,7 @@ describe('ProjectService', () => {
                 ...learnUser,
                 ability: new Ability<PossibleAbilities>([
                     { action: 'manage', subject: 'Organization' },
+                    { action: 'view', subject: 'Learn' },
                 ]),
             };
             await expect(learnService.enableLearn(adminUser)).resolves.toEqual({
@@ -826,6 +827,25 @@ describe('ProjectService', () => {
             },
         );
 
+        test('forbids creating a training copy without Learn access', async () => {
+            const learnService = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                } as unknown as FeatureFlagModel,
+            });
+            await expect(
+                learnService.createTrainingPreview(
+                    {
+                        ...learnUser,
+                        ability: new Ability<PossibleAbilities>([]),
+                    },
+                    'training-project',
+                ),
+            ).rejects.toThrow(
+                new ForbiddenError('You do not have access to Learn'),
+            );
+        });
+
         test('still requires org admin permissions when Learn is enabled', async () => {
             const provisionTrainingProject = vi.fn();
             const learnService = getMockedProjectService(lightdashConfigMock, {
@@ -840,7 +860,9 @@ describe('ProjectService', () => {
             await expect(
                 learnService.enableLearn({
                     ...learnUser,
-                    ability: new Ability<PossibleAbilities>([]),
+                    ability: new Ability<PossibleAbilities>([
+                        { action: 'view', subject: 'Learn' },
+                    ]),
                 }),
             ).rejects.toThrow('Only an organization admin can enable Learn');
             expect(provisionTrainingProject).not.toHaveBeenCalled();

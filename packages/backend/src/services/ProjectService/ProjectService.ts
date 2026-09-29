@@ -12985,6 +12985,15 @@ export class ProjectService extends BaseService {
                 'Learn is not enabled for this organization',
             );
         }
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.cannot(
+                'view',
+                subject('Learn', { organizationUuid: user.organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError('You do not have access to Learn');
+        }
     }
 
     /**
