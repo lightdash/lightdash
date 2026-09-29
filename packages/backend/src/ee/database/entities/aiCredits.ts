@@ -50,7 +50,6 @@ export type DbAiCreditEntitlement = {
     period_end: Date;
     allowance_credits: string | null;
     created_at: Date;
-    updated_at: Date;
 };
 
 export type DbAiCreditEntitlementInsert = {
@@ -63,7 +62,7 @@ export type DbAiCreditEntitlementInsert = {
 export type AiCreditEntitlementsTable = Knex.CompositeTableType<
     DbAiCreditEntitlement,
     DbAiCreditEntitlementInsert,
-    Partial<DbAiCreditEntitlementInsert> & { updated_at?: Date }
+    Partial<DbAiCreditEntitlementInsert>
 >;
 
 export const AiCreditHoldsTableName = 'ai_credit_holds';
@@ -72,6 +71,7 @@ export type DbAiCreditHold = {
     ai_credit_hold_uuid: string;
     organization_uuid: string;
     user_uuid: string | null;
+    ai_credit_entitlement_uuid: string | null;
     reason: AiCreditHoldReason;
     notes: string | null;
     placed_by: string;

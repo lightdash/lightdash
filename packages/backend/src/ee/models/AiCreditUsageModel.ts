@@ -1,18 +1,24 @@
 import {
-    getCalendarMonthPeriod,
-    isAiUsageBillable,
     priceAiUsageInCredits,
     type AiCreditPeriod,
     type AiCreditRateCardRow,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { type AiUsageEvent } from '../../analytics/aiUsage';
+import {
+    type AiCallFeature,
+    type AiKeyManagement,
+    type AiUsageEvent,
+    type AiUsageOutcome,
+} from '../../analytics/aiUsage';
 import {
     AiUsageLedgerTableName,
     type DbAiUsageLedger,
 } from '../../database/entities/aiUsageLedger';
 import Logger from '../../logging/logger';
-import { type AiCreditEntitlementModel } from './AiCreditEntitlementModel';
+import {
+    type AiCreditEntitlementModel,
+    type AiCreditEntitlementWithAllowance,
+} from './AiCreditEntitlementModel';
 import { type AiCreditHoldModel } from './AiCreditHoldModel';
 import { type AiCreditRateCardModel } from './AiCreditRateCardModel';
 
@@ -23,17 +29,38 @@ type Dependencies = {
     holdModel: AiCreditHoldModel;
 };
 
-// Rate rows change rarely and every sum would otherwise read them.
-const RATE_CARD_TTL_MS = 60_000;
+// Everything else is recorded in the ledger but never charged.
+export const AI_BILLABLE_FEATURES = [
+    'agent',
+    'deep-research',
+    'agent-subtask',
+    'compaction',
+    'data-app',
+] as const satisfies readonly AiCallFeature[];
+
+const BILLABLE_FEATURES: ReadonlySet<AiCallFeature> = new Set(
+    AI_BILLABLE_FEATURES,
+);
+const BILLABLE_KEY_MANAGEMENT: AiKeyManagement = 'lightdash-managed';
+const BILLABLE_OUTCOME: AiUsageOutcome = 'complete';
+
+export const isAiUsageBillable = ({
+    feature,
+    keyManagement,
+    outcome,
+}: Pick<
+    AiUsageEvent['properties'],
+    'feature' | 'keyManagement' | 'outcome'
+>): boolean =>
+    keyManagement === BILLABLE_KEY_MANAGEMENT &&
+    outcome === BILLABLE_OUTCOME &&
+    BILLABLE_FEATURES.has(feature);
 
 const LEDGER_PAGE_SIZE = 5_000;
 
 const LEDGER_USAGE_COLUMNS = [
     'ai_usage_ledger_uuid',
     'created_at',
-    'feature',
-    'key_management',
-    'outcome',
     'provider',
     'model',
     'input_tokens',
@@ -45,16 +72,33 @@ const LEDGER_USAGE_COLUMNS = [
 type LedgerUsageRow = Pick<
     DbAiUsageLedger,
     (typeof LEDGER_USAGE_COLUMNS)[number]
->;
+> & { provider: string; model: string };
 
 type LedgerCursor = { createdAt: Date; uuid: string };
 
 const toCount = (value: string | null): number | null =>
     value === null ? null : Number(value);
 
+// Unpriced models count as zero rather than failing the sum.
+const priceLedgerRow = (
+    rateCard: AiCreditRateCardRow[],
+    row: LedgerUsageRow,
+): number =>
+    priceAiUsageInCredits(rateCard, {
+        provider: row.provider,
+        model: row.model,
+        at: row.created_at,
+        tokens: {
+            inputTokens: toCount(row.input_tokens),
+            outputTokens: toCount(row.output_tokens),
+            cacheReadTokens: toCount(row.cache_read_tokens),
+            cacheWriteTokens: toCount(row.cache_write_tokens),
+        },
+    }) ?? 0;
+
 /**
- * Credits consumed by an organisation, always derived from the ledger and the
- * rate card in force at each call. Nothing here is cached in the database.
+ * Credits are never stored: every sum is derived from the ledger, pricing each
+ * call with the rate card in force when it was made.
  */
 export class AiCreditUsageModel {
     private readonly database: Knex;
@@ -64,11 +108,6 @@ export class AiCreditUsageModel {
     private readonly entitlementModel: AiCreditEntitlementModel;
 
     private readonly holdModel: AiCreditHoldModel;
-
-    private rateCardCache: {
-        rows: AiCreditRateCardRow[];
-        loadedAt: number;
-    } | null = null;
 
     constructor({
         database,
@@ -82,48 +121,6 @@ export class AiCreditUsageModel {
         this.holdModel = holdModel;
     }
 
-    private async getRateCard(): Promise<AiCreditRateCardRow[]> {
-        if (
-            this.rateCardCache &&
-            Date.now() - this.rateCardCache.loadedAt < RATE_CARD_TTL_MS
-        ) {
-            return this.rateCardCache.rows;
-        }
-        const rows = await this.rateCardModel.getAll();
-        this.rateCardCache = { rows, loadedAt: Date.now() };
-        return rows;
-    }
-
-    private static priceLedgerRow(
-        rateCard: AiCreditRateCardRow[],
-        row: LedgerUsageRow,
-    ): number {
-        if (
-            row.provider === null ||
-            row.model === null ||
-            !isAiUsageBillable({
-                feature: row.feature,
-                keyOrigin: row.key_management,
-                outcome: row.outcome,
-            })
-        ) {
-            return 0;
-        }
-        return (
-            priceAiUsageInCredits(rateCard, {
-                provider: row.provider,
-                model: row.model,
-                at: row.created_at,
-                tokens: {
-                    inputTokens: toCount(row.input_tokens),
-                    outputTokens: toCount(row.output_tokens),
-                    cacheReadTokens: toCount(row.cache_read_tokens),
-                    cacheWriteTokens: toCount(row.cache_write_tokens),
-                },
-            }) ?? 0
-        );
-    }
-
     private async sumLedgerPages(
         organizationUuid: string,
         period: AiCreditPeriod,
@@ -135,7 +132,14 @@ export class AiCreditUsageModel {
             AiUsageLedgerTableName,
         )
             .select(LEDGER_USAGE_COLUMNS)
-            .where({ organization_uuid: organizationUuid })
+            .where({
+                organization_uuid: organizationUuid,
+                key_management: BILLABLE_KEY_MANAGEMENT,
+                outcome: BILLABLE_OUTCOME,
+            })
+            .whereIn('feature', AI_BILLABLE_FEATURES)
+            .whereNotNull('provider')
+            .whereNotNull('model')
             .where('created_at', '>=', period.periodStart)
             .where('created_at', '<', period.periodEnd)
             .modify((query) => {
@@ -161,8 +165,7 @@ export class AiCreditUsageModel {
             ])
             .limit(LEDGER_PAGE_SIZE);
         const pageTotal = rows.reduce(
-            (sum, row) =>
-                sum + AiCreditUsageModel.priceLedgerRow(rateCard, row),
+            (sum, row) => sum + priceLedgerRow(rateCard, row),
             total,
         );
         if (rows.length < LEDGER_PAGE_SIZE) return pageTotal;
@@ -176,7 +179,6 @@ export class AiCreditUsageModel {
         );
     }
 
-    /** Billable credits an organisation consumed inside a window. */
     async sumCredits(
         organizationUuid: string,
         period: AiCreditPeriod,
@@ -184,77 +186,49 @@ export class AiCreditUsageModel {
         return this.sumLedgerPages(
             organizationUuid,
             period,
-            await this.getRateCard(),
+            await this.rateCardModel.getAll(),
             null,
             0,
         );
     }
 
-    /**
-     * The window a call is charged to: the entitlement covering it when the
-     * organisation has one, otherwise its calendar month.
-     */
-    async getPeriod(
-        organizationUuid: string,
-        at: Date,
-    ): Promise<AiCreditPeriod> {
-        const entitlement = await this.entitlementModel.findCovering(
-            organizationUuid,
-            at,
+    private async placeHoldIfExhausted(
+        entitlement: AiCreditEntitlementWithAllowance,
+    ): Promise<void> {
+        if (await this.holdModel.findAllowanceExhaustedHold(entitlement.uuid)) {
+            return;
+        }
+        const used = await this.sumCredits(
+            entitlement.organizationUuid,
+            entitlement,
         );
-        return entitlement ?? getCalendarMonthPeriod(at);
+        if (used < entitlement.allowanceCredits) return;
+        const hold =
+            await this.holdModel.createAllowanceExhaustedHold(entitlement);
+        if (hold === undefined) return;
+        Logger.info(
+            `AI credit allowance exhausted for organization ${entitlement.organizationUuid}: ${used} of ${entitlement.allowanceCredits} credits used, hold placed until ${entitlement.periodEnd.toISOString()}`,
+        );
     }
 
-    /**
-     * Runs after a call is recorded, off the request path. When the call is
-     * billable and the organisation's current entitlement has an allowance,
-     * compares the window's usage with it and places a hold that expires with
-     * the window once the allowance is used up. Nothing enforces the hold yet.
-     */
+    /** Runs off the request path, after the ledger row is written; nothing enforces the hold yet. */
     async onUsageRecorded(
         event: AiUsageEvent,
         at: Date = new Date(),
     ): Promise<void> {
-        const { properties } = event;
-        if (
-            properties.organizationId === null ||
-            !isAiUsageBillable({
-                feature: properties.feature,
-                keyOrigin: properties.keyManagement,
-                outcome: properties.outcome,
-            })
-        ) {
+        const { organizationId } = event.properties;
+        if (organizationId === null || !isAiUsageBillable(event.properties)) {
             return;
         }
-        const entitlement = await this.entitlementModel.findCovering(
-            properties.organizationId,
-            at,
-        );
-        if (entitlement === null || entitlement.allowanceCredits === null) {
-            return;
-        }
-        const used = await this.sumCredits(
-            properties.organizationId,
-            entitlement,
-        );
-        if (used < entitlement.allowanceCredits) return;
-        const active = await this.holdModel.findActive(
-            properties.organizationId,
-            at,
-        );
-        if (active.some((hold) => hold.reason === 'allowance_exhausted')) {
-            return;
-        }
-        await this.holdModel.place({
-            organizationUuid: properties.organizationId,
-            userUuid: null,
-            reason: 'allowance_exhausted',
-            notes: null,
-            placedBy: 'system',
-            expiresAt: entitlement.periodEnd,
-        });
-        Logger.info(
-            `AI credit allowance exhausted for organization ${properties.organizationId}: ${used} of ${entitlement.allowanceCredits} credits used, hold placed until ${entitlement.periodEnd.toISOString()}`,
+        const entitlements =
+            await this.entitlementModel.findCoveringWithAllowance(
+                organizationId,
+                at,
+            );
+        await Promise.all(
+            entitlements.map((entitlement) =>
+                this.placeHoldIfExhausted(entitlement),
+            ),
         );
     }
 }

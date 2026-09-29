@@ -1,20 +1,23 @@
-import { type AiCreditHold, type AiCreditHoldReason } from '@lightdash/common';
+import { type AiCreditEntitlement, type AiCreditHold } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AiCreditHoldsTableName,
     type DbAiCreditHold,
-    type DbAiCreditHoldInsert,
 } from '../database/entities/aiCredits';
 
 type Dependencies = {
     database: Knex;
 };
 
+const SYSTEM_PLACED_BY = 'system';
+
 const toHold = (row: DbAiCreditHold): AiCreditHold => ({
     uuid: row.ai_credit_hold_uuid,
     organizationUuid: row.organization_uuid,
     userUuid: row.user_uuid,
+    entitlementUuid: row.ai_credit_entitlement_uuid,
     reason: row.reason,
+    notes: row.notes,
     placedBy: row.placed_by,
     placedAt: row.placed_at,
     expiresAt: row.expires_at,
@@ -28,36 +31,38 @@ export class AiCreditHoldModel {
         this.database = database;
     }
 
-    async place(hold: {
-        organizationUuid: string;
-        userUuid: string | null;
-        reason: AiCreditHoldReason;
-        notes: string | null;
-        placedBy: string;
-        expiresAt: Date | null;
-    }): Promise<AiCreditHold> {
-        const insert: DbAiCreditHoldInsert = {
-            organization_uuid: hold.organizationUuid,
-            user_uuid: hold.userUuid,
-            reason: hold.reason,
-            notes: hold.notes,
-            placed_by: hold.placedBy,
-            expires_at: hold.expiresAt,
-        };
+    async findAllowanceExhaustedHold(
+        entitlementUuid: string,
+    ): Promise<AiCreditHold | undefined> {
+        const row = await this.database(AiCreditHoldsTableName)
+            .where({
+                ai_credit_entitlement_uuid: entitlementUuid,
+                reason: 'allowance_exhausted',
+            })
+            .first();
+        return row ? toHold(row) : undefined;
+    }
+
+    /** Undefined when a concurrent call already placed the hold for this entitlement. */
+    async createAllowanceExhaustedHold(
+        entitlement: AiCreditEntitlement,
+    ): Promise<AiCreditHold | undefined> {
         const [row] = await this.database(AiCreditHoldsTableName)
-            .insert(insert)
+            .insert({
+                organization_uuid: entitlement.organizationUuid,
+                user_uuid: null,
+                ai_credit_entitlement_uuid: entitlement.uuid,
+                reason: 'allowance_exhausted',
+                notes: null,
+                placed_by: SYSTEM_PLACED_BY,
+                expires_at: entitlement.periodEnd,
+            })
+            .onConflict()
+            .ignore()
             .returning('*');
-        return toHold(row);
+        return row ? toHold(row) : undefined;
     }
 
-    async release(holdUuid: string): Promise<void> {
-        await this.database(AiCreditHoldsTableName)
-            .where({ ai_credit_hold_uuid: holdUuid })
-            .whereNull('released_at')
-            .update({ released_at: new Date() });
-    }
-
-    /** Holds still in force: not released, and not past their expiry. */
     async findActive(
         organizationUuid: string,
         at: Date = new Date(),

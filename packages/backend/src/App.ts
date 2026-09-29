@@ -33,9 +33,9 @@ import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
 import {
+    createAiUsageLedgerSink,
     registerAiUsageLedger,
     registerAiUsageTracker,
-    type AiUsageRecordedHook,
 } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
@@ -298,14 +298,7 @@ export default class App {
             database: this.database,
             utils: this.utils,
         });
-        registerAiUsageLedger(async (event) => {
-            await this.models.getAiUsageLedgerModel().recordEvent(event);
-            if (this.models.hasModelProvider('aiCreditUsageModel')) {
-                await this.models
-                    .getAiCreditUsageModel<AiUsageRecordedHook>()
-                    .onUsageRecorded(event);
-            }
-        });
+        registerAiUsageLedger(createAiUsageLedgerSink(this.models));
         this.readinessService = new ReadinessService({
             migrationModel: this.models.getMigrationModel(),
             migrationRunLedger: new MigrationLeaseManager({

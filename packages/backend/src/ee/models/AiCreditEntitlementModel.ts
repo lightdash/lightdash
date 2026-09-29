@@ -3,11 +3,14 @@ import { Knex } from 'knex';
 import {
     AiCreditEntitlementsTableName,
     type DbAiCreditEntitlement,
-    type DbAiCreditEntitlementInsert,
 } from '../database/entities/aiCredits';
 
 type Dependencies = {
     database: Knex;
+};
+
+export type AiCreditEntitlementWithAllowance = AiCreditEntitlement & {
+    allowanceCredits: number;
 };
 
 const toEntitlement = (row: DbAiCreditEntitlement): AiCreditEntitlement => ({
@@ -19,6 +22,11 @@ const toEntitlement = (row: DbAiCreditEntitlement): AiCreditEntitlement => ({
         row.allowance_credits === null ? null : Number(row.allowance_credits),
 });
 
+const hasAllowance = (
+    entitlement: AiCreditEntitlement,
+): entitlement is AiCreditEntitlementWithAllowance =>
+    entitlement.allowanceCredits !== null;
+
 export class AiCreditEntitlementModel {
     private readonly database: Knex;
 
@@ -26,43 +34,17 @@ export class AiCreditEntitlementModel {
         this.database = database;
     }
 
-    async findCovering(
+    // Periods may overlap, e.g. a monthly reset inside an annual pool, and each allowance applies on its own.
+    async findCoveringWithAllowance(
         organizationUuid: string,
         at: Date,
-    ): Promise<AiCreditEntitlement | null> {
-        const row = await this.database(AiCreditEntitlementsTableName)
+    ): Promise<AiCreditEntitlementWithAllowance[]> {
+        const rows = await this.database(AiCreditEntitlementsTableName)
             .where({ organization_uuid: organizationUuid })
             .where('period_start', '<=', at)
             .where('period_end', '>', at)
-            .orderBy('period_start', 'desc')
-            .first();
-        return row ? toEntitlement(row) : null;
-    }
-
-    async listForOrganization(
-        organizationUuid: string,
-    ): Promise<AiCreditEntitlement[]> {
-        const rows = await this.database(AiCreditEntitlementsTableName)
-            .where({ organization_uuid: organizationUuid })
+            .whereNotNull('allowance_credits')
             .orderBy('period_start', 'desc');
-        return rows.map(toEntitlement);
-    }
-
-    async create(entitlement: {
-        organizationUuid: string;
-        periodStart: Date;
-        periodEnd: Date;
-        allowanceCredits: number | null;
-    }): Promise<AiCreditEntitlement> {
-        const insert: DbAiCreditEntitlementInsert = {
-            organization_uuid: entitlement.organizationUuid,
-            period_start: entitlement.periodStart,
-            period_end: entitlement.periodEnd,
-            allowance_credits: entitlement.allowanceCredits,
-        };
-        const [row] = await this.database(AiCreditEntitlementsTableName)
-            .insert(insert)
-            .returning('*');
-        return toEntitlement(row);
+        return rows.map(toEntitlement).filter(hasAllowance);
     }
 }

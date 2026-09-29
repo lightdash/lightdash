@@ -5,9 +5,17 @@ const HoldsTableName = 'ai_credit_holds';
 const OrganizationsTableName = 'organizations';
 const UsersTableName = 'users';
 
+// Must match AI_CREDIT_HOLD_REASONS in @lightdash/common; the real-schema test compares them.
+const HOLD_REASONS = [
+    'allowance_exhausted',
+    'admin_cap_reached',
+    'manual_pause',
+    'trial_ended',
+];
+
 export const classification = {
     kind: 'safe',
-    reason: 'Creates two new empty tables. Raw SQL only sets a lock timeout and generates UUID defaults; existing tables and data are unchanged.',
+    reason: 'Creates two new empty tables. Raw SQL only sets a lock timeout, generates UUID defaults and creates partial indexes on the new holds table; existing tables and data are unchanged.',
 };
 
 export async function up(knex: Knex): Promise<void> {
@@ -35,11 +43,12 @@ export async function up(knex: Knex): Promise<void> {
                     .timestamp('created_at', { useTz: true })
                     .notNullable()
                     .defaultTo(knex.fn.now());
-                table
-                    .timestamp('updated_at', { useTz: true })
-                    .notNullable()
-                    .defaultTo(knex.fn.now());
-                table.unique(['organization_uuid', 'period_start']);
+                // A monthly window and an annual pool may start on the same day.
+                table.unique([
+                    'organization_uuid',
+                    'period_start',
+                    'period_end',
+                ]);
                 table.check(
                     'period_end > period_start',
                     [],
@@ -68,7 +77,17 @@ export async function up(knex: Knex): Promise<void> {
                     .inTable(UsersTableName)
                     .onDelete('CASCADE')
                     .index()
-                    .comment('Null pauses the whole organisation.');
+                    .comment('Null pauses the whole organization.');
+                table
+                    .uuid('ai_credit_entitlement_uuid')
+                    .nullable()
+                    .references('ai_credit_entitlement_uuid')
+                    .inTable(EntitlementsTableName)
+                    .onDelete('CASCADE')
+                    .index()
+                    .comment(
+                        'The entitlement whose allowance ran out, for holds placed by the usage sink.',
+                    );
                 table.text('reason').notNullable();
                 table
                     .text('notes')
@@ -85,17 +104,21 @@ export async function up(knex: Knex): Promise<void> {
                     .timestamp('expires_at', { useTz: true })
                     .nullable()
                     .comment(
-                        'A hold placed for an exhausted allowance stops applying when its window ends.',
+                        'A hold placed for an exhausted allowance stops applying when its period ends.',
                     );
                 table.timestamp('released_at', { useTz: true }).nullable();
                 table.check(
-                    `reason IN ('allowance_exhausted', 'admin_cap_reached', 'manual_pause', 'trial_ended')`,
+                    `reason IN (${HOLD_REASONS.map((reason) => `'${reason}'`).join(', ')})`,
                     [],
                     'ai_credit_holds_reason_check',
                 );
             });
             await knex.raw(
                 `CREATE INDEX ai_credit_holds_active_organization_index ON ${HoldsTableName} (organization_uuid) WHERE released_at IS NULL`,
+            );
+            // Concurrent sink calls race to place the hold; this keeps one per exhausted entitlement, even after an early release.
+            await knex.raw(
+                `CREATE UNIQUE INDEX ai_credit_holds_allowance_exhausted_entitlement_unique ON ${HoldsTableName} (ai_credit_entitlement_uuid) WHERE reason = 'allowance_exhausted'`,
             );
         }
     } finally {
