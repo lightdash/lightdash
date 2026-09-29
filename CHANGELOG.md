@@ -1,3 +1,10 @@
+# [2.362.0](https://github.com/lightdash/lightdash/compare/2.361.2...2.362.0) (2026-09-29)
+
+
+### Features
+
+* **ai:** adopt Claude Sonnet 5.5 across AI agents and coding sandboxes ([#30144](https://github.com/lightdash/lightdash/issues/30144)) ([0f5a98e](https://github.com/lightdash/lightdash/commit/0f5a98e33a260b7c08ce2e7c7edfc33faff68499))
+
 ## [2.361.2](https://github.com/lightdash/lightdash/compare/2.361.1...2.361.2) (2026-09-29)
 
 
