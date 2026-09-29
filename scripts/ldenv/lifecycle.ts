@@ -174,6 +174,23 @@ export async function timed<T>(
         process.stdout.write(`TIME: ${key}=${timings[key]}ms\n`);
     }
 }
+export async function parentBuildSecrets(
+    root: string,
+    operations = { localSecrets, parents },
+): Promise<Environment> {
+    const secrets = await operations.localSecrets(root);
+    if (!secrets.LIGHTDASH_LICENSE_KEY) {
+        const newest = (await operations.parents()).sort((a, b) =>
+            b.builtAt.localeCompare(a.builtAt),
+        )[0];
+        if (newest)
+            inheritLicensePair(
+                secrets,
+                await operations.localSecrets(newest.path),
+            );
+    }
+    return secrets;
+}
 export async function buildParent(
     root: string,
     ref: string,
@@ -244,7 +261,7 @@ export async function buildParent(
                 return existing;
             }
             await diskGuard();
-            const secrets = await localSecrets(root);
+            const secrets = await parentBuildSecrets(root);
             requireLicense(secrets);
             const directory = path.join(home, 'parents', sha.slice(0, 12));
             if (existsSync(directory))

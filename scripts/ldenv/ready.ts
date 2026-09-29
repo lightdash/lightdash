@@ -19,6 +19,7 @@ import {
 import { instances } from './lifecycle';
 import { instanceId, pm2Inventory, type Instance } from './model';
 import { canonicalHome, pm2Prefix } from './namespace';
+import { parentCheckIntervalMs, refreshStaleParent } from './parent-refresh';
 import { background, currentState, pm2, processPriority } from './processes';
 import { claimedWorkBranch } from './ready-branches';
 
@@ -409,6 +410,7 @@ export async function syncReadyPool(
 }
 
 export async function monitorReadyPool(root: string): Promise<never> {
+    let lastParentCheck = 0;
     let lastGitCheck = 0;
     let lastHeartbeat = 0;
     let lastRefillCheck = 0;
@@ -454,6 +456,14 @@ export async function monitorReadyPool(root: string): Promise<never> {
             }
             previousActivity = activity;
             if (checkGit) await reconcileReadyBranches(root);
+            if (Date.now() - lastParentCheck >= parentCheckIntervalMs) {
+                lastParentCheck = Date.now();
+                const reason = await refreshStaleParent(root);
+                if (reason)
+                    process.stderr.write(
+                        `ldenv: refreshing parent: ${reason}\n`,
+                    );
+            }
             if (Date.now() - lastRefillCheck >= 10000) {
                 lastRefillCheck = Date.now();
                 const { poolSettings } = await import('./pool.js');
