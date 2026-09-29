@@ -1,3 +1,16 @@
+# [2.370.0](https://github.com/lightdash/lightdash/compare/2.369.1...2.370.0) (2026-09-29)
+
+
+### Bug Fixes
+
+* **ai:** record the tokens spent writing a deep research report ([#30161](https://github.com/lightdash/lightdash/issues/30161)) ([0b9ed53](https://github.com/lightdash/lightdash/commit/0b9ed5386966f5aad13bb505be9c210fcca06af4))
+
+
+### Features
+
+* **ai:** add environment-configured Vertex AI ([#29656](https://github.com/lightdash/lightdash/issues/29656)) ([0260e2d](https://github.com/lightdash/lightdash/commit/0260e2dd7e3215d926eae91a699aaa0fd32b8066))
+* **dev:** fork local dev instances from a warm parent with ldenv ([#30054](https://github.com/lightdash/lightdash/issues/30054)) ([2583b7e](https://github.com/lightdash/lightdash/commit/2583b7eca5bbb626b8aed841b3446d47f9165f3d))
+
 ## [2.369.1](https://github.com/lightdash/lightdash/compare/2.369.0...2.369.1) (2026-09-29)
 
 
