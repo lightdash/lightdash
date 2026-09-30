@@ -1,3 +1,10 @@
+## [2.389.5](https://github.com/lightdash/lightdash/compare/2.389.4...2.389.5) (2026-09-30)
+
+
+### Bug Fixes
+
+* widen parameter dropdowns and truncate long options ([#30271](https://github.com/lightdash/lightdash/issues/30271)) ([43f094d](https://github.com/lightdash/lightdash/commit/43f094dcb0d5fc9e05a86ceb757969b46fdb4af5))
+
 ## [2.389.4](https://github.com/lightdash/lightdash/compare/2.389.3...2.389.4) (2026-09-30)
 
 
