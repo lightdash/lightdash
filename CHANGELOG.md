@@ -1,3 +1,11 @@
+# [2.399.0](https://github.com/lightdash/lightdash/compare/2.398.0...2.399.0) (2026-09-30)
+
+
+### Features
+
+* **ai:** keep AI usage for organizations whose credit allowance resets every three months or more ([#30301](https://github.com/lightdash/lightdash/issues/30301)) ([206ea0b](https://github.com/lightdash/lightdash/commit/206ea0be982da498982ea7116ee713f990dca141))
+* **documents:** assign and transfer document owners ([#30269](https://github.com/lightdash/lightdash/issues/30269)) ([eacf260](https://github.com/lightdash/lightdash/commit/eacf260084d78131404c0b0ad98a77bbf709e651))
+
 # [2.398.0](https://github.com/lightdash/lightdash/compare/2.397.2...2.398.0) (2026-09-30)
 
 

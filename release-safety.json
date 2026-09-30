@@ -1,14 +1,28 @@
 {
   "schemaVersion": "2",
-  "version": "2.398.0",
-  "previousVersion": "2.397.2",
-  "releaseDate": "2026-09-30T17:47:24.687Z",
+  "version": "2.399.0",
+  "previousVersion": "2.398.0",
+  "releaseDate": "2026-09-30T18:00:30.230Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260930150000_add_document_owner_user_uuid_to_documents.ts",
+        "edition": "core",
+        "tables": [
+          "documents",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

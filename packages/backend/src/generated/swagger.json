@@ -56259,7 +56259,7 @@
                 "enum": ["document"],
                 "type": "string"
             },
-            "Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__": {
+            "Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.validationErrors__": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -56315,6 +56315,15 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Only populated by the v2 content API"
                     }
                 },
                 "required": [
@@ -56332,8 +56341,8 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_": {
-                "$ref": "#/components/schemas/Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__",
+            "Omit_ResourceViewDashboardItem-at-data.validationErrors_": {
+                "$ref": "#/components/schemas/Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.validationErrors__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "ResourceViewDocumentItem": {
@@ -56344,7 +56353,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_"
+                                "$ref": "#/components/schemas/Omit_ResourceViewDashboardItem-at-data.validationErrors_"
                             },
                             {
                                 "properties": {
@@ -63052,6 +63061,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "ownerUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "createdByUserUuid": {
                         "type": "string",
                         "nullable": true
@@ -63093,6 +63106,7 @@
                 "required": [
                     "updatedAt",
                     "createdAt",
+                    "ownerUserUuid",
                     "createdByUserUuid",
                     "description",
                     "slug",
@@ -63133,6 +63147,10 @@
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentOwner": {
+                "$ref": "#/components/schemas/DashboardOwner",
+                "description": "Assignable owner, independent of the immutable creator and version authors."
             },
             "DocumentVersion": {
                 "properties": {
@@ -63184,6 +63202,14 @@
                             "version": {
                                 "$ref": "#/components/schemas/DocumentVersion"
                             },
+                            "owner": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DocumentOwner"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "createdBy": {
                                 "allOf": [
                                     {
@@ -63193,7 +63219,12 @@
                                 "nullable": true
                             }
                         },
-                        "required": ["pinnedListUuid", "version", "createdBy"],
+                        "required": [
+                            "pinnedListUuid",
+                            "version",
+                            "owner",
+                            "createdBy"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -63217,6 +63248,11 @@
             },
             "CreateDocumentRequest": {
                 "properties": {
+                    "ownerUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Organization member to assign as owner; omitted or null leaves the Document unowned."
+                    },
                     "content": {
                         "$ref": "#/components/schemas/DocumentContent"
                     },
@@ -63284,6 +63320,11 @@
             },
             "UpdateDocumentMetadataRequest": {
                 "properties": {
+                    "ownerUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Organization member to assign as owner; null unassigns, omitted leaves it unchanged."
+                    },
                     "description": {
                         "type": "string"
                     },
@@ -67242,6 +67283,14 @@
                             "$ref": "#/components/schemas/SpaceMemberRole"
                         },
                         "type": "array"
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -67261,7 +67310,8 @@
                     "views",
                     "firstViewedAt",
                     "verification",
-                    "directAccessRoles"
+                    "directAccessRoles",
+                    "owner"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -68537,7 +68587,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.398.0",
+        "version": "2.399.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

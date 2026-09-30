@@ -57704,7 +57704,7 @@ const models: TsoaRoute.Models = {
         enums: ['document'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__':
+    'Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.validationErrors__':
         {
             dataType: 'refAlias',
             type: {
@@ -57763,15 +57763,23 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    owner: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'DashboardOwner' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
                 validators: {},
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_': {
+    'Omit_ResourceViewDashboardItem-at-data.validationErrors_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__',
+            ref: 'Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.validationErrors__',
             validators: {},
         },
     },
@@ -57786,7 +57794,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'intersection',
                     subSchemas: [
                         {
-                            ref: 'Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_',
+                            ref: 'Omit_ResourceViewDashboardItem-at-data.validationErrors_',
                         },
                         {
                             dataType: 'nestedObjectLiteral',
@@ -64569,6 +64577,14 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
+                ownerUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 createdByUserUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -64627,6 +64643,11 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentOwner: {
+        dataType: 'refAlias',
+        type: { ref: 'DashboardOwner', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DocumentVersion: {
         dataType: 'refAlias',
         type: {
@@ -64668,6 +64689,14 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         version: { ref: 'DocumentVersion', required: true },
+                        owner: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'DocumentOwner' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         createdBy: {
                             dataType: 'union',
                             subSchemas: [
@@ -64707,6 +64736,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                ownerUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 content: { ref: 'DocumentContent', required: true },
                 schemaVersion: { dataType: 'enum', enums: [1], required: true },
                 spaceUuid: { dataType: 'string', required: true },
@@ -64769,6 +64805,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                ownerUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 description: { dataType: 'string' },
                 slug: { dataType: 'string' },
                 name: { dataType: 'string' },
@@ -68651,6 +68694,14 @@ const models: TsoaRoute.Models = {
             directAccessRoles: {
                 dataType: 'array',
                 array: { dataType: 'refEnum', ref: 'SpaceMemberRole' },
+                required: true,
+            },
+            owner: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'DashboardOwner' },
+                    { dataType: 'enum', enums: [null] },
+                ],
                 required: true,
             },
         },
