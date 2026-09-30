@@ -15,6 +15,7 @@ import {
     CreateWarehouseCredentials,
     CreateWarehouseCredentialsWithOptionalSecrets,
     DbtProjectConfig,
+    DbtProjectType,
     DEFAULT_USER_SPACES_PARENT_NAME,
     DuckdbConnectionType,
     Explore,
@@ -519,9 +520,20 @@ export class ProjectModel {
         ) {
             return incompleteConfig;
         }
+        // A PAT belongs to a personal_access_token connection. Carrying it
+        // into a GitHub App connection lets the adapter quietly fall back to
+        // it when the installation is missing (PROD-11711).
+        const restorableSecretKeys = sensitiveDbtCredentialsFieldNames.filter(
+            (secretKey) =>
+                !(
+                    secretKey === 'personal_access_token' &&
+                    incompleteConfig.type === DbtProjectType.GITHUB &&
+                    incompleteConfig.authorization_method === 'installation_id'
+                ),
+        );
         return {
             ...incompleteConfig,
-            ...sensitiveDbtCredentialsFieldNames.reduce(
+            ...restorableSecretKeys.reduce(
                 (sum, secretKey) =>
                     !(incompleteConfig as AnyType)[secretKey] &&
                     (completeConfig as AnyType)[secretKey]
