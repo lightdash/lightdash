@@ -7106,6 +7106,9 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockResolvedValue(resolvedCredentials);
             service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            service.resolveDashboardTileParameters = vi
+                .fn()
+                .mockResolvedValue(undefined);
             internals.getMetricQueryFields = vi
                 .fn()
                 .mockResolvedValue({ fields: {} });
@@ -7245,6 +7248,8 @@ describe('AsyncQueryService', () => {
             }) => {
                 const { service } = buildService();
                 const internals = service as AnyType;
+                // These cases exercise the real resolver
+                delete internals.resolveDashboardTileParameters;
                 internals.savedChartModel = {
                     get: vi.fn(async () => ({
                         ...savedChart,
