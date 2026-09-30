@@ -1,3 +1,18 @@
+# [2.391.0](https://github.com/lightdash/lightdash/compare/2.390.0...2.391.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* apply scheduler parameters to Google Sheets dashboard syncs ([#30241](https://github.com/lightdash/lightdash/issues/30241)) ([a1dc1f2](https://github.com/lightdash/lightdash/commit/a1dc1f2db4d7e89c18024079eb64168dfd905218))
+
+
+### Features
+
+* **ai:** end document write-ups once the document saves ([#30275](https://github.com/lightdash/lightdash/issues/30275)) ([ab0f41a](https://github.com/lightdash/lightdash/commit/ab0f41a8467741169a38b156232a0384f38758e2))
+* **ai:** show an organization's AI credit usage in settings ([#30248](https://github.com/lightdash/lightdash/issues/30248)) ([2130a38](https://github.com/lightdash/lightdash/commit/2130a3851938d85928ab6a9e3681dfc944fe4ff3))
+* show where dashboard tile parameter values come from ([#30239](https://github.com/lightdash/lightdash/issues/30239)) ([4dfad66](https://github.com/lightdash/lightdash/commit/4dfad6600694318ba20cf10b7a6ff00da9bd6729))
+* use chart-saved parameter values on dashboard tiles ([#30238](https://github.com/lightdash/lightdash/issues/30238)) ([d97519a](https://github.com/lightdash/lightdash/commit/d97519a0721e91ea5285183eee87c58850d52c10))
+
 # [2.390.0](https://github.com/lightdash/lightdash/compare/2.389.5...2.390.0) (2026-09-30)
 
 
