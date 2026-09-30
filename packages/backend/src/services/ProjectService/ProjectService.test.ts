@@ -9172,6 +9172,190 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         },
     );
 
+    describe('primary source fetch', () => {
+        const primaryManifest = () =>
+            buildManifest([
+                {
+                    uniqueId: 'model.pkg_a.orders',
+                    name: 'orders',
+                    packageName: 'pkg_a',
+                },
+            ]);
+        const sourceManifest = () =>
+            buildManifest([
+                {
+                    uniqueId: 'model.pkg_b.customers',
+                    name: 'customers',
+                    packageName: 'pkg_b',
+                },
+            ]);
+
+        const buildRecordingAdapter = (
+            name: string,
+            manifest: DbtManifest,
+            events: string[],
+            waitFor: Promise<void> = Promise.resolve(),
+        ) =>
+            ({
+                getDbtManifest: vi.fn(async () => {
+                    events.push(`${name} started`);
+                    await waitFor;
+                    events.push(`${name} finished`);
+                    return { manifest, timings: NO_FETCH_TIMINGS };
+                }),
+            }) as unknown as ProjectAdapter;
+
+        const buildService = (sourceFetchConcurrency: number | undefined) =>
+            getMockedProjectService({
+                ...lightdashConfigMock,
+                dbt: { ...lightdashConfigMock.dbt, sourceFetchConcurrency },
+            }) as unknown as ProjectServiceInternals;
+
+        it('fetches the primary at the same time as the additional sources', async () => {
+            const events: string[] = [];
+            let sourceStarted: () => void = () => {};
+            const sourceHasStarted = new Promise<void>((resolve) => {
+                sourceStarted = resolve;
+            });
+            const projectService = buildService(2);
+            vi.spyOn(projectService, 'buildSourceAdapter').mockImplementation(
+                async () =>
+                    ({
+                        getDbtManifest: vi.fn(async () => {
+                            events.push('source-b started');
+                            sourceStarted();
+                            events.push('source-b finished');
+                            return {
+                                manifest: sourceManifest(),
+                                timings: NO_FETCH_TIMINGS,
+                            };
+                        }),
+                    }) as unknown as ProjectAdapter,
+            );
+
+            const { adapter } = await projectService.buildMergedManifestAdapter(
+                {
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'org-uuid',
+                    primary: {
+                        ...primary,
+                        adapter: buildRecordingAdapter(
+                            'primary',
+                            primaryManifest(),
+                            events,
+                            sourceHasStarted,
+                        ),
+                    },
+                    sources: [buildSource('source-b')],
+                    manifestFetchAdapters: [],
+                },
+            );
+
+            expect(events).toEqual([
+                'primary started',
+                'source-b started',
+                'source-b finished',
+                'primary finished',
+            ]);
+            const { manifest } = await adapter.getDbtManifest();
+            expect(Object.keys(manifest.nodes)).toEqual(
+                expect.arrayContaining([
+                    'model.pkg_a.orders',
+                    'model.pkg_b.customers',
+                ]),
+            );
+        });
+
+        it('starts the primary first when only one fetch may run at a time', async () => {
+            const events: string[] = [];
+            const projectService = buildService(1);
+            vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+                buildRecordingAdapter('source-b', sourceManifest(), events),
+            );
+
+            await projectService.buildMergedManifestAdapter({
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: {
+                    ...primary,
+                    adapter: buildRecordingAdapter(
+                        'primary',
+                        primaryManifest(),
+                        events,
+                    ),
+                },
+                sources: [buildSource('source-b')],
+                manifestFetchAdapters: [],
+            });
+
+            expect(events).toEqual([
+                'primary started',
+                'primary finished',
+                'source-b started',
+                'source-b finished',
+            ]);
+        });
+
+        it('fails on a source with broken credentials before fetching anything', async () => {
+            const events: string[] = [];
+            const projectService = buildService(2);
+            const buildSourceAdapter = vi.spyOn(
+                projectService,
+                'buildSourceAdapter',
+            );
+
+            await expect(
+                projectService.buildMergedManifestAdapter({
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'org-uuid',
+                    primary: {
+                        ...primary,
+                        adapter: buildRecordingAdapter(
+                            'primary',
+                            primaryManifest(),
+                            events,
+                        ),
+                    },
+                    sources: [
+                        {
+                            ...buildSource('source-b'),
+                            hasCredentialError: true,
+                        },
+                    ],
+                    manifestFetchAdapters: [],
+                }),
+            ).rejects.toThrow(
+                'Failed to load dbt source "source-b": its connection credentials could not be decrypted',
+            );
+            expect(events).toEqual([]);
+            expect(buildSourceAdapter).not.toHaveBeenCalled();
+        });
+
+        it('fails the merge with the primary error when the primary fetch fails', async () => {
+            const projectService = buildService(2);
+            vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+                buildAdapterWithManifest(sourceManifest()),
+            );
+            const manifestFetchAdapters: ProjectAdapter[] = [];
+            const failingPrimaryAdapter = {
+                getDbtManifest: vi.fn(async () => {
+                    throw new Error('dbt ls failed in the primary');
+                }),
+            } as unknown as ProjectAdapter;
+
+            await expect(
+                projectService.buildMergedManifestAdapter({
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'org-uuid',
+                    primary: { ...primary, adapter: failingPrimaryAdapter },
+                    sources: [buildSource('source-b')],
+                    manifestFetchAdapters,
+                }),
+            ).rejects.toThrow('dbt ls failed in the primary');
+            expect(manifestFetchAdapters).toContain(failingPrimaryAdapter);
+        });
+    });
+
     it('logs the git, dependency and manifest time of the primary and each source', async () => {
         const primaryManifest = buildManifest([
             {
