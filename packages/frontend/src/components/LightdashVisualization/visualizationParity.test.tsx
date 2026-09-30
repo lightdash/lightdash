@@ -276,7 +276,7 @@ describe('the app and the headless engine draw the same chart', () => {
                 },
                 eChartsConfig: {
                     series: savedSeries(['orders_revenue', 'orders_count']),
-                    legend: { show: true, position: 'bottom' },
+                    legend: { show: true },
                 },
             },
         });
