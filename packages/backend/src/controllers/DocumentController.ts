@@ -298,7 +298,7 @@ export class DocumentController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getDocumentService()
-                .getByIdOrSlug(req.account, projectUuid, documentUuidOrSlug),
+                .view(req.account, projectUuid, documentUuidOrSlug),
         };
     }
 }

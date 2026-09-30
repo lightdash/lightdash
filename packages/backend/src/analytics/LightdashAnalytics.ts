@@ -1541,6 +1541,16 @@ export type DocumentDeletedEvent = BaseTrack & {
     };
 };
 
+export type DocumentViewEvent = BaseTrack & {
+    event: 'document.view';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+    };
+};
+
 export type DocumentRestoredEvent = BaseTrack & {
     event: 'document.restored';
     userId: string;
@@ -4401,6 +4411,7 @@ type TypedEvent =
     | DocumentUpdatedEvent
     | DocumentDeletedEvent
     | DocumentRestoredEvent
+    | DocumentViewEvent
     | AiAgentSkillCreatedEvent
     | AiAgentSkillUpdatedEvent
     | AiAgentSkillRestoredEvent

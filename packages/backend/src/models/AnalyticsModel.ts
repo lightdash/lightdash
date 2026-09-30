@@ -18,6 +18,7 @@ import {
 } from '../database/entities/analytics';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
+import { DocumentsTableName } from '../database/entities/documents';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import { traceSpan } from '../tracing/tracing';
@@ -191,6 +192,19 @@ export class AnalyticsModel {
                 })
                 .where('dashboard_uuid', dashboardUuid);
         });
+    }
+
+    async addDocumentViewEvent(documentUuid: string): Promise<void> {
+        await this.database(DocumentsTableName)
+            .update({
+                document_views_count: this.database.raw(
+                    'document_views_count + 1',
+                ) as unknown as number,
+                document_first_viewed_at: this.database.raw(
+                    'COALESCE(document_first_viewed_at, NOW())',
+                ) as unknown as Date,
+            })
+            .where('document_uuid', documentUuid);
     }
 
     async addAppViewEvent(appId: string, userUuid: string): Promise<void> {
