@@ -53,8 +53,11 @@ async function main() {
 }
 
 if (require.main === module) {
-    void main().catch((error: unknown) => {
-        console.error(error instanceof Error ? error.message : String(error));
+    void main().catch(() => {
+        // Configuration/connection errors can include credentials.
+        console.error(
+            'Could not enqueue usage compaction. Check arguments (--help), usage-events configuration and database access.',
+        );
         process.exitCode = 1;
     });
 }
