@@ -381,6 +381,7 @@ import {
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -3797,6 +3798,11 @@ export class ProjectService extends BaseService {
         ProjectService.validateDbtEnvironmentVariables(
             newProjectData.dbtConnection,
         );
+        newProjectData.dbtConnection =
+            await this.resolveGithubInstallationForSave(
+                newProjectData.dbtConnection,
+                user.organizationUuid,
+            );
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
@@ -4919,10 +4925,17 @@ export class ProjectService extends BaseService {
             account.user.id,
             savedProject.organizationUuid,
         );
-        const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
+        const mergedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             createProject,
             savedProject,
         );
+        const updatedProject = {
+            ...mergedProject,
+            dbtConnection: await this.resolveGithubInstallationForSave(
+                mergedProject.dbtConnection,
+                savedProject.organizationUuid,
+            ),
+        };
 
         this.validateConfigSecrets(updatedProject);
         ProjectService.validateDbtEnvironmentVariables(
@@ -5426,6 +5439,25 @@ export class ProjectService extends BaseService {
             });
             throw error;
         }
+    }
+
+    /**
+     * Resolves the org's GitHub App installation into the connection and
+     * refuses to persist an OAuth connection that has none. Without this,
+     * "OAuth" could be saved with an empty installation id and the adapter
+     * would quietly use whatever PAT was merged back from the previous save
+     * (PROD-11711).
+     */
+    private async resolveGithubInstallationForSave(
+        dbtConnection: DbtProjectConfig,
+        organizationUuid: string | undefined,
+    ): Promise<DbtProjectConfig> {
+        const resolved = await this.resolveDbtConnectionInstallationId(
+            dbtConnection,
+            organizationUuid,
+        );
+        assertGithubInstallationResolved(resolved);
+        return resolved;
     }
 
     /**
