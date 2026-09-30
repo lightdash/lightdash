@@ -983,18 +983,24 @@ export const resolveCartesianChartConfig = ({
         resultsData &&
         resultsData.hasFetchedAllRows !== false
     ) {
-        eChartsConfig = {
-            ...eChartsConfig,
-            series: buildCartesianSeries({
-                layout,
-                existingSeries: eChartsConfig?.series,
+        // Twice, as the editor settles over two renders: the first pass
+        // expands the series, the second merges them as existing ones and
+        // marks each as kept or filtered out.
+        const completeLayout = layout;
+        const build = (existingSeries: Series[] | undefined) =>
+            buildCartesianSeries({
+                layout: completeLayout,
+                existingSeries,
                 isStacked,
                 pivotKeys,
                 resultsData,
                 itemsMap,
                 columnLimit,
                 referenceLines,
-            }),
+            });
+        eChartsConfig = {
+            ...eChartsConfig,
+            series: build(build(eChartsConfig?.series)),
         };
     }
 

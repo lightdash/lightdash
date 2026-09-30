@@ -78,6 +78,8 @@ export type RenderChartInput = {
     calculateSeriesColor?: boolean;
     /** Animate series on first draw; off for exports and screenshots. */
     animation?: boolean;
+    /** Float tooltips in the document body; off on touch devices. */
+    tooltipAppendToBody?: boolean;
     /** The box the chart renders in, in px; gauges scale their text to it. */
     size?: { width: number; height: number };
     /** Values that need a further query: totals and subtotals. */
@@ -136,6 +138,7 @@ export const renderChart = ({
     resolvedTimezone,
     calculateSeriesColor = false,
     animation = true,
+    tooltipAppendToBody = true,
     size = DEFAULT_SIZE,
     totals,
     groupedSubtotals,
@@ -148,6 +151,7 @@ export const renderChart = ({
         parameters,
         resolvedTimezone: resolvedTimezone ?? results.resolvedTimezone,
         animation,
+        tooltipAppendToBody,
     };
     const colors = (config: ChartConfig) =>
         createSeriesColorResolver({
