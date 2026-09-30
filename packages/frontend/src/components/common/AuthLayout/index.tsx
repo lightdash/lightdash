@@ -12,7 +12,7 @@ import { useAuthLayoutVariant } from './useAuthLayoutVariant';
 
 const BRAND_HIGHLIGHTS = [
     'Agents build and refactor your dashboards',
-    'Governed by your semantic layer — no hallucinations',
+    'Governed by your semantic layer',
     'Open source · unlimited seats · no lock-in',
 ];
 
