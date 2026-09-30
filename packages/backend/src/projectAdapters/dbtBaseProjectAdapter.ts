@@ -14,8 +14,10 @@ import {
     friendlyName,
     getCompiledModels,
     getDbtManifestVersion,
+    getMissingCatalogEntries,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
+    haveMissingCatalogEntriesChanged,
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
@@ -26,11 +28,13 @@ import {
     normaliseModelDatabase,
     NotFoundError,
     ParseError,
+    setCatalogMissingEntries,
     SupportedDbtAdapter,
     SupportedDbtVersions,
     type AttachTypesDiagnostics,
     type LightdashProjectConfig,
     type ProjectContextEntry,
+    type WarehouseCatalogMissingEntry,
 } from '@lightdash/common';
 import { ManifestValidator } from '@lightdash/common/dbt/validation';
 import { WarehouseClient } from '@lightdash/warehouses';
@@ -315,133 +319,221 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const lightdashProjectConfig =
             await this.getLightdashProjectConfig(trackingParams);
 
-        // Be lazy and try to attach types to the remaining models without refreshing the catalog
+        const typedModels = await this.attachTypes(
+            validModels,
+            adapterType,
+            trackingParams,
+        );
+        Logger.info('Convert explores');
+        const disableTimestampConversion =
+            this.warehouseClient.credentials.type === 'snowflake' &&
+            this.warehouseClient.credentials.disableTimestampConversion ===
+                true;
+
+        const explores = iterateExplores(
+            typedModels,
+            loadSources,
+            adapterType,
+            this.warehouseClient,
+            lightdashProjectConfig,
+            {
+                disableTimestampConversion,
+                allowPartialCompilation,
+                postProcessors,
+            },
+        );
+        return (async function* compiledExplores() {
+            yield* explores;
+            yield* failedExplores;
+            Logger.info('Finished compiling explores');
+        })();
+    }
+
+    private async attachTypes(
+        models: DbtModelNode[],
+        adapterType: SupportedDbtAdapter,
+        trackingParams: TrackingParams | undefined,
+    ): Promise<DbtModelNode[]> {
+        const caseSensitiveMatching = adapterType !== 'snowflake';
+        const cachedCatalog = this.cachedWarehouse?.warehouseCatalog;
+        if (cachedCatalog === undefined) {
+            return this.attachTypesAfterCatalogFetch(
+                models,
+                caseSensitiveMatching,
+                'no_cache',
+                trackingParams,
+            );
+        }
+        // A cache written before timestamp domains existed would otherwise
+        // be reused forever (only missing entries trigger a refetch),
+        // leaving every column unclassified — refetch it once.
+        if (!catalogHasTimestampDomains(cachedCatalog)) {
+            return this.attachTypesAfterCatalogFetch(
+                models,
+                caseSensitiveMatching,
+                'cache_predates_timestamp_domains',
+                trackingParams,
+            );
+        }
+
+        const { knownMissing, unknownMissing } = getMissingCatalogEntries(
+            cachedCatalog,
+            models,
+            caseSensitiveMatching,
+        );
+        if (unknownMissing.length > 0) {
+            return this.attachTypesAfterCatalogFetch(
+                models,
+                caseSensitiveMatching,
+                'cache_miss',
+                trackingParams,
+            );
+        }
+        if (
+            knownMissing.length > 0 &&
+            (await this.haveKnownMissingEntriesChanged(
+                models,
+                knownMissing,
+                caseSensitiveMatching,
+                trackingParams,
+            ))
+        ) {
+            return this.attachTypesAfterCatalogFetch(
+                models,
+                caseSensitiveMatching,
+                'known_missing_changed',
+                trackingParams,
+            );
+        }
+
         try {
-            if (this.cachedWarehouse?.warehouseCatalog === undefined) {
-                throw new MissingCatalogEntryError(
-                    `Warehouse catalog is undefined`,
-                    {},
-                );
-            }
-            // A cache written before timestamp domains existed would otherwise
-            // be reused forever (only missing entries trigger a refetch),
-            // leaving every column unclassified — refetch it once.
-            if (
-                !catalogHasTimestampDomains(
-                    this.cachedWarehouse.warehouseCatalog,
-                )
-            ) {
-                throw new MissingCatalogEntryError(
-                    `Cached warehouse catalog predates timestamp domains`,
-                    {},
-                );
-            }
-            const lazyTypedModels = attachTypesToModels(
-                validModels,
-                this.cachedWarehouse.warehouseCatalog,
+            return attachTypesToModels(
+                models,
+                cachedCatalog,
                 true,
-                adapterType !== 'snowflake',
+                caseSensitiveMatching,
                 (diagnostics) =>
                     DbtBaseProjectAdapter.logAttachTypesPhase(
                         'cached_catalog',
+                        knownMissing,
                         trackingParams,
                         diagnostics,
                     ),
+                knownMissing,
             );
-            Logger.info('Convert explores');
-            const disableTimestampConversion =
-                this.warehouseClient.credentials.type === 'snowflake' &&
-                this.warehouseClient.credentials.disableTimestampConversion ===
-                    true;
-
-            const lazyExplores = iterateExplores(
-                lazyTypedModels,
-                loadSources,
-                adapterType,
-                this.warehouseClient,
-                lightdashProjectConfig,
-                {
-                    disableTimestampConversion,
-                    allowPartialCompilation,
-                    postProcessors,
-                },
-            );
-            return (async function* compiledExplores() {
-                yield* lazyExplores;
-                yield* failedExplores;
-                Logger.info('Finished compiling explores');
-            })();
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
-                Logger.info(
-                    'Get warehouse catalog after missing catalog error',
+                return this.attachTypesAfterCatalogFetch(
+                    models,
+                    caseSensitiveMatching,
+                    'cache_miss',
+                    trackingParams,
                 );
-                const modelCatalog =
-                    getSchemaStructureFromDbtModels(validModels);
-                const catalogFetchStartedAt = Date.now();
-                const warehouseCatalog =
-                    await this.warehouseClient.getCatalog(modelCatalog);
-                Logger.info('dbt.compile.warehouseCatalogFetch', {
-                    event: 'dbt.compile.warehouseCatalogFetch',
-                    projectUuid: trackingParams?.projectUuid ?? null,
-                    jobUuid: trackingParams?.jobUuid ?? null,
-                    warehouseType: this.warehouseClient.credentials.type,
-                    requestedTables: modelCatalog.length,
-                    durationMs: Date.now() - catalogFetchStartedAt,
-                });
-                // Clients only create the sidecar when they classify a column;
-                // stamp it (possibly empty) so the staleness check above can't
-                // refetch again on domain-less warehouses.
-                ensureCatalogTimestampDomainsKey(warehouseCatalog);
-                await this.cachedWarehouse?.onWarehouseCatalogChange(
-                    warehouseCatalog,
-                );
-
-                // Some types were missing so refresh the schema and try again
-                const typedModels = attachTypesToModels(
-                    validModels,
-                    warehouseCatalog,
-                    false,
-                    adapterType !== 'snowflake',
-                    (diagnostics) =>
-                        DbtBaseProjectAdapter.logAttachTypesPhase(
-                            'refetched_catalog',
-                            trackingParams,
-                            diagnostics,
-                        ),
-                );
-                Logger.info('Convert explores after missing catalog error');
-                const disableTimestampConversion =
-                    this.warehouseClient.credentials.type === 'snowflake' &&
-                    this.warehouseClient.credentials
-                        .disableTimestampConversion === true;
-
-                const explores = iterateExplores(
-                    typedModels,
-                    loadSources,
-                    adapterType,
-                    this.warehouseClient,
-                    lightdashProjectConfig,
-                    {
-                        disableTimestampConversion,
-                        allowPartialCompilation,
-                        postProcessors,
-                    },
-                );
-                return (async function* compiledExplores() {
-                    yield* explores;
-                    yield* failedExplores;
-                    Logger.info(
-                        'Finished compiling explores after missing catalog error',
-                    );
-                })();
             }
             throw e;
         }
     }
 
+    private async haveKnownMissingEntriesChanged(
+        models: DbtModelNode[],
+        knownMissing: WarehouseCatalogMissingEntry[],
+        caseSensitiveMatching: boolean,
+        trackingParams: TrackingParams | undefined,
+    ): Promise<boolean> {
+        const probeStartedAt = Date.now();
+        const probedTables = knownMissing.map(
+            ({ database, schema, table }) => ({ database, schema, table }),
+        );
+        const probedCatalog =
+            await this.warehouseClient.getCatalog(probedTables);
+        const changed = haveMissingCatalogEntriesChanged(
+            probedCatalog,
+            models,
+            knownMissing,
+            caseSensitiveMatching,
+        );
+        Logger.info('dbt.compile.warehouseCatalogFetch', {
+            event: 'dbt.compile.warehouseCatalogFetch',
+            projectUuid: trackingParams?.projectUuid ?? null,
+            jobUuid: trackingParams?.jobUuid ?? null,
+            warehouseType: this.warehouseClient.credentials.type,
+            reason: 'known_missing_probe',
+            requestedTables: probedTables.length,
+            ...DbtBaseProjectAdapter.countMissingEntries(knownMissing),
+            changed,
+            durationMs: Date.now() - probeStartedAt,
+        });
+        return changed;
+    }
+
+    private async attachTypesAfterCatalogFetch(
+        models: DbtModelNode[],
+        caseSensitiveMatching: boolean,
+        reason:
+            | 'no_cache'
+            | 'cache_predates_timestamp_domains'
+            | 'cache_miss'
+            | 'known_missing_changed',
+        trackingParams: TrackingParams | undefined,
+    ): Promise<DbtModelNode[]> {
+        const requestedTables = getSchemaStructureFromDbtModels(models);
+        const catalogFetchStartedAt = Date.now();
+        const warehouseCatalog =
+            await this.warehouseClient.getCatalog(requestedTables);
+        const { unknownMissing: missingEntries } = getMissingCatalogEntries(
+            warehouseCatalog,
+            models,
+            caseSensitiveMatching,
+        );
+        Logger.info('dbt.compile.warehouseCatalogFetch', {
+            event: 'dbt.compile.warehouseCatalogFetch',
+            projectUuid: trackingParams?.projectUuid ?? null,
+            jobUuid: trackingParams?.jobUuid ?? null,
+            warehouseType: this.warehouseClient.credentials.type,
+            reason,
+            requestedTables: requestedTables.length,
+            ...DbtBaseProjectAdapter.countMissingEntries(missingEntries),
+            durationMs: Date.now() - catalogFetchStartedAt,
+        });
+        // Clients only create the sidecar when they classify a column;
+        // stamp it (possibly empty) so the staleness check above can't
+        // refetch again on domain-less warehouses.
+        ensureCatalogTimestampDomainsKey(warehouseCatalog);
+        setCatalogMissingEntries(warehouseCatalog, missingEntries);
+        await this.cachedWarehouse?.onWarehouseCatalogChange(warehouseCatalog);
+
+        return attachTypesToModels(
+            models,
+            warehouseCatalog,
+            false,
+            caseSensitiveMatching,
+            (diagnostics) =>
+                DbtBaseProjectAdapter.logAttachTypesPhase(
+                    'refetched_catalog',
+                    missingEntries,
+                    trackingParams,
+                    diagnostics,
+                ),
+        );
+    }
+
+    private static countMissingEntries(
+        entries: WarehouseCatalogMissingEntry[],
+    ) {
+        return {
+            knownMissingTables: entries.filter(
+                ({ columns }) => columns === null,
+            ).length,
+            knownMissingColumns: entries.reduce(
+                (count, { columns }) => count + (columns?.length ?? 0),
+                0,
+            ),
+        };
+    }
+
     private static logAttachTypesPhase(
         catalogSource: 'cached_catalog' | 'refetched_catalog',
+        knownMissing: WarehouseCatalogMissingEntry[],
         trackingParams: TrackingParams | undefined,
         diagnostics: AttachTypesDiagnostics,
     ) {
@@ -450,6 +542,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             projectUuid: trackingParams?.projectUuid ?? null,
             jobUuid: trackingParams?.jobUuid ?? null,
             catalogSource,
+            ...DbtBaseProjectAdapter.countMissingEntries(knownMissing),
             durationMs: diagnostics.durationMs,
             modelCount: diagnostics.modelCount,
             columnCount: diagnostics.columnCount,
