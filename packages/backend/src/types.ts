@@ -15,6 +15,16 @@ export type TrackingParams = {
     jobUuid?: string;
 };
 
+export type DbtManifestFetchTimings = {
+    gitRefreshMs: number | null;
+    depsMs: number | null;
+    manifestMs: number;
+};
+
+export type DbtManifestFetchResult = DbtRpcGetManifestResults & {
+    timings: DbtManifestFetchTimings;
+};
+
 export interface ProjectAdapter {
     /**
      * Compile all explores
@@ -42,7 +52,7 @@ export interface ProjectAdapter {
      * by the multiple-dbt-sources merge to combine each source's manifest before
      * a single compile.
      */
-    getDbtManifest(): Promise<DbtRpcGetManifestResults>;
+    getDbtManifest(): Promise<DbtManifestFetchResult>;
 
     test(): Promise<void>;
 

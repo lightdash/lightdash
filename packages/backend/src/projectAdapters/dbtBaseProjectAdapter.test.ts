@@ -1,6 +1,7 @@
 import {
     DEFAULT_SPOTLIGHT_CONFIG,
     SupportedDbtVersions,
+    type DbtManifest,
     type LightdashProjectConfig,
     type WarehouseClient,
 } from '@lightdash/common';
@@ -151,6 +152,58 @@ describe('getProjectContext', () => {
         await expect(mockProjectAdapter.getProjectContext()).rejects.toThrow(
             /Invalid lightdash.project_context.yml with errors/,
         );
+    });
+});
+
+describe('getDbtManifest', () => {
+    const manifest = { nodes: {} } as unknown as DbtManifest;
+
+    const buildAdapter = (dbtClient: DbtClient) =>
+        new DbtBaseProjectAdapter(
+            dbtClient,
+            vi.fn() as unknown as WarehouseClient,
+            vi.fn() as unknown as CachedWarehouse,
+            SupportedDbtVersions.V1_9,
+        );
+
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('times dbt deps and the manifest read separately', async () => {
+        const adapter = buildAdapter({
+            installDeps: vi.fn(async () => {
+                vi.advanceTimersByTime(2300);
+            }),
+            getDbtManifest: vi.fn(async () => {
+                vi.advanceTimersByTime(15300);
+                return { manifest };
+            }),
+        } as unknown as DbtClient);
+
+        await expect(adapter.getDbtManifest()).resolves.toEqual({
+            manifest,
+            timings: { gitRefreshMs: null, depsMs: 2300, manifestMs: 15300 },
+        });
+    });
+
+    it('reports no dependency time when the client installs no dependencies', async () => {
+        const adapter = buildAdapter({
+            getDbtManifest: vi.fn(async () => {
+                vi.advanceTimersByTime(40);
+                return { manifest, selectedModelIds: ['model.pkg.orders'] };
+            }),
+        } as unknown as DbtClient);
+
+        await expect(adapter.getDbtManifest()).resolves.toEqual({
+            manifest,
+            selectedModelIds: ['model.pkg.orders'],
+            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 40 },
+        });
     });
 });
 

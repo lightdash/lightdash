@@ -375,7 +375,12 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
-import { CachedWarehouse, ProjectAdapter, TrackingParams } from '../../types';
+import {
+    CachedWarehouse,
+    DbtManifestFetchTimings,
+    ProjectAdapter,
+    TrackingParams,
+} from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
@@ -5944,6 +5949,49 @@ export class ProjectService extends BaseService {
         }
     }
 
+    private logDbtSourceFetched({
+        event,
+        projectUuid,
+        jobUuid,
+        sourceName,
+        durationMs,
+        manifest,
+        selectedModelIds,
+        timings,
+    }: {
+        event: 'dbt.compile.sourceFetched' | 'dbt.compile.primarySourceFetched';
+        projectUuid: string;
+        jobUuid: string | null;
+        sourceName: string;
+        durationMs: number;
+        manifest: DbtManifest;
+        selectedModelIds: string[] | undefined;
+        timings: DbtManifestFetchTimings;
+    }): void {
+        const modelCount = Object.values(manifest.nodes).filter(
+            (node) => node.resource_type === 'model',
+        ).length;
+        this.logger.info(
+            `${event} projectUuid=${projectUuid} sourceName=${sourceName} durationMs=${durationMs} models=${modelCount} gitRefreshMs=${
+                timings.gitRefreshMs ?? 'none'
+            } depsMs=${timings.depsMs ?? 'none'} manifestMs=${
+                timings.manifestMs
+            }`,
+            {
+                event,
+                projectUuid,
+                jobUuid,
+                sourceName,
+                durationMs,
+                modelCount,
+                selectedModelCount: selectedModelIds?.length ?? null,
+                gitRefreshMs: timings.gitRefreshMs,
+                depsMs: timings.depsMs,
+                manifestMs: timings.manifestMs,
+            },
+        );
+    }
+
     /**
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single
@@ -5982,16 +6030,28 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
+        const primaryStartedAt = Date.now();
         const [
             {
                 manifest: rawPrimaryManifest,
                 selectedModelIds: primarySelectedModelIds,
+                timings: primaryTimings,
             },
             identity,
         ] = await Promise.all([
             primary.adapter.getDbtManifest(),
             this.projectModel.getDbtSourceIdentity(projectUuid),
         ]);
+        this.logDbtSourceFetched({
+            event: 'dbt.compile.primarySourceFetched',
+            projectUuid,
+            jobUuid: jobUuid ?? null,
+            sourceName: identity.dbtSourceName,
+            durationMs: Date.now() - primaryStartedAt,
+            manifest: rawPrimaryManifest,
+            selectedModelIds: primarySelectedModelIds,
+            timings: primaryTimings,
+        });
         const selectedPrimaryManifest = manifestWithCompilationSelection(
             rawPrimaryManifest,
             primarySelectedModelIds,
@@ -6106,6 +6166,7 @@ export class ProjectService extends BaseService {
                     const {
                         manifest,
                         selectedModelIds: sourceSelectedModelIds,
+                        timings,
                     } = await sourceAdapter.getDbtManifest();
                     const selectedManifest = manifestWithCompilationSelection(
                         manifest,
@@ -6129,23 +6190,16 @@ export class ProjectService extends BaseService {
                             ),
                         ),
                     };
-                    const sourceDurationMs = Date.now() - sourceStartedAt;
-                    const sourceModelCount = Object.values(
-                        manifest.nodes,
-                    ).filter((node) => node.resource_type === 'model').length;
-                    this.logger.info(
-                        `dbt.compile.sourceFetched projectUuid=${projectUuid} sourceName=${source.name} durationMs=${sourceDurationMs} models=${sourceModelCount}`,
-                        {
-                            event: 'dbt.compile.sourceFetched',
-                            projectUuid,
-                            jobUuid: jobUuid ?? null,
-                            sourceName: source.name,
-                            durationMs: sourceDurationMs,
-                            modelCount: sourceModelCount,
-                            selectedModelCount:
-                                sourceSelectedModelIds?.length ?? null,
-                        },
-                    );
+                    this.logDbtSourceFetched({
+                        event: 'dbt.compile.sourceFetched',
+                        projectUuid,
+                        jobUuid: jobUuid ?? null,
+                        sourceName: source.name,
+                        durationMs: Date.now() - sourceStartedAt,
+                        manifest,
+                        selectedModelIds: sourceSelectedModelIds,
+                        timings,
+                    });
                     return {
                         name: source.name,
                         precedence: source.precedence,
