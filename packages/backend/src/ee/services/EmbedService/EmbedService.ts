@@ -80,6 +80,7 @@ import {
     type KnexPaginatedData,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
 import { isArray } from 'lodash';
@@ -1214,6 +1215,45 @@ export class EmbedService extends BaseService {
         return { ...results, fields: compiledQuery.fields };
     }
 
+    // Chart embeds (no dashboard) ignore the chart saved values, unchanged from before
+    private async _combineSavedChartParameters({
+        projectUuid,
+        explore,
+        chart,
+        dashboardUuid,
+        acceptedUserParameters,
+    }: {
+        projectUuid: string;
+        explore: Explore;
+        chart: SavedChartDAO;
+        dashboardUuid: string | null;
+        acceptedUserParameters: ParametersValuesMap;
+    }): Promise<ParametersValuesMap> {
+        if (!dashboardUuid) {
+            return this.projectService.combineParameters(
+                projectUuid,
+                explore,
+                acceptedUserParameters,
+                {},
+            );
+        }
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+        return this.projectService.resolveDashboardTileParameters({
+            projectUuid,
+            explore,
+            dashboardValues: {
+                ...getDashboardParametersValuesMap(dashboard),
+                ...acceptedUserParameters,
+            },
+            chartSavedValues: chart.parameters ?? {},
+            isTargeted: true,
+            preloadedProjectParameters: null,
+        });
+    }
+
     private async _getChartFromDashboardTiles(
         dashboard: DashboardDAO,
         tileUuid: string,
@@ -1689,19 +1729,23 @@ export class EmbedService extends BaseService {
             },
         });
 
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
-
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
             userParameters
                 ? userParameters
                 : {};
-        const combinedParameters = await this.projectService.combineParameters(
-            projectUuid,
-            explore,
-            acceptedUserParameters,
-            dashboardParameters,
-        );
+        const combinedParameters =
+            await this.projectService.resolveDashboardTileParameters({
+                projectUuid,
+                explore,
+                dashboardValues: {
+                    ...getDashboardParametersValuesMap(dashboard),
+                    ...acceptedUserParameters,
+                },
+                chartSavedValues: chart.parameters ?? {},
+                isTargeted: true,
+                preloadedProjectParameters: null,
+            });
 
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
@@ -2221,26 +2265,18 @@ export class EmbedService extends BaseService {
             this.getAccessControls(account);
         const filteredExplore = getFilteredExplore(explore, userAttributes);
 
-        // For chart embeds, dashboardUuid is undefined - use empty parameters
-        const dashboardParameters = dashboardUuid
-            ? getDashboardParametersValuesMap(
-                  await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
-                      projectUuid,
-                  }),
-              )
-            : {};
-
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
             userParameters
                 ? userParameters
                 : {};
-        const combinedParameters = await this.projectService.combineParameters(
+        const combinedParameters = await this._combineSavedChartParameters({
             projectUuid,
             explore,
+            chart,
+            dashboardUuid: dashboardUuid ?? null,
             acceptedUserParameters,
-            dashboardParameters,
-        );
+        });
 
         try {
             const row = await this.asyncQueryService.calculateMetricQueryTotal({
@@ -2309,26 +2345,18 @@ export class EmbedService extends BaseService {
             ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
         ];
 
-        // For chart embeds, dashboardUuid is undefined - use empty parameters
-        const dashboardParameters = dashboardUuid
-            ? getDashboardParametersValuesMap(
-                  await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
-                      projectUuid,
-                  }),
-              )
-            : {};
-
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
             userParameters
                 ? userParameters
                 : {};
-        const combinedParameters = await this.projectService.combineParameters(
+        const combinedParameters = await this._combineSavedChartParameters({
             projectUuid,
             explore,
+            chart,
+            dashboardUuid: dashboardUuid ?? null,
             acceptedUserParameters,
-            dashboardParameters,
-        );
+        });
 
         return this._calculateSubtotalsForEmbed(
             account,

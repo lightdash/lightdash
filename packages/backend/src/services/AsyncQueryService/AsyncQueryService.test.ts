@@ -7231,6 +7231,131 @@ describe('AsyncQueryService', () => {
             },
         );
 
+        describe('dashboard tile parameters', () => {
+            const runTile = async ({
+                statusDefault,
+                chartStatus,
+                dashboardStatus,
+                requestStatus,
+            }: {
+                statusDefault: string | null;
+                chartStatus: string;
+                dashboardStatus: string | null;
+                requestStatus: string | null;
+            }) => {
+                const { service } = buildService();
+                const internals = service as AnyType;
+                internals.savedChartModel = {
+                    get: vi.fn(async () => ({
+                        ...savedChart,
+                        parameters: { status: chartStatus },
+                    })),
+                };
+                internals.dashboardModel = {
+                    getDashboardParametersByIdOrSlug: vi.fn(async () =>
+                        dashboardStatus === null
+                            ? undefined
+                            : {
+                                  status: {
+                                      parameterName: 'status',
+                                      value: dashboardStatus,
+                                  },
+                              },
+                    ),
+                };
+                internals.projectParametersModel = {
+                    find: vi.fn(async () => [
+                        {
+                            name: 'status',
+                            config:
+                                statusDefault === null
+                                    ? { label: 'Status' }
+                                    : {
+                                          label: 'Status',
+                                          default: statusDefault,
+                                      },
+                        },
+                    ]),
+                };
+                await service.executeAsyncDashboardChartQuery({
+                    account: viewer,
+                    projectUuid,
+                    tileUuid: 'tile-1',
+                    chartUuid: savedChart.uuid,
+                    dashboardUuid: 'dashboard-uuid',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    context: QueryExecutionContext.DASHBOARD,
+                    invalidateCache: false,
+                    limit: undefined,
+                    parameters:
+                        requestStatus === null
+                            ? undefined
+                            : { status: requestStatus },
+                    pivotResults: false,
+                });
+                return internals.prepareMetricQueryAsyncQueryArgs.mock
+                    .calls[0][0].parameters;
+            };
+
+            test.each(['Cancelled', 'Expired'])(
+                'a chart saved as %s runs with the definition default',
+                async (chartStatus) => {
+                    await expect(
+                        runTile({
+                            statusDefault: 'all',
+                            chartStatus,
+                            dashboardStatus: null,
+                            requestStatus: null,
+                        }),
+                    ).resolves.toEqual({ status: 'all' });
+                },
+            );
+
+            test.each(['Cancelled', 'Expired'])(
+                'a chart saved as %s keeps its value without a definition default',
+                async (chartStatus) => {
+                    await expect(
+                        runTile({
+                            statusDefault: null,
+                            chartStatus,
+                            dashboardStatus: null,
+                            requestStatus: null,
+                        }),
+                    ).resolves.toEqual({ status: chartStatus });
+                },
+            );
+
+            test.each([
+                ['all', 'Cancelled'],
+                [null, 'Expired'],
+            ])(
+                'the dashboard value overrides every tile (default %s, chart %s)',
+                async (statusDefault, chartStatus) => {
+                    await expect(
+                        runTile({
+                            statusDefault,
+                            chartStatus,
+                            dashboardStatus: 'Shipped',
+                            requestStatus: null,
+                        }),
+                    ).resolves.toEqual({ status: 'Shipped' });
+                    await expect(
+                        runTile({
+                            statusDefault,
+                            chartStatus,
+                            dashboardStatus: 'Shipped',
+                            requestStatus: 'Returned',
+                        }),
+                    ).resolves.toEqual({ status: 'Returned' });
+                },
+            );
+        });
+
         test('the field value search query records the resolved connection', async () => {
             const { service, execute } = buildService();
             (service.projectModel as AnyType).findExploreByTableName = vi.fn(
@@ -8156,6 +8281,59 @@ describe('AsyncQueryService', () => {
             expect(
                 Object.keys(result.appliedDashboardFiltersBySourceId ?? {}),
             ).toEqual(['a', 'b']);
+        });
+
+        test('sends the tile parameters above the fallback chain to the merge', async () => {
+            const { service, mergeSpy } = buildService();
+            const internals = service as AnyType;
+            internals.savedChartModel = {
+                get: vi.fn(async () => ({
+                    ...mergedChart,
+                    parameters: {
+                        status: 'Cancelled',
+                        region: 'US',
+                        tier: 'silver',
+                    },
+                })),
+            };
+            internals.dashboardModel = {
+                getDashboardParametersByIdOrSlug: vi.fn(async () => ({
+                    tier: { parameterName: 'tier', value: 'gold' },
+                })),
+            };
+            internals.projectParametersModel = {
+                find: vi.fn(async () => [
+                    {
+                        name: 'status',
+                        config: { label: 'Status', default: 'all' },
+                    },
+                    { name: 'region', config: { label: 'Region' } },
+                ]),
+            };
+
+            await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+            });
+
+            expect(mergeSpy.mock.calls[0][0].parameters).toEqual({
+                region: 'US',
+                tier: 'gold',
+            });
         });
 
         test('forwards a saved-chart pivot override to merged chart execution', async () => {
