@@ -470,9 +470,11 @@ const TileFilterConfiguration: FC<Props> = ({
             value.isOverride && value.isFiltered
                 ? classes.overridePicker
                 : undefined;
+        // Portalled so the list isn't clipped by the scrolling panel or stretch the row
         const comboboxProps = {
-            withinPortal: false,
-            classNames: { dropdown: classes.inlineDropdown },
+            withinPortal: true,
+            position: 'bottom-end' as const,
+            width: 320,
         };
         if (value.targetType === 'field') {
             return (
