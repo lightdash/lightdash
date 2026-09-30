@@ -1,3 +1,10 @@
+## [2.397.2](https://github.com/lightdash/lightdash/compare/2.397.1...2.397.2) (2026-09-30)
+
+
+### Performance Improvements
+
+* **backend:** reuse dbt partial parsing between compiles ([#30299](https://github.com/lightdash/lightdash/issues/30299)) ([2a575d1](https://github.com/lightdash/lightdash/commit/2a575d1f6593c36b360349620fb31880f28b435f))
+
 ## [2.397.1](https://github.com/lightdash/lightdash/compare/2.397.0...2.397.1) (2026-09-30)
 
 
