@@ -1289,11 +1289,16 @@ const useCartesianChartConfig = ({
     useEffect(() => {
         if (isCompleteLayout(dirtyLayout) && resultsData?.hasFetchedAllRows) {
             setDirtyEchartsConfig((prev) => {
+                // With no series to inherit from, honour the type just picked:
+                // setType only rewrites existing series, so it is a no-op here
                 const defaultCartesianType =
-                    prev?.series?.[0]?.type || CartesianSeriesType.BAR;
+                    prev?.series?.[0]?.type ||
+                    cartesianType?.type ||
+                    CartesianSeriesType.BAR;
                 const defaultAreaStyle =
                     defaultCartesianType === CartesianSeriesType.LINE
-                        ? prev?.series?.[0]?.areaStyle
+                        ? (prev?.series?.[0]?.areaStyle ??
+                          (cartesianType?.hasAreaStyle ? {} : undefined))
                         : undefined;
                 const defaultSmooth = prev?.series?.[0]?.smooth;
                 const defaultLabel = prev?.series?.[0]?.label;
@@ -1365,6 +1370,7 @@ const useCartesianChartConfig = ({
         itemsMap,
         seriesHiddenStatesKey, // Re-run when series hidden states change
         columnLimit,
+        cartesianType,
     ]);
 
     const { dirtyChartType } = useMemo(() => {
