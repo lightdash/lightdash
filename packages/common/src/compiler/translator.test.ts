@@ -21,6 +21,8 @@ import {
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
 import {
+    getCatalogMissingEntries,
+    setCatalogMissingEntries,
     setCatalogNestedColumnShape,
     setCatalogNestedColumnsUnavailable,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
@@ -37,6 +39,8 @@ import {
     attachTypesToModels,
     convertExplores,
     convertTable,
+    getMissingCatalogEntries,
+    haveMissingCatalogEntriesChanged,
     iterateExplores,
     type AttachTypesDiagnostics,
 } from './translator';
@@ -4336,5 +4340,190 @@ describe('metric user attributes', () => {
         expect(table.metrics.overridden_salary.anyAttributes).toEqual({
             region: 'emea',
         });
+    });
+});
+
+describe('known missing catalog entries', () => {
+    const missingTable = {
+        database: model.database,
+        schema: model.schema,
+        table: model.name,
+        columns: null,
+    };
+    const missingColumn = { ...missingTable, columns: ['myColumnName'] };
+    const otherModel = (name: string, columns: string[] = ['id']) => ({
+        ...model,
+        name,
+        alias: name,
+        columns: Object.fromEntries(
+            columns.map((column) => [
+                column,
+                { ...model.columns.myColumnName, name: column },
+            ]),
+        ),
+    });
+
+    it('round-trips missing tables and columns through the catalog sidecar', () => {
+        const catalog: WarehouseCatalog = {};
+        setCatalogMissingEntries(catalog, [missingTable, missingColumn]);
+        expect(getCatalogMissingEntries(catalog)).toEqual([missingColumn]);
+        setCatalogMissingEntries(catalog, [
+            missingTable,
+            { ...missingColumn, table: 'other' },
+        ]);
+        expect(getCatalogMissingEntries(catalog)).toEqual([
+            missingTable,
+            { ...missingColumn, table: 'other' },
+        ]);
+        expect(JSON.parse(JSON.stringify(catalog))).toEqual(catalog);
+    });
+
+    it('does not count the sidecar as a catalog table', () => {
+        const catalog: WarehouseCatalog = structuredClone(warehouseSchema);
+        setCatalogMissingEntries(catalog, [
+            { ...missingTable, table: 'other' },
+        ]);
+        let diagnostics: AttachTypesDiagnostics | undefined;
+        attachTypesToModels([model], catalog, true, true, (d) => {
+            diagnostics = d;
+        });
+        expect(diagnostics?.catalogTableCount).toBe(1);
+    });
+
+    it('splits absent tables and columns into known and unknown missing', () => {
+        const catalog: WarehouseCatalog = structuredClone(
+            warehouseSchemaWithMissingColumn,
+        );
+        setCatalogMissingEntries(catalog, [
+            missingColumn,
+            { ...missingTable, table: 'gone' },
+        ]);
+        expect(
+            getMissingCatalogEntries(
+                catalog,
+                [
+                    model,
+                    otherModel('gone'),
+                    otherModel('gone'),
+                    otherModel('new'),
+                ],
+                true,
+            ),
+        ).toEqual({
+            knownMissing: [missingColumn, { ...missingTable, table: 'gone' }],
+            unknownMissing: [{ ...missingTable, table: 'new' }],
+        });
+    });
+
+    it('treats a missing column it has not recorded as unknown', () => {
+        const catalog: WarehouseCatalog = structuredClone(warehouseSchema);
+        setCatalogMissingEntries(catalog, [
+            { ...missingColumn, columns: ['old_column'] },
+        ]);
+        const withNewColumn = otherModel(model.name, [
+            'myColumnName',
+            'new_column',
+        ]);
+        expect(
+            getMissingCatalogEntries(catalog, [withNewColumn], true),
+        ).toEqual({
+            knownMissing: [],
+            unknownMissing: [{ ...missingColumn, columns: ['new_column'] }],
+        });
+    });
+
+    it('folds case when matching known missing entries case-insensitively', () => {
+        const catalog: WarehouseCatalog = {};
+        setCatalogMissingEntries(catalog, [
+            { database: 'DB', schema: 'SCH', table: 'GONE', columns: null },
+        ]);
+        const gone = { ...otherModel('gone'), database: 'db', schema: 'sch' };
+        expect(getMissingCatalogEntries(catalog, [gone], false)).toEqual({
+            knownMissing: [
+                { database: 'db', schema: 'sch', table: 'gone', columns: null },
+            ],
+            unknownMissing: [],
+        });
+        expect(
+            getMissingCatalogEntries(catalog, [gone], true).knownMissing,
+        ).toEqual([]);
+    });
+
+    it('does not throw for known missing tables and columns and leaves them untyped', () => {
+        expect(
+            attachTypesToModels(
+                [model],
+                warehouseSchemaWithMissingTable,
+                true,
+                true,
+                undefined,
+                [missingTable],
+            )[0],
+        ).toEqual(model);
+        expect(
+            attachTypesToModels(
+                [model],
+                warehouseSchemaWithMissingColumn,
+                true,
+                true,
+                undefined,
+                [missingColumn],
+            )[0],
+        ).toEqual(model);
+    });
+
+    it('still throws for a missing column that is not known', () => {
+        expect(() =>
+            attachTypesToModels(
+                [model],
+                warehouseSchemaWithMissingColumn,
+                true,
+                true,
+                undefined,
+                [{ ...missingColumn, columns: ['other'] }],
+            ),
+        ).toThrowError(/Column "myColumnName" from model "myTable"/);
+    });
+
+    it('reports a change when a known missing table or column appears', () => {
+        expect(
+            haveMissingCatalogEntriesChanged(
+                warehouseSchemaWithMissingTable,
+                [model],
+                [missingTable],
+                true,
+            ),
+        ).toBe(false);
+        expect(
+            haveMissingCatalogEntriesChanged(
+                warehouseSchemaWithMissingColumn,
+                [model],
+                [missingTable],
+                true,
+            ),
+        ).toBe(true);
+        expect(
+            haveMissingCatalogEntriesChanged(
+                warehouseSchemaWithMissingColumn,
+                [model],
+                [missingColumn],
+                true,
+            ),
+        ).toBe(false);
+        expect(
+            haveMissingCatalogEntriesChanged(
+                warehouseSchema,
+                [model],
+                [missingColumn],
+                true,
+            ),
+        ).toBe(true);
+    });
+
+    it('checks an aliased model against its alias table', () => {
+        const aliasedModel = { ...model, name: 'my_model', alias: 'myTable' };
+        expect(() =>
+            attachTypesToModels([aliasedModel], warehouseSchema, true),
+        ).not.toThrow();
     });
 });

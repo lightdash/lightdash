@@ -210,9 +210,8 @@ export class MultiConnectionCompiler {
                 warehouseCredentials,
                 plan.listedDatabases,
                 (database) => {
-                    warnings.push(
-                        `Connection "${plan.connectionName}" skipped listed database "${database}": it does not exist.`,
-                    );
+                    const warning = `Connection "${plan.connectionName}" skipped listed database "${database}": it does not exist.`;
+                    if (!warnings.includes(warning)) warnings.push(warning);
                 },
             );
             await warehouseClient.test();

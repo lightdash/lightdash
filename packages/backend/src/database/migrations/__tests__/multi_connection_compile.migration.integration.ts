@@ -3,6 +3,7 @@ import {
     calculateCompilationReport,
     DimensionType,
     ExploreType,
+    getCatalogMissingEntries,
     JobStatusType,
     JobStepType,
     JobType,
@@ -33,6 +34,7 @@ import { gunzipSync } from 'node:zlib';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import Logger from '../../../logging/logger';
 import { DeploySessionModel } from '../../../models/DeploySessionModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
@@ -2533,6 +2535,104 @@ describe('Multi-connection compile on the real schema', () => {
             expect((await bindings(fixture.projectUuid)).ledger).toBe(
                 fixture.extraConnectionUuid,
             );
+        });
+    });
+
+    describe('known missing catalog entries on an extra connection', () => {
+        const catalogFetchReasons = (info: ReturnType<typeof vi.spyOn>) =>
+            (info.mock.calls as unknown as [string, { reason?: string }?][])
+                .filter(
+                    ([message]) =>
+                        message === 'dbt.compile.warehouseCatalogFetch',
+                )
+                .map(([, meta]) => meta?.reason);
+
+        const catalogCacheRow = async (fixture: Fixture) =>
+            database('warehouse_connection_catalog_cache')
+                .where('warehouse_connection_uuid', fixture.extraConnectionUuid)
+                .first();
+
+        test('a missing table is stored in the connection catalog cache and only probed on the next compile', async () => {
+            const fixture = await createProject();
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'payments', database: EXTRA_DB, table: 'payments' },
+                { name: 'ghost', database: EXTRA_DB, table: 'ghost' },
+            ]);
+            const info = vi.spyOn(Logger, 'info');
+
+            await compile(fixture);
+            const first = await catalogCacheRow(fixture);
+            expect(getCatalogMissingEntries(first.warehouse)).toEqual([
+                {
+                    database: EXTRA_DB,
+                    schema: 'public',
+                    table: 'ghost',
+                    columns: null,
+                },
+            ]);
+            info.mockClear();
+
+            await compile(fixture);
+
+            expect(catalogFetchReasons(info)).toEqual(['known_missing_probe']);
+            const second = await catalogCacheRow(fixture);
+            expect(second.created_at).toEqual(first.created_at);
+            expect(second.warehouse).toEqual(first.warehouse);
+            expect((await bindings(fixture.projectUuid)).ghost).toBe(
+                fixture.extraConnectionUuid,
+            );
+        });
+
+        test('a table that appears on the connection is picked up on the next compile with one warning for a missing listed database', async () => {
+            const fixture = await createProject(postgresWarehouse(EXTRA_DB), {
+                listAllDatabases: false,
+                additionalDatabases: [MISSING_DB],
+            });
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'payments', database: EXTRA_DB, table: 'payments' },
+                { name: 'late', database: EXTRA_DB, table: 'late_table' },
+                { name: 'ghost', database: MISSING_DB, table: 'ghost' },
+            ]);
+            const info = vi.spyOn(Logger, 'info');
+            await compile(fixture);
+            const extraWarehouse = knex({
+                client: 'pg',
+                connection: {
+                    ...postgresWarehouse(EXTRA_DB),
+                    database: EXTRA_DB,
+                },
+            });
+            try {
+                await extraWarehouse.raw(
+                    'CREATE TABLE late_table (id integer)',
+                );
+                info.mockClear();
+
+                const compilation = await compile(fixture);
+
+                expect(catalogFetchReasons(info)).toEqual([
+                    'known_missing_probe',
+                    'known_missing_changed',
+                ]);
+                expect(compilation.warnings).toEqual([
+                    `Connection "Finance warehouse" skipped listed database "${MISSING_DB}": it does not exist.`,
+                ]);
+                const row = await catalogCacheRow(fixture);
+                expect(row.warehouse[EXTRA_DB].public).toHaveProperty(
+                    'late_table',
+                );
+                expect(getCatalogMissingEntries(row.warehouse)).toEqual([
+                    {
+                        database: MISSING_DB,
+                        schema: 'public',
+                        table: 'ghost',
+                        columns: null,
+                    },
+                ]);
+            } finally {
+                await extraWarehouse.raw('DROP TABLE IF EXISTS late_table');
+                await extraWarehouse.destroy();
+            }
         });
     });
 

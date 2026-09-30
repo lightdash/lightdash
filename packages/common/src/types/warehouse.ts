@@ -100,10 +100,11 @@ export type WarehouseCatalogTimestampDomains = {
 };
 
 /**
- * WARNING: a catalog may carry the reserved `WAREHOUSE_TIMESTAMP_DOMAINS_KEY`
- * sidecar alongside the database keys (its value is NOT a database entry).
+ * WARNING: a catalog may carry reserved `__lightdash*` sidecars (timestamp
+ * domains, nested columns, missing entries) alongside the database keys (their
+ * values are NOT database entries).
  * Never enumerate `Object.keys(catalog)` as database names without excluding
- * it — look entries up by name, or use the sidecar accessors below.
+ * them — look entries up by name, or use the sidecar accessors below.
  */
 export type WarehouseCatalog = {
     [database: string]: {
@@ -291,6 +292,70 @@ export const setCatalogNestedColumnsUnavailable = (
         WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY,
     );
     ensureRecord(ensureRecord(sidecar, database), schema)[table] = reason;
+};
+
+export type WarehouseCatalogTable = {
+    database: string;
+    schema: string;
+    table: string;
+};
+
+/**
+ * What the compile requested but the warehouse did not return at the last
+ * full catalog fetch, keyed database → schema → table → `true` for a missing
+ * table or the list of missing column names for a table that exists. Lets a
+ * later compile tell an entry it already knows is absent from a new one.
+ */
+export const WAREHOUSE_MISSING_ENTRIES_KEY = '__lightdashMissingEntries';
+
+export type WarehouseCatalogMissingEntry = WarehouseCatalogTable & {
+    /** `null` when the whole table is missing. */
+    columns: string[] | null;
+};
+
+const toMissingEntryColumns = (value: unknown): string[] | null | undefined => {
+    if (value === true) return null;
+    if (
+        Array.isArray(value) &&
+        value.length > 0 &&
+        value.every((column) => typeof column === 'string')
+    ) {
+        return value;
+    }
+    return undefined;
+};
+
+export const getCatalogMissingEntries = (
+    catalog: WarehouseCatalog,
+): WarehouseCatalogMissingEntry[] => {
+    const sidecar: unknown = catalog[WAREHOUSE_MISSING_ENTRIES_KEY];
+    if (!isPlainRecord(sidecar)) return [];
+    return Object.entries(sidecar).flatMap(([database, schemas]) =>
+        isPlainRecord(schemas)
+            ? Object.entries(schemas).flatMap(([schema, tables]) =>
+                  isPlainRecord(tables)
+                      ? Object.entries(tables).flatMap(([table, value]) => {
+                            const columns = toMissingEntryColumns(value);
+                            return columns === undefined
+                                ? []
+                                : [{ database, schema, table, columns }];
+                        })
+                      : [],
+              )
+            : [],
+    );
+};
+
+export const setCatalogMissingEntries = (
+    catalog: WarehouseCatalog,
+    entries: WarehouseCatalogMissingEntry[],
+): void => {
+    const sidecar: Record<string, unknown> = {};
+    entries.forEach(({ database, schema, table, columns }) => {
+        ensureRecord(ensureRecord(sidecar, database), schema)[table] =
+            columns ?? true;
+    });
+    Object.assign(catalog, { [WAREHOUSE_MISSING_ENTRIES_KEY]: sidecar });
 };
 
 export enum WarehouseTableType {

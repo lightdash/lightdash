@@ -55,11 +55,16 @@ import {
 import { OrderFieldsByStrategy, type FieldGroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import {
+    getCatalogMissingEntries,
     getCatalogNestedColumnShape,
     getCatalogNestedColumnsUnavailableReason,
     getCatalogTimestampDomain,
+    WAREHOUSE_MISSING_ENTRIES_KEY,
+    WAREHOUSE_NESTED_COLUMNS_KEY,
+    WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
+    type WarehouseCatalogMissingEntry,
     type WarehouseNestedColumnShape,
     type WarehouseSqlBuilder,
     type WarehouseTableSchema,
@@ -2031,40 +2036,44 @@ export type AttachTypesDiagnostics = {
     missingLookups: number;
 };
 
-export const attachTypesToModels = (
-    models: DbtModelNode[],
-    warehouseCatalog: WarehouseCatalog,
-    throwOnMissingCatalogEntry: boolean = true,
-    caseSensitiveMatching: boolean = true,
-    onDiagnostics?: (diagnostics: AttachTypesDiagnostics) => void,
-): DbtModelNode[] => {
-    const startedAt = Date.now();
-    let exactLookups = 0;
-    let caseInsensitiveLookups = 0;
-    let missingLookups = 0;
-    let columnCount = 0;
+type CatalogTableLocation = { database: string; schema: string; table: string };
 
+const RESERVED_CATALOG_KEYS = new Set<string>([
+    WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
+    WAREHOUSE_NESTED_COLUMNS_KEY,
+    WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY,
+    WAREHOUSE_MISSING_ENTRIES_KEY,
+]);
+
+const catalogTableKey = (database: string, schema: string, table: string) =>
+    `${database}\u0000${schema}\u0000${table}`;
+
+const foldedCatalogTableKey = (
+    database: string,
+    schema: string,
+    table: string,
+) =>
+    catalogTableKey(
+        database.toLowerCase(),
+        schema.toLowerCase(),
+        table.toLowerCase(),
+    );
+
+const indexWarehouseCatalog = (
+    warehouseCatalog: WarehouseCatalog,
+    caseSensitiveMatching: boolean,
+) => {
     // Indexed once instead of rescanning Object.keys() at three catalog levels for every
     // column of every model, which made the cost models x columns x tables-in-schema.
     const exactIndex = new Map<string, WarehouseTableSchema>();
     const foldedIndex = new Map<string, WarehouseTableSchema>();
-    const exactLocation = new Map<
-        string,
-        { database: string; schema: string; table: string }
-    >();
-    const foldedLocation = new Map<
-        string,
-        { database: string; schema: string; table: string }
-    >();
-    const key = (database: string, schema: string, table: string) =>
-        `${database}\u0000${schema}\u0000${table}`;
-    const foldedKey = (database: string, schema: string, table: string) =>
-        key(database.toLowerCase(), schema.toLowerCase(), table.toLowerCase());
+    const exactLocation = new Map<string, CatalogTableLocation>();
+    const foldedLocation = new Map<string, CatalogTableLocation>();
 
-    let catalogTableCount = 0;
+    let tableCount = 0;
     Object.keys(warehouseCatalog).forEach((database) => {
-        // The reserved timestamp-domain sidecar sits beside the database keys and is not one.
-        if (database === WAREHOUSE_TIMESTAMP_DOMAINS_KEY) return;
+        // Reserved sidecars sit beside the database keys and are not databases.
+        if (RESERVED_CATALOG_KEYS.has(database)) return;
         const schemas = warehouseCatalog[database];
         if (schemas === undefined || schemas === null) return;
         Object.keys(schemas).forEach((schema) => {
@@ -2073,16 +2082,16 @@ export const attachTypesToModels = (
             Object.keys(tables).forEach((table) => {
                 const columns = tables[table];
                 if (columns === undefined || columns === null) return;
-                catalogTableCount += 1;
+                tableCount += 1;
                 const location = { database, schema, table };
-                const exact = key(database, schema, table);
+                const exact = catalogTableKey(database, schema, table);
                 // Object.keys() yields insertion order and the replaced code took the FIRST
                 // match, so only absent keys are set — that preserves which duplicate wins.
                 if (!exactIndex.has(exact)) {
                     exactIndex.set(exact, columns);
                     exactLocation.set(exact, location);
                 }
-                const folded = foldedKey(database, schema, table);
+                const folded = foldedCatalogTableKey(database, schema, table);
                 if (!foldedIndex.has(folded)) {
                     foldedIndex.set(folded, columns);
                     foldedLocation.set(folded, location);
@@ -2098,11 +2107,11 @@ export const attachTypesToModels = (
     ):
         | {
               columns: WarehouseTableSchema;
-              location: { database: string; schema: string; table: string };
+              location: CatalogTableLocation;
               caseInsensitive: boolean;
           }
         | undefined => {
-        const exact = key(database, schema, table);
+        const exact = catalogTableKey(database, schema, table);
         const exactHit = exactIndex.get(exact);
         if (exactHit !== undefined) {
             return {
@@ -2112,7 +2121,7 @@ export const attachTypesToModels = (
             };
         }
         if (caseSensitiveMatching) return undefined;
-        const folded = foldedKey(database, schema, table);
+        const folded = foldedCatalogTableKey(database, schema, table);
         const foldedHit = foldedIndex.get(folded);
         if (foldedHit !== undefined) {
             return {
@@ -2124,15 +2133,190 @@ export const attachTypesToModels = (
         return undefined;
     };
 
+    return { lookup, tableCount };
+};
+
+const tableKeyFor = (caseSensitiveMatching: boolean) =>
+    caseSensitiveMatching ? catalogTableKey : foldedCatalogTableKey;
+
+const findCatalogColumn = (
+    columns: WarehouseTableSchema,
+    columnName: string,
+    caseSensitiveMatching: boolean,
+): string | undefined =>
+    Object.keys(columns).find((column) =>
+        caseSensitiveMatching
+            ? column === columnName
+            : column.toLowerCase() === columnName.toLowerCase(),
+    );
+
+const createMissingEntryIndex = (
+    entries: WarehouseCatalogMissingEntry[],
+    caseSensitiveMatching: boolean,
+) => {
+    const toKey = tableKeyFor(caseSensitiveMatching);
+    const toColumn = (column: string) =>
+        caseSensitiveMatching ? column : column.toLowerCase();
+    const index = new Map<string, Set<string> | null>();
+    entries.forEach(({ database, schema, table, columns }) => {
+        index.set(
+            toKey(database, schema, table),
+            columns === null ? null : new Set(columns.map(toColumn)),
+        );
+    });
+    return {
+        isTableMissing: (database: string, schema: string, table: string) =>
+            index.get(toKey(database, schema, table)) === null,
+        isColumnMissing: (
+            database: string,
+            schema: string,
+            table: string,
+            column: string,
+        ) =>
+            index.get(toKey(database, schema, table))?.has(toColumn(column)) ===
+            true,
+    };
+};
+
+/**
+ * Lists the tables and columns the models request but the catalog lacks,
+ * split into entries the catalog's last full fetch already recorded as
+ * missing and entries it has not seen.
+ */
+export const getMissingCatalogEntries = (
+    warehouseCatalog: WarehouseCatalog,
+    models: DbtModelNode[],
+    caseSensitiveMatching: boolean,
+): {
+    knownMissing: WarehouseCatalogMissingEntry[];
+    unknownMissing: WarehouseCatalogMissingEntry[];
+} => {
+    const { lookup } = indexWarehouseCatalog(
+        warehouseCatalog,
+        caseSensitiveMatching,
+    );
+    const recorded = createMissingEntryIndex(
+        getCatalogMissingEntries(warehouseCatalog),
+        caseSensitiveMatching,
+    );
+    const toKey = tableKeyFor(caseSensitiveMatching);
+    const absentByTable = new Map<string, WarehouseCatalogMissingEntry>();
+    models.forEach(({ database, schema, name, alias, columns }) => {
+        const table = alias || name;
+        const key = toKey(database, schema, table);
+        const hit = lookup(database, schema, table);
+        if (hit === undefined) {
+            absentByTable.set(key, { database, schema, table, columns: null });
+            return;
+        }
+        const missingColumns = Object.keys(columns).filter(
+            (column) =>
+                findCatalogColumn(
+                    hit.columns,
+                    column,
+                    caseSensitiveMatching,
+                ) === undefined,
+        );
+        if (missingColumns.length === 0) return;
+        const previous = absentByTable.get(key)?.columns ?? [];
+        absentByTable.set(key, {
+            database,
+            schema,
+            table,
+            columns: [...new Set([...previous, ...missingColumns])],
+        });
+    });
+
+    const knownMissing: WarehouseCatalogMissingEntry[] = [];
+    const unknownMissing: WarehouseCatalogMissingEntry[] = [];
+    absentByTable.forEach((entry) => {
+        const { database, schema, table, columns } = entry;
+        const known =
+            columns === null
+                ? recorded.isTableMissing(database, schema, table)
+                : columns.every((column) =>
+                      recorded.isColumnMissing(database, schema, table, column),
+                  );
+        (known ? knownMissing : unknownMissing).push(entry);
+    });
+    return { knownMissing, unknownMissing };
+};
+
+/**
+ * Compares the known missing entries with a catalog fetched for only their
+ * tables. True when any entry appeared, or when more became missing.
+ */
+export const haveMissingCatalogEntriesChanged = (
+    probedCatalog: WarehouseCatalog,
+    models: DbtModelNode[],
+    knownMissing: WarehouseCatalogMissingEntry[],
+    caseSensitiveMatching: boolean,
+): boolean => {
+    const toKey = tableKeyFor(caseSensitiveMatching);
+    const knownTables = new Set(
+        knownMissing.map(({ database, schema, table }) =>
+            toKey(database, schema, table),
+        ),
+    );
+    const probedModels = models.filter(({ database, schema, name, alias }) =>
+        knownTables.has(toKey(database, schema, alias || name)),
+    );
+    const { unknownMissing: stillMissing } = getMissingCatalogEntries(
+        probedCatalog,
+        probedModels,
+        caseSensitiveMatching,
+    );
+    const toEntryKeys = (entries: WarehouseCatalogMissingEntry[]) =>
+        entries
+            .flatMap(({ database, schema, table, columns }) => {
+                const tableKey = toKey(database, schema, table);
+                return columns === null
+                    ? [tableKey]
+                    : columns.map(
+                          (column) =>
+                              `${tableKey}\u0000${caseSensitiveMatching ? column : column.toLowerCase()}`,
+                      );
+            })
+            .sort()
+            .join('\n');
+    return toEntryKeys(knownMissing) !== toEntryKeys(stillMissing);
+};
+
+export const attachTypesToModels = (
+    models: DbtModelNode[],
+    warehouseCatalog: WarehouseCatalog,
+    throwOnMissingCatalogEntry: boolean = true,
+    caseSensitiveMatching: boolean = true,
+    onDiagnostics?: (diagnostics: AttachTypesDiagnostics) => void,
+    knownMissingEntries: WarehouseCatalogMissingEntry[] = [],
+): DbtModelNode[] => {
+    const startedAt = Date.now();
+    let exactLookups = 0;
+    let caseInsensitiveLookups = 0;
+    let missingLookups = 0;
+    let columnCount = 0;
+
+    const { lookup, tableCount: catalogTableCount } = indexWarehouseCatalog(
+        warehouseCatalog,
+        caseSensitiveMatching,
+    );
+    const knownMissing = createMissingEntryIndex(
+        knownMissingEntries,
+        caseSensitiveMatching,
+    );
+
     // Check that all models appear in the warehouse
-    models.forEach(({ database, schema, name }) => {
-        if (lookup(database, schema, name) === undefined) {
-            if (throwOnMissingCatalogEntry) {
-                throw new MissingCatalogEntryError(
-                    `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
-                    {},
-                );
-            }
+    models.forEach(({ database, schema, name, alias }) => {
+        const tableName = alias || name;
+        if (
+            lookup(database, schema, tableName) === undefined &&
+            !knownMissing.isTableMissing(database, schema, tableName) &&
+            throwOnMissingCatalogEntry
+        ) {
+            throw new MissingCatalogEntryError(
+                `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${tableName}". Does the table exist in your target data warehouse?`,
+                {},
+            );
         }
     });
 
@@ -2150,10 +2334,10 @@ export const attachTypesToModels = (
         const tableName = alias || name;
         const hit = lookup(database, schema, tableName);
         if (hit !== undefined) {
-            const columnMatch = Object.keys(hit.columns).find((column) =>
-                caseSensitiveMatching
-                    ? column === columnName
-                    : column.toLowerCase() === columnName.toLowerCase(),
+            const columnMatch = findCatalogColumn(
+                hit.columns,
+                columnName,
+                caseSensitiveMatching,
             );
             if (columnMatch !== undefined) {
                 // A lookup is only exact when BOTH the table and the column matched exactly.
@@ -2190,7 +2374,17 @@ export const attachTypesToModels = (
             }
         }
         missingLookups += 1;
-        if (throwOnMissingCatalogEntry) {
+        if (
+            throwOnMissingCatalogEntry &&
+            !(hit === undefined
+                ? knownMissing.isTableMissing(database, schema, tableName)
+                : knownMissing.isColumnMissing(
+                      database,
+                      schema,
+                      tableName,
+                      columnName,
+                  ))
+        ) {
             throw new MissingCatalogEntryError(
                 `Column "${columnName}" from model "${tableName}" does not exist.\n "${tableName}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${tableName}. Try rerunning dbt to update your warehouse.`,
                 {},
