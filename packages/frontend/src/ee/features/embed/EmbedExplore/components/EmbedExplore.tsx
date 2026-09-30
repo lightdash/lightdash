@@ -168,10 +168,10 @@ const EmbedExploreContent: FC<{
     }, [isEditMode, store]);
 
     useEffect(() => {
-        if (savedChart && 'uuid' in savedChart) {
+        if (allowChartUpdate && savedChart && 'uuid' in savedChart) {
             store.dispatch(explorerActions.setSavedChart(savedChart));
         }
-    }, [savedChart, store]);
+    }, [allowChartUpdate, savedChart, store]);
 
     return (
         <Provider store={store}>
