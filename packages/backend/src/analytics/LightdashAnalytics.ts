@@ -4343,6 +4343,18 @@ export type DashboardOwnerAssignedEvent = BaseTrack & {
     };
 };
 
+export type DocumentOwnerAssignedEvent = BaseTrack & {
+    event: 'document.owner_assigned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+        ownerUserUuid: string | null;
+        previousOwnerUserUuid: string | null;
+    };
+};
+
 export type ImpersonationEvent = BaseTrack & {
     event: 'user.impersonation_started' | 'user.impersonation_stopped';
     properties: {
@@ -4613,6 +4625,7 @@ type TypedEvent =
     | AiAgentDocumentDeletedEvent
     | DocumentCreatedEvent
     | DocumentUpdatedEvent
+    | DocumentOwnerAssignedEvent
     | DocumentDeletedEvent
     | DocumentRestoredEvent
     | DocumentViewEvent

@@ -91,10 +91,7 @@ export type ResourceViewSpaceItem = {
 
 export type ResourceViewDocumentItem = {
     type: ResourceViewItemType.DOCUMENT;
-    data: Omit<
-        ResourceViewDashboardItem['data'],
-        'owner' | 'validationErrors'
-    > & {
+    data: Omit<ResourceViewDashboardItem['data'], 'validationErrors'> & {
         projectUuid: string;
         organizationUuid: string;
         createdByUserUuid: string | null;

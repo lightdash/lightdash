@@ -21,6 +21,7 @@ const spaceUuid = 'space';
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
     documentUuid,
     projectUuid,
     organizationUuid,
@@ -29,6 +30,7 @@ const document: Document = {
     slug: 'weekly-report',
     description: 'Results',
     createdByUserUuid: userUuid,
+    ownerUserUuid: null,
     createdAt: new Date('2026-09-15'),
     updatedAt: new Date('2026-09-15'),
     version: {

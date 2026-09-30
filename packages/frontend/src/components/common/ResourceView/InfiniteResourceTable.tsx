@@ -104,7 +104,7 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
         defaultValue: ContentType | undefined;
         options: ContentType[];
     };
-    /** Show a dashboard-owner filter in the toolbar (dashboard lists only) */
+    /** Show an owner filter in the toolbar (dashboard and document lists only) */
     ownerFilter?: boolean;
     columnVisibility?: ColumnVisibilityConfig;
     adminContentView?: boolean;
@@ -361,7 +361,13 @@ const InfiniteResourceTable = ({
             size: 160,
             Cell: ({ row }) => {
                 const item = row.original;
-                if (!isResourceViewItemDashboard(item) || !item.data.owner) {
+                if (
+                    !(
+                        isResourceViewItemDashboard(item) ||
+                        isResourceViewDocumentItem(item)
+                    ) ||
+                    !item.data.owner
+                ) {
                     return (
                         <Text fz="xs" fw={500} c="dimmed">
                             -

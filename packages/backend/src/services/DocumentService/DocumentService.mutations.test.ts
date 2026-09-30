@@ -112,6 +112,7 @@ describe('Document as-code chart round-trip', () => {
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
     documentUuid,
     organizationUuid,
     projectUuid,
@@ -120,6 +121,7 @@ const document: Document = {
     slug: 'review',
     description: '',
     createdByUserUuid: userUuid,
+    ownerUserUuid: null,
     createdAt: new Date('2026-09-15'),
     updatedAt: new Date('2026-09-15'),
     version: {
@@ -195,11 +197,15 @@ const setup = () => {
         compileMergeQuery: vi.fn().mockResolvedValue({ errors: [] }),
     };
     const analytics = { track: vi.fn() };
+    const organizationMemberProfileModel = {
+        getOrganizationMemberByUuid: vi.fn().mockResolvedValue({}),
+    };
     const service = new DocumentService({
         analytics,
         documentModel,
         projectModel,
         featureFlagModel,
+        organizationMemberProfileModel,
         spacePermissionService,
         projectService,
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
@@ -208,6 +214,7 @@ const setup = () => {
         analytics,
         documentModel,
         featureFlagModel,
+        organizationMemberProfileModel,
         spacePermissionService,
         projectService,
         context,
@@ -1170,5 +1177,166 @@ describe('DocumentService mutations', () => {
 
         await expect(mutate(service, 'content')).rejects.toBe(error);
         expect(documentModel.updateContent).toHaveBeenCalledOnce();
+    });
+});
+
+describe('DocumentService ownership', () => {
+    const ownerUuid = 'document-owner';
+
+    test('assigns an organization member as owner and tracks the change', async () => {
+        const {
+            service,
+            documentModel,
+            organizationMemberProfileModel,
+            analytics,
+        } = setup();
+        await service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
+            ownerUserUuid: ownerUuid,
+        });
+        expect(
+            organizationMemberProfileModel.getOrganizationMemberByUuid,
+        ).toHaveBeenCalledWith(organizationUuid, ownerUuid);
+        expect(documentModel.updateMetadata).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+            { ownerUserUuid: ownerUuid, expectedSpaceUuid: spaceUuid },
+        );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'document.owner_assigned',
+                properties: expect.objectContaining({
+                    documentId: documentUuid,
+                    ownerUserUuid: ownerUuid,
+                    previousOwnerUserUuid: null,
+                }),
+            }),
+        );
+    });
+
+    test('unassigns with null without a membership lookup', async () => {
+        const {
+            service,
+            documentModel,
+            organizationMemberProfileModel,
+            analytics,
+        } = setup();
+        documentModel.get.mockResolvedValue({
+            ...document,
+            ownerUserUuid: ownerUuid,
+        });
+        await service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
+            ownerUserUuid: null,
+        });
+        expect(
+            organizationMemberProfileModel.getOrganizationMemberByUuid,
+        ).not.toHaveBeenCalled();
+        expect(documentModel.updateMetadata).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+            { ownerUserUuid: null, expectedSpaceUuid: spaceUuid },
+        );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'document.owner_assigned',
+                properties: expect.objectContaining({
+                    ownerUserUuid: null,
+                    previousOwnerUserUuid: ownerUuid,
+                }),
+            }),
+        );
+    });
+
+    test('does not track an unchanged owner or metadata-only edits', async () => {
+        const { service, documentModel, analytics } = setup();
+        documentModel.get.mockResolvedValue({
+            ...document,
+            ownerUserUuid: ownerUuid,
+        });
+        await service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
+            ownerUserUuid: ownerUuid,
+        });
+        await service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
+            name: 'Renamed',
+        });
+        expect(analytics.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({ event: 'document.owner_assigned' }),
+        );
+    });
+
+    test.each(['create', 'metadata'] as const)(
+        'rejects a non-member owner on %s before writing',
+        async (mutation) => {
+            const { service, documentModel, organizationMemberProfileModel } =
+                setup();
+            organizationMemberProfileModel.getOrganizationMemberByUuid.mockRejectedValue(
+                new NotFoundError('No matching member found in organization'),
+            );
+            const request =
+                mutation === 'create'
+                    ? service.create(makeAccount(), projectUuid, {
+                          ...createInput,
+                          ownerUserUuid: ownerUuid,
+                      })
+                    : service.updateMetadata(
+                          makeAccount(),
+                          projectUuid,
+                          documentUuid,
+                          { ownerUserUuid: ownerUuid },
+                      );
+            await expect(request).rejects.toThrow(NotFoundError);
+            expect(documentModel.create).not.toHaveBeenCalled();
+            expect(documentModel.updateMetadata).not.toHaveBeenCalled();
+        },
+    );
+
+    test('creates with an assigned owner separate from the creator', async () => {
+        const { service, documentModel } = setup();
+        await service.create(makeAccount(), projectUuid, {
+            ...createInput,
+            ownerUserUuid: ownerUuid,
+        });
+        expect(documentModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                createdByUserUuid: userUuid,
+                ownerUserUuid: ownerUuid,
+            }),
+        );
+    });
+
+    test('denies owner changes to a viewer before looking up the owner', async () => {
+        const {
+            service,
+            documentModel,
+            organizationMemberProfileModel,
+            spacePermissionService,
+            context,
+        } = setup();
+        spacePermissionService.resolveAccess.mockResolvedValue({
+            ...context,
+            access: [{ userUuid, role: SpaceMemberRole.VIEWER }],
+        });
+        await expect(
+            service.updateMetadata(
+                makeAccount(OrganizationMemberRole.VIEWER),
+                projectUuid,
+                documentUuid,
+                { ownerUserUuid: ownerUuid },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            organizationMemberProfileModel.getOrganizationMemberByUuid,
+        ).not.toHaveBeenCalled();
+        expect(documentModel.updateMetadata).not.toHaveBeenCalled();
+    });
+
+    test('rejects owner changes when Documents are disabled', async () => {
+        const { service, documentModel, featureFlagModel } = setup();
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await expect(
+            service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
+                ownerUserUuid: ownerUuid,
+            }),
+        ).rejects.toThrow('Documents are not enabled');
+        expect(documentModel.updateMetadata).not.toHaveBeenCalled();
     });
 });

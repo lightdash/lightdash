@@ -27,6 +27,7 @@ const cell = {
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
     documentUuid: 'document',
     projectUuid,
     organizationUuid: 'organization',
@@ -35,6 +36,7 @@ const document: Document = {
     slug: 'weekly-review',
     description: 'Findings',
     createdByUserUuid: 'user',
+    ownerUserUuid: null,
     createdAt: new Date('2026-09-16'),
     updatedAt: new Date('2026-09-16'),
     version: {

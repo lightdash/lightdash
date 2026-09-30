@@ -85,6 +85,8 @@ const chart: DocumentCell = {
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
+    ownerUserUuid: null,
     documentUuid: 'document-uuid',
     projectUuid: 'project-uuid',
     organizationUuid: 'org-uuid',

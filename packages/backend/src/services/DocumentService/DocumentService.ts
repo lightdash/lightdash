@@ -52,6 +52,7 @@ import type {
     DocumentModel,
 } from '../../models/DocumentModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import type { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -85,6 +86,10 @@ type DocumentServiceArguments = {
     documentModel: DocumentModel;
     directAccessService: DirectAccessService;
     featureFlagModel: FeatureFlagModel;
+    organizationMemberProfileModel: Pick<
+        OrganizationMemberProfileModel,
+        'getOrganizationMemberByUuid'
+    >;
     projectModel: ProjectModel;
     schedulerClient: Pick<SchedulerClient, 'scheduleTask'>;
     spaceModel: SpaceModel;
@@ -304,6 +309,10 @@ export class DocumentService extends BaseService {
             );
         }
         DocumentService.validateMetadata(input);
+        await this.assertOwnerIsMember(
+            project.organizationUuid,
+            input.ownerUserUuid,
+        );
         if (input.schemaVersion !== DOCUMENT_SCHEMA_VERSION) {
             throw new ParameterError(
                 `Document writes require schema version ${DOCUMENT_SCHEMA_VERSION}`,
@@ -383,11 +392,31 @@ export class DocumentService extends BaseService {
                 'At least one Document metadata field is required',
             );
         }
+        await this.assertOwnerIsMember(
+            document.organizationUuid,
+            input.ownerUserUuid,
+        );
         const updated = await this.dependencies.documentModel.updateMetadata(
             projectUuid,
             documentUuid,
             { ...input, expectedSpaceUuid: document.spaceUuid },
         );
+        if (
+            input.ownerUserUuid !== undefined &&
+            input.ownerUserUuid !== document.ownerUserUuid
+        ) {
+            this.dependencies.analytics.track({
+                event: 'document.owner_assigned',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: updated.organizationUuid,
+                    projectId: updated.projectUuid,
+                    documentId: updated.documentUuid,
+                    ownerUserUuid: input.ownerUserUuid,
+                    previousOwnerUserUuid: document.ownerUserUuid,
+                },
+            });
+        }
         this.dependencies.analytics.track({
             event: 'document.updated',
             userId: account.user.userUuid,
@@ -497,6 +526,20 @@ export class DocumentService extends BaseService {
             !allowedSpaceUuids.includes(document.spaceUuid)
         ) {
             throw new NotFoundError('Document not found');
+        }
+    }
+
+    /** Owners must belong to the organization; ownership grants no access. */
+    private async assertOwnerIsMember(
+        organizationUuid: string,
+        ownerUserUuid: string | null | undefined,
+    ): Promise<void> {
+        if (ownerUserUuid) {
+            // Throws NotFoundError when the user is not an org member
+            await this.dependencies.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                organizationUuid,
+                ownerUserUuid,
+            );
         }
     }
 

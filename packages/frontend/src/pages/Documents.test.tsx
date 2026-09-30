@@ -97,7 +97,11 @@ describe('Documents page', () => {
                 projectUuid: 'project-uuid',
                 contentTypes: [ContentType.DOCUMENT],
             },
-            columnVisibility: { [ColumnVisibility.VIEWS]: false },
+            ownerFilter: true,
+            columnVisibility: {
+                [ColumnVisibility.VIEWS]: false,
+                [ColumnVisibility.OWNER]: true,
+            },
             emptyState: { entityName: 'documents' },
             errorStateTitle: 'Unable to load documents',
         });

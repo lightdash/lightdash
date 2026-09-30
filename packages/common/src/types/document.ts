@@ -2,6 +2,7 @@ import type { ApiExecuteAsyncMetricQueryResults } from './api';
 import type { ApiSuccess } from './api/success';
 import type { ContentAsCodeUpsertAction } from './contentAsCode/base';
 import type { ChartAsCode } from './contentAsCode/charts';
+import type { DashboardOwner } from './dashboard';
 import type { SavedMergeQuery } from './mergeQuery';
 import type { SpaceAccess, SpaceMemberRole } from './space';
 import type { LightdashUser } from './user';
@@ -32,6 +33,9 @@ export type DocumentCell =
 
 export type DocumentContent = { cells: DocumentCell[] };
 
+/** Assignable owner, independent of the immutable creator and version authors. */
+export type DocumentOwner = DashboardOwner;
+
 export type DocumentSummary = {
     access?: SpaceAccess[];
     directAccessRoles?: SpaceMemberRole[];
@@ -43,6 +47,7 @@ export type DocumentSummary = {
     slug: string;
     description: string;
     createdByUserUuid: string | null;
+    ownerUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -61,6 +66,7 @@ export type Document = DocumentSummary & {
         LightdashUser,
         'userUuid' | 'firstName' | 'lastName' | 'avatarUrl' | 'avatarGradient'
     > | null;
+    owner: DocumentOwner | null;
     version: DocumentVersion;
     pinnedListUuid: string | null;
 };
@@ -115,12 +121,16 @@ export type CreateDocumentRequest = {
     spaceUuid: string;
     schemaVersion: 1;
     content: DocumentContent;
+    /** Organization member to assign as owner; omitted or null leaves the Document unowned. */
+    ownerUserUuid?: string | null;
 };
 
 export type UpdateDocumentMetadataRequest = {
     name?: string;
     slug?: string;
     description?: string;
+    /** Organization member to assign as owner; null unassigns, omitted leaves it unchanged. */
+    ownerUserUuid?: string | null;
 };
 
 export type DuplicateDocumentRequest = Pick<

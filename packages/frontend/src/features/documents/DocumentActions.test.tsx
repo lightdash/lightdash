@@ -27,7 +27,8 @@ const mocks = vi.hoisted(() => ({
     isFavorite: false,
     toggleFavorite: vi.fn(),
     exportPdf: vi.fn(),
-    canPromote: false,
+    canEdit: false,
+    ownerModal: vi.fn(),
     upstreamProjectUuid: undefined as string | undefined,
     promotionDiff: undefined as PromotionChanges | undefined,
     requestDiff: vi.fn(),
@@ -92,7 +93,13 @@ vi.mock('../../components/common/CopyActionIcon', () => ({
 }));
 vi.mock('react-router', () => ({ useNavigate: () => mocks.navigate }));
 vi.mock('./useCanEditDocument', () => ({
-    useCanEditDocument: () => mocks.canPromote,
+    useCanEditDocument: () => mocks.canEdit,
+}));
+vi.mock('./DocumentOwnerModal', () => ({
+    default: (props: unknown) => {
+        mocks.ownerModal(props);
+        return <div>Document owner form</div>;
+    },
 }));
 vi.mock('../../hooks/useProject', () => ({
     useProject: () => ({
@@ -135,6 +142,7 @@ vi.mock('../directAccess/components/DirectAccessModal', () => ({
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'org',
@@ -143,6 +151,7 @@ const document: Document = {
     slug: 'weekly-report',
     description: '',
     createdByUserUuid: null,
+    ownerUserUuid: null,
     createdAt: new Date('2026-09-15'),
     updatedAt: new Date('2026-09-15'),
     access: [],
@@ -177,7 +186,8 @@ describe('Document actions', () => {
         mocks.isFavorite = false;
         mocks.toggleFavorite.mockReset();
         mocks.exportPdf.mockReset();
-        mocks.canPromote = false;
+        mocks.canEdit = false;
+        mocks.ownerModal.mockReset();
         mocks.upstreamProjectUuid = undefined;
         mocks.promotionDiff = undefined;
         mocks.requestDiff.mockReset();
@@ -439,7 +449,7 @@ describe('Document actions', () => {
     });
 
     it('disables promotion when the project has no upstream project', async () => {
-        mocks.canPromote = true;
+        mocks.canEdit = true;
         renderActions();
         fireEvent.click(
             screen.getByRole('button', { name: 'Document actions' }),
@@ -450,7 +460,7 @@ describe('Document actions', () => {
     });
 
     it('reviews the promotion diff before promoting the Document', async () => {
-        mocks.canPromote = true;
+        mocks.canEdit = true;
         mocks.upstreamProjectUuid = 'upstream';
         const view = renderActions();
         fireEvent.click(
@@ -480,5 +490,33 @@ describe('Document actions', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Promote' }));
 
         expect(mocks.promote).toHaveBeenCalledWith('document');
+    });
+
+    it('lets an editor open the owner form for the exact Document', async () => {
+        mocks.canEdit = true;
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Assign owner' }),
+        );
+        expect(await screen.findByText('Document owner form')).toBeVisible();
+        expect(mocks.ownerModal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                document: expect.objectContaining({ documentUuid: 'document' }),
+            }),
+        );
+    });
+
+    it('hides owner assignment from readers', async () => {
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        await screen.findByRole('menuitem', { name: 'View as code' });
+        expect(
+            screen.queryByRole('menuitem', { name: 'Assign owner' }),
+        ).not.toBeInTheDocument();
     });
 });

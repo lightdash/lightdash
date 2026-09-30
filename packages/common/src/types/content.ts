@@ -91,6 +91,7 @@ export interface DashboardContent extends Content {
 export interface DocumentContentItem extends Content {
     contentType: ContentType.DOCUMENT;
     directAccessRoles: SpaceMemberRole[];
+    owner: DashboardOwner | null;
 }
 
 // Data App types

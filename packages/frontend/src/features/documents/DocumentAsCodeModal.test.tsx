@@ -51,6 +51,8 @@ const exportedDocument: DocumentAsCode = {
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
+    ownerUserUuid: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'organization',

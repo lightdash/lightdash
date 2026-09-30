@@ -24,6 +24,7 @@ const versionUuid = 'document-version';
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
     documentUuid,
     organizationUuid,
     projectUuid,
@@ -32,6 +33,7 @@ const document: Document = {
     slug: 'review',
     description: 'Quarterly review',
     createdByUserUuid: userUuid,
+    ownerUserUuid: null,
     createdAt: new Date('2026-09-15'),
     updatedAt: new Date('2026-09-15'),
     version: {
