@@ -1,5 +1,6 @@
 import {
     getDashboardChartBoundaryErrors,
+    interpolateUiString,
     getDashboardFilterBoundaryContexts,
     restoreDashboardFilterBoundaries,
     validateFilterBoundary,
@@ -1302,7 +1303,21 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                                   getUiString,
                               },
                           );
-                          return error ? [error] : [];
+                          return error
+                              ? [
+                                    interpolateUiString(
+                                        getUiString(
+                                            'filters.boundaries.invalidFilters',
+                                        ),
+                                        {
+                                            filters:
+                                                rule.label ||
+                                                field?.label ||
+                                                rule.target.fieldId,
+                                        },
+                                    ),
+                                ]
+                              : [];
                       })
                 : [];
             if (!isEditMode && needsBoundaryMetadata) {
@@ -1320,8 +1335,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 boundaryErrors.length
             ) {
                 showToastWarning({
-                    title: getUiString('filters.boundaries.selectionRequired'),
-                    subtitle: boundaryErrors.join(' '),
+                    title: [...new Set(boundaryErrors)].join(' '),
                 });
             } else {
                 setDashboardFilters(nextFilters);

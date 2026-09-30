@@ -392,6 +392,7 @@ export type DashboardFilterBoundarySourceContext = {
         string,
         {
             fieldType?: DimensionType;
+            fieldLabel?: string;
             fieldGranularity?: UnitOfTime;
             selectedPeriod?: DateFilterSettings['selectedPeriod'];
             caseSensitive?: boolean;

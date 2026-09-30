@@ -1,13 +1,19 @@
 import {
+    applyDashboardFiltersForTile,
     DimensionType,
     FilterOperator,
+    getFilterRulesFromGroup,
     TimeFrames,
     UnitOfTime,
+    type DashboardFilterBoundary,
     type DashboardFilters,
     type Filters,
 } from '@lightdash/common';
 import { validExplore } from '../ProjectService/ProjectService.mock';
-import { assertDashboardMetricFilterBoundaries } from './dashboardFilterBoundaries';
+import {
+    assertDashboardMetricFilterBoundaries,
+    resolveDashboardFilterBoundaries,
+} from './dashboardFilterBoundaries';
 
 const selection = {
     id: 'status',
@@ -29,6 +35,185 @@ const saved: DashboardFilters = {
 };
 
 describe('dashboard boundaries on derived queries', () => {
+    it.each<{
+        fieldType: DimensionType;
+        boundary: DashboardFilterBoundary;
+        expected: {
+            operator: FilterOperator;
+            values: (string | number)[];
+            settings?: unknown;
+        }[];
+    }>([
+        {
+            fieldType: DimensionType.STRING,
+            boundary: { type: 'string', values: ['Pending', 'Active'] },
+            expected: [
+                {
+                    operator: FilterOperator.EQUALS,
+                    values: ['Pending', 'Active'],
+                },
+            ],
+        },
+        {
+            fieldType: DimensionType.NUMBER,
+            boundary: { type: 'number', min: -1.25, max: 9.5 },
+            expected: [
+                { operator: FilterOperator.IN_BETWEEN, values: [-1.25, 9.5] },
+            ],
+        },
+        {
+            fieldType: DimensionType.TIMESTAMP,
+            boundary: {
+                type: 'date',
+                mode: 'relative',
+                value: 12,
+                unitOfTime: UnitOfTime.months,
+                completed: true,
+            },
+            expected: [
+                {
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [12],
+                    settings: {
+                        unitOfTime: UnitOfTime.months,
+                        completed: true,
+                    },
+                },
+            ],
+        },
+        {
+            fieldType: DimensionType.DATE,
+            boundary: {
+                type: 'date',
+                mode: 'fixed',
+                start: '2026-03-07',
+                end: '2026-03-08',
+            },
+            expected: [
+                {
+                    operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                    values: ['2026-03-07'],
+                },
+                { operator: FilterOperator.LESS_THAN, values: ['2026-03-09'] },
+            ],
+        },
+        {
+            fieldType: DimensionType.TIMESTAMP,
+            boundary: {
+                type: 'date',
+                mode: 'fixed',
+                start: '2026-03-07',
+                end: '2026-03-08',
+            },
+            expected: [
+                {
+                    operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                    values: ['2026-03-07T05:00:00.000Z'],
+                },
+                {
+                    operator: FilterOperator.LESS_THAN,
+                    values: ['2026-03-09T04:00:00.000Z'],
+                },
+            ],
+        },
+    ])(
+        'runs unset $fieldType filters with their full authoritative $boundary.type boundary',
+        ({ fieldType, boundary, expected }) => {
+            const configured = {
+                ...saved,
+                dimensions: [{ ...saved.dimensions[0], boundaries: boundary }],
+            };
+            const explore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        dimensions: {
+                            ...validExplore.tables.a.dimensions,
+                            dim1: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                type: fieldType,
+                            },
+                        },
+                    },
+                },
+            };
+            const context = {
+                timezone: 'America/New_York',
+                useTimezoneAwareDateTrunc: true,
+            };
+            for (const dimensions of [
+                [],
+                [
+                    {
+                        ...configured.dimensions[0],
+                        disabled: true,
+                        boundaries: undefined,
+                    },
+                ],
+            ]) {
+                const result = resolveDashboardFilterBoundaries({
+                    savedFilters: configured,
+                    filters: { dimensions, metrics: [], tableCalculations: [] },
+                    tileUuid: 'tile',
+                    explore,
+                    context,
+                });
+                expect(result.dimensions).toMatchObject(
+                    expected.map((predicate) => ({
+                        ...predicate,
+                        disabled: false,
+                    })),
+                );
+                const { metricQuery } = applyDashboardFiltersForTile({
+                    tileUuid: 'tile',
+                    explore,
+                    dashboardFilters: result,
+                    metricQuery: {
+                        exploreName: explore.name,
+                        dimensions: ['a_dim1'],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 100,
+                        tableCalculations: [],
+                    },
+                });
+                expect(
+                    getFilterRulesFromGroup(metricQuery.filters.dimensions),
+                ).toMatchObject(expected);
+                expect(() =>
+                    assertDashboardMetricFilterBoundaries({
+                        savedFilters: configured,
+                        filters: metricQuery.filters,
+                        tileUuid: 'tile',
+                        explore,
+                        context,
+                    }),
+                ).not.toThrow();
+                if (expected.length === 2) {
+                    const [lower] = getFilterRulesFromGroup(
+                        metricQuery.filters.dimensions,
+                    );
+                    expect(() =>
+                        assertDashboardMetricFilterBoundaries({
+                            savedFilters: configured,
+                            filters: {
+                                dimensions: { id: 'and', and: [lower] },
+                            },
+                            tileUuid: 'tile',
+                            explore,
+                            context,
+                        }),
+                    ).toThrow(
+                        'Choose a valid value for the following filters: dim1.',
+                    );
+                }
+            }
+        },
+    );
+
     const validate = (filters: Filters) =>
         assertDashboardMetricFilterBoundaries({
             savedFilters: saved,
@@ -66,7 +251,7 @@ describe('dashboard boundaries on derived queries', () => {
             { dimensions: { id: 'and', and: [{ id: 'or', or: [selection] }] } },
         ]) {
             expect(() => validate(filters)).toThrow(
-                'Choose one of: Pending, Active.',
+                'Choose a valid value for the following filters: dim1.',
             );
         }
     });
@@ -113,7 +298,7 @@ describe('dashboard boundaries on derived queries', () => {
                 ...args,
                 fields: { a_dim1: zoomedField },
             }),
-        ).toThrow('Choose dates between 2026-03-01 and 2026-03-15.');
+        ).toThrow('Choose a valid value for the following filters: dim1.');
     });
 
     it('revalidates the recorded date selection before a derived query after a calendar rollover', () => {
@@ -168,7 +353,7 @@ describe('dashboard boundaries on derived queries', () => {
             validateDate(new Date('2026-04-01T03:59:59Z')),
         ).not.toThrow();
         expect(() => validateDate(new Date('2026-04-01T04:00:00Z'))).toThrow(
-            'Choose dates within the last 1 completed month.',
+            'Choose a valid value for the following filters: dim1.',
         );
     });
 });

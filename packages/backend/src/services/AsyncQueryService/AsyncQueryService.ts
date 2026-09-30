@@ -23,6 +23,7 @@ import {
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
     DashboardDAO,
+    DashboardFieldTarget,
     DashboardFilters,
     DashboardPreAggregateAudit,
     DEFAULT_RESULTS_PAGE_SIZE,
@@ -292,6 +293,8 @@ import { resolveDashboardDateFilters } from './dashboardDateFilters';
 import {
     assertDashboardFilterBoundaries,
     assertDashboardMetricFilterBoundaries,
+    resolveBoundaryDefaults,
+    resolveDashboardFilterBoundaries,
 } from './dashboardFilterBoundaries';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
@@ -7168,6 +7171,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             dashboardUuid,
         );
+        const boundaryFiltersBySourceId: Record<string, DashboardFilters> = {};
         if (
             Object.values(savedDashboard.filters)
                 .flat()
@@ -7196,27 +7200,28 @@ export class AsyncQueryService extends ProjectService {
                             sourceExplore,
                             settings,
                         );
-                        assertDashboardFilterBoundaries({
-                            savedFilters: savedDashboard.filters,
-                            filters: dashboardFilters,
-                            tileUuid,
-                            explore: exploreBySourceId[source.id],
-                            context: {
-                                timezone: resolveQueryTimezone({
-                                    sessionTimezone: null,
-                                    metricQuery: source.metricQuery,
-                                    projectTimezone: timezone,
-                                    userTimezone:
-                                        getAccountUserTimezone(account),
-                                }),
-                                startOfWeek:
-                                    sqlBuilder.getStartOfWeek() ??
-                                    getDefaultStartOfWeek(
-                                        sqlBuilder.getAdapterType(),
-                                    ),
-                                useTimezoneAwareDateTrunc,
-                            },
-                        });
+                        boundaryFiltersBySourceId[source.id] =
+                            resolveDashboardFilterBoundaries({
+                                savedFilters: savedDashboard.filters,
+                                filters: dashboardFilters,
+                                tileUuid,
+                                explore: exploreBySourceId[source.id],
+                                context: {
+                                    timezone: resolveQueryTimezone({
+                                        sessionTimezone: null,
+                                        metricQuery: source.metricQuery,
+                                        projectTimezone: timezone,
+                                        userTimezone:
+                                            getAccountUserTimezone(account),
+                                    }),
+                                    startOfWeek:
+                                        sqlBuilder.getStartOfWeek() ??
+                                        getDefaultStartOfWeek(
+                                            sqlBuilder.getAdapterType(),
+                                        ),
+                                    useTimezoneAwareDateTrunc,
+                                },
+                            });
                     }),
             );
         }
@@ -7231,6 +7236,7 @@ export class AsyncQueryService extends ProjectService {
             mergeQuery: baseMergeQuery,
             dashboardFilters,
             exploreBySourceId,
+            dashboardFiltersBySourceId: boundaryFiltersBySourceId,
         });
         if (refusedDashboardFilters.length > 0) {
             throw new ParameterError(
@@ -7433,11 +7439,75 @@ export class AsyncQueryService extends ProjectService {
             });
         }
 
+        // Load project warehouse config once, shared by warehouse credentials and timezone resolution
+        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+        const projectTimezone =
+            queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
+
+        // Run independent data loads in parallel to minimize Postgres round-trips
+        const [
+            { warehouseCredentials, warehouseConnectionUuid },
+            rawDashboardParameters,
+            projectParameters,
+        ] = await Promise.all([
+            this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: { kind: 'explore', exploreName: explore.name },
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                preloadedOrgWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid,
+            }),
+            this.dashboardModel.getDashboardParametersByIdOrSlug(
+                resolvedDashboardUuid,
+                projectUuid,
+            ),
+            preloadedProjectParameters ??
+                this.projectParametersModel.find(projectUuid),
+        ]);
+
+        const warehouseSqlBuilder = getSqlBuilderForExplore(
+            explore,
+            warehouseCredentials,
+        );
+
+        const effectiveDashboardFilters = Object.values(savedDashboard.filters)
+            .flat()
+            .some((rule) => rule.boundaries)
+            ? resolveDashboardFilterBoundaries({
+                  savedFilters: savedDashboard.filters,
+                  filters: resolvedDashboardFilters,
+                  tileUuid,
+                  explore,
+                  context: {
+                      timezone: resolveQueryTimezone({
+                          sessionTimezone: sessionTimezone ?? null,
+                          metricQuery: savedChart.metricQuery,
+                          projectTimezone,
+                          userTimezone: getAccountUserTimezone(account),
+                      }),
+                      startOfWeek:
+                          warehouseSqlBuilder.getStartOfWeek() ??
+                          getDefaultStartOfWeek(
+                              warehouseSqlBuilder.getAdapterType(),
+                          ),
+                      useTimezoneAwareDateTrunc:
+                          await this.isTimezoneSupportEnabled({
+                              userUuid: account.user.id,
+                              organizationUuid:
+                                  account.organization.organizationUuid,
+                          }),
+                  },
+              })
+            : resolvedDashboardFilters;
+
         const { metricQuery: metricQueryWithFilters, appliedDashboardFilters } =
             applyDashboardFiltersForTile({
                 tileUuid,
                 metricQuery: savedChart.metricQuery,
-                dashboardFilters: resolvedDashboardFilters,
+                dashboardFilters: effectiveDashboardFilters,
                 explore,
             });
 
@@ -7506,40 +7576,6 @@ export class AsyncQueryService extends ProjectService {
             explore_name: explore.name,
             query_context: context,
         };
-
-        // Load project warehouse config once, shared by warehouse credentials and timezone resolution
-        const { organizationWarehouseCredentialsUuid, queryTimezone } =
-            await this.projectModel.getProjectWarehouseConfig(projectUuid);
-        const projectTimezone =
-            queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
-
-        // Run independent data loads in parallel to minimize Postgres round-trips
-        const [
-            { warehouseCredentials, warehouseConnectionUuid },
-            rawDashboardParameters,
-            projectParameters,
-        ] = await Promise.all([
-            this.getWarehouseCredentialsWithConnection({
-                projectUuid,
-                binding: { kind: 'explore', exploreName: explore.name },
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-                preloadedOrgWarehouseCredentialsUuid:
-                    organizationWarehouseCredentialsUuid,
-            }),
-            this.dashboardModel.getDashboardParametersByIdOrSlug(
-                resolvedDashboardUuid,
-                projectUuid,
-            ),
-            preloadedProjectParameters ??
-                this.projectParametersModel.find(projectUuid),
-        ]);
-
-        const warehouseSqlBuilder = getSqlBuilderForExplore(
-            explore,
-            warehouseCredentials,
-        );
 
         const dashboardParameters = convertDashboardParametersToValuesMap(
             rawDashboardParameters,
@@ -10836,23 +10872,32 @@ export class AsyncQueryService extends ProjectService {
                   })
               ).warehouseCredentials
             : null;
+        const getBoundaryContext = (target: DashboardFieldTarget) => ({
+            timezone: 'UTC',
+            startOfWeek: boundaryWarehouse
+                ? (boundaryWarehouse.startOfWeek ??
+                  getDefaultStartOfWeek(boundaryWarehouse.type))
+                : undefined,
+            fieldType: target.fallbackType,
+        });
+        const boundaryFieldIds = constrained.map(
+            (rule) => (rule.tileTargets?.[tileUuid] || rule.target).fieldId,
+        );
         const errors = getDashboardBoundaryErrors(
             savedDashboard.filters,
             dashboardFilters,
             tileUuid,
-            constrained.map(
-                (rule) => (rule.tileTargets?.[tileUuid] || rule.target).fieldId,
-            ),
-            (target) => ({
-                timezone: 'UTC',
-                startOfWeek: boundaryWarehouse
-                    ? (boundaryWarehouse.startOfWeek ??
-                      getDefaultStartOfWeek(boundaryWarehouse.type))
-                    : undefined,
-                fieldType: target.fallbackType,
-            }),
+            boundaryFieldIds,
+            getBoundaryContext,
         );
         if (errors.length) throw new ParameterError(errors.join(' '));
+        const effectiveDashboardFilters = resolveBoundaryDefaults({
+            savedFilters: savedDashboard.filters,
+            filters: dashboardFilters,
+            tileUuid,
+            availableFieldIds: boundaryFieldIds,
+            getContext: getBoundaryContext,
+        });
 
         const [rawDashboardParameters, projectParameters] = await Promise.all([
             this.dashboardModel.getDashboardParametersByIdOrSlug(
@@ -10896,7 +10941,7 @@ export class AsyncQueryService extends ProjectService {
             tileUuid,
             dashboardFilters: await resolveDashboardDateFilters({
                 tileUuid,
-                dashboardFilters,
+                dashboardFilters: effectiveDashboardFilters,
                 findExploreContainingTable: (tableName) =>
                     this.projectModel.findExploreContainingTable(
                         projectUuid,

@@ -1,7 +1,9 @@
 import moment from 'moment-timezone';
+import { ParameterError } from '../types/errors';
 import {
     DimensionType,
     isDimension,
+    isField,
     type Field,
     type FilterableItem,
     type ItemsMap,
@@ -11,6 +13,7 @@ import {
     UnitOfTime,
     type DashboardFieldTarget,
     type DashboardFilterBoundary,
+    type DashboardFilterRule,
     type DashboardFilters,
     type DateFilterSettings,
     type FilterRule,
@@ -33,6 +36,7 @@ export type FilterBoundaryContext = {
     startOfWeek?: WeekDay | null;
     caseSensitive?: boolean;
     fieldType?: DimensionType;
+    fieldLabel?: string;
     selectedPeriod?: DateFilterSettings['selectedPeriod'];
     fieldGranularity?: UnitOfTime;
     getUiString?: UiStringResolver;
@@ -137,16 +141,44 @@ export const resolveRelativeDateFilterInterval = (
         ...context,
         timezone,
     });
-    if (!interval || context.fieldType !== DimensionType.DATE) return interval;
+    if (!interval) return null;
+    const preciseInterval =
+        context.fieldType === DimensionType.DATE
+            ? {
+                  start: moment
+                      .tz(interval.start, timezone)
+                      .startOf('day')
+                      .valueOf(),
+                  end: interval.endInclusive
+                      ? moment
+                            .tz(interval.end, timezone)
+                            .startOf('day')
+                            .add(1, 'day')
+                            .valueOf()
+                      : moment
+                            .tz(interval.end, timezone)
+                            .startOf('day')
+                            .valueOf(),
+                  endInclusive: false,
+              }
+            : interval;
+    const period = context.fieldGranularity;
+    if (!period) return preciseInterval;
+    const start = getMomentDateWithCustomStartOfWeek(
+        context.startOfWeek,
+        moment.tz(preciseInterval.start, timezone),
+    ).startOf(period);
+    if (start.valueOf() < preciseInterval.start) start.add(1, period);
+    const last = getMomentDateWithCustomStartOfWeek(
+        context.startOfWeek,
+        moment.tz(
+            preciseInterval.end - (preciseInterval.endInclusive ? 0 : 1),
+            timezone,
+        ),
+    ).startOf(period);
     return {
-        start: moment.tz(interval.start, timezone).startOf('day').valueOf(),
-        end: interval.endInclusive
-            ? moment
-                  .tz(interval.end, timezone)
-                  .startOf('day')
-                  .add(1, 'day')
-                  .valueOf()
-            : moment.tz(interval.end, timezone).startOf('day').valueOf(),
+        start: start.valueOf(),
+        end: last.add(1, period).valueOf(),
         endInclusive: false,
     };
 };
@@ -268,26 +300,7 @@ const resolveDateSelection = (
             ? fieldPeriod
             : requestedPeriod;
     const relative = resolveRelativeDateFilterInterval(rule, context);
-    if (relative) {
-        if (!period) return [relative];
-        const start = getMomentDateWithCustomStartOfWeek(
-            context.startOfWeek,
-            moment.tz(relative.start, timezone),
-        ).startOf(period);
-        if (start.valueOf() < relative.start) start.add(1, period);
-        const last = getMomentDateWithCustomStartOfWeek(
-            context.startOfWeek,
-            moment.tz(relative.end - (relative.endInclusive ? 0 : 1), timezone),
-        ).startOf(period);
-        if (start.isAfter(last)) return null;
-        return [
-            {
-                start: start.valueOf(),
-                end: last.add(1, period).valueOf(),
-                endInclusive: false,
-            },
-        ];
-    }
+    if (relative) return relative.start < relative.end ? [relative] : [];
     const intervals = (rule.values ?? []).map(
         (value: unknown): DateInterval | null => {
             if (typeof value !== 'string') return null;
@@ -360,14 +373,15 @@ export const validateFilterBoundary = (
     if (!isValidFilterBoundary(boundary))
         return getUiString('filters.boundaries.invalidConfiguration');
     const message = getFilterBoundaryMessage(boundary, getUiString);
+    if (!rule || rule.disabled) return null;
     if (
-        !rule ||
-        rule.disabled ||
         rule.includeNull ||
         !getBoundaryOperators(boundary).includes(rule.operator)
     )
         return message;
     const values: unknown[] = rule.values ?? [];
+    if (!values.length && rule.operator !== FilterOperator.IN_THE_CURRENT)
+        return null;
     switch (boundary.type) {
         case 'string': {
             const normalize = (value: string) =>
@@ -441,61 +455,76 @@ export const getDashboardBoundaryErrors = (
         target: DashboardFieldTarget,
     ) => FilterBoundaryContext = () => ({}),
 ): string[] => {
-    const errors: string[] = [];
+    const invalidFilters = new Set<string>();
+    let getUiString: UiStringResolver = (key) => DEFAULT_UI_STRINGS[key];
     const now = new Date();
-    for (const kind of [
-        'dimensions',
-        'metrics',
-        'tableCalculations',
-    ] as const) {
-        saved[kind].forEach((savedRule) => {
-            if (
-                !savedRule.boundaries ||
-                savedRule.tileTargets?.[tileUuid] === false
-            )
-                return;
-            const target =
-                savedRule.tileTargets?.[tileUuid] || savedRule.target;
-            if (!availableFieldIds.includes(target.fieldId)) return;
-            const candidates = effective[kind].filter(
-                (candidate) =>
-                    candidate.id === savedRule.id ||
-                    (candidate.target.fieldId === savedRule.target.fieldId &&
-                        candidate.target.tableName ===
-                            savedRule.target.tableName) ||
-                    (candidate.target.fieldId === target.fieldId &&
-                        candidate.target.tableName === target.tableName),
-            );
-            const context = { now, ...getContext(target) };
-            if (!candidates.length) {
-                errors.push(
-                    getFilterBoundaryMessage(
+    (['dimensions', 'metrics', 'tableCalculations'] as const).forEach(
+        (kind) => {
+            saved[kind].forEach((savedRule) => {
+                if (
+                    !savedRule.boundaries ||
+                    savedRule.tileTargets?.[tileUuid] === false
+                )
+                    return;
+                const target =
+                    savedRule.tileTargets?.[tileUuid] || savedRule.target;
+                if (!availableFieldIds.includes(target.fieldId)) return;
+                const candidates = effective[kind].filter(
+                    (candidate) =>
+                        candidate.id === savedRule.id ||
+                        (candidate.target.fieldId ===
+                            savedRule.target.fieldId &&
+                            candidate.target.tableName ===
+                                savedRule.target.tableName) ||
+                        (candidate.target.fieldId === target.fieldId &&
+                            candidate.target.tableName === target.tableName),
+                );
+                const context = { now, ...getContext(target) };
+                getUiString = context.getUiString ?? getUiString;
+                const label =
+                    savedRule.label || context.fieldLabel || target.fieldId;
+                if (!candidates.length) {
+                    const error = validateFilterBoundary(
                         savedRule.boundaries,
-                        context.getUiString,
-                    ),
-                );
-                return;
-            }
-            for (const candidate of candidates) {
-                const candidateTarget =
-                    candidate.tileTargets?.[tileUuid] ?? candidate.target;
-                const isApplied =
-                    candidateTarget !== false &&
-                    candidateTarget.fieldId === target.fieldId &&
-                    candidateTarget.tableName === target.tableName &&
-                    (!target.isSqlColumn ||
-                        (candidateTarget.isSqlColumn &&
-                            !!candidate.tileTargets?.[tileUuid]));
-                const error = validateFilterBoundary(
-                    savedRule.boundaries,
-                    isApplied ? candidate : undefined,
-                    context,
-                );
-                if (error) errors.push(error);
-            }
-        });
-    }
-    return errors;
+                        undefined,
+                        context,
+                    );
+                    if (error) invalidFilters.add(label);
+                    return;
+                }
+                for (const candidate of candidates) {
+                    const candidateTarget =
+                        candidate.tileTargets?.[tileUuid] ?? candidate.target;
+                    const isApplied =
+                        candidateTarget !== false &&
+                        candidateTarget.fieldId === target.fieldId &&
+                        candidateTarget.tableName === target.tableName &&
+                        (!target.isSqlColumn ||
+                            (candidateTarget.isSqlColumn &&
+                                !!candidate.tileTargets?.[tileUuid]));
+                    const error = isApplied
+                        ? validateFilterBoundary(
+                              savedRule.boundaries,
+                              candidate,
+                              context,
+                          )
+                        : getFilterBoundaryMessage(
+                              savedRule.boundaries,
+                              context.getUiString,
+                          );
+                    if (error) invalidFilters.add(label);
+                }
+            });
+        },
+    );
+    return invalidFilters.size
+        ? [
+              interpolateUiString(
+                  getUiString('filters.boundaries.invalidFilters'),
+                  { filters: [...invalidFilters].join(', ') },
+              ),
+          ]
+        : [];
 };
 
 export const getFilterBoundaryFieldContext = (
@@ -518,6 +547,7 @@ export const getFilterBoundaryFieldContext = (
         [TimeFrames.SECOND]: UnitOfTime.seconds,
     };
     return {
+        fieldLabel: isField(field) ? field.label : undefined,
         fieldGranularity:
             isDimension(field) && field.timeInterval
                 ? granularities[field.timeInterval]
@@ -569,4 +599,94 @@ export const restoreDashboardFilterBoundaries = (
         restored[kind] = rules;
     }
     return restored;
+};
+
+export const getFilterBoundaryDefaultRules = (
+    rule: DashboardFilterRule,
+    context: FilterBoundaryContext,
+): DashboardFilterRule[] => {
+    const boundary = rule.boundaries;
+    if (!boundary) return [rule];
+    const invalidMessage = (
+        context.getUiString ?? ((key) => DEFAULT_UI_STRINGS[key])
+    )('filters.boundaries.invalidConfiguration');
+    if (!isValidFilterBoundary(boundary))
+        throw new ParameterError(invalidMessage);
+    const base = {
+        ...rule,
+        disabled: false,
+        includeNull: false,
+        settings: undefined,
+    };
+    switch (boundary.type) {
+        case 'string':
+            return [
+                {
+                    ...base,
+                    operator: FilterOperator.EQUALS,
+                    values: boundary.values,
+                },
+            ];
+        case 'number':
+            return [
+                {
+                    ...base,
+                    operator: FilterOperator.IN_BETWEEN,
+                    values: [boundary.min, boundary.max],
+                },
+            ];
+        case 'date': {
+            if (boundary.mode === 'relative') {
+                return [
+                    {
+                        ...base,
+                        operator: FilterOperator.IN_THE_PAST,
+                        values: [boundary.value],
+                        settings: {
+                            unitOfTime: boundary.unitOfTime,
+                            completed: boundary.completed,
+                        },
+                    },
+                ];
+            }
+            const interval = resolveFilterBoundaryInterval(boundary, context);
+            if (!interval) throw new ParameterError(invalidMessage);
+            const timezone = getBoundaryTimezone(context);
+            let start = getMomentDateWithCustomStartOfWeek(
+                context.startOfWeek,
+                moment.tz(interval.start, timezone),
+            );
+            const end = getMomentDateWithCustomStartOfWeek(
+                context.startOfWeek,
+                moment.tz(interval.end, timezone),
+            );
+            if (context.fieldGranularity) {
+                const floor = start.clone().startOf(context.fieldGranularity);
+                if (floor.isBefore(start))
+                    floor.add(1, context.fieldGranularity);
+                start = floor;
+                end.startOf(context.fieldGranularity);
+                if (start.isAfter(end)) start = end.clone();
+            }
+            const format = (date: moment.Moment) =>
+                context.fieldType === DimensionType.DATE
+                    ? date.format('YYYY-MM-DD')
+                    : date.toISOString();
+            return [
+                {
+                    ...base,
+                    operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                    values: [format(start)],
+                },
+                {
+                    ...base,
+                    id: `${rule.id}-boundary-end`,
+                    operator: FilterOperator.LESS_THAN,
+                    values: [format(end)],
+                },
+            ];
+        }
+        default:
+            return assertUnreachable(boundary, 'Unknown filter boundary');
+    }
 };

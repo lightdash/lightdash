@@ -180,8 +180,8 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, getField, onChange }) => {
     const getUiString = useUiStrings();
     // Same test as isRequirementRuleSatisfied, so the summary always shows
     // the member that actually satisfies the rule
-    const setMember = rule.members.find(
-        (member) => !isValuelessDashboardFilterRule(member),
+    const setMember = rule.members.find((member) =>
+        isRequirementRuleSatisfied({ ...rule, members: [member] }),
     );
     if (!setMember) return null;
 
@@ -189,9 +189,11 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, getField, onChange }) => {
     const ruleLabels = field
         ? getConditionalRuleLabelFromItem(setMember, field)
         : undefined;
-    const valueLabel = ruleLabels
-        ? [ruleLabels.operator, ruleLabels.value].filter(Boolean).join(' ')
-        : undefined;
+    const valueLabel = isValuelessDashboardFilterRule(setMember)
+        ? getUiString('filters.isAnyValue')
+        : ruleLabels
+          ? [ruleLabels.operator, ruleLabels.value].filter(Boolean).join(' ')
+          : undefined;
 
     return (
         <Group gap="xs" wrap="nowrap" className={classes.summaryRow}>

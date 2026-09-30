@@ -2115,6 +2115,28 @@ describe('getUnmetFilterRequirements', () => {
         expect(getUnmetFilterRequirements(filters)).toEqual([]);
     });
 
+    test('a full valid boundary satisfies an unset requirement, but an invalid boundary does not', () => {
+        const bounded = createRule('bounded', {
+            required: true,
+            disabled: true,
+            boundaries: { type: 'number', min: 0, max: 100 },
+        });
+        expect(
+            getUnmetFilterRequirements(
+                toDashboardFilters({ dimensions: [bounded] }),
+            ),
+        ).toEqual([]);
+        const invalid = {
+            ...bounded,
+            boundaries: { type: 'number' as const, min: 100, max: 0 },
+        };
+        expect(
+            getUnmetFilterRequirements(
+                toDashboardFilters({ dimensions: [invalid] }),
+            ),
+        ).toEqual([{ type: 'single', filter: invalid }]);
+    });
+
     test('returns a single entry for a required filter without a value', () => {
         const required = createRule('a', { required: true, disabled: true });
         const filters = toDashboardFilters({

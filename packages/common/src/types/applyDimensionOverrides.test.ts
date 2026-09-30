@@ -753,6 +753,7 @@ describe('applyDimensionOverrides', () => {
                             'customers',
                         ),
                         required: true,
+                        boundaries: { type: 'number', min: 0, max: 1000 },
                     },
                     {
                         ...createBaseDashboardFilter(
@@ -761,6 +762,10 @@ describe('applyDimensionOverrides', () => {
                             'orders',
                         ),
                         requiredGroupId: 'group-1',
+                        boundaries: {
+                            type: 'string',
+                            values: ['pending', 'completed'],
+                        },
                     },
                 ],
                 metrics: [],
@@ -774,14 +779,29 @@ describe('applyDimensionOverrides', () => {
                     ['789'],
                 ),
                 // Field-matched override with a stale id
-                createOverrideFilter('stale', 'orders_status', 'orders', [
-                    'completed',
-                ]),
+                {
+                    ...createOverrideFilter(
+                        'stale',
+                        'orders_status',
+                        'orders',
+                        ['completed'],
+                    ),
+                    boundaries: {
+                        type: 'string',
+                        values: ['completed', 'shipped'],
+                    },
+                },
             ];
 
             const result = applyDimensionOverrides(savedFilters, overrides);
 
             expect(result).toHaveLength(2);
+            expect(result[0].boundaries).toEqual(
+                savedFilters.dimensions[0].boundaries,
+            );
+            expect(result[1].boundaries).toEqual(
+                savedFilters.dimensions[1].boundaries,
+            );
             expect(result[0].required).toBe(true);
             expect(result[0].values).toEqual(['789']);
             expect(result[1].requiredGroupId).toBe('group-1');

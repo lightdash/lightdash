@@ -289,7 +289,10 @@ describe('GuidedFilterSetupOverlay', () => {
         mockDashboardContext.current.allFilters =
             mockDashboardContext.current.dashboardFilters;
         renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
+        expect(screen.getByText('1 of 1 set')).toBeVisible();
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
         const input = screen.getByPlaceholderText('any value');
+        await waitFor(() => expect(input).toBeVisible());
         fireEvent.change(input, { target: { value: 'Other' } });
         expect(input).toHaveValue('Other');
         expect(
@@ -322,8 +325,10 @@ describe('GuidedFilterSetupOverlay', () => {
         mockDashboardContext.current.allFilters =
             mockDashboardContext.current.dashboardFilters;
         renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
+        expect(screen.getByText('1 of 1 set')).toBeVisible();
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
         await userEvent.click(
-            screen.getByRole('button', {
+            await screen.findByRole('button', {
                 name: 'Change operator for customers_first_name',
             }),
         );

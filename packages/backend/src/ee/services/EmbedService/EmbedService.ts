@@ -104,7 +104,7 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
-import { assertDashboardFilterBoundaries } from '../../../services/AsyncQueryService/dashboardFilterBoundaries';
+import { resolveDashboardFilterBoundaries } from '../../../services/AsyncQueryService/dashboardFilterBoundaries';
 import { BaseService } from '../../../services/BaseService';
 import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import {
@@ -1377,7 +1377,7 @@ export class EmbedService extends BaseService {
                 explore,
                 sqlBuilderSettings,
             );
-            assertDashboardFilterBoundaries({
+            effectiveFilters = resolveDashboardFilterBoundaries({
                 savedFilters: dashboard.filters,
                 filters: effectiveFilters,
                 tileUuid,

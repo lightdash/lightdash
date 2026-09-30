@@ -108,11 +108,13 @@ export const applyDashboardFiltersToMergeQuery = ({
     mergeQuery,
     dashboardFilters,
     exploreBySourceId,
+    dashboardFiltersBySourceId,
 }: {
     tileUuid: string | null;
     mergeQuery: MergeQuery;
     dashboardFilters: DashboardFilters;
     exploreBySourceId: MergeSourceExplores;
+    dashboardFiltersBySourceId?: Record<string, DashboardFilters>;
 }): MergeDashboardFiltersResult => {
     const tileFilters =
         tileUuid === null
@@ -128,7 +130,13 @@ export const applyDashboardFiltersToMergeQuery = ({
         if (!isMergeMetricSource(source) || explore === undefined) {
             return source;
         }
-        const applied = filtersForExplore(explore, tileFilters);
+        const sourceFilters = dashboardFiltersBySourceId?.[source.id];
+        const applied = filtersForExplore(
+            explore,
+            sourceFilters && tileUuid
+                ? getDashboardFiltersForTile(tileUuid, sourceFilters)
+                : tileFilters,
+        );
         appliedDashboardFiltersBySourceId[source.id] = applied;
         if (
             applied.dimensions.length === 0 &&

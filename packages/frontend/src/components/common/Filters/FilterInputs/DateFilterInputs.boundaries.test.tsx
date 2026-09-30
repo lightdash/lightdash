@@ -4,11 +4,13 @@ import {
     FilterOperator,
     FilterType,
     UnitOfTime,
+    TimeFrames,
     WeekDay,
     type DashboardFilterRule,
     type FilterableItem,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FiltersProvider from '../FiltersProvider';
@@ -44,6 +46,66 @@ const rule: DashboardFilterRule = {
 afterEach(() => vi.useRealTimers());
 
 describe('dashboard date calendar boundaries', () => {
+    it('offers weeks for a monthly filter inside a rolling 12-month boundary', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-09-30T12:00:00Z'));
+        const onChange = vi.fn();
+        const selected: DashboardFilterRule = {
+            ...rule,
+            operator: FilterOperator.IN_THE_PAST,
+            values: [12],
+            settings: { unitOfTime: UnitOfTime.months, completed: false },
+            boundaries: {
+                type: 'date',
+                mode: 'relative',
+                value: 12,
+                unitOfTime: UnitOfTime.months,
+                completed: false,
+            },
+        };
+        renderWithProviders(
+            <FiltersProvider
+                filterBoundaryContexts={{
+                    chart: [
+                        {
+                            timezone: 'UTC',
+                            projectTimezone: 'UTC',
+                            startOfWeek: WeekDay.MONDAY,
+                            useTimezoneAwareDateTrunc: false,
+                            fields: {
+                                orders_created_at: {
+                                    fieldType: DimensionType.TIMESTAMP,
+                                    fieldGranularity: UnitOfTime.months,
+                                },
+                            },
+                        },
+                    ],
+                }}
+            >
+                <DateFilterInputs
+                    rule={selected}
+                    field={
+                        {
+                            ...field,
+                            timeInterval: TimeFrames.MONTH,
+                        } as FilterableItem
+                    }
+                    filterType={FilterType.DATE}
+                    boundaries={selected.boundaries}
+                    onChange={onChange}
+                />
+            </FiltersProvider>,
+        );
+        await userEvent.click(screen.getByRole('combobox'));
+        await userEvent.click(screen.getByRole('option', { name: 'weeks' }));
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({
+                values: [12],
+                settings: { unitOfTime: UnitOfTime.weeks, completed: false },
+            }),
+        );
+    });
+
     it.each([
         { timezones: ['UTC'], disabled: false },
         { timezones: ['UTC', 'America/New_York'], disabled: true },

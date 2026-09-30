@@ -522,6 +522,7 @@ export const applyDimensionOverrides = (
                 lockedTabUuids: dimension.lockedTabUuids,
                 required: dimension.required,
                 requiredGroupId: dimension.requiredGroupId,
+                boundaries: dimension.boundaries,
             };
         },
     );
@@ -562,6 +563,7 @@ export const applyMetricOverrides = (
                 lockedTabUuids: metric.lockedTabUuids,
                 required: metric.required,
                 requiredGroupId: metric.requiredGroupId,
+                boundaries: metric.boundaries,
             };
         }
         return metric;

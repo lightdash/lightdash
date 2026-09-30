@@ -40,6 +40,7 @@ describe('applyMetricOverrides', () => {
                 ...createMetricFilter('metric-1', 'orders_total'),
                 tileTargets: savedTileTargets,
                 required: true,
+                boundaries: { type: 'number', min: 0, max: 1000 },
                 lockedTabUuids: ['tab-1'],
             },
             {
@@ -57,6 +58,9 @@ describe('applyMetricOverrides', () => {
         expect(result[0].values).toEqual(['999']);
         expect(result[0].tileTargets).toEqual(savedTileTargets);
         expect(result[0].required).toBe(true);
+        expect(result[0].boundaries).toEqual(
+            savedFilters.metrics[0].boundaries,
+        );
         expect(result[0].lockedTabUuids).toEqual(['tab-1']);
         expect(result[1]).toEqual(savedFilters.metrics[1]);
     });

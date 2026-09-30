@@ -75,7 +75,9 @@ describe('dashboard chart boundary errors', () => {
                 ...args,
                 filterBoundaryContexts,
             }),
-        ).toEqual(['Choose dates between 2026-03-01 and 2026-03-01.']);
+        ).toEqual([
+            'Choose a valid value for the following filters: orders_created_at.',
+        ]);
         const savedFilters = {
             ...filters,
             dimensions: [

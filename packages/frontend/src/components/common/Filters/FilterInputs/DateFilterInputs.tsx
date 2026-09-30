@@ -442,7 +442,9 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         style={{ flexShrink: 1, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
                         minUnitOfTime={
-                            isDimension(field) && field.timeInterval
+                            !props.boundaries &&
+                            isDimension(field) &&
+                            field.timeInterval
                                 ? timeframeToUnitOfTime(field.timeInterval)
                                 : undefined
                         }
@@ -491,7 +493,9 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     isTimestamp={isTimestamp}
                     unitOfTime={rule.settings?.unitOfTime}
                     minUnitOfTime={
-                        isDimension(field) && field.timeInterval
+                        !props.boundaries &&
+                        isDimension(field) &&
+                        field.timeInterval
                             ? timeframeToUnitOfTime(field.timeInterval)
                             : undefined
                     }

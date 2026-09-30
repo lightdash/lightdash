@@ -55,6 +55,7 @@ import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getDimensionMapFromTables, getMetricsMapFromTables } from './fields';
+import { isValidFilterBoundary } from './filterBoundaries';
 import { formatDate, shouldShiftItemTimezone } from './formatting';
 import { getItemId, getItemType, isDateItem } from './item';
 
@@ -2086,7 +2087,11 @@ export const isValuelessDashboardFilterRule = (
 export const isRequirementRuleSatisfied = (
     rule: FilterRequirementRule,
 ): boolean =>
-    rule.members.some((member) => !isValuelessDashboardFilterRule(member));
+    rule.members.some(
+        (member) =>
+            (member.boundaries && isValidFilterBoundary(member.boundaries)) ||
+            !isValuelessDashboardFilterRule(member),
+    );
 
 /**
  * Unmet requirements over dimensions + metrics, derived from

@@ -7069,6 +7069,65 @@ describe('AsyncQueryService', () => {
             return { service, execute };
         };
 
+        test('executes an any-value dashboard chart using all permitted values', async () => {
+            const { service } = buildService();
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                organizationUuid: projectSummary.organizationUuid,
+                projectUuid,
+                spaceUuid: 'spaceUuid',
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'status',
+                            label: 'Status',
+                            target: { fieldId: 'a_dim1', tableName: 'a' },
+                            operator: FilterOperator.EQUALS,
+                            disabled: true,
+                            values: [],
+                            boundaries: {
+                                type: 'string',
+                                values: ['Pending', 'Active'],
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                tiles: [
+                    {
+                        uuid: 'tile-1',
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { savedChartUuid: savedChart.uuid },
+                    },
+                ],
+            } as never);
+            const result = await service.executeAsyncDashboardChartQuery({
+                account: viewer,
+                projectUuid,
+                dashboardUuid: 'dashboard-uuid',
+                chartUuid: savedChart.uuid,
+                tileUuid: 'tile-1',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                parameters: undefined,
+                limit: undefined,
+                pivotResults: false,
+            });
+            expect(result.appliedDashboardFilters.dimensions).toEqual([
+                expect.objectContaining({
+                    values: ['Pending', 'Active'],
+                    disabled: false,
+                }),
+            ]);
+        });
+
         test.each(['chart', 'sql'] as const)(
             'rejects out-of-bound regular dashboard %s queries before execution',
             async (kind) => {
@@ -7081,7 +7140,7 @@ describe('AsyncQueryService', () => {
                     },
                     operator: FilterOperator.EQUALS,
                     values: ['Pending'],
-                    label: undefined,
+                    label: 'Status',
                     boundaries: {
                         type: 'string' as const,
                         values: ['Pending', 'Active'],
@@ -7143,7 +7202,7 @@ describe('AsyncQueryService', () => {
                               savedSqlUuid: sqlChart.savedSqlUuid,
                           });
                 await expect(query).rejects.toThrow(
-                    'Choose one of: Pending, Active.',
+                    'Choose a valid value for the following filters: Status.',
                 );
                 expect(execute).not.toHaveBeenCalled();
             },
@@ -7216,7 +7275,7 @@ describe('AsyncQueryService', () => {
                         });
                     else {
                         await expect(query).rejects.toThrow(
-                            'Choose dates between 2026-09-28 and 2026-10-04.',
+                            'Choose a valid value for the following filters: dim1.',
                         );
                         expect(execute).not.toHaveBeenCalled();
                     }
@@ -7286,7 +7345,7 @@ describe('AsyncQueryService', () => {
                     });
                     if (useTimezoneAwareDateTrunc) {
                         await expect(query).rejects.toThrow(
-                            'Choose dates within the last 1 completed month.',
+                            'Choose a valid value for the following filters: dim1.',
                         );
                         expect(execute).not.toHaveBeenCalled();
                     } else
@@ -7544,7 +7603,7 @@ describe('AsyncQueryService', () => {
                         });
                     else {
                         await expect(query).rejects.toThrow(
-                            'Choose dates between 2026-09-27 and 2026-10-03.',
+                            'Choose a valid value for the following filters: ordered_at.',
                         );
                         expect(execute).not.toHaveBeenCalled();
                     }
@@ -9567,7 +9626,9 @@ describe('saved chart query result access', () => {
                 queryUuid: history.queryUuid,
                 kind: 'grandTotal',
             }),
-        ).rejects.toThrow('Choose one of: Pending, Active.');
+        ).rejects.toThrow(
+            'Choose a valid value for the following filters: dim1.',
+        );
     });
 
     it.each(['totals', 'rerun', 'underlying'] as const)(

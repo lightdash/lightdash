@@ -384,6 +384,7 @@
         "filters.boundaries.relativeDate": "აირჩიეთ თარიღები ბოლო {value} {unit}-ის ფარგლებში.",
         "filters.boundaries.completedDate": "აირჩიეთ თარიღები ბოლო {value} დასრულებული {unit}-ის ფარგლებში.",
         "filters.boundaries.invalidConfiguration": "ფილტრის საზღვრები არასწორია.",
+        "filters.boundaries.invalidFilters": "აირჩიეთ სწორი მნიშვნელობა შემდეგი ფილტრებისთვის: {filters}.",
         "filters.boundaries.selectionRequired": "განახლებამდე აირჩიეთ ფილტრის დასაშვები მნიშვნელობები მითითებულ საზღვრებში."
     }
 }

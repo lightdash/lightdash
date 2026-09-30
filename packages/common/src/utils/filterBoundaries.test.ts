@@ -27,7 +27,7 @@ const rule = (
 });
 
 describe('dashboard filter boundaries', () => {
-    it('validates saved boundaries even when overrides omit, disable, retarget or replace metadata', () => {
+    it('uses the saved boundary for cleared selections and rejects retargeted or out-of-bounds overrides', () => {
         const savedRule = {
             ...rule([50]),
             boundaries: { type: 'number' as const, min: 0, max: 100 },
@@ -45,9 +45,9 @@ describe('dashboard filter boundaries', () => {
                 ['orders_value'],
             );
         expect(check([rule([25])])).toEqual([]);
+        expect(check([])).toEqual([]);
+        expect(check([{ ...rule([25]), disabled: true }])).toEqual([]);
         for (const overrides of [
-            [],
-            [{ ...rule([25]), disabled: true }],
             [
                 {
                     ...rule([25]),
@@ -74,6 +74,82 @@ describe('dashboard filter boundaries', () => {
             ),
         ).toEqual([]);
     });
+    it('lists invalid dashboard filters without repeating their boundary instructions', () => {
+        const dimensions = ['Revenue', 'Quantity'].map((label, index) => ({
+            ...rule([20]),
+            id: `number-${index}`,
+            label,
+            target: { tableName: 'orders', fieldId: `orders_value_${index}` },
+            boundaries: { type: 'number' as const, min: 0, max: 10 },
+        }));
+        const filters = { dimensions, metrics: [], tableCalculations: [] };
+        expect(
+            getDashboardBoundaryErrors(
+                filters,
+                filters,
+                'tile',
+                dimensions.map((item) => item.target.fieldId),
+            ),
+        ).toEqual([
+            'Choose a valid value for the following filters: Revenue, Quantity.',
+        ]);
+        expect(
+            getDashboardBoundaryErrors(
+                {
+                    ...filters,
+                    dimensions: [{ ...dimensions[0], label: undefined }],
+                },
+                filters,
+                'tile',
+                [dimensions[0].target.fieldId],
+                () => ({ fieldLabel: 'Revenue' }),
+            ),
+        ).toEqual(['Choose a valid value for the following filters: Revenue.']);
+    });
+
+    it.each([DimensionType.DATE, DimensionType.TIMESTAMP])(
+        'accepts 12 weeks within a rolling 12-month boundary on a monthly %s field',
+        (fieldType) => {
+            const boundary = {
+                type: 'date' as const,
+                mode: 'relative' as const,
+                value: 12,
+                unitOfTime: UnitOfTime.months,
+                completed: false,
+            };
+            const selection = {
+                ...rule([12], FilterOperator.IN_THE_PAST),
+                settings: { unitOfTime: UnitOfTime.weeks, completed: false },
+            };
+            const context = {
+                now: new Date('2026-09-30T12:00:00Z'),
+                timezone: 'UTC',
+                fieldType,
+                fieldGranularity: UnitOfTime.months,
+            };
+            expect(
+                validateFilterBoundary(boundary, selection, context),
+            ).toBeNull();
+            expect(
+                validateFilterBoundary(
+                    boundary,
+                    {
+                        ...selection,
+                        values: [60],
+                    },
+                    context,
+                ),
+            ).not.toBeNull();
+            expect(
+                validateFilterBoundary(
+                    { ...boundary, completed: true },
+                    selection,
+                    context,
+                ),
+            ).not.toBeNull();
+        },
+    );
+
     it('uses DATE precision for relative boundaries but instant precision for timestamps', () => {
         const boundary = {
             type: 'date' as const,
