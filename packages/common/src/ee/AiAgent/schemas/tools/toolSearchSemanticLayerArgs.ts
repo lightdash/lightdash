@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_SEARCH_SEMANTIC_LAYER_DESCRIPTION = `Tool: searchSemanticLayer
@@ -63,11 +66,48 @@ export const searchSemanticLayerRankingMetadataSchema = z.object({
     ),
 });
 
-export const toolSearchSemanticLayerOutputSchema = z.object({
-    result: z.string(),
+export const toolSearchSemanticLayerStructuredContentSchema = z.object({
+    pagination: z
+        .object({
+            page: z.number(),
+            pageSize: z.number(),
+            totalPageCount: z.number(),
+            totalResults: z
+                .number()
+                .describe(
+                    'Matching fields across all pages, not just this one.',
+                ),
+        })
+        .nullable()
+        .describe('Null when the search backend reported no page information.'),
+    fields: z
+        .array(
+            z.object({
+                name: z.string(),
+                label: z.string(),
+                exploreName: z
+                    .string()
+                    .describe('Explore (table) the field is defined in.'),
+                fieldType: z.string().describe('"metric" or "dimension".'),
+                usageInCharts: z
+                    .number()
+                    .describe('Number of saved charts using this field.'),
+                description: z
+                    .string()
+                    .nullable()
+                    .describe(
+                        'Field description, possibly truncated; null when the field has none.',
+                    ),
+            }),
+        )
+        .describe('The fields on this page; empty when nothing matched.'),
+});
+
+export const toolSearchSemanticLayerOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema.extend({
         ranking: searchSemanticLayerRankingMetadataSchema.optional(),
     }),
+    structuredContent: toolSearchSemanticLayerStructuredContentSchema,
 });
 
 export type ToolSearchSemanticLayerArgs = z.infer<
@@ -75,6 +115,9 @@ export type ToolSearchSemanticLayerArgs = z.infer<
 >;
 export type ToolSearchSemanticLayerArgsTransformed =
     ToolSearchSemanticLayerArgs;
+export type ToolSearchSemanticLayerStructuredContent = z.infer<
+    typeof toolSearchSemanticLayerStructuredContentSchema
+>;
 export type ToolSearchSemanticLayerOutput = z.infer<
     typeof toolSearchSemanticLayerOutputSchema
 >;
