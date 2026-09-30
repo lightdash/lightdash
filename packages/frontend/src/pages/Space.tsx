@@ -131,6 +131,10 @@ const Space: FC = () => {
         return <ForbiddenPanel />;
     }
 
+    const userCanCreateNestedSpace =
+        userCanManageSpace ||
+        user.data?.ability?.can('manage', subject('Space', space));
+
     const userCanCreateDashboards = user.data?.ability?.can(
         'create',
         subject('Dashboard', { ...space }),
@@ -283,7 +287,7 @@ const Space: FC = () => {
                                         userCanCreateCharts ||
                                         userCanCreateDocuments)) ||
                                     userCanCreateDataApps ||
-                                    userCanManageSpace) && (
+                                    userCanCreateNestedSpace) && (
                                     <Menu
                                         position="bottom-end"
                                         closeOnItemClick
@@ -305,7 +309,7 @@ const Space: FC = () => {
                                         </Menu.Target>
 
                                         <Menu.Dropdown>
-                                            {userCanManageSpace && (
+                                            {userCanCreateNestedSpace && (
                                                 <>
                                                     <Menu.Item
                                                         leftSection={

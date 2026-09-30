@@ -23,9 +23,11 @@ import {
     type SpaceAccessListFilters,
     type SpaceAccessUserMetadata,
     type SpaceGroup,
-    type SpaceShare,
+    type SpaceShareWithPermissions,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import pLimit from 'p-limit';
+import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { type AppAccessModel } from '../../models/AppAccessModel';
 import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
 import { type DirectAccess } from '../../models/directAccessModelUtils';
@@ -39,6 +41,7 @@ import {
     type OrganizationSpaceAccessWithCustomRole,
     type ProjectSpaceAccessWithCustomRole,
 } from '../../models/SpacePermissionModel';
+import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { type DirectAccessFeatureGate } from '../DirectAccess/DirectAccessFeatureGate';
 
@@ -121,6 +124,8 @@ export const spaceContextsByUuid = (
     );
 
 export class SpacePermissionService extends BaseService {
+    private readonly userModel: UserModel;
+
     private readonly spaceModel: SpaceModel;
 
     private readonly spacePermissionModel: SpacePermissionModel;
@@ -139,6 +144,7 @@ export class SpacePermissionService extends BaseService {
     private readonly directAccessFeatureGate: DirectAccessFeatureGate;
 
     constructor({
+        userModel,
         spaceModel,
         spacePermissionModel,
         appAccessModel,
@@ -149,6 +155,7 @@ export class SpacePermissionService extends BaseService {
         savedSqlAccessModel,
         directAccessFeatureGate,
     }: {
+        userModel: UserModel;
         spaceModel: SpaceModel;
         spacePermissionModel: SpacePermissionModel;
         appAccessModel: AppAccessModel;
@@ -160,6 +167,7 @@ export class SpacePermissionService extends BaseService {
         directAccessFeatureGate: DirectAccessFeatureGate;
     }) {
         super();
+        this.userModel = userModel;
         this.spaceModel = spaceModel;
         this.spacePermissionModel = spacePermissionModel;
         this.appAccessModel = appAccessModel;
@@ -695,7 +703,7 @@ export class SpacePermissionService extends BaseService {
             filters?: SpaceAccessListFilters;
             currentUserUuid?: string;
         },
-    ): Promise<KnexPaginatedData<SpaceShare[]>> {
+    ): Promise<KnexPaginatedData<SpaceShareWithPermissions[]>> {
         const accessContexts = await this.getSpacesCaslContext(
             [spaceUuid],
             filters?.userUuids?.length
@@ -731,12 +739,50 @@ export class SpacePermissionService extends BaseService {
                 },
             );
 
+        const limit = pLimit(5);
+        const accessWithPermissions = await Promise.all(
+            data.map((metadata) =>
+                limit(async (): Promise<SpaceShareWithPermissions> => {
+                    const recipient =
+                        await this.userModel.findSessionUserAndOrgByUuid(
+                            metadata.userUuid,
+                            ctx.organizationUuid,
+                        );
+                    // These are informational checks, not actions performed by the recipient.
+                    const ability = new CaslAuditWrapper(
+                        recipient.ability,
+                        recipient,
+                        { auditEnabled: false },
+                    );
+                    const context = {
+                        organizationUuid: ctx.organizationUuid,
+                        projectUuid: ctx.projectUuid,
+                        inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                        access: ctx.access,
+                    };
+                    return {
+                        ...accessByUserUuid.get(metadata.userUuid)!,
+                        ...metadata,
+                        permissions: {
+                            canEditCharts: ability.can(
+                                'update',
+                                subject('SavedChart', { ...context }),
+                            ),
+                            canEditDashboards: ability.can(
+                                'update',
+                                subject('Dashboard', { ...context }),
+                            ),
+                            canManageSpace: ability.can(
+                                'manage',
+                                subject('Space', { ...context }),
+                            ),
+                        },
+                    };
+                }),
+            ),
+        );
         return {
-            data: data.map(({ userUuid, ...metadata }) => ({
-                ...accessByUserUuid.get(userUuid)!,
-                userUuid,
-                ...metadata,
-            })),
+            data: accessWithPermissions,
             ...(pagination ? { pagination } : {}),
         };
     }

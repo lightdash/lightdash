@@ -188,6 +188,14 @@ export type SpaceAccess = {
 // Full space share with user metadata, used for frontend display
 export type SpaceShare = SpaceAccess & SpaceAccessUserMetadata;
 
+export type SpaceShareWithPermissions = SpaceShare & {
+    permissions: {
+        canEditCharts: boolean;
+        canEditDashboards: boolean;
+        canManageSpace: boolean;
+    };
+};
+
 export type SpaceGroup = {
     groupUuid: string;
     groupName: string;
@@ -233,7 +241,7 @@ export type ApiSpaceServiceAccountCandidatesResponse = {
 
 export type ApiSpaceAccessListResponse = {
     status: 'ok';
-    results: KnexPaginatedData<SpaceShare[]>;
+    results: KnexPaginatedData<SpaceShareWithPermissions[]>;
 };
 
 export type SpaceDeleteImpact = {
