@@ -9,7 +9,10 @@ import {
 import { type ToolDescriptionContext } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import sortFieldSchema from '../sortField';
 import {
     formulaTableCalcsSchema,
@@ -24,6 +27,13 @@ import {
     MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
 import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
+
+const parameterValueSchema = z.union([
+    z.string(),
+    z.number(),
+    z.array(z.string()),
+    z.array(z.number()),
+]);
 
 // Query configuration schema - what data to fetch
 export const queryConfigBaseSchema = z.object({
@@ -54,15 +64,7 @@ export const queryConfigBaseSchema = z.object({
             'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
         ),
     parameters: z
-        .record(
-            z.string(),
-            z.union([
-                z.string(),
-                z.number(),
-                z.array(z.string()),
-                z.array(z.number()),
-            ]),
-        )
+        .record(z.string(), parameterValueSchema)
         .nullable()
         .default(null)
         .describe(
@@ -614,13 +616,116 @@ export type ToolRenderChartArgsTransformed = z.infer<
     typeof toolRenderChartArgsSchemaTransformed
 >;
 
-export const toolRunQueryOutputSchema = z.object({
-    result: z.string(),
+const appliedParametersSchema = z
+    .object({
+        applied: z
+            .record(z.string(), parameterValueSchema)
+            .describe('Parameter values set explicitly in the tool call.'),
+        defaulted: z
+            .record(z.string(), parameterValueSchema)
+            .describe(
+                'Referenced parameters the tool call left unset, with the default value they resolved to.',
+            ),
+        unset: z
+            .array(z.string())
+            .describe(
+                'Referenced parameters with neither a value in the tool call nor a default.',
+            ),
+    })
+    .describe('The parameter state the query ran with.');
+
+export type ToolRunQueryAppliedParameters = z.infer<
+    typeof appliedParametersSchema
+>;
+
+const executedQueryLimitSchema = z
+    .object({
+        requested: z.number().nullable(),
+        effective: z
+            .number()
+            .describe(
+                'The limit applied after resolving null and capping to `max`. A rowCount equal to this means the limit was reached and more rows may exist.',
+            ),
+        max: z.number().describe("This tool's maximum row limit."),
+    })
+    .describe('The row limit behind rowCount.');
+
+const shownResultsSchema = z
+    .object({
+        columns: z
+            .array(z.string())
+            .describe('Ordered field ids matching the keys of each row.'),
+        rows: z
+            .array(z.record(z.string(), z.unknown()))
+            .describe(
+                'The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.',
+            ),
+    })
+    .nullable()
+    .describe(
+        'The result rows the model was shown; null when the agent has no data access and no rows were shown.',
+    );
+
+export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
+    'outcome',
+    [
+        z.object({
+            outcome: z
+                .literal('chartOnly')
+                .describe(
+                    "Data access is disabled, so the query was not run; the query definition was recorded as a new version of the thread's chart artifact (created on first use). Nothing is saved to the project.",
+                ),
+        }),
+        z.object({
+            outcome: z
+                .literal('noResults')
+                .describe('The query ran and returned no rows.'),
+            rowCount: z.literal(0),
+            parameters: appliedParametersSchema
+                .nullable()
+                .describe(
+                    'null when the explore references no parameters or the query was a merge.',
+                ),
+        }),
+        z.object({
+            outcome: z
+                .literal('results')
+                .describe(
+                    "The query ran and returned rows, and they were recorded as a new version of the thread's chart artifact (the artifact is created on first use).",
+                ),
+            queryUuid: z
+                .string()
+                .nullable()
+                .describe(
+                    'The uuid of this execution, when the run exposes it for citation; null otherwise.',
+                ),
+            rowCount: z
+                .number()
+                .int()
+                .nonnegative()
+                .describe('Total rows the query returned.'),
+            limit: executedQueryLimitSchema,
+            parameters: appliedParametersSchema
+                .nullable()
+                .describe(
+                    'null when the explore references no parameters or the query was a merge.',
+                ),
+            data: shownResultsSchema,
+        }),
+    ],
+);
+
+export type ToolRunQueryStructuredContent = z.infer<
+    typeof toolRunQueryStructuredContentSchema
+>;
+
+export const toolRunQueryOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema.extend({
         chartImageUrl: z.string().nullish(),
         queryCacheHit: z.boolean().optional(),
         queryReuseHit: z.boolean().optional(),
     }),
+    structuredContent: toolRunQueryStructuredContentSchema,
 });
 
 export type ToolRunQueryOutput = z.infer<typeof toolRunQueryOutputSchema>;

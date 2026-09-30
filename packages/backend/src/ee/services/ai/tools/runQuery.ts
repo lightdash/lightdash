@@ -28,12 +28,15 @@ import {
     type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type ToolRunQueryAppliedParameters,
     type ToolRunQueryArgs,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryBuiltinChartConfig,
     type ToolRunQueryExpressionArgs,
     type ToolRunQueryExpressionResolvedArgs,
     type ToolRunQueryExpressionRuntimeArgs,
+    type ToolRunQueryOutput,
+    type ToolRunQueryStructuredContent,
 } from '@lightdash/common';
 import { tool, type Schema } from 'ai';
 import Logger from '../../../../logging/logger';
@@ -99,8 +102,12 @@ import {
     getQueryResultSummary,
 } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorHandler, toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     validateAxisFields,
     validateCustomChartTypeChartConfig,
@@ -199,6 +206,57 @@ type Dependencies = {
     exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
 };
 
+export const getAppliedParameters = (
+    explore: Explore,
+    projectParameterDefinitions: ParameterDefinitions,
+    provided: ParametersValuesMap | null,
+): ToolRunQueryAppliedParameters | null => {
+    const definitions = getReferencedExploreParameterDefinitions(
+        explore,
+        projectParameterDefinitions,
+    );
+    const referenced = Object.keys(definitions);
+    if (referenced.length === 0) return null;
+    const applied = Object.fromEntries(
+        referenced.flatMap((name) => {
+            const value = provided?.[name];
+            return value !== undefined ? [[name, value] as const] : [];
+        }),
+    );
+    const defaulted = Object.fromEntries(
+        referenced.flatMap((name) => {
+            if (provided?.[name] !== undefined) return [];
+            const value = definitions[name].default;
+            return value !== undefined ? [[name, value] as const] : [];
+        }),
+    );
+    const unset = referenced.filter(
+        (name) =>
+            provided?.[name] === undefined &&
+            definitions[name].default === undefined,
+    );
+    return { applied, defaulted, unset };
+};
+
+const renderAppliedParameters = (
+    parameters: ToolRunQueryAppliedParameters | null,
+): string => {
+    if (parameters === null) return '';
+    const { applied, defaulted, unset } = parameters;
+    const parts = [
+        Object.keys(applied).length > 0
+            ? `set explicitly: ${JSON.stringify(applied)}`
+            : null,
+        Object.keys(defaulted).length > 0
+            ? `resolved to defaults: ${JSON.stringify(defaulted)}`
+            : null,
+        unset.length > 0 ? `unset with no default: ${unset.join(', ')}` : null,
+    ].filter((part): part is string => part !== null);
+    return parts.length > 0
+        ? ` Parameter values this query ran with — ${parts.join('; ')}.`
+        : '';
+};
+
 // The parameter state a query actually ran with — explicit vs
 // default-resolved vs unset-with-no-default — so results never hide it.
 export const summarizeAppliedParameters = (
@@ -242,6 +300,21 @@ export const summarizeAppliedParameters = (
     return parts.length > 0
         ? ` Parameter values this query ran with — ${parts.join('; ')}.`
         : '';
+};
+
+// The query identity every structured outcome carries; filters are echoed
+// as the agent authored them.
+// The rows written into the conversation: the CSV block and the structured
+// `data` are rendered from this one slice.
+const selectShownRows = (
+    rows: Record<string, unknown>[],
+    maxContextRows: number,
+): NonNullable<
+    Extract<ToolRunQueryStructuredContent, { outcome: 'results' }>['data']
+> => {
+    const shown = rows.slice(0, maxContextRows);
+    const [first] = shown;
+    return { columns: first ? Object.keys(first) : [], rows: shown };
 };
 
 export const validateRunQueryTool = (
@@ -550,7 +623,9 @@ export const getRunQuery = ({
         ...toolView,
         description,
         inputSchema,
-        execute: async (toolArgs) => {
+        execute: async (
+            toolArgs,
+        ): Promise<ToolRunQueryOutput | ExecuteToolErrorResult> => {
             try {
                 await updateProgress('Running your query...');
 
@@ -600,11 +675,13 @@ export const getRunQuery = ({
                                       ),
                                   })
                                 : '';
+                        const result =
+                            formatFilterExpressionError(resolution.error) +
+                            fieldAdvice;
                         return {
-                            result:
-                                formatFilterExpressionError(resolution.error) +
-                                fieldAdvice,
+                            result,
                             metadata: { status: 'error' as const },
+                            structuredContent: { error: result },
                         };
                     }
 
@@ -791,6 +868,9 @@ export const getRunQuery = ({
                                       }
                                     : {}),
                             },
+                            structuredContent: {
+                                outcome: 'chartOnly',
+                            },
                         };
                     }
 
@@ -835,6 +915,11 @@ export const getRunQuery = ({
                                       })
                                     : NO_RESULTS_RETRY_PROMPT,
                             metadata: { status: 'success' },
+                            structuredContent: {
+                                outcome: 'noResults',
+                                rowCount: 0,
+                                parameters: null,
+                            },
                         };
                     }
 
@@ -965,6 +1050,15 @@ export const getRunQuery = ({
                         enableDataAccess,
                         slackLinksOnly,
                     });
+                    const shownMergeRows = selectShownRows(
+                        queryResults.rows,
+                        maxContextRows,
+                    );
+                    const mergeLimit = {
+                        requested: queryTool.queryConfig.limit,
+                        effective: mergeQuery.limit,
+                        max: maxLimit,
+                    };
                     return {
                         result: enableDataAccess
                             ? [
@@ -994,6 +1088,17 @@ export const getRunQuery = ({
                                       ) ?? undefined)
                                     : undefined,
                         }),
+                        structuredContent: {
+                            outcome: 'results',
+                            // Cited exactly when the text cites it.
+                            queryUuid: queryReference
+                                ? queryResults.queryUuid
+                                : null,
+                            rowCount: queryResults.rows.length,
+                            limit: mergeLimit,
+                            parameters: null,
+                            data: enableDataAccess ? shownMergeRows : null,
+                        },
                     };
                 }
 
@@ -1169,8 +1274,17 @@ export const getRunQuery = ({
                                 ? { artifactVersionUuid: artifact.versionUuid }
                                 : {}),
                         },
+                        structuredContent: {
+                            outcome: 'chartOnly',
+                        },
                     };
                 }
+
+                const appliedParameters = getAppliedParameters(
+                    explore,
+                    projectParameterDefinitions,
+                    queryTool.queryConfig.parameters,
+                );
 
                 const requestedLimit = queryTool.queryConfig.limit;
                 const effectiveLimit = getValidAiQueryLimit(
@@ -1265,6 +1379,11 @@ export const getRunQuery = ({
                                 queryTool.queryConfig.parameters,
                             ),
                         metadata: { status: 'success' },
+                        structuredContent: {
+                            outcome: 'noResults',
+                            rowCount: 0,
+                            parameters: appliedParameters,
+                        },
                     };
                 }
 
@@ -1401,11 +1520,29 @@ export const getRunQuery = ({
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
                         }),
+                        structuredContent: {
+                            outcome: 'results',
+                            queryUuid: queryReference
+                                ? queryResults.queryUuid
+                                : null,
+                            rowCount: queryResults.rows.length,
+                            limit: {
+                                requested: requestedLimit,
+                                effective: effectiveLimit,
+                                max: maxLimit,
+                            },
+                            parameters: appliedParameters,
+                            data: null,
+                        },
                     };
                 }
 
                 const csv = convertQueryResultsToCsv(
                     queryResults,
+                    maxContextRows,
+                );
+                const shownRows = selectShownRows(
+                    queryResults.rows,
                     maxContextRows,
                 );
                 return {
@@ -1431,6 +1568,20 @@ export const getRunQuery = ({
                               ) ?? undefined)
                             : undefined,
                     }),
+                    structuredContent: {
+                        outcome: 'results',
+                        queryUuid: queryReference
+                            ? queryResults.queryUuid
+                            : null,
+                        rowCount: queryResults.rows.length,
+                        limit: {
+                            requested: requestedLimit,
+                            effective: effectiveLimit,
+                            max: maxLimit,
+                        },
+                        parameters: appliedParameters,
+                        data: shownRows,
+                    },
                 };
             } catch (e) {
                 const fieldAdvice =
@@ -1441,17 +1592,19 @@ export const getRunQuery = ({
                               question: question ?? '',
                           })
                         : '';
+                const result =
+                    toolErrorHandler(
+                        decisions && e instanceof AiAgentUnknownFieldsError
+                            ? new Error(
+                                  `${e.conciseMessage}\nFull field inventory omitted. Use the suggested IDs below or grepFields/getMetadata for the missing definitions.`,
+                              )
+                            : e,
+                        `Error running query.`,
+                    ) + fieldAdvice;
                 return {
-                    result:
-                        toolErrorHandler(
-                            decisions && e instanceof AiAgentUnknownFieldsError
-                                ? new Error(
-                                      `${e.conciseMessage}\nFull field inventory omitted. Use the suggested IDs below or grepFields/getMetadata for the missing definitions.`,
-                                  )
-                                : e,
-                            `Error running query.`,
-                        ) + fieldAdvice,
+                    result,
                     metadata: { status: 'error' },
+                    structuredContent: { error: result },
                 };
             }
         },
