@@ -37,6 +37,7 @@ import { GenericDashboardChartTile } from './DashboardChartTile';
 
 const exportMocks = vi.hoisted(() => ({
     parameters: {} as Record<string, string | string[]>,
+    appliedParameters: {} as Record<string, string | string[]>,
 }));
 const gsheetMocks = vi.hoisted(() => ({ uploadGsheet: vi.fn() }));
 vi.mock('../../hooks/gdrive/useGdrive', async (importOriginal) => ({
@@ -104,6 +105,7 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
             dashboardCustomMetrics: [],
             parameterDefinitions: {},
             parameterValues: exportMocks.parameters,
+            appliedParameterValues: exportMocks.appliedParameters,
             tilesWithDateZoomApplied: new Set<string>(),
             dateZoomGranularity: undefined,
             dateZoomConfig: undefined,
@@ -633,6 +635,7 @@ describe('DashboardChartTile Google Sheets export', () => {
 describe('DashboardChartTile parameters popover', () => {
     beforeEach(() => {
         exportMocks.parameters = {};
+        exportMocks.appliedParameters = {};
     });
     afterEach(() => {
         cleanup();
@@ -640,6 +643,7 @@ describe('DashboardChartTile parameters popover', () => {
 
     it('says where each parameter value came from', async () => {
         exportMocks.parameters = { status: 'Shipped' };
+        exportMocks.appliedParameters = { status: 'Shipped' };
         renderTile({
             ...dashboardChartReadyQuery,
             chart: {
@@ -670,5 +674,30 @@ describe('DashboardChartTile parameters popover', () => {
         expect(screen.getByText('(default)').parentElement).toHaveTextContent(
             'currency: USD (default)',
         );
+    });
+
+    it('labels a saved dashboard value the tile still runs with after clearing', async () => {
+        exportMocks.parameters = {};
+        exportMocks.appliedParameters = { status: 'Shipped' };
+        renderTile({
+            ...dashboardChartReadyQuery,
+            chart: {
+                ...chart,
+                merge: undefined,
+                parameters: { status: 'Cancelled' },
+            },
+            executeQueryResponse: {
+                ...dashboardChartReadyQuery.executeQueryResponse,
+                metricQuery: primaryMetricQuery,
+                usedParametersValues: { status: 'Shipped' },
+                parameterReferences: ['status'],
+                appliedDashboardFiltersBySourceId: undefined,
+            },
+        });
+        fireEvent.click(await screen.findByLabelText('Chart parameters'));
+
+        expect(
+            (await screen.findByText('(from dashboard)')).parentElement,
+        ).toHaveTextContent('status: Shipped (from dashboard)');
     });
 });
