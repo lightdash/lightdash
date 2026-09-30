@@ -369,7 +369,10 @@ import {
     WarehouseConnectionModel,
     type WarehouseConnectionProject,
 } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import { type ConnectionBinding } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
+import {
+    type ConnectionBinding,
+    type ConnectionRouteWithOriginal,
+} from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
@@ -2377,18 +2380,22 @@ export class ProjectService extends BaseService {
     }: Parameters<ProjectService['getSingleRouteWarehouseCredentials']>[0] & {
         binding: ConnectionBinding;
     }) {
-        const { route, target } =
+        const { route, target, originalWarehouseConnectionUuid } =
             await this.projectModel.resolveWarehouseCredentialReadWithRoute(
                 args.projectUuid,
                 binding,
             );
+        const connectionRoute: ConnectionRouteWithOriginal = {
+            route,
+            originalWarehouseConnectionUuid,
+        };
         switch (target.kind) {
             case 'original':
                 return {
                     warehouseCredentials:
                         await this.getSingleRouteWarehouseCredentials(args),
                     warehouseConnectionUuid: null,
-                    connectionRoute: route,
+                    connectionRoute,
                 };
             case 'extra':
                 return {
@@ -2402,7 +2409,7 @@ export class ProjectService extends BaseService {
                             isServiceAccount: args.isServiceAccount,
                         }),
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
-                    connectionRoute: route,
+                    connectionRoute,
                 };
             default:
                 return assertUnreachable(target, 'Unknown credential target');
@@ -2495,19 +2502,22 @@ export class ProjectService extends BaseService {
     }: {
         warehouseConnectionUuid: string | null | undefined;
         warehouseType: WarehouseTypes | null;
-        connectionRoute?: 'single' | 'multi' | null;
+        connectionRoute?: ConnectionRouteWithOriginal | null;
     }) {
         let connectionKind: 'primary' | 'extra' | null = null;
+        let warehouseConnectionId = warehouseConnectionUuid ?? null;
         if (warehouseConnectionUuid) {
             connectionKind = 'extra';
         } else if (
             warehouseConnectionUuid === null &&
-            connectionRoute === 'multi'
+            connectionRoute?.route === 'multi'
         ) {
             connectionKind = 'primary';
+            warehouseConnectionId =
+                connectionRoute.originalWarehouseConnectionUuid;
         }
         return {
-            warehouseConnectionId: warehouseConnectionUuid ?? null,
+            warehouseConnectionId,
             connectionKind,
             warehouseType,
             connectionCount: null,

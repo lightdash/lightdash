@@ -5533,7 +5533,11 @@ describe('AsyncQueryService', () => {
                     originalColumns: mockOriginalColumns,
                     warehouseCredentials: warehouseCredentialsMock,
                     warehouseConnectionUuid: null,
-                    connectionRoute: 'multi',
+                    connectionRoute: {
+                        route: 'multi',
+                        originalWarehouseConnectionUuid:
+                            'original-connection-uuid',
+                    },
                 },
                 { query: metricQueryMock },
             );
@@ -5544,7 +5548,7 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     event: 'query.executed',
                     properties: expect.objectContaining({
-                        warehouseConnectionId: null,
+                        warehouseConnectionId: 'original-connection-uuid',
                         connectionKind: 'primary',
                         connectionCount: null,
                     }),
@@ -5555,7 +5559,7 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     event: 'query.completed',
                     properties: expect.objectContaining({
-                        warehouseConnectionId: null,
+                        warehouseConnectionId: 'original-connection-uuid',
                         connectionKind: 'primary',
                         connectionCount: null,
                         cacheHit: true,
@@ -9245,6 +9249,7 @@ describe('saved chart query result access', () => {
                         kind: 'extra',
                         warehouseConnectionUuid: 'extra-connection-uuid',
                     },
+                    originalWarehouseConnectionUuid: 'original-connection-uuid',
                 });
             vi.spyOn(
                 execution,

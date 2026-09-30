@@ -7,9 +7,11 @@ describe('WarehouseConnectionRouter credential reads', () => {
             const router = new WarehouseConnectionRouter({
                 database: {} as never,
             });
-            const getRoute = vi
-                .spyOn(router, 'getRoute')
-                .mockResolvedValue(route);
+            const originalWarehouseConnectionUuid =
+                route === 'multi' ? 'original-connection-uuid' : null;
+            const getRouteWithOriginal = vi
+                .spyOn(router, 'getRouteWithOriginal')
+                .mockResolvedValue({ route, originalWarehouseConnectionUuid });
 
             await expect(
                 router.resolveCredentialReadWithRoute('project-uuid', {
@@ -18,8 +20,11 @@ describe('WarehouseConnectionRouter credential reads', () => {
             ).resolves.toEqual({
                 route,
                 target: { kind: 'original' },
+                originalWarehouseConnectionUuid,
             });
-            expect(getRoute).toHaveBeenCalledExactlyOnceWith('project-uuid');
+            expect(getRouteWithOriginal).toHaveBeenCalledExactlyOnceWith(
+                'project-uuid',
+            );
         },
     );
 });

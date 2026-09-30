@@ -3435,6 +3435,7 @@ describe('ProjectService', () => {
             .mockResolvedValueOnce({
                 route: 'multi',
                 target: { kind: 'original' },
+                originalWarehouseConnectionUuid: 'original-connection-uuid',
             });
         const getConnectionRoute = vi.spyOn(projectModel, 'getConnectionRoute');
         vi.mocked(getConnectionRoute).mockClear();
@@ -3463,7 +3464,7 @@ describe('ProjectService', () => {
                 expect.objectContaining({
                     event: 'query.executed',
                     properties: expect.objectContaining({
-                        warehouseConnectionId: null,
+                        warehouseConnectionId: 'original-connection-uuid',
                         connectionKind: 'primary',
                         connectionCount: null,
                     }),

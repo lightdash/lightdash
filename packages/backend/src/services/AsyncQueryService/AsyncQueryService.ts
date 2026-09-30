@@ -197,6 +197,7 @@ import {
     QueryHistoryModel,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
+import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -495,7 +496,7 @@ type ExecuteAsyncQueryArgs = Pick<
     preAggregationRoute?: PreAggregationRoute;
     warehouseCredentials: ResolvedWarehouseCredentials;
     warehouseConnectionUuid: string | null;
-    connectionRoute?: 'single' | 'multi';
+    connectionRoute?: ConnectionRouteWithOriginal;
     // Preloaded org from the caller (e.g. saved chart) to skip a redundant getSummary
     organizationUuid?: string;
 };
@@ -3288,7 +3289,7 @@ export class AsyncQueryService extends ProjectService {
             | 'pre_aggregate_warehouse';
         warehouseType: WarehouseTypes | null;
         warehouseConnectionUuid?: string | null;
-        connectionRoute?: 'single' | 'multi' | null;
+        connectionRoute?: ConnectionRouteWithOriginal | null;
         connectionWarehouseType?: WarehouseTypes | null;
     }) {
         const analyticsIdentity = isRegisteredUser

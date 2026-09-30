@@ -212,6 +212,7 @@ import {
     WarehouseConnectionRouter,
     type ConnectionBinding,
     type CredentialReadTarget,
+    type ResolvedCredentialRead,
 } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
@@ -4548,7 +4549,7 @@ export class ProjectModel {
     async resolveWarehouseCredentialReadWithRoute(
         projectUuid: string,
         binding: ConnectionBinding,
-    ): Promise<{ route: ConnectionRoute; target: CredentialReadTarget }> {
+    ): Promise<ResolvedCredentialRead> {
         return this.connectionRouter.resolveCredentialReadWithRoute(
             projectUuid,
             binding,
