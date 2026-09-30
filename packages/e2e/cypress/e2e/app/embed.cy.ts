@@ -441,11 +441,32 @@ describe('Embedded AI agent dashboard viewer', () => {
                         cy.contains('Payments total revenue');
                         cy.contains(`What's the average spend per customer?`);
 
-                        getTile(`What's the average spend per customer?`)
-                            .findByRole('button', { name: 'Tile actions' })
-                            .should('not.exist');
+                        // Read-only: a tile's menu offers Explore from here
+                        // (the write user may explore) and nothing that
+                        // exports or edits. The menu appears once the tile's
+                        // query has loaded, so wait for it rather than
+                        // asserting before the tiles load.
+                        const tileTitle = `What's the average spend per customer?`;
+                        getTile(tileTitle).scrollIntoView();
+                        getTile(tileTitle).trigger('mouseover');
+                        getTile(tileTitle)
+                            .findByRole('button', {
+                                name: 'Tile actions',
+                                timeout: 30000,
+                            })
+                            .click({ force: true });
+                        cy.get('[role="menu"]')
+                            .should('be.visible')
+                            .within(() => {
+                                cy.contains('Explore from here');
+                                cy.findAllByRole('menuitem').should(
+                                    'have.length',
+                                    1,
+                                );
+                            });
                         cy.contains('Download data').should('not.exist');
                         cy.contains('Export image').should('not.exist');
+                        cy.get('body').type('{esc}');
 
                         cy.findByRole('button', { name: 'Back to AI' }).click();
                         cy.location('pathname').should('eq', threadsPath);
