@@ -1,3 +1,10 @@
+## [2.389.4](https://github.com/lightdash/lightdash/compare/2.389.3...2.389.4) (2026-09-30)
+
+
+### Bug Fixes
+
+* **embed:** hide Save changes when exploring a chart the embed cannot update ([#30251](https://github.com/lightdash/lightdash/issues/30251)) ([b73f2e1](https://github.com/lightdash/lightdash/commit/b73f2e11b619e9c13c5891772dc3b0700f7512d2))
+
 ## [2.389.3](https://github.com/lightdash/lightdash/compare/2.389.2...2.389.3) (2026-09-30)
 
 
