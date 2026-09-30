@@ -1,5 +1,4 @@
 import { buildGaugeEchartsOption } from '@lightdash/visualization';
-import { useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
 import { isGaugeVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -33,9 +32,6 @@ const useEchartsGaugeConfig = ({
         resolvedTimezone,
     } = useVisualizationContext();
     const theme = useVisualizationTheme();
-    // The section border in dark mode reads Mantine's `dark` ramp, which the
-    // visualization theme does not carry.
-    const mantineDarkColors = useMantineTheme().colors.dark;
 
     const validGaugeConfig = isGaugeVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.validConfig
@@ -52,7 +48,6 @@ const useEchartsGaugeConfig = ({
                 resolvedTimezone,
                 isInDashboard,
                 theme,
-                mantineDarkColors,
                 tileFontSize,
                 detailsFontSize,
                 lineSize,
@@ -67,7 +62,6 @@ const useEchartsGaugeConfig = ({
             resolvedTimezone,
             isInDashboard,
             theme,
-            mantineDarkColors,
             tileFontSize,
             detailsFontSize,
             lineSize,

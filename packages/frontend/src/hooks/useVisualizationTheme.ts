@@ -18,6 +18,7 @@ export const useVisualizationTheme = (): VisualizationTheme => {
             gray: theme.colors.ldGray,
             dark: theme.colors.ldDark,
             blue: theme.colors.blue,
+            chromeDark: theme.colors.dark,
             chartFont: theme.other.chartFont,
             spacingXs: Number(px(theme.spacing.xs)),
             shadowSubtle: theme.shadows.subtle,

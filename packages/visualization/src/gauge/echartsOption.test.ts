@@ -10,7 +10,6 @@ import { describe, expect, test } from 'vitest';
 import { DARK_VISUALIZATION_THEME, LIGHT_VISUALIZATION_THEME } from '../theme';
 import {
     buildGaugeEchartsOption,
-    DEFAULT_GAUGE_SECTION_BORDER_DARK,
     getGaugeValueColor,
     lightenColor,
 } from './echartsOption';
@@ -192,19 +191,10 @@ describe('buildGaugeEchartsOption', () => {
         const [sectionSeries, mainSeries] =
             option?.series as GaugeSeriesOption[];
         expect(sectionSeries.progress?.itemStyle?.borderColor).toBe(
-            DEFAULT_GAUGE_SECTION_BORDER_DARK,
+            DARK_VISUALIZATION_THEME.chromeDark[6],
         );
         expect(mainSeries.detail?.rich?.percentage?.backgroundColor).toBe(
             DARK_VISUALIZATION_THEME.dark[4],
-        );
-
-        const withRamp = build({
-            theme: DARK_VISUALIZATION_THEME,
-            mantineDarkColors: ['0', '1', '2', '3', '4', '5', '#123456'],
-        });
-        const [sectionsWithRamp] = withRamp?.series as GaugeSeriesOption[];
-        expect(sectionsWithRamp.progress?.itemStyle?.borderColor).toBe(
-            '#123456',
         );
     });
 });

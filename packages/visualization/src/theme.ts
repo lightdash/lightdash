@@ -16,6 +16,8 @@ export type VisualizationTheme = {
     gray: readonly string[];
     /** Contrast ramp used by gauges (`ldDark` in the frontend theme). */
     dark: readonly string[];
+    /** The app chrome ramp in dark mode (`dark` in the frontend theme); gauge section borders. */
+    chromeDark: readonly string[];
     /** Blue ramp used by gauge progress. */
     blue: readonly string[];
     /** Font stack for chart text. */
@@ -37,6 +39,19 @@ const MANTINE_BLUE = [
     '#1c7ed6',
     '#1971c2',
     '#1864ab',
+] as const;
+
+const DARK_CHROME = [
+    '#ececee',
+    '#c4c4c9',
+    '#9a9aa3',
+    '#72727a',
+    '#303034',
+    '#26262a',
+    '#1e1e21',
+    '#151517',
+    '#0f0f11',
+    '#0a0a0c',
 ] as const;
 
 export const LIGHT_VISUALIZATION_THEME: VisualizationTheme = {
@@ -68,6 +83,7 @@ export const LIGHT_VISUALIZATION_THEME: VisualizationTheme = {
         '#18181b',
     ],
     blue: MANTINE_BLUE,
+    chromeDark: DARK_CHROME,
     chartFont: 'Inter, sans-serif',
     spacingXs: 10,
     shadowSubtle: 'none',
@@ -102,6 +118,7 @@ export const DARK_VISUALIZATION_THEME: VisualizationTheme = {
         '#ececee',
     ],
     blue: MANTINE_BLUE,
+    chromeDark: DARK_CHROME,
     chartFont: 'Inter, sans-serif',
     spacingXs: 10,
     shadowSubtle: 'none',

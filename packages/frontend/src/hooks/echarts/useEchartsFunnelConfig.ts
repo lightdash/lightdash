@@ -1,6 +1,5 @@
 import {
     buildFunnelEchartsOption,
-    getFunnelSeriesSort,
     type FunnelSeriesDataPoint,
 } from '@lightdash/visualization';
 import { useMemo } from 'react';
@@ -8,7 +7,7 @@ import { isFunnelVisualizationConfig } from '../../components/LightdashVisualiza
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
-export { getFunnelSeriesSort, type FunnelSeriesDataPoint };
+export { type FunnelSeriesDataPoint };
 
 /**
  * The ECharts option for the funnel chart in the visualization context.

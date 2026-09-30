@@ -14,15 +14,6 @@ import { type VisualizationContextInput } from '../types';
 
 const EchartsGaugeType = 'gauge';
 
-/**
- * Mantine's default `dark[6]`, the border between gauge sections in dark
- * mode. The frontend reads it from its Mantine theme (`theme.colors.dark`,
- * the app chrome ramp), which `VisualizationTheme` does not carry: it holds
- * `ldDark` as `dark`, a different ramp. Callers pass the ramp in
- * `mantineDarkColors` until the theme has a field for it.
- */
-export const DEFAULT_GAUGE_SECTION_BORDER_DARK = '#1e1e21';
-
 type Rgba = { r: number; g: number; b: number; a: number };
 
 const isHexColor = (hex: string) =>
@@ -134,12 +125,6 @@ export type GaugeEchartsOptionInput = VisualizationContextInput & {
     /** The resolved chart config; see `resolveGaugeChartConfig`. */
     validGaugeConfig: GaugeChart | undefined;
     theme: VisualizationTheme;
-    /**
-     * Mantine's `dark` ramp (the app chrome in dark mode). Only index 6 is
-     * read, for the border between sections in dark mode; defaults to
-     * `DEFAULT_GAUGE_SECTION_BORDER_DARK`.
-     */
-    mantineDarkColors?: readonly string[];
     tileFontSize: number;
     detailsFontSize: number;
     lineSize: number;
@@ -159,7 +144,6 @@ export const buildGaugeEchartsOption = ({
     resolvedTimezone,
     isInDashboard,
     theme,
-    mantineDarkColors,
     tileFontSize,
     detailsFontSize,
     lineSize,
@@ -468,10 +452,7 @@ export const buildGaugeEchartsOption = ({
                     color: 'transparent', // we only want the border
                     borderWidth: Math.max(lineSize * 0.06, 2),
                     borderColor:
-                        colorScheme === 'light'
-                            ? 'white'
-                            : (mantineDarkColors?.[6] ??
-                              DEFAULT_GAUGE_SECTION_BORDER_DARK),
+                        colorScheme === 'light' ? 'white' : theme.chromeDark[6],
                 },
             },
             data: [
