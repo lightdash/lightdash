@@ -45,7 +45,7 @@ export const getSlackSelectedCardArtifacts = ({
     >;
     selectedVersionUuids: string[];
     canShowInlineTables: boolean;
-}): AiArtifact[] => {
+}): { artifacts: AiArtifact[]; selectedChartVersionUuids: Set<string> } => {
     const successfulVersions = new Set(
         toolResults.flatMap((result) => {
             if (
@@ -80,5 +80,10 @@ export const getSlackSelectedCardArtifacts = ({
                 artifact.artifactType !== 'chart' ||
                 !isSlackTableArtifact(artifact)),
     );
-    return [...selectedCharts, ...otherArtifacts];
+    return {
+        artifacts: [...selectedCharts, ...otherArtifacts],
+        selectedChartVersionUuids: new Set(
+            selectedCharts.map((artifact) => artifact.versionUuid),
+        ),
+    };
 };

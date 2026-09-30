@@ -16,7 +16,6 @@ type MakeToolOptions = {
     recordSqlApproval?: import('vitest').Mock;
     maxQueryLimit?: number;
     enableDataAccess?: boolean;
-    slackLinksOnly?: boolean;
 };
 
 const executeRunSql = (
@@ -73,7 +72,6 @@ const makeTool = ({
     recordSqlApproval = vi.fn().mockResolvedValue(true),
     maxQueryLimit = 5000,
     enableDataAccess = true,
-    slackLinksOnly = false,
     useSlackStreamCard = false,
     prompt = makePrompt(),
     sqlScope = null,
@@ -92,7 +90,6 @@ const makeTool = ({
             rowCount: 1,
         }),
         getPrompt: vi.fn().mockResolvedValue(prompt),
-        sendFile: vi.fn().mockResolvedValue(undefined),
         updateSlackMessage: vi.fn().mockResolvedValue(undefined),
         siteUrl: 'https://lightdash.example',
         waitForSqlApproval,
@@ -104,7 +101,6 @@ const makeTool = ({
         autoApproveSqlUserUuid,
         maxQueryLimit,
         enableDataAccess,
-        slackLinksOnly,
         useSlackStreamCard,
         sqlScope,
     };
@@ -417,42 +413,6 @@ describe('getRunSql agent SQL scope', () => {
 
         expect(dependencies.runSqlJob).toHaveBeenCalled();
         expect(output.metadata?.status).toBe('success');
-    });
-});
-
-describe('getRunSql Slack links only', () => {
-    const largeResult = {
-        queryUuid: 'query-uuid',
-        rows: Array.from({ length: 30 }, (_, index) => ({ answer: index })),
-        columns: ['answer'],
-        rowCount: 30,
-    };
-
-    it('does not upload the full CSV into the Slack thread', async () => {
-        const { tool, dependencies } = makeTool({
-            prompt: makeSlackPrompt(),
-            slackLinksOnly: true,
-        });
-        dependencies.runSqlJob.mockResolvedValue(largeResult);
-
-        const output = await executeRunSql(tool);
-
-        expect(output.metadata?.status).toBe('success');
-        expect(dependencies.sendFile).not.toHaveBeenCalled();
-    });
-
-    it('keeps large query rows in the answer without uploading a CSV when the setting is off', async () => {
-        const { tool, dependencies } = makeTool({
-            prompt: makeSlackPrompt(),
-        });
-        dependencies.runSqlJob.mockResolvedValue(largeResult);
-
-        const output = await executeRunSql(tool);
-
-        expect(dependencies.sendFile).not.toHaveBeenCalled();
-        expect(output.metadata?.status).toBe('success');
-        expect(output.result).toContain('```csv');
-        expect(output.result).toContain('answer');
     });
 });
 

@@ -51,6 +51,14 @@ describe('Slack visualization selection', () => {
         expect(stripSlackVisualizationSelection(response)).toBe('Summary.');
     });
 
+    it('keeps later answer paragraphs after an incomplete marker', () => {
+        const response =
+            'Summary.\n<slack-table queryUuid="unfinished\nThe result is improving.';
+        expect(stripSlackVisualizationSelection(response)).toBe(
+            'Summary.\n\nThe result is improving.',
+        );
+    });
+
     it('selects exact chart versions in answer order', () => {
         const response = `Summary.
 <slack-chart versionUuid="final-version" />

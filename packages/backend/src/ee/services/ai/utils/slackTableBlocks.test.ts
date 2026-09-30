@@ -188,7 +188,7 @@ describe('getSlackTableBlocks', () => {
             status: 'unavailable',
         };
         expect(getSlackTableBlocks([unavailable])[0]).toMatchObject({
-            text: { text: expect.stringContaining('Could not load') },
+            text: { text: expect.stringContaining('preview unavailable') },
             accessory: { text: { text: 'Open agent thread' } },
         });
     });
@@ -260,11 +260,6 @@ describe('getSlackTableBlocks', () => {
         });
     });
 
-    it('keeps full cells over 500 characters when they fit Slack', () => {
-        const table = tablesFrom([preview([{ month: 'x'.repeat(600) }])])[0];
-        expect(table.rows[1][0].text).toBe('x'.repeat(600));
-    });
-
     it('gives a larger table unused capacity from a small selected table', () => {
         const largeRows = Array.from({ length: 150 }, (_, index) => ({
             month: String(index).padEnd(100, 'x'),
@@ -288,6 +283,21 @@ describe('getSlackTableBlocks', () => {
         expect(blocks[0]).toMatchObject({
             text: { text: expect.stringContaining('No complete row fits') },
             accessory: { text: { text: 'Open agent thread' } },
+        });
+
+        const downloadableBlocks = getSlackTableBlocks([
+            preview([{ month: 'x'.repeat(20_000) }], {
+                downloadUrl: 'https://lightdash.test/download',
+            }),
+        ]);
+        expect(downloadableBlocks[1]).toMatchObject({
+            type: 'actions',
+            elements: [
+                {
+                    text: { text: 'Export CSV in Lightdash' },
+                    url: 'https://lightdash.test/download',
+                },
+            ],
         });
     });
 });

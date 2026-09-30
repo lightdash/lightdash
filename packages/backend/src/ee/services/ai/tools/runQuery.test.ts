@@ -22,11 +22,9 @@ import {
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import type {
     DeferSlackVisualizationFn,
-    ExportCustomChartTypeImageFn,
     ResolveCustomChartTypeFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
-    SendFileFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { renderEcharts } from '../utils/renderEcharts';
@@ -171,7 +169,6 @@ const executeTool = async (
         enableFilterExpressions,
         projectParameterDefinitions: {},
         getPrompt: vi.fn().mockResolvedValue(prompt),
-        sendFile: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(artifact),
         maxLimit: 500,
         maxContextRows: Number.POSITIVE_INFINITY,
@@ -179,7 +176,6 @@ const executeTool = async (
         enableDataAccess,
         slackLinksOnly,
         resolveCustomChartType: vi.fn().mockResolvedValue(null),
-        exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
     });
 
     const output = await queryTool.execute!(input, {
@@ -410,7 +406,6 @@ describe('getRunQuery', () => {
                 enableFilterExpressions: false,
                 projectParameterDefinitions: {},
                 getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-                sendFile: vi.fn().mockResolvedValue(undefined),
                 createOrUpdateArtifact,
                 maxLimit: 500,
                 maxContextRows: Number.POSITIVE_INFINITY,
@@ -418,8 +413,6 @@ describe('getRunQuery', () => {
                 enableDataAccess: true,
                 slackLinksOnly: false,
                 resolveCustomChartType: vi.fn().mockResolvedValue(null),
-                exportCustomChartTypeImage:
-                    vi.fn() as ExportCustomChartTypeImageFn,
             });
             const output = await queryTool.execute!(mergeInput, {
                 messages: [],
@@ -512,7 +505,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -520,7 +512,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const expressionMergeInput = {
             ...mergeInput,
@@ -616,7 +607,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -624,7 +614,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
 
         await queryTool.execute!(toolInput, {
@@ -668,7 +657,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -676,7 +664,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
 
         const output = await queryTool.execute!(toolInput, {
@@ -719,7 +706,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -727,7 +713,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
 
         await queryTool.execute!(toolInput, {
@@ -769,7 +754,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -777,7 +761,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
 
         const output = await queryTool.execute!(toolInput, {
@@ -820,7 +803,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -828,7 +810,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const expressionInput = {
             ...toolInput,
@@ -929,7 +910,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -937,7 +917,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const expressionInput = {
             title: 'Revenue by month',
@@ -1005,7 +984,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -1013,7 +991,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
 
         const output = await queryTool.execute!(
@@ -1064,7 +1041,6 @@ describe('getRunQuery', () => {
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -1072,7 +1048,6 @@ describe('getRunQuery', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn<ExportCustomChartTypeImageFn>(),
         });
 
         if (!queryTool.execute) {
@@ -1283,14 +1258,12 @@ describe('getRunQuery custom chart types', () => {
         runAsyncQuery = vi
             .fn()
             .mockResolvedValue(makeQueryResults()) as RunAsyncQueryFn,
-        exportCustomChartTypeImage = vi.fn() as ExportCustomChartTypeImageFn,
         enableFilterExpressions = false,
         enableChartExport = false,
     }: {
         chartConfig: ToolRunQueryCustomChartTypeConfig;
         resolveCustomChartType?: ResolveCustomChartTypeFn;
         runAsyncQuery?: RunAsyncQueryFn;
-        exportCustomChartTypeImage?: ExportCustomChartTypeImageFn;
         enableFilterExpressions?: boolean;
         enableChartExport?: boolean;
     }) => {
@@ -1306,7 +1279,6 @@ describe('getRunQuery custom chart types', () => {
             enableChartExport,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -1314,7 +1286,6 @@ describe('getRunQuery custom chart types', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType,
-            exportCustomChartTypeImage,
         });
         const input = {
             ...toolInput,
@@ -1564,7 +1535,6 @@ describe('getRunQuery custom chart types', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -1576,7 +1546,6 @@ describe('getRunQuery custom chart types', () => {
                 dataAppVizVersion: 2,
                 schema: vizSchema,
             }) as ResolveCustomChartTypeFn,
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
 
         const mergeCustomInput = {
@@ -1633,19 +1602,6 @@ describe('getRunQuery custom chart types', () => {
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
     });
 
-    it('does not call the image exporter for web prompts', async () => {
-        const exportCustomChartTypeImage =
-            vi.fn() as ExportCustomChartTypeImageFn;
-
-        const { output } = await executeCustom({
-            chartConfig: customChartConfig,
-            exportCustomChartTypeImage,
-        });
-
-        expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
-        expect(output.metadata).toMatchObject({ status: 'success' });
-    });
-
     describe('in Slack', () => {
         beforeEach(() => {
             vi.mocked(renderEcharts).mockClear();
@@ -1657,16 +1613,8 @@ describe('getRunQuery custom chart types', () => {
         };
 
         const executeCustomSlack = async ({
-            exportCustomChartTypeImage,
             deferSlackVisualization,
-            sendFile = vi
-                .fn()
-                .mockResolvedValue(
-                    'https://lightdash.example/api/v1/slack/card-image/abc',
-                ) as SendFileFn,
         }: {
-            exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
-            sendFile?: SendFileFn;
             deferSlackVisualization?: DeferSlackVisualizationFn;
         }) => {
             const queryTool = getRunQuery({
@@ -1680,7 +1628,6 @@ describe('getRunQuery custom chart types', () => {
                 enableFilterExpressions: false,
                 projectParameterDefinitions: {},
                 getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
-                sendFile,
                 deferSlackVisualization,
                 createOrUpdateArtifact: vi.fn().mockResolvedValue(artifact),
                 maxLimit: 500,
@@ -1693,7 +1640,6 @@ describe('getRunQuery custom chart types', () => {
                     dataAppVizVersion: 2,
                     schema: vizSchema,
                 }) as ResolveCustomChartTypeFn,
-                exportCustomChartTypeImage,
             });
             const output = await queryTool.execute!(
                 { ...toolInput, chartConfig: customChartConfig },
@@ -1706,15 +1652,12 @@ describe('getRunQuery custom chart types', () => {
             if (Symbol.asyncIterator in output) {
                 throw new Error('Expected a non-streaming tool result');
             }
-            return { output, sendFile };
+            return output;
         };
 
         it('defers a custom chart after binding its original execution', async () => {
-            const exportCustomChartTypeImage =
-                vi.fn() as ExportCustomChartTypeImageFn;
             const deferSlackVisualization = vi.fn().mockResolvedValue(true);
-            const { output, sendFile } = await executeCustomSlack({
-                exportCustomChartTypeImage,
+            const output = await executeCustomSlack({
                 deferSlackVisualization,
             });
             expect(output.metadata.status).toBe('success');
@@ -1732,21 +1675,10 @@ describe('getRunQuery custom chart types', () => {
                     }),
                 }),
             );
-            expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
-            expect(sendFile).not.toHaveBeenCalled();
         });
 
-        it('returns the saved custom chart reference without exporting or uploading its image', async () => {
-            const exportCustomChartTypeImage = vi
-                .fn()
-                .mockResolvedValue(
-                    Buffer.from('custom-chart-png'),
-                ) as ExportCustomChartTypeImageFn;
-            const { output, sendFile } = await executeCustomSlack({
-                exportCustomChartTypeImage,
-            });
-            expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
-            expect(sendFile).not.toHaveBeenCalled();
+        it('returns the saved custom chart reference without rendering an image', async () => {
+            const output = await executeCustomSlack({});
             expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
             expect(output.result).toContain(
                 "This chart's versionUuid is version-uuid",
@@ -1755,17 +1687,12 @@ describe('getRunQuery custom chart types', () => {
                 status: 'success',
                 artifactVersionUuid: artifact.versionUuid,
             });
-            expect(output.metadata).not.toHaveProperty(
-                'chartImageUrl',
-                expect.any(String),
-            );
+            expect(output.metadata).not.toHaveProperty('chartImageUrl');
         });
 
         it.each(['declined', 'failed'] as const)(
             'retains the saved custom chart link without early uploads when deferral is %s',
             async (reason) => {
-                const exportCustomChartTypeImage =
-                    vi.fn() as ExportCustomChartTypeImageFn;
                 const deferSlackVisualization = vi.fn();
                 if (reason === 'failed') {
                     deferSlackVisualization.mockRejectedValue(
@@ -1774,13 +1701,10 @@ describe('getRunQuery custom chart types', () => {
                 } else {
                     deferSlackVisualization.mockResolvedValue(false);
                 }
-                const { output, sendFile } = await executeCustomSlack({
-                    exportCustomChartTypeImage,
+                const output = await executeCustomSlack({
                     deferSlackVisualization,
                 });
                 expect(deferSlackVisualization).toHaveBeenCalledTimes(1);
-                expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
-                expect(sendFile).not.toHaveBeenCalled();
                 expect(output.metadata.status).toBe('success');
                 expect(output.result).toContain(
                     "This chart's versionUuid is version-uuid",
@@ -1995,7 +1919,6 @@ describe('getRunQuery parameters', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -2003,7 +1926,6 @@ describe('getRunQuery parameters', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const output = await queryTool.execute!(
             {
@@ -2120,7 +2042,6 @@ describe('getRunQuery parameters', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
@@ -2128,7 +2049,6 @@ describe('getRunQuery parameters', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const output = await queryTool.execute!(
             {
@@ -2195,11 +2115,6 @@ describe('getRunQuery Slack links only', () => {
             fields: {},
             metricQuery: metricQueryMock,
         });
-        const sendFile = vi
-            .fn()
-            .mockResolvedValue(
-                'https://lightdash.example/api/v1/slack/card-image/abc',
-            ) as SendFileFn;
         const createOrUpdateArtifact = vi.fn().mockResolvedValue({
             artifactUuid: 'artifact-uuid',
             versionUuid: artifactVersionUuid,
@@ -2215,7 +2130,6 @@ describe('getRunQuery Slack links only', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
-            sendFile,
             deferSlackVisualization,
             createOrUpdateArtifact,
             maxLimit: 500,
@@ -2224,7 +2138,6 @@ describe('getRunQuery Slack links only', () => {
             enableDataAccess,
             slackLinksOnly,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const output = await queryTool.execute!(input, {
             messages: [],
@@ -2239,7 +2152,6 @@ describe('getRunQuery Slack links only', () => {
             agentContext,
             runAsyncQuery,
             runAsyncMergeQuery,
-            sendFile,
             createOrUpdateArtifact,
         };
     };
@@ -2256,7 +2168,6 @@ describe('getRunQuery Slack links only', () => {
                 output,
                 runAsyncQuery,
                 runAsyncMergeQuery,
-                sendFile,
                 createOrUpdateArtifact,
             } = await executeLinksOnly({
                 purpose: 'answer',
@@ -2283,7 +2194,6 @@ describe('getRunQuery Slack links only', () => {
                 status: 'success',
                 queryUuid: 'query-uuid',
             });
-            expect(sendFile).not.toHaveBeenCalled();
         },
     );
 
@@ -2344,7 +2254,7 @@ describe('getRunQuery Slack links only', () => {
                     }),
                 ),
             );
-            for (const { output, sendFile } of executions) {
+            for (const { output } of executions) {
                 expect(output.result).toContain(
                     "This chart's versionUuid is version-uuid",
                 );
@@ -2354,7 +2264,6 @@ describe('getRunQuery Slack links only', () => {
                 });
                 if (!enableDataAccess)
                     expect(output.result).not.toContain('```csv');
-                expect(sendFile).not.toHaveBeenCalled();
             }
         },
     );
@@ -2389,17 +2298,14 @@ describe('getRunQuery Slack links only', () => {
     it('returns query evidence immediately after durable image registration', async () => {
         const deferSlackVisualization = vi.fn().mockResolvedValue(true);
         const previousRenders = vi.mocked(renderEcharts).mock.calls.length;
-        const { output, runAsyncQuery, sendFile } = await executeLinksOnly({
+        const { output, runAsyncQuery } = await executeLinksOnly({
             enableDataAccess: true,
             slackLinksOnly: false,
             deferSlackVisualization,
         });
         expect(output.metadata.status).toBe('success');
         expect(output.result).toContain('one');
-        expect(output.metadata).not.toHaveProperty(
-            'chartImageUrl',
-            expect.any(String),
-        );
+        expect(output.metadata).not.toHaveProperty('chartImageUrl');
         expect(deferSlackVisualization).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 artifactUuid: 'artifact-uuid',
@@ -2414,7 +2320,6 @@ describe('getRunQuery Slack links only', () => {
             }),
         );
         expect(runAsyncQuery).toHaveBeenCalledTimes(1);
-        expect(sendFile).not.toHaveBeenCalled();
         expect(vi.mocked(renderEcharts).mock.calls).toHaveLength(
             previousRenders,
         );
@@ -2429,18 +2334,14 @@ describe('getRunQuery Slack links only', () => {
                     new Error('Storage unavailable'),
                 );
             else deferSlackVisualization.mockResolvedValue(false);
-            const { output, sendFile } = await executeLinksOnly({
+            const { output } = await executeLinksOnly({
                 enableDataAccess: true,
                 slackLinksOnly: false,
                 deferSlackVisualization,
             });
             expect(output.metadata.status).toBe('success');
-            expect(sendFile).not.toHaveBeenCalled();
             expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
-            expect(output.metadata).not.toHaveProperty(
-                'chartImageUrl',
-                expect.any(String),
-            );
+            expect(output.metadata).not.toHaveProperty('chartImageUrl');
             expect(output.result).toContain(
                 "This chart's versionUuid is version-uuid",
             );
@@ -2449,13 +2350,12 @@ describe('getRunQuery Slack links only', () => {
 
     it('never registers deferred images for links-only responses', async () => {
         const deferSlackVisualization = vi.fn();
-        const { sendFile } = await executeLinksOnly({
+        await executeLinksOnly({
             enableDataAccess: true,
             slackLinksOnly: true,
             deferSlackVisualization,
         });
         expect(deferSlackVisualization).not.toHaveBeenCalled();
-        expect(sendFile).not.toHaveBeenCalled();
     });
 
     it.each([false, true])(
@@ -2522,7 +2422,7 @@ describe('getRunQuery Slack links only', () => {
     it('leaves tables in the final answer without rendering or uploading a CSV', async () => {
         const deferSlackVisualization = vi.fn();
         const previousRenders = vi.mocked(renderEcharts).mock.calls.length;
-        const { output, sendFile } = await executeLinksOnly({
+        const { output } = await executeLinksOnly({
             enableDataAccess: true,
             slackLinksOnly: false,
             deferSlackVisualization,
@@ -2535,7 +2435,6 @@ describe('getRunQuery Slack links only', () => {
             },
         });
         expect(deferSlackVisualization).not.toHaveBeenCalled();
-        expect(sendFile).not.toHaveBeenCalled();
         expect(vi.mocked(renderEcharts).mock.calls).toHaveLength(
             previousRenders,
         );
@@ -2544,29 +2443,27 @@ describe('getRunQuery Slack links only', () => {
     });
 
     it('posts neither a chart image nor a CSV into Slack while the model still sees the rows', async () => {
-        const { output, runAsyncQuery, sendFile } = await executeLinksOnly({
+        const { output, runAsyncQuery } = await executeLinksOnly({
             enableDataAccess: true,
             slackLinksOnly: true,
         });
 
         expect(runAsyncQuery).toHaveBeenCalledTimes(1);
-        expect(sendFile).not.toHaveBeenCalled();
         expect(output.metadata).toMatchObject({
             status: 'success',
-            chartImageUrl: undefined,
         });
+        expect(output.metadata).not.toHaveProperty('chartImageUrl');
         expect(output.result).toContain('one');
     });
 
     it('skips the query entirely when the agent has no data access', async () => {
-        const { output, runAsyncQuery, sendFile, createOrUpdateArtifact } =
+        const { output, runAsyncQuery, createOrUpdateArtifact } =
             await executeLinksOnly({
                 enableDataAccess: false,
                 slackLinksOnly: true,
             });
 
         expect(runAsyncQuery).not.toHaveBeenCalled();
-        expect(sendFile).not.toHaveBeenCalled();
         expect(createOrUpdateArtifact).toHaveBeenCalledTimes(1);
         expect(output.result).toContain(
             "Success This chart's versionUuid is version-uuid",
@@ -2577,20 +2474,16 @@ describe('getRunQuery Slack links only', () => {
     });
 
     it('never uploads an image before the final answer selects a chart', async () => {
-        const { output, sendFile } = await executeLinksOnly({
+        const { output } = await executeLinksOnly({
             enableDataAccess: true,
             slackLinksOnly: false,
         });
 
-        expect(sendFile).not.toHaveBeenCalled();
         expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
         expect(output.result).toContain(
             "This chart's versionUuid is version-uuid",
         );
-        expect(output.metadata).not.toHaveProperty(
-            'chartImageUrl',
-            expect.any(String),
-        );
+        expect(output.metadata).not.toHaveProperty('chartImageUrl');
     });
 });
 
@@ -2897,7 +2790,6 @@ describe('validated default chart publication', () => {
                 enableFilterExpressions,
                 projectParameterDefinitions: {},
                 getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-                sendFile: vi.fn().mockResolvedValue(undefined),
                 createOrUpdateArtifact,
                 maxLimit: 500,
                 maxContextRows: 100,
@@ -2905,8 +2797,6 @@ describe('validated default chart publication', () => {
                 enableDataAccess: true,
                 slackLinksOnly: false,
                 resolveCustomChartType: vi.fn().mockResolvedValue(null),
-                exportCustomChartTypeImage:
-                    vi.fn() as ExportCustomChartTypeImageFn,
             });
             const input = {
                 ...toolInput,
@@ -3050,7 +2940,6 @@ describe('merged chart defaults', () => {
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
             createOrUpdateArtifact,
             maxLimit: 500,
             maxContextRows: 100,
@@ -3058,7 +2947,6 @@ describe('merged chart defaults', () => {
             enableDataAccess: true,
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const input = { ...mergeInput, chartConfig: null };
         const output = await queryTool.execute!(input, {

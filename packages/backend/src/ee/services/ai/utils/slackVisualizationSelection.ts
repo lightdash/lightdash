@@ -1,6 +1,7 @@
 const TABLE_SELECTION_REGEX = /<slack-table\s+queryUuid="([^"<>\s]+)"\s*\/>/g;
 const CHART_SELECTION_REGEX = /<slack-chart\s+versionUuid="([^"<>\s]+)"\s*\/>/g;
-const SELECTION_TAG_REGEX = /<\/?slack-(?:table|chart)\b[^>]*(?:>|$)/gi;
+const SELECTION_TAG_REGEX =
+    /<\/?slack-(?:table|chart)\b[^>\n]*(?:>|(?=\n|$))/gi;
 const FENCED_CODE_BLOCK_REGEX = /```[\s\S]*?```|~~~[\s\S]*?~~~/g;
 
 const selectedReferences = (prose: string, pattern: RegExp): string[] => [

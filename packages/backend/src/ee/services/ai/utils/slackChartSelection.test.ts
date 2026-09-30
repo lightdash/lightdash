@@ -78,7 +78,9 @@ const setup = (): SelectionInput => ({
     canShowInlineTables: true,
 });
 const versions = (input: SelectionInput) =>
-    getSlackSelectedCardArtifacts(input).map((item) => item.versionUuid);
+    getSlackSelectedCardArtifacts(input).artifacts.map(
+        (item) => item.versionUuid,
+    );
 const tableArtifact = () =>
     artifact('table', {
         chartConfig: parseConfig({
@@ -174,14 +176,16 @@ describe('getSlackSelectedCardArtifacts', () => {
     });
 
     it('retains table link cards under sharing guards while selecting only requested chart links', () => {
+        const input = {
+            ...setup(),
+            artifacts: [tableArtifact(), ...setup().artifacts],
+            selectedVersionUuids: ['second', 'table'],
+            canShowInlineTables: false,
+        };
+        expect(versions(input)).toEqual(['second', 'table']);
         expect(
-            versions({
-                ...setup(),
-                artifacts: [tableArtifact(), ...setup().artifacts],
-                selectedVersionUuids: ['second', 'table'],
-                canShowInlineTables: false,
-            }),
-        ).toEqual(['second', 'table']);
+            getSlackSelectedCardArtifacts(input).selectedChartVersionUuids,
+        ).toEqual(new Set(['second']));
     });
 
     it('preserves dashboards, SQL, composer and unconfigured artifacts after selected charts', () => {
@@ -216,7 +220,7 @@ describe('getSlackSelectedCardArtifacts', () => {
             selectedVersionUuids: ['composer', 'sql', 'second', 'dashboard'],
         };
 
-        expect(getSlackSelectedCardArtifacts(input)).toEqual([
+        expect(getSlackSelectedCardArtifacts(input).artifacts).toEqual([
             input.artifacts[5],
             dashboard,
             sql,

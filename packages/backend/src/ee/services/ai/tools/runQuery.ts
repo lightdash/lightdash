@@ -61,13 +61,11 @@ import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
     DeferSlackVisualizationFn,
-    ExportCustomChartTypeImageFn,
     GetPromptFn,
     ResolveCustomChartTypeFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     SearchFieldValuesFn,
-    SendFileFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
@@ -181,7 +179,6 @@ type Dependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     agentContext: AgentContext;
     getPrompt: GetPromptFn;
-    sendFile: SendFileFn;
     deferSlackVisualization?: DeferSlackVisualizationFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
@@ -196,7 +193,6 @@ type Dependencies = {
     enableFilterExpressions: boolean;
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     resolveCustomChartType: ResolveCustomChartTypeFn;
-    exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
 };
 
 // The parameter state a query actually ran with — explicit vs
@@ -438,21 +434,16 @@ const getSuccessMetadata = ({
     queryUuid,
     queryCacheHit,
     queryReuseHit,
-    chartImageUrl,
     artifact,
-    deferredSlack: _deferredSlack,
     fastResponse,
 }: {
     queryUuid: string;
     queryCacheHit: boolean;
     queryReuseHit: boolean;
-    chartImageUrl?: string;
     artifact?: AiArtifact;
-    deferredSlack: boolean;
     fastResponse?: string;
 }) => ({
     status: 'success' as const,
-    chartImageUrl,
     ...(artifact ? { artifactVersionUuid: artifact.versionUuid } : {}),
     queryUuid,
     queryCacheHit,
@@ -541,7 +532,7 @@ export const getRunQuery = ({
     const inputSchema: Schema<RunQueryToolInput> = rawInputSchema;
     let description = baseDescription;
     if (purpose === 'answer') {
-        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows and saves them as a table artifact, so follow-up edits can refine it; Slack also receives an explorable result card.`;
+        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows and saves them as a table artifact, so follow-up edits can refine it. In Slack, the final answer may include a selected table preview.`;
     } else if (decisions && enableDataAccess) {
         description = `${baseDescription} For builtin charts, you can set chartConfig to null: the server selects a validated default from the question and actual result shape. Supply chartConfig when explicit presentation settings are needed. Query fields, filters and limits are always your responsibility.`;
     }
@@ -985,7 +976,6 @@ export const getRunQuery = ({
                                 queryResults.cacheMetadata.queryReuseHit ===
                                 true,
                             artifact,
-                            deferredSlack: !!deferSlackVisualization,
                             fastResponse:
                                 fastAnswer && enableDataAccess
                                     ? (getFastAnswerText(
@@ -1399,7 +1389,6 @@ export const getRunQuery = ({
                                 queryResults.cacheMetadata.queryReuseHit ===
                                 true,
                             artifact,
-                            deferredSlack: !!deferSlackVisualization,
                         }),
                     };
                 }
@@ -1423,7 +1412,6 @@ export const getRunQuery = ({
                         queryReuseHit:
                             queryResults.cacheMetadata.queryReuseHit === true,
                         artifact,
-                        deferredSlack: !!deferSlackVisualization,
                         fastResponse: fastAnswer
                             ? (getFastAnswerText(
                                   queryResults,

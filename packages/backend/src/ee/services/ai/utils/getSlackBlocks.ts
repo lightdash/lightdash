@@ -560,6 +560,7 @@ export async function getModernArtifactCardBlocks(
         dataAppVizVersion?: number,
     ) => Promise<DataAppVizField[] | null>,
     enableFastDecisions = false,
+    preserveVersionUuids: ReadonlySet<string> = new Set(),
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
@@ -612,6 +613,7 @@ export async function getModernArtifactCardBlocks(
     const dedupedArtifacts = deduplicateSlackArtifacts(
         normalizedArtifacts,
         enableFastDecisions ? undefined : maxQueryLimit,
+        preserveVersionUuids,
     ).slice(0, 10);
     // Map legacy image positions before deduplication or the ten-card cap.
     const originalCharts = (
@@ -948,7 +950,8 @@ export async function getSqlArtifactCardBlocks(
                     typeof rowCount === 'number'
                         ? `${rowCount} row${rowCount === 1 ? '' : 's'}`
                         : undefined,
-                subtext: 'Open in SQL Runner to inspect, edit, or save.',
+                subtext:
+                    'Run this SQL in Lightdash to inspect or export current results.',
                 actions: [
                     {
                         type: 'button',

@@ -1621,7 +1621,6 @@ export const getAgentTools = (
         runAsyncQuery: queryDependencies.runAsyncQuery,
         runAsyncMergeQuery: queryDependencies.runAsyncMergeQuery,
         getPrompt: dependencies.getPrompt,
-        sendFile: dependencies.sendFile,
         deferSlackVisualization:
             args.decisions && args.execution.mode === 'standard'
                 ? dependencies.deferSlackVisualization
@@ -1638,7 +1637,6 @@ export const getAgentTools = (
         enableMergeQueries: args.enableMergeQueries,
         enableFilterExpressions: args.enableFilterExpressions,
         resolveCustomChartType: dependencies.resolveCustomChartType,
-        exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
     });
 
     const runQuery =
@@ -1659,7 +1657,6 @@ export const getAgentTools = (
                   runAsyncQuery: queryDependencies.runAsyncQuery,
                   runAsyncMergeQuery: queryDependencies.runAsyncMergeQuery,
                   getPrompt: dependencies.getPrompt,
-                  sendFile: dependencies.sendFile,
                   createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
                   maxLimit: args.maxQueryLimit,
                   maxContextRows: args.maxContextRows,
@@ -1671,8 +1668,6 @@ export const getAgentTools = (
                   enableMergeQueries: args.enableMergeQueries,
                   enableFilterExpressions: args.enableFilterExpressions,
                   resolveCustomChartType: dependencies.resolveCustomChartType,
-                  exportCustomChartTypeImage:
-                      dependencies.exportCustomChartTypeImage,
               })
             : null;
 
@@ -1696,7 +1691,6 @@ export const getAgentTools = (
                   updateProgress: dependencies.updateProgress,
                   runSqlJob: queryDependencies.runSqlJob,
                   getPrompt: dependencies.getPrompt,
-                  sendFile: dependencies.sendFile,
                   updateSlackMessage: dependencies.updateSlackMessage,
                   siteUrl: args.siteUrl,
                   waitForSqlApproval: dependencies.waitForSqlApproval,
@@ -1706,7 +1700,6 @@ export const getAgentTools = (
                   createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
                   maxQueryLimit: args.runSqlMaxLimit,
                   enableDataAccess: args.enableDataAccess,
-                  slackLinksOnly: args.slackLinksOnly,
                   sqlScope: args.sqlScope,
                   autoApproveSql: args.autoApproveSql,
                   autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,

@@ -226,14 +226,12 @@ describe('getSlackTablePreviews', () => {
             [
                 {
                     queryUuid: 'query-first',
-                    exploreNames: ['orders'],
                     maxRows: 200,
                 },
             ],
             [
                 {
                     queryUuid: 'query-second',
-                    exploreNames: ['orders'],
                     maxRows: 200,
                 },
             ],
@@ -312,7 +310,6 @@ describe('getSlackTablePreviews', () => {
         });
         expect(input.getResults).toHaveBeenCalledWith({
             queryUuid: 'query-first',
-            exploreNames: ['orders', 'payments'],
             maxRows: 200,
         });
     });
@@ -434,7 +431,6 @@ describe('getSlackTablePreviews', () => {
         ]);
         expect(input.getResults).toHaveBeenCalledExactlyOnceWith({
             queryUuid: 'query-second',
-            exploreNames: ['orders'],
             maxRows: 200,
         });
         expect(input.authorize).toHaveBeenCalledTimes(2);

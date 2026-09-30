@@ -15,7 +15,6 @@ import type {
     IsThreadSqlAutoApprovedFn,
     RecordSqlApprovalFn,
     RunSqlJobFn,
-    SendFileFn,
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
@@ -35,7 +34,6 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     runSqlJob: RunSqlJobFn;
     getPrompt: GetPromptFn;
-    sendFile: SendFileFn;
     updateSlackMessage: UpdateSlackMessageFn;
     siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
@@ -45,7 +43,6 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxQueryLimit: number;
     enableDataAccess: boolean;
-    slackLinksOnly: boolean;
     sqlScope?: SqlScope | null;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;

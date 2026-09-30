@@ -78,6 +78,23 @@ const regularArtifactThread = {
     ],
 } as AiAgentThread;
 
+const latestArtifactThread = {
+    ...regularArtifactThread,
+    messages: [
+        ...regularArtifactThread.messages,
+        {
+            role: 'assistant',
+            uuid: 'latest-prompt',
+            artifacts: [
+                {
+                    artifactUuid: 'latest-artifact',
+                    versionUuid: 'latest-version',
+                },
+            ],
+        },
+    ],
+} as AiAgentThread;
+
 describe('useAiAgentThreadArtifact', () => {
     beforeEach(() => {
         fastDecisionsMock.mockReturnValue({ data: { enabled: true } });
@@ -134,22 +151,6 @@ describe('useAiAgentThreadArtifact', () => {
     });
 
     it('opens the exact requested table version instead of the latest artifact', () => {
-        const multiArtifactThread = {
-            ...regularArtifactThread,
-            messages: [
-                ...regularArtifactThread.messages,
-                {
-                    role: 'assistant',
-                    uuid: 'latest-prompt',
-                    artifacts: [
-                        {
-                            artifactUuid: 'latest-artifact',
-                            versionUuid: 'latest-version',
-                        },
-                    ],
-                },
-            ],
-        } as AiAgentThread;
         const requestedArtifact = {
             artifactUuid: 'regular-artifact',
             versionUuid: 'regular-version',
@@ -163,7 +164,7 @@ describe('useAiAgentThreadArtifact', () => {
                     projectUuid: 'project-1',
                     agentUuid: 'agent-1',
                     threadUuid: 'thread-1',
-                    thread: multiArtifactThread,
+                    thread: latestArtifactThread,
                     requestedArtifact: requested,
                 }),
             { initialProps },
@@ -207,22 +208,6 @@ describe('useAiAgentThreadArtifact', () => {
     });
 
     it('keeps an older linked table open when the registration lookup finishes', () => {
-        const latestThread = {
-            ...regularArtifactThread,
-            messages: [
-                ...regularArtifactThread.messages,
-                {
-                    role: 'assistant',
-                    uuid: 'latest-prompt',
-                    artifacts: [
-                        {
-                            artifactUuid: 'latest-artifact',
-                            versionUuid: 'latest-version',
-                        },
-                    ],
-                },
-            ],
-        } as AiAgentThread;
         const requestedArtifact = {
             artifactUuid: 'regular-artifact',
             versionUuid: 'regular-version',
@@ -237,7 +222,7 @@ describe('useAiAgentThreadArtifact', () => {
                     projectUuid: 'project-1',
                     agentUuid: 'agent-1',
                     threadUuid: 'thread-1',
-                    thread: latestThread,
+                    thread: latestArtifactThread,
                     requestedArtifact: requested,
                 }),
             {
@@ -254,12 +239,17 @@ describe('useAiAgentThreadArtifact', () => {
         expect(selected?.payload.artifactUuid).toBe('regular-artifact');
 
         artifactSelectorMock.mockReturnValue(selected?.payload);
+        dispatchMock.mockClear();
+        rerender({ requested: undefined });
+        expect(dispatchMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'setPreview' }),
+        );
+
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],
             isReady: true,
         });
         dispatchMock.mockClear();
-        rerender({ requested: requestedArtifact });
         rerender({ requested: undefined });
         expect(dispatchMock).not.toHaveBeenCalledWith(
             expect.objectContaining({ type: 'setPreview' }),

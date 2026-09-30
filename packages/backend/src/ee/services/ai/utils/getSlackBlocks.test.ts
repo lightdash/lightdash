@@ -21,6 +21,7 @@ import {
     getSqlArtifactCardBlocks,
     splitMarkdownIntoMessages,
 } from './getSlackBlocks';
+import { getSlackArtifactCardVersions } from './slackArtifactImages';
 import { mockOrdersExplore } from './validationExplore.mock';
 
 const parseStoredChartConfig = (raw: unknown) => {
@@ -1397,6 +1398,32 @@ describe('Slack AI agent blocks', () => {
                       ]
                     : [{ type: 'card' }],
             );
+
+            const selectedBlocks = await getModernArtifactCardBlocks(
+                {
+                    promptUuid: 'prompt-1',
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                } as never,
+                'https://lightdash.example.com',
+                500,
+                async () => 'https://lightdash.example.com/share/chart',
+                async () => ({}) as never,
+                async () => true,
+                'agent-1',
+                [
+                    retryVersion('version-1', 'month'),
+                    retryVersion('version-2', 'month'),
+                ].map(parseStoredArtifact),
+                [],
+                undefined,
+                enabled,
+                new Set(['version-1', 'version-2']),
+            );
+            expect(getSlackArtifactCardVersions(selectedBlocks)).toEqual([
+                'version-1',
+                'version-2',
+            ]);
         },
     );
 

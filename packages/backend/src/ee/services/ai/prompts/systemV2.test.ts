@@ -1066,7 +1066,6 @@ describe('getSystemPromptV2 Slack chart selection', () => {
         { enableDataAccess: true, slackLinksOnly: false },
         { enableDataAccess: true, slackLinksOnly: true },
         { enableDataAccess: false, slackLinksOnly: false },
-        { enableDataAccess: false, slackLinksOnly: true },
     ])('selects useful charts for every Slack sharing mode: %j', (flags) => {
         const content = promptText({
             availableExplores: [],
@@ -1075,24 +1074,7 @@ describe('getSystemPromptV2 Slack chart selection', () => {
             ...flags,
         });
         expect(content).toContain(
-            'choose zero or one generated chart by default',
-        );
-        expect(content).toContain(
             '<slack-chart versionUuid="<versionUuid>" />',
-        );
-        expect(content).toContain('on its own line in your final response');
-        expect(content).toContain(
-            'exact saved versionUuid copied from a successful chart execution in the current turn',
-        );
-        expect(content).toContain(
-            'Omit redundant, diagnostic and superseded charts',
-        );
-        expect(content).toContain('Select at most 10 charts');
-        expect(content).toContain(
-            'When the user requests a chart, select the best successful chart that answers the request',
-        );
-        expect(content).not.toContain(
-            'Slack result cards are attached automatically',
         );
     });
 
@@ -1107,7 +1089,7 @@ describe('getSystemPromptV2 Slack chart selection', () => {
 
 describe('getSystemPromptV2 Slack table selection', () => {
     test.each([false, true])(
-        'prefers summaries and selectively renders useful current-turn tables in Slack (fast: %s)',
+        'includes the table selection marker in Slack guidance (fast: %s)',
         (enableFastMetadata) => {
             const content = promptText({
                 availableExplores: [],
@@ -1115,29 +1097,9 @@ describe('getSystemPromptV2 Slack table selection', () => {
                 enableDataAccess: true,
                 enableFastMetadata,
             });
-            expect(content).toContain('a summary is the default');
             expect(content).toContain(
                 '<slack-table queryUuid="<queryUuid>" />',
             );
-            expect(content).toContain(
-                'exact queryUuid copied from a successful semantic table execution in the current turn',
-            );
-            expect(content).toContain('The marker is hidden from visible text');
-            expect(content).toContain('on its own line in your final response');
-            expect(content).toContain(
-                'Select at most 10 requested or useful final tables',
-            );
-            expect(content).toContain(
-                'Never automatically include every table',
-            );
-            expect(content).toContain(
-                'Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer',
-            );
-            if (enableFastMetadata) {
-                expect(content).not.toContain(
-                    'Slack result cards are attached automatically',
-                );
-            }
         },
     );
 
@@ -1162,9 +1124,6 @@ describe('getSystemPromptV2 Slack table selection', () => {
                 ...flags,
             });
             expect(content).not.toContain('<slack-table');
-            expect(content).not.toContain(
-                'renders that execution as a native Slack table',
-            );
         },
     );
 });

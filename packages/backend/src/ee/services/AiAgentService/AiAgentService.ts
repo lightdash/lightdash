@@ -15157,12 +15157,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const canShowInlineTables =
             agent?.enableDataAccess === true &&
             slackSettings?.aiLinksOnly !== true;
-        const cardArtifacts = getSlackSelectedCardArtifacts({
-            artifacts: artifactVersions,
-            toolResults,
-            selectedVersionUuids: selection.chartVersionUuids,
-            canShowInlineTables,
-        });
+        const { artifacts: cardArtifacts, selectedChartVersionUuids } =
+            getSlackSelectedCardArtifacts({
+                artifacts: artifactVersions,
+                toolResults,
+                selectedVersionUuids: selection.chartVersionUuids,
+                canShowInlineTables,
+            });
 
         const exploreBlocks = await getModernArtifactCardBlocks(
             slackPrompt,
@@ -15187,6 +15188,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     dataAppVizVersion,
                 ),
             !!(await this.getDecisionClient(user)),
+            selectedChartVersionUuids,
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,

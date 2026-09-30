@@ -60,6 +60,18 @@ describe('Slack artifact identity', () => {
         expect(deduplicateSlackArtifacts([first, second])).toEqual([second]);
     });
 
+    it('keeps both explicitly selected versions of an equal chart', () => {
+        const first = chart(1);
+        const second = chart(2);
+        expect(
+            deduplicateSlackArtifacts(
+                [first, second],
+                undefined,
+                new Set([first.versionUuid, second.versionUuid]),
+            ),
+        ).toEqual([first, second]);
+    });
+
     it.each([
         { parameters: { id: 'different-tenant' } },
         { dimensions: ['orders_month'] },

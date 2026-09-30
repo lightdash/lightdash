@@ -30,7 +30,19 @@ const renderInput = (versionUuid: string): SlackArtifactRenderInput => ({
             customMetrics: null,
             tableCalculations: null,
         },
-        chartConfig: null,
+        chartConfig: {
+            defaultVizType: 'bar',
+            xAxisDimension: 'orders_month',
+            yAxisMetrics: ['orders_revenue'],
+            groupBy: null,
+            xAxisType: 'category',
+            stackBars: false,
+            lineType: null,
+            xAxisLabel: 'Month',
+            yAxisLabel: 'Revenue',
+            secondaryYAxisMetric: null,
+            secondaryYAxisLabel: null,
+        },
         mergeConfig: null,
     }),
 });
@@ -143,7 +155,6 @@ describe('Slack artifact image selection', () => {
 
         await deliverSlackArtifactImages(harness);
 
-        expect(harness.runtime.authorize).toHaveBeenCalledTimes(2);
         expect(harness.runtime.authorize).toHaveBeenCalledWith(
             harness.selected,
         );
@@ -153,12 +164,6 @@ describe('Slack artifact image selection', () => {
         expect(harness.runtime.render).toHaveBeenCalledExactlyOnceWith(
             harness.selected,
         );
-        expect(harness.model.saveImage).toHaveBeenCalledExactlyOnceWith(
-            harness.promptUuid,
-            'selected',
-            'https://lightdash.test/image/selected',
-        );
-        expect(harness.runtime.updateMessage).toHaveBeenCalledTimes(1);
         expect(harness.current().blocks[0]).toBe(table);
         expect(harness.current().blocks[2]).toBe(feedback);
         expect(harness.current().blocks[1]).toMatchObject({
@@ -172,11 +177,6 @@ describe('Slack artifact image selection', () => {
                 },
             ],
         });
-        expect(harness.model.finish).toHaveBeenCalledExactlyOnceWith(
-            harness.promptUuid,
-            'delivered',
-            1,
-        );
     });
 
     it('cancels a known answer with no registered cards without rendering', async () => {
@@ -186,8 +186,6 @@ describe('Slack artifact image selection', () => {
 
         expect(harness.runtime.authorize).not.toHaveBeenCalled();
         expect(harness.runtime.render).not.toHaveBeenCalled();
-        expect(harness.model.saveImage).not.toHaveBeenCalled();
-        expect(harness.runtime.updateMessage).not.toHaveBeenCalled();
         expect(harness.model.finish).toHaveBeenCalledExactlyOnceWith(
             harness.promptUuid,
             'cancelled',

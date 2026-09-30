@@ -69,6 +69,29 @@ const getThreadLinkBlock = (
     accessory: getThreadButton(preview),
 });
 
+const getActionsBlock = (
+    preview: Extract<SlackTablePreview, { status: 'ready' }>,
+    includeThreadButton = true,
+): KnownBlock => ({
+    type: 'actions',
+    block_id: `${preview.blockId}_actions`,
+    elements: [
+        ...(includeThreadButton ? [getThreadButton(preview)] : []),
+        ...(preview.downloadUrl
+            ? [getDownloadButton(preview.downloadUrl, preview.blockId)]
+            : []),
+    ],
+});
+
+const getReadyFallbackBlocks = (
+    preview: Extract<SlackTablePreview, { status: 'ready' }>,
+    title: string,
+    message: string,
+): (Block | KnownBlock)[] => [
+    getThreadLinkBlock(preview, title, message),
+    ...(preview.downloadUrl ? [getActionsBlock(preview, false)] : []),
+];
+
 const getTableBudgets = (demands: number[]): number[] => {
     const budgets = demands.map(() => 0);
     const pending = demands
@@ -152,7 +175,7 @@ export const getSlackTableBlocks = (
                 getThreadLinkBlock(
                     table.preview,
                     table.title,
-                    'Could not load this table preview. Open the agent thread to inspect the analysis.',
+                    'Table preview unavailable. Open the agent thread to inspect or rerun the query.',
                 ),
             ];
         }
@@ -160,22 +183,18 @@ export const getSlackTableBlocks = (
         const { preview, title, allFieldIds, fieldIds, tableRows } = table;
         const { rows } = preview.queryResults;
         if (rows.length === 0) {
-            return [
-                getThreadLinkBlock(
-                    preview,
-                    title,
-                    'This query returned no rows.',
-                ),
-            ];
+            return getReadyFallbackBlocks(
+                preview,
+                title,
+                'This query returned no rows.',
+            );
         }
         if (fieldIds.length === 0) {
-            return [
-                getThreadLinkBlock(
-                    preview,
-                    title,
-                    'No columns are available for this Slack preview.',
-                ),
-            ];
+            return getReadyFallbackBlocks(
+                preview,
+                title,
+                'No columns are available for this Slack preview.',
+            );
         }
 
         const includedRows = [tableRows[0]];
@@ -193,13 +212,11 @@ export const getSlackTableBlocks = (
             characters += rowCharacters;
         }
         if (includedRows.length < 2) {
-            return [
-                getThreadLinkBlock(
-                    preview,
-                    title,
-                    'No complete row fits in Slack’s table size limit. Open the agent thread to inspect the analysis.',
-                ),
-            ];
+            return getReadyFallbackBlocks(
+                preview,
+                title,
+                'No complete row fits in Slack’s table size limit. Open the agent thread to inspect the analysis.',
+            );
         }
 
         const block: SlackDataTableBlock = {
@@ -231,16 +248,7 @@ export const getSlackTableBlocks = (
                 elements: [{ type: 'plain_text', text: notes.join(' ') }],
             });
         }
-        blocks.push({
-            type: 'actions',
-            block_id: `${preview.blockId}_actions`,
-            elements: [
-                getThreadButton(preview),
-                ...(preview.status === 'ready' && preview.downloadUrl
-                    ? [getDownloadButton(preview.downloadUrl, preview.blockId)]
-                    : []),
-            ],
-        });
+        blocks.push(getActionsBlock(preview));
         return blocks;
     });
 };

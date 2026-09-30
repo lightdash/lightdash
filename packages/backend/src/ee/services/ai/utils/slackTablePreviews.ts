@@ -90,11 +90,7 @@ export const getSlackTablePreviews = async ({
         queryUuid: string;
         exploreNames: string[];
     }) => Promise<void>;
-    getResults: (input: {
-        queryUuid: string;
-        exploreNames: string[];
-        maxRows: number;
-    }) => Promise<{
+    getResults: (input: { queryUuid: string; maxRows: number }) => Promise<{
         rows: Record<string, unknown>[];
         fields: ItemsMap;
         truncated: boolean;
@@ -190,7 +186,6 @@ export const getSlackTablePreviews = async ({
                         runtimeResults.get(metadata.queryUuid) ??
                         (await getResults({
                             queryUuid: metadata.queryUuid,
-                            exploreNames,
                             maxRows: SLACK_TABLE_MAX_ROWS,
                         }));
                     return {

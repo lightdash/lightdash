@@ -112,8 +112,7 @@ export const useAiAgentThreadArtifact = ({
             return;
         const requestKey = `${threadUuid}:${requestedArtifactUuid}:${requestedVersionUuid}`;
         if (handledRequestedArtifactRef.current === requestKey) {
-            // The latest message may become known after the requested artifact
-            // opens. Keep auto-preview from replacing the requested panel when
+            // Keep auto-preview from replacing the requested panel when
             // the download link is consumed.
             if (latestAssistantMessage)
                 lastHandledMessageUuidRef.current = latestAssistantMessage.uuid;
@@ -121,7 +120,9 @@ export const useAiAgentThreadArtifact = ({
         }
         handledRequestedArtifactRef.current = requestKey;
         lastHandledMessageUuidRef.current =
-            latestAssistantMessage?.uuid ?? requestedMessage.uuid;
+            latestAssistantMessage?.uuid ??
+            thread?.messages.at(-1)?.uuid ??
+            requestedMessage.uuid;
         lastAutomaticVersionUuidRef.current = null;
         if (
             artifact?.artifactUuid === requestedArtifactUuid &&
@@ -150,6 +151,7 @@ export const useAiAgentThreadArtifact = ({
         threadUuid,
         dispatch,
         latestAssistantMessage,
+        thread,
     ]);
 
     // Track when user manually closes an artifact

@@ -108,13 +108,21 @@ const getLegacySlackArtifactIdentity = (
 export const deduplicateSlackArtifacts = (
     artifacts: AiArtifact[],
     legacyMaxQueryLimit?: number,
+    preserveVersionUuids: ReadonlySet<string> = new Set(),
 ): AiArtifact[] => {
     const latest = new Map<string, AiArtifact>();
     for (const artifact of artifacts) {
-        const identity =
-            legacyMaxQueryLimit === undefined
-                ? getSlackArtifactIdentity(artifact)
-                : getLegacySlackArtifactIdentity(artifact, legacyMaxQueryLimit);
+        let identity: string;
+        if (preserveVersionUuids.has(artifact.versionUuid)) {
+            identity = `selected-version:${artifact.versionUuid}`;
+        } else if (legacyMaxQueryLimit === undefined) {
+            identity = getSlackArtifactIdentity(artifact);
+        } else {
+            identity = getLegacySlackArtifactIdentity(
+                artifact,
+                legacyMaxQueryLimit,
+            );
+        }
         const previous = latest.get(identity);
         if (
             !previous ||
