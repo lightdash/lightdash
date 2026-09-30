@@ -38,6 +38,14 @@ type ProjectServiceInterface = {
         dbtModelNames?: string[];
         cliDeploy: CliDeploySelection;
     }) => Promise<string>;
+    trackCliSourceDeploy: (
+        args: {
+            userUuid: string;
+            projectUuid: string;
+            cliDeploy: CliDeploySelection;
+        },
+        outcome: { status: 'success' } | { status: 'error'; error: unknown },
+    ) => Promise<void>;
 };
 
 type DeployServiceArguments = {
@@ -66,6 +74,21 @@ export class DeployService extends BaseService {
         this.projectService = args.projectService;
         this.schedulerClient = args.schedulerClient;
         this.exploreEnhancer = args.exploreEnhancer ?? ((e) => e);
+    }
+
+    private async trackCliSourceDeploy(
+        args: {
+            userUuid: string;
+            projectUuid: string;
+            cliDeploy: CliDeploySelection;
+        },
+        outcome: { status: 'success' } | { status: 'error'; error: unknown },
+    ): Promise<void> {
+        try {
+            await this.projectService.trackCliSourceDeploy(args, outcome);
+        } catch {
+            this.logger.warn('Failed to track CLI source deploy');
+        }
     }
 
     async startDeploySession(
@@ -192,6 +215,11 @@ export class DeployService extends BaseService {
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
     ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
+        const deployAnalytics = {
+            userUuid: user.userUuid,
+            projectUuid,
+            cliDeploy,
+        };
         const session = await this.deploySessionModel.getSession(sessionUuid);
 
         // Validate ownership
@@ -268,12 +296,20 @@ export class DeployService extends BaseService {
             // Cleanup session data
             await this.deploySessionModel.deleteSession(sessionUuid);
 
+            await this.trackCliSourceDeploy(deployAnalytics, {
+                status: 'success',
+            });
+
             return {
                 exploreCount: explores.length,
                 warnings: calculateExploreWarningReport({ explores }),
                 status: DeploySessionStatus.COMPLETED,
             };
         } catch (error) {
+            await this.trackCliSourceDeploy(deployAnalytics, {
+                status: 'error',
+                error,
+            });
             // Mark as failed on error
             await this.deploySessionModel.updateStatus(
                 sessionUuid,

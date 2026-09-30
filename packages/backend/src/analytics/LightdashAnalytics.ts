@@ -335,6 +335,169 @@ type WarehouseConnectionTestedEvent = BaseTrack & {
     };
 };
 
+type WarehouseProjectAnalyticsProperties =
+    WarehouseConnectionAnalyticsProperties & {
+        organizationId: string;
+        projectId: string;
+    };
+
+type WarehouseConnectionEventProperties =
+    WarehouseProjectAnalyticsProperties & {
+        credentialSource: 'project' | 'organization' | null;
+    };
+
+type WarehouseConnectionChangedEvent = BaseTrack & {
+    event:
+        | 'warehouse_connection.added'
+        | 'warehouse_connection.updated'
+        | 'warehouse_connection.renamed'
+        | 'warehouse_connection.removed';
+    userId: string;
+    properties: WarehouseConnectionEventProperties & {
+        listAllDatabases: boolean | null;
+        additionalDatabaseCount: number | null;
+        changedCredentials: boolean | null;
+        changedDatabaseSettings: boolean | null;
+    };
+};
+
+type WarehouseConnectionTestCompletedEvent = BaseTrack & {
+    event: 'warehouse_connection.test_completed';
+    userId: string;
+    properties: WarehouseConnectionEventProperties & {
+        operation: 'add' | 'update' | 'switch_preview' | 'switch';
+        result: 'success' | 'failure';
+        reason: 'connection_test_failed' | 'connection_test_error' | null;
+    };
+};
+
+type WarehouseConnectionActionRefusedEvent = BaseTrack & {
+    event: 'warehouse_connection.action_refused';
+    userId: string;
+    properties: WarehouseConnectionEventProperties & {
+        operation:
+            | 'add'
+            | 'update'
+            | 'remove'
+            | 'rebind'
+            | 'switch_preview'
+            | 'switch';
+        reason:
+            | 'already_multi'
+            | 'unsupported_project'
+            | 'organization_credentials'
+            | 'license_required'
+            | 'feature_disabled'
+            | 'warehouse_type_mismatch'
+            | 'plan_changed'
+            | 'original_connection'
+            | 'bound_content'
+            | 'name_conflict'
+            | 'primary_source';
+    };
+};
+
+type WarehouseConnectionSwitchEvent = BaseTrack & {
+    event:
+        | 'warehouse_connections.switch_previewed'
+        | 'warehouse_connections.switched_to_multi';
+    userId: string;
+    properties: WarehouseConnectionEventProperties & {
+        originalContentCount: number;
+        personalCredentialsUserCount: number;
+        listAllDatabases: boolean;
+        additionalDatabaseCount: number;
+    };
+};
+
+type WarehouseConnectionSwitchPreviewFailedEvent = BaseTrack & {
+    event: 'warehouse_connections.switch_preview_failed';
+    userId: string;
+    properties: WarehouseConnectionEventProperties & {
+        reason:
+            | 'invalid_request'
+            | 'name_conflict'
+            | 'warehouse_type_mismatch'
+            | 'access_denied'
+            | 'other';
+    };
+};
+
+type WarehouseConnectionDbtSourceReboundEvent = BaseTrack & {
+    event: 'warehouse_connection.dbt_source_rebound';
+    userId: string;
+    properties: WarehouseConnectionEventProperties & {
+        dbtSourceId: string;
+        previousWarehouseConnectionId: string | null;
+    };
+};
+
+type WarehouseConnectionCompileWarningEvent = BaseTrack & {
+    event: 'warehouse_connection.compile_warning';
+    properties: WarehouseConnectionEventProperties & {
+        reason: 'extra_connection_failed';
+        outcome: 'previous_explores_kept';
+    };
+};
+
+type SqlRunnerDatabaseListEvent = BaseTrack & {
+    event: 'sql_runner.database_list_succeeded';
+    properties: WarehouseProjectAnalyticsProperties & {
+        entryPoint: 'sql_runner_sidebar';
+        databaseCount: number;
+        truncated: boolean;
+        limit: number;
+    };
+};
+
+type SqlRunnerDatabaseListFailedEvent = BaseTrack & {
+    event: 'sql_runner.database_list_failed';
+    properties: WarehouseProjectAnalyticsProperties & {
+        entryPoint: 'sql_runner_sidebar';
+        reason: 'athena_glue_list_databases_denied' | 'other';
+    };
+};
+
+type WarehouseConnectionCredentialsRequiredEvent = BaseTrack & {
+    event: 'warehouse_connection.credentials_required';
+    properties: WarehouseProjectAnalyticsProperties & {
+        entryPoint: 'query';
+        reason:
+            | 'missing_personal_credentials'
+            | 'host_mismatch'
+            | 'service_account_requires_personal_credentials';
+    };
+};
+
+type ProjectDeploymentEvent = BaseTrack & {
+    event: 'project.deployment_succeeded';
+    properties: WarehouseProjectAnalyticsProperties & {
+        entryPoint: 'cli_source';
+        reason: null;
+    };
+};
+
+type ProjectDeploymentFailedEvent = BaseTrack & {
+    event: 'project.deployment_failed';
+    properties: WarehouseProjectAnalyticsProperties & {
+        entryPoint: 'cli_source';
+        reason:
+            | 'source_not_found'
+            | 'target_mismatch'
+            | 'incomplete_source'
+            | 'other';
+    };
+};
+
+type ContentAsCodeConnectionBindingUploadRefusedEvent = BaseTrack & {
+    event: 'content_as_code.connection_binding_upload_refused';
+    userId: string;
+    properties: WarehouseConnectionEventProperties & {
+        contentType: 'chart' | 'dashboard';
+        reason: 'connection_not_found' | 'connection_outside_project';
+    };
+};
+
 type UserJoinOrganizationEvent = BaseTrack & {
     event: 'user.joined_organization';
     properties: {
@@ -428,6 +591,13 @@ type SqlExecutionProperties = {
     usingStreaming: boolean;
 };
 
+export type WarehouseConnectionAnalyticsProperties = {
+    warehouseConnectionId: string | null;
+    connectionKind: 'primary' | 'extra' | null;
+    warehouseType: WarehouseTypes | null;
+    connectionCount: number | null;
+};
+
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
@@ -437,11 +607,12 @@ type QueryExecutionEvent = BaseTrack & {
         onboardingFlow: OnboardingFlow;
         executionSource?: QueryExecutionSource;
         cacheMetadata?: CacheMetadata;
-    } & (
-        | PaginatedMetricQueryExecutionProperties
-        | MetricQueryExecutionProperties
-        | SqlExecutionProperties
-    );
+    } & WarehouseConnectionAnalyticsProperties &
+        (
+            | PaginatedMetricQueryExecutionProperties
+            | MetricQueryExecutionProperties
+            | SqlExecutionProperties
+        );
 };
 
 type QueryExecutionSource =
@@ -496,6 +667,10 @@ export type QueryCompletedEvent = BaseTrack & {
         cacheHit: boolean;
         executionSource: QueryExecutionSource | null;
         warehouseType: WarehouseTypes | null;
+        connectionWarehouseType: WarehouseTypes | null;
+        warehouseConnectionId: string | null;
+        connectionKind: 'primary' | 'extra' | null;
+        connectionCount: number | null;
         warehouseExecutionTimeMs: number | null;
         // Phase breakdown of warehouseExecutionTimeMs. Absent phases mean the
         // adapter does not report them.
@@ -4052,6 +4227,7 @@ export type ContentAsCodeWritebackFailedEvent = BaseTrack & {
         contentId: string;
         isDraft: boolean;
         error: string;
+        reason: 'writeback_error';
     };
 };
 
@@ -4324,6 +4500,19 @@ type TypedEvent =
     | UserWarehouseCredentialsDeleteEvent
     | WarehouseConnectEvent
     | WarehouseConnectionTestedEvent
+    | WarehouseConnectionChangedEvent
+    | WarehouseConnectionTestCompletedEvent
+    | WarehouseConnectionActionRefusedEvent
+    | WarehouseConnectionSwitchEvent
+    | WarehouseConnectionSwitchPreviewFailedEvent
+    | WarehouseConnectionDbtSourceReboundEvent
+    | WarehouseConnectionCompileWarningEvent
+    | SqlRunnerDatabaseListEvent
+    | SqlRunnerDatabaseListFailedEvent
+    | WarehouseConnectionCredentialsRequiredEvent
+    | ProjectDeploymentEvent
+    | ProjectDeploymentFailedEvent
+    | ContentAsCodeConnectionBindingUploadRefusedEvent
     | LoginEvent
     | IdentityLinkedEvent
     | DbtCloudIntegration

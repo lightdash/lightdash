@@ -22,6 +22,15 @@ export type CredentialReadTarget =
     | { kind: 'original' }
     | { kind: 'extra'; warehouseConnectionUuid: string };
 
+export type ConnectionRouteWithOriginal = {
+    route: ConnectionRoute;
+    originalWarehouseConnectionUuid: string | null;
+};
+
+export type ResolvedCredentialRead = ConnectionRouteWithOriginal & {
+    target: CredentialReadTarget;
+};
+
 const ORIGINAL_CONNECTION: CredentialReadTarget = { kind: 'original' };
 
 const UNDEFINED_COLUMN = '42703';
@@ -65,20 +74,41 @@ export class WarehouseConnectionRouter {
         }
     }
 
+    private async routeWithOriginalFor(
+        projectUuid: string,
+        connectionMode: string | undefined,
+    ): Promise<ConnectionRouteWithOriginal> {
+        if (connectionMode !== 'multi') {
+            return { route: 'single', originalWarehouseConnectionUuid: null };
+        }
+        const connections = await this.database('warehouse_connections')
+            .select<
+                { warehouse_connection_uuid: string; is_original: boolean }[]
+            >('warehouse_connection_uuid', 'is_original')
+            .where('project_uuid', projectUuid);
+        const original = connections.find(
+            (connection) => connection.is_original,
+        );
+        return {
+            route: connections.some((connection) => !connection.is_original)
+                ? 'multi'
+                : 'single',
+            originalWarehouseConnectionUuid:
+                original?.warehouse_connection_uuid ?? null,
+        };
+    }
+
     async routeFor(
         projectUuid: string,
         connectionMode: string | undefined,
     ): Promise<ConnectionRoute> {
-        if (connectionMode !== 'multi') return 'single';
-        const extraConnection = await this.database('warehouse_connections')
-            .select('warehouse_connection_uuid')
-            .where('project_uuid', projectUuid)
-            .where('is_original', false)
-            .first();
-        return extraConnection ? 'multi' : 'single';
+        return (await this.routeWithOriginalFor(projectUuid, connectionMode))
+            .route;
     }
 
-    async getRoute(projectUuid: string): Promise<ConnectionRoute> {
+    async getRouteWithOriginal(
+        projectUuid: string,
+    ): Promise<ConnectionRouteWithOriginal> {
         const connectionMode = await this.withConnectionModeColumn(
             async (includeConnectionMode) => {
                 if (!includeConnectionMode) return undefined;
@@ -89,7 +119,11 @@ export class WarehouseConnectionRouter {
                 return project?.connection_mode;
             },
         );
-        return this.routeFor(projectUuid, connectionMode);
+        return this.routeWithOriginalFor(projectUuid, connectionMode);
+    }
+
+    async getRoute(projectUuid: string): Promise<ConnectionRoute> {
+        return (await this.getRouteWithOriginal(projectUuid)).route;
     }
 
     async getTaggedRoute(
@@ -129,46 +163,68 @@ export class WarehouseConnectionRouter {
         projectUuid: string,
         binding: ConnectionBinding,
     ): Promise<CredentialReadTarget> {
-        const route = await this.getRoute(projectUuid);
+        return (await this.resolveCredentialReadWithRoute(projectUuid, binding))
+            .target;
+    }
+
+    async resolveCredentialReadWithRoute(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<ResolvedCredentialRead> {
+        const { route, originalWarehouseConnectionUuid } =
+            await this.getRouteWithOriginal(projectUuid);
         Sentry.setTag('warehouse.route', route);
         Sentry.setTag('warehouse.binding_kind', binding.kind);
         Sentry.getActiveSpan()?.setAttributes({
             'warehouse.route': route,
             'warehouse.binding_kind': binding.kind,
         });
-        if (route === 'single') return ORIGINAL_CONNECTION;
+        if (route === 'single') {
+            return {
+                route,
+                target: ORIGINAL_CONNECTION,
+                originalWarehouseConnectionUuid,
+            };
+        }
+        let target: CredentialReadTarget;
         switch (binding.kind) {
             case 'original':
-                return ORIGINAL_CONNECTION;
+                target = ORIGINAL_CONNECTION;
+                break;
             case 'connection':
-                return this.resolveConnectionBinding(
+                target = await this.resolveConnectionBinding(
                     projectUuid,
                     binding.warehouseConnectionUuid,
                 );
+                break;
             case 'explore':
-                return this.resolveExploreBinding(
+                target = await this.resolveExploreBinding(
                     projectUuid,
                     binding.exploreName,
                 );
+                break;
             case 'sqlChart':
-                return this.resolveConnectionBinding(
+                target = await this.resolveConnectionBinding(
                     projectUuid,
                     await this.identityModel.getSqlChartWarehouseConnectionUuid(
                         projectUuid,
                         binding.savedSqlUuid,
                     ),
                 );
+                break;
             case 'query':
-                return this.resolveConnectionBinding(
+                target = await this.resolveConnectionBinding(
                     projectUuid,
                     await this.identityModel.getQueryWarehouseConnectionUuid(
                         projectUuid,
                         binding.queryUuid,
                     ),
                 );
+                break;
             default:
                 return assertUnreachable(binding, 'Unknown connection binding');
         }
+        return { route, target, originalWarehouseConnectionUuid };
     }
 
     private async resolveExploreBinding(

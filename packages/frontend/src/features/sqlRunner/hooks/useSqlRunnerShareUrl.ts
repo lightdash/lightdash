@@ -90,6 +90,7 @@ type SqlRunnerShare = {
     sqlRunnerState: SqlRunnerState | undefined;
     chartConfig: AllVizChartConfig | undefined;
     error: Error | null;
+    errorReason: 'share_fetch_failed' | 'share_parse_failed' | null;
     warehouseConnectionUuid: string | null | undefined;
 };
 
@@ -101,6 +102,9 @@ export const useSqlRunnerShareUrl = (
     return useMemo(() => {
         let error: Error | null = apiError
             ? new Error(apiError.error.message)
+            : null;
+        let errorReason: SqlRunnerShare['errorReason'] = apiError
+            ? 'share_fetch_failed'
             : null;
         let sqlRunnerState: SqlRunnerState | undefined;
         let chartConfig: AllVizChartConfig | undefined;
@@ -133,12 +137,14 @@ export const useSqlRunnerShareUrl = (
                 }
             } catch (e) {
                 error = new Error('Unable to parse SQL runner state json');
+                errorReason = 'share_parse_failed';
             }
         }
         return {
             sqlRunnerState,
             chartConfig,
             error,
+            errorReason,
             warehouseConnectionUuid,
         };
     }, [data, apiError]);

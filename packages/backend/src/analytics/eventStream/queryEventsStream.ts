@@ -23,6 +23,10 @@ export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'cache_hit', type: 'BOOLEAN' },
     { name: 'execution_source', type: 'VARCHAR' },
     { name: 'warehouse_type', type: 'VARCHAR' },
+    { name: 'connection_warehouse_type', type: 'VARCHAR' },
+    { name: 'warehouse_connection_id', type: 'VARCHAR' },
+    { name: 'connection_kind', type: 'VARCHAR' },
+    { name: 'connection_count', type: 'INTEGER' },
     { name: 'warehouse_execution_time_ms', type: 'BIGINT' },
     // Phase breakdown of warehouse_execution_time_ms; null when not reported.
     { name: 'warehouse_ssh_tunnel_ms', type: 'BIGINT' },
@@ -59,6 +63,10 @@ const projectQueryCompletedEvent = (
             cache_hit: properties.cacheHit,
             execution_source: properties.executionSource,
             warehouse_type: properties.warehouseType,
+            connection_warehouse_type: properties.connectionWarehouseType,
+            warehouse_connection_id: properties.warehouseConnectionId,
+            connection_kind: properties.connectionKind,
+            connection_count: properties.connectionCount,
             warehouse_execution_time_ms: properties.warehouseExecutionTimeMs,
             warehouse_ssh_tunnel_ms:
                 properties.warehousePhaseTimings?.ssh_tunnel ?? null,

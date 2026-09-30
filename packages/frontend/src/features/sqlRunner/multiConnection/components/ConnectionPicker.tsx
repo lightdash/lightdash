@@ -3,14 +3,12 @@ import { IconPlugConnected } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useActiveConnection } from '../hooks/useActiveConnection';
+import { useTrackedConnectionSwitch } from '../hooks/useTrackedConnectionSwitch';
 
 export const ConnectionPicker: FC = () => {
-    const {
-        connections,
-        hasSeveralConnections,
-        activeConnectionUuid,
-        switchConnection,
-    } = useActiveConnection();
+    const { connections, hasSeveralConnections, activeConnectionUuid } =
+        useActiveConnection();
+    const switchConnection = useTrackedConnectionSwitch();
 
     const data = useMemo(
         () =>
@@ -38,7 +36,7 @@ export const ConnectionPicker: FC = () => {
                 aria-label="Active connection"
                 leftSection={<MantineIcon icon={IconPlugConnected} />}
                 onChange={(value) => {
-                    if (value) switchConnection(value);
+                    if (value) switchConnection(value, 'picker');
                 }}
             />
         </Group>

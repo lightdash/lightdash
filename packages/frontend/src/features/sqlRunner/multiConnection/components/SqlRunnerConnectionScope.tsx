@@ -17,6 +17,7 @@ import {
 import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useSqlRunnerConnections } from '../hooks/useConnectionCatalog';
 import { ActiveConnectionProvider } from './ActiveConnectionProvider';
+import { ConnectionHintTracker } from './ConnectionHintTracker';
 
 const useSyncConnectionRoute = (desired: SqlRunnerConnectionRoute | null) => {
     const dispatch = useAppDispatch();
@@ -129,6 +130,12 @@ export const SqlRunnerConnectionScope: FC<
             <ActiveConnectionStoreSync
                 isEditingSavedChart={isEditingSavedChart}
             />
+            {connectionHint !== undefined && !isSharedLink ? (
+                <ConnectionHintTracker
+                    connectionHint={connectionHint}
+                    organizationUuid={project.organizationUuid}
+                />
+            ) : null}
             {children}
         </ActiveConnectionProvider>
     );

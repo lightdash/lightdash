@@ -92,6 +92,7 @@ describe('WarehouseConnectionService on the real schema', () => {
     let projectService: ProjectService;
     const flag = { enabled: true };
     const testWarehouseConnectionCredentials = vi.fn();
+    const analytics = { track: vi.fn() };
 
     const buildService = (licensed = true) =>
         new WarehouseConnectionService({
@@ -123,6 +124,7 @@ describe('WarehouseConnectionService on the real schema', () => {
                     ),
                 testWarehouseConnectionCredentials,
             },
+            analytics,
         });
 
     const account = (
@@ -274,6 +276,7 @@ describe('WarehouseConnectionService on the real schema', () => {
 
     beforeEach(() => {
         flag.enabled = true;
+        analytics.track.mockReset();
         testWarehouseConnectionCredentials.mockReset();
         testWarehouseConnectionCredentials.mockResolvedValue({
             ok: true,
@@ -344,6 +347,69 @@ describe('WarehouseConnectionService on the real schema', () => {
     });
 
     describe('adding an extra connection', () => {
+        test('tracks the committed connection and safe database setting counts', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await buildService().create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                {
+                    name: 'Finance',
+                    warehouseConnection: postgresCredentials,
+                    listAllDatabases: true,
+                    additionalDatabases: ['private_one', 'private_two'],
+                },
+            );
+
+            expect(vi.mocked(analytics.track)).toHaveBeenCalledWith({
+                event: 'warehouse_connection.added',
+                userId: fixture.userUuid,
+                properties: {
+                    organizationId: fixture.organizationUuid,
+                    projectId: fixture.projectUuid,
+                    warehouseConnectionId: created.warehouseConnectionUuid,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    connectionKind: 'extra',
+                    credentialSource: 'project',
+                    connectionCount: 2,
+                    listAllDatabases: true,
+                    additionalDatabaseCount: 2,
+                    changedCredentials: true,
+                    changedDatabaseSettings: true,
+                },
+            });
+            expect(JSON.stringify(analytics.track.mock.calls)).not.toContain(
+                'private_one',
+            );
+        });
+
+        test('a telemetry count failure does not fail a committed add', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const list = vi
+                .spyOn(model, 'list')
+                .mockRejectedValueOnce(new Error('telemetry read failed'))
+                .mockRejectedValueOnce(new Error('telemetry read failed'));
+            try {
+                await expect(addExtra(fixture)).resolves.toMatchObject({
+                    name: 'Finance',
+                });
+                expect(await countConnections(fixture.projectUuid)).toBe(2);
+                expect(vi.mocked(analytics.track)).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'warehouse_connection.added',
+                        properties: expect.objectContaining({
+                            organizationId: fixture.organizationUuid,
+                            projectId: fixture.projectUuid,
+                            warehouseConnectionId: expect.any(String),
+                            connectionKind: 'extra',
+                            connectionCount: null,
+                        }),
+                    }),
+                );
+            } finally {
+                list.mockRestore();
+            }
+        });
+
         test('refuses a write before reading the primary credentials', async () => {
             const fixture = await createProject({ mode: 'multi' });
             const readPrimary = vi.spyOn(
@@ -710,6 +776,23 @@ describe('WarehouseConnectionService on the real schema', () => {
                     { additionalDatabases: ['finance'] },
                 ),
             ).resolves.toMatchObject({ additionalDatabases: ['finance'] });
+            expect(vi.mocked(analytics.track)).toHaveBeenCalledWith({
+                event: 'warehouse_connection.updated',
+                userId: fixture.userUuid,
+                properties: {
+                    organizationId: fixture.organizationUuid,
+                    projectId: fixture.projectUuid,
+                    warehouseConnectionId: fixture.originalUuid,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    connectionKind: 'primary',
+                    credentialSource: 'project',
+                    connectionCount: 1,
+                    listAllDatabases: false,
+                    additionalDatabaseCount: 1,
+                    changedCredentials: false,
+                    changedDatabaseSettings: true,
+                },
+            });
             await expect(
                 service.update(
                     fixture.admin,

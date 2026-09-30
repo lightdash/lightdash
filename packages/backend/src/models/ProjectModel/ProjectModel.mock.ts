@@ -23,6 +23,7 @@ import {
 } from '@lightdash/common';
 import { ProjectTable } from '../../database/entities/projects';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { type ResolvedCredentialRead } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
     type: DbtProjectType.DBT_CLOUD_IDE,
@@ -447,6 +448,13 @@ export const singleRouteProjectModelMethods = {
     },
     async resolveWarehouseCredentialRead() {
         return { kind: 'original' as const };
+    },
+    async resolveWarehouseCredentialReadWithRoute(): Promise<ResolvedCredentialRead> {
+        return {
+            route: 'single' as const,
+            target: { kind: 'original' as const },
+            originalWarehouseConnectionUuid: null,
+        };
     },
     async getWarehouseCredentialsForBinding(
         this: {

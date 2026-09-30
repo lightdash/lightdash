@@ -291,6 +291,38 @@ describe('WarehouseConnectionRouter on the real schema', () => {
         });
     });
 
+    test('returns the original connection id with the multi route', async () => {
+        await inRolledBackTransaction(database, async (transaction) => {
+            const { projectUuid } = await insertRoutingTestProject(
+                transaction,
+                encryptionUtil,
+            );
+            await setProjectRoutesMulti(transaction, projectUuid, [
+                { name: 'Original', isOriginal: true },
+                { name: 'Finance', isOriginal: false },
+            ]);
+            const original = await transaction('warehouse_connections')
+                .select<{ warehouse_connection_uuid: string }[]>(
+                    'warehouse_connection_uuid',
+                )
+                .where('project_uuid', projectUuid)
+                .where('is_original', true)
+                .first();
+            await expect(
+                new WarehouseConnectionRouter({
+                    database: transaction,
+                }).resolveCredentialReadWithRoute(projectUuid, {
+                    kind: 'original',
+                }),
+            ).resolves.toEqual({
+                route: 'multi',
+                target: { kind: 'original' },
+                originalWarehouseConnectionUuid:
+                    original?.warehouse_connection_uuid,
+            });
+        });
+    });
+
     test('routes single for a multi-mode project with no extra connection', async () => {
         await inRolledBackTransaction(database, async (transaction) => {
             const { projectUuid } = await insertRoutingTestProject(

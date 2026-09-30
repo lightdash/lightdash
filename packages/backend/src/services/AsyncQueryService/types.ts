@@ -34,9 +34,11 @@ import {
     type UserAttributeValueMap,
     type UUID,
     type WarehouseClient,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
+import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import type {
     QueryComposer,
     TotalConfiguration,
@@ -304,6 +306,9 @@ export type RunAsyncWarehouseQueryArgs = {
     query: string;
     queryCreatedAt: Date;
     displayTimezone: string | null;
+    warehouseConnectionUuid?: string | null;
+    connectionRoute?: ConnectionRouteWithOriginal | null;
+    connectionWarehouseType?: WarehouseTypes | null;
 };
 
 export type RunAsyncPreAggregateQueryArgs = Omit<

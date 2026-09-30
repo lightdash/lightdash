@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import {
     credentialsForListedDatabase,
+    getDatabaseListFailureReason,
     getDefaultListedDatabase,
     listConnectionDatabases,
 } from './connectionSqlRunner';
@@ -35,6 +36,37 @@ const athena: CreateAthenaCredentials = {
 
 const neverListsAll = vi.fn(async () => {
     throw new Error('listDatabases must not be called');
+});
+
+describe('getDatabaseListFailureReason', () => {
+    test('classifies an Athena Glue permission denial without recording the message', () => {
+        const error = new Error(
+            'AccessDeniedException: not authorized to perform glue:GetDatabases on sensitive catalog',
+        );
+        expect(getDatabaseListFailureReason(error, WarehouseTypes.ATHENA)).toBe(
+            'athena_glue_list_databases_denied',
+        );
+        expect(
+            getDatabaseListFailureReason(
+                new Error(
+                    'Permission denied for glue:ListDatabases in the catalog',
+                ),
+                WarehouseTypes.ATHENA,
+            ),
+        ).toBe('athena_glue_list_databases_denied');
+        expect(
+            getDatabaseListFailureReason(error, WarehouseTypes.POSTGRES),
+        ).toBe('other');
+    });
+
+    test('classifies other Athena failures as other', () => {
+        expect(
+            getDatabaseListFailureReason(
+                new Error('Timeout when listing catalog'),
+                WarehouseTypes.ATHENA,
+            ),
+        ).toBe('other');
+    });
 });
 
 describe('listConnectionDatabases', () => {

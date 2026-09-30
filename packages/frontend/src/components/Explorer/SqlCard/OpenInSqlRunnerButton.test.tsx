@@ -1,9 +1,26 @@
-import { type ConnectionRoute } from '@lightdash/common';
+import {
+    WarehouseTypes,
+    type ConnectionRoute,
+    type Project,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { EventName } from '../../../types/Events';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
+
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+
+vi.mock('../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
+}));
+vi.mock('../../../providers/App/useApp', () => ({
+    default: () => ({
+        user: { data: { organizationUuid: 'user-org-uuid' } },
+        health: { data: undefined },
+    }),
+}));
 
 const LocationState = () => {
     const location = useLocation();
@@ -25,12 +42,80 @@ const renderButton = (
                 sql="select 1"
                 warehouseConnectionUuid={warehouseConnectionUuid}
                 connectionRoute={connectionRoute}
+                project={{
+                    organizationUuid: 'org-uuid',
+                    warehouseConnection: {
+                        type: WarehouseTypes.POSTGRES,
+                    } as Project['warehouseConnection'],
+                }}
             />
             <LocationState />
         </MemoryRouter>,
     );
 
 describe('OpenInSqlRunnerButton', () => {
+    beforeEach(() => {
+        track.mockClear();
+    });
+
+    it.each([
+        [
+            'finance-uuid',
+            'multi',
+            {
+                carriesConnection: true,
+                warehouseConnectionId: 'finance-uuid',
+                connectionKind: 'extra',
+                warehouseType: null,
+            },
+        ],
+        [
+            null,
+            'multi',
+            {
+                carriesConnection: true,
+                warehouseConnectionId: null,
+                connectionKind: 'primary',
+                warehouseType: WarehouseTypes.POSTGRES,
+            },
+        ],
+        [
+            null,
+            'single',
+            {
+                carriesConnection: false,
+                warehouseConnectionId: null,
+                connectionKind: 'primary',
+                warehouseType: WarehouseTypes.POSTGRES,
+            },
+        ],
+    ] as const)(
+        'tracks the click with connection %s on a %s project',
+        async (connection, connectionRoute, expected) => {
+            renderButton(connection, connectionRoute);
+
+            await userEvent
+                .setup()
+                .click(
+                    screen.getByRole('link', { name: 'Open in SQL Runner' }),
+                );
+
+            expect(track).toHaveBeenCalledTimes(1);
+            expect(track).toHaveBeenCalledWith({
+                name: EventName.OPEN_IN_SQL_RUNNER_CLICKED,
+                properties: {
+                    organizationId: 'org-uuid',
+                    projectId: 'project-uuid',
+                    connectionCount: null,
+                    entryPoint: 'explorer_sql_card',
+                    connectionRoute,
+                    ...expected,
+                },
+            });
+            expect(JSON.stringify(track.mock.calls)).not.toContain('select 1');
+        },
+    );
+
     it.each([
         ['finance-uuid', 'finance-uuid'],
         [null, null],
