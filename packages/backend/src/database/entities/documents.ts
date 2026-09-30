@@ -12,7 +12,7 @@ export type DbDocument = {
     name: string;
     description: string;
     created_by_user_uuid: string | null;
-    owner_user_uuid: string | null;
+    document_owner_user_uuid: string | null;
     created_at: Date;
     updated_at: Date;
     deleted_at: Date | null;
@@ -33,7 +33,7 @@ export type DocumentsTable = Knex.CompositeTableType<
         | 'description'
         | 'created_by_user_uuid'
     > &
-        Partial<Pick<DbDocument, 'owner_user_uuid'>>,
+        Partial<Pick<DbDocument, 'document_owner_user_uuid'>>,
     Partial<
         Pick<
             DbDocument,
@@ -41,7 +41,7 @@ export type DocumentsTable = Knex.CompositeTableType<
             | 'slug'
             | 'name'
             | 'description'
-            | 'owner_user_uuid'
+            | 'document_owner_user_uuid'
             | 'updated_at'
             | 'deleted_at'
             | 'deleted_by_user_uuid'

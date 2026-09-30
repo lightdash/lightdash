@@ -52,7 +52,9 @@ describe('Document content discovery', () => {
                 ownerUserUuids: [ownerUuid],
             })
             .toSQL();
-        expect(query.sql).toContain('"documents"."owner_user_uuid" in (?)');
+        expect(query.sql).toContain(
+            '"documents"."document_owner_user_uuid" in (?)',
+        );
         expect(query.bindings).toContain(ownerUuid);
         expect(query.sql).toContain('"owner_email"."is_primary" = ?');
         const row = documentContentConfiguration.convertSummaryRow({

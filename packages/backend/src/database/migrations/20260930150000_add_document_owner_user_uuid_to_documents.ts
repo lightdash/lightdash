@@ -2,7 +2,9 @@ import { type Knex } from 'knex';
 
 const DocumentsTableName = 'documents';
 const UsersTableName = 'users';
-const OwnerColumn = 'owner_user_uuid';
+// Prefixed so the name stays unambiguous next to dashboards and
+// catalog_search, which have their own owner_user_uuid.
+const OwnerColumn = 'document_owner_user_uuid';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");

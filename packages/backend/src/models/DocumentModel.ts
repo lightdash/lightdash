@@ -62,7 +62,7 @@ const toSummary = (row: DocumentRow): DocumentSummary => ({
     slug: row.slug,
     description: row.description,
     createdByUserUuid: row.created_by_user_uuid,
-    ownerUserUuid: row.owner_user_uuid,
+    ownerUserUuid: row.document_owner_user_uuid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });
@@ -483,7 +483,7 @@ export class DocumentModel {
             .leftJoin(
                 `${UserTableName} as owner_user`,
                 'owner_user.user_uuid',
-                'documents.owner_user_uuid',
+                'documents.document_owner_user_uuid',
             )
             .leftJoin(
                 `${EmailTableName} as owner_email`,
@@ -527,9 +527,9 @@ export class DocumentModel {
                 avatar_gradient: row.creator_avatar_gradient,
                 avatar_content_hash: row.creator_avatar_content_hash,
             }),
-            owner: row.owner_user_uuid
+            owner: row.document_owner_user_uuid
                 ? {
-                      userUuid: row.owner_user_uuid,
+                      userUuid: row.document_owner_user_uuid,
                       firstName: row.owner_first_name ?? '',
                       lastName: row.owner_last_name ?? '',
                       email: row.owner_email ?? null,
@@ -601,7 +601,7 @@ export class DocumentModel {
                     slug,
                     description: input.description,
                     created_by_user_uuid: input.createdByUserUuid,
-                    owner_user_uuid: input.ownerUserUuid ?? null,
+                    document_owner_user_uuid: input.ownerUserUuid ?? null,
                 })
                 .returning(['document_id', 'document_uuid']);
             await transaction(DocumentVersionsTableName).insert({
@@ -679,6 +679,10 @@ export class DocumentModel {
             ownerUserUuid?: string | null;
         },
     ): Promise<Document> {
+        const isEdit =
+            input.name !== undefined ||
+            input.slug !== undefined ||
+            input.description !== undefined;
         return this.database.transaction(async (transaction) => {
             if (input.slug !== undefined) {
                 await acquireProjectSlugLock(
@@ -716,8 +720,9 @@ export class DocumentModel {
                     name: input.name,
                     slug: input.slug,
                     description: input.description,
-                    owner_user_uuid: input.ownerUserUuid,
-                    updated_at: new Date(),
+                    document_owner_user_uuid: input.ownerUserUuid,
+                    // Reassigning the owner is not an edit to the Document itself
+                    ...(isEdit ? { updated_at: new Date() } : {}),
                 });
             return this.getWithDatabase(transaction, projectUuid, documentUuid);
         });

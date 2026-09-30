@@ -59,7 +59,7 @@ export const documentContentConfiguration: ContentConfiguration = {
             .leftJoin(
                 'users as owner_user',
                 'owner_user.user_uuid',
-                'documents.owner_user_uuid',
+                'documents.document_owner_user_uuid',
             )
             .leftJoin('emails as owner_email', function ownerEmail() {
                 this.on(
@@ -103,7 +103,7 @@ export const documentContentConfiguration: ContentConfiguration = {
                 knex.raw('null::uuid as verified_by_user_uuid'),
                 knex.raw('null::text as verified_by_user_first_name'),
                 knex.raw('null::text as verified_by_user_last_name'),
-                'documents.owner_user_uuid',
+                'documents.document_owner_user_uuid as owner_user_uuid',
                 'owner_user.first_name as owner_user_first_name',
                 'owner_user.last_name as owner_user_last_name',
                 'owner_email.email as owner_user_email',
@@ -136,7 +136,7 @@ export const documentContentConfiguration: ContentConfiguration = {
                 }
                 if (filters.ownerUserUuids) {
                     void builder.whereIn(
-                        'documents.owner_user_uuid',
+                        'documents.document_owner_user_uuid',
                         filters.ownerUserUuids,
                     );
                 }
