@@ -6,6 +6,7 @@ import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import MantineIcon from '../MantineIcon';
 import classes from './AuthLayout.module.css';
+import BrandShowcase from './BrandShowcase';
 import LightdashWordmark from './LightdashWordmark';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
 
@@ -81,13 +82,14 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
             <Box className={classes.root}>
                 <Box className={classes.brandPanel}>
-                    <Box className={classes.decorationTop} aria-hidden />
-                    <Box className={classes.decorationBottom} aria-hidden />
+                    <Box className={classes.backdropGrid} aria-hidden />
+                    <Box className={classes.glowPrimary} aria-hidden />
+                    <Box className={classes.glowSecondary} aria-hidden />
 
                     <LightdashWordmark className={classes.brandWordmark} />
 
-                    <Stack gap="4xl" className={classes.brandContent}>
-                        <Stack gap="lg">
+                    <Stack gap="3xl" className={classes.brandContent}>
+                        <Stack gap="lg" className={classes.brandIntro}>
                             <Title
                                 order={1}
                                 fz="display"
@@ -102,19 +104,21 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                             </Text>
                         </Stack>
 
-                        <Stack gap="md">
-                            {BRAND_HIGHLIGHTS.map((highlight) => (
-                                <Group key={highlight} gap="sm" wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconCheck}
-                                        color="ldBrandViolet.3"
-                                    />
-                                    <Text className={classes.highlight}>
-                                        {highlight}
-                                    </Text>
-                                </Group>
-                            ))}
-                        </Stack>
+                        <BrandShowcase />
+                    </Stack>
+
+                    <Stack gap="xs" className={classes.brandHighlights}>
+                        {BRAND_HIGHLIGHTS.map((highlight) => (
+                            <Group key={highlight} gap="xs" wrap="nowrap">
+                                <MantineIcon
+                                    icon={IconCheck}
+                                    color="ldBrandViolet.3"
+                                />
+                                <Text fz="sm" className={classes.highlight}>
+                                    {highlight}
+                                </Text>
+                            </Group>
+                        ))}
                     </Stack>
                 </Box>
 

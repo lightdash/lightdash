@@ -1,0 +1,329 @@
+@property --kpi {
+    syntax: '<integer>';
+    inherits: false;
+    initial-value: 842;
+}
+
+.scene {
+    position: relative;
+    width: 100%;
+    max-width: rem(500px);
+    height: rem(330px);
+}
+
+.card {
+    position: absolute;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: var(--mantine-radius-lg);
+    background-color: rgba(26, 27, 37, 0.72);
+    box-shadow:
+        0 24px 48px -16px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+}
+
+.prompt {
+    composes: card;
+    top: 0;
+    left: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-xl);
+    border-color: rgba(154, 143, 255, 0.35);
+    animation:
+        enter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both,
+        float 7s ease-in-out 5.6s infinite;
+}
+
+.promptText {
+    color: var(--mantine-color-white);
+    white-space: nowrap;
+    animation: type 1.2s steps(28, end) 0.6s both;
+}
+
+.caret {
+    width: 2px;
+    height: 1em;
+    margin-left: -6px;
+    background-color: var(--mantine-color-ldBrandViolet-3);
+    animation: blink 1s step-end infinite;
+}
+
+.codeCard {
+    composes: card;
+    top: rem(58px);
+    left: 0;
+    width: 56%;
+    overflow: hidden;
+    animation:
+        enter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 1.6s both,
+        float 8s ease-in-out 6s infinite;
+}
+
+.windowBar {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.windowDot {
+    width: rem(8px);
+    height: rem(8px);
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+.fileName {
+    margin-left: var(--mantine-spacing-xs);
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.code {
+    padding: var(--mantine-spacing-sm);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1.7;
+    white-space: pre;
+}
+
+.codeLine {
+    animation: reveal 0.35s steps(14, end) both;
+}
+
+.codeLine:nth-child(1) {
+    animation-delay: 1.9s;
+}
+
+.codeLine:nth-child(2) {
+    animation-delay: 2.15s;
+}
+
+.codeLine:nth-child(3) {
+    animation-delay: 2.4s;
+}
+
+.codeLine:nth-child(4) {
+    animation-delay: 2.65s;
+}
+
+.codeLine:nth-child(5) {
+    animation-delay: 2.9s;
+}
+
+.codeKey {
+    color: var(--mantine-color-ldBrandViolet-2);
+}
+
+.codeValue {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.chartCard {
+    composes: card;
+    top: rem(104px);
+    right: 0;
+    width: 62%;
+    padding: var(--mantine-spacing-md);
+    animation:
+        enter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 3.1s both,
+        float 9s ease-in-out 6.4s infinite;
+}
+
+.chartLabel {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.kpi {
+    color: var(--mantine-color-white);
+    counter-reset: kpi var(--kpi);
+    animation: count 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) 3.3s both;
+}
+
+.kpi::after {
+    content: '$' counter(kpi) 'K';
+}
+
+.delta {
+    padding: 2px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-xl);
+    color: var(--mantine-color-teal-3);
+    background-color: rgba(56, 217, 169, 0.12);
+    animation: enter 0.4s ease-out 4.5s both;
+}
+
+.chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: var(--mantine-spacing-md);
+    overflow: visible;
+    animation: wipe 1.2s cubic-bezier(0.4, 0, 0.2, 1) 3.3s both;
+}
+
+.bars {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: grow 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 3.3s both;
+}
+
+.bar {
+    fill: var(--mantine-color-ldBrandViolet-5);
+    opacity: 0.85;
+}
+
+.bar:nth-last-child(-n + 3) {
+    fill: var(--mantine-color-ldBrandViolet-3);
+    opacity: 1;
+}
+
+.trend {
+    fill: none;
+    stroke: var(--mantine-color-white);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+    animation: draw 1.4s cubic-bezier(0.4, 0, 0.2, 1) 3.8s both;
+}
+
+.liveDot {
+    width: rem(6px);
+    height: rem(6px);
+    border-radius: 50%;
+    background-color: var(--mantine-color-teal-4);
+    animation: pulse 2s ease-out 4.6s infinite;
+}
+
+.toast {
+    composes: card;
+    bottom: rem(8px);
+    left: 0;
+    z-index: 1;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    animation:
+        enter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 5s both,
+        float 7.5s ease-in-out 6.8s infinite;
+}
+
+.toastText {
+    color: var(--mantine-color-white);
+    white-space: nowrap;
+}
+
+@keyframes enter {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-6px);
+    }
+}
+
+@keyframes type {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes reveal {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes wipe {
+    from {
+        clip-path: inset(-10% 100% -10% 0);
+    }
+    to {
+        clip-path: inset(-10% -2% -10% 0);
+    }
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+@keyframes count {
+    from {
+        --kpi: 0;
+    }
+    to {
+        --kpi: 842;
+    }
+}
+
+@keyframes grow {
+    from {
+        transform: scaleY(0.2);
+    }
+    to {
+        transform: scaleY(1);
+    }
+}
+
+@keyframes draw {
+    from {
+        stroke-dashoffset: 1;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(56, 217, 169, 0.6);
+    }
+    100% {
+        box-shadow: 0 0 0 8px rgba(56, 217, 169, 0);
+    }
+}
+
+@media (min-height: 1000px) and (min-width: 1600px) {
+    .scene {
+        zoom: 1.15;
+    }
+}
+
+@media (max-height: 860px) {
+    .scene {
+        zoom: 0.72;
+    }
+}
+
+@media (max-height: 700px) {
+    .scene {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scene,
+    .scene * {
+        animation: none !important;
+    }
+
+    .caret {
+        display: none;
+    }
+}

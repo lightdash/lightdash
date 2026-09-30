@@ -22,6 +22,7 @@
 }
 
 .brandWordmark {
+    position: relative;
     flex-shrink: 0;
     align-self: flex-start;
     width: auto;
@@ -44,33 +45,92 @@
 }
 
 .brandContent {
+    position: relative;
     margin-block: auto;
 }
 
-.decorationTop {
+.backdropGrid {
     position: absolute;
-    top: rem(-40px);
-    right: rem(-30px);
-    width: rem(180px);
-    height: rem(180px);
-    border-radius: rem(36px);
-    background-color: var(--mantine-color-ldBrandViolet-6);
-    opacity: 0.09;
-    transform: rotate(18deg);
+    inset: 0;
+    background-image: radial-gradient(
+        rgba(255, 255, 255, 0.07) 1px,
+        transparent 1px
+    );
+    background-size: rem(24px) rem(24px);
+    mask-image: radial-gradient(ellipse at 70% 60%, black 0%, transparent 70%);
     pointer-events: none;
 }
 
-.decorationBottom {
+.glowPrimary,
+.glowSecondary {
     position: absolute;
-    bottom: rem(-35px);
-    left: rem(-25px);
-    width: rem(140px);
-    height: rem(140px);
-    border-radius: rem(28px);
-    background-color: var(--mantine-color-ldBrandViolet-4);
-    opacity: 0.07;
-    transform: rotate(-12deg);
+    border-radius: 50%;
     pointer-events: none;
+}
+
+.glowPrimary {
+    top: -20%;
+    right: -25%;
+    width: rem(640px);
+    height: rem(640px);
+    background: radial-gradient(
+        circle,
+        rgba(94, 76, 255, 0.28) 0%,
+        transparent 65%
+    );
+    animation: drift 18s ease-in-out infinite alternate;
+}
+
+.glowSecondary {
+    bottom: -30%;
+    left: -20%;
+    width: rem(560px);
+    height: rem(560px);
+    background: radial-gradient(
+        circle,
+        rgba(154, 143, 255, 0.16) 0%,
+        transparent 65%
+    );
+    animation: drift 24s ease-in-out -6s infinite alternate-reverse;
+}
+
+.brandIntro,
+.brandHighlights {
+    position: relative;
+    animation: fadeUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.brandHighlights {
+    animation-delay: 5.4s;
+}
+
+@keyframes drift {
+    from {
+        transform: translate3d(0, 0, 0);
+    }
+    to {
+        transform: translate3d(-8%, 10%, 0);
+    }
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glowPrimary,
+    .glowSecondary,
+    .brandIntro,
+    .brandHighlights {
+        animation: none;
+    }
 }
 
 .formPanel {
