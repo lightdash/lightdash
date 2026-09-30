@@ -56,6 +56,13 @@ jobs:
                       echo "::error title=Playground bundle is stale::Run pnpm build:playground-bundle and commit the result. See scripts/playground-bundle/README.md."
                       exit 1
                   fi
+            - name: Upload the rebuilt bundle
+              if: failure()
+              uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+              with:
+                  name: rebuilt-playground-bundle
+                  path: packages/backend/assets/playground/
+                  retention-days: 7
             - name: Every payload matches its checksum
               working-directory: packages/backend/assets/playground
               run: sha256sum --check SHA256SUMS
