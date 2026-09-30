@@ -1,3 +1,10 @@
+## [2.386.1](https://github.com/lightdash/lightdash/compare/2.386.0...2.386.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* match custom chart type loading states to built-in charts ([#30242](https://github.com/lightdash/lightdash/issues/30242)) ([89bfb43](https://github.com/lightdash/lightdash/commit/89bfb430d7de59604cc17c868bf28097d83c0138))
+
 # [2.386.0](https://github.com/lightdash/lightdash/compare/2.385.0...2.386.0) (2026-09-30)
 
 
