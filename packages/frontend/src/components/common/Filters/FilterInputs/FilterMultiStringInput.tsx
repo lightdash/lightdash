@@ -148,6 +148,7 @@ const FilterMultiStringInput: FC<Props> = ({
             }}
         >
             <MultiSelectCombobox
+                scrollAreaProps={{ type: 'always' }}
                 size="xs"
                 w="100%"
                 placeholder={

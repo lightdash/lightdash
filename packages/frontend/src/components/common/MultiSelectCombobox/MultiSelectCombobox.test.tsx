@@ -15,6 +15,26 @@ const defaultProps = {
 };
 
 describe('MultiSelectCombobox', () => {
+    it('does not force a persistent scrollbar for unrelated consumers', () => {
+        const { container } = renderWithProviders(
+            <MultiSelectCombobox
+                {...defaultProps}
+                options={Array.from({ length: 30 }, (_, index) => ({
+                    value: String(index),
+                    label: `Option ${index}`,
+                }))}
+            />,
+        );
+
+        fireEvent.focus(screen.getByRole('textbox'));
+
+        const scrollbar = container.querySelector(
+            '.mantine-ScrollArea-scrollbar[data-orientation="vertical"]',
+        );
+        expect(scrollbar).toBeInTheDocument();
+        expect(scrollbar).toHaveAttribute('data-state', 'hidden');
+    });
+
     it('filters options by label case-insensitively', () => {
         const options = [
             { value: 'gb', label: 'United Kingdom' },

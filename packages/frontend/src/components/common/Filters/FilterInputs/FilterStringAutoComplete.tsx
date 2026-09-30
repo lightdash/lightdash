@@ -500,6 +500,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                 ) : (
                     <Box ref={wrapperRef} w="100%">
                         <MultiSelectCombobox
+                            scrollAreaProps={{ type: 'always' }}
                             ref={multiSelectRef}
                             {...rest}
                             size="xs"

@@ -69,6 +69,32 @@ describe('FilterStringAutoComplete', () => {
         vi.mocked(useFieldValues).mockReturnValue(createFieldValuesMock());
     });
 
+    it('shows the value-list scrollbar without hovering or scrolling', async () => {
+        const { container } = renderWithProviders(
+            <FilterStringAutoComplete
+                filterId="test-filter"
+                field={{
+                    ...mockField,
+                    filterAutocomplete: {
+                        fetchFromWarehouse: false,
+                        values: createValues(30).map((value) => ({ value })),
+                    },
+                }}
+                values={[]}
+                suggestions={[]}
+                onChange={vi.fn()}
+            />,
+        );
+
+        await userEvent.click(screen.getByRole('textbox'));
+
+        const scrollbar = container.querySelector(
+            '.mantine-ScrollArea-scrollbar[data-orientation="vertical"]',
+        );
+        expect(scrollbar).toBeInTheDocument();
+        expect(scrollbar).not.toHaveAttribute('data-state', 'hidden');
+    });
+
     describe('manual entry when there is nothing to autocomplete', () => {
         // No warehouse fetch and no curated values → nothing to suggest
         const fieldWithDisabledAutocomplete: FilterableItem = {

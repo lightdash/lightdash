@@ -514,6 +514,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 error={isError}
                 hidePickedOptions
                 maxDropdownHeight={200}
+                scrollAreaProps={{ type: 'always' }}
                 renderOption={
                     shouldFetch || parameter.allow_custom_values
                         ? renderOption
@@ -552,6 +553,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             disabled={disabled}
             error={isError}
             maxDropdownHeight={200}
+            scrollAreaProps={{ type: 'always' }}
             renderOption={
                 shouldFetch || parameter.allow_custom_values
                     ? renderOption

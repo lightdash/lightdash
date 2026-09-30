@@ -155,6 +155,7 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
 
     return (
         <Select
+            scrollAreaProps={{ type: 'always' }}
             allowDeselect={false}
             searchable
             placeholder={getUiString('filters.selectValuePlaceholder')}
