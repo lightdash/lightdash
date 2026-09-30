@@ -12,6 +12,7 @@ import {
     IconHistory,
     IconCopy,
     IconDots,
+    IconFileTypePdf,
     IconTrash,
     IconPin,
     IconPinnedOff,
@@ -36,6 +37,7 @@ import DocumentAsCodeModal from './DocumentAsCodeModal';
 import DocumentDuplicateModal from './DocumentDuplicateModal';
 import { useCanDeleteDocument } from './useCanDeleteDocument';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
+import { useExportDocumentPdf } from './useExportDocumentPdf';
 
 const DocumentActions = ({ document }: { document: Document }) => {
     const { user } = useApp();
@@ -66,6 +68,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
     const navigate = useNavigate();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const canDelete = useCanDeleteDocument(document);
+    const exportPdf = useExportDocumentPdf();
     const { isAvailable } = useDirectAccessAvailability();
     const canManage = useCanManageDirectAccess({
         projectUuid: document.projectUuid,
@@ -176,6 +179,13 @@ const DocumentActions = ({ document }: { document: Document }) => {
                         onClick={() => setCodeOpen(true)}
                     >
                         View as code
+                    </Menu.Item>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconFileTypePdf} />}
+                        disabled={exportPdf.isLoading}
+                        onClick={() => exportPdf.mutate(document)}
+                    >
+                        Export PDF
                     </Menu.Item>
                     {canDelete && (
                         <Menu.Item

@@ -162,6 +162,13 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
+    [SCHEDULER_TASKS.EXPORT_DOCUMENT_PDF]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+        'document.uuid': payload.documentUuid,
+    }),
+
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

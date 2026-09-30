@@ -107,6 +107,27 @@ export const DASHBOARD_GRID_CLASS = 'lightdash-dashboard-screenshot-target';
 export const EXPORT_TAB_PAGE_CLASS = 'lightdash-export-tab-page';
 
 /**
+ * Class name for the root of a Document's print layout. The backend measures
+ * it before printing the Document to paginated PDF.
+ *
+ * Usage:
+ * - Frontend: Applied by MinimalDocument
+ * - Backend: Screenshot selector in UnfurlService.saveScreenshot()
+ */
+export const DOCUMENT_EXPORT_CLASS = 'lightdash-document-export';
+
+/**
+ * `data-status` of the ready indicator when the page itself could not load
+ * (e.g. the Document is gone or no longer viewable). Unlike
+ * `completed-with-errors`, nothing on the page is worth capturing.
+ *
+ * Usage:
+ * - Frontend: Rendered by ScreenshotReadyIndicator with `failed`
+ * - Backend: UnfurlService fails the export instead of capturing the page
+ */
+export const SCREENSHOT_FAILED_STATUS = 'failed';
+
+/**
  * ID of the element rendered by the error boundary fallback.
  * The UnfurlService checks for this element to detect when an error occurred.
  *
@@ -143,6 +164,8 @@ export const SCREENSHOT_SELECTORS = {
     MARKDOWN_TILE: `.${MARKDOWN_TILE_CLASS}`,
     /** Class selector: .react-grid-layout */
     DASHBOARD_GRID: `.${DASHBOARD_GRID_CLASS}`,
+    /** Class selector: .lightdash-document-export */
+    DOCUMENT_EXPORT: `.${DOCUMENT_EXPORT_CLASS}`,
     /** Attribute selector: [data-custom-chart-ready-fallback] */
     CUSTOM_CHART_READY_FALLBACK: `[${CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE}]`,
     /** ID selector: #lightdash-error-boundary */

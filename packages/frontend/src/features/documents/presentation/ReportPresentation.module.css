@@ -333,6 +333,10 @@
     }
 }
 
+.documentExport {
+    background: var(--mantine-color-body);
+}
+
 .documentLayout {
     grid-template-columns: 16rem minmax(0, 1fr);
     width: 100%;
@@ -751,5 +755,31 @@
     .documentLayout .report {
         width: 100%;
         padding: 0;
+    }
+
+    .documentLayout {
+        min-height: 0;
+
+        .reportContent {
+            max-width: none;
+        }
+    }
+    /* The printed Document is paper white past its last block, too */
+    :global(body):has(.documentExport) {
+        background: var(--mantine-color-body);
+    }
+    /* Keep each chart whole and headings with the text that follows them */
+    .reportEvidence {
+        break-inside: avoid;
+    }
+    .documentProse :global(.ProseMirror) {
+        > :is(h1, h2, h3, h4, h5, h6) {
+            break-after: avoid;
+        }
+
+        > :is(p, ul, ol, blockquote) {
+            orphans: 3;
+            widows: 3;
+        }
     }
 }

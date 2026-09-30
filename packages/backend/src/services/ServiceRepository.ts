@@ -428,6 +428,7 @@ export class ServiceRepository
                     projectService: this.getProjectService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
+                    schedulerClient: this.clients.getSchedulerClient(),
                     spacePermissionService: this.getSpacePermissionService(),
                 }),
         );

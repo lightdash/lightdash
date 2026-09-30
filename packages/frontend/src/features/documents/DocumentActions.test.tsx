@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     duplicateModal: vi.fn(),
     isFavorite: false,
     toggleFavorite: vi.fn(),
+    exportPdf: vi.fn(),
 }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
@@ -44,6 +45,12 @@ vi.mock('../../hooks/favorites/useFavorites', () => ({
 vi.mock('../../hooks/favorites/useFavoriteMutation', () => ({
     useFavoriteMutation: () => ({
         mutate: mocks.toggleFavorite,
+        isLoading: false,
+    }),
+}));
+vi.mock('./useExportDocumentPdf', () => ({
+    useExportDocumentPdf: () => ({
+        mutate: mocks.exportPdf,
         isLoading: false,
     }),
 }));
@@ -142,6 +149,7 @@ describe('Document actions', () => {
         mocks.duplicateModal.mockReset();
         mocks.isFavorite = false;
         mocks.toggleFavorite.mockReset();
+        mocks.exportPdf.mockReset();
     });
     const renderActions = () =>
         render(
@@ -187,6 +195,21 @@ describe('Document actions', () => {
         expect(
             screen.queryByRole('menuitem', { name: 'Pin to homepage' }),
         ).not.toBeInTheDocument();
+    });
+    it('exports this Document as a PDF', async () => {
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Export PDF' }),
+        );
+        expect(mocks.exportPdf).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                documentUuid: 'document',
+                projectUuid: 'project',
+            }),
+        );
     });
     it('prevents toggling while a pin mutation is pending', async () => {
         mocks.pinLoading = true;
