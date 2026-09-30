@@ -124,6 +124,7 @@ const buildService = (overrides: Overrides = {}) => {
             softDeleteByDashboardUuid: vi.fn(),
         } as AnyType,
         savedChartModel: { permanentDelete } as AnyType,
+        projectService: {} as never,
         savedSqlModel: {} as AnyType,
         savedChartService: {} as AnyType,
         projectModel: {

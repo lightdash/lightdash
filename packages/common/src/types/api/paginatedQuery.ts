@@ -218,7 +218,11 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncUnderlyingDataRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams
     | ExecuteAsyncFieldValueSearchRequestParams
-) & { documentSource?: DocumentQueryReference };
+) & {
+    documentSource?: DocumentQueryReference;
+    /** Server-recorded dashboard provenance for revalidating derived queries. */
+    dashboardSource?: { dashboardUuid: string; tileUuid: string };
+};
 
 // Recovers dateZoom from a persisted request-parameters union without duck-typing at call sites.
 export const getDateZoomFromRequestParameters = (

@@ -27,7 +27,10 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { convertToBooleanValue } from '../utils/booleanConverter';
 import { formatDate } from '../utils/formatting';
 import { getItemId } from '../utils/item';
-import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
+import {
+    getDefaultStartOfWeek,
+    getMomentDateWithCustomStartOfWeek,
+} from '../utils/time';
 import {
     dateTruncTimezoneConversions,
     SUB_DAY_TIME_FRAMES,
@@ -45,31 +48,6 @@ export const createBoundaryDateFormatter =
     (timezone: string) =>
     (date: Date): string =>
         moment(date).utc().tz(timezone).format('YYYY-MM-DD');
-
-/**
- * Returns the default week start day for a given warehouse adapter.
- * This ensures JavaScript-side week boundary calculations match the warehouse.
- *
- * References:
- * - PostgreSQL: https://www.postgresql.org/docs/current/functions-datetime.html (ISO 8601 weeks start on Monday)
- * - Snowflake: https://docs.snowflake.com/en/sql-reference/functions-date-time (WEEK_START=0 defaults to Monday)
- * - Redshift: https://docs.aws.amazon.com/redshift/latest/dg/r_DATE_TRUNC.html (truncates week to Monday)
- * - Databricks: https://docs.databricks.com/aws/en/sql/language-manual/functions/date_trunc (WEEK truncates to Monday)
- * - Trino: https://trino.io/docs/current/functions/datetime.html (ISO 8601 weeks start on Monday)
- * - BigQuery: https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/date_functions (WEEK is equivalent to WEEK(SUNDAY))
- * - ClickHouse: https://clickhouse.com/docs/sql-reference/functions/date-time-functions (toStartOfWeek default mode=0 is Sunday)
- */
-const getDefaultStartOfWeek = (
-    adapterType: SupportedDbtAdapter | WarehouseTypes,
-): WeekDay => {
-    switch (adapterType) {
-        case SupportedDbtAdapter.BIGQUERY:
-        case SupportedDbtAdapter.CLICKHOUSE:
-            return WeekDay.SUNDAY;
-        default:
-            return WeekDay.MONDAY;
-    }
-};
 
 // NOTE: This function requires a complete date as input.
 // The Z format token appends the UTC offset (e.g. +00:00), ensuring the

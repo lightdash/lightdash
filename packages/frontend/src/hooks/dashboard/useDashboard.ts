@@ -836,6 +836,10 @@ export const useDashboardVersionRollbackMutation = (
                 // Invalidate all saved chart queries to refresh chart data
                 // This will force reload of any charts that were rolled back
                 await queryClient.invalidateQueries(['saved_query']);
+                await queryClient.invalidateQueries([
+                    'dashboards',
+                    'availableFilters',
+                ]);
 
                 // Invalidate chart history queries for any affected charts
                 await queryClient.invalidateQueries(['chart_history']);

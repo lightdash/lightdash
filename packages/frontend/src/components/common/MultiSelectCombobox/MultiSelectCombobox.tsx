@@ -46,6 +46,7 @@ type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     onCreate?: (value: string) => void;
     /** When false, the caller owns the search text after a create, e.g. to keep it while showing a validation error. */
     clearSearchOnCreate?: boolean;
+    preserveCreateWhitespace?: boolean;
     shouldCreate?: (value: string) => boolean;
     filterOptions?: boolean;
     /** When false, no dropdown is shown — the input is plain entry (type + Enter). */
@@ -98,6 +99,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             createLabel,
             onCreate,
             clearSearchOnCreate = true,
+            preserveCreateWhitespace = false,
             shouldCreate = (query) => query.trim().length > 0,
             filterOptions = true,
             withDropdown = true,
@@ -202,12 +204,14 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             }
             return result;
         }, [visibleOptions]);
-        const trimmedSearch = searchValue.trim();
+        const createValue = preserveCreateWhitespace
+            ? searchValue
+            : searchValue.trim();
         const canCreate =
             !atMaxValues &&
             !!onCreate &&
-            shouldCreate(trimmedSearch) &&
-            !options.some((option) => option.value === trimmedSearch);
+            shouldCreate(createValue) &&
+            !options.some((option) => option.value === createValue);
         const hasOptions = visibleOptions.length > 0 || canCreate;
         const hasDropdownContent =
             hasOptions || !!nothingFoundMessage || !!topContent || !!footer;
@@ -216,7 +220,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
 
         const submitCreate = () => {
             if (!canCreate) return;
-            onCreate(trimmedSearch);
+            onCreate(createValue);
             if (clearSearchOnCreate) onSearchChange('');
             combobox.resetSelectedOption();
         };
@@ -445,7 +449,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                     >
                                         {createLabel ?? (
                                             <Text c="indigo">
-                                                Add "${trimmedSearch}"
+                                                Add "${createValue}"
                                             </Text>
                                         )}
                                     </Combobox.Option>

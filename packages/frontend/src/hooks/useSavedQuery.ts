@@ -221,6 +221,10 @@ export const useChartVersionRollbackMutation = (
             onSuccess: async (...args) => {
                 await queryClient.invalidateQueries(['saved_query']);
                 await queryClient.invalidateQueries([
+                    'dashboards',
+                    'availableFilters',
+                ]);
+                await queryClient.invalidateQueries([
                     'chart_history',
                     chartUuid,
                 ]);
@@ -548,6 +552,10 @@ export const useAddVersionMutation = (options?: {
     >(addVersionSavedQuery, {
         mutationKey: ['saved_query_version'],
         onSuccess: async (data) => {
+            await queryClient.invalidateQueries([
+                'dashboards',
+                'availableFilters',
+            ]);
             await queryClient.invalidateQueries(['spaces']);
             await queryClient.invalidateQueries([
                 'most-popular-and-recently-updated',

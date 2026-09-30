@@ -1,8 +1,11 @@
+import { type AnyType } from '../../types/any';
 import { type DateZoom } from '../../types/api/paginatedQuery';
 import { type ExternalSourceType } from '../../types/externalSources';
 import {
+    type DashboardFieldTarget,
     type DashboardFilterRule,
-    type DashboardFilters,
+    type FilterOperator,
+    type FilterRule,
 } from '../../types/filter';
 import { type PullRequestProvider } from '../../types/gitIntegration';
 import { type ParametersValuesMap } from '../../types/parameters';
@@ -23,20 +26,41 @@ export type AiAgentModelConfig = {
     reasoning?: boolean;
 };
 
+type AiChartDashboardFilterRule = FilterRule<
+    FilterOperator,
+    DashboardFieldTarget,
+    AnyType,
+    AnyType
+> &
+    Pick<
+        DashboardFilterRule,
+        | 'tileTargets'
+        | 'label'
+        | 'singleValue'
+        | 'requiredGroupId'
+        | 'lockedTabUuids'
+    >;
+
+export type AiChartDashboardFilters = {
+    dimensions: AiChartDashboardFilterRule[];
+    metrics: AiChartDashboardFilterRule[];
+    tableCalculations: AiChartDashboardFilterRule[];
+};
+
 /**
  * Runtime state captured at pin time for a chart context. When a user pins a
  * chart from a dashboard view, these are the dashboard-level overrides that
  * were applied to the chart on screen at that moment.
  */
 export type AiChartRuntimeOverrides = {
-    dashboardFilters?: DashboardFilters;
+    dashboardFilters?: AiChartDashboardFilters;
     dashboardParameters?: ParametersValuesMap;
     dateZoom?: DateZoom;
 };
 
 export type AiDashboardFilterRule = Omit<
     DashboardFilterRule,
-    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId'
+    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId' | 'boundaries'
 >;
 
 export type AiDashboardFilters = {

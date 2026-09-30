@@ -1,5 +1,7 @@
 import {
+    getDashboardChartBoundaryErrors,
     getAvailableParametersFromTables,
+    ParameterError,
     getChartZoomableFields,
     getDateZoomCapabilities,
     getDateZoomXAxisFieldId,
@@ -16,6 +18,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { lightdashApi } from '../../api';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
@@ -75,6 +79,12 @@ export const useDashboardChartReadyQuery = (
     contextOverride?: QueryExecutionContext,
 ) => {
     const retryConfig = useQueryRetryConfig();
+    const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
+    const filterBoundaryContexts = useDashboardContext(
+        (c) => c.filterBoundaryContexts,
+    );
+    const getUiString = useUiStrings();
+    const { user } = useApp();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardTileStatusContext(
         (c) => c.invalidateCache,
@@ -300,6 +310,19 @@ export const useDashboardChartReadyQuery = (
 
             const isEmbedContext =
                 requestedContext === QueryExecutionContext.EMBED;
+
+            const sourceContexts = filterBoundaryContexts?.[tileUuid];
+            if (savedFilters && sourceContexts) {
+                const errors = getDashboardChartBoundaryErrors({
+                    savedFilters,
+                    filters: timezoneFixFilters,
+                    filterBoundaryContexts: { [tileUuid]: sourceContexts },
+                    sessionTimezone,
+                    userTimezone: user.data?.timezone ?? null,
+                    context: { getUiString },
+                });
+                if (errors.length) throw new ParameterError(errors.join(' '));
+            }
 
             const dateZoom = tileDateZoom;
 

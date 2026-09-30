@@ -1,18 +1,22 @@
 import {
     CustomFormatType,
+    DateGranularity,
     FilterOperator,
     MetricQuery,
     PivotConfiguration,
     SortByDirection,
     TableCalculationTotalMode,
     TableCalculationType,
+    TimeFrames,
     VizAggregationOptions,
     VizIndexType,
 } from '@lightdash/common';
 import {
     EXPLORE,
+    EXPLORE_WITH_DATE_DIMENSION,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
+    METRIC_QUERY_WITH_DATE_FILTER,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
 } from './MetricQueryBuilder.mock';
@@ -108,6 +112,37 @@ describe('QueryComposer', () => {
         expect(sql).not.toBe(composer.compile().query);
         expect(sql).toMatchSnapshot();
     });
+
+    it.each([false, true])(
+        'exposes the field grain actually used by filters with date zoom (%s)',
+        (applyDateZoomToFilters) => {
+            const composer = new QueryComposer(
+                { metricQuery: METRIC_QUERY_WITH_DATE_FILTER },
+                {
+                    ...CONTEXT,
+                    explore: EXPLORE_WITH_DATE_DIMENSION,
+                    dateZoom: {
+                        granularity: DateGranularity.MONTH,
+                        xAxisFieldId: 'orders_created_at',
+                    },
+                    applyDateZoomToFilters,
+                },
+            );
+            const field =
+                composer.getFilterExplore().tables.orders.dimensions.created_at;
+            expect(field.timeInterval).toBe(
+                applyDateZoomToFilters
+                    ? TimeFrames.MONTH
+                    : EXPLORE_WITH_DATE_DIMENSION.tables.orders.dimensions
+                          .created_at.timeInterval,
+            );
+            expect(composer.getSql({ columnLimit: 100 })).toContain(
+                applyDateZoomToFilters
+                    ? `(DATE_TRUNC('MONTH', "orders".created_at)) >=`
+                    : `("orders".created_at) >=`,
+            );
+        },
+    );
 
     describe('getters', () => {
         it('combines user access controls only when both attribute maps are in context', () => {

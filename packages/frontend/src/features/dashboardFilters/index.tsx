@@ -27,6 +27,9 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const project = useProject(projectUuid);
 
     const allFilters = useDashboardContext((c) => c.allFilters);
+    const filterBoundaryContexts = useDashboardContext(
+        (c) => c.filterBoundaryContexts,
+    );
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
     );
@@ -98,6 +101,7 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }
             dashboardFilters={allFilters}
+            filterBoundaryContexts={filterBoundaryContexts}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTabUuid}

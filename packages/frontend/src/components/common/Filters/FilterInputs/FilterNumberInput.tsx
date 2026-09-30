@@ -45,6 +45,7 @@ const FilterNumberInput: FC<Props> = ({
     disabled,
     placeholder,
     onChange,
+    onBlur,
     ...rest
 }) => {
     // The text currently displayed in the input field
@@ -104,6 +105,13 @@ const FilterNumberInput: FC<Props> = ({
             type="number"
             value={inputText}
             onChange={handleInputChange}
+            onBlur={(event) => {
+                // Apply blurs the input before validating. Flush the pending
+                // value now so it cannot validate the previous debounced value.
+                const parsedNumber = parseNumberInput(inputText);
+                if (parsedNumber !== (value ?? null)) onChange(parsedNumber);
+                onBlur?.(event);
+            }}
         />
     );
 };

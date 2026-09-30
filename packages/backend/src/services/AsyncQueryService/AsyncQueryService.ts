@@ -22,9 +22,11 @@ import {
     CompiledDimension,
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
+    DashboardDAO,
     DashboardFilters,
     DashboardPreAggregateAudit,
     DEFAULT_RESULTS_PAGE_SIZE,
+    DEFAULT_UI_STRINGS,
     derivePivotConfigurationFromChart,
     Dimension,
     DimensionType,
@@ -46,9 +48,12 @@ import {
     formatRows,
     friendlyName,
     getAccountUserTimezone,
+    getAllDimensionsMap,
     getColumnTimezone,
+    getDashboardBoundaryErrors,
     getDashboardFilterRulesForTables,
     getDateZoomFromRequestParameters,
+    getDefaultStartOfWeek,
     getDimensions,
     getDimensionsWithValidParameters,
     getDocumentRuntimeChartConfig,
@@ -69,6 +74,8 @@ import {
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
+    isDashboardChartTileType,
+    isDashboardSqlChartTile,
     isDateItem,
     isExploreError,
     isField,
@@ -140,6 +147,7 @@ import {
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type ExternalSourceTableReference,
+    type FilterBoundaryContext,
     type Filters,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
@@ -160,6 +168,8 @@ import {
     type SessionUser,
     type SpaceSummaryBase,
     type UserAttributeValueMap,
+    type UUID,
+    type UuidOrSlug,
     type WarehouseExecuteAsyncQuery,
     type WarehousePhaseTimings,
     type WarehouseResults,
@@ -268,7 +278,7 @@ import {
     validatePagination,
 } from '../ProjectService/resultsPagination';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
-import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
+import { applyOpenChartDraft } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
     exploreHasFilteredAttribute,
@@ -281,6 +291,10 @@ import {
     getPivotColumnReferences,
 } from './composePivot';
 import { resolveDashboardDateFilters } from './dashboardDateFilters';
+import {
+    assertDashboardFilterBoundaries,
+    assertDashboardMetricFilterBoundaries,
+} from './dashboardFilterBoundaries';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
 import { getPivotedColumns } from './getPivotedColumns';
@@ -1353,6 +1367,179 @@ export class AsyncQueryService extends ProjectService {
             };
         }
         return {};
+    }
+
+    private async getDashboardForFilterValidation(
+        account: Account,
+        projectUuid: UUID,
+        dashboardUuidOrSlug: UuidOrSlug,
+    ) {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid },
+        );
+        if (isJwtUser(account)) return dashboard;
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
+        const accessibleDashboard = {
+            ...dashboard,
+            inheritsFromOrgOrProject,
+            access,
+        };
+        if (
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('Dashboard', accessibleDashboard),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this dashboard");
+        }
+        return accessibleDashboard;
+    }
+
+    private async assertQueryHistoryFilterBoundaries(
+        account: Account,
+        projectUuid: string,
+        source: QueryHistory,
+        actualFilters?: Filters,
+        visited = new Set<string>(),
+        effectiveFields?: ItemsMap,
+        effectiveContext?: FilterBoundaryContext,
+    ): Promise<void> {
+        if (visited.has(source.queryUuid)) return;
+        visited.add(source.queryUuid);
+        const params = source.requestParameters;
+        const boundaryFields =
+            effectiveFields ??
+            ('underlyingDataSourceQueryUuid' in params
+                ? source.fields
+                : undefined);
+        const provenance =
+            params.dashboardSource ??
+            ('tileUuid' in params && 'dashboardUuid' in params
+                ? {
+                      tileUuid: params.tileUuid,
+                      dashboardUuid: params.dashboardUuid,
+                  }
+                : undefined);
+        if (!provenance) {
+            const { references } =
+                AsyncQueryService.getQuerySourceParameters(params);
+            if (
+                !Object.keys(references ?? {}).length &&
+                isJwtUser(account) &&
+                account.access.content.type === 'dashboard' &&
+                account.access.content.dashboardUuid
+            ) {
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
+                    account.access.content.dashboardUuid,
+                    { projectUuid },
+                );
+                if (
+                    Object.values(dashboard.filters)
+                        .flat()
+                        .some((rule) => rule.boundaries)
+                ) {
+                    throw new ParameterError(
+                        DEFAULT_UI_STRINGS[
+                            'filters.boundaries.selectionRequired'
+                        ],
+                    );
+                }
+            }
+
+            await Promise.all(
+                Object.values(references ?? {}).map(async (queryUuid) => {
+                    const parent = await this.queryHistoryModel.get(
+                        queryUuid,
+                        projectUuid,
+                        account,
+                    );
+                    await this.assertQueryHistoryFilterBoundaries(
+                        account,
+                        projectUuid,
+                        parent,
+                        actualFilters ?? source.metricQuery.filters,
+                        visited,
+                        boundaryFields,
+                        effectiveContext,
+                    );
+                }),
+            );
+            return;
+        }
+        const dashboard = await this.getDashboardForFilterValidation(
+            account,
+            projectUuid,
+            provenance.dashboardUuid,
+        );
+        if (
+            !Object.values(dashboard.filters)
+                .flat()
+                .some((rule) => rule.boundaries)
+        )
+            return;
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const useTimezoneAwareDateTrunc =
+            effectiveContext?.useTimezoneAwareDateTrunc ??
+            (await this.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            }));
+        const queries =
+            'mergeQuery' in params
+                ? params.mergeQuery.sources.flatMap((querySource) =>
+                      isMergeMetricSource(querySource)
+                          ? [querySource.metricQuery]
+                          : [],
+                  )
+                : [source.metricQuery];
+        await Promise.all(
+            queries.map(async (query) => {
+                const explore = await this.projectModel.getExploreFromCache(
+                    projectUuid,
+                    query.exploreName,
+                );
+                if (isExploreError(explore))
+                    throw new ParameterError(
+                        'Cannot validate dashboard filter boundaries',
+                    );
+                const sqlBuilderSettings =
+                    await this.getWarehouseSqlBuilderSettings(projectUuid, {
+                        kind: 'explore',
+                        exploreName: explore.name,
+                    });
+                const sqlBuilder = getSqlBuilderForExplore(
+                    explore,
+                    sqlBuilderSettings,
+                );
+                assertDashboardMetricFilterBoundaries({
+                    savedFilters: dashboard.filters,
+                    fields: boundaryFields,
+                    filters: actualFilters ?? query.filters,
+                    tileUuid: provenance.tileUuid,
+                    explore,
+                    context: {
+                        timezone: resolveQueryTimezone({
+                            sessionTimezone: null,
+                            metricQuery: query,
+                            projectTimezone,
+                            userTimezone: getAccountUserTimezone(account),
+                        }),
+                        startOfWeek:
+                            sqlBuilder.getStartOfWeek() ??
+                            getDefaultStartOfWeek(sqlBuilder.getAdapterType()),
+                        useTimezoneAwareDateTrunc,
+                        ...effectiveContext,
+                    },
+                });
+            }),
+        );
     }
 
     private async assertSavedChartQuerySourceAccess(
@@ -5594,6 +5781,17 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectParameters: projectParameters,
             preloadedProjectTimezone: projectTimezone,
         });
+        if (sourceQueryHistory) {
+            await this.assertQueryHistoryFilterBoundaries(
+                account,
+                projectUuid,
+                sourceQueryHistory,
+                inputMetricQuery.filters,
+                new Set(),
+                getAllDimensionsMap(queryComposer.getFilterExplore()),
+                queryComposer.getFilterBoundaryContext(),
+            );
+        }
         const fields = queryComposer.getFields();
         const prepareMs = Date.now() - prepareStart;
 
@@ -5611,7 +5809,8 @@ export class AsyncQueryService extends ProjectService {
         const references =
             sourceQueryHistory &&
             (sourceParameters.chartUuid ||
-                sourceQueryHistory.requestParameters?.documentSource)
+                sourceQueryHistory.requestParameters?.documentSource ||
+                sourceQueryHistory.requestParameters?.dashboardSource)
                 ? { source: sourceQueryHistory.queryUuid }
                 : sourceParameters.references;
         const requestParameters: ExecuteAsyncQueryRequestParams = {
@@ -5850,6 +6049,12 @@ export class AsyncQueryService extends ProjectService {
         // A merged result has no single metric query to collapse: its totals
         // are aggregated over the merged rows on the compose engine
         if ('mergeQuery' in source.requestParameters) {
+            await this.assertQueryHistoryFilterBoundaries(
+                account,
+                projectUuid,
+                source,
+            );
+
             return this.executeAsyncCalculateMergeTotal({
                 account,
                 projectUuid,
@@ -6742,6 +6947,42 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    private async canPreviewDashboardDraftTile(
+        account: Account,
+        dashboard: DashboardDAO,
+    ): Promise<boolean> {
+        if (!isJwtUser(account)) {
+            return (
+                !account.isAnonymousUser() &&
+                this.createAuditedAbility(account).can(
+                    'update',
+                    subject('Dashboard', dashboard),
+                )
+            );
+        }
+        const { embedWriteUser, embedWriteContext } = account;
+        if (
+            !embedWriteUser ||
+            !embedWriteContext?.canUpdateDashboard ||
+            account.authentication.data.writeActions?.spaceUuid !==
+                dashboard.spaceUuid
+        ) {
+            return false;
+        }
+        const access = await this.spacePermissionService.resolveAccess(
+            embedWriteUser.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
+        return this.createAuditedAbility(embedWriteUser).can(
+            'update',
+            subject('Dashboard', { ...dashboard, ...access }),
+        );
+    }
+
     private async getJwtDashboardQueryContext(
         account: AnonymousAccount,
         projectUuid: string,
@@ -6784,31 +7025,6 @@ export class AsyncQueryService extends ProjectService {
                     ? account.access.content.dashboardUuid
                     : undefined,
         };
-    }
-
-    // Only the draft's author sees it; a corrupt draft falls back to the
-    // published chart, as the chart read path does
-    private async applyOpenChartDraft(
-        account: Account,
-        chart: SavedChartDAO,
-    ): Promise<SavedChartDAO> {
-        if (isJwtUser(account)) return chart;
-        const draft = await this.contentDraftModel.findOpenDraft(
-            chart.projectUuid,
-            'chart',
-            chart.uuid,
-            account.user.userUuid,
-        );
-        if (!draft) return chart;
-        try {
-            return mergeDraftIntoChart(chart, draft.draft);
-        } catch (error) {
-            this.logger.warn(
-                `Ignoring invalid chart draft ${draft.uuid} while running dashboard tile`,
-                error,
-            );
-            return chart;
-        }
     }
 
     /** Explores of every metric source, so filters can be resolved per side. */
@@ -7016,6 +7232,64 @@ export class AsyncQueryService extends ProjectService {
             mergeQuery: baseMergeQuery,
             preloadedExploresByName: { [primaryExplore.name]: primaryExplore },
         });
+        const savedDashboard = await this.getDashboardForFilterValidation(
+            account,
+            projectUuid,
+            dashboardUuid,
+        );
+        if (
+            Object.values(savedDashboard.filters)
+                .flat()
+                .some((rule) => rule.boundaries)
+        ) {
+            const timezone = await this.getQueryTimezoneForProject(projectUuid);
+            const useTimezoneAwareDateTrunc =
+                await this.isTimezoneSupportEnabled({
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                });
+            await Promise.all(
+                baseMergeQuery.sources
+                    .filter(isMergeMetricSource)
+                    .map(async (source) => {
+                        const sourceExplore = exploreBySourceId[source.id];
+                        const settings =
+                            await this.getWarehouseSqlBuilderSettings(
+                                projectUuid,
+                                {
+                                    kind: 'explore',
+                                    exploreName: sourceExplore.name,
+                                },
+                            );
+                        const sqlBuilder = getSqlBuilderForExplore(
+                            sourceExplore,
+                            settings,
+                        );
+                        assertDashboardFilterBoundaries({
+                            savedFilters: savedDashboard.filters,
+                            filters: dashboardFilters,
+                            tileUuid,
+                            explore: exploreBySourceId[source.id],
+                            context: {
+                                timezone: resolveQueryTimezone({
+                                    sessionTimezone: null,
+                                    metricQuery: source.metricQuery,
+                                    projectTimezone: timezone,
+                                    userTimezone:
+                                        getAccountUserTimezone(account),
+                                }),
+                                startOfWeek:
+                                    sqlBuilder.getStartOfWeek() ??
+                                    getDefaultStartOfWeek(
+                                        sqlBuilder.getAdapterType(),
+                                    ),
+                                useTimezoneAwareDateTrunc,
+                            },
+                        });
+                    }),
+            );
+        }
+
         const {
             mergeQuery,
             appliedDashboardFilters,
@@ -7038,6 +7312,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
             );
         const outcome = await this.executeAsyncMergeQuery({
+            dashboardSource: { dashboardUuid, tileUuid },
             account,
             projectUuid,
             mergeQuery,
@@ -7108,7 +7383,13 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
             }));
         const savedChart = includeUnpublishedDraft
-            ? await this.applyOpenChartDraft(account, publishedChart)
+            ? await applyOpenChartDraft({
+                  account,
+                  projectUuid: publishedChart.projectUuid,
+                  chart: publishedChart,
+                  contentDraftModel: this.contentDraftModel,
+                  logger: this.logger,
+              })
             : publishedChart;
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
@@ -7181,6 +7462,26 @@ export class AsyncQueryService extends ProjectService {
                     tableName,
                 ),
         });
+
+        const savedDashboard = await this.getDashboardForFilterValidation(
+            account,
+            projectUuid,
+            resolvedDashboardUuid,
+        );
+        // Editors can preview tiles before saving them to the dashboard.
+        const savedTile = savedDashboard.tiles.find(
+            (tile) => tile.uuid === tileUuid,
+        );
+        if (
+            (!savedTile ||
+                !isDashboardChartTileType(savedTile) ||
+                savedTile.properties.savedChartUuid !== savedChart.uuid) &&
+            !(await this.canPreviewDashboardDraftTile(account, savedDashboard))
+        ) {
+            throw new ForbiddenError(
+                'Chart does not belong to the requested dashboard tile',
+            );
+        }
 
         if (savedChart.merge) {
             return this.executeAsyncDashboardMergeQuery({
@@ -7368,6 +7669,19 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectParameters: projectParameters,
             preloadedProjectTimezone: projectTimezone,
         });
+        if (
+            Object.values(savedDashboard.filters)
+                .flat()
+                .some((rule) => rule.boundaries)
+        ) {
+            assertDashboardFilterBoundaries({
+                savedFilters: savedDashboard.filters,
+                filters: resolvedDashboardFilters,
+                tileUuid,
+                explore: queryComposer.getFilterExplore(),
+                context: queryComposer.getFilterBoundaryContext(),
+            });
+        }
         const fieldsWithOverrides = queryComposer.getFields();
         const parameterReferences = queryComposer.getParameterReferences();
 
@@ -7517,6 +7831,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+
         const { metricQuery, fields: metricQueryFields } = source;
 
         const { exploreName } = metricQuery;
@@ -7673,6 +7988,7 @@ export class AsyncQueryService extends ProjectService {
         const requestParameters: ExecuteAsyncUnderlyingDataRequestParams = {
             context,
             underlyingDataSourceQueryUuid,
+            dateZoom,
             filters,
             underlyingDataItemId,
             sorts,
@@ -7728,6 +8044,16 @@ export class AsyncQueryService extends ProjectService {
             applyDateZoomToFilters: true,
             preloadedUserAccessControls,
         });
+
+        await this.assertQueryHistoryFilterBoundaries(
+            account,
+            projectUuid,
+            source,
+            filters,
+            new Set(),
+            getAllDimensionsMap(queryComposer.getFilterExplore()),
+            queryComposer.getFilterBoundaryContext(),
+        );
 
         const queryTagsWithUserAttributes =
             AsyncQueryService.addUserAttributeQueryTags(
@@ -9682,6 +10008,7 @@ export class AsyncQueryService extends ProjectService {
         mode,
         pivotInput,
         userAttributeOverrides,
+        dashboardSource,
         documentQueryContext,
     }: ExecuteMergeQueryInternalArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
         assertIsAccountWithOrg(account);
@@ -9739,6 +10066,7 @@ export class AsyncQueryService extends ProjectService {
         })();
 
         const query = await this.submitMergeDag({
+            dashboardSource,
             documentQueryContext,
             account,
             projectUuid,
@@ -9778,8 +10106,10 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         pivotConfiguration,
         compiledMerge,
+        dashboardSource,
         documentQueryContext,
     }: {
+        dashboardSource?: ExecuteAsyncMergeQueryArgs['dashboardSource'];
         documentQueryContext?: DocumentQueryContext;
         account: Account;
         projectUuid: string;
@@ -9871,6 +10201,7 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const requestParameters: ExecuteAsyncQueryRequestParams = {
+            ...(dashboardSource ? { dashboardSource } : {}),
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
                 : {}),
@@ -10550,6 +10881,62 @@ export class AsyncQueryService extends ProjectService {
         } else {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
+
+        const savedDashboard = await this.getDashboardForFilterValidation(
+            account,
+            projectUuid,
+            resolvedDashboardUuid,
+        );
+        // Editors can preview tiles before saving them to the dashboard.
+        const savedTile = savedDashboard.tiles.find(
+            (tile) => tile.uuid === tileUuid,
+        );
+        if (
+            (!savedTile ||
+                !isDashboardSqlChartTile(savedTile) ||
+                savedTile.properties.savedSqlUuid !==
+                    savedChart.savedSqlUuid) &&
+            !(await this.canPreviewDashboardDraftTile(account, savedDashboard))
+        ) {
+            throw new ForbiddenError(
+                'SQL chart does not belong to the requested dashboard tile',
+            );
+        }
+
+        const constrained = Object.values(savedDashboard.filters)
+            .flat()
+            .filter((rule) => rule.boundaries && rule.tileTargets?.[tileUuid]);
+        const boundaryWarehouse = constrained.length
+            ? (
+                  await this.getWarehouseCredentialsWithConnection({
+                      projectUuid,
+                      binding: {
+                          kind: 'sqlChart',
+                          savedSqlUuid: savedChart.savedSqlUuid,
+                      },
+                      userId: account.user.id,
+                      isRegisteredUser: account.isRegisteredUser(),
+                      isServiceAccount: account.isServiceAccount(),
+                  })
+              ).warehouseCredentials
+            : null;
+        const errors = getDashboardBoundaryErrors(
+            savedDashboard.filters,
+            dashboardFilters,
+            tileUuid,
+            constrained.map(
+                (rule) => (rule.tileTargets?.[tileUuid] || rule.target).fieldId,
+            ),
+            (target) => ({
+                timezone: 'UTC',
+                startOfWeek: boundaryWarehouse
+                    ? (boundaryWarehouse.startOfWeek ??
+                      getDefaultStartOfWeek(boundaryWarehouse.type))
+                    : undefined,
+                fieldType: target.fallbackType,
+            }),
+        );
+        if (errors.length) throw new ParameterError(errors.join(' '));
 
         const [rawDashboardParameters, projectParameters] = await Promise.all([
             this.dashboardModel.getDashboardParametersByIdOrSlug(

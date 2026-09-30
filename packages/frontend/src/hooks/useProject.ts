@@ -275,6 +275,10 @@ export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {
                     title: 'Warehouse credentials updated',
                 });
                 await queryClient.invalidateQueries(['project', uuid]);
+                await queryClient.invalidateQueries([
+                    'dashboards',
+                    'availableFilters',
+                ]);
             },
             onError: ({ error }) => {
                 showToastApiError({
@@ -334,6 +338,10 @@ export const useProjectUpdateQueryTimezoneSettings = (uuid: string) => {
             mutationKey: ['project_query_timezone_settings_update', uuid],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', uuid]);
+                await queryClient.invalidateQueries([
+                    'dashboards',
+                    'availableFilters',
+                ]);
             },
         },
     );

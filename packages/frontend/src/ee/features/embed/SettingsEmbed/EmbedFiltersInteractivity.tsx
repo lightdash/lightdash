@@ -3,9 +3,7 @@ import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
     getItemId,
-    isDashboardChartTileType,
     type DashboardFilterInteractivityOptions,
-    type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
 import {
     Checkbox,
@@ -22,6 +20,7 @@ import { useCallback, useMemo } from 'react';
 import { getConditionalRuleLabelFromItem } from '../../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { type FieldsWithSuggestions } from '../../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
+import { getDashboardAvailableFilterSources } from '../../../../hooks/dashboard/getDashboardAvailableFilterSources';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
@@ -67,21 +66,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
     }, [dashboard]);
 
     const savedChartUuidsAndTileUuids = useMemo(
-        () =>
-            dashboard?.tiles
-                ?.filter(isDashboardChartTileType)
-                .reduce<SavedChartsInfoForDashboardAvailableFilters>(
-                    (acc, tile) => {
-                        if (tile.properties.savedChartUuid) {
-                            acc.push({
-                                tileUuid: tile.uuid,
-                                savedChartUuid: tile.properties.savedChartUuid,
-                            });
-                        }
-                        return acc;
-                    },
-                    [],
-                ) || [],
+        () => getDashboardAvailableFilterSources(dashboard?.tiles),
         [dashboard?.tiles],
     );
 

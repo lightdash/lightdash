@@ -96,6 +96,10 @@ export const useDismissDraftMutation = (projectUuid: string | undefined) => {
                     'content-drafts',
                     projectUuid,
                 ]);
+                void queryClient.invalidateQueries([
+                    'dashboards',
+                    'availableFilters',
+                ]);
                 showToastSuccess({ title: 'Draft dismissed' });
             },
             onError: (error) => {
@@ -151,6 +155,10 @@ export const useRebaseDraftMutation = (projectUuid: string | undefined) => {
                     queryClient.invalidateQueries(['content-draft-review']),
                     queryClient.invalidateQueries(['saved_dashboard_query']),
                     queryClient.invalidateQueries(['saved_query']),
+                    queryClient.invalidateQueries([
+                        'dashboards',
+                        'availableFilters',
+                    ]),
                 ]);
                 showToastSuccess({
                     title: 'Draft updated to the latest version',
@@ -185,6 +193,10 @@ export const useReopenDraftMutation = (projectUuid: string | undefined) => {
                     ]),
                     queryClient.invalidateQueries(['saved_dashboard_query']),
                     queryClient.invalidateQueries(['saved_query']),
+                    queryClient.invalidateQueries([
+                        'dashboards',
+                        'availableFilters',
+                    ]),
                 ]);
                 showToastSuccess({ title: 'Draft reopened' });
             },

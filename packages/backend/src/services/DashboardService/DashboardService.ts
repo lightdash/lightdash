@@ -12,6 +12,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardDAO,
+    DashboardFilters,
     DashboardTab,
     DashboardTileTypes,
     DashboardVersionedFields,
@@ -19,9 +20,11 @@ import {
     ExploreType,
     ExportContentPayload,
     ExportContentRequest,
+    FilterOperator,
     ForbiddenError,
     generateSlug,
     getDashboardDeleteAccess,
+    getDashboardFilterBoundaryContexts,
     getItemId,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
@@ -29,9 +32,11 @@ import {
     isDashboardScheduler,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
+    isExploreError,
     isJwtUser,
     isUserWithOrg,
     isValidDashboardTilePositions,
+    isValidFilterBoundary,
     isValidFrequency,
     isValidTimezone,
     KnexPaginateArgs,
@@ -52,6 +57,7 @@ import {
     UpdateDashboard,
     UpdateMultipleDashboards,
     UserDashboardsSummary,
+    validateFilterBoundary,
     type Account,
     type ChartFieldUpdates,
     type ChartVersionDifference,
@@ -61,6 +67,7 @@ import {
     type CreateDashboardSqlChartTile,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardCustomMetricUpdateResult,
+    type DashboardFilterBoundarySourceContext,
     type DashboardHistory,
     type DashboardTileTarget,
     type DashboardVersion,
@@ -81,7 +88,11 @@ import {
     LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
-import { getAccountWriteContext, toSessionUser } from '../../auth/account';
+import {
+    fromSession,
+    getAccountWriteContext,
+    toSessionUser,
+} from '../../auth/account';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
@@ -111,6 +122,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createDashboardChartTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -146,6 +158,7 @@ type DashboardServiceArguments = {
     contentDraftModel: ContentDraftModel;
     slackClient: SlackClient;
     projectModel: ProjectModel;
+    projectService: ProjectService;
     catalogModel: CatalogModel;
     organizationModel: OrganizationModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
@@ -233,6 +246,8 @@ export class DashboardService
     catalogModel: CatalogModel;
 
     projectModel: ProjectModel;
+
+    projectService: ProjectService;
 
     organizationModel: OrganizationModel;
 
@@ -373,6 +388,7 @@ export class DashboardService
         contentDraftModel,
         slackClient,
         projectModel,
+        projectService,
         catalogModel,
         organizationModel,
         organizationMemberProfileModel,
@@ -393,6 +409,7 @@ export class DashboardService
         this.savedSqlModel = savedSqlModel;
         this.savedChartService = savedChartService;
         this.projectModel = projectModel;
+        this.projectService = projectService;
         this.catalogModel = catalogModel;
         this.organizationModel = organizationModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
@@ -1343,6 +1360,104 @@ export class DashboardService
         return this.create(user, projectUuid, dashboardToCreate);
     }
 
+    private async validateFilterBoundaries(
+        user: SessionUser,
+        projectUuid: string,
+        filters: DashboardFilters | undefined,
+        tiles: CreateDashboard['tiles'],
+    ): Promise<void> {
+        const constrained = filters
+            ? Object.values(filters)
+                  .flat()
+                  .filter((rule) => rule.boundaries)
+            : [];
+        for (const rule of constrained) {
+            if (!rule.boundaries || !isValidFilterBoundary(rule.boundaries)) {
+                throw new ParameterError('Invalid filter boundaries');
+            }
+        }
+        // Authors may configure a boundary without choosing a default yet.
+        // Current-period operators are complete selections even without values.
+        const withDefaults = constrained.filter(
+            (rule) =>
+                !rule.disabled &&
+                ((rule.values?.length ?? 0) > 0 ||
+                    rule.operator === FilterOperator.IN_THE_CURRENT),
+        );
+        if (!withDefaults.length) return;
+
+        const chartUuids = uniq(
+            tiles.flatMap((tile) =>
+                tile.type === DashboardTileTypes.SAVED_CHART &&
+                tile.properties.savedChartUuid &&
+                withDefaults.some(
+                    (rule) =>
+                        !tile.uuid || rule.tileTargets?.[tile.uuid] !== false,
+                )
+                    ? [tile.properties.savedChartUuid]
+                    : [],
+            ),
+        );
+        const contexts =
+            await this.projectService.getDashboardFilterBoundaryContexts(
+                fromSession(user),
+                projectUuid,
+                chartUuids,
+            );
+        const now = new Date();
+        await Promise.all(
+            tiles.map(async (tile) => {
+                const rules = withDefaults.filter(
+                    (rule) =>
+                        !tile.uuid || rule.tileTargets?.[tile.uuid] !== false,
+                );
+                if (!rules.length) return;
+                let sources: DashboardFilterBoundarySourceContext[] = [];
+                if (
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
+                    tile.properties.savedChartUuid
+                ) {
+                    sources = contexts[tile.properties.savedChartUuid] ?? [];
+                } else if (
+                    tile.type === DashboardTileTypes.SQL_CHART &&
+                    tile.properties.savedSqlUuid &&
+                    rules.some((rule) => {
+                        const target =
+                            tile.uuid && rule.tileTargets?.[tile.uuid];
+                        return target && target.isSqlColumn;
+                    })
+                ) {
+                    sources = [
+                        await this.projectService.getSqlChartFilterBoundaryContext(
+                            projectUuid,
+                            tile.properties.savedSqlUuid,
+                        ),
+                    ];
+                }
+                for (const rule of rules) {
+                    for (const context of getDashboardFilterBoundaryContexts(
+                        tile.uuid ? rule : { ...rule, tileTargets: undefined },
+                        {
+                            filterBoundaryContexts: {
+                                [tile.uuid ?? '']: sources,
+                            },
+                            sessionTimezone: null,
+                            userTimezone: user.timezone ?? null,
+                            context: { now },
+                        },
+                    )) {
+                        const error = validateFilterBoundary(
+                            rule.boundaries,
+                            rule,
+                            context,
+                        );
+                        if (error) throw new ParameterError(error);
+                    }
+                }
+            }),
+        );
+    }
+
     async create(
         user: SessionUser,
         projectUuid: UUID,
@@ -1392,6 +1507,13 @@ export class DashboardService
                 dashboard.ownerUserUuid,
             );
         }
+
+        await this.validateFilterBoundaries(
+            user,
+            projectUuid,
+            dashboard.filters,
+            dashboard.tiles,
+        );
 
         const createDashboard = {
             ...dashboard,
@@ -2114,6 +2236,15 @@ export class DashboardService
             projectUuid: existingDashboardDao.projectUuid,
             organizationUuid: existingDashboardDao.organizationUuid,
         });
+
+        await this.validateFilterBoundaries(
+            user,
+            existingDashboardDao.projectUuid,
+            'filters' in dashboardFields ? dashboardFields.filters : undefined,
+            'tiles' in dashboardFields
+                ? dashboardFields.tiles
+                : existingDashboardDao.tiles,
+        );
 
         const draftResult = await this.maybeStoreDraft(
             user,

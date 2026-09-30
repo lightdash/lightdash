@@ -121,7 +121,9 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     projectModel: projectModelMock,
     userAttributesModel: {} as UserAttributesModel,
     userModel: {} as UserModel,
-    projectService: {} as ProjectService,
+    projectService: {
+        getDashboardFilterBoundaryContexts: vi.fn(async () => ({})),
+    } as unknown as ProjectService,
     spacePermissionService: {} as SpacePermissionService,
     asyncQueryService: {} as AsyncQueryService,
     permissionsService: {} as PermissionsService,

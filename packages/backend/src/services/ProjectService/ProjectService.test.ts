@@ -380,7 +380,17 @@ const onboardingModel = {
         ) => callback(),
     ),
 };
+const contentDraftModel = {
+    findOpenDraft: vi.fn(
+        async (): Promise<
+            import('../../models/ContentDraftModel').ContentDraft | undefined
+        > => undefined,
+    ),
+};
 const savedChartModel = {
+    getQueryContexts: vi.fn<SavedChartModel['getQueryContexts']>(
+        async () => [],
+    ),
     getInfoForAvailableFilters: vi.fn(),
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
@@ -523,6 +533,10 @@ const getMockedProjectService = (
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
+        contentDraftModel: contentDraftModel as never,
+        savedSqlModel: {
+            getByUuid: vi.fn(async () => ({ space: { uuid: 'space' } })),
+        } as never,
         jobModel: jobModel as unknown as JobModel,
         emailClient: new EmailClient({
             lightdashConfig: lightdashConfigWithNoSMTP,
@@ -10650,127 +10664,363 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
     });
 });
 
-describe('dashboard available filters', () => {
-    test('keeps a field per distinct label set and shares indexes across explores that agree', async () => {
-        const filterAccount = {
+describe('dashboard filter boundary query metadata', () => {
+    const { projectUuid } = projectSummary;
+    const query = {
+        exploreName: 'a',
+        dimensions: ['a_dim1'],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        timezone: 'user_timezone',
+    };
+    const chart = {
+        uuid: 'chart',
+        name: 'Chart',
+        spaceUuid: 'space',
+        metricQuery: query,
+        merge: null,
+    };
+    const settings = {
+        type: WarehouseTypes.POSTGRES,
+        startOfWeek: WeekDay.MONDAY,
+        columnTimezone: 'UTC',
+        dataTimezone: null,
+    };
+
+    test('returns each merge source timezone, field semantics and selected connection week start', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        savedChartModel.getQueryContexts.mockResolvedValueOnce([
+            {
+                ...chart,
+                merge: {
+                    queries: {
+                        other: {
+                            explore: 'b',
+                            dimensions: ['b_dim1'],
+                            metrics: [],
+                            timezone: 'America/New_York',
+                        },
+                    },
+                    join: MergeJoinType.LEFT,
+                    keys: { a_dim1: ['other.b_dim1'] },
+                    limit: 100,
+                },
+            },
+            { ...chart, uuid: 'same-explore' },
+        ]);
+        const exploreA = { ...validExplore, name: 'a', caseSensitive: false };
+        const exploreB = { ...validExplore, name: 'b', caseSensitive: true };
+        const findExplores = vi
+            .spyOn(service, 'findExplores')
+            .mockResolvedValueOnce({ b: exploreB });
+        const builderSettings = vi
+            .spyOn(service, 'getWarehouseSqlBuilderSettings')
+            .mockImplementation(async (_projectUuid, binding) => {
+                if (binding.kind === 'explore' && binding.exploreName === 'b')
+                    return { ...settings, startOfWeek: WeekDay.SUNDAY };
+                return settings;
+            });
+        vi.spyOn(service, 'getQueryTimezoneForProject').mockResolvedValueOnce(
+            'Europe/London',
+        );
+        vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+            true,
+        );
+        const result = await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart', 'same-explore'],
+            { a: exploreA },
+        );
+        expect(findExplores).toHaveBeenCalledWith(
+            expect.objectContaining({ exploreNames: ['b'] }),
+        );
+        expect(builderSettings).toHaveBeenCalledTimes(2);
+        expect(result.chart).toEqual([
+            expect.objectContaining({
+                timezone: 'user_timezone',
+                projectTimezone: 'Europe/London',
+                startOfWeek: WeekDay.MONDAY,
+                useTimezoneAwareDateTrunc: true,
+            }),
+            expect.objectContaining({
+                timezone: 'America/New_York',
+                startOfWeek: WeekDay.SUNDAY,
+            }),
+        ]);
+        expect(result.chart[0].fields.a_dim1.caseSensitive).toBe(false);
+        expect(result.chart[1].fields.a_dim1.caseSensitive).toBe(true);
+        expect(result['same-explore'][0]).toEqual({
+            ...result.chart[0],
+            isMergeSource: false,
+        });
+        expect(result.chart.every((source) => source.isMergeSource)).toBe(true);
+    });
+
+    test('uses the requesting author draft only when requested and falls back for corrupt drafts', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        vi.spyOn(service, 'getWarehouseSqlBuilderSettings').mockResolvedValue(
+            settings,
+        );
+        savedChartModel.getQueryContexts.mockResolvedValue([chart]);
+        contentDraftModel.findOpenDraft.mockResolvedValueOnce({
+            uuid: 'draft',
+            draft: { metricQuery: { ...query, timezone: 'Asia/Tokyo' } },
+        } as never);
+        const result = await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart'],
+            { a: validExplore },
+            ['chart'],
+        );
+        expect(result.chart[0].timezone).toBe('Asia/Tokyo');
+        expect(contentDraftModel.findOpenDraft).toHaveBeenCalledWith(
+            projectUuid,
+            'chart',
+            'chart',
+            account.user.id,
+        );
+        contentDraftModel.findOpenDraft.mockResolvedValueOnce({
+            uuid: 'bad-draft',
+            draft: { metricQuery: 123 },
+        } as never);
+        const fallback = await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart'],
+            { a: validExplore },
+            ['chart'],
+        );
+        expect(fallback.chart[0].timezone).toBe('user_timezone');
+        contentDraftModel.findOpenDraft.mockClear();
+        await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart'],
+            { a: validExplore },
+        );
+        expect(contentDraftModel.findOpenDraft).not.toHaveBeenCalled();
+        savedChartModel.getQueryContexts.mockResolvedValue([]);
+    });
+
+    test('keeps unavailable explores out of metadata without failing other tiles', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        savedChartModel.getQueryContexts.mockResolvedValueOnce([chart]);
+        const builderSettings = vi.spyOn(
+            service,
+            'getWarehouseSqlBuilderSettings',
+        );
+        const result = await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart'],
+            { a: undefined },
+        );
+        expect(result).toEqual({ chart: [] });
+        expect(builderSettings).not.toHaveBeenCalled();
+    });
+
+    test('uses the SQL chart binding and keeps SQL filtering in UTC', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const builderSettings = vi
+            .spyOn(service, 'getWarehouseSqlBuilderSettings')
+            .mockResolvedValueOnce({
+                ...settings,
+                startOfWeek: WeekDay.SUNDAY,
+            });
+        await expect(
+            service.getSqlChartFilterBoundaryContext(projectUuid, 'sql-chart'),
+        ).resolves.toEqual({
+            isSqlChart: true,
+            timezone: 'UTC',
+            projectTimezone: 'UTC',
+            startOfWeek: WeekDay.SUNDAY,
+            useTimezoneAwareDateTrunc: false,
+            fields: {},
+        });
+        expect(builderSettings).toHaveBeenCalledWith(projectUuid, {
+            kind: 'sqlChart',
+            savedSqlUuid: 'sql-chart',
+        });
+    });
+
+    test('checks SQL chart access before reading its connection metadata', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue({
+                    projectUuid,
+                    organizationUuid: account.organization.organizationUuid,
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                }),
+            } as unknown as SpacePermissionService,
+        });
+        const metadata = vi.spyOn(service, 'getSqlChartFilterBoundaryContext');
+        const deniedAccount = {
             ...account,
             user: {
                 ...account.user,
-                ability: new Ability<PossibleAbilities>([
-                    { subject: 'Project', action: 'view' },
-                    { subject: 'SavedChart', action: 'view' },
-                ]),
+                ability: new Ability<PossibleAbilities>([]),
             },
         } as typeof account;
-        // event_c reuses the team alias with event_a's labels
-        const explores = [
-            ['event_a', 'A'],
-            ['event_b', 'B'],
-            ['event_c', 'A'],
-        ].map(([name, event]) => ({
-            ...validExplore,
-            name,
-            tables: {
-                team: {
-                    ...validExplore.tables.a,
-                    name: 'team',
-                    dimensions: {
-                        name: {
-                            ...validExplore.tables.a.dimensions.dim1,
-                            table: 'team',
-                            name: 'name',
-                            tableLabel: `Team at Event ${event}`,
-                            label: `Name at Event ${event}`,
-                        },
-                    },
-                    metrics: {
-                        total: {
-                            ...validExplore.tables.a.metrics.met1,
-                            table: 'team',
-                            name: 'total',
-                            label: `Total at Event ${event}`,
-                        },
-                    },
+        const result = await service.getAvailableFiltersForSavedQueries(
+            deniedAccount,
+            [
+                {
+                    tileUuid: 'sql-tile',
+                    savedSqlUuid: 'private-chart',
+                    includeBoundaryContext: true,
                 },
-            },
-        }));
-        const charts = ['event_a', 'event_b', 'event_c'].map(
-            (tableName, index) => ({
-                uuid: `chart-${index}`,
-                name: `Chart ${index}`,
-                tableName,
-                projectUuid: projectSummary.projectUuid,
-                spaceUuid: 'space',
-                dashboardUuid: null,
-            }),
+            ],
         );
-        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
-            charts,
-        );
-        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
-            explores,
-        );
-        const service = getMockedProjectService(lightdashConfigMock, {
+        expect(result.filterBoundaryContexts).toEqual({ 'sql-tile': [] });
+        expect(metadata).not.toHaveBeenCalled();
+    });
+});
+
+describe('dashboard available filters', () => {
+    const filterAccount = {
+        ...account,
+        user: {
+            ...account.user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'view' },
+                { subject: 'SavedChart', action: 'view' },
+            ]),
+        },
+    } as typeof account;
+
+    const getAvailableFiltersService = (
+        charts: { uuid: string }[],
+        inaccessibleChartUuids: string[] = [],
+    ) =>
+        getMockedProjectService(lightdashConfigMock, {
             spacePermissionService: {
                 resolveAccessBatch: vi.fn().mockResolvedValue(
-                    charts.map((chart) => ({
-                        target: { type: 'chart', chartUuid: chart.uuid },
-                        context: {
-                            organizationUuid:
-                                account.organization.organizationUuid,
-                            projectUuid: projectSummary.projectUuid,
-                            inheritsFromOrgOrProject: true,
-                            access: [],
-                        },
+                    charts.map(({ uuid }) => ({
+                        target: { type: 'chart', chartUuid: uuid },
+                        context: inaccessibleChartUuids.includes(uuid)
+                            ? null
+                            : {
+                                  organizationUuid:
+                                      account.organization.organizationUuid,
+                                  projectUuid: projectSummary.projectUuid,
+                                  inheritsFromOrgOrProject: true,
+                                  access: [],
+                              },
                     })),
                 ),
             } as unknown as SpacePermissionService,
         });
-        const result = await service.getAvailableFiltersForSavedQueries(
-            filterAccount,
-            charts.map((chart, index) => ({
-                savedChartUuid: chart.uuid,
-                tileUuid: `tile-${index}`,
-            })),
-        );
-        expect(
-            result.allFilterableFields.map(({ tableLabel, label }) => ({
-                tableLabel,
-                label,
-            })),
-        ).toEqual([
-            { tableLabel: 'Team at Event A', label: 'Name at Event A' },
-            { tableLabel: 'Team at Event B', label: 'Name at Event B' },
-        ]);
-        expect(result.allFilterableMetrics.map(({ label }) => label)).toEqual([
-            'Total at Event A',
-            'Total at Event B',
-        ]);
-        expect(result.savedQueryFilters).toEqual({
-            'tile-0': [0],
-            'tile-1': [1],
-            'tile-2': [0],
-        });
-        expect(result.savedQueryMetricFilters).toEqual({
-            'tile-0': [0],
-            'tile-1': [1],
-            'tile-2': [0],
-        });
-    });
-});
 
-describe('dashboard available filters hidden fields', () => {
+    test.each([false, true])(
+        'keeps fields and enriches only requested charts (include context: %s)',
+        async (includeBoundaryContext) => {
+            // event_c reuses the team alias with event_a's labels
+            const explores = [
+                ['event_a', 'A'],
+                ['event_b', 'B'],
+                ['event_c', 'A'],
+            ].map(([name, event]) => ({
+                ...validExplore,
+                name,
+                tables: {
+                    team: {
+                        ...validExplore.tables.a,
+                        name: 'team',
+                        dimensions: {
+                            name: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                table: 'team',
+                                name: 'name',
+                                tableLabel: `Team at Event ${event}`,
+                                label: `Name at Event ${event}`,
+                            },
+                        },
+                        metrics: {
+                            total: {
+                                ...validExplore.tables.a.metrics.met1,
+                                table: 'team',
+                                name: 'total',
+                                label: `Total at Event ${event}`,
+                            },
+                        },
+                    },
+                },
+            }));
+            const charts = ['event_a', 'event_b', 'event_c'].map(
+                (tableName, index) => ({
+                    uuid: `chart-${index}`,
+                    name: `Chart ${index}`,
+                    tableName,
+                    projectUuid: projectSummary.projectUuid,
+                    spaceUuid: 'space',
+                    dashboardUuid: null,
+                }),
+            );
+            savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+                charts,
+            );
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
+                explores,
+            );
+            const service = getAvailableFiltersService(charts);
+            const metadata = vi
+                .spyOn(service, 'getDashboardFilterBoundaryContexts')
+                .mockResolvedValue({});
+            const result = await service.getAvailableFiltersForSavedQueries(
+                filterAccount,
+                charts.map((chart, index) => ({
+                    savedChartUuid: chart.uuid,
+                    tileUuid: `tile-${index}`,
+                    includeBoundaryContext:
+                        includeBoundaryContext && index === 0,
+                })),
+            );
+            expect(metadata).toHaveBeenCalledTimes(
+                includeBoundaryContext ? 1 : 0,
+            );
+            expect(result.filterBoundaryContexts).toEqual(
+                includeBoundaryContext ? { 'tile-0': [] } : {},
+            );
+            if (includeBoundaryContext) {
+                expect(metadata).toHaveBeenCalledWith(
+                    filterAccount,
+                    projectSummary.projectUuid,
+                    ['chart-0'],
+                    expect.anything(),
+                    [],
+                );
+            }
+            expect(
+                result.allFilterableFields.map(({ tableLabel, label }) => ({
+                    tableLabel,
+                    label,
+                })),
+            ).toEqual([
+                { tableLabel: 'Team at Event A', label: 'Name at Event A' },
+                { tableLabel: 'Team at Event B', label: 'Name at Event B' },
+            ]);
+            expect(
+                result.allFilterableMetrics.map(({ label }) => label),
+            ).toEqual(['Total at Event A', 'Total at Event B']);
+            expect(result.savedQueryFilters).toEqual({
+                'tile-0': [0],
+                'tile-1': [1],
+                'tile-2': [0],
+            });
+            expect(result.savedQueryMetricFilters).toEqual({
+                'tile-0': [0],
+                'tile-1': [1],
+                'tile-2': [0],
+            });
+        },
+    );
     test('returns hidden filterable field ids only from charts the user can view', async () => {
-        const filterAccount = {
-            ...account,
-            user: {
-                ...account.user,
-                ability: new Ability<PossibleAbilities>([
-                    { subject: 'Project', action: 'view' },
-                    { subject: 'SavedChart', action: 'view' },
-                ]),
-            },
-        } as typeof account;
         const exploreWithHidden = (name: string, table: string) => ({
             ...validExplore,
             name,
@@ -10820,34 +11070,27 @@ describe('dashboard available filters hidden fields', () => {
             exploreWithHidden('orders', 'orders'),
             exploreWithHidden('payments', 'payments'),
         ]);
-        const service = getMockedProjectService(lightdashConfigMock, {
-            spacePermissionService: {
-                resolveAccessBatch: vi.fn().mockResolvedValue(
-                    charts.map((chart) => ({
-                        target: { type: 'chart', chartUuid: chart.uuid },
-                        context:
-                            chart.uuid === 'chart-viewable'
-                                ? {
-                                      organizationUuid:
-                                          account.organization.organizationUuid,
-                                      projectUuid: projectSummary.projectUuid,
-                                      inheritsFromOrgOrProject: true,
-                                      access: [],
-                                  }
-                                : null,
-                    })),
-                ),
-            } as unknown as SpacePermissionService,
-        });
+        const service = getAvailableFiltersService(charts, ['chart-private']);
 
+        const metadata = vi
+            .spyOn(service, 'getDashboardFilterBoundaryContexts')
+            .mockResolvedValue({});
         const result = await service.getAvailableFiltersForSavedQueries(
             filterAccount,
             charts.map((chart) => ({
                 savedChartUuid: chart.uuid,
                 tileUuid: `tile-${chart.uuid}`,
+                includeBoundaryContext: true,
             })),
         );
 
+        expect(metadata).toHaveBeenCalledWith(
+            filterAccount,
+            projectSummary.projectUuid,
+            ['chart-viewable'],
+            expect.anything(),
+            [],
+        );
         expect(result.hiddenFilterableFieldIds).toEqual([
             'orders_secret_dim',
             'orders_secret_metric',

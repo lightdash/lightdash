@@ -3,12 +3,16 @@ import {
     DashboardTileTypes,
     FieldType,
     FilterOperator,
+    UnitOfTime,
+    WeekDay,
+    type DashboardAvailableFilters,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import FilterConfiguration from './index';
@@ -33,20 +37,35 @@ vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
 
+const boundaryMetadata = vi.hoisted(() => ({
+    current: undefined as DashboardAvailableFilters['filterBoundaryContexts'],
+    pending: false,
+    tiles: [] as DashboardTile[],
+}));
+
 vi.mock('../../../components/common/Filters/useFiltersContext', () => ({
     default: vi.fn(() => ({
         projectUuid: 'test-project-uuid',
+        metricQueryTimezone: 'project_timezone',
+        dashboardTiles: boundaryMetadata.tiles,
+        filterBoundaryContexts: boundaryMetadata.pending
+            ? undefined
+            : (boundaryMetadata.current ?? {}),
         getAutocompleteFilterGroup: vi.fn(() => undefined),
         getField: vi.fn(() => undefined),
         parameterValues: {},
     })),
 }));
 
+const fieldValueResults = vi.hoisted(() => ({
+    current: [] as { value: string; label?: string }[],
+}));
+
 vi.mock('../../../hooks/useFieldValues', () => ({
     MAX_AUTOCOMPLETE_RESULTS: 100,
     useFieldValues: vi.fn(() => ({
         isInitialLoading: false,
-        results: [],
+        results: fieldValueResults.current,
         refreshedAt: new Date(),
         refetch: vi.fn(),
         reset: vi.fn(),
@@ -94,14 +113,408 @@ const anyValueRule: DashboardFilterRule = {
     label: undefined,
 };
 
+const filterConfiguration = (
+    rule: DashboardFilterRule,
+    props: Partial<ComponentProps<typeof FilterConfiguration>> = {},
+) => (
+    <FilterConfiguration
+        tiles={[]}
+        tabs={[]}
+        availableTileFilters={{}}
+        defaultFilterRule={rule}
+        originalFilterRule={rule}
+        isEditMode={false}
+        onSave={vi.fn()}
+        {...props}
+    />
+);
+
 describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        fieldValueResults.current = [];
+        boundaryMetadata.current = undefined;
+        boundaryMetadata.pending = false;
+        boundaryMetadata.tiles = [];
         mockDashboardContext.current.dashboardFilters = {
             dimensions: [],
             metrics: [],
             tableCalculations: [],
         };
+    });
+
+    it('shows boundary settings from a switch below Required and removes them when switched off', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        renderWithProviders(
+            <FilterConfiguration
+                tiles={[]}
+                tabs={[]}
+                field={mockTimestampField}
+                availableTileFilters={{}}
+                defaultFilterRule={{
+                    ...anyValueRule,
+                    target: {
+                        fieldId: 'orders_created_at',
+                        tableName: 'orders',
+                    },
+                }}
+                isEditMode
+                onSave={onSave}
+            />,
+        );
+        const required = screen.getByRole('switch', {
+            name: 'Required',
+        });
+        const boundaries = screen.getByRole('switch', {
+            name: 'Filter boundaries',
+        });
+        expect(
+            required.compareDocumentPosition(boundaries) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            screen.queryByLabelText('Number of periods'),
+        ).not.toBeInTheDocument();
+        await user.click(boundaries);
+        expect(screen.getByLabelText('Number of periods')).toHaveValue('12');
+        await user.click(boundaries);
+        expect(
+            screen.queryByLabelText('Number of periods'),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({ boundaries: undefined }),
+        );
+    });
+
+    it.each(['', 'awaiting_review', 'Pending'])(
+        'lets authors pick multiple permitted strings when searching by value or label (%s)',
+        async (search) => {
+            fieldValueResults.current = [
+                { value: ' awaiting_review ', label: 'Pending review' },
+                { value: 'Active' },
+            ];
+            const user = userEvent.setup();
+            const onSave = vi.fn();
+            renderWithProviders(
+                <FilterConfiguration
+                    tiles={[]}
+                    tabs={[]}
+                    field={mockField}
+                    availableTileFilters={{}}
+                    defaultFilterRule={anyValueRule}
+                    isEditMode
+                    onSave={onSave}
+                />,
+            );
+            await user.click(
+                screen.getByRole('switch', {
+                    name: 'Filter boundaries',
+                }),
+            );
+            const input = screen.getByPlaceholderText('Add permitted values');
+            await user.click(input);
+            if (search) await user.type(input, search);
+            await user.click(
+                await screen.findByRole('option', {
+                    name: 'Pending review',
+                }),
+            );
+            await user.click(input);
+            await user.click(
+                await screen.findByRole('option', { name: 'Active' }),
+            );
+            await user.click(screen.getByRole('button', { name: 'Apply' }));
+            expect(onSave).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    boundaries: {
+                        type: 'string',
+                        values: [' awaiting_review ', 'Active'],
+                    },
+                }),
+            );
+        },
+    );
+
+    it.each([true, false])(
+        'blocks invalid boundaries without discarding values (edit mode: %s)',
+        async (isEditMode) => {
+            const onSave = vi.fn();
+            const constrainedRule: DashboardFilterRule = {
+                ...anyValueRule,
+                disabled: false,
+                values: ['Pending', 'Other'],
+                boundaries: { type: 'string', values: ['Pending', 'Active'] },
+            };
+            renderWithProviders(
+                filterConfiguration(constrainedRule, {
+                    field: mockField,
+                    isEditMode: isEditMode,
+                    onSave: onSave,
+                }),
+            );
+            expect(
+                await screen.findByText('Choose one of: Pending, Active.'),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'Apply' }),
+            ).toBeDisabled();
+            expect(screen.getByText('Other', { exact: true })).toBeVisible();
+            expect(onSave).not.toHaveBeenCalled();
+        },
+    );
+
+    it('waits for source settings after enabling the first boundary before allowing Apply', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        boundaryMetadata.pending = true;
+        boundaryMetadata.tiles = [
+            {
+                uuid: 'tile',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { savedChartUuid: 'chart' },
+            },
+        ] as DashboardTile[];
+        const numberField = {
+            ...mockField,
+            type: DimensionType.NUMBER,
+        } as DashboardFilterableField;
+        const rule = {
+            ...anyValueRule,
+            disabled: false,
+            singleValue: true,
+            values: [5],
+        };
+        const element = filterConfiguration(rule, {
+            field: numberField,
+            tiles: boundaryMetadata.tiles,
+            isEditMode: true,
+            onSave,
+        });
+        const { rerender } = renderWithProviders(element);
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        await user.click(
+            screen.getByRole('switch', { name: 'Filter boundaries' }),
+        );
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        expect(onSave).not.toHaveBeenCalled();
+        boundaryMetadata.pending = false;
+        rerender(element);
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({
+                boundaries: { type: 'number', min: 0, max: 100 },
+                values: [5],
+            }),
+        );
+    });
+
+    it('validates the current numeric input when Apply is clicked before its debounce', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        const numberField = {
+            ...mockField,
+            type: DimensionType.NUMBER,
+        } as DashboardFilterableField;
+        const rule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+            singleValue: true,
+            values: [5],
+            boundaries: { type: 'number', min: 0, max: 10 },
+        };
+        renderWithProviders(
+            filterConfiguration(rule, { field: numberField, onSave: onSave }),
+        );
+        const input = screen.getByRole('spinbutton');
+        await user.click(input);
+        fireEvent.change(input, { target: { value: '20' } });
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.getByText('Enter a number between 0 and 10.'),
+        ).toBeVisible();
+        expect(input).toHaveValue(20);
+    });
+
+    it('keeps single selection behavior when a bounded filter is switched to single value', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        const rule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+            values: ['Pending', 'Active'],
+            boundaries: { type: 'string', values: ['Pending', 'Active'] },
+        };
+        renderWithProviders(
+            filterConfiguration(rule, {
+                field: mockField,
+                isEditMode: true,
+                onSave: onSave,
+            }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Multiple values' }),
+        );
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({ singleValue: true, values: ['Active'] }),
+        );
+    });
+
+    it.each([true, false])(
+        'uses the affected source case sensitivity instead of the merged field (%s)',
+        (caseSensitive) => {
+            boundaryMetadata.current = {
+                chart: [
+                    {
+                        timezone: 'UTC',
+                        projectTimezone: 'UTC',
+                        startOfWeek: WeekDay.MONDAY,
+                        useTimezoneAwareDateTrunc: false,
+                        fields: { customers_first_name: { caseSensitive } },
+                    },
+                ],
+            };
+            renderWithProviders(
+                filterConfiguration(
+                    {
+                        ...anyValueRule,
+                        disabled: false,
+                        values: ['active'],
+                        boundaries: { type: 'string', values: ['Active'] },
+                    },
+                    {
+                        field: {
+                            ...mockField,
+                            caseSensitive: true,
+                        } as DashboardFilterableField,
+                    },
+                ),
+            );
+            const apply = screen.getByRole('button', { name: 'Apply' });
+            if (caseSensitive) expect(apply).toBeDisabled();
+            else expect(apply).toBeEnabled();
+        },
+    );
+
+    it.each([true, false])(
+        'validates manual dates using every affected chart timezone (edit mode: %s)',
+        (isEditMode) => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-03-01T00:30:00Z'));
+            try {
+                boundaryMetadata.current = {
+                    chart: [
+                        {
+                            timezone: 'America/New_York',
+                            projectTimezone: 'UTC',
+                            startOfWeek: WeekDay.MONDAY,
+                            useTimezoneAwareDateTrunc: false,
+                            fields: {
+                                orders_created_at: {
+                                    fieldType: DimensionType.TIMESTAMP,
+                                },
+                            },
+                        },
+                    ],
+                };
+                const rule: DashboardFilterRule = {
+                    ...anyValueRule,
+                    disabled: false,
+                    target: {
+                        fieldId: 'orders_created_at',
+                        tableName: 'orders',
+                    },
+                    values: ['2026-02-15T12:00:00Z'],
+                    boundaries: {
+                        type: 'date',
+                        mode: 'relative',
+                        value: 1,
+                        unitOfTime: UnitOfTime.months,
+                        completed: true,
+                    },
+                };
+                renderWithProviders(
+                    filterConfiguration(rule, {
+                        field: mockTimestampField,
+                        isEditMode: isEditMode,
+                    }),
+                );
+                expect(
+                    screen.getByRole('button', { name: 'Apply' }),
+                ).toBeDisabled();
+                expect(
+                    screen.getByText(
+                        'Choose dates within the last 1 completed month.',
+                    ),
+                ).toBeVisible();
+            } finally {
+                vi.useRealTimers();
+            }
+        },
+    );
+
+    it('allows a SQL DATE default through the end of today', () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
+        try {
+            const rule: DashboardFilterRule = {
+                ...anyValueRule,
+                disabled: false,
+                target: {
+                    fieldId: 'ordered_at',
+                    tableName: 'orders',
+                    isSqlColumn: true,
+                    fallbackType: DimensionType.DATE,
+                },
+                operator: FilterOperator.EQUALS,
+                values: ['2026-09-28'],
+                boundaries: {
+                    type: 'date',
+                    mode: 'relative',
+                    value: 12,
+                    unitOfTime: UnitOfTime.months,
+                    completed: false,
+                },
+            };
+            renderWithProviders(
+                filterConfiguration(rule, { isEditMode: true }),
+            );
+            expect(
+                screen.queryByText('Choose dates within the last 12 months.'),
+            ).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('resolves the project timezone setting before validating dashboard dates', async () => {
+        const dateRule: DashboardFilterRule = {
+            ...anyValueRule,
+            target: { fieldId: 'orders_created_at', tableName: 'orders' },
+            operator: FilterOperator.IN_THE_PAST,
+            values: [10],
+            disabled: false,
+            settings: { unitOfTime: UnitOfTime.years, completed: true },
+            boundaries: {
+                type: 'date',
+                mode: 'relative',
+                value: 12,
+                unitOfTime: UnitOfTime.years,
+                completed: false,
+            },
+        };
+        renderWithProviders(
+            filterConfiguration(dateRule, { field: mockTimestampField }),
+        );
+        expect(
+            screen.queryByText('Choose dates within the last 12 years.'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
     });
 
     it.each(['hover', 'focus', 'touch'])(

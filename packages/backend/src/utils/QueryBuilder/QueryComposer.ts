@@ -1,4 +1,5 @@
 import {
+    getDefaultStartOfWeek,
     getFieldFormatOverrideProps,
     getMetricOverridesWithPopInheritance,
     mergeReservedDefinitions,
@@ -6,6 +7,7 @@ import {
     resolveReservedParameterValues,
     type DateZoom,
     type Explore,
+    type FilterBoundaryContext,
     type IntrinsicUserAttributes,
     type ItemsMap,
     type MetricQuery,
@@ -94,6 +96,8 @@ export class QueryComposer {
 
     private queryBuilder: MetricQueryBuilder | undefined;
 
+    private filterExplore: Explore | undefined;
+
     constructor(
         definition: QueryComposerDefinition,
         context: QueryComposerContext,
@@ -172,6 +176,10 @@ export class QueryComposer {
             availableParameters,
         });
 
+        this.filterExplore =
+            applyDateZoomToFilters && dateZoomApplied
+                ? exploreWithOverride
+                : explore;
         this.queryBuilder = new MetricQueryBuilder({
             explore: exploreWithOverride,
             compiledMetricQuery,
@@ -202,6 +210,12 @@ export class QueryComposer {
     /** The explore the query runs against. */
     getExplore(): Explore {
         return this.context.explore;
+    }
+
+    /** Field definitions used by WHERE filters, including opted-in date zoom. */
+    getFilterExplore(): Explore {
+        this.getQueryBuilder();
+        return this.filterExplore ?? this.context.explore;
     }
 
     /** The effective (totals-collapsed) metric query the composer compiles. */
@@ -254,6 +268,17 @@ export class QueryComposer {
     /** Resolved timezone the SQL was compiled with. */
     getTimezone(): string | undefined {
         return this.context.timezone;
+    }
+
+    getFilterBoundaryContext(): FilterBoundaryContext {
+        const { warehouseSqlBuilder } = this.context;
+        return {
+            timezone: this.getTimezone(),
+            startOfWeek:
+                warehouseSqlBuilder.getStartOfWeek() ??
+                getDefaultStartOfWeek(warehouseSqlBuilder.getAdapterType()),
+            useTimezoneAwareDateTrunc: this.getUseTimezoneAwareDateTrunc(),
+        };
     }
 
     /** Flag-gated timezone echoed to clients and persisted with the query. */

@@ -490,6 +490,7 @@ export class ServiceRepository
                     savedSqlModel: this.models.getSavedSqlModel(),
                     savedChartService: this.getSavedChartService(),
                     projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     contentAsCodeProjectSettingsModel:
                         this.models.getContentAsCodeProjectSettingsModel(),
@@ -961,6 +962,8 @@ export class ServiceRepository
                     preAggregateModel: this.models.getPreAggregateModel(),
                     onboardingModel: this.models.getOnboardingModel(),
                     savedChartModel: this.models.getSavedChartModel(),
+                    contentDraftModel: this.models.getContentDraftModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                     jobModel: this.models.getJobModel(),
                     emailClient: this.clients.getEmailClient(),
                     spaceModel: this.models.getSpaceModel(),

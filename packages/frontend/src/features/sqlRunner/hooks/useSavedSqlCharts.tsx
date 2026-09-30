@@ -147,6 +147,10 @@ export const useUpdateSqlChartMutation = (
         {
             mutationKey: ['sqlRunner', 'updateSqlChart', savedSqlUuid],
             onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'dashboards',
+                    'availableFilters',
+                ]);
                 await queryClient.resetQueries(['savedSqlChart', slug]);
                 await queryClient.resetQueries(['savedSqlChartResults', slug]);
                 await queryClient.invalidateQueries(['spaces']);

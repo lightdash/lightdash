@@ -33,14 +33,17 @@ import {
     ExportContentPayload,
     FieldValueSearchResult,
     FilterableDimension,
+    FilterOperator,
     ForbiddenError,
     formatRawRows,
     formatRows,
     getColumnTimezone,
     getDashboardFiltersForTileAndTables,
+    getDefaultStartOfWeek,
     getDimensionMapFromTables,
     getDimensions,
     getExecutableFilterFieldIds,
+    getFilterBoundaryFieldContext,
     getFilterInteractivityValue,
     getHiddenFilterableFieldIds,
     getItemId,
@@ -72,6 +75,7 @@ import {
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
+    validateFilterBoundary,
     type DataAppViz,
     type DataAppVizListSort,
     type DataAppVizRenderMetadata,
@@ -82,7 +86,7 @@ import {
     type ParametersValuesMap,
     type SessionUser,
 } from '@lightdash/common';
-import { isArray } from 'lodash';
+import { isArray, uniq } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromJwt } from '../../../auth/account';
@@ -102,6 +106,7 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { assertDashboardFilterBoundaries } from '../../../services/AsyncQueryService/dashboardFilterBoundaries';
 import { BaseService } from '../../../services/BaseService';
 import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import {
@@ -113,6 +118,7 @@ import { SpacePermissionService } from '../../../services/SpaceService/SpacePerm
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import { getSqlBuilderForExplore } from '../../../utils/QueryBuilder/getSqlBuilderForExplore';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
@@ -761,6 +767,15 @@ export class EmbedService extends BaseService {
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
+        const chartTiles = savedChartUuidsAndTileUuids.filter(
+            (tile) => 'savedChartUuid' in tile,
+        );
+        const boundaryChartTiles = chartTiles.filter(
+            (tile) => tile.includeBoundaryContext,
+        );
+        const sqlTiles = savedChartUuidsAndTileUuids
+            .filter((tile) => 'savedSqlUuid' in tile)
+            .filter((tile) => tile.includeBoundaryContext);
         const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
@@ -774,6 +789,7 @@ export class EmbedService extends BaseService {
         if (!isFilterInteractivityEnabled(account.access.filtering)) {
             // If dashboard filters interactivity is not enabled, we return an empty list
             return {
+                filterBoundaryContexts: {},
                 savedQueryFilters: {},
                 allFilterableFields: [],
                 allFilterableMetrics: [],
@@ -783,19 +799,15 @@ export class EmbedService extends BaseService {
             };
         }
 
-        let allFilters: {
-            uuid: string;
-            filters: CompiledDimension[];
-        }[] = [];
-
-        const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+        const savedQueryUuids = chartTiles.map(
             ({ savedChartUuid }) => savedChartUuid,
         );
 
-        const savedCharts =
-            await this.savedChartModel.getInfoForAvailableFilters(
-                savedQueryUuids,
-            );
+        const savedCharts = savedQueryUuids.length
+            ? await this.savedChartModel.getInfoForAvailableFilters(
+                  savedQueryUuids,
+              )
+            : [];
 
         if (checkPermissions) {
             const writeSpaceUuid =
@@ -853,6 +865,25 @@ export class EmbedService extends BaseService {
             );
         }
 
+        const sqlContextsByTile = await Promise.all(
+            sqlTiles.map(async ({ tileUuid, savedSqlUuid }) => {
+                await this.permissionsService.checkEmbedSqlChartPermissions(
+                    account,
+                    savedSqlUuid,
+                );
+                // The embed permission resolver scopes the chart to the token's dashboard.
+                return [
+                    tileUuid,
+                    [
+                        await this.projectService.getSqlChartFilterBoundaryContext(
+                            projectUuid,
+                            savedSqlUuid,
+                        ),
+                    ],
+                ] as const;
+            }),
+        );
+
         const exploreCacheKeys: Record<string, boolean> = {};
         const exploreCache: Record<string, Explore | ExploreError | undefined> =
             {};
@@ -881,15 +912,13 @@ export class EmbedService extends BaseService {
             return acc;
         }, []);
 
-        const [resolvedExplores] = await Promise.all([
-            Promise.all(explorePromises),
-        ]);
+        const resolvedExplores = await Promise.all(explorePromises);
 
         resolvedExplores.forEach(({ key, explore }) => {
             exploreCache[key] = explore;
         });
 
-        const filterPromises = savedCharts.map(async (savedChart) => {
+        const allFilters = savedCharts.map((savedChart) => {
             const explore = exploreCache[savedChart.tableName];
             if (!explore || isExploreError(explore))
                 return { uuid: savedChart.uuid, filters: [] };
@@ -899,8 +928,6 @@ export class EmbedService extends BaseService {
 
             return { uuid: savedChart.uuid, filters };
         });
-
-        allFilters = await Promise.all(filterPromises);
 
         const allFilterableFields: FilterableDimension[] = [];
         const filterIndexMap: Record<string, number> = {};
@@ -915,7 +942,7 @@ export class EmbedService extends BaseService {
             });
         });
 
-        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
+        const savedQueryFilters = chartTiles.reduce<
             DashboardAvailableFilters['savedQueryFilters']
         >((acc, savedChartUuidAndTileUuid) => {
             const filterResult = allFilters.find(
@@ -965,7 +992,34 @@ export class EmbedService extends BaseService {
             );
         }
 
+        const contextsByChart = boundaryChartTiles.length
+            ? await this.projectService.getDashboardFilterBoundaryContexts(
+                  account,
+                  projectUuid,
+                  uniq(boundaryChartTiles.map((tile) => tile.savedChartUuid)),
+                  exploreCache,
+              )
+            : {};
+        const contextFieldIds = new Set([
+            ...allFilterableFields.map(getItemId),
+            ...hiddenFilterableFieldIds,
+        ]);
+
         return {
+            filterBoundaryContexts: Object.fromEntries([
+                ...sqlContextsByTile,
+                ...boundaryChartTiles.map(({ tileUuid, savedChartUuid }) => [
+                    tileUuid,
+                    (contextsByChart[savedChartUuid] ?? []).map((source) => ({
+                        ...source,
+                        fields: Object.fromEntries(
+                            Object.entries(source.fields).filter(([fieldId]) =>
+                                contextFieldIds.has(fieldId),
+                            ),
+                        ),
+                    })),
+                ]),
+            ]),
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics: [],
@@ -1245,6 +1299,9 @@ export class EmbedService extends BaseService {
         dashboard: DashboardDAO,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
+        metricQuery?: MetricQuery,
+        validateBoundaries = true,
+        includeAllFields = false,
     ) {
         const availableFieldIds = getExecutableFilterFieldIds(explore);
 
@@ -1295,6 +1352,54 @@ export class EmbedService extends BaseService {
             };
         }
 
+        if (
+            validateBoundaries &&
+            Object.values(dashboard.filters)
+                .flat()
+                .some((rule) => rule.boundaries)
+        ) {
+            const [
+                projectTimezone,
+                sqlBuilderSettings,
+                useTimezoneAwareDateTrunc,
+            ] = await Promise.all([
+                this.projectService.getQueryTimezoneForProject(
+                    dashboard.projectUuid,
+                ),
+                this.projectService.getWarehouseSqlBuilderSettings(
+                    dashboard.projectUuid,
+                    { kind: 'explore', exploreName: explore.name },
+                ),
+                this.projectService.isTimezoneSupportEnabled({
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                }),
+            ]);
+            const sqlBuilder = getSqlBuilderForExplore(
+                explore,
+                sqlBuilderSettings,
+            );
+            assertDashboardFilterBoundaries({
+                savedFilters: dashboard.filters,
+                filters: effectiveFilters,
+                tileUuid,
+                explore,
+                context: {
+                    timezone: resolveQueryTimezone({
+                        sessionTimezone: null,
+                        metricQuery: metricQuery ?? {},
+                        projectTimezone,
+                        userTimezone: null,
+                    }),
+                    startOfWeek:
+                        sqlBuilder.getStartOfWeek() ??
+                        getDefaultStartOfWeek(sqlBuilder.getAdapterType()),
+                    useTimezoneAwareDateTrunc,
+                },
+            });
+        }
+
+        if (includeAllFields) return effectiveFilters;
         return getDashboardFiltersForTileAndTables(
             tileUuid,
             availableFieldIds,
@@ -1385,6 +1490,12 @@ export class EmbedService extends BaseService {
             dashboard,
             tileUuid,
             dashboardFilters,
+            chart.metricQuery,
+            false,
+            !!chart.merge &&
+                Object.values(dashboard.filters)
+                    .flat()
+                    .some((rule) => rule.boundaries),
         );
 
         // Record analytics event
@@ -1661,6 +1772,7 @@ export class EmbedService extends BaseService {
             dashboard,
             tileUuid,
             dashboardFilters,
+            chart.metricQuery,
         );
 
         const metricQueryWithDashboardSorts =
@@ -2184,6 +2296,7 @@ export class EmbedService extends BaseService {
             dashboard,
             tileUuid,
             dashboardFilters,
+            chart.metricQuery,
         );
         const metricQuery = appliedDashboardFilters
             ? addDashboardFiltersToMetricQuery(
@@ -2768,12 +2881,56 @@ export class EmbedService extends BaseService {
             }
         }
 
+        const boundaryRules =
+            dashboard?.filters.dimensions.filter(
+                (rule) =>
+                    rule.boundaries &&
+                    rule.target.fieldId === resolvedFieldId &&
+                    rule.target.tableName === resolvedTableName,
+            ) ?? [];
+        const boundaryContext = getFilterBoundaryFieldContext(
+            initialField,
+            initialExplore.caseSensitive,
+        );
+        const permittedSuggestion = (value: unknown) =>
+            boundaryRules.every(
+                (rule) =>
+                    validateFilterBoundary(
+                        rule.boundaries,
+                        {
+                            ...rule,
+                            disabled: false,
+                            includeNull: false,
+                            operator: FilterOperator.EQUALS,
+                            values: [value],
+                        },
+                        boundaryContext,
+                    ) === null,
+            );
+        const stringBoundary = boundaryRules.find(
+            (rule) => rule.boundaries?.type === 'string',
+        )?.boundaries;
+        if (stringBoundary?.type === 'string') {
+            return {
+                search,
+                results: stringBoundary.values.filter(
+                    (value) =>
+                        value.toUpperCase().includes(search.toUpperCase()) &&
+                        permittedSuggestion(value),
+                ),
+                refreshedAt: new Date(),
+                cached: false,
+            };
+        }
+
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) instead of running a distinct-value scan.
         if (staticResults) {
             return {
                 search,
-                results: staticResults.map(({ value }) => value),
+                results: staticResults
+                    .map(({ value }) => value)
+                    .filter(permittedSuggestion),
                 refreshedAt: new Date(),
                 cached: false,
             };
@@ -2831,7 +2988,9 @@ export class EmbedService extends BaseService {
 
         return {
             search,
-            results: rows.map((row) => row[getItemId(field)]),
+            results: rows
+                .map((row) => row[getItemId(field)])
+                .filter(permittedSuggestion),
             refreshedAt: cacheMetadata.cacheUpdatedTime || new Date(),
             cached: cacheMetadata.cacheHit,
         };

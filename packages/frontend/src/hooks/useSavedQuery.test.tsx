@@ -34,15 +34,20 @@ vi.mock('./useSearchParams', () => ({
 }));
 
 import { lightdashApi } from '../api';
-import { useAddVersionMutation, useCreateMutation } from './useSavedQuery';
+import {
+    useAddVersionMutation,
+    useCreateMutation,
+    useChartVersionRollbackMutation,
+} from './useSavedQuery';
 
-const createWrapper = () => {
-    const queryClient = new QueryClient({
+const createWrapper = (
+    queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
             mutations: { retry: false },
         },
-    });
+    }),
+) => {
     return ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={queryClient}>
             <ProjectRouteContext.Provider
@@ -87,6 +92,46 @@ describe('useAddVersionMutation', () => {
             '/projects/jaffle-shop/saved/legacy-chart/view',
         );
     });
+});
+
+describe('dashboard boundary metadata cache', () => {
+    it.each(['save', 'rollback'] as const)(
+        'refreshes affected source contexts after chart %s',
+        async (action) => {
+            vi.mocked(lightdashApi).mockResolvedValue({
+                uuid: 'chart-uuid',
+                slug: 'legacy-chart',
+                projectUuid: 'project-uuid',
+            } as SavedChart);
+            const client = new QueryClient();
+            const key = [
+                'dashboards',
+                'availableFilters',
+                { tileUuid: 'tile', savedChartUuid: 'chart-uuid' },
+            ];
+            client.setQueryData(key, {
+                filterBoundaryContexts: { tile: [{ timezone: 'UTC' }] },
+            });
+            const { result } = renderHook(
+                () => ({
+                    save: useAddVersionMutation(),
+                    rollback: useChartVersionRollbackMutation('chart-uuid'),
+                }),
+                { wrapper: createWrapper(client) },
+            );
+            await act(async () => {
+                if (action === 'save')
+                    await result.current.save.mutateAsync({
+                        uuid: 'chart-uuid',
+                        payload: {
+                            metricQuery: { filters: {} },
+                        } as CreateSavedChartVersion,
+                    });
+                else await result.current.rollback.mutateAsync('version-uuid');
+            });
+            expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+        },
+    );
 });
 
 describe('useCreateMutation', () => {

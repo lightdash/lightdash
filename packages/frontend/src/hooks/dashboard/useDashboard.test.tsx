@@ -1,4 +1,9 @@
-import { SchedulerFormat, type Dashboard } from '@lightdash/common';
+import {
+    SchedulerFormat,
+    DashboardTileTypes,
+    type Dashboard,
+    type DashboardTile,
+} from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
@@ -45,11 +50,25 @@ vi.mock('react-router', () => ({
 
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
+import { getDashboardAvailableFilterSources } from './getDashboardAvailableFilterSources';
 import {
+    useDashboardsAvailableFilters,
     useExportDashboardContentPreview,
     useUpdateDashboard,
 } from './useDashboard';
 
+const boundaryTiles = [
+    {
+        uuid: 'chart',
+        type: DashboardTileTypes.SAVED_CHART,
+        properties: { savedChartUuid: 'saved-chart' },
+    },
+    {
+        uuid: 'sql',
+        type: DashboardTileTypes.SQL_CHART,
+        properties: { savedSqlUuid: 'saved-sql' },
+    },
+] as DashboardTile[];
 const mockApi = lightdashApi as unknown as Mock;
 const mockPollJobStatus = pollJobStatus as unknown as Mock;
 
@@ -181,5 +200,66 @@ describe('useUpdateDashboard', () => {
         expect(showToastSuccess.mock.calls[0][0]).not.toHaveProperty(
             'subtitle',
         );
+    });
+});
+
+describe('dashboard boundary metadata requests', () => {
+    it.each([
+        [false, undefined],
+        [true, undefined],
+        [false, 'embed-token'],
+        [true, 'embed-token'],
+    ])(
+        'requests source settings only when the dashboard needs them (%s, %s)',
+        async (includeBoundaryContext, embedToken) => {
+            vi.clearAllMocks();
+            mockApi.mockResolvedValue({ filterBoundaryContexts: {} });
+            const sources = getDashboardAvailableFilterSources(boundaryTiles, {
+                includeBoundaryContext,
+                includeUnpublishedDraft: true,
+            });
+            const { result } = renderHook(
+                () =>
+                    useDashboardsAvailableFilters(
+                        sources,
+                        'project',
+                        embedToken,
+                    ),
+                { wrapper: createWrapper() },
+            );
+            await waitFor(() => expect(result.current.isSuccess).toBe(true));
+            expect(mockApi.mock.calls[0][0].url).toBe(
+                embedToken
+                    ? '/embed/project/dashboard/availableFilters'
+                    : '/dashboards/availableFilters',
+            );
+            const request = JSON.parse(mockApi.mock.calls[0][0].body);
+            expect(request).toEqual([
+                {
+                    tileUuid: 'chart',
+                    savedChartUuid: 'saved-chart',
+                    includeUnpublishedDraft: true,
+                    ...(includeBoundaryContext && {
+                        includeBoundaryContext: true,
+                    }),
+                },
+                ...(includeBoundaryContext
+                    ? [
+                          {
+                              tileUuid: 'sql',
+                              savedSqlUuid: 'saved-sql',
+                              includeBoundaryContext: true,
+                          },
+                      ]
+                    : []),
+            ]);
+        },
+    );
+    it('keeps the same request key when tiles move or are reordered', () => {
+        expect(
+            getDashboardAvailableFilterSources(
+                [...boundaryTiles].reverse().map((tile) => ({ ...tile, x: 3 })),
+            ),
+        ).toEqual(getDashboardAvailableFilterSources(boundaryTiles));
     });
 });

@@ -213,6 +213,7 @@ export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
+    dashboardSource?: { dashboardUuid: string; tileUuid: string };
     documentQueryContext?: DocumentQueryContext;
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;

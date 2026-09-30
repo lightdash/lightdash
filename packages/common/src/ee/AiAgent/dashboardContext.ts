@@ -8,7 +8,11 @@ type AiDashboardFilterRuleInput = AiDashboardFilterRule &
     Partial<
         Pick<
             DashboardFilterRule,
-            'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId'
+            | 'id'
+            | 'tileTargets'
+            | 'lockedTabUuids'
+            | 'requiredGroupId'
+            | 'boundaries'
         >
     >;
 
@@ -23,6 +27,7 @@ const serializeDashboardFilterRuleForAiContext = ({
     tileTargets: _tileTargets,
     lockedTabUuids: _lockedTabUuids,
     requiredGroupId: _requiredGroupId,
+    boundaries: _boundaries,
     ...filter
 }: AiDashboardFilterRuleInput): AiDashboardFilterRule => filter;
 

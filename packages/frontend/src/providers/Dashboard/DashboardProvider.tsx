@@ -1,4 +1,9 @@
 import {
+    getDashboardChartBoundaryErrors,
+    getDashboardFilterBoundaryContexts,
+    restoreDashboardFilterBoundaries,
+    validateFilterBoundary,
+    getFilterBoundaryFieldContext,
     applyDimensionOverrides,
     applyMetricOverrides,
     compressDashboardFiltersToParam,
@@ -12,6 +17,7 @@ import {
     getMissingRequiredParameters,
     getUnmetFilterRequirements,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     isFilterLockedOnTab,
     isStandardDateGranularity,
     isSubDayGranularity,
@@ -33,7 +39,6 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
-    type SavedChartsInfoForDashboardAvailableFilters,
     type SortField,
 } from '@lightdash/common';
 import clone from 'lodash/clone';
@@ -57,6 +62,7 @@ import {
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import { useEmbedEventEmitter } from '../../ee/features/embed/hooks/useEmbedEventEmitter';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import {
     useGetComments,
     type useDashboardCommentsCheck,
@@ -67,6 +73,7 @@ import {
     isLockedDashboardFilterRule,
 } from '../../features/dashboardFilters/lockedFilters';
 import { useParameters } from '../../features/parameters';
+import { getDashboardAvailableFilterSources } from '../../hooks/dashboard/getDashboardAvailableFilterSources';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
@@ -77,6 +84,8 @@ import {
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
+import { useSessionTimezone } from '../../hooks/useSessionTimezone';
+import useApp from '../App/useApp';
 import DashboardContext from './context';
 import {
     getDashboardParameterOverrides,
@@ -135,6 +144,9 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     searchRef.current = search;
     const navigate = useNavigate();
     const { showToastWarning, showToastInfo } = useToaster();
+    const getUiString = useUiStrings();
+    const sessionTimezone = useSessionTimezone();
+    const { user } = useApp();
     const hasNotifiedLockedOverrideRef = useRef(false);
 
     const {
@@ -889,34 +901,50 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const savedChartUuidsAndTileUuidsKey = useMemo(
         () =>
             dashboardTiles
-                ?.filter(isDashboardChartTileType)
+                ?.filter(
+                    (tile) =>
+                        isDashboardChartTileType(tile) ||
+                        isDashboardSqlChartTile(tile),
+                )
                 .map(
                     (tile) =>
-                        `${tile.uuid}:${tile.properties.savedChartUuid ?? ''}`,
+                        `${tile.uuid}:${isDashboardChartTileType(tile) ? (tile.properties.savedChartUuid ?? '') : (tile.properties.savedSqlUuid ?? '')}`,
                 )
                 .sort()
                 .join(',') ?? '',
         [dashboardTiles],
     );
 
+    const needsBoundaryMetadata = [
+        (dashboard ?? embedDashboard)?.filters,
+        dashboardFilters,
+    ].some((filters) =>
+        Object.values(filters ?? {})
+            .flat()
+            .some((rule) => !!rule.boundaries),
+    );
+    // Embedded editors manage their own edit mode; preload settings for an
+    // authorized author so their first boundary is validated before Apply.
+    const canAuthorEmbeddedDashboard =
+        !!embed.writeActions &&
+        embedDashboard?.spaceUuid === embed.writeActions.spaceUuid &&
+        embed.embedWriteContext?.canUpdateDashboard === true;
+    const includeBoundaryContext =
+        isEditMode || canAuthorEmbeddedDashboard || needsBoundaryMetadata;
     const savedChartUuidsAndTileUuids = useMemo(
         () =>
             dashboardTiles
-                ?.filter(isDashboardChartTileType)
-                .reduce<SavedChartsInfoForDashboardAvailableFilters>(
-                    (acc, tile) => {
-                        if (tile.properties.savedChartUuid) {
-                            acc.push({
-                                tileUuid: tile.uuid,
-                                savedChartUuid: tile.properties.savedChartUuid,
-                            });
-                        }
-                        return acc;
-                    },
-                    [],
-                ),
+                ? getDashboardAvailableFilterSources(dashboardTiles, {
+                      includeBoundaryContext,
+                      includeUnpublishedDraft,
+                  })
+                : undefined,
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [savedChartUuidsAndTileUuidsKey],
+        [
+            savedChartUuidsAndTileUuidsKey,
+            includeUnpublishedDraft,
+            includeBoundaryContext,
+        ],
     );
 
     const {
@@ -972,6 +1000,9 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         savedChartUuidsAndTileUuids,
         embedToken,
     ]);
+
+    const filterBoundaryContexts =
+        dashboardAvailableFiltersData?.filterBoundaryContexts;
 
     /**
      * Apply interactivity filtering for embedded dashboards
@@ -1114,6 +1145,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     return;
                 }
 
+                // Wait for the same per-source settings used by query execution.
+                if (
+                    needsBoundaryMetadata &&
+                    (!savedChartUuidsAndTileUuids ||
+                        (savedChartUuidsAndTileUuids.length > 0 &&
+                            !filterBoundaryContexts))
+                )
+                    return;
+
                 const convertedSdkFilters = sdkFilters.map((sdkFilter) =>
                     convertSdkFilterToDashboardFilter(
                         sdkFilter,
@@ -1222,11 +1262,83 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 updatedDashboardFilters,
             );
 
-            setDashboardFilters(updatedDashboardFilters);
+            const nextFilters = !isEditMode
+                ? restoreDashboardFilterBoundaries(
+                      currentDashboard.filters,
+                      updatedDashboardFilters,
+                  )
+                : updatedDashboardFilters;
+            const boundaryContextArgs = {
+                filterBoundaryContexts,
+                sessionTimezone,
+                userTimezone: user.data?.timezone ?? null,
+                context: { getUiString },
+            };
+            const boundaryErrors = !isEditMode
+                ? Object.values(nextFilters)
+                      .flat()
+                      .flatMap((rule) => {
+                          if (
+                              rule.boundaries?.type === 'date' ||
+                              getDashboardFilterBoundaryContexts(
+                                  rule,
+                                  boundaryContextArgs,
+                              ).length
+                          )
+                              return [];
+                          const field =
+                              dashboardAvailableFiltersData?.allFilterableFields.find(
+                                  (item) =>
+                                      getItemId(item) === rule.target.fieldId,
+                              );
+                          const error = validateFilterBoundary(
+                              rule.boundaries,
+                              rule,
+                              {
+                                  ...getFilterBoundaryFieldContext(field),
+                                  ...(rule.target.isSqlColumn && {
+                                      fieldType: rule.target.fallbackType,
+                                  }),
+                                  getUiString,
+                              },
+                          );
+                          return error ? [error] : [];
+                      })
+                : [];
+            if (!isEditMode && needsBoundaryMetadata) {
+                boundaryErrors.push(
+                    ...getDashboardChartBoundaryErrors({
+                        savedFilters: currentDashboard.filters,
+                        filters: nextFilters,
+                        ...boundaryContextArgs,
+                    }),
+                );
+            }
+            if (
+                sdkFiltersChanged &&
+                dashboardFilters !== emptyFilters &&
+                boundaryErrors.length
+            ) {
+                showToastWarning({
+                    title: getUiString('filters.boundaries.selectionRequired'),
+                    subtitle: boundaryErrors.join(' '),
+                });
+            } else {
+                setDashboardFilters(nextFilters);
+            }
         }
 
         setOriginalDashboardFilters(currentDashboard.filters);
     }, [
+        filterBoundaryContexts,
+        isLoadingDashboardFilters,
+        isFetchingDashboardFilters,
+        needsBoundaryMetadata,
+        sessionTimezone,
+        user.data?.timezone,
+        getUiString,
+        dashboardAvailableFiltersData,
+        isEditMode,
         dashboard,
         embedDashboard,
         dashboardFilters,
@@ -1573,7 +1685,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         const filteredFilters = embedDashboard
             ? applyInteractivityFiltering(filters)
             : filters;
-        setDashboardFilters(filteredFilters);
+        setDashboardFilters(
+            isEditMode
+                ? filteredFilters
+                : restoreDashboardFilterBoundaries(filters, filteredFilters),
+        );
         // reset temporary filters
         setDashboardTemporaryFilters(emptyFilters);
         // reset saved filter overrides which are stored in url
@@ -1585,6 +1701,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         embedDashboard,
         resetSavedFilterOverrides,
         applyInteractivityFiltering,
+        isEditMode,
     ]);
 
     const hasTilesThatSupportFilters = useMemo(() => {
@@ -1891,6 +2008,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,
+        filterBoundaryContexts,
         chartZoomableFieldsByTileUuid,
         setChartZoomableFields,
         allFilters,

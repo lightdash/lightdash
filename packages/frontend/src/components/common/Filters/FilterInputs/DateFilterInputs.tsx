@@ -1,10 +1,13 @@
 import {
     DimensionType,
+    validateFilterBoundary,
+    resolveFilterBoundaryInterval,
     FilterOperator,
     formatDate,
     isCustomSqlDimension,
     isDimension,
     isFilterRule,
+    isDashboardFilterRule,
     TimeFrames,
     timeframeToUnitOfTime,
     type BaseFilterRule,
@@ -14,6 +17,7 @@ import { Flex, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
+import { useFilterBoundaryContexts } from '../../../../features/dashboardFilters/FilterConfiguration/useFilterBoundaryContext';
 import { NumberInput } from '../../NumberInput';
 import useFiltersContext from '../useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
@@ -46,6 +50,10 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
+    const { contexts: boundaryContexts } = useFilterBoundaryContexts(
+        field,
+        isDashboardFilterRule(rule) ? rule : undefined,
+    );
     const getUiString = useUiStrings();
 
     const isTimestamp =
@@ -74,6 +82,53 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
         getUiString,
     });
     const invalidDateFilterValue = getInvalidDateFilterValue(rule.values);
+    const isDateAllowed = (date: Date): boolean => {
+        const boundaries = props.boundaries;
+        if (!boundaries || boundaries.type !== 'date') return true;
+        return boundaryContexts.every((boundaryContext) => {
+            // A timestamp picker selects a time after selecting the day. Keep a
+            // day available when it overlaps the permitted timestamp interval.
+            if (boundaryContext.fieldType !== DimensionType.DATE) {
+                const interval = resolveFilterBoundaryInterval(
+                    boundaries,
+                    boundaryContext,
+                );
+                const calendarDay = dayjs(date).format('YYYY-MM-DD');
+                const dayInterval = resolveFilterBoundaryInterval(
+                    {
+                        type: 'date',
+                        mode: 'fixed',
+                        start: calendarDay,
+                        end: calendarDay,
+                    },
+                    boundaryContext,
+                );
+                return (
+                    !!interval &&
+                    !!dayInterval &&
+                    dayInterval.end > interval.start &&
+                    (dayInterval.start < interval.end ||
+                        (interval.endInclusive &&
+                            dayInterval.start === interval.end))
+                );
+            }
+            return (
+                validateFilterBoundary(
+                    props.boundaries,
+                    {
+                        ...rule,
+                        disabled: false,
+                        operator: FilterOperator.EQUALS,
+                        values: [dayjs(date).format('YYYY-MM-DD')],
+                    },
+                    boundaryContext,
+                ) === null
+            );
+        });
+    };
+    const excludeDate = props.boundaries
+        ? (date: string) => !isDateAllowed(dayjs(date).toDate())
+        : undefined;
 
     const renderMultiDatePicker = (timeFrame: MultiDateTimeFrame) => {
         const storedTimeFrame = getStoredValueTimeFrame(timeFrame);
@@ -81,6 +136,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
         return (
             <FilterMultiDatePicker
                 timeFrame={timeFrame}
+                isDateAllowed={props.boundaries ? isDateAllowed : undefined}
                 disabled={disabled}
                 placeholder={multiDatePlaceholder}
                 firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
@@ -112,6 +168,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 
         return (
             <FilterDateTimePicker
+                excludeDate={excludeDate}
                 disabled={disabled}
                 placeholder={placeholder}
                 data-autofocus
@@ -364,6 +421,23 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     />
 
                     <FilterUnitOfTimeAutoComplete
+                        isOptionAllowed={
+                            props.boundaries
+                                ? (settings) =>
+                                      boundaryContexts.every(
+                                          (context) =>
+                                              validateFilterBoundary(
+                                                  props.boundaries,
+                                                  {
+                                                      ...rule,
+                                                      disabled: false,
+                                                      settings,
+                                                  },
+                                                  context,
+                                              ) === null,
+                                      )
+                                : undefined
+                        }
                         disabled={disabled}
                         style={{ flexShrink: 1, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
@@ -395,6 +469,23 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
         case FilterOperator.NOT_IN_THE_CURRENT:
             return (
                 <FilterUnitOfTimeAutoComplete
+                    isOptionAllowed={
+                        props.boundaries
+                            ? (settings) =>
+                                  boundaryContexts.every(
+                                      (context) =>
+                                          validateFilterBoundary(
+                                              props.boundaries,
+                                              {
+                                                  ...rule,
+                                                  disabled: false,
+                                                  settings,
+                                              },
+                                              context,
+                                          ) === null,
+                                  )
+                            : undefined
+                    }
                     w="100%"
                     disabled={disabled}
                     isTimestamp={isTimestamp}
@@ -444,6 +535,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 
                 return (
                     <FilterDateTimeRangePicker
+                        excludeDate={excludeDate}
                         disabled={disabled}
                         data-autofocus
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
@@ -478,6 +570,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 
             return (
                 <FilterDateRangePicker
+                    excludeDate={excludeDate}
                     disabled={disabled}
                     data-autofocus
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}

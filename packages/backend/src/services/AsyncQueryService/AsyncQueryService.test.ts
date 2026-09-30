@@ -5,6 +5,7 @@ import {
     assertUnreachable,
     ChartType,
     CreateWarehouseCredentials,
+    DashboardTileTypes,
     DimensionType,
     DownloadFileType,
     DuckdbExecutionSpec,
@@ -15,6 +16,7 @@ import {
     FieldType,
     FilterOperator,
     ForbiddenError,
+    getDefaultStartOfWeek,
     getFilterRulesFromGroup,
     isMergeMetricSource,
     MergeJoinType,
@@ -35,11 +37,13 @@ import {
     QueryTrigger,
     ResultColumns,
     ResultsExpiredError,
+    UnitOfTime,
     upgradeSavedMergeQuery,
     VizAggregationOptions,
     VizIndexType,
     WarehouseClient,
     WarehouseTypes,
+    WeekDay,
     type Document,
     type DocumentQueryReference,
     type Explore,
@@ -218,6 +222,7 @@ const createQueryComposerMock = ({
     fields = {},
     missingParameterReferences = [],
     timezone = undefined,
+    startOfWeek = undefined,
     displayTimezone = null,
     useTimezoneAwareDateTrunc = false,
     userAccessControls = undefined,
@@ -229,6 +234,7 @@ const createQueryComposerMock = ({
     fields?: ItemsMap;
     missingParameterReferences?: string[];
     timezone?: string;
+    startOfWeek?: WeekDay | null;
     displayTimezone?: string | null;
     useTimezoneAwareDateTrunc?: boolean;
     userAccessControls?: UserAccessControls;
@@ -237,6 +243,7 @@ const createQueryComposerMock = ({
     ({
         getSql: () => sql,
         getExplore: () => explore,
+        getFilterExplore: () => explore,
         getMetricQuery: () => metricQuery,
         getPivotConfiguration: () => undefined,
         getFields: () => fields,
@@ -247,6 +254,13 @@ const createQueryComposerMock = ({
         getParameters: () => undefined,
         getDateZoom: () => undefined,
         getTimezone: () => timezone,
+        getFilterBoundaryContext: () => ({
+            timezone,
+            startOfWeek:
+                startOfWeek ??
+                getDefaultStartOfWeek(warehouseClientMock.getAdapterType()),
+            useTimezoneAwareDateTrunc,
+        }),
         getDisplayTimezone: () => displayTimezone,
         getUseTimezoneAwareDateTrunc: () => useTimezoneAwareDateTrunc,
         getUserAccessControls: () => userAccessControls,
@@ -7050,13 +7064,31 @@ describe('AsyncQueryService', () => {
             config: {},
             limit: 10,
             project: { projectUuid },
+            space: { uuid: 'spaceUuid' },
             organization: {
                 organizationUuid: projectSummary.organizationUuid,
             },
         };
-        const composer = () =>
+        const dateExplore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                a: {
+                    ...validExplore.tables.a,
+                    dimensions: {
+                        ...validExplore.tables.a.dimensions,
+                        dim1: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            type: DimensionType.DATE,
+                        },
+                    },
+                },
+            },
+        };
+        const composer = (startOfWeek?: WeekDay | null) =>
             createQueryComposerMock({
                 sql: 'SELECT 1',
+                startOfWeek,
                 userAccessControls: {
                     userAttributes: {},
                     intrinsicUserAttributes: {},
@@ -7064,7 +7096,7 @@ describe('AsyncQueryService', () => {
                 availableParameterDefinitions: {},
             });
 
-        const buildService = () => {
+        const buildService = (startOfWeek?: WeekDay | null) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 savedChartModel: {
                     get: vi.fn(async () => savedChart),
@@ -7083,7 +7115,36 @@ describe('AsyncQueryService', () => {
                         projectUuid,
                     })),
                 } as unknown as SpaceModel,
+                permissionsService: {
+                    checkEmbedSqlChartPermissions: vi.fn(async () => {}),
+                } as unknown as PermissionsService,
                 dashboardModel: {
+                    getByIdOrSlug: vi.fn(async () => ({
+                        uuid: 'dashboard-uuid',
+                        name: 'Dashboard',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        spaceUuid: 'spaceUuid',
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        tiles: [
+                            {
+                                uuid: 'tile-1',
+                                type: DashboardTileTypes.SAVED_CHART,
+                                properties: { savedChartUuid: savedChart.uuid },
+                            },
+                            {
+                                uuid: 'sql-tile',
+                                type: DashboardTileTypes.SQL_CHART,
+                                properties: {
+                                    savedSqlUuid: sqlChart.savedSqlUuid,
+                                },
+                            },
+                        ],
+                    })),
                     getDashboardParametersByIdOrSlug: vi.fn(
                         async () => undefined,
                     ),
@@ -7104,14 +7165,20 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue({ explore: validExplore });
             internals.getWarehouseCredentialsWithConnection = vi
                 .fn()
-                .mockResolvedValue(resolvedCredentials);
+                .mockResolvedValue({
+                    ...resolvedCredentials,
+                    warehouseCredentials: {
+                        ...resolvedCredentials.warehouseCredentials,
+                        startOfWeek,
+                    },
+                });
             service.combineParameters = vi.fn().mockResolvedValue(undefined);
             internals.getMetricQueryFields = vi
                 .fn()
                 .mockResolvedValue({ fields: {} });
             internals.prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
-                .mockImplementation(async () => composer());
+                .mockImplementation(async () => composer(startOfWeek));
             internals.assertSavedChartAccess = vi.fn(async () => {});
             internals.checkDashboardChartQueryPermissions = vi.fn(
                 async () => {},
@@ -7123,7 +7190,7 @@ describe('AsyncQueryService', () => {
                 ...resolvedCredentials,
                 queryTags: {},
                 metricQuery: metricQueryMock,
-                queryComposer: composer(),
+                queryComposer: composer(startOfWeek),
                 originalColumns: {},
                 parameterReferences: [],
                 usedParameters: {},
@@ -7135,6 +7202,491 @@ describe('AsyncQueryService', () => {
             service['executeAsyncQuery'] = execute;
             return { service, execute };
         };
+
+        test.each(['chart', 'sql'] as const)(
+            'rejects out-of-bound regular dashboard %s queries before execution',
+            async (kind) => {
+                const { service, execute } = buildService();
+                const rule = {
+                    id: 'bounded-filter',
+                    target: { fieldId: 'b_dim1', tableName: 'b' },
+                    tileTargets: {
+                        'tile-1': { fieldId: 'b_dim1', tableName: 'b' },
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['Pending'],
+                    label: undefined,
+                    boundaries: {
+                        type: 'string' as const,
+                        values: ['Pending', 'Active'],
+                    },
+                };
+                vi.mocked(
+                    service.dashboardModel.getByIdOrSlug,
+                ).mockResolvedValue({
+                    filters: {
+                        dimensions: [rule],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    tiles: [
+                        {
+                            uuid: 'tile-1',
+                            type:
+                                kind === 'chart'
+                                    ? DashboardTileTypes.SAVED_CHART
+                                    : DashboardTileTypes.SQL_CHART,
+                            properties: {
+                                savedChartUuid: savedChart.uuid,
+                                savedSqlUuid: sqlChart.savedSqlUuid,
+                            },
+                        },
+                    ],
+                } as never);
+                const args = {
+                    account: viewer,
+                    projectUuid,
+                    dashboardUuid: 'dashboard-uuid',
+                    tileUuid: 'tile-1',
+                    dashboardFilters: {
+                        dimensions: [
+                            {
+                                ...rule,
+                                values: ['Other'],
+                                boundaries: undefined,
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    context: QueryExecutionContext.DASHBOARD,
+                    invalidateCache: false,
+                    parameters: undefined,
+                    limit: undefined,
+                    pivotResults: false,
+                };
+                const query =
+                    kind === 'chart'
+                        ? service.executeAsyncDashboardChartQuery({
+                              ...args,
+                              chartUuid: savedChart.uuid,
+                          })
+                        : service.executeAsyncDashboardSqlChartQuery({
+                              ...args,
+                              savedSqlUuid: sqlChart.savedSqlUuid,
+                          });
+                await expect(query).rejects.toThrow(
+                    'Choose one of: Pending, Active.',
+                );
+                expect(execute).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            { startOfWeek: WeekDay.MONDAY, allowed: true },
+            { startOfWeek: WeekDay.SUNDAY, allowed: false },
+        ])(
+            'validates metric filters using the selected connection week start ($startOfWeek)',
+            async ({ startOfWeek, allowed }) => {
+                vi.useFakeTimers();
+                vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
+                try {
+                    const { service, execute } = buildService(startOfWeek);
+                    const rule = {
+                        id: 'date-boundary',
+                        label: undefined,
+                        target: { fieldId: 'a_dim1', tableName: 'a' },
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        values: [],
+                        settings: { unitOfTime: UnitOfTime.weeks },
+                        boundaries: {
+                            type: 'date' as const,
+                            mode: 'fixed' as const,
+                            start: '2026-09-28',
+                            end: '2026-10-04',
+                        },
+                    };
+                    const filters = {
+                        dimensions: [rule],
+                        metrics: [],
+                        tableCalculations: [],
+                    };
+                    const dashboard =
+                        await service.dashboardModel.getByIdOrSlug(
+                            'dashboard-uuid',
+                        );
+                    vi.mocked(
+                        service.dashboardModel.getByIdOrSlug,
+                    ).mockResolvedValue({ ...dashboard, filters });
+                    (
+                        service as AnyType
+                    ).prepareMetricQueryAsyncQueryArgs.mockResolvedValue(
+                        createQueryComposerMock({
+                            explore: dateExplore,
+                            timezone: 'UTC',
+                            startOfWeek,
+                            userAccessControls: {
+                                userAttributes: {},
+                                intrinsicUserAttributes: {},
+                            },
+                            availableParameterDefinitions: {},
+                        }),
+                    );
+                    const query = service.executeAsyncDashboardChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        dashboardUuid: 'dashboard-uuid',
+                        chartUuid: savedChart.uuid,
+                        tileUuid: 'tile-1',
+                        dashboardFilters: filters,
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.DASHBOARD,
+                        invalidateCache: false,
+                    });
+                    if (allowed)
+                        await expect(query).resolves.toMatchObject({
+                            queryUuid: 'queryUuid',
+                        });
+                    else {
+                        await expect(query).rejects.toThrow(
+                            'Choose dates between 2026-09-28 and 2026-10-04.',
+                        );
+                        expect(execute).not.toHaveBeenCalled();
+                    }
+                } finally {
+                    vi.useRealTimers();
+                }
+            },
+        );
+
+        test.each([false, true])(
+            'uses the prepared query timezone and DATE compatibility mode (%s)',
+            async (useTimezoneAwareDateTrunc) => {
+                vi.useFakeTimers();
+                vi.setSystemTime(new Date('2026-03-01T00:30:00Z'));
+                try {
+                    const { service, execute } = buildService();
+                    const rule = {
+                        id: 'date-boundary',
+                        label: undefined,
+                        target: { fieldId: 'a_dim1', tableName: 'a' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['2026-02-15'],
+                        boundaries: {
+                            type: 'date' as const,
+                            mode: 'relative' as const,
+                            value: 1,
+                            unitOfTime: UnitOfTime.months,
+                            completed: true,
+                        },
+                    };
+                    const filters = {
+                        dimensions: [rule],
+                        metrics: [],
+                        tableCalculations: [],
+                    };
+                    const dashboard =
+                        await service.dashboardModel.getByIdOrSlug(
+                            'dashboard-uuid',
+                        );
+                    vi.mocked(
+                        service.dashboardModel.getByIdOrSlug,
+                    ).mockResolvedValue({ ...dashboard, filters });
+                    (
+                        service as AnyType
+                    ).prepareMetricQueryAsyncQueryArgs.mockResolvedValue(
+                        createQueryComposerMock({
+                            explore: dateExplore,
+                            timezone: 'America/New_York',
+                            useTimezoneAwareDateTrunc,
+                            userAccessControls: {
+                                userAttributes: {},
+                                intrinsicUserAttributes: {},
+                            },
+                            availableParameterDefinitions: {},
+                        }),
+                    );
+                    const query = service.executeAsyncDashboardChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        dashboardUuid: 'dashboard-uuid',
+                        chartUuid: savedChart.uuid,
+                        tileUuid: 'tile-1',
+                        dashboardFilters: filters,
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.DASHBOARD,
+                        invalidateCache: false,
+                    });
+                    if (useTimezoneAwareDateTrunc) {
+                        await expect(query).rejects.toThrow(
+                            'Choose dates within the last 1 completed month.',
+                        );
+                        expect(execute).not.toHaveBeenCalled();
+                    } else
+                        await expect(query).resolves.toMatchObject({
+                            queryUuid: 'queryUuid',
+                        });
+                } finally {
+                    vi.useRealTimers();
+                }
+            },
+        );
+
+        test('does not disclose boundaries from a dashboard the caller cannot view', async () => {
+            const { service } = buildService();
+            const account = {
+                ...viewer,
+                user: {
+                    ...viewer.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: 'view' },
+                        { subject: 'SavedChart', action: 'view' },
+                    ]),
+                },
+            } as Account;
+            await expect(
+                service.executeAsyncDashboardChartQuery({
+                    account,
+                    projectUuid,
+                    chartUuid: savedChart.uuid,
+                    dashboardUuid: 'private-dashboard',
+                    tileUuid: 'tile-1',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    context: QueryExecutionContext.DASHBOARD,
+                    invalidateCache: false,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('requires a real dashboard tile unless the caller can edit dashboard drafts', async () => {
+            const { service, execute } = buildService();
+            const args = {
+                account: viewer,
+                projectUuid,
+                dashboardUuid: 'dashboard-uuid',
+                savedSqlUuid: sqlChart.savedSqlUuid,
+                tileUuid: 'missing-tile',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+            };
+            await expect(
+                service.executeAsyncDashboardSqlChartQuery(args),
+            ).rejects.toThrow(ForbiddenError);
+            expect(execute).not.toHaveBeenCalled();
+            const editor = {
+                ...viewer,
+                user: {
+                    ...viewer.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: 'view' },
+                        { subject: 'SavedChart', action: 'view' },
+                        { subject: 'Dashboard', action: ['view', 'update'] },
+                    ]),
+                },
+            } as Account;
+            await expect(
+                service.executeAsyncDashboardSqlChartQuery({
+                    ...args,
+                    account: editor,
+                }),
+            ).resolves.toMatchObject({ queryUuid: 'queryUuid' });
+        });
+
+        describe.each(['chart', 'sql'] as const)(
+            'embedded dashboard draft tile previews (%s)',
+            (kind) => {
+                test.each([
+                    {
+                        canWrite: true,
+                        actorCanUpdate: true,
+                        writeSpace: 'spaceUuid',
+                        allowed: true,
+                    },
+                    {
+                        canWrite: false,
+                        actorCanUpdate: true,
+                        writeSpace: 'spaceUuid',
+                        allowed: false,
+                    },
+                    {
+                        canWrite: true,
+                        actorCanUpdate: false,
+                        writeSpace: 'spaceUuid',
+                        allowed: false,
+                    },
+                    {
+                        canWrite: true,
+                        actorCanUpdate: true,
+                        writeSpace: 'other-space',
+                        allowed: false,
+                    },
+                ])(
+                    'requires write permission and matching space ($canWrite, $actorCanUpdate, $writeSpace)',
+                    async ({
+                        canWrite,
+                        actorCanUpdate,
+                        writeSpace,
+                        allowed,
+                    }) => {
+                        const { service, execute } = buildService();
+                        const account = {
+                            ...buildAccount({
+                                accountType: 'jwt',
+                                userType: 'anonymous',
+                            }),
+                            access: {
+                                content: {
+                                    type: 'dashboard',
+                                    dashboardUuid: 'dashboard-uuid',
+                                },
+                            },
+                            authentication: {
+                                type: 'jwt',
+                                data: {
+                                    writeActions: { spaceUuid: writeSpace },
+                                },
+                            },
+                            embedWriteContext: { canUpdateDashboard: canWrite },
+                            embedWriteUser: {
+                                ...sessionAccount.user,
+                                ability: new Ability<PossibleAbilities>([
+                                    { subject: 'SavedChart', action: 'view' },
+                                    {
+                                        subject: 'Dashboard',
+                                        action: actorCanUpdate
+                                            ? ['view', 'update']
+                                            : ['view'],
+                                    },
+                                ]),
+                            },
+                        } as unknown as Account;
+                        const args = {
+                            account,
+                            projectUuid,
+                            dashboardUuid: 'dashboard-uuid',
+                            tileUuid: 'unsaved-tile',
+                            dashboardFilters: {
+                                dimensions: [],
+                                metrics: [],
+                                tableCalculations: [],
+                            },
+                            dashboardSorts: [],
+                            context: QueryExecutionContext.DASHBOARD,
+                            invalidateCache: false,
+                        };
+                        const result =
+                            kind === 'chart'
+                                ? service.executeAsyncDashboardChartQuery({
+                                      ...args,
+                                      chartUuid: savedChart.uuid,
+                                  })
+                                : service.executeAsyncDashboardSqlChartQuery({
+                                      ...args,
+                                      savedSqlUuid: sqlChart.savedSqlUuid,
+                                  });
+                        if (allowed) {
+                            await expect(result).resolves.toMatchObject({
+                                queryUuid: 'queryUuid',
+                            });
+                            expect(execute).toHaveBeenCalledOnce();
+                        } else {
+                            await expect(result).rejects.toThrow(
+                                'does not belong to the requested dashboard tile',
+                            );
+                            expect(execute).not.toHaveBeenCalled();
+                        }
+                    },
+                );
+            },
+        );
+
+        test.each([
+            { startOfWeek: null, allowed: false },
+            { startOfWeek: WeekDay.SUNDAY, allowed: true },
+        ])(
+            'uses the SQL warehouse week start ($startOfWeek) for full containment',
+            async ({ startOfWeek, allowed }) => {
+                vi.useFakeTimers();
+                vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
+                try {
+                    const { service, execute } = buildService(startOfWeek);
+                    const target = {
+                        fieldId: 'ordered_at',
+                        tableName: 'orders',
+                        isSqlColumn: true,
+                        fallbackType: DimensionType.DATE,
+                    };
+                    const rule = {
+                        id: 'date-boundary',
+                        label: undefined,
+                        target,
+                        tileTargets: { 'sql-tile': target },
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        values: [],
+                        settings: { unitOfTime: UnitOfTime.weeks },
+                        boundaries: {
+                            type: 'date' as const,
+                            mode: 'fixed' as const,
+                            start: '2026-09-27',
+                            end: '2026-10-03',
+                        },
+                    };
+                    const dashboard =
+                        await service.dashboardModel.getByIdOrSlug(
+                            'dashboard-uuid',
+                        );
+                    vi.mocked(
+                        service.dashboardModel.getByIdOrSlug,
+                    ).mockResolvedValue({
+                        ...dashboard,
+                        filters: {
+                            dimensions: [rule],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                    });
+                    const query = service.executeAsyncDashboardSqlChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        dashboardUuid: 'dashboard-uuid',
+                        savedSqlUuid: sqlChart.savedSqlUuid,
+                        tileUuid: 'sql-tile',
+                        dashboardFilters: {
+                            dimensions: [rule],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.DASHBOARD,
+                        invalidateCache: false,
+                    });
+                    if (allowed)
+                        await expect(query).resolves.toMatchObject({
+                            queryUuid: 'queryUuid',
+                        });
+                    else {
+                        await expect(query).rejects.toThrow(
+                            'Choose dates between 2026-09-27 and 2026-10-03.',
+                        );
+                        expect(execute).not.toHaveBeenCalled();
+                    }
+                } finally {
+                    vi.useRealTimers();
+                }
+            },
+        );
 
         test.each([
             {
@@ -7204,7 +7756,7 @@ describe('AsyncQueryService', () => {
                         projectUuid,
                         savedSqlUuid: sqlChart.savedSqlUuid,
                         dashboardUuid: 'dashboard-uuid',
-                        tileUuid: 'tile-1',
+                        tileUuid: 'sql-tile',
                         dashboardFilters: {
                             dimensions: [],
                             metrics: [],
@@ -8005,6 +8557,7 @@ describe('AsyncQueryService', () => {
                 ...sessionAccount.user,
                 ability: new Ability<PossibleAbilities>([
                     { subject: 'Project', action: ['view'] },
+                    { subject: 'Dashboard', action: ['view'] },
                     { subject: 'SavedChart', action: ['view'] },
                 ]),
             },
@@ -8080,6 +8633,22 @@ describe('AsyncQueryService', () => {
                     })),
                 } as unknown as SpaceModel,
                 dashboardModel: {
+                    getByIdOrSlug: vi.fn(async () => ({
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        tiles: [
+                            {
+                                uuid: 'tile-1',
+                                type: DashboardTileTypes.SAVED_CHART,
+                                properties: {
+                                    savedChartUuid: mergedChart.uuid,
+                                },
+                            },
+                        ],
+                    })),
                     getDashboardParametersByIdOrSlug: vi.fn(
                         async () => undefined,
                     ),
@@ -8733,6 +9302,7 @@ describe('saved chart query result access', () => {
                 action: 'view',
                 conditions: { inheritsFromOrgOrProject: true },
             },
+            { subject: 'Dashboard', action: 'view' },
             { subject: 'UnderlyingData', action: 'view' },
             { subject: 'Explore', action: 'manage' },
         ]);
@@ -9092,6 +9662,48 @@ describe('saved chart query result access', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
     });
+    it('revalidates saved dashboard boundaries when a regular viewer requests totals', async () => {
+        const { account, service, history, resolveAccess } = buildFixture();
+        resolveAccess.mockResolvedValue({
+            inheritsFromOrgOrProject: true,
+            access: [],
+        });
+        history.requestParameters = {
+            chartUuid: 'source-chart-uuid',
+            dashboardSource: {
+                dashboardUuid: 'dashboard-uuid',
+                tileUuid: 'tile-1',
+            },
+        };
+        service.dashboardModel.getByIdOrSlug = vi.fn().mockResolvedValue({
+            filters: {
+                dimensions: [
+                    {
+                        id: 'bounded-filter',
+                        target: { fieldId: 'a_dim1', tableName: 'a' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['Pending'],
+                        label: undefined,
+                        boundaries: {
+                            type: 'string',
+                            values: ['Pending', 'Active'],
+                        },
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        await expect(
+            service.executeAsyncCalculateTotalFromQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: history.queryUuid,
+                kind: 'grandTotal',
+            }),
+        ).rejects.toThrow('Choose one of: Pending, Active.');
+    });
+
     it.each(['totals', 'rerun', 'underlying'] as const)(
         'retains source access when %s are prepared before revocation',
         async (operation) => {

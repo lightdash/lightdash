@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    validateFilterBoundary,
+    isValidFilterBoundary,
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
     DimensionType,
@@ -33,10 +35,16 @@ import {
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
-import { IconInfoCircle, IconRotate2, IconSql } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconInfoCircle,
+    IconRotate2,
+    IconSql,
+} from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { flushSync } from 'react-dom';
+import Callout from '../../../components/common/Callout';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -48,6 +56,7 @@ import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
+import { useFilterBoundaryContexts } from './useFilterBoundaryContext';
 import {
     getFilterRuleRevertableObject,
     hasFilterValueSet,
@@ -109,6 +118,31 @@ const FilterConfiguration: FC<Props> = ({
         DashboardFilterRule | undefined
     >(defaultFilterRule);
 
+    const { contexts: boundaryContexts, isLoading: isBoundaryContextLoading } =
+        useFilterBoundaryContexts(selectedField, draftFilterRule);
+    const validateBoundary = (rule: DashboardFilterRule | undefined) => {
+        if (!rule?.boundaries) return null;
+        if (
+            isEditMode &&
+            isValidFilterBoundary(rule.boundaries) &&
+            rule.disabled
+        )
+            return null;
+        return (
+            boundaryContexts
+                .map((context) =>
+                    validateFilterBoundary(rule.boundaries, rule, context),
+                )
+                .find((error) => error !== null) ?? null
+        );
+    };
+    const boundaryContextLoadingRef = useRef(isBoundaryContextLoading);
+    boundaryContextLoadingRef.current = isBoundaryContextLoading;
+    const boundaryError = isBoundaryContextLoading
+        ? null
+        : validateBoundary(draftFilterRule);
+    const validateBoundaryRef = useRef(validateBoundary);
+    validateBoundaryRef.current = validateBoundary;
     const draftFilterRuleRef = useRef(draftFilterRule);
     draftFilterRuleRef.current = draftFilterRule;
 
@@ -394,7 +428,12 @@ const FilterConfiguration: FC<Props> = ({
         }
 
         const ruleToSave = draftFilterRuleRef.current;
-        if (ruleToSave) onSave(ruleToSave);
+        if (
+            ruleToSave &&
+            !boundaryContextLoadingRef.current &&
+            !validateBoundaryRef.current(ruleToSave)
+        )
+            onSave(ruleToSave);
     }, [onSave]);
 
     const isApplyDisabled = !isFilterEnabled(
@@ -424,7 +463,14 @@ const FilterConfiguration: FC<Props> = ({
     return (
         // Keep dropdowns in document flow so the panel grows and Apply stays
         // reachable — PROD-2395.
-        <Stack className={classes.inlineDropdowns}>
+        <Stack
+            className={classes.inlineDropdowns}
+            w={
+                selectedTabId === FilterTabs.TILES
+                    ? 'min(500px, calc(100vw - 56px))'
+                    : 'min(400px, calc(100vw - 56px))'
+            }
+        >
             <Tabs
                 value={selectedTabId}
                 onChange={(tabId) => {
@@ -468,10 +514,7 @@ const FilterConfiguration: FC<Props> = ({
                     </Tabs.List>
                 ) : null}
 
-                <Tabs.Panel
-                    value={FilterTabs.SETTINGS}
-                    w="min(400px, calc(100vw - 56px))"
-                >
+                <Tabs.Panel value={FilterTabs.SETTINGS}>
                     <Stack gap="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
@@ -615,7 +658,6 @@ const FilterConfiguration: FC<Props> = ({
                 {draftFilterRule && selectedTabId === FilterTabs.TILES && (
                     <Tabs.Panel
                         value={FilterTabs.TILES}
-                        w="min(500px, calc(100vw - 56px))"
                         data-testid="DashboardFilterConfiguration/ChartTiles"
                     >
                         <TileFilterConfiguration
@@ -632,6 +674,20 @@ const FilterConfiguration: FC<Props> = ({
                 )}
             </Tabs>
 
+            {boundaryError && (
+                <Callout
+                    variant="warning"
+                    p="xs"
+                    icon={<MantineIcon icon={IconAlertTriangle} size="md" />}
+                    classNames={{
+                        icon: classes.boundaryWarningIcon,
+                        body: classes.boundaryWarningBody,
+                        message: classes.boundaryWarningMessage,
+                    }}
+                >
+                    {boundaryError}
+                </Callout>
+            )}
             <Flex gap="sm">
                 <Box flex={1} />
 
@@ -667,7 +723,10 @@ const FilterConfiguration: FC<Props> = ({
                         <Button
                             size="xs"
                             disabled={
-                                isApplyDisabled || isLockedRequiredMissingValue
+                                isApplyDisabled ||
+                                isLockedRequiredMissingValue ||
+                                !!boundaryError ||
+                                isBoundaryContextLoading
                             }
                             // We use onMouseDown instead of onClick: when an
                             // inline dropdown (Select/MultiSelect) is open,
