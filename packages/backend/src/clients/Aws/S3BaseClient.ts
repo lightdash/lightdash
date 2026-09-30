@@ -167,9 +167,8 @@ export function buildS3ClientConfig(
         // bearer token that applyGcpOAuth adds is then the only
         // authentication on the request.
         clientConfig.signer = { sign: async (request) => request };
-        // GCS accepts the SDK's checksum headers and then ignores them.
-        // Calculating the checksums reads the whole payload and protects
-        // nothing.
+        // Avoid optional AWS checksums. applyGcpOAuth strips x-amz headers
+        // and supplies Content-MD5 for batch deletion, which requires one.
         clientConfig.requestChecksumCalculation = 'WHEN_REQUIRED';
         clientConfig.responseChecksumValidation = 'WHEN_REQUIRED';
         return clientConfig;
