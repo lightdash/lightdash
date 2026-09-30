@@ -18,8 +18,8 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: async () => ({ data: { enabled: false } }),
 }));
 
+import { finalizeTimeAxisOptions } from '@lightdash/visualization';
 import { type ReferenceLineField } from '../../components/common/ReferenceLine';
-import { finalizeTimeAxisOptions } from '../echarts/timezoneShift';
 import useCartesianChartConfig, {
     applyReferenceLines,
 } from './useCartesianChartConfig';
