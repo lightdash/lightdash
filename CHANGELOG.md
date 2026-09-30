@@ -1,3 +1,10 @@
+# [2.398.0](https://github.com/lightdash/lightdash/compare/2.397.2...2.398.0) (2026-09-30)
+
+
+### Features
+
+* **visualization:** headless chart engine package, the frontend renders through it ([#30272](https://github.com/lightdash/lightdash/issues/30272)) ([c2632cb](https://github.com/lightdash/lightdash/commit/c2632cbc5db71a887a7e523f7d8c9dbc15f63661)), closes [#29729](https://github.com/lightdash/lightdash/issues/29729)
+
 ## [2.397.2](https://github.com/lightdash/lightdash/compare/2.397.1...2.397.2) (2026-09-30)
 
 
