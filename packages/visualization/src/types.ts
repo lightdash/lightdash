@@ -12,9 +12,8 @@ import type {
  *
  * This is the structural subset of the frontend's `InfiniteQueryResults` that
  * the chart builders read, so a frontend results object can be passed as-is.
- * A headless caller (a data app, a server-side render) fills it from the
- * query API: `rows` and `fields` at least, `pivotDetails` when the query was
- * pivoted, `metricQuery` for sorts and table calculations.
+ * Outside the explorer it is built from `ChartData`; the fields travel
+ * separately, as the items map.
  */
 export type VisualizationResults = Partial<
     Pick<
@@ -23,8 +22,6 @@ export type VisualizationResults = Partial<
     >
 > & {
     rows: ResultRow[];
-    /** The items (dimensions, metrics, table calculations) the rows are keyed by. */
-    fields?: ItemsMap;
     metricQuery?: MetricQuery;
     /**
      * Whether every row of the result is present. The frontend streams pages

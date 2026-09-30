@@ -1,143 +1,56 @@
 /**
- * The public surface of the visualization engine: render any saved chart,
- * or resolve and build one chart type at a time. Editor helpers live in
- * `@lightdash/visualization/editor`.
+ * `@lightdash/visualization`: draws a Lightdash chart from its data.
+ *
+ * A chart (`ChartView`) and its data (`ChartData`) go in; what to draw comes
+ * out (`RenderedChart`): an ECharts option, a table or big number model, a
+ * Vega-Lite spec, or `empty` with the reason. The engine never runs a query.
  */
 
-// The one call a headless consumer makes
+// Drawing
 export {
+    buildChart,
     renderChart,
-    type RenderChartInput,
+    resolveChart,
+    type ChartColors,
+    type EChartsChartType,
+    type EmptyReason,
+    type LegendSelection,
     type RenderedChart,
+    type RenderOptions,
+    type RenderOutput,
+    type ResolvedChart,
 } from './render';
 
-// Inputs
-export type { VisualizationContextInput, VisualizationResults } from './types';
-export { toResultRows } from './results';
+// What goes in
+export type {
+    ChartData,
+    ChartField,
+    ChartFieldDefinition,
+    ChartFields,
+    ChartQuery,
+    ChartView,
+} from './chartData';
+export { toResultRows, type ToResultRowsOptions } from './results';
 export { computeLimitedRowCount, sliceRows } from './rows';
+
+// How it looks
 export {
     DARK_VISUALIZATION_THEME,
     LIGHT_VISUALIZATION_THEME,
     type VisualizationTheme,
 } from './theme';
+export type { ColorAssignments } from './colors/assignments';
 
-// Colors
-export { createColorMappings, type ColorMappings } from './colors/mappings';
-export {
-    createSeriesColorResolver,
-    type SeriesColorResolver,
-    type SeriesColorResolverOptions,
-} from './colors/resolver';
-export type { SeriesLike } from './colors/series';
-
-// Cartesian (bar, line, area, scatter)
-export {
-    resolveCartesianChartConfig,
-    type ResolveCartesianChartConfigArgs,
-} from './cartesian/config';
-export {
-    buildCartesianEchartsOption,
-    type CartesianEchartsOption,
-    type CartesianEchartsOptionInput,
-    type LegendValues,
-} from './cartesian/echartsOption';
-
-// Pie
-export {
-    resolvePieChartConfig,
-    type PieChartBuilderConfig,
-    type PieChartDataPoint,
-    type ResolvedPieChartConfig,
-    type ResolvePieChartConfigArgs,
-} from './pie/config';
-export {
-    buildPieEchartsOption,
-    type PieEchartsOption,
-    type PieEchartsOptionInput,
-    type PieSeriesDataPoint,
-} from './pie/echartsOption';
-
-// Funnel
-export {
-    resolveFunnelChartConfig,
-    type FunnelSeriesDataPoint,
-    type ResolvedFunnelChartConfig,
-    type ResolveFunnelChartConfigArgs,
-} from './funnel/config';
-export {
-    buildFunnelEchartsOption,
-    type FunnelEchartsOptionInput,
-} from './funnel/echartsOption';
-
-// Treemap
-export {
-    resolveTreemapChartConfig,
-    type ResolvedTreemapChartConfig,
-    type ResolveTreemapChartConfigArgs,
-    type TreemapGroupedSubtotals,
-    type TreemapNode,
-} from './treemap/config';
-export {
-    buildTreemapEchartsOption,
-    type TreemapEchartsChartConfig,
-    type TreemapEchartsOption,
-    type TreemapEchartsOptionInput,
-} from './treemap/echartsOption';
-
-// Gauge
-export {
-    resolveGaugeChartConfig,
-    type ResolveGaugeChartConfigArgs,
-} from './gauge/config';
-export {
-    buildGaugeEchartsOption,
-    type GaugeEchartsOptionInput,
-} from './gauge/echartsOption';
-export { getGaugeSizes, type GaugeSizes } from './gauge/sizes';
-
-// Sankey
-export {
-    resolveSankeyChartConfig,
-    type ResolveSankeyChartConfigArgs,
-} from './sankey/config';
-export {
-    buildSankeyEchartsOption,
-    type SankeyEchartsOptionInput,
-} from './sankey/echartsOption';
-export type { SankeySeriesDataPoint } from './sankey/transform';
-
-// Custom (Vega)
-export {
-    buildCustomVisualizationData,
-    resolveCustomVisualizationConfig,
-    type CustomVisualizationData,
-    type ResolveCustomVisualizationConfigArgs,
-} from './custom/config';
-
-// Big number
-export {
-    resolveBigNumberChartConfig,
-    type ResolveBigNumberChartConfigArgs,
-} from './bigNumber/config';
-export {
-    buildBigNumberModel,
-    type BigNumberComparisonModel,
-    type BigNumberModel,
-    type BigNumberModelInput,
+// What comes out, beyond ECharts options
+export type {
+    BigNumberComparisonModel,
+    BigNumberModel,
 } from './bigNumber/model';
-
-// Table
-export {
-    resolveTableChartConfig,
-    type ResolvedTableChartConfig,
-    type ResolveTableChartConfigArgs,
-} from './table/config';
-export {
-    buildTableModel,
-    type TableColumnHeader,
-    type TableModel,
-    type TableModelColumn,
-    type TableModelInput,
-    type TableSubtotalCell,
-    type TableTotalCell,
+export type {
+    TableColumnHeader,
+    TableModel,
+    TableModelColumn,
+    TableSubtotalCell,
+    TableTotalCell,
 } from './table/model';
+export type { CustomVisualizationData } from './custom/config';

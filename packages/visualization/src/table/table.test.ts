@@ -81,7 +81,7 @@ describe('resolveTableChartConfig', () => {
     test('applies the mount-time defaults of an empty config', () => {
         const resolved = resolveTableChartConfig({
             chartConfig: undefined,
-            resultsData: { rows, metricQuery, fields: itemsMap },
+            resultsData: { rows, metricQuery },
             itemsMap,
             columnOrder,
             pivotDimensions: undefined,
@@ -135,7 +135,7 @@ describe('resolveTableChartConfig', () => {
 
         const resolved = resolveTableChartConfig({
             chartConfig,
-            resultsData: { rows, metricQuery, fields: itemsMap },
+            resultsData: { rows, metricQuery },
             itemsMap,
             columnOrder,
             pivotDimensions: ['orders_country'],

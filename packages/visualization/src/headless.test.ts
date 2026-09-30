@@ -80,7 +80,7 @@ const colorPalette = ['#111111', '#222222', '#333333'];
 
 describe('headless cartesian render', () => {
     test('a saved chart and its results become an ECharts option', () => {
-        const resultsData = { rows, fields: itemsMap, metricQuery };
+        const resultsData = { rows, metricQuery };
 
         const validCartesianConfig = resolveCartesianChartConfig({
             chartConfig: savedChartConfig,
@@ -141,7 +141,7 @@ describe('headless cartesian render', () => {
     test('nothing to draw without rows', () => {
         const validCartesianConfig = resolveCartesianChartConfig({
             chartConfig: savedChartConfig,
-            resultsData: { rows: [], fields: itemsMap, metricQuery },
+            resultsData: { rows: [], metricQuery },
             itemsMap,
             pivotKeys: undefined,
             columnOrder: [],
@@ -150,7 +150,7 @@ describe('headless cartesian render', () => {
         const option = buildCartesianEchartsOption({
             validCartesianConfig,
             pivotDimensions: undefined,
-            resultsData: { rows: [], fields: itemsMap, metricQuery },
+            resultsData: { rows: [], metricQuery },
             itemsMap,
             getSeriesColor: () => colorPalette[0],
             colorPalette,

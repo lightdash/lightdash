@@ -15,7 +15,7 @@ import * as echarts from 'echarts';
 import {
     ordersColumnOrder,
     ordersItemsMap,
-    ordersPivotedResults,
+    ordersPivotedData,
     ordersRawRows,
     palette,
 } from '../src/fixtures.mock';
@@ -24,6 +24,7 @@ import {
     LIGHT_VISUALIZATION_THEME,
     renderChart,
     toResultRows,
+    type ChartData,
     type RenderedChart,
 } from '../src/index';
 
@@ -174,7 +175,7 @@ const theme =
     themeName === 'dark' ? DARK_VISUALIZATION_THEME : LIGHT_VISUALIZATION_THEME;
 document.body.dataset.theme = themeName;
 
-const results = {
+const data: ChartData = {
     rows: toResultRows(ordersRawRows, ordersItemsMap),
     fields: ordersItemsMap,
 };
@@ -192,19 +193,22 @@ for (const testCase of CASES) {
     // Attached before drawing: ECharts sizes its SVG to the host's layout.
     main.append(section);
 
-    const output = renderChart({
-        chartConfig: testCase.chartConfig,
-        results: testCase.pivotColumns ? ordersPivotedResults : results,
-        pivotConfig: testCase.pivotColumns
-            ? { columns: testCase.pivotColumns }
-            : undefined,
-        itemsMap: ordersItemsMap,
-        columnOrder: ordersColumnOrder,
-        colorPalette: palette,
-        theme,
-        size: { width: 640, height: 360 },
-        animation: false,
-    });
+    const output = renderChart(
+        {
+            chartConfig: testCase.chartConfig,
+            pivotConfig: testCase.pivotColumns
+                ? { columns: testCase.pivotColumns }
+                : undefined,
+            tableConfig: { columnOrder: ordersColumnOrder },
+        },
+        testCase.pivotColumns ? ordersPivotedData : data,
+        {
+            theme,
+            colors: { palette },
+            size: { width: 640, height: 360 },
+            animation: false,
+        },
+    );
     rendered[testCase.id] = output.kind;
     section.dataset.kind = output.kind;
 
@@ -258,7 +262,10 @@ for (const testCase of CASES) {
         }
         default: {
             const note = document.createElement('p');
-            note.textContent = output.kind;
+            note.textContent =
+                output.kind === 'empty'
+                    ? `empty: ${output.reason}`
+                    : output.kind;
             section.append(note);
         }
     }

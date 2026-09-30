@@ -12,11 +12,8 @@ import {
     type Metric,
     type MetricQuery,
 } from '@lightdash/common';
-import {
-    getGaugeSizes,
-    renderChart,
-    type RenderedChart,
-} from '@lightdash/visualization';
+import { renderChart, type RenderedChart } from '@lightdash/visualization';
+import { getGaugeSizes } from '@lightdash/visualization/editor';
 import { cleanup, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -233,18 +230,26 @@ const Probe = ({
     const theme = useVisualizationTheme();
     // The same render options the app derives from its context.
     const { isTouchDevice, minimal, isDashboard } = useVisualizationContext();
-    const headless: RenderedChart = renderChart({
-        chartConfig,
-        results,
-        pivotConfig: pivotColumns ? { columns: pivotColumns } : undefined,
-        itemsMap: fields,
-        columnOrder,
-        colorPalette,
-        theme,
-        size: SIZE,
-        animation: !(isDashboard || minimal),
-        tooltipAppendToBody: !isTouchDevice,
-    });
+    const headless: RenderedChart = renderChart(
+        {
+            chartConfig,
+            pivotConfig: pivotColumns ? { columns: pivotColumns } : undefined,
+            tableConfig: { columnOrder },
+        },
+        {
+            rows: results.rows,
+            fields,
+            query: results.metricQuery,
+            pivotDetails: results.pivotDetails,
+        },
+        {
+            theme,
+            colors: { palette: colorPalette },
+            size: SIZE,
+            animation: !(isDashboard || minimal),
+            tooltip: isTouchDevice ? 'inline' : 'body',
+        },
+    );
     const headlessOption =
         headless.kind === 'echarts' ? headless.option : undefined;
 

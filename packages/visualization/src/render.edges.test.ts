@@ -10,15 +10,15 @@ import {
     type Metric,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
-import { createColorMappings } from './colors/mappings';
+import { type ChartData } from './chartData';
 import {
     ordersColumnOrder,
+    ordersData,
     ordersItemsMap,
     ordersRawRows,
-    ordersResults,
     palette,
 } from './fixtures.mock';
-import { renderChart } from './render';
+import { renderChart, type RenderOptions } from './render';
 import { toResultRows } from './results';
 
 /**
@@ -78,23 +78,23 @@ const CONFIGS: Record<string, ChartConfig> = {
 
 const render = (
     chartConfig: ChartConfig,
-    overrides: Partial<Parameters<typeof renderChart>[0]> = {},
+    {
+        data = ordersData,
+        ...options
+    }: RenderOptions & { data?: ChartData } = {},
 ) =>
-    renderChart({
-        chartConfig,
-        results: ordersResults,
-        itemsMap: ordersItemsMap,
-        columnOrder: ordersColumnOrder,
-        colorPalette: palette,
-        ...overrides,
-    });
+    renderChart(
+        { chartConfig, tableConfig: { columnOrder: ordersColumnOrder } },
+        data,
+        { colors: { palette }, ...options },
+    );
 
 describe('no rows', () => {
     test.each(Object.entries(CONFIGS))(
         '%s draws nothing, and never throws',
         (_name, chartConfig) => {
             const rendered = render(chartConfig, {
-                results: { ...ordersResults, rows: [] },
+                data: { ...ordersData, rows: [] },
             });
             expect(['empty', 'table', 'custom']).toContain(rendered.kind);
             if (rendered.kind === 'table') {
@@ -131,17 +131,17 @@ describe('missing values', () => {
         ],
         ordersItemsMap,
     );
-    const results = { rows: rowsWithNulls, fields: ordersItemsMap };
+    const data: ChartData = { rows: rowsWithNulls, fields: ordersItemsMap };
 
     test.each(Object.entries(CONFIGS))(
         '%s renders rows with nulls without throwing',
         (_name, chartConfig) => {
-            expect(() => render(chartConfig, { results })).not.toThrow();
+            expect(() => render(chartConfig, { data })).not.toThrow();
         },
     );
 
     test('a null group is a slice of its own, shown as the empty-set sign', () => {
-        const rendered = render(CONFIGS.pie, { results });
+        const rendered = render(CONFIGS.pie, { data });
         expect(rendered.kind).toBe('echarts');
         if (rendered.kind !== 'echarts') return;
         const [series] = rendered.option.series as {
@@ -220,22 +220,22 @@ describe('dates', () => {
     );
 
     test('a weekly date axis is a time or category axis', () => {
-        const rendered = renderChart({
-            chartConfig: {
-                type: ChartType.CARTESIAN,
-                config: {
-                    layout: {
-                        xField: 'orders_order_date_week',
-                        yField: ['orders_revenue'],
+        const rendered = renderChart(
+            {
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: 'orders_order_date_week',
+                            yField: ['orders_revenue'],
+                        },
+                        eChartsConfig: {},
                     },
-                    eChartsConfig: {},
                 },
             },
-            results: { rows, fields: itemsMap },
-            itemsMap,
-            columnOrder: ['orders_order_date_week', 'orders_revenue'],
-            colorPalette: palette,
-        });
+            { rows, fields: itemsMap },
+            { colors: { palette } },
+        );
         expect(rendered.kind).toBe('echarts');
         if (rendered.kind !== 'echarts') return;
         const [xAxis] = rendered.option.xAxis as {
@@ -252,8 +252,7 @@ describe('dates', () => {
 
 describe('colors shared across a page', () => {
     test('the same group value gets the same color in two charts', () => {
-        const colorMappings = createColorMappings();
-        const pieA = render(CONFIGS.pie, { colorMappings });
+        const pieA = render(CONFIGS.pie);
         const pieB = render(
             {
                 type: ChartType.PIE,
@@ -262,7 +261,7 @@ describe('colors shared across a page', () => {
                     metricId: 'orders_count',
                 },
             },
-            { colorMappings },
+            { colors: { palette, assignments: pieA.colorAssignments } },
         );
         expect(pieA.kind).toBe('echarts');
         expect(pieB.kind).toBe('echarts');
@@ -283,9 +282,9 @@ describe('colors shared across a page', () => {
 
     test('raw rows and pre-formatted rows render the same option', () => {
         const fromRaw = render(CONFIGS.cartesian, {
-            results: {
+            data: {
+                ...ordersData,
                 rows: toResultRows(ordersRawRows, ordersItemsMap),
-                fields: ordersItemsMap,
             },
         });
         const fromFormatted = render(CONFIGS.cartesian);

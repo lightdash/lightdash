@@ -1,33 +1,48 @@
 import {
     ChartType,
+    DimensionType,
+    FieldType,
     FunnelChartDataInput,
+    MetricType,
     type ChartConfig,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
+import { type ChartData } from './chartData';
 import {
     ordersColumnOrder,
+    ordersData,
     ordersItemsMap,
-    ordersPivotedResults,
+    ordersPivotedData,
     ordersRawRows,
-    ordersResults,
     palette,
 } from './fixtures.mock';
-import { renderChart, type RenderedChart } from './render';
+import {
+    buildChart,
+    renderChart,
+    resolveChart,
+    type RenderedChart,
+    type RenderOptions,
+} from './render';
 import { toResultRows } from './results';
 import { DARK_VISUALIZATION_THEME, LIGHT_VISUALIZATION_THEME } from './theme';
 
 const render = (
     chartConfig: ChartConfig,
-    overrides: Partial<Parameters<typeof renderChart>[0]> = {},
+    {
+        data = ordersData,
+        pivotColumns,
+        ...options
+    }: RenderOptions & { data?: ChartData; pivotColumns?: string[] } = {},
 ): RenderedChart =>
-    renderChart({
-        chartConfig,
-        results: ordersResults,
-        itemsMap: ordersItemsMap,
-        colorPalette: palette,
-        columnOrder: ordersColumnOrder,
-        ...overrides,
-    });
+    renderChart(
+        {
+            chartConfig,
+            pivotConfig: pivotColumns ? { columns: pivotColumns } : undefined,
+            tableConfig: { columnOrder: ordersColumnOrder },
+        },
+        data,
+        { colors: { palette }, ...options },
+    );
 
 const echartsOf = (rendered: RenderedChart) => {
     expect(rendered.kind).toBe('echarts');
@@ -56,8 +71,8 @@ describe('renderChart', () => {
     test('cartesian grouped by a pivot: one series per channel, from the palette', () => {
         const option = echartsOf(
             render(cartesian, {
-                results: ordersPivotedResults,
-                pivotConfig: { columns: ['orders_channel'] },
+                data: ordersPivotedData,
+                pivotColumns: ['orders_channel'],
             }),
         );
         const series = option.series as {
@@ -196,18 +211,106 @@ describe('renderChart', () => {
     });
 
     test('maps are not drawn here', () => {
-        expect(render({ type: ChartType.MAP, config: {} })).toEqual({
+        expect(render({ type: ChartType.MAP, config: {} })).toMatchObject({
             kind: 'unsupported',
             chartType: ChartType.MAP,
         });
     });
 
-    test('no rows means nothing to draw', () => {
+    test('no rows means nothing to draw, and says so', () => {
         expect(
+            render(cartesian, { data: { ...ordersData, rows: [] } }),
+        ).toMatchObject({
+            kind: 'empty',
+            chartType: ChartType.CARTESIAN,
+            reason: 'noRows',
+        });
+    });
+
+    test('a pivoted chart without pivot details says what it needs', () => {
+        expect(
+            render(cartesian, { pivotColumns: ['orders_channel'] }),
+        ).toMatchObject({ kind: 'empty', reason: 'needsPivotDetails' });
+    });
+
+    test('a pivoted table without the pivot table says what it needs', () => {
+        expect(
+            render(
+                { type: ChartType.TABLE, config: {} },
+                { data: ordersPivotedData, pivotColumns: ['orders_channel'] },
+            ),
+        ).toMatchObject({ kind: 'empty', reason: 'needsPivotTable' });
+    });
+
+    test('the saved legend selection hides series, unless overridden', () => {
+        const hidden: ChartConfig = {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: { xField: 'orders_status', yField: ['orders_revenue'] },
+                eChartsConfig: { legend: { selected: { Revenue: false } } },
+            },
+        };
+        const legendOf = (rendered: RenderedChart) =>
+            (echartsOf(rendered).legend as { selected?: object }).selected;
+        expect(legendOf(render(hidden))).toEqual({ Revenue: false });
+        expect(
+            legendOf(render(hidden, { legendSelection: { Revenue: true } })),
+        ).toEqual({ Revenue: true });
+    });
+
+    test('renderChart is resolveChart then buildChart', () => {
+        const chart = {
+            chartConfig: cartesian,
+            tableConfig: { columnOrder: ordersColumnOrder },
+        };
+        const options = { colors: { palette } };
+        const resolved = resolveChart(chart, ordersData, options);
+        expect(resolved.chartType).toBe(ChartType.CARTESIAN);
+        expect(JSON.stringify(buildChart(resolved, ordersData, options))).toBe(
+            JSON.stringify(renderChart(chart, ordersData, options)),
+        );
+    });
+
+    test('colour assignments come back as plain data, and carry over', () => {
+        const pie: ChartConfig = {
+            type: ChartType.PIE,
+            config: {
+                groupFieldIds: ['orders_status'],
+                metricId: 'orders_revenue',
+            },
+        };
+        const first = render(pie);
+        expect(JSON.parse(JSON.stringify(first.colorAssignments))).toEqual(
+            first.colorAssignments,
+        );
+        const again = render(pie, {
+            colors: { palette, assignments: first.colorAssignments },
+        });
+        expect(again.colorAssignments).toEqual(first.colorAssignments);
+    });
+
+    test('fields need only a type, a label and a format', () => {
+        const option = echartsOf(
             render(cartesian, {
-                results: { ...ordersResults, rows: [] },
+                data: {
+                    rows: ordersData.rows,
+                    fields: {
+                        orders_status: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            label: 'Status',
+                        },
+                        orders_revenue: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.SUM,
+                            label: 'Revenue',
+                            format: 'usd',
+                        },
+                    },
+                },
             }),
-        ).toEqual({ kind: 'empty', chartType: ChartType.CARTESIAN });
+        );
+        expect(option.series).toHaveLength(1);
     });
 
     test('the dark theme colors the option', () => {
@@ -224,9 +327,9 @@ describe('renderChart', () => {
     test('raw rows from any query source render through toResultRows', () => {
         const option = echartsOf(
             render(cartesian, {
-                results: {
+                data: {
+                    ...ordersData,
                     rows: toResultRows(ordersRawRows, ordersItemsMap),
-                    fields: ordersItemsMap,
                 },
             }),
         );

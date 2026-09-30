@@ -11,6 +11,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultRow,
 } from '@lightdash/common';
+import { type ChartData } from './chartData';
 
 /**
  * A small "orders" explore shared by the package's end-to-end tests: two
@@ -117,8 +118,14 @@ export const ordersRows: ResultRow[] = [
 
 export const ordersResults = {
     rows: ordersRows,
-    fields: ordersItemsMap,
     metricQuery: ordersMetricQuery,
+};
+
+/** The orders as a chart's data. */
+export const ordersData: ChartData = {
+    rows: ordersRows,
+    fields: ordersItemsMap,
+    query: ordersMetricQuery,
 };
 
 export const palette = ['#111111', '#222222', '#333333', '#444444'];
@@ -159,7 +166,12 @@ export const ordersPivotedRows: ResultRow[] = [
 
 export const ordersPivotedResults = {
     rows: ordersPivotedRows,
-    fields: ordersItemsMap,
     metricQuery: ordersMetricQuery,
+    pivotDetails: ordersPivotDetails,
+};
+
+export const ordersPivotedData: ChartData = {
+    ...ordersData,
+    rows: ordersPivotedRows,
     pivotDetails: ordersPivotDetails,
 };

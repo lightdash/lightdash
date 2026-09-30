@@ -11,105 +11,65 @@ desktop app) draws exactly what the web app draws.
 
 ## Using it
 
-One call renders any saved chart:
+A chart and its data go in; what to draw comes out.
 
 ```ts
 import { renderChart, toResultRows } from '@lightdash/visualization';
 
-const rendered = renderChart({
-    chartConfig: savedChart.chartConfig,
-    pivotConfig: savedChart.pivotConfig,
-    columnOrder: savedChart.tableConfig.columnOrder,
-    results: { rows: toResultRows(rawRows, itemsMap), fields: itemsMap, metricQuery },
-    itemsMap,
-    colorPalette,
-});
+const rendered = renderChart(
+    savedChart, // chartConfig, pivotConfig, tableConfig: a SavedChart as it is
+    {
+        rows: toResultRows(rawRows, fields),
+        fields, // keyed by field id: Lightdash items, or { fieldType, type, label, format }
+        query: metricQuery, // optional: field order and sorts
+        pivotDetails, // when the query was pivoted
+    },
+    { theme, colors: { palette }, size: { width, height } },
+);
 
 switch (rendered.kind) {
-    case 'echarts':   echarts.init(el).setOption(rendered.option); break;
-    case 'table':     rendered.model.columns; rendered.model.rows; break;
-    case 'bigNumber': rendered.model.value; rendered.model.comparison; break;
-    case 'custom':    rendered.spec; rendered.data.series; break;
-    case 'empty':     /* no rows, or no usable field */ break;
-    case 'unsupported': /* maps and data-app visualizations */ break;
+    case 'echarts':     echarts.init(el).setOption(rendered.option); break;
+    case 'table':       rendered.model.columns; rendered.model.rows; break;
+    case 'bigNumber':   rendered.model.value; rendered.model.comparison; break;
+    case 'custom':      rendered.spec; rendered.data; break;
+    case 'empty':       rendered.reason; break; // noRows, incompleteConfig, needsPivotDetails, needsPivotTable
+    case 'unsupported': break; // maps and data-app visualizations
 }
 ```
 
-`renderChart` takes a `theme` (light by default), a `size` for gauges, shared
-`colorMappings` so the same group value keeps its color across a page, and
-the network-derived values a table or treemap needs: `totals`,
-`groupedSubtotals`, `pivotData`.
+- **`ChartView`**: what the chart is. A `SavedChart` satisfies it.
+- **`ChartData`**: everything it is drawn from, all of it data. Values that
+  took further queries (`totals`, `groupedSubtotals`, `pivotTable`) are
+  fields of it. The engine never runs a query: what it needs and is not
+  given comes back as an `empty` reason.
+- **`RenderOptions`**: how to draw, never what. `theme`, `colors`, `size`,
+  `animation`, `tooltip`, `legendSelection`, `parameters`.
+- **`RenderedChart`**: the output, plus `colorAssignments`. Pass those back
+  as `colors.assignments` to the next chart on the page, and the same group
+  value keeps its colour. They are plain data: keep them, send them, compare
+  them.
 
-The two steps behind it are available per chart type when a caller wants to
-keep the resolved config, for instance to edit it:
-
-```ts
-import {
-    buildCartesianEchartsOption,
-    createColorMappings,
-    createSeriesColorResolver,
-    LIGHT_VISUALIZATION_THEME,
-    resolveCartesianChartConfig,
-} from '@lightdash/visualization';
-
-// 1. Resolve the saved config against the results, as the explorer does
-//    when it mounts a chart: default fields, one series per y field and
-//    pivot value, reference lines placed, stale settings cleared.
-const validCartesianConfig = resolveCartesianChartConfig({
-    chartConfig: savedChart.chartConfig.config,
-    resultsData: { rows, fields: itemsMap, metricQuery, pivotDetails },
-    itemsMap,
-    pivotKeys: savedChart.pivotConfig?.columns,
-    columnOrder: savedChart.tableConfig.columnOrder,
-});
-
-// 2. Colors: the org palette, plus shared mappings so the same group value
-//    gets the same color across the charts of one page.
-const { getSeriesColor, getGroupColor } = createSeriesColorResolver({
-    colorPalette,
-    colorMappings: createColorMappings(),
-    nullColor: LIGHT_VISUALIZATION_THEME.gray[6],
-    chartConfig: { type: ChartType.CARTESIAN, config: validCartesianConfig },
-    itemsMap,
-});
-
-// 3. The ECharts option.
-const option = buildCartesianEchartsOption({
-    validCartesianConfig,
-    pivotDimensions: savedChart.pivotConfig?.columns,
-    resultsData: { rows, fields: itemsMap, metricQuery, pivotDetails },
-    itemsMap,
-    getSeriesColor,
-    colorPalette,
-    theme: LIGHT_VISUALIZATION_THEME,
-});
-```
-
-The engine never runs a query. Rows can come from the query API, the query
-SDK, a CSV, or anything else keyed by field id; `toResultRows(rawRows, itemsMap)`
-formats them the way the builders expect.
-
-Every chart type follows the same two steps: `resolve<Type>ChartConfig` then
-`build<Type>EchartsOption` (or `build<Type>Model` for the table and the big
-number). Anything that needs the network, such as table totals and treemap
-subtotals, is an input.
+`renderChart` is `resolveChart` then `buildChart`. Call them apart to keep
+the resolved chart: its `config` is the saved config with defaults filled
+and stale fields repaired, the same config the explorer's editor settles on.
 
 ## Entry points
 
-- `@lightdash/visualization`: the surface above. What a renderer needs and
-  nothing else.
-- `@lightdash/visualization/editor`: everything, including the pure helpers
-  the Lightdash explorer's editing hooks call between keystrokes (layout
-  repair, series expansion, eligibility checks, table column predicates).
-  The frontend imports this one.
+- `@lightdash/visualization`: the API above. Stable.
+- `@lightdash/visualization/editor`: the per-type helpers the Lightdash
+  explorer's editor calls to offer, repair and default a config. Internal to
+  Lightdash; it changes with the explorer.
 
 ## Layout
 
+- `render.ts`: `resolveChart`, `buildChart`, `renderChart` and their types.
+- `chartData.ts`: `ChartView`, `ChartData`, and how they become the
+  builders' inputs.
 - `types.ts`: `VisualizationResults`, the structural subset of the frontend's
   query results the builders read, and the inputs every builder shares.
 - `theme.ts`: `VisualizationTheme` and the light and dark defaults. Plain hex
   values, so options rasterise without a stylesheet.
-- `colors/`: series identifiers, shared color mappings, the color resolver.
+- `colors/`: series identifiers, colour assignments, the colour resolver.
 - `pivot/`, `merge/`: pivoted results and merged-query helpers.
 - One folder per chart type: `config.ts` (the resolver and the pure helpers
   the frontend's editor hook calls) and `echartsOption.ts` (the builder).
