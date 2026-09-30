@@ -583,6 +583,10 @@ const useTableConfig = (
             });
     }, [worker, pivotWorkerInput]);
 
+    // Unlike isPivotTableEnabled, true for pivots without metrics (e.g. only
+    // table calculations), which still render PivotTable and its totals.
+    const rendersPivotTable = pivotWorkerInput !== null;
+
     // Remove columnProperties from map if the column has been removed from results
     useEffect(() => {
         if (Object.keys(columnProperties).length > 0 && selectedItemIds) {
@@ -840,6 +844,7 @@ const useTableConfig = (
             configuredRowFieldIds: pivotRows,
             setRowFieldIds: onPivotRowsChange,
             isPivotTableEnabled,
+            rendersPivotTable,
             isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
@@ -897,6 +902,7 @@ const useTableConfig = (
             pivotRows,
             onPivotRowsChange,
             isPivotTableEnabled,
+            rendersPivotTable,
             isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
