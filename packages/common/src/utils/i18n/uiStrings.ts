@@ -238,13 +238,16 @@ export const DEFAULT_UI_STRINGS = {
     'filters.config.expandTab': 'Expand tab',
     'filters.config.collapseTab': 'Collapse tab',
     'filters.config.noTilesInTab': 'No tiles in this tab',
-    'filters.config.selectAllTiles': 'Select all tiles',
-    'filters.config.selectAllTilesWithField': 'Select all tiles with {field}',
-    'filters.config.tilesSelectedCount': '{selected} of {total} selected',
-    'filters.config.tilesNeedMapping.singular':
-        "1 tile doesn't have this field. Check it to map a field.",
-    'filters.config.tilesNeedMapping.plural':
-        "{n} tiles don't have this field. Check them to map a field.",
+    'filters.config.tileHeaderOn': 'On',
+    'filters.config.tileHeaderTile': 'Tile',
+    'filters.config.tileHeaderFilterOn': 'Filter on',
+    'filters.config.chooseField': 'Choose field…',
+    'filters.config.chooseColumn': 'Choose column…',
+    'filters.config.revertTile': 'Revert to default',
+    'filters.config.revertAllTiles': 'Revert all',
+    'filters.config.tilesFilteredCount': '{filtered} of {total} filtered',
+    'filters.config.tileOverrides.singular': '1 override',
+    'filters.config.tileOverrides.plural': '{n} overrides',
     'filters.config.noFieldsMatchingType': 'No fields matching filter type',
     'filters.config.fieldNotAvailableInChart':
         "The selected field '{field}' is not available in this chart",

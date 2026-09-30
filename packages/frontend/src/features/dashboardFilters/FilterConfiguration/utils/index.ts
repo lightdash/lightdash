@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { produce } from 'immer';
 import isEqual from 'lodash/isEqual';
+import { FilterActions, type BulkFilterAction } from '../constants';
 
 /**
  * Describes the relationship between a filter and a tile based on tileTargets configuration.
@@ -29,46 +30,20 @@ export const getValidSqlColumnReferences = (
         typeof reference === 'string' ? [reference] : [],
     );
 
-type ToggleAllTile = {
+type TabToggleTile = {
     tileUuid: string;
-    checked: boolean;
-    disabled: boolean;
-    hasExactMatch: boolean;
+    isFiltered: boolean;
 };
 
-export type ToggleAllAction = {
-    checked: boolean;
-    tileUuids: string[];
-} | null;
-
-/**
- * Resolves a "select all" click: select any unchecked exact-match tiles first,
- * otherwise deselect everything. Already-checked tiles keep their mapping.
- */
-export const getToggleAllAction = (tiles: ToggleAllTile[]): ToggleAllAction => {
-    const uncheckedExactMatches = tiles.filter(
-        (tile) => tile.hasExactMatch && !tile.disabled && !tile.checked,
-    );
-    if (uncheckedExactMatches.length > 0) {
-        return {
-            checked: true,
-            tileUuids: uncheckedExactMatches.map((tile) => tile.tileUuid),
-        };
-    }
-    if (tiles.some((tile) => tile.checked)) {
-        return {
-            checked: false,
-            tileUuids: tiles.map((tile) => tile.tileUuid),
-        };
-    }
-    return null;
-};
-
-/** Enabled, unchecked tiles that lack the filter field and need a manual mapping. */
-export const countTilesNeedingMapping = (tiles: ToggleAllTile[]): number =>
-    tiles.filter(
-        (tile) => !tile.hasExactMatch && !tile.disabled && !tile.checked,
-    ).length;
+/** Tab switch: turn every tile off if any is filtered, otherwise revert them all to default. */
+export const getTabToggleAction = (
+    tiles: TabToggleTile[],
+): { action: BulkFilterAction; tileUuids: string[] } => ({
+    action: tiles.some((tile) => tile.isFiltered)
+        ? FilterActions.REMOVE
+        : FilterActions.RESET,
+    tileUuids: tiles.map((tile) => tile.tileUuid),
+});
 
 /**
  * Gets the relationship between a filter and a tile based on tileTargets configuration.

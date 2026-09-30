@@ -3,14 +3,26 @@
     overflow: auto;
 }
 
-.checkboxBody {
+.tileHeader,
+.tileRow {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 190px 28px;
+    column-gap: var(--mantine-spacing-xs);
     align-items: center;
 }
 
-.checkboxLabel {
-    display: flex;
-    align-items: center;
-    padding-inline-start: var(--mantine-spacing-xs);
+.tileHeader {
+    padding-bottom: var(--mantine-spacing-xxs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.tileRow {
+    padding-block: var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.overrideInput {
+    border-color: var(--mantine-primary-color-filled);
 }
 
 .inlineDropdowns :global(.mantine-Select-dropdown),

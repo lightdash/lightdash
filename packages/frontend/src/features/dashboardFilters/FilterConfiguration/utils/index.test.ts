@@ -8,11 +8,11 @@ import {
     type FilterableDimension,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { FilterActions } from '../constants';
 import {
-    countTilesNeedingMapping,
     doesFilterApplyToTile,
     getFilterTileRelation,
-    getToggleAllAction,
+    getTabToggleAction,
     getValidSqlColumnReferences,
     getTabsForFilterRule,
 } from './index';
@@ -489,87 +489,22 @@ describe('getTabsForFilterRule', () => {
     });
 });
 
-describe('getToggleAllAction', () => {
-    const tile = (
-        tileUuid: string,
-        overrides: Partial<{
-            checked: boolean;
-            disabled: boolean;
-            hasExactMatch: boolean;
-        }> = {},
-    ) => ({
-        tileUuid,
-        checked: false,
-        disabled: false,
-        hasExactMatch: true,
-        ...overrides,
-    });
-
-    it('selects unchecked exact-match tiles when nothing is checked', () => {
+describe('getTabToggleAction', () => {
+    it('turns every tile off when any tile is filtered', () => {
         expect(
-            getToggleAllAction([
-                tile('a'),
-                tile('b', { hasExactMatch: false }),
-                tile('c', { disabled: true }),
+            getTabToggleAction([
+                { tileUuid: 'a', isFiltered: true },
+                { tileUuid: 'b', isFiltered: false },
             ]),
-        ).toEqual({ checked: true, tileUuids: ['a'] });
+        ).toEqual({ action: FilterActions.REMOVE, tileUuids: ['a', 'b'] });
     });
 
-    it('selects remaining exact-match tiles from the mixed state', () => {
+    it('reverts every tile to default when none is filtered', () => {
         expect(
-            getToggleAllAction([
-                tile('a', { checked: true }),
-                tile('b'),
-                tile('c', { hasExactMatch: false }),
+            getTabToggleAction([
+                { tileUuid: 'a', isFiltered: false },
+                { tileUuid: 'b', isFiltered: false },
             ]),
-        ).toEqual({ checked: true, tileUuids: ['b'] });
-    });
-
-    it('deselects all once every exact-match tile is checked', () => {
-        expect(
-            getToggleAllAction([
-                tile('a', { checked: true }),
-                tile('b', { hasExactMatch: false }),
-            ]),
-        ).toEqual({ checked: false, tileUuids: ['a', 'b'] });
-    });
-
-    it('does nothing when no tile is checked or selectable', () => {
-        expect(
-            getToggleAllAction([tile('a', { hasExactMatch: false })]),
-        ).toBeNull();
-    });
-});
-
-describe('countTilesNeedingMapping', () => {
-    it('counts enabled unchecked tiles without an exact match', () => {
-        expect(
-            countTilesNeedingMapping([
-                {
-                    tileUuid: 'a',
-                    checked: false,
-                    disabled: false,
-                    hasExactMatch: false,
-                },
-                {
-                    tileUuid: 'b',
-                    checked: true,
-                    disabled: false,
-                    hasExactMatch: false,
-                },
-                {
-                    tileUuid: 'c',
-                    checked: false,
-                    disabled: true,
-                    hasExactMatch: false,
-                },
-                {
-                    tileUuid: 'd',
-                    checked: false,
-                    disabled: false,
-                    hasExactMatch: true,
-                },
-            ]),
-        ).toBe(1);
+        ).toEqual({ action: FilterActions.RESET, tileUuids: ['a', 'b'] });
     });
 });

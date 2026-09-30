@@ -519,13 +519,13 @@ describe('FilterConfiguration', () => {
 
         await user.click(screen.getByRole('tab', { name: 'Tiles' }));
 
-        const dataAppCheckbox = screen.getByRole('checkbox', {
+        const dataAppSwitch = screen.getByRole('switch', {
             name: 'Customer data app',
         });
-        expect(dataAppCheckbox).toBeEnabled();
-        expect(dataAppCheckbox).toBeChecked();
+        expect(dataAppSwitch).toBeEnabled();
+        expect(dataAppSwitch).toBeChecked();
 
-        await user.click(dataAppCheckbox);
+        await user.click(dataAppSwitch);
         fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
 
         await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
@@ -537,11 +537,72 @@ describe('FilterConfiguration', () => {
 
         await user.click(screen.getByRole('tab', { name: 'Tiles' }));
         await user.click(
-            screen.getByRole('checkbox', { name: 'Customer data app' }),
+            screen.getByRole('switch', { name: 'Customer data app' }),
         );
         fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
 
         await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+        expect(onSave).toHaveBeenLastCalledWith(
+            expect.objectContaining({ tileTargets: {} }),
+        );
+    });
+
+    it('turns a matched tile off and reverts it to default', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        const activeRule: DashboardFilterRule = {
+            ...anyValueRule,
+            values: ['Adam'],
+            disabled: false,
+        };
+        const chartTile = {
+            uuid: 'chart-tile-1',
+            type: DashboardTileTypes.SAVED_CHART,
+            x: 0,
+            y: 0,
+            h: 1,
+            w: 1,
+            tabUuid: null,
+            properties: {
+                savedChartUuid: 'chart-1',
+                title: 'Customers chart',
+            },
+        } as unknown as DashboardTile;
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[chartTile]}
+                tabs={[]}
+                availableTileFilters={{ 'chart-tile-1': [mockField] }}
+                field={mockField}
+                defaultFilterRule={activeRule}
+                originalFilterRule={activeRule}
+                onSave={onSave}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'Tiles' }));
+
+        const tileSwitch = screen.getByRole('switch', {
+            name: 'Customers chart',
+        });
+        const revertButton = screen.getByRole('button', {
+            name: 'Revert to default',
+        });
+        expect(tileSwitch).toBeChecked();
+        expect(revertButton).toBeDisabled();
+
+        await user.click(tileSwitch);
+        expect(tileSwitch).not.toBeChecked();
+        expect(revertButton).toBeEnabled();
+
+        await user.click(revertButton);
+        expect(tileSwitch).toBeChecked();
+        expect(revertButton).toBeDisabled();
+
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
         expect(onSave).toHaveBeenLastCalledWith(
             expect.objectContaining({ tileTargets: {} }),
         );

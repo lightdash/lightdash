@@ -42,7 +42,12 @@ import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
-import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
+import {
+    DEFAULT_TAB,
+    FilterActions,
+    FilterTabs,
+    type BulkFilterAction,
+} from './constants';
 import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
@@ -315,6 +320,9 @@ const FilterConfiguration: FC<Props> = ({
                     case FilterActions.REMOVE:
                         draftState.tileTargets[tileUuid] = false;
                         return draftState;
+                    case FilterActions.RESET:
+                        delete draftState.tileTargets[tileUuid];
+                        return draftState;
 
                     default:
                         return assertUnreachable(
@@ -336,50 +344,31 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
-    const handleToggleAll = useCallback(
-        (checked: boolean, targetTileUuids: string[]) => {
-            if (!checked) {
-                const newFilterRule = produce(draftFilterRule, (draftState) => {
-                    if (!draftState) return;
+    const handleBulkChange = useCallback(
+        (action: BulkFilterAction, tileUuids: string[]) => {
+            const newFilterRule = produce(draftFilterRule, (draftState) => {
+                if (!draftState) return;
 
-                    draftState.tileTargets = draftState.tileTargets ?? {};
-                    targetTileUuids.forEach((tileUuid) => {
-                        if (!draftState.tileTargets) return;
-                        draftState.tileTargets[tileUuid] = false;
-                    });
-                    return draftState;
+                const tileTargets = draftState.tileTargets ?? {};
+                tileUuids.forEach((tileUuid) => {
+                    switch (action) {
+                        case FilterActions.REMOVE:
+                            tileTargets[tileUuid] = false;
+                            break;
+                        case FilterActions.RESET:
+                            delete tileTargets[tileUuid];
+                            break;
+                        default:
+                            assertUnreachable(action, 'Invalid bulk action');
+                    }
                 });
+                draftState.tileTargets = tileTargets;
+                return draftState;
+            });
 
-                setDraftFilterRule(newFilterRule);
-            } else {
-                const newFilterRule = produce(draftFilterRule, (draftState) => {
-                    if (!draftState) return;
-
-                    draftState.tileTargets = draftState.tileTargets ?? {};
-                    targetTileUuids.forEach((tileUuid) => {
-                        if (!draftState.tileTargets) return;
-
-                        const tile = tiles.find(
-                            ({ uuid }) => uuid === tileUuid,
-                        );
-                        if (tile && isDashboardDataAppTileType(tile)) {
-                            delete draftState.tileTargets[tileUuid];
-                            return;
-                        }
-
-                        if (!selectedField) return;
-                        draftState.tileTargets[tileUuid] = {
-                            fieldId: getItemId(selectedField),
-                            tableName: selectedField.table,
-                        };
-                    });
-                    return draftState;
-                });
-
-                setDraftFilterRule(newFilterRule);
-            }
+            setDraftFilterRule(newFilterRule);
         },
-        [selectedField, setDraftFilterRule, draftFilterRule, tiles],
+        [setDraftFilterRule, draftFilterRule],
     );
 
     const handleApply = useCallback(() => {
@@ -626,7 +615,7 @@ const FilterConfiguration: FC<Props> = ({
                             tiles={tiles}
                             availableTileFilters={availableTileFilters}
                             onChange={handleChangeTileConfiguration}
-                            onToggleAll={handleToggleAll}
+                            onBulkChange={handleBulkChange}
                         />
                     </Tabs.Panel>
                 )}

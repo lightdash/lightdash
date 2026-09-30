@@ -8,4 +8,7 @@ export const DEFAULT_TAB = FilterTabs.SETTINGS;
 export enum FilterActions {
     ADD = 'add',
     REMOVE = 'remove',
+    RESET = 'reset',
 }
+
+export type BulkFilterAction = FilterActions.REMOVE | FilterActions.RESET;

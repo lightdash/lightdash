@@ -293,20 +293,20 @@ describe('Dashboard', () => {
         cy.contains('Payment method is credit_card').click();
         cy.findAllByRole('tab').eq(1).click();
         cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
-            .findAllByRole('checkbox')
-            .should('have.length', 4) // 3 checkboxes for the 3 charts + `select all` checkbox
-            .each(($checkbox) => {
-                cy.wrap($checkbox).should('be.checked');
+            .findAllByRole('switch')
+            .should('have.length', 3) // one switch per chart
+            .each(($switch) => {
+                cy.wrap($switch).should('be.checked');
             });
 
         // Remove filter from first chart - saved chart
         cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
-            .findAllByRole('checkbox')
-            .eq(1)
+            .findAllByRole('switch')
+            .eq(0)
             .click({ force: true });
         cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
-            .findAllByRole('checkbox')
-            .eq(1)
+            .findAllByRole('switch')
+            .eq(0)
             .should('not.be.checked');
         cy.contains('button', 'Apply').click({ force: true });
 
@@ -349,17 +349,17 @@ describe('Dashboard', () => {
         cy.contains('Payment method is credit_card').click(); // Note: disable React strict mode in local dev to avoid error in this line
         cy.findAllByRole('tab').eq(1).click();
         cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
-            .findAllByRole('checkbox')
-            .should('have.length', 5); // 4 checkboxes for the 4 charts + `select all` checkbox
+            .findAllByRole('switch')
+            .should('have.length', 4); // one switch per chart
 
         // Enable filter for the new chart (Stg payments - different explore)
-        // Checking the box auto-selects a default field via matchFieldByTypeAndName
+        // Switching it on auto-selects a default field via matchFieldByTypeAndName
         cy.get(
             '[data-testid="DashboardFilterConfiguration/ChartTiles"] [data-testid="tile-filter-item"]',
         )
             .contains('Stg Payments (payment method x amount)?')
             .closest('[data-testid="tile-filter-item"]')
-            .findByRole('checkbox')
+            .findByRole('switch')
             .check({ force: true });
         cy.get(
             '[data-testid="DashboardFilterConfiguration/ChartTiles"] [data-testid="tile-filter-item"]',
