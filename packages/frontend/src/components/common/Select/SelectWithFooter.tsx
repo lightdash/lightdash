@@ -14,7 +14,13 @@ import {
     type SelectProps,
 } from '@mantine/core';
 import { useUncontrolled } from '@mantine/hooks';
-import { useEffect, useMemo, type FC, type ReactNode } from 'react';
+import {
+    useEffect,
+    useEffectEvent,
+    useMemo,
+    type FC,
+    type ReactNode,
+} from 'react';
 
 type Props = Omit<
     SelectProps,
@@ -120,9 +126,12 @@ export const SelectWithFooter: FC<Props> = ({
             }),
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
-    useEffect(() => {
+    const resetSearchToSelection = useEffectEvent(() => {
         setSearch(selectedOption?.label ?? '');
-    }, [selectedOption?.label, selectedOption?.value, setSearch]);
+    });
+    useEffect(() => {
+        resetSearchToSelection();
+    }, [selectedOption?.label, selectedOption?.value]);
     // defaultOptionsFilter widens to Primitive; the input data is string-only.
     const filteredData: ComboboxParsedItem[] = searchable
         ? (defaultOptionsFilter({
