@@ -38,7 +38,8 @@ type HoldWithContractRow = DbAiCreditHold & {
 };
 
 const matchesContract = (row: HoldWithContractRow, at: Date): boolean => {
-    if (row.ai_credit_contract_uuid === null) return true;
+    if (row.reason !== 'allowance_exhausted') return true;
+    if (row.ai_credit_contract_uuid === null) return false;
     if (
         row.contract_starts_at === null ||
         row.contract_reset_interval_months === null

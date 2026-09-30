@@ -376,6 +376,15 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
             );
         });
 
+        test('an allowance hold without a contract never applies', async () => {
+            await insertHold({
+                reason: 'allowance_exhausted',
+                expires_at: period.periodEnd,
+            });
+
+            expect(await holds.findActive(organizationUuid, now)).toEqual([]);
+        });
+
         test('an organization has one contract', async () => {
             await saveContract(SONNET_INPUT_MTOK_CREDITS);
             await expect(
