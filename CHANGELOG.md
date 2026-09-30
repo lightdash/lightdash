@@ -1,3 +1,10 @@
+## [2.389.1](https://github.com/lightdash/lightdash/compare/2.389.0...2.389.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **projects:** scope bulk delete to projects visible in the current filter ([#30237](https://github.com/lightdash/lightdash/issues/30237)) ([6b1bde7](https://github.com/lightdash/lightdash/commit/6b1bde7489e9d8685215d134f151be1285b3be98)), closes [#30197](https://github.com/lightdash/lightdash/issues/30197)
+
 # [2.389.0](https://github.com/lightdash/lightdash/compare/2.388.0...2.389.0) (2026-09-30)
 
 
