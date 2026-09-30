@@ -68,9 +68,10 @@ describe('renderChart', () => {
             series.map((s) => s.pivotReference?.pivotValues?.[0]?.value),
         ).toEqual(['web', 'store']);
         expect(series.map((s) => s.color)).toEqual([palette[0], palette[1]]);
-        // The legend names the channels.
-        expect(JSON.stringify(option.legend)).toContain('web');
-        expect(JSON.stringify(option.legend)).toContain('store');
+        // The series are named by the channel through their dataset encoding,
+        // which is what the legend shows.
+        expect(JSON.stringify(option.series)).toContain('"web"');
+        expect(JSON.stringify(option.series)).toContain('"store"');
     });
 
     test('pie: one slice per status', () => {
