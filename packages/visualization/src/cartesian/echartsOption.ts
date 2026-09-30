@@ -675,54 +675,47 @@ export const getMinAndMaxValues = (
 ): (string | number)[] => {
     if (!series || series.length === 0) return [];
 
-    const rawValues = [];
-    for (const s of series) {
+    let min: string | number = 0;
+    let max: string | number = 0;
+    // A field listed twice (left and right axis) is scanned once.
+    for (const fieldId of new Set(series)) {
         // Get the actual column names to look up (handles backend pivoting)
-        const columnNames = getColumnNamesForField(s, pivotDetails);
+        const columnNames = getColumnNamesForField(fieldId, pivotDetails);
         for (const columnName of columnNames) {
             for (const row of rows) {
-                rawValues.push(row[columnName]?.value.raw);
+                const value = row[columnName]?.value.raw;
+                if (typeof value === 'number') {
+                    // Numbers never parse as dates, so skip dayjs for them
+                    if (Number.isNaN(value)) continue;
+                    const currentMin: number =
+                        typeof min === 'string' ? parseFloat(min) : min;
+                    const currentMax: number =
+                        typeof max === 'string' ? parseFloat(max) : max;
+                    min = value < currentMin ? value : currentMin;
+                    max = value > currentMax ? value : currentMax;
+                } else if (typeof value === 'string') {
+                    if (dayjs(value, 'YYYY-MM-DD', false).isValid()) {
+                        // is date
+                        min = minDate(min, value);
+                        max = maxDate(max, value);
+                        continue;
+                    }
+                    // is numeric string
+                    const currentNumber = parseFloat(value);
+                    if (Number.isNaN(currentNumber)) continue;
+                    const currentMin: number =
+                        typeof min === 'string' ? parseFloat(min) : min;
+                    const currentMax: number =
+                        typeof max === 'string' ? parseFloat(max) : max;
+                    min =
+                        currentNumber < currentMin ? currentNumber : currentMin;
+                    max =
+                        currentNumber > currentMax ? currentNumber : currentMax;
+                }
             }
         }
     }
-
-    return rawValues.reduce<(string | number)[]>(
-        (acc, value) => {
-            if (
-                typeof value === 'string' &&
-                dayjs(value, 'YYYY-MM-DD', false).isValid()
-            ) {
-                // is date
-                const min = minDate(acc[0], value);
-                const max = maxDate(acc[1], value);
-
-                return [min, max];
-            } else if (typeof value === 'string' || typeof value === 'number') {
-                // is number or numeric string
-                const currentNumber =
-                    typeof value === 'string' ? parseFloat(value) : value;
-                const currentMin =
-                    typeof acc[0] === 'string' ? parseFloat(acc[0]) : acc[0];
-                const currentMax =
-                    typeof acc[1] === 'string' ? parseFloat(acc[1]) : acc[1];
-
-                if (!isNaN(currentNumber)) {
-                    const min =
-                        currentNumber < currentMin ? currentNumber : currentMin;
-                    const max =
-                        currentNumber > currentMax ? currentNumber : currentMax;
-
-                    return [min, max];
-                }
-            } else {
-                // TODO: this case comes up more than it should given that
-                // this 'else' wasn't here before. We should maybe use getAxisType
-                // for this function
-            }
-            return acc;
-        },
-        [0, 0],
-    );
+    return [min, max];
 };
 
 const getMinAndMaxReferenceLines = (
@@ -748,95 +741,34 @@ const getMinAndMaxReferenceLines = (
         axis: string,
         fieldIds: (string | undefined)[] | undefined,
     ): (string | number)[] => {
-        const values = series.flatMap<string | number>((serie) => {
+        const values: (string | number)[] = [];
+        for (const serie of series) {
             const serieFieldId =
                 axis === 'yAxis' ? serie.encode.yRef : serie.encode.xRef;
-            if (!fieldIds || !fieldIds.includes(serieFieldId.field)) return [];
+            if (!fieldIds || !fieldIds.includes(serieFieldId.field)) continue;
+            if (!serie.markLine) continue;
 
-            if (!serie.markLine) return [];
             const field = items[serieFieldId.field];
-
             const fieldType = isField(field) ? field.type : undefined;
+            // Date reference lines keep their raw value; every other type
+            // (numbers, and table calculations without a type) parses as an int
+            const isDate =
+                fieldType === DimensionType.TIMESTAMP ||
+                fieldType === MetricType.TIMESTAMP ||
+                fieldType === DimensionType.DATE ||
+                fieldType === MetricType.DATE;
 
-            switch (fieldType) {
-                case DimensionType.NUMBER:
-                case MetricType.NUMBER:
-                case MetricType.AVERAGE:
-                case MetricType.COUNT:
-                case MetricType.COUNT_DISTINCT:
-                case MetricType.SUM:
-                case MetricType.SUM_DISTINCT:
-                case MetricType.AVERAGE_DISTINCT:
-                case MetricType.MEDIAN:
-                case MetricType.PERCENTILE:
-                case MetricType.MIN:
-                case MetricType.MAX:
-                    return serie.markLine?.data.reduce<number[]>(
-                        (acc, data) => {
-                            try {
-                                const axisValue =
-                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
-                                if (axisValue === undefined) return acc;
-                                const value = parseInt(axisValue, 10);
-                                if (isNaN(value)) return acc;
-                                return [...acc, value];
-                            } catch (e) {
-                                console.error(
-                                    `Unexpected value when getting numbers min/max for ${fieldType}: ${JSON.stringify(
-                                        data,
-                                    )}`,
-                                );
-                                return acc;
-                            }
-                        },
-                        [],
-                    );
-
-                case DimensionType.TIMESTAMP:
-                case MetricType.TIMESTAMP:
-                case DimensionType.DATE:
-                case MetricType.DATE:
-                    return serie.markLine?.data.reduce<string[]>(
-                        (acc, data) => {
-                            try {
-                                const axisValue =
-                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
-                                if (axisValue === undefined) return acc;
-                                return [...acc, axisValue];
-                            } catch (e) {
-                                console.error(
-                                    `Unexpected value when getting date min/max for ${fieldType}: ${data}`,
-                                );
-                                return acc;
-                            }
-                        },
-                        [],
-                    );
-                default: {
-                    // We will try getting values for TableCalculations
-                    return serie.markLine?.data.reduce<number[]>(
-                        (acc, data) => {
-                            try {
-                                const axisValue =
-                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
-                                if (axisValue === undefined) return acc;
-                                const value = parseInt(axisValue, 10);
-                                if (isNaN(value)) return acc;
-                                return [...acc, value];
-                            } catch (e) {
-                                console.error(
-                                    `Unexpected value when getting numbers min/max for ${fieldType}: ${JSON.stringify(
-                                        data,
-                                    )}`,
-                                );
-                                return acc;
-                            }
-                        },
-                        [],
-                    );
+            for (const data of serie.markLine.data ?? []) {
+                const axisValue = axis === 'yAxis' ? data.yAxis : data.xAxis;
+                if (axisValue === undefined) continue;
+                if (isDate) {
+                    values.push(axisValue);
+                    continue;
                 }
+                const value = parseInt(axisValue, 10);
+                if (!isNaN(value)) values.push(value);
             }
-        });
+        }
 
         if (values.length === 0) return [];
         const min: string | number = values.sort((a, b) => {
@@ -3822,8 +3754,7 @@ const buildCartesianChartBase = ({
             }
 
             return resultsInRange;
-        } catch (e) {
-            console.error('Unable to sort date results', e);
+        } catch {
             return results;
         }
     })();
