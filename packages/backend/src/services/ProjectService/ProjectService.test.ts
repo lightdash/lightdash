@@ -953,7 +953,7 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        test('creates an internal preview, not a user-configured connection', async () => {
+        test('creates a managed analytics project with the standard project type', async () => {
             projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
             const create = vi
                 .spyOn(service, 'createWithoutCompile')
@@ -968,7 +968,7 @@ describe('ProjectService', () => {
                 admin,
                 expect.objectContaining({
                     name: 'Lightdash analytics',
-                    type: ProjectType.PREVIEW,
+                    type: ProjectType.DEFAULT,
                     warehouseConnection: expect.objectContaining({
                         connectionType: DuckdbConnectionType.ANALYTICS,
                     }),
@@ -2779,6 +2779,58 @@ describe('ProjectService', () => {
         );
     });
 
+    test.each(['createWithoutCompile', 'scheduleCreate'] as const)(
+        '%s rejects previews of managed analytics before creating or scheduling work',
+        async (creationMethod) => {
+            const upstream = {
+                ...projectWithSensitiveFields,
+                type: ProjectType.DEFAULT,
+                provisioningSource: 'analytics',
+            };
+            const getProject = vi
+                .spyOn(projectModel, 'get')
+                .mockResolvedValue(upstream);
+            try {
+                await expect(
+                    service[creationMethod](
+                        {
+                            ...user,
+                            organizationUuid: upstream.organizationUuid,
+                            organizationName: 'Organization',
+                            organizationCreatedAt: new Date(),
+                            ability: new Ability<PossibleAbilities>([
+                                { subject: 'all', action: 'manage' },
+                            ]),
+                        },
+                        {
+                            name: 'Analytics preview',
+                            warehouseConnection: {
+                                type: WarehouseTypes.DUCKDB,
+                                connectionType: DuckdbConnectionType.EMBEDDED,
+                                dataset: 'jaffle_shop',
+                            },
+                            type: ProjectType.PREVIEW,
+                            upstreamProjectUuid: upstream.projectUuid,
+                            dbtConnection: { type: DbtProjectType.NONE },
+                            dbtVersion: upstream.dbtVersion,
+                        },
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(
+                    'Cannot create a preview from a managed analytics project',
+                );
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+                expect(
+                    schedulerClient.createProjectWithCompile,
+                ).not.toHaveBeenCalled();
+            } finally {
+                getProject.mockRestore();
+            }
+        },
+    );
+
     describe('training preview creation', () => {
         const training = {
             ...projectWithSensitiveFields,
@@ -3391,6 +3443,23 @@ describe('ProjectService', () => {
 
             buildAdapterSpy.mockRestore();
         });
+    });
+
+    test('rejects SQL Runner on managed analytics before executing a query', async () => {
+        vi.spyOn(analyticsMock, 'track');
+        projectModel.getSummary.mockResolvedValueOnce({
+            ...projectSummary,
+            provisioningSource: 'analytics',
+        });
+        await expect(
+            service.runSqlQuery(user, projectUuid, 'SELECT 1', {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            }),
+        ).rejects.toThrow(
+            'SQL Runner is unavailable for managed analytics projects',
+        );
+        expect(analyticsMock.track).not.toHaveBeenCalled();
     });
 
     test('should run sql query', async () => {

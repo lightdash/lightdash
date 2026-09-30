@@ -950,7 +950,7 @@ export class ProjectService extends BaseService {
                             user,
                             {
                                 name: 'Lightdash analytics',
-                                type: ProjectType.PREVIEW,
+                                type: ProjectType.DEFAULT,
                                 dbtConnection: { type: DbtProjectType.NONE },
                                 dbtVersion: DefaultSupportedDbtVersion,
                                 warehouseConnection: {
@@ -1311,6 +1311,11 @@ export class ProjectService extends BaseService {
                                     upstreamProject.projectUuid,
                                 upstreamProjectName: upstreamProject.name,
                             },
+                        );
+                    }
+                    if (upstreamProject.provisioningSource === 'analytics') {
+                        throw new ForbiddenError(
+                            'Cannot create a preview from a managed analytics project',
                         );
                     }
                     if (upstreamProject.type === ProjectType.PREVIEW) {
@@ -9436,8 +9441,14 @@ export class ProjectService extends BaseService {
         sql: string,
         binding: ConnectionBinding,
     ): Promise<ApiSqlQueryResults> {
-        const { organizationUuid } =
+        const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
+
+        if (provisioningSource === 'analytics') {
+            throw new ForbiddenError(
+                'SQL Runner is unavailable for managed analytics projects',
+            );
+        }
 
         const auditedAbility = this.createAuditedAbility(user);
         if (

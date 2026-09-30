@@ -5969,6 +5969,26 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        it('rejects managed analytics SQL before accessing the warehouse', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            projectModel.getSummary.mockResolvedValueOnce({
+                ...projectSummary,
+                provisioningSource: 'analytics',
+            });
+            const warehouse = vi.spyOn(service, '_getWarehouseClient');
+            await expect(
+                service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.SQL_RUNNER,
+                }),
+            ).rejects.toThrow(
+                'SQL Runner is unavailable for managed analytics projects',
+            );
+            expect(warehouse).not.toHaveBeenCalled();
+        });
+
         it('throws ForbiddenError when the account lacks manage:SqlRunner', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
 
