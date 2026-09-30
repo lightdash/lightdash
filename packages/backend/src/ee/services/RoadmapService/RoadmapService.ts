@@ -23,12 +23,73 @@ import {
     type RoadmapResults,
     type UUID,
 } from '@lightdash/common';
+import net from 'node:net';
 import { z } from 'zod';
 import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
 
-const ROADMAP_REQUEST_TIMEOUT_MS = 10_000;
+// Allow fetch's 10-second connection timeout to surface before the response deadline.
+const ROADMAP_REQUEST_TIMEOUT_MS = 15_000;
+
+const isRoadmapConnectionError = (cause: unknown): boolean => {
+    if (cause instanceof AggregateError) {
+        return (
+            cause.errors.length > 0 &&
+            cause.errors.every(isRoadmapConnectionError)
+        );
+    }
+    const parsed = z
+        .object({
+            code: z.string(),
+            syscall: z.string().optional(),
+            hostname: z.string().optional(),
+        })
+        .safeParse(cause);
+    if (
+        !parsed.success ||
+        (parsed.data.hostname !== undefined &&
+            parsed.data.hostname !== 'roadmap.lightdash.com')
+    ) {
+        return false;
+    }
+    switch (parsed.data.code) {
+        case 'ENOTFOUND':
+        case 'EAI_AGAIN':
+        case 'ECONNREFUSED':
+        case 'ENETUNREACH':
+        case 'EHOSTUNREACH':
+            return true;
+        case 'ETIMEDOUT':
+        case 'EACCES':
+        case 'EPERM':
+            return parsed.data.syscall === 'connect';
+        default:
+            return false;
+    }
+};
+
+// Undici's connection timeout also covers TLS handshakes; confirm TCP reachability separately.
+const isRoadmapTcpUnreachable = (): Promise<boolean> =>
+    new Promise((resolve) => {
+        const socket = net.createConnection({
+            host: 'roadmap.lightdash.com',
+            port: 443,
+        });
+        const timer = setTimeout(() => {
+            socket.destroy();
+            resolve(true);
+        }, 3_000);
+        const finish = (unreachable: boolean) => {
+            clearTimeout(timer);
+            socket.destroy();
+            resolve(unreachable);
+        };
+        socket.once('connect', () => finish(false));
+        socket.once('error', (error) =>
+            finish(isRoadmapConnectionError(error)),
+        );
+    });
 
 type Dependencies = {
     analytics: LightdashAnalytics;
@@ -266,6 +327,7 @@ export class RoadmapService extends BaseService {
             response = await fetch(url.toString(), {
                 method: options.method,
                 body: options.body,
+                redirect: 'manual',
                 headers: {
                     'lightdash-license-key': licenseKey,
                     ...(options.method === 'POST' && {
@@ -282,6 +344,23 @@ export class RoadmapService extends BaseService {
                 errorName: error instanceof Error ? error.name : 'UnknownError',
                 errorCode: cause.success ? cause.data.code : undefined,
             });
+            if (
+                url.origin === 'https://roadmap.lightdash.com' &&
+                error instanceof Error &&
+                (isRoadmapConnectionError(error.cause) ||
+                    (cause.success &&
+                        cause.data.code === 'UND_ERR_CONNECT_TIMEOUT' &&
+                        (await isRoadmapTcpUnreachable())))
+            ) {
+                throw new UnexpectedServerError(
+                    'The Lightdash server cannot reach roadmap.lightdash.com. If you self-host Lightdash, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.',
+                    {
+                        code: 'ROADMAP_UNREACHABLE',
+                        documentationUrl:
+                            'https://docs.lightdash.com/self-host/customize-deployment/organization-roadmap#network-egress',
+                    },
+                );
+            }
             throw new UnexpectedServerError(options.errorMessage);
         }
 

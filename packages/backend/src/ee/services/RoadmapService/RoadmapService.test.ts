@@ -13,6 +13,8 @@ import {
     type MemberAbility,
     type RoadmapResponse,
 } from '@lightdash/common';
+import net from 'node:net';
+import { getGlobalDispatcher, MockAgent, setGlobalDispatcher } from 'undici';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import type { LightdashConfig } from '../../../config/parseConfig';
@@ -109,10 +111,24 @@ describe('RoadmapService', () => {
             }),
         );
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(net, 'createConnection').mockImplementation(() => {
+            const socket = new net.Socket();
+            process.nextTick(() =>
+                socket.emit(
+                    'error',
+                    Object.assign(new Error('private TCP probe details'), {
+                        code: 'ETIMEDOUT',
+                        syscall: 'connect',
+                    }),
+                ),
+            );
+            return socket;
+        });
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
+        vi.restoreAllMocks();
         vi.clearAllMocks();
     });
 
@@ -156,6 +172,19 @@ describe('RoadmapService', () => {
         expect(fetchMock.mock.calls[0][0]).toBe(
             `http://127.0.0.1:8081/api/v1/roadmap/organizations/${sessionOrgUuid}?pageSize=100`,
         );
+        fetchMock.mockRejectedValueOnce(
+            new TypeError('private request details', {
+                cause: { code: 'ENOTFOUND' },
+            }),
+        );
+        await expect(
+            buildService({ baseUrl: 'http://127.0.0.1:8081' }).getRoadmap(
+                account,
+            ),
+        ).rejects.toMatchObject({
+            message: 'Could not load the organization roadmap',
+            data: {},
+        });
     });
 
     it('denies access when the user cannot view the roadmap for their organization', async () => {
@@ -176,23 +205,207 @@ describe('RoadmapService', () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('maps a roadmap service auth denial to Forbidden (org not bound)', async () => {
-        const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
-        fetchMock.mockResolvedValue(new Response('denied', { status: 403 }));
+    it.each([401, 403])(
+        'maps roadmap service auth denial %s to Forbidden (org not bound)',
+        async (status) => {
+            const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+            fetchMock.mockResolvedValue(new Response('denied', { status }));
 
-        await expect(buildService().getRoadmap(account)).rejects.toThrow(
-            ForbiddenError,
+            await expect(
+                buildService().getRoadmap(account),
+            ).rejects.toMatchObject({
+                name: 'ForbiddenError',
+                statusCode: 403,
+                data: {},
+            });
+        },
+    );
+
+    it.each([
+        ...[
+            'ENOTFOUND',
+            'EAI_AGAIN',
+            'ECONNREFUSED',
+            'ENETUNREACH',
+            'EHOSTUNREACH',
+            'UND_ERR_CONNECT_TIMEOUT',
+        ].map((code) => ({ code, message: 'private network details' })),
+        ...['ETIMEDOUT', 'EACCES', 'EPERM'].map((code) => ({
+            code,
+            syscall: 'connect',
+        })),
+        new AggregateError(
+            [
+                { code: 'ENETUNREACH', syscall: 'connect' },
+                { code: 'ETIMEDOUT', syscall: 'connect' },
+            ],
+            'private dual-stack details',
+        ),
+    ])(
+        'provides network-egress guidance for DNS and connection failures (%#)',
+        async (cause) => {
+            const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+            fetchMock.mockRejectedValueOnce(
+                new TypeError('private request details', { cause }),
+            );
+
+            await expect(
+                buildService().getProjects(account),
+            ).rejects.toMatchObject({
+                name: 'UnexpectedServerError',
+                statusCode: 500,
+                message:
+                    'The Lightdash server cannot reach roadmap.lightdash.com. If you self-host Lightdash, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.',
+                data: {
+                    code: 'ROADMAP_UNREACHABLE',
+                    documentationUrl:
+                        'https://docs.lightdash.com/self-host/customize-deployment/organization-roadmap#network-egress',
+                },
+            });
+        },
+    );
+
+    it.each([
+        ...[404, 429, 500, 503].map((status) => ({
+            status,
+            body: 'private upstream details',
+        })),
+        { status: 200, body: 'not JSON' },
+        { status: 200, body: JSON.stringify({ status: 'ok', results: {} }) },
+    ])(
+        'keeps upstream and invalid-response failures generic (%#)',
+        async ({ status, body }) => {
+            const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+            fetchMock.mockResolvedValue(new Response(body, { status }));
+
+            const result = buildService().getRoadmap(account);
+            await expect(result).rejects.toMatchObject({
+                name: 'UnexpectedServerError',
+                message: 'Could not load the organization roadmap',
+            });
+            await expect(result).rejects.toHaveProperty('data', {});
+        },
+    );
+
+    it('bounds an unanswered TCP reachability probe and reports network-egress guidance', async () => {
+        const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+        vi.useFakeTimers();
+        vi.mocked(net.createConnection).mockImplementationOnce(
+            () => new net.Socket(),
         );
+        fetchMock.mockRejectedValueOnce(
+            new TypeError('private timeout details', {
+                cause: { code: 'UND_ERR_CONNECT_TIMEOUT' },
+            }),
+        );
+        try {
+            const result = buildService()
+                .getProjects(account)
+                .catch((error: unknown) => error);
+            await vi.advanceTimersByTimeAsync(3_000);
+            await expect(result).resolves.toHaveProperty(
+                'data.code',
+                'ROADMAP_UNREACHABLE',
+            );
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
-    it('maps other roadmap service errors to a stable server error', async () => {
+    it('treats redirects as upstream failures rather than diagnosing another domain as blocked roadmap egress', async () => {
         const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
-        fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
-
-        await expect(buildService().getRoadmap(account)).rejects.toThrow(
-            UnexpectedServerError,
-        );
+        const dispatcher = getGlobalDispatcher();
+        const agent = new MockAgent();
+        agent.disableNetConnect();
+        agent
+            .get('https://roadmap.lightdash.com')
+            .intercept({
+                path: `/api/v1/roadmap/organizations/${sessionOrgUuid}?pageSize=100`,
+            })
+            .reply(302, '', {
+                headers: {
+                    location: 'https://unrelated.example.com/unavailable',
+                },
+            });
+        agent
+            .get('https://unrelated.example.com')
+            .intercept({ path: '/unavailable' })
+            .replyWithError(
+                Object.assign(new Error('private upstream details'), {
+                    code: 'ECONNREFUSED',
+                }),
+            );
+        vi.unstubAllGlobals();
+        setGlobalDispatcher(agent);
+        try {
+            const result = buildService().getRoadmap(account);
+            await expect(result).rejects.toThrow(
+                'Could not load the organization roadmap',
+            );
+            await expect(result).rejects.toHaveProperty('data', {});
+        } finally {
+            setGlobalDispatcher(dispatcher);
+            await agent.close();
+        }
     });
+
+    it('keeps TLS-handshake timeouts generic when the roadmap TCP endpoint is reachable', async () => {
+        const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+        const socket = new net.Socket();
+        const connect = vi
+            .spyOn(net, 'createConnection')
+            .mockImplementationOnce(() => {
+                process.nextTick(() => socket.emit('connect'));
+                return socket;
+            });
+        fetchMock.mockRejectedValueOnce(
+            new TypeError('private TLS handshake details', {
+                cause: { code: 'UND_ERR_CONNECT_TIMEOUT' },
+            }),
+        );
+        try {
+            const result = buildService().getProjects(account);
+            await expect(result).rejects.toThrow(
+                'Could not load the organization roadmap',
+            );
+            await expect(result).rejects.toHaveProperty('data', {});
+        } finally {
+            connect.mockRestore();
+            socket.destroy();
+        }
+    });
+
+    it.each([
+        new DOMException('private timeout details', 'TimeoutError'),
+        new TypeError('private fetch details'),
+        ...[
+            { code: 'ECONNRESET' },
+            { code: 'CERT_HAS_EXPIRED' },
+            { code: 'UND_ERR_HEADERS_TIMEOUT' },
+            { code: 'ETIMEDOUT' },
+            { code: 'ETIMEDOUT', syscall: 'read' },
+            { code: 'EACCES', syscall: 'read' },
+            { code: 'ENOTFOUND', hostname: 'unrelated.example.com' },
+            new AggregateError([], 'private aggregate details'),
+            new AggregateError(
+                [{ code: 'ENETUNREACH' }, { code: 'ECONNRESET' }],
+                'private mixed details',
+            ),
+        ].map((cause) => new TypeError('private request details', { cause })),
+    ])(
+        'does not diagnose ambiguous timeouts, TLS, or unrelated fetch failures as blocked egress (%#)',
+        async (error) => {
+            const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+            fetchMock.mockRejectedValueOnce(error);
+
+            const result = buildService().getProjects(account);
+            await expect(result).rejects.toMatchObject({
+                name: 'UnexpectedServerError',
+                message: 'Could not load the organization roadmap',
+            });
+            await expect(result).rejects.toHaveProperty('data', {});
+        },
+    );
     it('project reads use session identity, sends bounded filters, and validates live metadata without changing v1', async () => {
         const results = {
             projects: [
