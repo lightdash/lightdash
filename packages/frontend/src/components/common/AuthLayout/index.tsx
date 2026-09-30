@@ -7,6 +7,7 @@ import classes from './AuthLayout.module.css';
 import BrandPrompt from './BrandPrompt';
 import LightdashWordmark from './LightdashWordmark';
 import PixelChart from './PixelChart';
+import PixelStars from './PixelStars';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
 
 type Props = {
@@ -75,6 +76,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
             <Box className={classes.root}>
                 <Box className={classes.brandPanel}>
+                    <PixelStars />
                     <LightdashWordmark className={classes.brandWordmark} />
 
                     <Stack gap="lg" className={classes.brandIntro}>

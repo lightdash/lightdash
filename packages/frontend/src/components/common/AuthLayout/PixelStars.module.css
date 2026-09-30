@@ -1,0 +1,78 @@
+.stars {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: fadeIn 1s steps(4, jump-none) 0.3s both;
+}
+
+.stars::before,
+.stars::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.stars::before {
+    width: rem(2px);
+    height: rem(2px);
+    box-shadow:
+        rem(540px) rem(110px) #d1ccff,
+        rem(470px) rem(330px) #ffffff,
+        rem(120px) rem(470px) #d1ccff,
+        rem(300px) rem(520px) #ffffff,
+        rem(560px) rem(420px) #d1ccff,
+        rem(210px) rem(610px) #ffffff,
+        rem(430px) rem(570px) #d1ccff,
+        rem(90px) rem(690px) #ffffff,
+        rem(600px) rem(180px) #ffffff;
+    animation: twinkle 3.6s step-end infinite;
+}
+
+.stars::after {
+    width: rem(4px);
+    height: rem(4px);
+    box-shadow:
+        rem(590px) rem(260px) #a499ff,
+        rem(380px) rem(440px) #5e4cff,
+        rem(250px) rem(700px) #a499ff,
+        rem(510px) rem(490px) #5e4cff,
+        rem(160px) rem(560px) #a499ff,
+        rem(340px) rem(640px) #5e4cff;
+    animation: twinkle 4.8s step-end -1.3s infinite;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes twinkle {
+    0% {
+        opacity: 0.9;
+    }
+    25% {
+        opacity: 0.25;
+    }
+    45% {
+        opacity: 0.7;
+    }
+    70% {
+        opacity: 0.15;
+    }
+    85% {
+        opacity: 0.6;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stars,
+    .stars::before,
+    .stars::after {
+        animation: none;
+    }
+}

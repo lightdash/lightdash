@@ -7,6 +7,7 @@
 .chart {
     --chart-columns: 5;
     --chart-rows: 4;
+    --fall-distance: calc((var(--chart-rows) + 3) * var(--auth-block-size));
 
     position: absolute;
     right: 0;
@@ -18,9 +19,13 @@
 
 .columns {
     position: absolute;
-    inset: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     display: flex;
     align-items: flex-end;
+    height: var(--fall-distance);
+    overflow: hidden;
 }
 
 .column {
@@ -31,22 +36,27 @@
 
 .column:nth-child(1) {
     --column-delay: 1.8s;
+    --shimmer-offset: 0s;
 }
 
 .column:nth-child(2) {
-    --column-delay: 1.95s;
+    --column-delay: 2.08s;
+    --shimmer-offset: 0.09s;
 }
 
 .column:nth-child(3) {
-    --column-delay: 2.1s;
+    --column-delay: 2.36s;
+    --shimmer-offset: 0.18s;
 }
 
 .column:nth-child(4) {
-    --column-delay: 2.25s;
+    --column-delay: 2.64s;
+    --shimmer-offset: 0.27s;
 }
 
 .column:nth-child(5) {
-    --column-delay: 2.4s;
+    --column-delay: 2.92s;
+    --shimmer-offset: 0.36s;
 }
 
 .block {
@@ -54,20 +64,22 @@
 
     position: relative;
     height: var(--auth-block-size);
-    animation: drop 0.24s steps(3, jump-none) both;
-    animation-delay: calc(var(--column-delay) + var(--row-delay));
+    animation:
+        drop 0.5s steps(7, jump-none)
+            calc(var(--column-delay) + var(--row-delay)) both,
+        shimmer 6s step-end calc(5.2s + var(--shimmer-offset)) infinite;
 }
 
 .block:nth-child(2) {
-    --row-delay: 0.08s;
+    --row-delay: 0.14s;
 }
 
 .block:nth-child(3) {
-    --row-delay: 0.16s;
+    --row-delay: 0.28s;
 }
 
 .block:nth-child(4) {
-    --row-delay: 0.24s;
+    --row-delay: 0.42s;
 }
 
 .striped::after {
@@ -106,13 +118,13 @@
     position: absolute;
     right: calc(var(--auth-block-size) + var(--mantine-spacing-sm));
     bottom: calc(100% + var(--mantine-spacing-xs));
-    animation: drop 0.3s steps(3, jump-none) 3s both;
+    animation: pop 0.3s steps(3, jump-none) 3.9s both;
 }
 
 .kpiValue {
     color: var(--mantine-color-white);
     counter-reset: kpi var(--kpi);
-    animation: count 0.8s steps(12, jump-none) 3s both;
+    animation: count 0.8s steps(12, jump-none) 3.9s both;
 }
 
 .kpiValue::after {
@@ -124,6 +136,24 @@
 }
 
 @keyframes drop {
+    0% {
+        transform: translateY(calc(-1 * var(--fall-distance)));
+        filter: brightness(1);
+    }
+    70% {
+        transform: translateY(0);
+        filter: brightness(1);
+    }
+    71% {
+        filter: brightness(1.9);
+    }
+    100% {
+        transform: translateY(0);
+        filter: brightness(1);
+    }
+}
+
+@keyframes pop {
     from {
         opacity: 0;
         transform: translateY(-50%);
@@ -131,6 +161,15 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        filter: brightness(1.22);
+    }
+    3% {
+        filter: brightness(1);
     }
 }
 
