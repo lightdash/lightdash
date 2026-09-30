@@ -1,3 +1,11 @@
+## [2.383.2](https://github.com/lightdash/lightdash/compare/2.383.1...2.383.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* preserve GCS OAuth object metadata for usage fingerprints ([#30228](https://github.com/lightdash/lightdash/issues/30228)) ([6bc297d](https://github.com/lightdash/lightdash/commit/6bc297d891154072090efdda5bb3d674c9b49ae6))
+* **scheduled-deliveries:** wait for totals on pivot tables without metrics ([#30229](https://github.com/lightdash/lightdash/issues/30229)) ([7eb3069](https://github.com/lightdash/lightdash/commit/7eb3069d3f0ef49cc7e25f3607d88561e7d9aa64))
+
 ## [2.383.1](https://github.com/lightdash/lightdash/compare/2.383.0...2.383.1) (2026-09-30)
 
 
