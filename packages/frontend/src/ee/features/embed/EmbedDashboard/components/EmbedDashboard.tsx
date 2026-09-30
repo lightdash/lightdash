@@ -49,7 +49,7 @@ import {
     applyFilterLabelOverrides,
     restoreFilterLabelOverrides,
 } from '../filterLabelOverrides';
-import { useEmbedDashboard } from '../hooks';
+import { useEmbedDashboard, useEmbedSavedParameters } from '../hooks';
 import { canUseEmbeddedChartBuilder } from '../utils';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
@@ -431,6 +431,8 @@ const EmbedDashboard: FC<{
             setDashboardTiles(dashboard.tiles);
         }
     }, [dashboard, setDashboardTiles]);
+
+    useEmbedSavedParameters(dashboard);
 
     useEffect(() => {
         if (!dashboard || isEditMode) return;

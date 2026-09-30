@@ -1,12 +1,18 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
-import { vi, type Mock } from 'vitest';
+import { beforeEach, vi, type Mock } from 'vitest';
 import { createQueryClient } from '../../../../providers/ReactQuery/createQueryClient';
-import { useEmbedDashboard } from './hooks';
+import { useEmbedDashboard, useEmbedSavedParameters } from './hooks';
 
 vi.mock('./api', () => ({
     postEmbedDashboard: vi.fn(),
+}));
+
+const setSavedParameters = vi.hoisted(() => vi.fn());
+vi.mock('../../../../providers/Dashboard/useDashboardContext', () => ({
+    default: (selector: (value: Record<string, unknown>) => unknown) =>
+        selector({ setSavedParameters }),
 }));
 
 import { postEmbedDashboard } from './api';
@@ -98,5 +104,32 @@ describe('useEmbedDashboard', () => {
         });
         // initial attempt + MAX_QUERY_RETRIES (5) retries
         expect(mockPostEmbedDashboard).toHaveBeenCalledTimes(6);
+    });
+});
+
+describe('useEmbedSavedParameters', () => {
+    beforeEach(() => {
+        setSavedParameters.mockClear();
+    });
+
+    it('passes the dashboard saved parameters to the dashboard state', () => {
+        const parameters = {
+            status: { parameterName: 'status', value: 'shipped' },
+        };
+        renderHook(() => useEmbedSavedParameters({ parameters }));
+
+        expect(setSavedParameters).toHaveBeenCalledWith(parameters);
+    });
+
+    it('clears saved parameters for a dashboard without any', () => {
+        renderHook(() => useEmbedSavedParameters({ parameters: undefined }));
+
+        expect(setSavedParameters).toHaveBeenCalledWith({});
+    });
+
+    it('waits for the dashboard to load', () => {
+        renderHook(() => useEmbedSavedParameters(undefined));
+
+        expect(setSavedParameters).not.toHaveBeenCalled();
     });
 });
