@@ -1,3 +1,8 @@
+.optionsScrollArea .optionsContent {
+    display: block;
+    min-width: 0;
+}
+
 .refreshItem {
     font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-ldGray-6);
@@ -16,6 +21,10 @@
 
 .createItem:hover {
     background-color: var(--mantine-color-blue-0);
+}
+
+.createIcon {
+    flex-shrink: 0;
 }
 
 /* Override the parent option element when it contains our create item */

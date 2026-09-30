@@ -127,6 +127,7 @@ const Parameter: FC<Props> = ({
     return (
         <Popover
             position="bottom-start"
+            width={400}
             opened={isPopoverOpen}
             onClose={handleClose}
             onDismiss={handleClose}
@@ -215,7 +216,7 @@ const Parameter: FC<Props> = ({
                     </Button>
                 </Tooltip>
             </Popover.Target>
-            <Popover.Dropdown p="sm" miw={200}>
+            <Popover.Dropdown p="sm" maw="calc(100vw - 32px)">
                 <ParameterInput
                     paramKey={paramKey}
                     parameter={parameter}
