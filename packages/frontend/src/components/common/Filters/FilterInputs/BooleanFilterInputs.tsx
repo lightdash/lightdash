@@ -31,6 +31,7 @@ const BooleanFilterInputs = <T extends BaseFilterRule>(
 
             return (
                 <Select
+                    scrollAreaProps={{ type: 'always' }}
                     allowDeselect={false}
                     w="100%"
                     size="xs"

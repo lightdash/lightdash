@@ -20,6 +20,28 @@ const getOptionLabels = (container: HTMLElement) =>
     );
 
 describe('ParameterInput', () => {
+    it.each([false, true])(
+        'shows the scrollbar without hovering or scrolling (multiple=%s)',
+        async (multiple) => {
+            const { container, getByRole } = renderParameter({
+                label: 'Channel',
+                multiple,
+                options: Array.from(
+                    { length: 30 },
+                    (_, index) => `Option ${index}`,
+                ),
+            });
+
+            await userEvent.click(getByRole('combobox'));
+
+            const scrollbar = container.querySelector(
+                '.mantine-ScrollArea-scrollbar[data-orientation="vertical"]',
+            );
+            expect(scrollbar).toBeInTheDocument();
+            expect(scrollbar).not.toHaveAttribute('data-state', 'hidden');
+        },
+    );
+
     it('renders plain options in the order they were authored', async () => {
         const { container, getByRole } = renderParameter({
             label: 'Channel',

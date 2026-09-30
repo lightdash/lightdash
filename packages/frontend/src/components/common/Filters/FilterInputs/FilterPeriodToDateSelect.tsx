@@ -83,6 +83,7 @@ const FilterPeriodToDateSelect: FC<Props> = ({
 
     return (
         <Select
+            scrollAreaProps={{ type: 'always' }}
             allowDeselect={false}
             w="100%"
             size="xs"
