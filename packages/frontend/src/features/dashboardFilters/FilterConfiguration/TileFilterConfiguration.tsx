@@ -465,9 +465,9 @@ const TileFilterConfiguration: FC<Props> = ({
                 </Text>
             );
         }
-        const inputClassName =
+        const pickerClassName =
             value.isOverride && value.isFiltered
-                ? classes.overrideInput
+                ? classes.overridePicker
                 : undefined;
         const comboboxProps = {
             withinPortal: false,
@@ -477,11 +477,12 @@ const TileFilterConfiguration: FC<Props> = ({
             return (
                 <FieldSelect
                     size="xs"
+                    miw={0}
                     item={value.selectedField}
                     items={value.sortedFilters ?? []}
                     placeholder={getUiString('filters.config.chooseField')}
                     error={!!value.invalidField}
-                    classNames={{ input: inputClassName }}
+                    className={pickerClassName}
                     comboboxProps={comboboxProps}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
@@ -497,7 +498,7 @@ const TileFilterConfiguration: FC<Props> = ({
                 allowDeselect={false}
                 placeholder={getUiString('filters.config.chooseColumn')}
                 error={!!value.invalidField}
-                classNames={{ input: inputClassName }}
+                className={pickerClassName}
                 comboboxProps={comboboxProps}
                 onDropdownOpen={popoverProps?.onOpen}
                 onDropdownClose={popoverProps?.onClose}
