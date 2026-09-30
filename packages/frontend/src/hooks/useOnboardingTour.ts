@@ -7,6 +7,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { type LightdashApi } from '../api';
+import { isScopeTourRunning } from '../features/scopeTours/isScopeTourRunning';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 const USER_ONBOARDING_QUERY_KEY = 'user-onboarding';
@@ -93,7 +94,11 @@ export const useOnboardingTour = ({
 
     return {
         isCompleted,
-        shouldShow: enabled && !isDismissed && isCompleted === false,
+        shouldShow:
+            enabled &&
+            !isScopeTourRunning() &&
+            !isDismissed &&
+            isCompleted === false,
         closeTour,
     };
 };
