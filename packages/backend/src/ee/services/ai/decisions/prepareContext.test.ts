@@ -300,6 +300,53 @@ describe('context preloading', () => {
         expect(criteria[1]).not.toHaveProperty('document_write');
     });
 
+    it('preloads the authoring skill with its resources for a document write-up', async () => {
+        const { args, dependencies, request, loadSkill } = setup();
+        args.enableDocuments = true;
+        args.knowledgeDocuments = [];
+        args.availableSkills = [
+            {
+                name: 'developing-in-lightdash',
+                description: 'Charts and dashboards as code',
+            },
+        ] as AiAgentArgs['availableSkills'];
+        loadSkill.mockResolvedValue({
+            name: 'developing-in-lightdash',
+            body: 'Chart-as-code rules.',
+            resources: [
+                {
+                    name: 'table-chart-reference',
+                    description: 'Table charts',
+                    content: 'Tables.',
+                },
+            ],
+        });
+        request.mockImplementation(async () =>
+            Response.json({
+                model: 'test',
+                answers: {
+                    turnIntent: choice('document_write'),
+                    skill: choice('none'),
+                    needsSkill: { type: 'noul', noul: 0.1 },
+                },
+            }),
+        );
+
+        const context = await prepareRelevantContext(args, dependencies, {
+            loadAgentTools: getLoadAgentTools(),
+            loadSkill: {},
+            createContent: {},
+        } as unknown as ToolSet);
+
+        expect(loadSkill).toHaveBeenCalledWith('developing-in-lightdash', {
+            arguments: null,
+        });
+        expect(context?.content).toContain('Chart-as-code rules.');
+        expect(context?.content).toContain(
+            '- table-chart-reference: Table charts',
+        );
+    });
+
     it('classifies a chart conversion follow-up as its own route', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];

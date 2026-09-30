@@ -4450,24 +4450,7 @@ export class AiAgentToolsService extends BaseService {
     ) {
         assertRegisteredAccount(context.account);
         const input = documentAsCodeSchema.parse(raw);
-        await this.assertContentSpaceInScope(
-            context,
-            input.spaceSlug,
-            'Space not found',
-        );
-        const [space] = await this.spaceModel.find({
-            projectUuid: context.projectUuid,
-            path: getLtreePathFromContentAsCodePath(input.spaceSlug),
-        });
-        if (
-            !space ||
-            !AiAgentToolsService.hasAgentSpaceAccess(
-                context.spaceAccess,
-                space.uuid,
-            )
-        ) {
-            throw new NotFoundError('Space not found');
-        }
+        const space = await this.resolveDocumentSpace(context, input.spaceSlug);
         const document = await this.documentService.create(
             context.account,
             context.projectUuid,
@@ -4485,6 +4468,71 @@ export class AiAgentToolsService extends BaseService {
             AiAgentToolsService.documentChange(context),
         );
         return this.documentContentResult(context, document);
+    }
+
+    /** A Space by slug, or by the exact name the user gave. */
+    private async resolveDocumentSpace(
+        context: AiAgentToolsRuntimeContext,
+        spaceSlugOrName: string,
+    ): Promise<{ uuid: string }> {
+        const requested = spaceSlugOrName.trim();
+        if (/^[\w-]+(\/[\w-]+)*$/u.test(requested)) {
+            const [bySlug] = await this.spaceModel.find({
+                projectUuid: context.projectUuid,
+                path: getLtreePathFromContentAsCodePath(requested),
+            });
+            if (
+                bySlug &&
+                AiAgentToolsService.hasAgentSpaceAccess(
+                    context.spaceAccess,
+                    bySlug.uuid,
+                )
+            ) {
+                return bySlug;
+            }
+        }
+        const spaces = (
+            await this.projectService.getSpaces(
+                context.user,
+                context.projectUuid,
+            )
+        ).filter((space) =>
+            AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                space.uuid,
+            ),
+        );
+        const wanted = requested.toLowerCase();
+        const named = spaces.filter(
+            (space) => space.name.trim().toLowerCase() === wanted,
+        );
+        if (named.length === 1) return named[0];
+        const describe = (list: typeof spaces) =>
+            list
+                .slice(0, 5)
+                .map(
+                    (space) =>
+                        `- ${space.name} (spaceSlug: ${getContentAsCodePathFromLtreePath(space.path)})`,
+                )
+                .join('\n');
+        if (named.length > 1) {
+            throw new NotFoundError(
+                `Several Spaces are named "${requested}". Ask the user which one:\n${describe(named)}`,
+            );
+        }
+        const closest = spaces
+            .filter(
+                (space) =>
+                    space.name.toLowerCase().includes(wanted) ||
+                    wanted.includes(space.name.toLowerCase()),
+            )
+            .concat(spaces)
+            .filter((space, index, list) => list.indexOf(space) === index);
+        throw new NotFoundError(
+            closest.length > 0
+                ? `Space "${requested}" was not found. Closest Spaces; confirm one with the user before using it:\n${describe(closest)}`
+                : `Space "${requested}" was not found.`,
+        );
     }
 
     private async editDocumentContent(
