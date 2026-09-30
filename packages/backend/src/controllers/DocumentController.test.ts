@@ -59,6 +59,62 @@ describe('Document duplicate boundary', () => {
     });
 });
 
+describe('Document change source', () => {
+    const setup = (method?: string) => {
+        const service = {
+            create: vi.fn().mockResolvedValue({}),
+            updateMetadata: vi.fn().mockResolvedValue({}),
+            updateContent: vi.fn().mockResolvedValue({}),
+        };
+        const controller = new DocumentController({
+            getDocumentService: () => service,
+        } as unknown as ConstructorParameters<typeof DocumentController>[0]);
+        const request = {
+            account: { user: { type: 'registered' } },
+            header: (name: string) =>
+                name.toLowerCase() === 'lightdash-request-method'
+                    ? method
+                    : undefined,
+        } as unknown as express.Request;
+        return { controller, request, service };
+    };
+
+    test.each([
+        ['WEB_APP', 'editor'],
+        ['SDK', 'api'],
+        ['CLI', 'api'],
+        [undefined, 'api'],
+    ])('request method %s is recorded as source %s', async (method, source) => {
+        const { controller, request, service } = setup(method);
+        const content = { baseVersionUuid: 'version', content: { cells: [] } };
+        await controller.create(request, 'project', {} as never);
+        await controller.updateMetadata(request, 'project', 'document', {
+            name: 'Renamed',
+        });
+        await controller.updateContent(request, 'project', 'document', content);
+        expect(service.create).toHaveBeenCalledWith(
+            request.account,
+            'project',
+            {},
+            { source },
+        );
+        expect(service.updateMetadata).toHaveBeenCalledWith(
+            request.account,
+            'project',
+            'document',
+            { name: 'Renamed' },
+            { change: { source } },
+        );
+        expect(service.updateContent).toHaveBeenCalledWith(
+            request.account,
+            'project',
+            'document',
+            content,
+            { change: { source } },
+        );
+    });
+});
+
 describe('Document chart query boundary', () => {
     const setup = (body: Record<string, unknown>) => {
         const executeAsyncDocumentCellQuery = vi.fn().mockResolvedValue({

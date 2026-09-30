@@ -1,6 +1,9 @@
 import {
     assertRegisteredAccount,
+    getRequestMethod,
+    LightdashRequestMethodHeader,
     ParameterError,
+    RequestMethod,
     type ApiDocumentAsCodeResponse,
     type ApiDocumentCellQueryResponse,
     type ApiDocumentListResponse,
@@ -31,12 +34,22 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import type { DocumentChangeContext } from '../services/DocumentService/DocumentService';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
+
+/** The web app marks its requests; anything else is an API client. */
+const getDocumentChange = (req: express.Request): DocumentChangeContext => ({
+    source:
+        getRequestMethod(req.header(LightdashRequestMethodHeader)) ===
+        RequestMethod.WEB_APP
+            ? 'editor'
+            : 'api',
+});
 
 @Route('/api/v1/projects/{projectUuid}/documents')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -116,7 +129,7 @@ export class DocumentController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getDocumentService()
-                .create(req.account, projectUuid, body),
+                .create(req.account, projectUuid, body, getDocumentChange(req)),
         };
     }
 
@@ -161,7 +174,9 @@ export class DocumentController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getDocumentService()
-                .updateMetadata(req.account, projectUuid, documentUuid, body),
+                .updateMetadata(req.account, projectUuid, documentUuid, body, {
+                    change: getDocumentChange(req),
+                }),
         };
     }
 
@@ -183,7 +198,9 @@ export class DocumentController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getDocumentService()
-                .updateContent(req.account, projectUuid, documentUuid, body),
+                .updateContent(req.account, projectUuid, documentUuid, body, {
+                    change: getDocumentChange(req),
+                }),
         };
     }
 

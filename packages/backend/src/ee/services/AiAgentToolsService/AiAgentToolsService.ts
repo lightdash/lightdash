@@ -78,7 +78,10 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { CoderService } from '../../../services/CoderService/CoderService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
-import { DocumentService } from '../../../services/DocumentService/DocumentService';
+import {
+    DocumentService,
+    type DocumentChangeContext,
+} from '../../../services/DocumentService/DocumentService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
@@ -4479,6 +4482,7 @@ export class AiAgentToolsService extends BaseService {
                     input.content,
                 ),
             },
+            AiAgentToolsService.documentChange(context),
         );
         return this.documentContentResult(context, document);
     }
@@ -4503,7 +4507,10 @@ export class AiAgentToolsService extends BaseService {
                 context.projectUuid,
                 current.uuid,
                 metadata,
-                { allowedSpaceUuids: context.spaceAccess ?? undefined },
+                {
+                    allowedSpaceUuids: context.spaceAccess ?? undefined,
+                    change: AiAgentToolsService.documentChange(context),
+                },
             );
             return this.documentContentResult(context, document);
         }
@@ -4519,9 +4526,22 @@ export class AiAgentToolsService extends BaseService {
                 baseVersionUuid: edit.baseVersionUuid,
                 content,
             },
-            { allowedSpaceUuids: context.spaceAccess ?? undefined },
+            {
+                allowedSpaceUuids: context.spaceAccess ?? undefined,
+                change: AiAgentToolsService.documentChange(context),
+            },
         );
         return this.documentContentResult(context, document);
+    }
+
+    private static documentChange(
+        context: AiAgentToolsRuntimeContext,
+    ): DocumentChangeContext {
+        return {
+            source: context.source,
+            aiPromptUuid: context.promptUuid,
+            aiThreadUuid: context.threadUuid,
+        };
     }
 
     private static transactionPrefix(context: AiAgentToolsRuntimeContext) {

@@ -167,6 +167,7 @@ const setup = (existing: DocumentContent = { cells: [markdown] }) => {
         }),
     };
     const service = new DocumentService({
+        analytics: { track: vi.fn() },
         appModel,
         documentModel,
         projectModel: {

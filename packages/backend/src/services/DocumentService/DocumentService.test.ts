@@ -133,7 +133,9 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     const spaceModel = {
         find: vi.fn().mockResolvedValue([{ path: 'reports.weekly_review' }]),
     };
+    const analytics = { track: vi.fn() };
     const service = new DocumentService({
+        analytics,
         lightdashConfig: { softDelete: { enabled: softDelete } },
         directAccessService,
         documentModel,
@@ -144,6 +146,7 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     return {
         service,
+        analytics,
         spaceModel,
         directAccessService,
         documentModel,
@@ -484,7 +487,8 @@ describe('DocumentService', () => {
     );
 
     test('delete uses filtered delete access, preserving recoverable versions/grants', async () => {
-        const { service, documentModel, spacePermissionService } = setup();
+        const { service, analytics, documentModel, spacePermissionService } =
+            setup();
         spacePermissionService.getDocumentDeleteAccessContext.mockResolvedValue(
             makeContext([{ userUuid, role: SpaceMemberRole.ADMIN }], false),
         );
@@ -501,6 +505,16 @@ describe('DocumentService', () => {
         );
         expect(documentModel.permanentDelete).not.toHaveBeenCalled();
         expect(documentModel.get).not.toHaveBeenCalled();
+        expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'document.deleted',
+            userId: userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: projectUuid,
+                documentId: documentUuid,
+                softDelete: true,
+            },
+        });
         expect(
             spacePermissionService.getDocumentDeleteAccessContext,
         ).toHaveBeenCalledWith(userUuid, {
@@ -511,7 +525,8 @@ describe('DocumentService', () => {
     });
 
     test('direct-editor deletion fails after the kernel filters its grant', async () => {
-        const { service, documentModel, spacePermissionService } = setup();
+        const { service, analytics, documentModel, spacePermissionService } =
+            setup();
         spacePermissionService.getDocumentDeleteAccessContext.mockResolvedValue(
             makeContext([], false),
         );
@@ -523,12 +538,14 @@ describe('DocumentService', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(documentModel.softDelete).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
     });
 
     test('disabled soft-delete config purges only after normal delete authorization', async () => {
-        const { service, documentModel, spacePermissionService } = setup({
-            softDelete: false,
-        });
+        const { service, analytics, documentModel, spacePermissionService } =
+            setup({
+                softDelete: false,
+            });
         spacePermissionService.getDocumentDeleteAccessContext.mockResolvedValue(
             makeContext([{ userUuid, role: SpaceMemberRole.EDITOR }], false),
         );
@@ -543,6 +560,16 @@ describe('DocumentService', () => {
             { expectedSpaceUuid: spaceUuid, requireDeleted: false },
         );
         expect(documentModel.softDelete).not.toHaveBeenCalled();
+        expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'document.deleted',
+            userId: userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: projectUuid,
+                documentId: documentUuid,
+                softDelete: false,
+            },
+        });
     });
 
     test('full direct grant cannot replace a missing base Document delete scope', async () => {
@@ -564,7 +591,7 @@ describe('DocumentService', () => {
     });
 
     test('restore requires existing recovery permission, not deletion ownership or direct access', async () => {
-        const { service, documentModel } = setup();
+        const { service, analytics, documentModel } = setup();
         documentModel.getLifecycleState.mockResolvedValue({
             ...document,
             deletedAt: new Date(),
@@ -578,6 +605,7 @@ describe('DocumentService', () => {
                 documentUuid,
             ),
         ).rejects.toThrow(ForbiddenError);
+        expect(analytics.track).not.toHaveBeenCalled();
         await service.restore(
             makeAccount(OrganizationMemberRole.ADMIN),
             projectUuid,
@@ -587,6 +615,15 @@ describe('DocumentService', () => {
             projectUuid,
             documentUuid,
         );
+        expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'document.restored',
+            userId: userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: projectUuid,
+                documentId: documentUuid,
+            },
+        });
     });
 
     test.each([['recovery'], ['document'], ['recovery', 'document']])(

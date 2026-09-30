@@ -280,6 +280,8 @@ describe('MCP Document runtime', () => {
         const runtime = service.createRuntime({
             ...context,
             source: 'ai_agent',
+            promptUuid: 'prompt-uuid',
+            threadUuid: 'thread-uuid',
             enableDocuments: true,
         });
         const created = await runtime.createContent({
@@ -293,6 +295,11 @@ describe('MCP Document runtime', () => {
             href: documentUrl,
         });
         expect(documentService.create).toHaveBeenCalledOnce();
+        expect(documentService.create.mock.calls[0][3]).toEqual({
+            source: 'ai_agent',
+            aiPromptUuid: 'prompt-uuid',
+            aiThreadUuid: 'thread-uuid',
+        });
         const read = await runtime.readContent({
             type: 'document',
             documentUuid: document.documentUuid,
@@ -320,7 +327,14 @@ describe('MCP Document runtime', () => {
             projectUuid,
             document.documentUuid,
             { baseVersionUuid: versionUuid, content: { cells: [cell] } },
-            { allowedSpaceUuids: [spaceUuid] },
+            {
+                allowedSpaceUuids: [spaceUuid],
+                change: {
+                    source: 'ai_agent',
+                    aiPromptUuid: 'prompt-uuid',
+                    aiThreadUuid: 'thread-uuid',
+                },
+            },
         );
     });
 
@@ -600,6 +614,7 @@ describe('MCP Document runtime', () => {
                 schemaVersion: 1,
                 content: { cells: [cell] },
             },
+            { source: 'mcp' },
         );
     });
 
@@ -663,7 +678,7 @@ describe('MCP Document runtime', () => {
                 baseVersionUuid: versionUuid,
                 content: replacement,
             },
-            { allowedSpaceUuids: [spaceUuid] },
+            { allowedSpaceUuids: [spaceUuid], change: { source: 'mcp' } },
         );
         expect(documentService.updateMetadata).not.toHaveBeenCalled();
         const savedCells =
@@ -692,7 +707,7 @@ describe('MCP Document runtime', () => {
             projectUuid,
             document.documentUuid,
             { name: 'Updated' },
-            { allowedSpaceUuids: [spaceUuid] },
+            { allowedSpaceUuids: [spaceUuid], change: { source: 'mcp' } },
         );
         expect(documentService.updateContent).not.toHaveBeenCalled();
     });

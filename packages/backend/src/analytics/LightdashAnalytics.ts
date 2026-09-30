@@ -1481,6 +1481,76 @@ export type SavedChartView = BaseTrack & {
     };
 };
 
+/** Where a Document change came from. */
+export type DocumentChangeSource =
+    | 'editor'
+    | 'api'
+    | 'ai_agent'
+    | 'mcp'
+    | 'duplicate';
+
+/** Cell counts of a Document version; never its content. */
+export type DocumentCellCounts = {
+    cellCount: number;
+    markdownCellCount: number;
+    chartCellCount: number;
+    customChartCellCount: number;
+    mergeChartCellCount: number;
+};
+
+export type DocumentCreatedEvent = BaseTrack & {
+    event: 'document.created';
+    userId: string;
+    properties: DocumentCellCounts & {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+        source: DocumentChangeSource;
+        schemaVersion: number;
+        /** Set when an AI agent or MCP client wrote the Document; joins to
+         * `ai_agent.step_completed` for the write-up turn's latency. */
+        aiPromptId?: string;
+        aiThreadId?: string;
+    };
+};
+
+export type DocumentUpdatedEvent = BaseTrack & {
+    event: 'document.updated';
+    userId: string;
+    properties: Partial<DocumentCellCounts> & {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+        source: DocumentChangeSource;
+        change: 'content' | 'metadata';
+        /** The new version, for content changes. */
+        versionNumber?: number;
+        aiPromptId?: string;
+        aiThreadId?: string;
+    };
+};
+
+export type DocumentDeletedEvent = BaseTrack & {
+    event: 'document.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+        softDelete: boolean;
+    };
+};
+
+export type DocumentRestoredEvent = BaseTrack & {
+    event: 'document.restored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+    };
+};
+
 export type DashboardView = BaseTrack & {
     event: 'dashboard.view';
     userId: string;
@@ -4304,6 +4374,10 @@ type TypedEvent =
     | AiAgentDocumentCreatedEvent
     | AiAgentDocumentUpdatedEvent
     | AiAgentDocumentDeletedEvent
+    | DocumentCreatedEvent
+    | DocumentUpdatedEvent
+    | DocumentDeletedEvent
+    | DocumentRestoredEvent
     | AiAgentSkillCreatedEvent
     | AiAgentSkillUpdatedEvent
     | AiAgentSkillRestoredEvent
