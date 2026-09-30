@@ -20,7 +20,7 @@ import {
     type ResolvedProjectColorPalette,
 } from './organization';
 import { type ParametersValuesMap } from './parameters';
-import { type Project } from './projects';
+import { type ProjectType } from './projects';
 import { type RawResultRow } from './results';
 import { type ChartKind } from './savedCharts';
 import { SchedulerJobStatus, type TraceTaskBase } from './scheduler';
@@ -251,8 +251,11 @@ export type SqlChart = {
     > | null;
     space: Pick<SpaceSummary, 'uuid' | 'name' | 'userAccess'>;
     dashboard: Pick<Dashboard, 'uuid' | 'name'> | null;
-    project: Pick<Project, 'projectUuid'> &
-        Partial<Pick<Project, 'name' | 'type'>>;
+    project: {
+        projectUuid: string;
+        name?: string;
+        type?: ProjectType;
+    };
     organization: Pick<Organization, 'organizationUuid'>;
     views: number;
     firstViewedAt: Date;
