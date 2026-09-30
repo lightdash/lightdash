@@ -110,7 +110,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
 
         const {
             pivotTableData,
-            isPivotTableEnabled,
+            rendersPivotTable,
             isCalculatingColumnTotals,
             isCalculatingRowTotals,
             isCalculatingRowSubtotals,
@@ -130,7 +130,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return;
         }
 
-        if (isPivotTableEnabled) {
+        if (rendersPivotTable) {
             if (
                 pivotTableData.data &&
                 resultsData?.hasFetchedAllRows &&

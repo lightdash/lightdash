@@ -35,6 +35,12 @@ type TotalLoadingFlag = (typeof totalLoadingFlags)[number];
 const buildContext = (
     chartConfigOverrides: Partial<Record<TotalLoadingFlag, boolean>> & {
         columnTotalsError?: Error;
+        isPivotTableEnabled?: boolean;
+        pivotTableData?: {
+            data: { rowsCount: number } | undefined;
+            loading: boolean;
+            error: undefined;
+        };
     } = {},
 ) => ({
     columnOrder: [],
@@ -48,6 +54,7 @@ const buildContext = (
                 error: undefined,
             },
             isPivotTableEnabled: true,
+            rendersPivotTable: true,
             isPivotResultStale: false,
             showColumnCalculation: true,
             showResultsTotal: false,
@@ -114,6 +121,38 @@ describe('SimpleTable screenshot readiness', () => {
         renderWithProviders(
             <SimpleTable isDashboard onScreenshotReady={onScreenshotReady} />,
         );
+
+        expect(onScreenshotReady).toHaveBeenCalledOnce();
+    });
+
+    // A pivot with only table calculations has no metrics, so it is not
+    // "pivot enabled" but still renders the pivot table and its totals.
+    it('waits for pivot data and totals when the pivot has no metrics', () => {
+        const onScreenshotReady = vi.fn();
+        const renderTable = () => (
+            <SimpleTable isDashboard onScreenshotReady={onScreenshotReady} />
+        );
+
+        mockContext.current = buildContext({
+            isPivotTableEnabled: false,
+            pivotTableData: {
+                data: undefined,
+                loading: false,
+                error: undefined,
+            },
+        });
+        const { rerender } = renderWithProviders(renderTable());
+
+        mockContext.current = buildContext({
+            isPivotTableEnabled: false,
+            isCalculatingSubtotals: true,
+        });
+        rerender(renderTable());
+
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        mockContext.current = buildContext({ isPivotTableEnabled: false });
+        rerender(renderTable());
 
         expect(onScreenshotReady).toHaveBeenCalledOnce();
     });
