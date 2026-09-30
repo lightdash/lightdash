@@ -1,3 +1,10 @@
+## [2.397.1](https://github.com/lightdash/lightdash/compare/2.397.0...2.397.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **frontend:** keep the brand panel blocks inside the guide lines ([#30300](https://github.com/lightdash/lightdash/issues/30300)) ([a5c8a12](https://github.com/lightdash/lightdash/commit/a5c8a126d1f5aea2fc77859c940aefe9368b4279))
+
 # [2.397.0](https://github.com/lightdash/lightdash/compare/2.396.1...2.397.0) (2026-09-30)
 
 
