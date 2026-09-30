@@ -6,6 +6,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { useMount, useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import {
     resetChartState,
     setChartConfig,
@@ -282,6 +283,19 @@ const SqlRunnerNewPage = ({
     isEditMode?: boolean;
     virtualViewState?: VirtualViewState;
 }) => {
+    const projectUuid = useProjectUuid();
+    const { data: project, isInitialLoading, error } = useProject(projectUuid);
+
+    if (error) return <ErrorState error={error.error} />;
+    if (isInitialLoading || !project) {
+        return <SuboptimalState title="Loading project" loading />;
+    }
+    if (project.provisioningSource === 'analytics') {
+        return (
+            <SuboptimalState title="SQL Runner is unavailable for managed analytics projects" />
+        );
+    }
+
     return (
         <Provider store={store}>
             <SqlRunner

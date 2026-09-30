@@ -1,3 +1,4 @@
+import { type Project } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { renderWithProviders } from '../testing/testUtils';
@@ -40,9 +41,20 @@ vi.mock('../features/sqlRunner/hooks/useSavedSqlCharts', () => ({
 vi.mock('../features/sqlRunner/hooks/useSqlRunnerShareUrl', () => ({
     useSqlRunnerShareUrl: () => ({ error: null, sqlRunnerState: null }),
 }));
-vi.mock('../hooks/useProject', () => ({
-    useProject: () => ({ data: undefined }),
+const projectQuery = vi.hoisted(() => ({
+    data: undefined as
+        | Pick<Project, 'projectUuid' | 'provisioningSource'>
+        | undefined,
+    isInitialLoading: false,
 }));
+vi.mock('../hooks/useProject', () => ({
+    useProject: () => projectQuery,
+}));
+
+beforeEach(() => {
+    projectQuery.data = { projectUuid: 'project-uuid' };
+    projectQuery.isInitialLoading = false;
+});
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
@@ -62,32 +74,36 @@ const LocationState = () => {
     );
 };
 
-it('keeps the explore connection after clearing navigation state', async () => {
-    renderWithProviders(
-        <MemoryRouter
-            initialEntries={[
-                {
-                    pathname: '/projects/project-uuid/sql-runner',
-                    state: {
-                        sql: 'select 1',
-                        warehouseConnectionUuid: 'finance-uuid',
-                    },
+const SqlRunnerTest = () => (
+    <MemoryRouter
+        initialEntries={[
+            {
+                pathname: '/projects/project-uuid/sql-runner',
+                state: {
+                    sql: 'select 1',
+                    warehouseConnectionUuid: 'finance-uuid',
                 },
-            ]}
-        >
-            <Routes>
-                <Route
-                    path="/projects/:projectUuid/sql-runner"
-                    element={
-                        <>
-                            <SqlRunnerNewPage />
-                            <LocationState />
-                        </>
-                    }
-                />
-            </Routes>
-        </MemoryRouter>,
-    );
+            },
+        ]}
+    >
+        <Routes>
+            <Route
+                path="/projects/:projectUuid/sql-runner"
+                element={
+                    <>
+                        <SqlRunnerNewPage />
+                        <LocationState />
+                    </>
+                }
+            />
+        </Routes>
+    </MemoryRouter>
+);
+
+const renderSqlRunner = () => renderWithProviders(<SqlRunnerTest />);
+
+it('keeps the explore connection after clearing navigation state', async () => {
+    renderSqlRunner();
 
     await waitFor(() =>
         expect(screen.getByTestId('navigation-state')).toHaveTextContent(
@@ -96,5 +112,49 @@ it('keeps the explore connection after clearing navigation state', async () => {
     );
     expect(screen.getByTestId('connection-hint')).toHaveTextContent(
         'finance-uuid',
+    );
+});
+
+it('preserves navigation state while the project loads, then opens the runner', async () => {
+    projectQuery.data = undefined;
+    projectQuery.isInitialLoading = true;
+    const { rerender } = renderSqlRunner();
+
+    expect(screen.getByText('Loading project')).toBeInTheDocument();
+    expect(screen.queryByTestId('connection-hint')).not.toBeInTheDocument();
+    expect(screen.getByTestId('navigation-state')).toHaveTextContent(
+        'select 1',
+    );
+
+    projectQuery.data = { projectUuid: 'project-uuid' };
+    projectQuery.isInitialLoading = false;
+    // Trigger a rerender without replacing the router or its navigation state.
+    rerender(<SqlRunnerTest />);
+
+    await waitFor(() =>
+        expect(screen.getByTestId('navigation-state')).toHaveTextContent(
+            'null',
+        ),
+    );
+    expect(screen.getByTestId('connection-hint')).toHaveTextContent(
+        'finance-uuid',
+    );
+});
+
+it('does not mount SQL Runner for managed analytics projects', () => {
+    projectQuery.data = {
+        projectUuid: 'project-uuid',
+        provisioningSource: 'analytics',
+    };
+    renderSqlRunner();
+
+    expect(
+        screen.getByText(
+            'SQL Runner is unavailable for managed analytics projects',
+        ),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('connection-hint')).not.toBeInTheDocument();
+    expect(screen.getByTestId('navigation-state')).toHaveTextContent(
+        'select 1',
     );
 });
