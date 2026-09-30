@@ -25,18 +25,27 @@ Each chart type requires changes across these layers:
 - Create `isXxxVisualizationConfig()` type guard
 - Add to the `VisualizationConfig` union
 
-### 4. Frontend Config Hook (`packages/frontend/src/hooks/useXxxChartConfig.ts`)
+### 4. Chart Logic (`packages/visualization/src/xxx/`)
 
-- Manages chart state (field selections, display options)
-- Auto-selects fields when data first loads
-- Transforms result rows into chart-specific data format
-- Returns `validConfig`, field change handlers, and transformed data
+Chart logic lives in `@lightdash/visualization`, not in the frontend, so the
+web app, the SDK, embedding and Desktop draw the same chart. Read
+`packages/visualization/CLAUDE.md` first.
 
-### 5. Frontend ECharts Hook (`packages/frontend/src/hooks/echarts/useEchartsXxxConfig.ts`)
+- `config.ts`: `resolveXxxChartConfig` (defaults, field auto-selection,
+  repairs, chart-specific data) and the pure helpers the editor hook calls
+- `echartsOption.ts` (or `model.ts`): `buildXxxEchartsOption`, the tooltip,
+  labels, colours and styling
+- Cases in `resolveChart` and `buildChart` (`render.ts`); the helpers the
+  frontend imports listed in `editor.ts`
 
-- Reads from visualization context via `useVisualizationContext()`
-- Transforms chart config into `EChartsOption`
-- Configures tooltip, labels, colors, styling
+### 5. Frontend Hooks (thin wrappers over the package)
+
+- `packages/frontend/src/hooks/useXxxChartConfig.ts`: editor state (field
+  selections, display options) and change handlers; calls the package's
+  helpers and returns `validConfig`
+- `packages/frontend/src/hooks/echarts/useEchartsXxxConfig.ts`: reads
+  `useVisualizationContext()` and `useVisualizationTheme()` and calls the
+  package's builder
 
 ### 6. Frontend Visualization Component (`packages/frontend/src/components/SimpleXxx/index.tsx`)
 
@@ -71,6 +80,10 @@ Files with `assertUnreachable` on `ChartType` or `ChartKind` that **must** be up
 - `packages/frontend/src/providers/Explorer/types.ts` - `ConfigCacheMap`
 - `packages/frontend/src/providers/Explorer/utils.ts` - `DEFAULTS` map
 - `packages/backend/src/services/RenameService/rename.ts` - Field rename
+- `packages/visualization/src/render.ts` - `resolveChart` / `buildChart`
+
+Before opening the PR, run `pnpm -F visualization test:regression`: the
+existing chart types must draw exactly as they did.
 
 ## Sankey Chart Type
 

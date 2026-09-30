@@ -73,7 +73,8 @@
         "test:dev": "vitest watch --config vitest.config.ts --changed",
         "test:browser": "playwright test --config browser/playwright.config.ts",
         "release": "pnpm publish --no-git-checks --access public",
-        "test:pack": "node ./scripts/smoke-pack.mjs"
+        "test:pack": "node ./scripts/smoke-pack.mjs",
+        "test:regression": "node ./scripts/regression/run.mjs"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",

@@ -243,6 +243,12 @@ Freezing analytics/customer *deployments* is a different mechanism in a differen
 -   Authorization logic with CASL
 -   Published as `@lightdash/common`
 
+**Visualization (`packages/visualization/`):**
+
+-   The headless chart engine every Lightdash chart draws through (web app, SDK, embedding, Desktop)
+-   Published as `@lightdash/visualization`; the frontend's chart hooks are thin wrappers over it
+-   Changes must leave the web app's charts identical: run `pnpm -F visualization test:regression` (see `packages/visualization/CLAUDE.md`)
+
 ## Authorization & Custom Roles
 
 **When adding or changing a permission scope, use the `ld-permissions` skill** — it has the full checklist of ability layers to update (forgetting `serviceAccountAbility.ts` breaks CI/CD pipelines).
