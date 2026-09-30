@@ -1,3 +1,10 @@
+# [2.381.0](https://github.com/lightdash/lightdash/compare/2.380.1...2.381.0) (2026-09-30)
+
+
+### Features
+
+* **ai:** record credit entitlements and place a hold when an allowance is used up ([#30184](https://github.com/lightdash/lightdash/issues/30184)) ([26378e5](https://github.com/lightdash/lightdash/commit/26378e5831cbe07bc91197e404641fff48b57b68))
+
 ## [2.380.1](https://github.com/lightdash/lightdash/compare/2.380.0...2.380.1) (2026-09-30)
 
 

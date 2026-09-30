@@ -1,14 +1,30 @@
 {
   "schemaVersion": "2",
-  "version": "2.380.1",
-  "previousVersion": "2.380.0",
-  "releaseDate": "2026-09-30T07:45:38.389Z",
+  "version": "2.381.0",
+  "previousVersion": "2.380.1",
+  "releaseDate": "2026-09-30T08:40:13.163Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20260929120000_create_ai_credit_entitlements_and_holds.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_credit_entitlements",
+          "ai_credit_holds",
+          "organizations",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
