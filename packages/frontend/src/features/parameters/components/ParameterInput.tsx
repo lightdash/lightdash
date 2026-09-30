@@ -322,6 +322,24 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                   ]
                 : [];
 
+        const resolvedDefault = resolveParameterDefault(parameter);
+        const defaultValues =
+            resolvedDefault === undefined
+                ? []
+                : Array.isArray(resolvedDefault)
+                  ? resolvedDefault
+                  : [resolvedDefault];
+        const existingValues = new Set([
+            ...regularItems.map((item) => item.value),
+            ...fetchedResults,
+        ]);
+        const defaultItems = [...new Set(defaultValues.map(String))]
+            .filter((value) => value !== '' && !existingValues.has(value))
+            .map((value) => ({
+                value,
+                label: `${formatDisplayValue(value)} (default)`,
+            }));
+
         const specialItems = [];
 
         // Add create item if search doesn't match existing options and custom values are allowed
@@ -351,13 +369,18 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             });
         }
 
-        return [...regularItems, ...fetchedItems, ...specialItems];
+        return [
+            ...regularItems,
+            ...defaultItems,
+            ...fetchedItems,
+            ...specialItems,
+        ];
     }, [
         fetchedResults,
         fetchedLabelMap,
         shouldFetch,
         optionsData,
-        parameter.allow_custom_values,
+        parameter,
         search,
     ]);
 
