@@ -8,6 +8,7 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import { readEmbeddedBundle } from '@lightdash/warehouses';
 import path from 'path';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -213,6 +214,11 @@ describe('provisionTrainingProject', () => {
             projectUuid,
             expect.any(Array),
             true,
+            undefined,
+            readEmbeddedBundle(
+                path.resolve(__dirname, '../../../assets/playground'),
+                'jaffle_shop',
+            )!.version,
         );
         expect(mocks.createProjectAccess).toHaveBeenCalledExactlyOnceWith(
             projectUuid,

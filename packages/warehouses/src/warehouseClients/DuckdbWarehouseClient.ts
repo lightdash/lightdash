@@ -37,6 +37,10 @@ import fsSync from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import {
+    getEmbeddedDatabaseFileName,
+    resolveEmbeddedBundleDatabasePath,
+} from './duckdbEmbeddedBundle';
 import { classifyMotherduckError } from './MotherduckErrorClassifier';
 import * as MotherduckInstanceCache from './MotherduckInstanceCache';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -510,7 +514,10 @@ const EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS =
         15_000,
     );
 
-const resolveEmbeddedDatabasePath = (dataset: string): string => {
+const resolveEmbeddedDatabasePath = (
+    dataset: string,
+    bundleVersion: string | undefined,
+): string => {
     if (!EMBEDDED_DATASET_PATTERN.test(dataset)) {
         throw new ParameterError(
             'Embedded DuckDB dataset must contain only lowercase letters, numbers, hyphens, and underscores',
@@ -528,7 +535,13 @@ const resolveEmbeddedDatabasePath = (dataset: string): string => {
         );
     }
 
-    const databasePath = path.join(baseDirectory, `${dataset}.duckdb`);
+    const databasePath = bundleVersion
+        ? resolveEmbeddedBundleDatabasePath(
+              baseDirectory,
+              dataset,
+              bundleVersion,
+          )
+        : path.join(baseDirectory, getEmbeddedDatabaseFileName(dataset));
     let realDatabasePath: string;
     try {
         realDatabasePath = fsSync.realpathSync(databasePath);
@@ -707,6 +720,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         if (this.embeddedConfig) {
             this.databasePath = resolveEmbeddedDatabasePath(
                 this.embeddedConfig.dataset,
+                this.embeddedConfig.bundleVersion,
             );
         } else if (
             this.ducklakeConfig ||

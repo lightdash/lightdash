@@ -1,8 +1,10 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import { DuckdbConnectionType, WarehouseTypes } from '@lightdash/common';
+import { createHash } from 'crypto';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { readEmbeddedBundle } from './duckdbEmbeddedBundle';
 import { DuckdbWarehouseClient } from './DuckdbWarehouseClient';
 
 describe.sequential('DuckdbWarehouseClient embedded credentials', () => {
@@ -83,6 +85,56 @@ describe.sequential('DuckdbWarehouseClient embedded credentials', () => {
         ).resolves.toMatchObject({
             rows: [{ value: 1 }],
         });
+    });
+
+    it('opens the database of the pinned bundle version', async () => {
+        const writeVersionedBundle = async (
+            directory: string,
+            value: number,
+        ) => {
+            await fs.mkdir(directory, { recursive: true });
+            const databasePath = path.join(directory, 'sample.duckdb');
+            const instance = await DuckDBInstance.create(databasePath);
+            const connection = await instance.connect();
+            await connection.run(
+                `CREATE TABLE sample AS SELECT ${value} AS value`,
+            );
+            connection.closeSync();
+            instance.closeSync();
+            const explores = JSON.stringify([value]);
+            await fs.writeFile(path.join(directory, 'explores.json'), explores);
+            const digest = (contents: Buffer | string) =>
+                createHash('sha256').update(contents).digest('hex');
+            await fs.writeFile(
+                path.join(directory, 'SHA256SUMS'),
+                `${digest(explores)}  explores.json\n${digest(
+                    await fs.readFile(databasePath),
+                )}  sample.duckdb\n`,
+            );
+            return readEmbeddedBundle(directory, 'sample')!.version;
+        };
+        await writeVersionedBundle(dataDirectory, 2);
+        const previousVersion = await writeVersionedBundle(
+            path.join(dataDirectory, 'previous'),
+            1,
+        );
+
+        const client = new DuckdbWarehouseClient({
+            ...embeddedCredentials('sample'),
+            bundleVersion: previousVersion,
+        });
+        await expect(
+            client.runQuery('SELECT value FROM sample'),
+        ).resolves.toMatchObject({ rows: [{ value: 1 }] });
+        expect(
+            () =>
+                new DuckdbWarehouseClient({
+                    ...embeddedCredentials('sample'),
+                    bundleVersion: 'ffffffffffffffff',
+                }),
+        ).toThrow(
+            'Sample data version mismatch: the project uses version ffffffffffffffff',
+        );
     });
 
     it('interrupts embedded queries that exceed their execution deadline', async () => {

@@ -279,6 +279,8 @@ export type CreateDuckdbEmbeddedCredentials = {
     type: WarehouseTypes.DUCKDB;
     connectionType: DuckdbConnectionType.EMBEDDED;
     dataset: string;
+    /** Set from the project's stored playground bundle version, never saved with the credentials. */
+    bundleVersion?: string;
     requireUserCredentials?: boolean;
     dataTimezone?: string;
     startOfWeek?: number;

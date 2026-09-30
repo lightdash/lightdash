@@ -49,6 +49,7 @@ export type DbProject = {
     results_cache_ttl_seconds: number | null;
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
+    playground_bundle_version: string | null;
 };
 
 type CreateDbProject = Pick<
@@ -97,6 +98,7 @@ type UpdateDbProject = Partial<
         | 'results_cache_ttl_seconds'
         | 'provisioning_source'
         | 'agent_sql_scope'
+        | 'playground_bundle_version'
     >
 >;
 
@@ -104,6 +106,19 @@ export type ProjectTable = Knex.CompositeTableType<
     DbProject,
     CreateDbProject,
     UpdateDbProject
+>;
+
+export const PlaygroundBundleVersionsTableName = 'playground_bundle_versions';
+
+type DbPlaygroundBundleVersion = {
+    version: string;
+    first_seen_at: Date;
+};
+
+export type PlaygroundBundleVersionsTable = Knex.CompositeTableType<
+    DbPlaygroundBundleVersion,
+    Pick<DbPlaygroundBundleVersion, 'version'>,
+    never
 >;
 
 export type DbCachedExplores = {

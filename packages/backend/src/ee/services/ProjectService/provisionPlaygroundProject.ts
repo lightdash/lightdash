@@ -9,15 +9,11 @@ import {
     RequestMethod,
     WarehouseTypes,
     type EnsurePlaygroundProjectResults,
-    type Explore,
-    type ExploreError,
     type OrganizationProject,
     type PlaygroundProjectTrigger,
     type SessionUser,
 } from '@lightdash/common';
-import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
-import fs from 'fs/promises';
 import path from 'path';
 import {
     type LightdashAnalytics,
@@ -29,8 +25,15 @@ import { type OnboardingModel } from '../../../models/OnboardingModel/Onboarding
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type CatalogService } from '../../../services/CatalogService/CatalogService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import {
+    getServablePlaygroundBundleVersions,
+    loadPlaygroundBundle,
+    PLAYGROUND_DATASET,
+    shouldAdoptPlaygroundBundle,
+    validatePlaygroundDatabaseBundle,
+    type PlaygroundDatabaseCheck,
+} from '../../../services/ProjectService/playgroundBundle';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
-import { loadPlaygroundContent } from './loadPlaygroundContent';
 import { type PlaygroundContent } from './playgroundContentTypes';
 
 export type ProvisionPlaygroundProjectArguments = {
@@ -38,7 +41,11 @@ export type ProvisionPlaygroundProjectArguments = {
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     projectModel: Pick<
         ProjectModel,
-        'getAllByOrganizationUuid' | 'delete' | 'saveExploresToCache'
+        | 'getAllByOrganizationUuid'
+        | 'delete'
+        | 'saveExploresToCache'
+        | 'getPlaygroundBundleVersion'
+        | 'recordPlaygroundBundleVersionSeen'
     >;
     onboardingModel: Pick<
         OnboardingModel,
@@ -59,48 +66,10 @@ export type ProvisionPlaygroundProjectArguments = {
     trigger?: PlaygroundProjectTrigger;
     hasActiveAgentOnboardingRun?: () => Promise<boolean>;
     playgroundDataDirectory?: string;
-    validatePlaygroundDatabase?: (databasePath: string) => Promise<void>;
-};
-
-export const validatePlaygroundDatabaseBundle = async (): Promise<void> => {
-    const client = new DuckdbWarehouseClient({
-        type: WarehouseTypes.DUCKDB,
-        connectionType: DuckdbConnectionType.EMBEDDED,
-        dataset: 'jaffle_shop',
-    });
-    await client.runQuery('SELECT count(*) FROM information_schema.tables');
-};
-
-export const loadPlaygroundBundle = async (
-    dataDirectory: string,
-    validatePlaygroundDatabase: (databasePath: string) => Promise<void>,
-): Promise<{
-    explores: (Explore | ExploreError)[];
-    content: PlaygroundContent;
-}> => {
-    const [exploresJson, content] = await Promise.all([
-        fs.readFile(path.join(dataDirectory, 'explores.json'), 'utf8'),
-        loadPlaygroundContent(dataDirectory),
-        validatePlaygroundDatabase(
-            path.join(dataDirectory, 'jaffle_shop.duckdb'),
-        ),
-    ]);
-
-    let explores: unknown;
-    try {
-        explores = JSON.parse(exploresJson);
-    } catch (error) {
-        throw new Error('Playground bundle contains invalid JSON', {
-            cause: error,
-        });
-    }
-    if (!Array.isArray(explores)) {
-        throw new Error('Playground explores bundle must contain an array');
-    }
-    return {
-        explores: explores as (Explore | ExploreError)[],
-        content,
-    };
+    validatePlaygroundDatabase?: (
+        check: PlaygroundDatabaseCheck,
+    ) => Promise<void>;
+    now?: Date;
 };
 
 const getErrorType = (error: unknown): string =>
@@ -120,6 +89,7 @@ export const provisionPlaygroundProject = async ({
     hasActiveAgentOnboardingRun,
     playgroundDataDirectory,
     validatePlaygroundDatabase = validatePlaygroundDatabaseBundle,
+    now = new Date(),
 }: ProvisionPlaygroundProjectArguments): Promise<EnsurePlaygroundProjectResults> => {
     const { organizationUuid } = user;
     if (!organizationUuid) {
@@ -176,15 +146,41 @@ export const provisionPlaygroundProject = async ({
                 );
                 if (playground) {
                     lastKnownProjectUuid = playground.projectUuid;
-                    const { explores, content } = await loadPlaygroundBundle(
+                    const bundle = await loadPlaygroundBundle(
                         dataDirectory,
                         validatePlaygroundDatabase,
                     );
-                    await projectModel.saveExploresToCache(
-                        playground.projectUuid,
-                        explores,
-                        true,
-                    );
+                    const { content } = bundle;
+                    const projectVersion =
+                        await projectModel.getPlaygroundBundleVersion(
+                            playground.projectUuid,
+                        );
+                    // A project on a version other servers still serve keeps
+                    // its explores until the adoption rule moves it.
+                    if (
+                        projectVersion === bundle.version ||
+                        shouldAdoptPlaygroundBundle({
+                            projectVersion,
+                            currentVersion: bundle.version,
+                            servableVersions:
+                                getServablePlaygroundBundleVersions(
+                                    dataDirectory,
+                                ),
+                            currentFirstSeenAt:
+                                await projectModel.recordPlaygroundBundleVersionSeen(
+                                    bundle.version,
+                                ),
+                            now,
+                        })
+                    ) {
+                        await projectModel.saveExploresToCache(
+                            playground.projectUuid,
+                            bundle.explores,
+                            true,
+                            undefined,
+                            bundle.version,
+                        );
+                    }
                     try {
                         const seedVersion =
                             await onboardingModel.getPlaygroundContentSeedVersion(
@@ -256,10 +252,11 @@ export const provisionPlaygroundProject = async ({
                     );
                 }
 
-                const { explores, content } = await loadPlaygroundBundle(
-                    dataDirectory,
-                    validatePlaygroundDatabase,
-                );
+                const { explores, content, version } =
+                    await loadPlaygroundBundle(
+                        dataDirectory,
+                        validatePlaygroundDatabase,
+                    );
 
                 const creation = await projectService.createWithoutCompile(
                     user,
@@ -271,7 +268,7 @@ export const provisionPlaygroundProject = async ({
                         warehouseConnection: {
                             type: WarehouseTypes.DUCKDB,
                             connectionType: DuckdbConnectionType.EMBEDDED,
-                            dataset: 'jaffle_shop',
+                            dataset: PLAYGROUND_DATASET,
                         },
                     },
                     RequestMethod.BACKEND,
@@ -285,6 +282,8 @@ export const provisionPlaygroundProject = async ({
                         projectUuid,
                         explores,
                         true,
+                        undefined,
+                        version,
                     );
                 } catch (error) {
                     await projectModel

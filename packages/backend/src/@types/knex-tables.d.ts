@@ -322,6 +322,8 @@ import {
     CachedExploreTableName,
     CachedWarehouseTable,
     CachedWarehouseTableName,
+    PlaygroundBundleVersionsTable,
+    PlaygroundBundleVersionsTableName,
     ProjectTable,
     ProjectTableName,
 } from '../database/entities/projects';
@@ -718,6 +720,7 @@ declare module 'knex/types/tables' {
         [UserWarehouseCredentialsTableName]: UserWarehouseCredentialsTable;
         [ProjectUserWarehouseCredentialPreferenceTableName]: ProjectUserWarehouseCredentialPreferenceTable;
         [ProjectTableName]: ProjectTable;
+        [PlaygroundBundleVersionsTableName]: PlaygroundBundleVersionsTable;
         [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;

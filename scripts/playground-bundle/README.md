@@ -18,36 +18,70 @@ Create the isolated, gitignored Python environment once:
 ```sh
 python3 -m venv scripts/playground-bundle/.venv
 scripts/playground-bundle/.venv/bin/pip install \
-  'dbt-core==1.10.0' 'dbt-duckdb==1.10.0'
+  'dbt-core==1.10.0' 'dbt-duckdb==1.10.0' 'duckdb==1.5.6'
 ln -sf dbt scripts/playground-bundle/.venv/bin/dbt1.10
 ```
 
+CI uses Python 3.12 and these versions. Use the same versions locally.
+
 ## Build
 
-From the repository root:
+From the repository root, with `origin/main` fetched:
 
 ```sh
 pnpm build:playground-bundle
 ```
 
-The command replaces these deterministic build outputs:
+The command replaces these build outputs:
 
 - `packages/backend/assets/playground/jaffle_shop.duckdb`
 - `packages/backend/assets/playground/explores.json`
 - `packages/backend/assets/playground/content.json`
 - `packages/backend/assets/playground/SHA256SUMS`
+- `packages/backend/assets/playground/previous/`
 
 The JSON files are emitted as single-line JSON. `content.json` carries a schema
 version and definitions for the editable charts and dashboard created during
 playground provisioning. The build checks every referenced explore and field
-against the explores it just compiled. `SHA256SUMS` records all three bundle
-payloads so a rebuild can be checked with
-`sha256sum --check packages/backend/assets/playground/SHA256SUMS`; with the
-pinned dbt versions and unchanged inputs, the committed checksums should remain
-stable.
+against the explores it just compiled.
 
-The checked-in Postgres profile under the example project is not modified. A
-temporary dbt-duckdb profile points at the output database during the build.
+The build is reproducible, and the `Playground bundle check` workflow rebuilds
+it on every pull request that can change it. The workflow fails when the
+committed files differ from the rebuild. Two steps make the output stable:
+
+- DuckDB does not write identical bytes for identical content. The build
+  compares the new database with the committed one by schema, table rows and
+  view definitions, and keeps the committed file when they match.
+- The compiler gives filters random ids. The build sorts the explores and
+  derives each id from where it appears.
+
+The build writes every file to a staging directory first and then renames the
+files into place, with `SHA256SUMS` last. A build that stops midway leaves
+files that fail verification.
+
+## Versions and rolling deploys
+
+`SHA256SUMS` lists a SHA-256 digest for each payload. The bundle version is
+derived from the `explores.json` and `jaffle_shop.duckdb` digests, so a change
+to either gives a new version. `content.json` does not affect the version.
+
+At runtime:
+
+- Provisioning verifies every payload against `SHA256SUMS`, validates
+  `explores.json` against a schema, and checks that the database has every
+  table the explores use. It refuses to create a project when a check fails.
+- Each playground and training project stores the version its cached explores
+  came from. Queries open the database of that version and fail with a message
+  that names both versions when this server does not have it.
+- The image also ships the bundle from the previous release in `previous/`.
+  The build copies it from `PLAYGROUND_BUNDLE_BASE_REF` (default
+  `origin/main`) when the version changes, and keeps the base ref's `previous/`
+  when it does not. `previous/` holds a database only when its bytes differ
+  from the current one.
+- A scheduled job moves projects to the current version 30 minutes after any
+  server first reports it. By then no server from the previous release is
+  left, so every server can serve the new version. A project on a version the
+  server cannot serve at all moves at once.
 
 ## Teaching content
 

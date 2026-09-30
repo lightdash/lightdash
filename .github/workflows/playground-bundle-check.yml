@@ -1,0 +1,83 @@
+name: Playground bundle check
+
+# Rebuilds the playground bundle and fails when the committed files differ
+# from the rebuild, so the shipped database, explores and checksums always
+# come from the current sources.
+
+on:
+    pull_request:
+        paths:
+            - 'scripts/playground-bundle/**'
+            - 'packages/backend/assets/playground/**'
+            - 'packages/backend/assets/learn/**'
+            - 'examples/full-jaffle-shop-demo/dbt/**'
+            - 'packages/common/src/compiler/**'
+            - 'packages/backend/src/projectAdapters/**'
+            - 'packages/backend/src/dbt/**'
+            - 'packages/warehouses/src/warehouseClients/duckdbEmbeddedBundle.ts'
+            - 'package.json'
+            - '.github/workflows/playground-bundle-check.yml'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        env:
+            BASE_BRANCH: ${{ github.base_ref || 'main' }}
+        steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            # The build copies the retained previous bundle from the base branch.
+            - name: Fetch the base branch
+              run: git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
+            - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+              with:
+                  python-version: '3.12.x'
+            - name: Install dbt-duckdb
+              run: |
+                  python -m venv scripts/playground-bundle/.venv
+                  scripts/playground-bundle/.venv/bin/pip install 'dbt-core==1.10.0' 'dbt-duckdb==1.10.0' 'duckdb==1.5.6'
+                  ln -sf dbt scripts/playground-bundle/.venv/bin/dbt1.10
+            - name: Rebuild the bundle
+              env:
+                  PLAYGROUND_BUNDLE_BASE_REF: origin/${{ env.BASE_BRANCH }}
+              run: pnpm build:playground-bundle
+            - name: The committed bundle matches the rebuild
+              run: |
+                  changes="$(git status --porcelain -- packages/backend/assets)"
+                  if [ -n "$changes" ]; then
+                      echo "$changes"
+                      echo "::error title=Playground bundle is stale::Run pnpm build:playground-bundle and commit the result. See scripts/playground-bundle/README.md."
+                      exit 1
+                  fi
+            - name: Upload the rebuilt bundle
+              if: failure()
+              uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+              with:
+                  name: rebuilt-playground-bundle
+                  path: packages/backend/assets/playground/
+                  retention-days: 7
+            - name: Every payload matches its checksum
+              working-directory: packages/backend/assets/playground
+              run: sha256sum --check SHA256SUMS
+            # The previous version shares the current database file when its
+            # bytes did not change, so either copy may satisfy it.
+            - name: The previous version's database ships with the image
+              working-directory: packages/backend/assets/playground
+              run: |
+                  if [ ! -f previous/SHA256SUMS ]; then exit 0; fi
+                  expected="$(awk '$2 == "jaffle_shop.duckdb" { print $1 }' previous/SHA256SUMS)"
+                  for file in previous/jaffle_shop.duckdb jaffle_shop.duckdb; do
+                      if [ -f "$file" ] && [ "$(sha256sum "$file" | cut -d ' ' -f 1)" = "$expected" ]; then
+                          echo "previous version served by $file"
+                          exit 0
+                      fi
+                  done
+                  echo "::error title=Previous playground database missing::No shipped jaffle_shop.duckdb matches previous/SHA256SUMS"
+                  exit 1

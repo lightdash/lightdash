@@ -271,6 +271,7 @@ export const SCHEDULER_TASKS = {
     COMPACT_USAGE_EVENTS: 'compactUsageEvents',
     POLL_EMAIL_WHITELABEL: 'pollEmailWhitelabelVerification',
     CLEAN_WAREHOUSE_CONNECT_CODES: 'cleanWarehouseConnectCodes',
+    RECONCILE_PLAYGROUND_BUNDLES: 'reconcilePlaygroundBundles',
     BACKFILL_DEFAULT_USER_SPACES: 'backfillDefaultUserSpaces',
     LEARN_SANDBOX_COMMAND: 'learnSandboxCommand',
     ...EE_SCHEDULER_TASKS,
@@ -325,6 +326,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: TraceTaskBase;
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
+    [SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES]: TraceTaskBase;
     [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: BackfillDefaultUserSpacesPayload;
     [SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND]: LearnSandboxCommandPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
