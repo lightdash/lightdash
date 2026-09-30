@@ -1,3 +1,15 @@
+# [2.397.0](https://github.com/lightdash/lightdash/compare/2.396.1...2.397.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* **ldenv:** wait for generic readiness in signed-out screenshots ([#30254](https://github.com/lightdash/lightdash/issues/30254)) ([4bc4d7f](https://github.com/lightdash/lightdash/commit/4bc4d7f0718c811be78a7a255945c16200337cdf))
+
+
+### Features
+
+* **frontend:** new wordmark, brand panel and simpler signup page ([#30255](https://github.com/lightdash/lightdash/issues/30255)) ([3085e54](https://github.com/lightdash/lightdash/commit/3085e54f893dc96c22ffa247e0447e060d4a4ff4))
+
 ## [2.396.1](https://github.com/lightdash/lightdash/compare/2.396.0...2.396.1) (2026-09-30)
 
 
