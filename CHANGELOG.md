@@ -1,3 +1,10 @@
+## [2.389.3](https://github.com/lightdash/lightdash/compare/2.389.2...2.389.3) (2026-09-30)
+
+
+### Bug Fixes
+
+* **projects:** replace the clipped "Select all" button with a header checkbox ([#30259](https://github.com/lightdash/lightdash/issues/30259)) ([0c71f04](https://github.com/lightdash/lightdash/commit/0c71f0425a46d6d58ec67c6a172641310fdd9080)), closes [#30197](https://github.com/lightdash/lightdash/issues/30197)
+
 ## [2.389.2](https://github.com/lightdash/lightdash/compare/2.389.1...2.389.2) (2026-09-30)
 
 
