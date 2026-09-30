@@ -110,6 +110,9 @@ const EmbedExploreContent: FC<{
                     allowChartUpdate && savedChart && 'uuid' in savedChart
                         ? savedChart
                         : undefined,
+                // An explored saved chart still runs its query on load
+                isExploreFromHere:
+                    savedChart !== undefined && 'uuid' in savedChart,
                 unsavedChartVersion: {
                     tableName: exploreId,
                     metricQuery: savedChart?.metricQuery || {
@@ -168,10 +171,10 @@ const EmbedExploreContent: FC<{
     }, [isEditMode, store]);
 
     useEffect(() => {
-        if (savedChart && 'uuid' in savedChart) {
+        if (allowChartUpdate && savedChart && 'uuid' in savedChart) {
             store.dispatch(explorerActions.setSavedChart(savedChart));
         }
-    }, [savedChart, store]);
+    }, [allowChartUpdate, savedChart, store]);
 
     return (
         <Provider store={store}>
