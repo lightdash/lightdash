@@ -284,6 +284,7 @@ const LightdashVisualization = memo(
                 case ChartType.DATA_APP_VIZ:
                     chartContent = (
                         <DataAppVizRenderer
+                            isInDashboard={!!isDashboard}
                             onScreenshotReady={onScreenshotReady}
                             onScreenshotError={onScreenshotError}
                         />

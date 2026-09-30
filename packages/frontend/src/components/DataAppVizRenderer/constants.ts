@@ -5,3 +5,7 @@ export const SCREENSHOT_READY_FALLBACK_MS = 8_000;
 // couple of frames. If the acknowledgement never arrives, a custom chart must
 // not hang an entire dashboard delivery: report ready after this long.
 export const RENDER_ACK_FALLBACK_MS = 20_000;
+
+// A freshly loaded bundle normally paints within a few frames. Reveal it after
+// this long if it never acknowledges its first paint.
+export const FIRST_PAINT_REVEAL_FALLBACK_MS = 3_000;

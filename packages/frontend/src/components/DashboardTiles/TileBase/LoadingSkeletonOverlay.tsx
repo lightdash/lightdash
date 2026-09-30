@@ -50,7 +50,7 @@ const PieSkeleton: FC = () => (
     </Center>
 );
 
-const DefaultSkeleton: FC = () => (
+export const DefaultSkeleton: FC = () => (
     <Center h="100%">
         <Skeleton h="80%" radius="lg" />
     </Center>

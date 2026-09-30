@@ -2,6 +2,7 @@ import {
     CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
     DimensionType,
     FieldType,
+    LOADING_CHART_CLASS,
     MERGE_TABLE_NAME,
     MetricType,
 } from '@lightdash/common';
@@ -79,6 +80,12 @@ const mocks = vi.hoisted(() => ({
             onVizRendered: (renderId: string) => void;
             vizRenderId: string;
             onIframeLoad: () => void;
+            onVizContextRequest: () => void;
+            onSdkManifest: (manifest: {
+                sdkVersion: string;
+                features: string[];
+                fixes: string[];
+            }) => void;
         }) => <iframe data-testid="app-preview" title="App preview" />,
     ),
     renderMetadataHook: vi.fn(),
@@ -263,6 +270,7 @@ vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
 import { DocumentRenderTargetContext } from '../../features/chartTypes/documentRenderTarget/context';
 import {
     RENDER_ACK_FALLBACK_MS,
+    FIRST_PAINT_REVEAL_FALLBACK_MS,
     SCREENSHOT_READY_FALLBACK_MS,
 } from './constants';
 import DataAppVizRenderer from './index';
@@ -306,6 +314,11 @@ const loadIframe = () => {
     const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
     if (!iframeProps) throw new Error('Expected the iframe preview to render');
     act(() => iframeProps.onIframeLoad());
+};
+
+const loadAndPaintIframe = () => {
+    loadIframe();
+    announceIframeAvailable();
 };
 
 const readyMetadata = () => ({
@@ -388,7 +401,7 @@ describe('DataAppVizRenderer', () => {
         expect(mocks.iframePreview).not.toHaveBeenCalled();
     });
 
-    it('keeps the standard chart loading overlay until the app preview loads', () => {
+    it('keeps the standard chart loading overlay until the app preview paints', () => {
         renderRenderer();
         const preview = screen.getByTestId('app-preview');
 
@@ -397,8 +410,89 @@ describe('DataAppVizRenderer', () => {
 
         loadIframe();
 
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
+        expect(preview.parentElement).toHaveAttribute('inert');
+
+        announceIframeAvailable();
+
         expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
         expect(preview.parentElement).not.toHaveAttribute('inert');
+    });
+
+    it('uses the dashboard tile skeleton instead of the loading chart in dashboards', () => {
+        mocks.metadata.current = undefined;
+
+        const view = renderRenderer({ isInDashboard: true });
+
+        expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+        expect(
+            view.container.querySelector(`.${LOADING_CHART_CLASS}`),
+        ).toBeInTheDocument();
+
+        mocks.metadata.current = readyMetadata();
+        view.rerender(rendererElement({ isInDashboard: true }));
+        loadIframe();
+
+        expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+        expect(
+            view.container.querySelector(`.${LOADING_CHART_CLASS}`),
+        ).toBeInTheDocument();
+
+        announceIframeAvailable();
+
+        expect(
+            view.container.querySelector(`.${LOADING_CHART_CLASS}`),
+        ).not.toBeInTheDocument();
+    });
+
+    it('reveals a legacy bundle once it requests its context', () => {
+        renderRenderer();
+        loadIframe();
+        act(() => mocks.iframePreview.mock.lastCall?.[0].onVizContextRequest());
+
+        expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+    });
+
+    it('keeps a modern bundle covered after its manifest until it paints', () => {
+        renderRenderer();
+        loadIframe();
+        act(() =>
+            mocks.iframePreview.mock.lastCall?.[0].onSdkManifest({
+                sdkVersion: '2.274.0',
+                features: ['viz-rendered'],
+                fixes: [],
+            }),
+        );
+
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
+
+        announceIframeAvailable();
+
+        expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+    });
+
+    it('reveals a loaded bundle that never reports its first paint', () => {
+        vi.useFakeTimers();
+        try {
+            renderRenderer();
+            act(() => {
+                vi.advanceTimersByTime(FIRST_PAINT_REVEAL_FALLBACK_MS);
+            });
+            expect(screen.getByText('Loading chart')).toBeInTheDocument();
+
+            loadIframe();
+            act(() => {
+                vi.advanceTimersByTime(FIRST_PAINT_REVEAL_FALLBACK_MS - 1);
+            });
+            expect(screen.getByText('Loading chart')).toBeInTheDocument();
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it.each(['metadata', 'token'])(
@@ -413,14 +507,14 @@ describe('DataAppVizRenderer', () => {
             mocks.token.current = 'preview-token';
             view.rerender(rendererElement());
             expect(screen.getByText('Loading chart')).toBeInTheDocument();
-            loadIframe();
+            loadAndPaintIframe();
             expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
         },
     );
 
     it('keeps the app preview mounted under the standard loading overlay while query results refresh', () => {
         const view = renderRenderer();
-        loadIframe();
+        loadAndPaintIframe();
         const preview = screen.getByTestId('app-preview');
 
         mocks.isLoading.current = true;
