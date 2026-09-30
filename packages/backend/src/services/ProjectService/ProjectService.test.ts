@@ -130,7 +130,7 @@ import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnection
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import type { ProjectAdapter } from '../../types';
+import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -8682,7 +8682,16 @@ type ProjectServiceInternals = {
         manifest: DbtManifest,
     ) => Promise<Buffer | undefined>;
     buildSourceAdapter: (...args: unknown[]) => Promise<ProjectAdapter>;
-    logger: { warn: (...args: unknown[]) => void };
+    logger: {
+        info: (...args: unknown[]) => void;
+        warn: (...args: unknown[]) => void;
+    };
+};
+
+const NO_FETCH_TIMINGS: DbtManifestFetchTimings = {
+    gitRefreshMs: null,
+    depsMs: null,
+    manifestMs: 0,
 };
 
 describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
@@ -8833,11 +8842,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     const buildAdapterWithManifest = (
         manifest: DbtManifest,
         selectedModelIds?: string[],
+        timings: DbtManifestFetchTimings = NO_FETCH_TIMINGS,
     ) =>
         ({
             getDbtManifest: vi.fn(async () => ({
                 manifest,
                 ...(selectedModelIds ? { selectedModelIds } : {}),
+                timings,
             })),
         }) as unknown as ProjectAdapter;
 
@@ -8983,6 +8994,76 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
         expect(stageManifest).toHaveBeenCalledOnce();
         expect(result.manifest).toBe(stageManifest.mock.calls[0][1]);
+    });
+
+    it('logs the git, dependency and manifest time of the primary and each source', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+        const projectService = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as ProjectServiceInternals;
+        const info = vi.spyOn(projectService.logger, 'info');
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            buildAdapterWithManifest(sourceManifest, undefined, {
+                gitRefreshMs: 4100,
+                depsMs: 2300,
+                manifestMs: 15300,
+            }),
+        );
+
+        await projectService.buildMergedManifestAdapter({
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: {
+                ...primary,
+                adapter: buildAdapterWithManifest(primaryManifest, undefined, {
+                    gitRefreshMs: 12500,
+                    depsMs: null,
+                    manifestMs: 1200,
+                }),
+            },
+            sources: [buildSource('source-b')],
+            manifestFetchAdapters: [],
+        });
+
+        expect(info).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /^dbt\.compile\.primarySourceFetched projectUuid=project-uuid sourceName=dbt_project durationMs=\d+ models=1 gitRefreshMs=12500 depsMs=none manifestMs=1200$/,
+            ),
+            expect.objectContaining({
+                event: 'dbt.compile.primarySourceFetched',
+                sourceName: 'dbt_project',
+                modelCount: 1,
+                gitRefreshMs: 12500,
+                depsMs: null,
+                manifestMs: 1200,
+            }),
+        );
+        expect(info).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /^dbt\.compile\.sourceFetched projectUuid=project-uuid sourceName=source-b durationMs=\d+ models=1 gitRefreshMs=4100 depsMs=2300 manifestMs=15300$/,
+            ),
+            expect.objectContaining({
+                event: 'dbt.compile.sourceFetched',
+                sourceName: 'source-b',
+                modelCount: 1,
+                gitRefreshMs: 4100,
+                depsMs: 2300,
+                manifestMs: 15300,
+            }),
+        );
     });
 
     it('preserves an empty selection when every selector matches nothing', async () => {
@@ -9595,12 +9676,16 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             test: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest: primaryManifest,
+                timings: NO_FETCH_TIMINGS,
             })),
             destroy: vi.fn(async () => undefined),
             dbtProjectDir: '/tmp/primary-dbt-project',
         } as unknown as ProjectAdapter;
         const sourceAdapter = {
-            getDbtManifest: vi.fn(async () => ({ manifest: sourceManifest })),
+            getDbtManifest: vi.fn(async () => ({
+                manifest: sourceManifest,
+                timings: NO_FETCH_TIMINGS,
+            })),
             destroy: vi.fn(async () => undefined),
         } as unknown as ProjectAdapter;
         const mergedAdapter = {

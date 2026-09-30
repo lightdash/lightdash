@@ -3,6 +3,7 @@ import {
     NotFoundError,
     UnexpectedGitError,
     UnexpectedServerError,
+    type DbtManifest,
     type ExploreError,
 } from '@lightdash/common';
 import { GitError } from 'simple-git';
@@ -133,4 +134,45 @@ describe('Git explore compilation', () => {
             expect(refresh).toHaveBeenCalledTimes(1);
         },
     );
+});
+
+describe('Git manifest fetch', () => {
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    it('adds the checkout refresh time to the dependency and manifest timings', async () => {
+        const adapter = Object.create(
+            DbtGitProjectAdapter.prototype,
+        ) as DbtGitProjectAdapter;
+        const refresh = vi.fn(async () => {
+            vi.advanceTimersByTime(12500);
+        });
+        Object.defineProperty(adapter, '_refreshRepo', { value: refresh });
+        const manifest = { nodes: {} } as unknown as DbtManifest;
+        vi.spyOn(
+            DbtBaseProjectAdapter.prototype,
+            'getDbtManifest',
+        ).mockImplementation(async () => {
+            expect(refresh).toHaveBeenCalledTimes(1);
+            return {
+                manifest,
+                timings: {
+                    gitRefreshMs: null,
+                    depsMs: 2300,
+                    manifestMs: 15300,
+                },
+            };
+        });
+
+        await expect(adapter.getDbtManifest()).resolves.toEqual({
+            manifest,
+            timings: { gitRefreshMs: 12500, depsMs: 2300, manifestMs: 15300 },
+        });
+    });
 });

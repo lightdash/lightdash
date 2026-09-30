@@ -662,6 +662,11 @@ describe('Multi-connection compile on the real schema', () => {
                     return {
                         getDbtManifest: async () => ({
                             manifest: sourceManifests[name],
+                            timings: {
+                                gitRefreshMs: null,
+                                depsMs: null,
+                                manifestMs: 0,
+                            },
                         }),
                         destroy: async () => {},
                     };

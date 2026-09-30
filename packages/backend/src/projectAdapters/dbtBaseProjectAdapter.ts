@@ -7,7 +7,6 @@ import {
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
-    DbtRpcGetManifestResults,
     DEFAULT_SPOTLIGHT_CONFIG,
     ensureCatalogTimestampDomainsKey,
     Explore,
@@ -45,6 +44,7 @@ import { traceSpan } from '../tracing/tracing';
 import {
     CachedWarehouse,
     DbtClient,
+    DbtManifestFetchResult,
     ProjectAdapter,
     type TrackingParams,
 } from '../types';
@@ -100,15 +100,27 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+    public async getDbtManifest(): Promise<DbtManifestFetchResult> {
         // Install dependencies first (same as compileAllExplores) — a git source's
         // `dbt ls` fails without its packages installed.
+        let depsMs: number | null = null;
         if (this.dbtClient.installDeps !== undefined) {
             Logger.debug('Install dependencies');
+            const depsStartedAt = Date.now();
             await this.dbtClient.installDeps();
+            depsMs = Date.now() - depsStartedAt;
         }
         Logger.debug(`Get dbt manifest`);
-        return this.dbtClient.getDbtManifest();
+        const manifestStartedAt = Date.now();
+        const result = await this.dbtClient.getDbtManifest();
+        return {
+            ...result,
+            timings: {
+                gitRefreshMs: null,
+                depsMs,
+                manifestMs: Date.now() - manifestStartedAt,
+            },
+        };
     }
 
     public async getLightdashProjectConfig(

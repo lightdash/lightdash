@@ -11,7 +11,12 @@ import * as path from 'path';
 import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
-import { CachedWarehouse, ProjectAdapter, type TrackingParams } from '../types';
+import {
+    CachedWarehouse,
+    DbtManifestFetchResult,
+    ProjectAdapter,
+    type TrackingParams,
+} from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { GitRepository } from './gitRepository';
 
@@ -147,8 +152,11 @@ export class DbtGitProjectAdapter
         await super.test();
     }
 
-    public async getDbtManifest() {
+    public async getDbtManifest(): Promise<DbtManifestFetchResult> {
+        const refreshStartedAt = Date.now();
         await this._refreshRepo();
-        return super.getDbtManifest();
+        const gitRefreshMs = Date.now() - refreshStartedAt;
+        const result = await super.getDbtManifest();
+        return { ...result, timings: { ...result.timings, gitRefreshMs } };
     }
 }
