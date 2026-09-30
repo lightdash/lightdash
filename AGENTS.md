@@ -4,7 +4,7 @@ General development guidance for this repository lives in `CLAUDE.md` (architect
 
 ## Cursor Cloud specific instructions
 
-Lightdash is a pnpm/Turbo monorepo (backend API, Vite frontend, `common`/`warehouses`/`formula` build-dep packages) that runs on Postgres + MinIO + a headless browser, all started via Docker.
+Lightdash is a pnpm/Turbo monorepo (backend API, Vite frontend, `common`/`visualization`/`warehouses`/`formula` build-dep packages) that runs on Postgres + MinIO + a headless browser, all started via Docker.
 
 The VM startup update script only refreshes Node deps and the dbt venv. Docker, its daemon, and the app processes are NOT started automatically — bring them up yourself as below.
 
@@ -31,7 +31,7 @@ pnpm exec pm2 status
 pnpm exec pm2 logs workspace-api --lines 80 --nostream
 pnpm exec pm2 restart workspace-api      # manual recovery if auto-reload fails
 ```
-Processes: `<instance>-api`, `-api-routes-watch`, `-scheduler`, `-frontend`, `-common-watch`, `-formula-watch`, `-warehouses-watch`, `-spotlight`. PM2 watches backend source files and restarts the API, while `api-routes-watch` regenerates TSOA artifacts after controller changes. Backend and generated-route changes reload automatically; the other `*-watch` processes rebuild `common`/`warehouses`/`formula` on change.
+Processes: `<instance>-api`, `-api-routes-watch`, `-scheduler`, `-frontend`, `-common-watch`, `-visualization-watch`, `-formula-watch`, `-warehouses-watch`, `-spotlight`. PM2 watches backend source files and restarts the API, while `api-routes-watch` regenerates TSOA artifacts after controller changes. Backend and generated-route changes reload automatically; the other `*-watch` processes rebuild `common`/`visualization`/`warehouses`/`formula` on change.
 
 ### Non-obvious caveats
 

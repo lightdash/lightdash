@@ -80,9 +80,11 @@ aliases.
 
 ```bash
 pnpm -F common lint
+pnpm -F visualization lint
 pnpm -F backend lint
 pnpm -F frontend lint
 pnpm -F common typecheck
+pnpm -F visualization typecheck
 pnpm -F backend typecheck
 pnpm -F frontend typecheck
 pnpm -F warehouses typecheck
@@ -92,6 +94,7 @@ pnpm -F warehouses typecheck
 
 ```bash
 pnpm -F common test
+pnpm -F visualization test
 pnpm -F backend test:dev:nowatch # runs only tests for modified files
 ```
 
