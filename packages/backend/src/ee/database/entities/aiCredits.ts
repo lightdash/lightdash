@@ -41,28 +41,31 @@ export type AiCreditRateCardTable = Knex.CompositeTableType<
     DbAiCreditRateCardInsert
 >;
 
-export const AiCreditEntitlementsTableName = 'ai_credit_entitlements';
+export const AiCreditContractsTableName = 'ai_credit_contracts';
 
-export type DbAiCreditEntitlement = {
-    ai_credit_entitlement_uuid: string;
+export type DbAiCreditContract = {
+    ai_credit_contract_uuid: string;
     organization_uuid: string;
-    period_start: Date;
-    period_end: Date;
+    starts_at: Date;
+    ends_at: Date | null;
+    reset_interval_months: number;
     allowance_credits: string | null;
     created_at: Date;
+    updated_at: Date;
 };
 
-export type DbAiCreditEntitlementInsert = {
+export type DbAiCreditContractInsert = {
     organization_uuid: string;
-    period_start: Date;
-    period_end: Date;
+    starts_at: Date;
+    ends_at: Date | null;
+    reset_interval_months: number;
     allowance_credits: number | null;
 };
 
-export type AiCreditEntitlementsTable = Knex.CompositeTableType<
-    DbAiCreditEntitlement,
-    DbAiCreditEntitlementInsert,
-    Partial<DbAiCreditEntitlementInsert>
+export type AiCreditContractsTable = Knex.CompositeTableType<
+    DbAiCreditContract,
+    DbAiCreditContractInsert,
+    Partial<DbAiCreditContractInsert> & { updated_at?: Date }
 >;
 
 export const AiCreditHoldsTableName = 'ai_credit_holds';
@@ -71,7 +74,12 @@ export type DbAiCreditHold = {
     ai_credit_hold_uuid: string;
     organization_uuid: string;
     user_uuid: string | null;
+    // Superseded by the contract columns; kept until the entitlements table is dropped.
     ai_credit_entitlement_uuid: string | null;
+    ai_credit_contract_uuid: string | null;
+    window_start: Date | null;
+    // Numeric columns arrive as strings through the pg driver.
+    exhausted_allowance_credits: string | null;
     reason: AiCreditHoldReason;
     notes: string | null;
     placed_by: string;
@@ -82,11 +90,15 @@ export type DbAiCreditHold = {
 
 export type DbAiCreditHoldInsert = Omit<
     DbAiCreditHold,
-    'ai_credit_hold_uuid' | 'placed_at' | 'released_at'
->;
+    | 'ai_credit_hold_uuid'
+    | 'placed_at'
+    | 'released_at'
+    | 'ai_credit_entitlement_uuid'
+    | 'exhausted_allowance_credits'
+> & { exhausted_allowance_credits: number | null };
 
 export type AiCreditHoldsTable = Knex.CompositeTableType<
     DbAiCreditHold,
     DbAiCreditHoldInsert,
-    { released_at: Date }
+    Partial<Pick<DbAiCreditHold, 'released_at' | 'expires_at'>>
 >;

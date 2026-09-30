@@ -1,9 +1,15 @@
-import { type AiCreditEntitlement, type AiCreditHold } from '@lightdash/common';
+import {
+    getAiCreditContractWindow,
+    type AiCreditHold,
+    type AiCreditPeriod,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    AiCreditContractsTableName,
     AiCreditHoldsTableName,
     type DbAiCreditHold,
 } from '../database/entities/aiCredits';
+import { type AiCreditContractWithAllowance } from './AiCreditContractModel';
 
 type Dependencies = {
     database: Knex;
@@ -15,7 +21,7 @@ const toHold = (row: DbAiCreditHold): AiCreditHold => ({
     uuid: row.ai_credit_hold_uuid,
     organizationUuid: row.organization_uuid,
     userUuid: row.user_uuid,
-    entitlementUuid: row.ai_credit_entitlement_uuid,
+    contractUuid: row.ai_credit_contract_uuid,
     reason: row.reason,
     notes: row.notes,
     placedBy: row.placed_by,
@@ -24,6 +30,38 @@ const toHold = (row: DbAiCreditHold): AiCreditHold => ({
     releasedAt: row.released_at,
 });
 
+type HoldWithContractRow = DbAiCreditHold & {
+    contract_starts_at: Date | null;
+    contract_ends_at: Date | null;
+    contract_reset_interval_months: number | null;
+    contract_allowance_credits: string | null;
+};
+
+const matchesContract = (row: HoldWithContractRow, at: Date): boolean => {
+    if (row.reason !== 'allowance_exhausted') return true;
+    if (row.ai_credit_contract_uuid === null) return false;
+    if (
+        row.contract_starts_at === null ||
+        row.contract_reset_interval_months === null
+    ) {
+        return false;
+    }
+    const window = getAiCreditContractWindow(
+        {
+            startsAt: row.contract_starts_at,
+            endsAt: row.contract_ends_at,
+            resetIntervalMonths: row.contract_reset_interval_months,
+        },
+        at,
+    );
+    return (
+        window !== null &&
+        window.periodStart.getTime() === row.window_start?.getTime() &&
+        Number(row.contract_allowance_credits) ===
+            Number(row.exhausted_allowance_credits)
+    );
+};
+
 export class AiCreditHoldModel {
     private readonly database: Knex;
 
@@ -31,47 +69,39 @@ export class AiCreditHoldModel {
         this.database = database;
     }
 
+    // Includes released holds, so an operator's early release sticks for the rest of the window.
     async findAllowanceExhaustedHold(
-        entitlementUuid: string,
+        contract: AiCreditContractWithAllowance,
+        window: AiCreditPeriod,
     ): Promise<AiCreditHold | undefined> {
         const row = await this.database(AiCreditHoldsTableName)
             .where({
-                ai_credit_entitlement_uuid: entitlementUuid,
+                ai_credit_contract_uuid: contract.uuid,
+                window_start: window.periodStart,
+                // Numeric columns compare as strings through the pg driver.
+                exhausted_allowance_credits: String(contract.allowanceCredits),
                 reason: 'allowance_exhausted',
             })
             .first();
         return row ? toHold(row) : undefined;
     }
 
-    async findActiveAllowanceExhaustedHoldUntil(
-        organizationUuid: string,
-        until: Date,
-    ): Promise<AiCreditHold | undefined> {
-        const row = await this.database(AiCreditHoldsTableName)
-            .where({
-                organization_uuid: organizationUuid,
-                user_uuid: null,
-                reason: 'allowance_exhausted',
-            })
-            .whereNull('released_at')
-            .where('expires_at', '>=', until)
-            .first();
-        return row ? toHold(row) : undefined;
-    }
-
-    /** Undefined when a concurrent call already placed the hold for this entitlement. */
+    /** Undefined when a concurrent call already placed the hold for this window. */
     async createAllowanceExhaustedHold(
-        entitlement: AiCreditEntitlement,
+        contract: AiCreditContractWithAllowance,
+        window: AiCreditPeriod,
     ): Promise<AiCreditHold | undefined> {
         const [row] = await this.database(AiCreditHoldsTableName)
             .insert({
-                organization_uuid: entitlement.organizationUuid,
+                organization_uuid: contract.organizationUuid,
                 user_uuid: null,
-                ai_credit_entitlement_uuid: entitlement.uuid,
+                ai_credit_contract_uuid: contract.uuid,
+                window_start: window.periodStart,
+                exhausted_allowance_credits: contract.allowanceCredits,
                 reason: 'allowance_exhausted',
                 notes: null,
                 placed_by: SYSTEM_PLACED_BY,
-                expires_at: entitlement.periodEnd,
+                expires_at: window.periodEnd,
             })
             .onConflict()
             .ignore()
@@ -79,19 +109,41 @@ export class AiCreditHoldModel {
         return row ? toHold(row) : undefined;
     }
 
+    /**
+     * One query, so it is cheap enough to run before every AI call. An allowance
+     * hold only applies while the contract still has that allowance and window,
+     * so raising the allowance or changing the contract lifts it straight away.
+     */
     async findActive(
         organizationUuid: string,
         at: Date = new Date(),
     ): Promise<AiCreditHold[]> {
-        const rows = await this.database(AiCreditHoldsTableName)
-            .where({ organization_uuid: organizationUuid })
-            .whereNull('released_at')
+        const rows: HoldWithContractRow[] = await this.database(
+            AiCreditHoldsTableName,
+        )
+            .leftJoin(
+                AiCreditContractsTableName,
+                `${AiCreditContractsTableName}.ai_credit_contract_uuid`,
+                `${AiCreditHoldsTableName}.ai_credit_contract_uuid`,
+            )
+            .select(
+                `${AiCreditHoldsTableName}.*`,
+                `${AiCreditContractsTableName}.starts_at as contract_starts_at`,
+                `${AiCreditContractsTableName}.ends_at as contract_ends_at`,
+                `${AiCreditContractsTableName}.reset_interval_months as contract_reset_interval_months`,
+                `${AiCreditContractsTableName}.allowance_credits as contract_allowance_credits`,
+            )
+            .where(
+                `${AiCreditHoldsTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereNull(`${AiCreditHoldsTableName}.released_at`)
             .where((builder) => {
                 void builder
-                    .whereNull('expires_at')
-                    .orWhere('expires_at', '>', at);
+                    .whereNull(`${AiCreditHoldsTableName}.expires_at`)
+                    .orWhere(`${AiCreditHoldsTableName}.expires_at`, '>', at);
             })
-            .orderBy('placed_at', 'desc');
-        return rows.map(toHold);
+            .orderBy(`${AiCreditHoldsTableName}.placed_at`, 'desc');
+        return rows.filter((row) => matchesContract(row, at)).map(toHold);
     }
 }

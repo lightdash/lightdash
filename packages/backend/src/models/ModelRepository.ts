@@ -225,7 +225,7 @@ export type ModelManifest = {
     mobilePushNotificationModel: unknown;
     aiOrganizationSettingsModel: unknown;
     aiCreditRateCardModel: unknown;
-    aiCreditEntitlementModel: unknown;
+    aiCreditContractModel: unknown;
     aiCreditUsageModel: unknown;
     aiCreditHoldModel: unknown;
     embedModel: unknown;
@@ -1200,8 +1200,8 @@ export class ModelRepository
         return this.getModel('aiCreditRateCardModel');
     }
 
-    public getAiCreditEntitlementModel<ModelImplT>(): ModelImplT {
-        return this.getModel('aiCreditEntitlementModel');
+    public getAiCreditContractModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiCreditContractModel');
     }
 
     public getAiCreditUsageModel<ModelImplT>(): ModelImplT {

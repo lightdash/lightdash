@@ -41,7 +41,7 @@ import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiAgentSkillModel } from './models/AiAgentSkillModel';
-import { AiCreditEntitlementModel } from './models/AiCreditEntitlementModel';
+import { AiCreditContractModel } from './models/AiCreditContractModel';
 import { AiCreditHoldModel } from './models/AiCreditHoldModel';
 import { AiCreditRateCardModel } from './models/AiCreditRateCardModel';
 import { AiCreditUsageModel } from './models/AiCreditUsageModel';
@@ -86,6 +86,7 @@ import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotifi
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiAgentSkillService } from './services/AiAgentSkillService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
+import { AiCreditService } from './services/AiCreditService';
 import { AiDeepResearchExecutor } from './services/AiDeepResearchService/AiDeepResearchExecutor';
 import { AiDeepResearchService } from './services/AiDeepResearchService/AiDeepResearchService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
@@ -899,6 +900,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentReviewNotificationService:
                         repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                 }),
+            aiCreditService: ({ models }) =>
+                new AiCreditService({
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    aiCreditUsageModel:
+                        models.getAiCreditUsageModel<AiCreditUsageModel>(),
+                    aiCreditContractModel:
+                        models.getAiCreditContractModel<AiCreditContractModel>(),
+                    aiCreditHoldModel:
+                        models.getAiCreditHoldModel<AiCreditHoldModel>(),
+                }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({
                     aiOrganizationSettingsModel:
@@ -1559,8 +1570,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiCreditRateCardModel: ({ database }) =>
                 new AiCreditRateCardModel({ database }),
-            aiCreditEntitlementModel: ({ database }) =>
-                new AiCreditEntitlementModel({ database }),
+            aiCreditContractModel: ({ database }) =>
+                new AiCreditContractModel({ database }),
             aiCreditHoldModel: ({ database }) =>
                 new AiCreditHoldModel({ database }),
             aiCreditUsageModel: ({ database, repository }) =>
@@ -1568,8 +1579,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     database,
                     rateCardModel:
                         repository.getAiCreditRateCardModel<AiCreditRateCardModel>(),
-                    entitlementModel:
-                        repository.getAiCreditEntitlementModel<AiCreditEntitlementModel>(),
+                    contractModel:
+                        repository.getAiCreditContractModel<AiCreditContractModel>(),
                     holdModel:
                         repository.getAiCreditHoldModel<AiCreditHoldModel>(),
                 }),

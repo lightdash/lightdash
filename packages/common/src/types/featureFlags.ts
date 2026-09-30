@@ -10,6 +10,8 @@ export enum FeatureFlags {
     Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */
     AnalyticsProject = 'analytics-project',
+    /** Shows an organization's AI usage in credits; gates visibility only, never enforcement. */
+    AiCredits = 'ai-credits',
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 

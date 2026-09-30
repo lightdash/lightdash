@@ -7,7 +7,7 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../../testing/migratedDatabase';
-import { AiCreditEntitlementModel } from '../../../models/AiCreditEntitlementModel';
+import { AiCreditContractModel } from '../../../models/AiCreditContractModel';
 import { AiCreditHoldModel } from '../../../models/AiCreditHoldModel';
 import { AiCreditRateCardModel } from '../../../models/AiCreditRateCardModel';
 import { AiCreditUsageModel } from '../../../models/AiCreditUsageModel';
@@ -50,7 +50,7 @@ const usageEvent = (
     },
 });
 
-describe('AI credit entitlements, holds and usage on the real PostgreSQL schema', () => {
+describe('AI credit contracts, holds and usage on the real PostgreSQL schema', () => {
     let migrated: MigratedDatabase;
     let transaction: Knex.Transaction;
     let organizationUuid: string;
@@ -76,23 +76,30 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
         await usage.onUsageRecorded(event, now);
     };
 
-    // Console writes entitlements and holds directly, so the tests do too.
-    const insertEntitlement = async (
+    // Console writes the contract row directly, so the tests do too.
+    const saveContract = async (
         allowanceCredits: number | null,
-        { periodStart, periodEnd }: AiCreditPeriod = period,
+        overrides: { resetIntervalMonths?: number; endsAt?: Date | null } = {},
     ): Promise<string> => {
-        const [{ ai_credit_entitlement_uuid: uuid }] = await transaction(
-            'ai_credit_entitlements',
+        const values = {
+            organization_uuid: organizationUuid,
+            starts_at: new Date('2026-01-15T00:00:00Z'),
+            ends_at: overrides.endsAt ?? null,
+            reset_interval_months: overrides.resetIntervalMonths ?? 1,
+            allowance_credits: allowanceCredits,
+        };
+        const [{ ai_credit_contract_uuid: uuid }] = await transaction(
+            'ai_credit_contracts',
         )
-            .insert({
-                organization_uuid: organizationUuid,
-                period_start: periodStart,
-                period_end: periodEnd,
-                allowance_credits: allowanceCredits,
-            })
-            .returning('ai_credit_entitlement_uuid');
+            .insert(values)
+            .onConflict('organization_uuid')
+            .merge(values)
+            .returning('ai_credit_contract_uuid');
         return uuid;
     };
+
+    const evaluate = () =>
+        usage.onUsageRecorded(usageEvent(organizationUuid), now);
 
     const insertHold = async (
         hold: { reason?: string; expires_at?: Date | null } = {},
@@ -128,7 +135,7 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
         usage = new AiCreditUsageModel({
             database: transaction,
             rateCardModel: new AiCreditRateCardModel({ database: transaction }),
-            entitlementModel: new AiCreditEntitlementModel({
+            contractModel: new AiCreditContractModel({
                 database: transaction,
             }),
             holdModel: holds,
@@ -200,8 +207,8 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
     });
 
     describe('hold placement from the sink', () => {
-        test('the call that reaches the allowance places one hold that expires with the period', async () => {
-            await insertEntitlement(2 * SONNET_INPUT_MTOK_CREDITS);
+        test('the call that reaches the allowance places one hold that expires with the window', async () => {
+            await saveContract(2 * SONNET_INPUT_MTOK_CREDITS);
 
             await recordAndEvaluate(usageEvent(organizationUuid));
             expect(await holds.findActive(organizationUuid, now)).toEqual([]);
@@ -226,7 +233,7 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
         });
 
         test('concurrent calls that reach the allowance place one hold', async () => {
-            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS);
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
             const events = [1, 2, 3].map(() => usageEvent(organizationUuid));
             await Promise.all(events.map((event) => record(event)));
 
@@ -239,8 +246,8 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
             );
         });
 
-        test('a hold released early is not placed again in the same period', async () => {
-            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS);
+        test('a hold released early is not placed again in the same window', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
             await recordAndEvaluate(usageEvent(organizationUuid));
             await transaction('ai_credit_holds')
                 .where({ organization_uuid: organizationUuid })
@@ -251,71 +258,158 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
             expect(await holds.findActive(organizationUuid, now)).toEqual([]);
         });
 
-        test('an annual pool is evaluated alongside a monthly window that starts the same day', async () => {
-            const year = {
-                periodStart: period.periodStart,
-                periodEnd: new Date('2027-09-15T00:00:00Z'),
-            };
-            await insertEntitlement(10 * SONNET_INPUT_MTOK_CREDITS);
-            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS, year);
-
-            await recordAndEvaluate(usageEvent(organizationUuid));
-
-            const active = await holds.findActive(organizationUuid, now);
-            expect(active).toHaveLength(1);
-            expect(active[0].expiresAt?.toISOString()).toBe(
-                year.periodEnd.toISOString(),
+        test('only usage in the current window counts toward its allowance', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await record(
+                usageEvent(organizationUuid),
+                new Date('2026-09-10T00:00:00Z'),
             );
+            await usage.onUsageRecorded(usageEvent(organizationUuid), now);
+
+            expect(await holds.findActive(organizationUuid, now)).toEqual([]);
         });
 
-        test('windows that run out together place one hold, for the longest window', async () => {
-            const year = {
-                periodStart: period.periodStart,
-                periodEnd: new Date('2027-09-15T00:00:00Z'),
-            };
-            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS);
-            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS, year);
-
-            await recordAndEvaluate(usageEvent(organizationUuid));
-            await recordAndEvaluate(usageEvent(organizationUuid));
-
-            const active = await holds.findActive(organizationUuid, now);
-            expect(active).toHaveLength(1);
-            expect(active[0].expiresAt?.toISOString()).toBe(
-                year.periodEnd.toISOString(),
+        test('a quarterly contract counts usage across the whole quarter', async () => {
+            await saveContract(2 * SONNET_INPUT_MTOK_CREDITS, {
+                resetIntervalMonths: 3,
+            });
+            await record(
+                usageEvent(organizationUuid),
+                new Date('2026-09-02T00:00:00Z'),
             );
-        });
-
-        test('a shorter window that ran out is held once the longer hold is released', async () => {
-            const year = {
-                periodStart: period.periodStart,
-                periodEnd: new Date('2027-09-15T00:00:00Z'),
-            };
-            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS);
-            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS, year);
-            await recordAndEvaluate(usageEvent(organizationUuid));
-            await transaction('ai_credit_holds')
-                .where({ organization_uuid: organizationUuid })
-                .update({ released_at: now });
-
             await recordAndEvaluate(usageEvent(organizationUuid));
 
             const active = await holds.findActive(organizationUuid, now);
             expect(active).toHaveLength(1);
             expect(active[0].expiresAt?.toISOString()).toBe(
-                period.periodEnd.toISOString(),
+                '2026-10-15T00:00:00.000Z',
             );
         });
 
         test('never places a hold without an agreed allowance', async () => {
-            await insertEntitlement(null);
+            await saveContract(null);
             await recordAndEvaluate(usageEvent(organizationUuid));
             expect(await holds.findActive(organizationUuid, now)).toEqual([]);
         });
 
-        test('never places a hold for an organization with no entitlement', async () => {
+        test('never places a hold for an organization with no contract', async () => {
             await recordAndEvaluate(usageEvent(organizationUuid));
             expect(await holds.findActive(organizationUuid, now)).toEqual([]);
+        });
+    });
+
+    describe('changing a contract', () => {
+        test('raising the allowance above usage lifts the hold straight away', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await recordAndEvaluate(usageEvent(organizationUuid));
+            expect(await holds.findActive(organizationUuid, now)).toHaveLength(
+                1,
+            );
+
+            await saveContract(10 * SONNET_INPUT_MTOK_CREDITS);
+
+            expect(await holds.findActive(organizationUuid, now)).toEqual([]);
+        });
+
+        test('an allowance raised to no more than usage is held again on the next call', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await recordAndEvaluate(usageEvent(organizationUuid));
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            await saveContract(2 * SONNET_INPUT_MTOK_CREDITS);
+            await evaluate();
+
+            expect(await holds.findActive(organizationUuid, now)).toHaveLength(
+                1,
+            );
+        });
+
+        test('lowering the allowance below usage holds the organization on the next call', async () => {
+            await saveContract(10 * SONNET_INPUT_MTOK_CREDITS);
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await evaluate();
+
+            expect(await holds.findActive(organizationUuid, now)).toHaveLength(
+                1,
+            );
+        });
+
+        test('a hold stops applying when the contract ends', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            await saveContract(SONNET_INPUT_MTOK_CREDITS, {
+                endsAt: new Date('2026-10-01T00:00:00Z'),
+            });
+
+            expect(await holds.findActive(organizationUuid, now)).toHaveLength(
+                1,
+            );
+            expect(
+                await holds.findActive(
+                    organizationUuid,
+                    new Date('2026-10-02T00:00:00Z'),
+                ),
+            ).toEqual([]);
+        });
+
+        test('changing the reset interval lifts the hold for the old window', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            await saveContract(SONNET_INPUT_MTOK_CREDITS, {
+                resetIntervalMonths: 12,
+            });
+
+            expect(await holds.findActive(organizationUuid, now)).toEqual([]);
+        });
+
+        test('a manual pause is not affected by the contract', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await insertHold();
+            await saveContract(10 * SONNET_INPUT_MTOK_CREDITS);
+
+            expect(await holds.findActive(organizationUuid, now)).toHaveLength(
+                1,
+            );
+        });
+
+        test('an allowance hold without a contract never applies', async () => {
+            await insertHold({
+                reason: 'allowance_exhausted',
+                expires_at: period.periodEnd,
+            });
+
+            expect(await holds.findActive(organizationUuid, now)).toEqual([]);
+        });
+
+        test('an organization has one contract', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await expect(
+                transaction('ai_credit_contracts').insert({
+                    organization_uuid: organizationUuid,
+                    starts_at: now,
+                    ends_at: null,
+                    reset_interval_months: 1,
+                    allowance_credits: null,
+                }),
+            ).rejects.toThrow(/unique/);
+        });
+
+        test('rejects an interval under a month', async () => {
+            await expect(
+                saveContract(null, { resetIntervalMonths: 0 }),
+            ).rejects.toThrow(/ai_credit_contracts_reset_interval_check/);
+        });
+
+        test('rejects an end before the start', async () => {
+            await expect(
+                saveContract(null, {
+                    endsAt: new Date('2025-01-01T00:00:00Z'),
+                }),
+            ).rejects.toThrow(/ai_credit_contracts_period_check/);
         });
     });
 
@@ -366,14 +460,64 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
         });
     });
 
-    describe('entitlements', () => {
-        test('rejects a period that ends before it starts', async () => {
-            await expect(
-                insertEntitlement(null, {
-                    periodStart: period.periodEnd,
-                    periodEnd: period.periodStart,
+    describe('usage summary for a period', () => {
+        test('splits calls into billable, self-managed and excluded, with breakdowns', async () => {
+            await record(usageEvent(organizationUuid));
+            await record(
+                usageEvent(organizationUuid, {
+                    model: 'claude-opus-5',
+                    inputTokens: 100_000,
+                    totalTokens: 100_000,
                 }),
-            ).rejects.toThrow(/ai_credit_entitlements_period_check/);
+            );
+            await record(
+                usageEvent(organizationUuid, { keyManagement: 'self-managed' }),
+            );
+            await record(
+                usageEvent(organizationUuid, { feature: 'review-classifier' }),
+            );
+            await record(
+                usageEvent(organizationUuid, {
+                    feature: 'data-app',
+                    outcome: 'failed',
+                }),
+            );
+            await record(
+                usageEvent(organizationUuid, {
+                    provider: 'google',
+                    model: 'gemini-3.8-flash',
+                    inputTokens: 500,
+                    totalTokens: 500,
+                }),
+            );
+
+            const summary = await usage.summarize(organizationUuid, period);
+
+            // 40 for a million Sonnet tokens plus 10 for a hundred thousand Opus tokens.
+            expect(summary.billable.credits).toBeCloseTo(50, 6);
+            expect(summary.billable.calls).toBe(2);
+            expect(summary.selfManaged.credits).toBeCloseTo(40, 6);
+            expect(summary.excluded.calls).toBe(2);
+            expect(summary.unpricedTokens).toBe(500);
+            expect(summary.byFeature).toEqual({
+                agent: expect.objectContaining({ calls: 2 }),
+            });
+            expect(Object.keys(summary.byTier).sort()).toEqual([
+                'premium',
+                'standard',
+            ]);
+            expect(summary.byKeyOrigin['self-managed']?.calls).toBe(1);
+            expect(summary.byKeyOrigin['lightdash-managed']?.calls).toBe(4);
+        });
+
+        test('only counts calls inside the period', async () => {
+            await record(usageEvent(organizationUuid));
+            await record(
+                usageEvent(organizationUuid),
+                new Date('2026-08-01T00:00:00Z'),
+            );
+            const summary = await usage.summarize(organizationUuid, period);
+            expect(summary.billable.calls).toBe(1);
         });
     });
 });

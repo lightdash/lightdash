@@ -214,6 +214,7 @@ interface ServiceManifest {
     aiAgentReviewClassifierService: unknown;
     aiRouterService: unknown;
     aiOrganizationSettingsService: unknown;
+    aiCreditService: unknown;
     schedulerAiAugmentationService: unknown;
     dataAppAnalysisService: unknown;
     projectContextService: unknown;
@@ -1901,6 +1902,10 @@ export class ServiceRepository
         AiOrganizationSettingsServiceImplT,
     >(): AiOrganizationSettingsServiceImplT {
         return this.getService('aiOrganizationSettingsService');
+    }
+
+    public getAiCreditService<AiCreditServiceImplT>(): AiCreditServiceImplT {
+        return this.getService('aiCreditService');
     }
 
     public getSchedulerAiAugmentationService<
