@@ -1218,6 +1218,52 @@ describe('buildPrepareStep worker isolation', () => {
         });
     });
 
+    it('plans every step of a document write-up without thinking', async () => {
+        const writeModel = {} as AiAgentArgs['model'];
+        const providerOptions = {
+            anthropic: { thinking: { type: 'disabled' as const } },
+        };
+        const build = (intent: 'document_write' | 'data_answer') => {
+            const args = buildAgentArgs();
+            args.documentWriteModel = {
+                model: writeModel,
+                providerOptions,
+            };
+            const tools = {
+                loadAgentTools: getLoadAgentTools(),
+                createContent: {} as never,
+                runQuery: {} as never,
+            };
+            const gate = createIntentToolGate(tools, intent);
+            return buildPrepareStep({
+                args,
+                dependencies: {
+                    ...buildAgentDependencies(vi.fn()),
+                    consumePromptSteers: vi.fn().mockResolvedValue([]),
+                },
+                tools: gate.tools,
+                mcpToolNames: [],
+                intentToolGate: gate,
+                logger: vi.fn(),
+                invalidToolCallIds: new Set(),
+            });
+        };
+
+        const prepareStep = build('document_write');
+        const steps = await Promise.all(
+            [0, 3].map((stepNumber) =>
+                prepareStep({ stepNumber, messages: [] }),
+            ),
+        );
+        steps.forEach((step) => {
+            expect(step).toMatchObject({ providerOptions });
+            expect(step).toHaveProperty('model', writeModel);
+        });
+        await expect(
+            build('data_answer')({ stepNumber: 0, messages: [] }),
+        ).resolves.not.toHaveProperty('model');
+    });
+
     it.each(['success', 'error', 'pending', null])(
         'only shortcuts a chart after a successful query: %s',
         async (status) => {

@@ -95,6 +95,20 @@ describe('getAnthropicModel reasoning effort', () => {
         });
     });
 
+    test('sends thinking disabled only when asked', () => {
+        expect(
+            getAnthropicModel(
+                config,
+                { ...preset, reasoningStyle: 'adaptive' },
+                { enableReasoning: false, disableThinking: true },
+            ).providerOptions?.anthropic,
+        ).toMatchObject({ thinking: { type: 'disabled' } });
+        expect(
+            getAnthropicModel(config, preset, { enableReasoning: false })
+                .providerOptions?.anthropic,
+        ).not.toHaveProperty('thinking');
+    });
+
     test('keeps the medium defaults when no effort is requested', () => {
         const model = getAnthropicModel(config, preset, {
             enableReasoning: true,

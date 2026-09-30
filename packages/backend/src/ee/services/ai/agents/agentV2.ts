@@ -1383,6 +1383,14 @@ export const buildPrepareStep = ({
             args.execution,
             stepNumber,
         );
+        const effortOverride =
+            intentToolGate?.intent === 'document_write' &&
+            args.documentWriteModel
+                ? {
+                      model: args.documentWriteModel.model,
+                      providerOptions: args.documentWriteModel.providerOptions,
+                  }
+                : {};
 
         const extraMessages: ModelMessage[] = [];
         let activeTools = getMcpActiveTools(
@@ -1510,12 +1518,13 @@ export const buildPrepareStep = ({
             activeTools === undefined &&
             stepBudgetOverride === undefined
         ) {
-            return forced;
+            return { ...effortOverride, ...forced };
         }
 
         const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
 
         return {
+            ...effortOverride,
             ...forced,
             ...(stepActiveTools !== undefined
                 ? { activeTools: stepActiveTools }
