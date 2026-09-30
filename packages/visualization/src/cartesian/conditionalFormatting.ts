@@ -22,7 +22,11 @@ const getCartesianConditionalFormattingRowFields = (
                 value,
             };
             acc[fieldId] = rowField;
-            acc[getItemId(field)] = rowField;
+            // A saved rule can name the field by its table and name; a field
+            // given by its key alone (no table) is only reachable by the key.
+            if ('table' in field && 'name' in field && field.table) {
+                acc[getItemId(field)] = rowField;
+            }
 
             return acc;
         },

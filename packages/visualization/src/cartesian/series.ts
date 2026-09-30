@@ -1,7 +1,6 @@
 import {
     DimensionType,
     getDimensionsFromItemsMap,
-    getItemId,
     getSeriesId,
     isDimension,
     type CartesianSeriesType,
@@ -376,22 +375,23 @@ export const sortDimensions = (
 
     if (dimensionIds.length <= 1) return dimensionIds;
 
-    const dimensions = Object.values(getDimensionsFromItemsMap(itemsMap));
-
-    const dateDimensions = dimensions.filter(
-        (dimension) =>
-            isDimension(dimension) &&
-            dimensionIds.includes(getItemId(dimension)) &&
-            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                dimension.type,
-            ),
-    );
-    switch (dateDimensions.length) {
+    // Keyed by the map's own ids: a field's id is where it sits in the map.
+    const dateDimensionIds = Object.entries(getDimensionsFromItemsMap(itemsMap))
+        .filter(
+            ([dimensionId, dimension]) =>
+                isDimension(dimension) &&
+                dimensionIds.includes(dimensionId) &&
+                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                    dimension.type,
+                ),
+        )
+        .map(([dimensionId]) => dimensionId);
+    switch (dateDimensionIds.length) {
         case 0:
             return dimensionIds; // No dates, we return the same order
         case 1: {
             // Only 1 date, we return this date first
-            const dateDimensionId = getItemId(dateDimensions[0]);
+            const [dateDimensionId] = dateDimensionIds;
             return [
                 dateDimensionId,
                 ...dimensionIds.filter(
@@ -401,12 +401,9 @@ export const sortDimensions = (
         }
         default: {
             // 2 or more dates, we return first the date further left in the results table
-            const sortedDateDimensions = dateDimensions.sort(
-                (a, b) =>
-                    columnOrder.indexOf(getItemId(a)) -
-                    columnOrder.indexOf(getItemId(b)),
+            const sortedDateDimensionIds = [...dateDimensionIds].sort(
+                (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
             );
-            const sortedDateDimensionIds = sortedDateDimensions.map(getItemId);
             return [
                 ...sortedDateDimensionIds,
                 ...dimensionIds.filter(

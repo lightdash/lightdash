@@ -5,7 +5,6 @@ import {
     CustomFormatType,
     formatItemValue,
     getCustomFormatFromLegacy,
-    getItemId,
     hasFormatOptions,
     hasValidFormatExpression,
     isField,
@@ -129,10 +128,11 @@ const getItemPriority = (item: ItemsMap[string]): number => {
 export const getAvailableBigNumberFieldIds = (
     itemsMap: ItemsMap | undefined,
 ): string[] => {
-    const itemsSortedByType = Object.values(itemsMap || {}).sort((a, b) => {
-        return getItemPriority(a) - getItemPriority(b);
-    });
-    return itemsSortedByType.map(getItemId);
+    // Keyed by the map's own ids: a field's id is where it sits in the map.
+    const itemsSortedByType = Object.entries(itemsMap || {}).sort(
+        ([, a], [, b]) => getItemPriority(a) - getItemPriority(b),
+    );
+    return itemsSortedByType.map(([fieldId]) => fieldId);
 };
 
 export type ResolveBigNumberSelectedFieldArgs = {

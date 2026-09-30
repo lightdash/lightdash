@@ -194,7 +194,7 @@ describe('buildTreemapData', () => {
         ]);
     });
 
-    test('leaves parents at zero without subtotals', () => {
+    test('sizes parents by their children without subtotals', () => {
         const data = buildTreemapData({
             resultsData: { rows },
             sizeMetricId: 'orders_revenue',
@@ -204,9 +204,11 @@ describe('buildTreemapData', () => {
             groupedSubtotals: undefined,
         });
 
+        // EU = PT 10 + ES 20; US = CA 30. Without this the parents have no
+        // area and the treemap draws nothing.
         expect(data.map((node) => node.value)).toEqual([
-            [0, 0],
-            [0, 0],
+            [30, 0],
+            [30, 0],
         ]);
         expect(data[0].children?.[0].value).toEqual([10, 0]);
     });

@@ -1,5 +1,4 @@
 import {
-    getItemId,
     isMetric,
     isNumericItem,
     isTableCalculation,
@@ -22,11 +21,14 @@ export const getGaugeItemPriority = (item: ItemsMap[string]): number => {
 export const getAvailableGaugeFieldIds = (
     itemsMap: ItemsMap | undefined,
 ): string[] => {
-    const numericItems = Object.values(itemsMap || {}).filter(isNumericItem);
-    const itemsSortedByType = numericItems.sort((a, b) => {
-        return getGaugeItemPriority(a) - getGaugeItemPriority(b);
-    });
-    return itemsSortedByType.map(getItemId);
+    // Keyed by the map's own ids: a field's id is where it sits in the map.
+    const numericItems = Object.entries(itemsMap || {}).filter(([, item]) =>
+        isNumericItem(item),
+    );
+    const itemsSortedByType = numericItems.sort(
+        ([, a], [, b]) => getGaugeItemPriority(a) - getGaugeItemPriority(b),
+    );
+    return itemsSortedByType.map(([fieldId]) => fieldId);
 };
 
 // Get the effective selected field - use state value or fallback to first available

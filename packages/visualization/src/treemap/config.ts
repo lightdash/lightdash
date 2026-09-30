@@ -129,7 +129,10 @@ export type BuildTreemapDataArgs = {
     selectedSizeMetric: TreemapMetricItem | undefined;
     colorMetricId: string | null;
     groupFieldIds: string[];
-    /** Subtotals of every grouping level, from the API; parent values stay 0 without them. */
+    /**
+     * Subtotals of every grouping level, from the API. A parent without one
+     * is sized by the sum of its children, so the treemap draws either way.
+     */
     groupedSubtotals: TreemapGroupedSubtotals | undefined;
 };
 
@@ -209,13 +212,27 @@ export const buildTreemapData = ({
         getEmptyTreemapNode('root'),
     );
 
-    // Convert the structure's children into an array
+    // Parents whose size came from the API's subtotals.
+    const subtotalled = new Set<MutableTreemapNode>();
+
+    // Convert the structure's children into an array. A parent the subtotals
+    // did not size takes the sum of its children, as ECharts would.
     const convertToArray = (node: MutableTreemapNode): TreemapNode[] => {
         const children = Object.values(node.children).flatMap(convertToArray);
+        const value: number[] =
+            children.length > 0 && !subtotalled.has(node)
+                ? [
+                      children.reduce(
+                          (sum, child) => sum + (child.value?.[0] ?? 0),
+                          0,
+                      ),
+                      node.value[1],
+                  ]
+                : node.value;
         return [
             {
                 name: node.name,
-                value: node.value,
+                value,
                 children: children.length > 0 ? children : undefined,
             },
         ];
@@ -235,6 +252,7 @@ export const buildTreemapData = ({
                     if (index === subtotalDimensionNames.length - 1) {
                         if (parent?.children?.[dimValue]) {
                             // Handles null values
+                            subtotalled.add(parent.children[dimValue]);
                             parent.children[dimValue].value[0] =
                                 subtotalValueObject[sizeMetricId];
                             if (colorMetricId) {

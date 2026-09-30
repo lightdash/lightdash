@@ -157,34 +157,39 @@ export const getFunnelChartData = ({
     let dataMaxValue = 0;
 
     if (dataInput === FunnelChartDataInput.COLUMN) {
-        const fieldIndex = Object.keys(resultsData.rows[0]).findIndex(
-            (field) => {
-                return field === fieldId;
-            },
-        );
-
-        if (fieldIndex === -1) {
+        const [firstRow] = resultsData.rows;
+        if (!firstRow[fieldId]) {
             return { data: [], maxValue: 0 };
         }
+        // Each row is a stage, named by its first non-numeric field (the
+        // dimension), valued by the selected field. Read by field id, never by
+        // a key's position, which differs between row sources.
+        const rowFieldIds = Object.keys(firstRow);
+        const nameFieldId =
+            rowFieldIds.find((id) => !allNumericFieldIds.includes(id)) ??
+            rowFieldIds[0];
 
         return {
-            data: resultsData.rows.map<FunnelSeriesDataPoint>((row) => {
-                const rowValues = Object.values(row).map((col) => col.value);
+            data: resultsData.rows.flatMap<FunnelSeriesDataPoint>((row) => {
+                const cell = row[fieldId]?.value;
+                if (!cell) return [];
 
-                const dataValue = Number(rowValues[fieldIndex].raw);
+                const dataValue = Number(cell.raw);
                 if (dataValue > dataMaxValue) {
                     dataMaxValue = dataValue;
                 }
-                const rowId = rowValues[0].formatted;
-                return {
-                    id: rowId,
-                    name: rowValues[0].formatted,
-                    value: dataValue,
-                    meta: {
-                        value: rowValues[fieldIndex],
-                        rows: [row],
+                const name = String(row[nameFieldId]?.value.formatted ?? '');
+                return [
+                    {
+                        id: name,
+                        name,
+                        value: dataValue,
+                        meta: {
+                            value: cell,
+                            rows: [row],
+                        },
                     },
-                };
+                ];
             }),
             maxValue: dataMaxValue,
         };
