@@ -220,6 +220,7 @@ export const EE_SCHEDULER_TASKS = {
     CLEAN_SCIM_REQUEST_LOGS: 'cleanScimRequestLogs',
     PUBLISH_ANNOUNCEMENT: 'publishAnnouncement',
     SWEEP_DUE_ANNOUNCEMENTS: 'sweepDueAnnouncements',
+    SEND_AI_CREDIT_ALLOWANCE_ALERTS: 'sendAiCreditAllowanceAlerts',
     INGEST_EXTERNAL_SOURCE: 'ingestExternalSource',
     INGEST_EXTERNAL_SOURCE_ATTACHMENT: 'ingestExternalSourceAttachment',
     MAINTAIN_EXTERNAL_SOURCES: 'maintainExternalSources',
@@ -357,6 +358,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
     [SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT]: PublishAnnouncementPayload;
     [SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: TraceTaskBase;
+    [SCHEDULER_TASKS.SEND_AI_CREDIT_ALLOWANCE_ALERTS]: TraceTaskBase;
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
@@ -404,6 +406,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT]: PublishAnnouncementPayload;
     [EE_SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.SEND_AI_CREDIT_ALLOWANCE_ALERTS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;

@@ -5,6 +5,7 @@ import {
     DashboardDAO,
     DashboardTile,
     LightdashUser,
+    NotificationAiCreditAllowance,
     NotificationAiReview,
     NotificationContentReview,
     NotificationDashboardComment,
@@ -109,6 +110,57 @@ export class NotificationsModel {
             resourceUuid: notif.resource_uuid ?? undefined,
             metadata: notif.metadata as NotificationContentReview['metadata'],
         }));
+    }
+
+    async getAiCreditAllowanceNotifications(
+        userUuid: string,
+    ): Promise<NotificationAiCreditAllowance[]> {
+        const notifications = await this.database(NotificationsTableName)
+            .select()
+            .where(`${NotificationsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${NotificationsTableName}.resource_type`,
+                DbNotificationResourceType.AiCreditAllowance,
+            )
+            .orderBy(`${NotificationsTableName}.created_at`, 'desc');
+
+        return notifications.map((notif) => ({
+            notificationId: notif.notification_id,
+            resourceType: ApiNotificationResourceType.AiCreditAllowance,
+            message: notif.message ?? undefined,
+            url: notif.url ?? undefined,
+            viewed: notif.viewed,
+            createdAt: notif.created_at,
+            resourceUuid: notif.resource_uuid ?? undefined,
+            metadata:
+                notif.metadata as NotificationAiCreditAllowance['metadata'],
+        }));
+    }
+
+    async createAiCreditAllowanceNotifications({
+        userUuids,
+        alertUuid,
+        metadata,
+        message,
+        url,
+    }: {
+        userUuids: string[];
+        alertUuid: string;
+        metadata: NotificationAiCreditAllowance['metadata'];
+        message: string;
+        url: string;
+    }): Promise<void> {
+        if (userUuids.length === 0) return;
+        await this.database(NotificationsTableName).insert(
+            userUuids.map((userUuid) => ({
+                user_uuid: userUuid,
+                resource_uuid: alertUuid,
+                resource_type: DbNotificationResourceType.AiCreditAllowance,
+                message,
+                url,
+                metadata: JSON.stringify(metadata),
+            })),
+        );
     }
 
     async updateNotification(

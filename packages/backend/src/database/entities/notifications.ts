@@ -1,4 +1,5 @@
 import {
+    type NotificationAiCreditAllowance,
     type NotificationAiReview,
     type NotificationContentReview,
 } from '@lightdash/common';
@@ -8,6 +9,7 @@ export enum DbNotificationResourceType {
     DashboardComments = 'dashboard_comments',
     AiReviewItem = 'ai_review_item',
     ContentReviewRequest = 'content_review_request',
+    AiCreditAllowance = 'ai_credit_allowance',
 }
 
 export const NotificationsTableName = 'notifications';
@@ -32,6 +34,7 @@ type DbNotifications = {
         | DbNotificationDashboardTileCommentMetadata
         | NotificationAiReview['metadata']
         | NotificationContentReview['metadata']
+        | NotificationAiCreditAllowance['metadata']
         | null;
 };
 

@@ -1,3 +1,4 @@
+import { type AiCreditAllowanceAlertThreshold } from '../../ee/aiCredits/allowanceAlerts';
 import { type AiReviewNotificationEvent } from '../../ee/types/aiReviewNotification';
 import {
     type ContentReviewContentType,
@@ -8,6 +9,7 @@ export enum ApiNotificationResourceType {
     DashboardComments = 'dashboardComments',
     AiReview = 'aiReview',
     ContentReview = 'contentReview',
+    AiCreditAllowance = 'aiCreditAllowance',
 }
 
 interface NotificationDashboardTileCommentMetadata {
@@ -58,10 +60,19 @@ export type NotificationContentReview = NotificationBase & {
     };
 };
 
+export type NotificationAiCreditAllowance = NotificationBase & {
+    resourceType: ApiNotificationResourceType.AiCreditAllowance;
+    metadata: {
+        thresholdPercent: AiCreditAllowanceAlertThreshold;
+        periodEnd: string;
+    };
+};
+
 export type Notification =
     | NotificationDashboardComment
     | NotificationAiReview
-    | NotificationContentReview;
+    | NotificationContentReview
+    | NotificationAiCreditAllowance;
 
 export type ApiNotificationUpdateParams = Pick<Notification, 'viewed'>;
 export type ApiNotificationsResults = Notification[];

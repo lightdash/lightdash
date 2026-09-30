@@ -306,6 +306,7 @@ const getTagsForTask: {
         'announcement.uuid': payload.announcementUuid,
     }),
     [SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: () => ({}),
+    [SCHEDULER_TASKS.SEND_AI_CREDIT_ALLOWANCE_ALERTS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: () => ({}),

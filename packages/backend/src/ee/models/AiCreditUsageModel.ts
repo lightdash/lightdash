@@ -3,6 +3,9 @@ import {
     calculateAiCredits,
     findAiCreditRate,
     getAiCreditContractWindow,
+    isAiCreditAllowanceAlertPlanSettled,
+    planAiCreditAllowanceAlerts,
+    type AiCreditAllowanceAlertRecord,
     type AiCreditPeriod,
     type AiCreditRateCardRow,
     type AiCreditUsageBreakdownRow,
@@ -21,6 +24,7 @@ import {
     type DbAiUsageLedger,
 } from '../../database/entities/aiUsageLedger';
 import Logger from '../../logging/logger';
+import { type AiCreditAllowanceAlertModel } from './AiCreditAllowanceAlertModel';
 import {
     hasAllowance,
     type AiCreditContractModel,
@@ -34,6 +38,7 @@ type Dependencies = {
     rateCardModel: AiCreditRateCardModel;
     contractModel: AiCreditContractModel;
     holdModel: AiCreditHoldModel;
+    allowanceAlertModel: AiCreditAllowanceAlertModel;
 };
 
 // Fails to compile if the shared allowlist names a feature the ledger never records.
@@ -220,16 +225,20 @@ export class AiCreditUsageModel {
 
     private readonly holdModel: AiCreditHoldModel;
 
+    private readonly allowanceAlertModel: AiCreditAllowanceAlertModel;
+
     constructor({
         database,
         rateCardModel,
         contractModel,
         holdModel,
+        allowanceAlertModel,
     }: Dependencies) {
         this.database = database;
         this.rateCardModel = rateCardModel;
         this.contractModel = contractModel;
         this.holdModel = holdModel;
+        this.allowanceAlertModel = allowanceAlertModel;
     }
 
     // Pricing is linear in tokens, so calls sharing a model and a rate card segment can be summed before pricing.
@@ -315,14 +324,9 @@ export class AiCreditUsageModel {
 
     private async placeHoldIfExhausted(
         contract: AiCreditContractWithAllowance,
-        at: Date,
+        window: AiCreditPeriod,
+        used: number,
     ): Promise<void> {
-        const window = getAiCreditContractWindow(contract, at);
-        if (window === null) return;
-        if (await this.holdModel.findAllowanceExhaustedHold(contract, window)) {
-            return;
-        }
-        const used = await this.sumCredits(contract.organizationUuid, window);
         if (used < contract.allowanceCredits) return;
         const hold = await this.holdModel.createAllowanceExhaustedHold(
             contract,
@@ -332,6 +336,58 @@ export class AiCreditUsageModel {
         Logger.info(
             `AI credit allowance exhausted for organization ${contract.organizationUuid}: ${used} of ${contract.allowanceCredits} credits used, hold placed until ${window.periodEnd.toISOString()}`,
         );
+    }
+
+    private async recordAllowanceAlerts(
+        contract: AiCreditContractWithAllowance,
+        window: AiCreditPeriod,
+        used: number,
+        records: AiCreditAllowanceAlertRecord[],
+    ): Promise<void> {
+        const plan = planAiCreditAllowanceAlerts({
+            usedCredits: used,
+            allowanceCredits: contract.allowanceCredits,
+            records,
+        });
+        await this.allowanceAlertModel.rearm(contract, window, plan.rearmed);
+        await this.allowanceAlertModel.carryOver(
+            contract,
+            window,
+            plan.carriedOver,
+        );
+        await this.allowanceAlertModel.recordReached(
+            contract,
+            window,
+            plan.reached,
+            used,
+        );
+    }
+
+    // One sum serves both the hold and the alerts, and is skipped once neither can change.
+    private async evaluateAllowance(
+        contract: AiCreditContractWithAllowance,
+        at: Date,
+    ): Promise<void> {
+        const window = getAiCreditContractWindow(contract, at);
+        if (window === null) return;
+        const [hold, alerts] = await Promise.all([
+            this.holdModel.findAllowanceExhaustedHold(contract, window),
+            this.allowanceAlertModel.findForWindow(contract, window),
+        ]);
+        if (
+            hold !== undefined &&
+            isAiCreditAllowanceAlertPlanSettled(
+                alerts,
+                contract.allowanceCredits,
+            )
+        ) {
+            return;
+        }
+        const used = await this.sumCredits(contract.organizationUuid, window);
+        await this.recordAllowanceAlerts(contract, window, used, alerts);
+        if (hold === undefined) {
+            await this.placeHoldIfExhausted(contract, window, used);
+        }
     }
 
     /** Runs off the request path, after the ledger row is written; nothing enforces the hold yet. */
@@ -345,6 +401,6 @@ export class AiCreditUsageModel {
         }
         const contract = await this.contractModel.find(organizationId);
         if (contract === undefined || !hasAllowance(contract)) return;
-        await this.placeHoldIfExhausted(contract, at);
+        await this.evaluateAllowance(contract, at);
     }
 }

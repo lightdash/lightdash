@@ -7,6 +7,7 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../../testing/migratedDatabase';
+import { AiCreditAllowanceAlertModel } from '../../../models/AiCreditAllowanceAlertModel';
 import { AiCreditContractModel } from '../../../models/AiCreditContractModel';
 import { AiCreditHoldModel } from '../../../models/AiCreditHoldModel';
 import { AiCreditRateCardModel } from '../../../models/AiCreditRateCardModel';
@@ -139,6 +140,9 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
                 database: transaction,
             }),
             holdModel: holds,
+            allowanceAlertModel: new AiCreditAllowanceAlertModel({
+                database: transaction,
+            }),
         });
     });
 

@@ -564,6 +564,8 @@ import {
     AiArtifactVersionsTableName,
 } from '../ee/database/entities/aiArtifacts';
 import {
+    AiCreditAllowanceAlertsTable,
+    AiCreditAllowanceAlertsTableName,
     AiCreditContractsTable,
     AiCreditContractsTableName,
     AiCreditHoldsTable,
@@ -877,6 +879,7 @@ declare module 'knex/types/tables' {
         [AiCreditRateCardTableName]: AiCreditRateCardTable;
         [AiCreditContractsTableName]: AiCreditContractsTable;
         [AiCreditHoldsTableName]: AiCreditHoldsTable;
+        [AiCreditAllowanceAlertsTableName]: AiCreditAllowanceAlertsTable;
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;

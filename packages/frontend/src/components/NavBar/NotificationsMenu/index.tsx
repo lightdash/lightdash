@@ -1,5 +1,7 @@
+import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    FeatureFlags,
     type Notification,
     NotificationResourceType,
     ValidationErrorType,
@@ -11,11 +13,13 @@ import { useAiAgentOrgPermission } from '../../../ee/features/aiCopilot/hooks/us
 import { useContentReviewAvailability } from '../../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import { useDashboardCommentsCheck } from '../../../features/comments';
 import {
+    AiCreditAllowanceNotifications,
     AiReviewNotifications,
     ContentReviewNotifications,
     DashboardCommentsNotifications,
     useGetNotifications,
 } from '../../../features/notifications';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useValidation,
     useValidationNotificationChecker,
@@ -70,18 +74,39 @@ export const NotificationsMenu: FC<{
     );
     const hasContentReviewNotifications =
         contentReviewNotifications && contentReviewNotifications.length > 0;
+    const isOrgAdmin =
+        user.data?.ability?.can(
+            'manage',
+            subject('Organization', {
+                organizationUuid: user.data.organizationUuid,
+            }),
+        ) ?? false;
+    const { data: aiCreditsFlag } = useServerFeatureFlag(
+        FeatureFlags.AiCredits,
+        { enabled: isOrgAdmin },
+    );
+    const canViewAiCreditAlerts = isOrgAdmin && !!aiCreditsFlag?.enabled;
+    const { data: aiCreditAllowanceNotifications } = useGetNotifications(
+        NotificationResourceType.AiCreditAllowance,
+        canViewAiCreditAlerts,
+    );
+    const hasAiCreditAllowanceNotifications =
+        aiCreditAllowanceNotifications &&
+        aiCreditAllowanceNotifications.length > 0;
     const notifications = useMemo<Notification[]>(
         () =>
             [
                 ...(dashboardCommentsNotifications ?? []),
                 ...(aiReviewNotifications ?? []),
                 ...(contentReviewNotifications ?? []),
+                ...(aiCreditAllowanceNotifications ?? []),
             ].sort(
                 (a, b) =>
                     new Date(b.createdAt).getTime() -
                     new Date(a.createdAt).getTime(),
             ),
         [
+            aiCreditAllowanceNotifications,
             aiReviewNotifications,
             contentReviewNotifications,
             dashboardCommentsNotifications,
@@ -119,6 +144,12 @@ export const NotificationsMenu: FC<{
             if (hasUnreadContentReviews) return true;
         }
 
+        if (canViewAiCreditAlerts) {
+            const hasUnreadAiCreditAlerts =
+                aiCreditAllowanceNotifications?.some((n) => !n.viewed);
+            if (hasUnreadAiCreditAlerts) return true;
+        }
+
         return false;
     };
 
@@ -139,6 +170,12 @@ export const NotificationsMenu: FC<{
                         notifications={[notification]}
                     />
                 );
+            case NotificationResourceType.AiCreditAllowance:
+                return (
+                    <AiCreditAllowanceNotifications
+                        notifications={[notification]}
+                    />
+                );
             default:
                 return assertUnreachable(
                     notification,
@@ -151,7 +188,8 @@ export const NotificationsMenu: FC<{
         canViewDashboardComments ||
         canUserManageValidations ||
         canViewAiReviews ||
-        canViewContentReviews;
+        canViewContentReviews ||
+        canViewAiCreditAlerts;
 
     return shouldDisplayMenu ? (
         <Menu
@@ -203,7 +241,8 @@ export const NotificationsMenu: FC<{
                 {!hasValidationNotifications &&
                     !hasDashboardCommentsNotifications &&
                     !hasAiReviewNotifications &&
-                    !hasContentReviewNotifications && (
+                    !hasContentReviewNotifications &&
+                    !hasAiCreditAllowanceNotifications && (
                         <Menu.Item fz="sm">No notifications</Menu.Item>
                     )}
             </Menu.Dropdown>

@@ -158,6 +158,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     contentReviewRequestModel: ContentReviewRequestModel;
     contentReviewSettingsModel: ContentReviewSettingsModel;
     userModel: UserModel;
+    sendAiCreditAllowanceAlerts: () => Promise<void>;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -219,6 +220,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly userModel: UserModel;
 
+    private readonly sendAiCreditAllowanceAlerts: () => Promise<void>;
+
     private readonly cleanupMetrics: PrometheusMetrics | null;
 
     constructor(args: CommercialSchedulerWorkerArguments) {
@@ -255,6 +258,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.contentReviewRequestModel = args.contentReviewRequestModel;
         this.contentReviewSettingsModel = args.contentReviewSettingsModel;
         this.userModel = args.userModel;
+        this.sendAiCreditAllowanceAlerts = args.sendAiCreditAllowanceAlerts;
         this.cleanupMetrics = args.prometheusMetrics ?? null;
     }
 
@@ -279,6 +283,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 pattern: '*/2 * * * *', // Every 2 minutes
                 options: {
                     backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SEND_AI_CREDIT_ALLOWANCE_ALERTS,
+                pattern: '*/5 * * * *',
+                options: {
+                    backfillPeriod: 10 * 60 * 1000,
                     maxAttempts: 1,
                 },
             },
@@ -1048,6 +1060,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: async () => {
                 await this.projectHomepageService.sweepDueAnnouncements();
+            },
+            [EE_SCHEDULER_TASKS.SEND_AI_CREDIT_ALLOWANCE_ALERTS]: async () => {
+                await this.sendAiCreditAllowanceAlerts();
             },
             [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: async (
                 payload,

@@ -41,6 +41,7 @@ import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiAgentSkillModel } from './models/AiAgentSkillModel';
+import { AiCreditAllowanceAlertModel } from './models/AiCreditAllowanceAlertModel';
 import { AiCreditContractModel } from './models/AiCreditContractModel';
 import { AiCreditHoldModel } from './models/AiCreditHoldModel';
 import { AiCreditRateCardModel } from './models/AiCreditRateCardModel';
@@ -73,6 +74,7 @@ import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExplores
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { sendAiCreditAllowanceAlerts } from './scheduler/tasks/sendAiCreditAllowanceAlerts';
 import { scimRequestLoggingMiddleware } from './scim/scimRequestLoggingMiddleware';
 import { OrgAiCopilotConfigResolver } from './services/ai/OrgAiCopilotConfigResolver';
 import { BuiltInSkills } from './services/ai/skills/builtInSkills';
@@ -1574,6 +1576,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiCreditContractModel({ database }),
             aiCreditHoldModel: ({ database }) =>
                 new AiCreditHoldModel({ database }),
+            aiCreditAllowanceAlertModel: ({ database }) =>
+                new AiCreditAllowanceAlertModel({ database }),
             aiCreditUsageModel: ({ database, repository }) =>
                 new AiCreditUsageModel({
                     database,
@@ -1583,6 +1587,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiCreditContractModel<AiCreditContractModel>(),
                     holdModel:
                         repository.getAiCreditHoldModel<AiCreditHoldModel>(),
+                    allowanceAlertModel:
+                        repository.getAiCreditAllowanceAlertModel<AiCreditAllowanceAlertModel>(),
                 }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
@@ -1722,6 +1728,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 contentReviewSettingsModel:
                     context.models.getContentReviewSettingsModel(),
                 userModel: context.models.getUserModel(),
+                sendAiCreditAllowanceAlerts: sendAiCreditAllowanceAlerts({
+                    allowanceAlertModel:
+                        context.models.getAiCreditAllowanceAlertModel<AiCreditAllowanceAlertModel>(),
+                    contractModel:
+                        context.models.getAiCreditContractModel<AiCreditContractModel>(),
+                    featureFlagModel: context.models.getFeatureFlagModel(),
+                    organizationMemberProfileModel:
+                        context.models.getOrganizationMemberProfileModel(),
+                    notificationsModel: context.models.getNotificationsModel(),
+                    analytics: context.analytics,
+                }),
                 prometheusMetrics: context.prometheusMetrics,
             }),
         clientProviders: {
