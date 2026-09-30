@@ -11,13 +11,16 @@ export type ScreenshotOptions = {
     fullPage: boolean;
     width: number;
     height: number;
+    scale: number;
 };
 
 export function screenshotOptions(args: string[]): ScreenshotOptions {
     const positional = args.slice(1).filter((value, index, values) => {
         if (
             index > 0 &&
-            ['--out', '--width', '--height'].includes(values[index - 1])
+            ['--out', '--width', '--height', '--scale'].includes(
+                values[index - 1],
+            )
         )
             return false;
         return !value.startsWith('--');
@@ -45,6 +48,9 @@ export function screenshotOptions(args: string[]): ScreenshotOptions {
         height > 4096
     )
         throw new Error('Screenshot width and height must be valid pixels');
+    const scale = Number(value('--scale', '1'));
+    if (!Number.isInteger(scale) || scale < 1 || scale > 3)
+        throw new Error('Screenshot scale must be 1, 2 or 3');
     return {
         route,
         out: args.includes('--out') ? path.resolve(value('--out', '')) : null,
@@ -52,6 +58,7 @@ export function screenshotOptions(args: string[]): ScreenshotOptions {
         fullPage: args.includes('--full-page'),
         width,
         height,
+        scale,
     };
 }
 
