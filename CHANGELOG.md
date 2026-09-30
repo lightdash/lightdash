@@ -1,3 +1,10 @@
+# [2.394.0](https://github.com/lightdash/lightdash/compare/2.393.0...2.394.0) (2026-09-30)
+
+
+### Features
+
+* **explorer:** default new charts to a table visualization ([#30260](https://github.com/lightdash/lightdash/issues/30260)) ([bcdeb5b](https://github.com/lightdash/lightdash/commit/bcdeb5baf461b00c7430931dac4bc18e575d6e21))
+
 # [2.393.0](https://github.com/lightdash/lightdash/compare/2.392.0...2.393.0) (2026-09-30)
 
 
