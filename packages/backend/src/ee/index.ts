@@ -750,6 +750,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     coderService: repository.getCoderService(),
                     dashboardService: repository.getDashboardService(),
+                    documentService: repository.getDocumentService(),
                     savedChartService: repository.getSavedChartService(),
                     contentService: repository.getContentService(),
                     aiOrganizationSettingsService:

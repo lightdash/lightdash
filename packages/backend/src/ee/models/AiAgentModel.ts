@@ -126,6 +126,10 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
+import {
+    DocumentsTableName,
+    DocumentVersionsTableName,
+} from '../../database/entities/documents';
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import {
     DbExternalSource,
@@ -6968,6 +6972,45 @@ export class AiAgentModel {
             ).map((r) => [r.dashboard_uuid, r] as const),
         );
 
+        const documentUuids = context.flatMap((c) =>
+            c.type === 'document' ? [c.documentUuid] : [],
+        );
+        const documentLookup = new Map(
+            (
+                await trx(DocumentsTableName)
+                    .leftJoin(
+                        DocumentVersionsTableName,
+                        `${DocumentsTableName}.document_id`,
+                        `${DocumentVersionsTableName}.document_id`,
+                    )
+                    .whereIn(
+                        `${DocumentsTableName}.document_uuid`,
+                        documentUuids,
+                    )
+                    .whereNull(`${DocumentsTableName}.deleted_at`)
+                    .distinctOn(`${DocumentsTableName}.document_uuid`)
+                    .orderBy([
+                        { column: `${DocumentsTableName}.document_uuid` },
+                        {
+                            column: `${DocumentVersionsTableName}.version_number`,
+                            order: 'desc',
+                            nulls: 'last',
+                        },
+                    ])
+                    .select<
+                        {
+                            document_uuid: string;
+                            name: string;
+                            document_version_uuid: string | null;
+                        }[]
+                    >({
+                        document_uuid: `${DocumentsTableName}.document_uuid`,
+                        name: `${DocumentsTableName}.name`,
+                        document_version_uuid: `${DocumentVersionsTableName}.document_version_uuid`,
+                    })
+            ).map((r) => [r.document_uuid, r] as const),
+        );
+
         const threadUuids = context.flatMap((c) =>
             c.type === 'thread' ? [c.threadUuid] : [],
         );
@@ -7105,6 +7148,17 @@ export class AiAgentModel {
                             dashboard?.dashboard_version_uuid ?? null,
                         display_name: dashboard?.name ?? null,
                         runtime_overrides: ctx.runtimeOverrides ?? null,
+                    };
+                }
+                case 'document': {
+                    const document = documentLookup.get(ctx.documentUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'document' as AiPromptContextEntityType,
+                        entity_uuid: ctx.documentUuid,
+                        pinned_version_uuid:
+                            document?.document_version_uuid ?? null,
+                        display_name: document?.name ?? null,
                     };
                 }
                 case 'thread': {
@@ -7354,6 +7408,22 @@ export class AiAgentModel {
             ).map((r) => [r.dashboard_uuid, r.slug] as const),
         );
 
+        const documentUuids = rows
+            .filter((r) => r.entity_type === 'document')
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
+        const documentSlugByUuid = new Map(
+            (
+                await this.database(DocumentsTableName)
+                    .whereIn('document_uuid', documentUuids)
+                    .whereNull('deleted_at')
+                    .select<{ document_uuid: string; slug: string }[]>(
+                        'document_uuid',
+                        'slug',
+                    )
+            ).map((r) => [r.document_uuid, r.slug] as const),
+        );
+
         // review_finding / proposed_change pins resolve live finding data,
         // scoped by the org of the prompt they hang off. Only worth the extra
         // prompt -> thread -> org lookup when such a pin is actually present.
@@ -7511,6 +7581,7 @@ export class AiAgentModel {
                     row,
                     chartDataByUuid,
                     dashboardSlugByUuid,
+                    documentSlugByUuid,
                     reviewItem,
                     projectNameByUuid,
                     appDataByUuid,
@@ -7557,6 +7628,7 @@ export class AiAgentModel {
             { chartKind: ChartKind | null; slug: string }
         >,
         dashboardSlugByUuid: Map<string, string>,
+        documentSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
         appDataByUuid: Map<
@@ -7602,6 +7674,16 @@ export class AiAgentModel {
                     displayName: row.display_name,
                     runtimeOverrides:
                         row.runtime_overrides as AiDashboardRuntimeOverrides | null,
+                };
+            }
+            case 'document': {
+                const entityUuid = requireEntityUuid();
+                return {
+                    type: 'document',
+                    documentUuid: entityUuid,
+                    documentSlug: documentSlugByUuid.get(entityUuid) ?? null,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
                 };
             }
             case 'thread':

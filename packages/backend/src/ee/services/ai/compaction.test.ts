@@ -335,6 +335,34 @@ describe('AI context compaction helpers', () => {
         expect(serialized).toContain('data app F1 standings (f1-standings)');
     });
 
+    it('serializes a pinned Document so the summary keeps its uuid', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Add a summary paragraph to this.',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'document',
+                        documentUuid: 'doc-1',
+                        documentSlug: 'q3-revenue-review',
+                        displayName: 'Q3 revenue review',
+                        pinnedVersionUuid: null,
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain(
+            'Document Q3 revenue review (doc-1; read it with readContent)',
+        );
+    });
+
     it('filters raw prompt rows after the latest compaction boundary', () => {
         const filtered = Compaction.filterThreadMessagesAfterCompaction(
             [

@@ -66,6 +66,8 @@ export const getPromptContextItemKey = (
             return dataAppRestoreContextKey(item);
         case 'data_app':
             return dataAppContextKey(item.appUuid);
+        case 'document':
+            return `document:${item.documentUuid}`;
         case 'design':
             return designContextKey(item.designUuid);
         case 'skill':
@@ -126,6 +128,8 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.projectName ?? 'Preview environment';
         case 'data_app':
             return getDataAppContextItemName(item);
+        case 'document':
+            return item.displayName ?? item.documentSlug ?? 'Document';
         case 'skill':
             return `/${item.name}`;
         default:
@@ -169,6 +173,8 @@ export const getPromptContextItemHref = (
             return null;
         case 'data_app':
             return dataAppHref(projectUuid, item.appUuid);
+        case 'document':
+            return `/projects/${projectUuid}/documents/${item.documentUuid}`;
         // A theme is an organization setting with no in-thread destination.
         case 'design':
             return null;

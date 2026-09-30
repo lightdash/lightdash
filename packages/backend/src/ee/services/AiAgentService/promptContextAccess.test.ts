@@ -20,7 +20,12 @@ vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
 const PROJECT_UUID = 'project-uuid';
 const USER_UUID = 'user-uuid';
 
-const user = { userUuid: USER_UUID } as SessionUser;
+const user = {
+    userUuid: USER_UUID,
+    organizationUuid: 'org-uuid',
+    ability: {},
+    abilityRules: [],
+} as unknown as SessionUser;
 const agent = {
     uuid: 'agent-uuid',
     organizationUuid: 'org-uuid',
@@ -59,7 +64,37 @@ const chartTypeApp: App = {
 
 type Design = { designUuid: string; organizationUuid: string };
 
-const buildService = (apps: App[], designs: Design[] = []) => {
+type Doc = { documentUuid: string; spaceUuid: string };
+
+const buildService = (
+    apps: App[],
+    designs: Design[] = [],
+    {
+        documents = [],
+        documentsEnabled = true,
+    }: { documents?: Doc[]; documentsEnabled?: boolean } = {},
+) => {
+    const documentService = {
+        get: vi
+            .fn()
+            .mockImplementation(
+                async (
+                    _account: unknown,
+                    _projectUuid: string,
+                    documentUuid: string,
+                ) => {
+                    const document = documents.find(
+                        (d) => d.documentUuid === documentUuid,
+                    );
+                    if (!document)
+                        throw new NotFoundError('Document not found');
+                    return document;
+                },
+            ),
+    };
+    const featureFlagService = {
+        get: vi.fn().mockResolvedValue({ enabled: documentsEnabled }),
+    };
     const organizationDesignModel = {
         findInOrganization: vi
             .fn()
@@ -93,21 +128,33 @@ const buildService = (apps: App[], designs: Design[] = []) => {
         appModel,
         appGenerateService,
         organizationDesignModel,
+        documentService,
+        featureFlagService,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: {} } },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
-    const validate = (context: AiPromptContextInput) =>
+    const validate = (
+        context: AiPromptContextInput,
+        allowedSpaceUuids?: string[],
+    ) =>
         (
             service as unknown as {
                 validatePromptContextAccess: (
                     u: SessionUser,
                     a: AiAgent,
                     c: AiPromptContextInput,
+                    s?: string[],
                 ) => Promise<AiPromptContextInput | undefined>;
             }
-        ).validatePromptContextAccess(user, agent, context);
-    return { validate, appModel, appGenerateService, organizationDesignModel };
+        ).validatePromptContextAccess(user, agent, context, allowedSpaceUuids);
+    return {
+        validate,
+        appModel,
+        appGenerateService,
+        organizationDesignModel,
+        documentService,
+    };
 };
 
 describe('validatePromptContextAccess for data apps', () => {
@@ -207,5 +254,74 @@ describe('validatePromptContextAccess for themes', () => {
                 { type: 'design', designUuid: 'design-org' },
             ]),
         ).resolves.toEqual([{ type: 'design', designUuid: 'design-org' }]);
+    });
+});
+
+describe('validatePromptContextAccess for Documents', () => {
+    const document: Doc = { documentUuid: 'doc-uuid', spaceUuid: 'space-1' };
+
+    it('accepts a Document the user can view, checked in the agent project', async () => {
+        const { validate, documentService } = buildService([], [], {
+            documents: [document],
+        });
+        const context: AiPromptContextInput = [
+            { type: 'document', documentUuid: 'doc-uuid', documentSlug: 'q3' },
+        ];
+
+        await expect(validate(context)).resolves.toEqual(context);
+        expect(documentService.get).toHaveBeenCalledWith(
+            expect.anything(),
+            PROJECT_UUID,
+            'doc-uuid',
+        );
+    });
+
+    it('rejects a Document the user cannot view', async () => {
+        const { validate } = buildService([], [], { documents: [] });
+
+        await expect(
+            validate([{ type: 'document', documentUuid: 'doc-uuid' }]),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    it('rejects Documents when the Documents flag is off', async () => {
+        const { validate, documentService } = buildService([], [], {
+            documents: [document],
+            documentsEnabled: false,
+        });
+
+        await expect(
+            validate([{ type: 'document', documentUuid: 'doc-uuid' }]),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentService.get).not.toHaveBeenCalled();
+    });
+
+    it('rejects a Document outside the embedded space', async () => {
+        const { validate } = buildService([], [], { documents: [document] });
+
+        await expect(
+            validate(
+                [{ type: 'document', documentUuid: 'doc-uuid' }],
+                ['space-2'],
+            ),
+        ).rejects.toThrow('Pinned Document is outside the embedded space');
+    });
+
+    it('collapses the same Document pinned twice into one item', async () => {
+        const { validate, documentService } = buildService([], [], {
+            documents: [document],
+        });
+
+        await expect(
+            validate([
+                { type: 'document', documentUuid: 'doc-uuid' },
+                {
+                    type: 'document',
+                    documentUuid: 'doc-uuid',
+                    documentSlug: 'q3',
+                },
+            ]),
+        ).resolves.toEqual([{ type: 'document', documentUuid: 'doc-uuid' }]);
+        expect(documentService.get).toHaveBeenCalledTimes(1);
     });
 });
