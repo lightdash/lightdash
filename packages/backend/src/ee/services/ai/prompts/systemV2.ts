@@ -318,6 +318,11 @@ export const getSystemPromptV2 = (args: {
 
     const allowMarkdownTables =
         args.enableFastMetadata && !slackChannelId && !slackLinksOnly;
+    const allowSlackTableSelection =
+        !!slackChannelId && enableDataAccess && !slackLinksOnly;
+    const answerQueryGuidance = allowSlackTableSelection
+        ? 'Use runQuery when the user wants an answer from data without a chart; use its rows to summarize the answer and select a native table only when requested or useful. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.'
+        : 'Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Slack result cards are attached automatically. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.';
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{self_improvement_section}}',
         '',
@@ -478,14 +483,15 @@ export const getSystemPromptV2 = (args: {
         args.enableFastMetadata
             ? 'Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.'
             : '',
+        allowSlackTableSelection
+            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help explain the answer. To select a table, add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, replacing <queryUuid> with the exact queryUuid copied from a successful semantic table execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table in your answer; it does not send a CSV. Select at most 10 requested or useful final tables. Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer. Never automatically include every table you queried. Do not invent queryUuid values or reuse executions from earlier turns.'
+            : '',
         deepResearchContent,
         grepFieldsSection,
         args.enableFastMetadata
             ? 'For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.'
             : '',
-        args.enableFastMetadata
-            ? 'Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Slack result cards are attached automatically. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.'
-            : '',
+        args.enableFastMetadata ? answerQueryGuidance : '',
         args.enableFastMetadata
             ? 'For a follow-up that changes an existing chart, reuse the preceding successful query tool input. Preserve everything the user did not ask to change. Apply the requested presentation, filter, sort, limit, segmentation, grouping or grain change and call generateVisualization; never claim the chart was updated unless that call succeeds. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.'
             : '',

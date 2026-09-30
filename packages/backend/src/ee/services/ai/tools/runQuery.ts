@@ -132,6 +132,33 @@ const getChartExportReference = (
         ? ` For chart-as-code export, call exportChartAsCode with the stored chart artifactUuid=${artifact.artifactUuid}, versionUuid=${artifact.versionUuid}, and queryUuid set to null. Do not reuse this turn's queryUuid in a later turn.`
         : ` If chart-as-code is requested in this turn, exportChartAsCode can reuse this execution: queryUuid=${queryUuid}.`;
 
+const getQueryReference = ({
+    prompt,
+    chartConfig,
+    queryUuid,
+    exposeQueryUuid,
+    enableDataAccess,
+    slackLinksOnly,
+}: {
+    prompt: Awaited<ReturnType<GetPromptFn>>;
+    chartConfig: ToolRunQueryArgsTransformed['chartConfig'];
+    queryUuid: string;
+    exposeQueryUuid: boolean;
+    enableDataAccess: boolean;
+    slackLinksOnly: boolean;
+}) => {
+    const isShareableSlackTable =
+        isSlackPrompt(prompt) &&
+        enableDataAccess &&
+        !slackLinksOnly &&
+        (!chartConfig ||
+            (!isCustomChartTypeSlugChartConfig(chartConfig) &&
+                chartConfig.defaultVizType === 'table'));
+    return exposeQueryUuid || isShareableSlackTable
+        ? ` This execution's queryUuid is ${queryUuid}; use exactly this value to reference it.`
+        : '';
+};
+
 type Dependencies = {
     purpose?: 'visualization' | 'answer';
     enableFastResponse?: boolean;
@@ -1012,13 +1039,23 @@ export const getRunQuery = ({
                         queryResults,
                         maxContextRows,
                     );
+                    const queryReference = getQueryReference({
+                        prompt,
+                        chartConfig: queryTool.chartConfig,
+                        queryUuid: queryResults.queryUuid,
+                        exposeQueryUuid: false,
+                        enableDataAccess,
+                        slackLinksOnly,
+                    });
                     return {
                         result: enableDataAccess
                             ? [
-                                  `${resultSummary}${getContextTruncationNote({
-                                      rowCount: queryResults.rows.length,
-                                      maxContextRows,
-                                  })}${exportReference}${review}${presentationNote}${decisions ? chartQualityHints(queryTool, queryResults.rows) : ''}`,
+                                  `${resultSummary}${queryReference}${getContextTruncationNote(
+                                      {
+                                          rowCount: queryResults.rows.length,
+                                          maxContextRows,
+                                      },
+                                  )}${exportReference}${review}${presentationNote}${decisions ? chartQualityHints(queryTool, queryResults.rows) : ''}`,
                                   serializeData(csv, 'csv'),
                               ].join('\n\n')
                             : `Success. ${resultSummary}`,
@@ -1421,12 +1458,14 @@ export const getRunQuery = ({
                         queryTool.queryConfig.parameters,
                     );
 
-                // The queryUuid otherwise lives only in metadata, which never
-                // reaches the model — leaving it unable to cite the execution
-                // a report chart is evidence of.
-                const queryReference = exposeQueryUuid
-                    ? ` This execution's queryUuid is ${queryResults.queryUuid}; use exactly this value to reference it.`
-                    : '';
+                const queryReference = getQueryReference({
+                    prompt,
+                    chartConfig: queryTool.chartConfig,
+                    queryUuid: queryResults.queryUuid,
+                    exposeQueryUuid,
+                    enableDataAccess,
+                    slackLinksOnly,
+                });
 
                 if (!enableDataAccess) {
                     return {

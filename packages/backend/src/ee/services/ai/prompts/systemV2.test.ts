@@ -1061,6 +1061,70 @@ describe('getSystemPromptV2 data apps', () => {
     });
 });
 
+describe('getSystemPromptV2 Slack table selection', () => {
+    test.each([false, true])(
+        'prefers summaries and selectively renders useful current-turn tables in Slack (fast: %s)',
+        (enableFastMetadata) => {
+            const content = promptText({
+                availableExplores: [],
+                slackChannelId: 'channel',
+                enableDataAccess: true,
+                enableFastMetadata,
+            });
+            expect(content).toContain('a summary is the default');
+            expect(content).toContain(
+                '<slack-table queryUuid="<queryUuid>" />',
+            );
+            expect(content).toContain(
+                'exact queryUuid copied from a successful semantic table execution in the current turn',
+            );
+            expect(content).toContain('The marker is hidden from visible text');
+            expect(content).toContain('on its own line in your final response');
+            expect(content).toContain(
+                'Select at most 10 requested or useful final tables',
+            );
+            expect(content).toContain(
+                'Never automatically include every table',
+            );
+            expect(content).toContain(
+                'Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer',
+            );
+            if (enableFastMetadata) {
+                expect(content).not.toContain(
+                    'Slack result cards are attached automatically',
+                );
+            }
+        },
+    );
+
+    test.each([
+        { slackChannelId: null, enableDataAccess: true, slackLinksOnly: false },
+        {
+            slackChannelId: 'channel',
+            enableDataAccess: false,
+            slackLinksOnly: false,
+        },
+        {
+            slackChannelId: 'channel',
+            enableDataAccess: true,
+            slackLinksOnly: true,
+        },
+    ])(
+        'omits table selection guidance where it is unavailable: %j',
+        (flags) => {
+            const content = promptText({
+                availableExplores: [],
+                enableFastMetadata: true,
+                ...flags,
+            });
+            expect(content).not.toContain('<slack-table');
+            expect(content).not.toContain(
+                'renders that execution as a native Slack table',
+            );
+        },
+    );
+});
+
 describe('getSystemPromptV2 Slack links only', () => {
     const noDataInSlackRule =
         'This organization does not allow query results to be shared in Slack';

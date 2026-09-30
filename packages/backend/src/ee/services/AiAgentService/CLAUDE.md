@@ -74,4 +74,6 @@ Query results in Slack (from `ai/tools/runQuery.ts`):
 | ----------------- | ------------------------------------------------------------- |
 | Chart             | PNG image (echarts)                                           |
 | Custom chart type | PNG image (headless artifact export; Lightdash link on failure) |
-| Table             | Inline `data_table` in the agent answer |
+| Table             | Optional inline `data_table`, selected by the final answer |
+
+Slack final answers default to a summary without supporting tables. To include a useful executed table, the model emits `<slack-table queryUuid="<execution UUID>" />`. Only successful table executions from the current prompt are eligible; the server removes these markers from visible and stored answer text. Unselected semantic table artifacts are omitted from the answer cards when inline data sharing is allowed.

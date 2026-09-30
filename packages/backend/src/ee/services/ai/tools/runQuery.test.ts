@@ -1842,6 +1842,124 @@ describe('getRunQuery query UUID visibility', () => {
         );
     });
 
+    it.each(['table', null] as const)(
+        'exposes a successful Slack %s execution for final table selection',
+        async (type) => {
+            const output = await executeTool(
+                runAsyncQuery,
+                true,
+                makeSlackPrompt(),
+                false,
+                false,
+                undefined,
+                {
+                    ...toolInput,
+                    chartConfig:
+                        type === null
+                            ? null
+                            : {
+                                  ...toolInput.chartConfig,
+                                  defaultVizType: type,
+                              },
+                },
+            );
+            expect(output.result).toContain(
+                "This execution's queryUuid is 11111111-1111-4111-8111-111111111111",
+            );
+        },
+    );
+
+    it.each([
+        {
+            slack: false,
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            type: 'table',
+        },
+        {
+            slack: true,
+            enableDataAccess: true,
+            slackLinksOnly: true,
+            type: 'table',
+        },
+        {
+            slack: true,
+            enableDataAccess: false,
+            slackLinksOnly: false,
+            type: 'table',
+        },
+        {
+            slack: true,
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            type: 'bar',
+        },
+    ] as const)(
+        'does not expose selection references for an ineligible execution: %j',
+        async ({ slack, enableDataAccess, slackLinksOnly, type }) => {
+            const output = await executeTool(
+                runAsyncQuery,
+                enableDataAccess,
+                slack ? makeSlackPrompt() : makePrompt(),
+                false,
+                slackLinksOnly,
+                undefined,
+                {
+                    ...toolInput,
+                    chartConfig: {
+                        ...toolInput.chartConfig,
+                        defaultVizType: type,
+                    },
+                },
+            );
+            expect(output.result).not.toContain(
+                '11111111-1111-4111-8111-111111111111',
+            );
+        },
+    );
+
+    it('exposes the UUID when the saved Slack presentation corrects a chart to a table', async () => {
+        const decisions = new AiDecisionClient({
+            apiKey: null,
+            model: 'test',
+            timeoutMs: 100,
+        });
+        vi.spyOn(decisions, 'evaluate').mockImplementation(
+            async ({ operation }) =>
+                operation === 'chart-presentation'
+                    ? {
+                          fit: { type: 'score', score: 0, confidence: 1 },
+                          repair: { type: 'noul', noul: 1 },
+                          explicitStyle: { type: 'noul', noul: 0 },
+                          type: {
+                              type: 'choice',
+                              choice: 'table',
+                              confidence: 1,
+                              probabilities: { table: 1 },
+                          },
+                          x: {
+                              type: 'choice',
+                              choice: 'none',
+                              confidence: 1,
+                              probabilities: { none: 1 },
+                          },
+                      }
+                    : null,
+        );
+        const output = await executeTool(
+            runAsyncQuery,
+            true,
+            makeSlackPrompt(),
+            false,
+            false,
+            decisions,
+        );
+        expect(output.result).toContain('Chart presentation selected');
+        expect(output.result).toContain(
+            "This execution's queryUuid is 11111111-1111-4111-8111-111111111111",
+        );
+    });
+
     it('states the query UUID in the model result when charts must cite it', async () => {
         const output = await executeTool(
             runAsyncQuery,
@@ -2200,6 +2318,46 @@ describe('getRunQuery Slack links only', () => {
                 queryUuid: 'query-uuid',
             });
             expect(sendFile).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['table', null] as const)(
+        'exposes a successful merged Slack %s execution for final table selection',
+        async (type) => {
+            const { output } = await executeLinksOnly({
+                enableDataAccess: true,
+                slackLinksOnly: false,
+                merge: true,
+                input: {
+                    ...mergeInput,
+                    chartConfig:
+                        type === null
+                            ? null
+                            : {
+                                  ...mergeInput.chartConfig,
+                                  defaultVizType: type,
+                              },
+                },
+            });
+            expect(output.result).toContain(
+                "This execution's queryUuid is query-uuid",
+            );
+        },
+    );
+
+    it.each([
+        { enableDataAccess: true, slackLinksOnly: true },
+        { enableDataAccess: false, slackLinksOnly: false },
+    ])(
+        'keeps merged selection references hidden when Slack sharing is disabled: %j',
+        async ({ enableDataAccess, slackLinksOnly }) => {
+            const { output } = await executeLinksOnly({
+                enableDataAccess,
+                slackLinksOnly,
+                merge: true,
+                input: { ...mergeInput, chartConfig: null },
+            });
+            expect(output.result).not.toContain("This execution's queryUuid");
         },
     );
 

@@ -3,7 +3,10 @@ import {
     getSlackTableBlocks,
     type SlackTableQueryResults,
 } from './slackTableBlocks';
-import { getSlackTablePreviews } from './slackTablePreviews';
+import {
+    getSlackTablePreviews,
+    isSlackTableArtifact,
+} from './slackTablePreviews';
 
 const call = (id: string, defaultVizType: string | null = 'table') => ({
     tool_call_id: id,
@@ -42,6 +45,7 @@ const setup = () => {
     return {
         enableDataAccess: true,
         slackLinksOnly: false,
+        selectedQueryUuids: ['query-first', 'query-chart', 'query-second'],
         toolCalls: [call('first'), call('chart', 'bar'), call('second')],
         toolResults: [result('first'), result('chart'), result('second')],
         artifacts: [],
@@ -110,6 +114,64 @@ const artifact = (
 };
 
 describe('getSlackTablePreviews', () => {
+    it('omits all table results when the final answer selects none', async () => {
+        const input = { ...setup(), selectedQueryUuids: [] };
+        expect(await getSlackTablePreviews(input)).toEqual([]);
+        expect(input.getResults).not.toHaveBeenCalled();
+    });
+
+    it('loads only selected tables in final answer order', async () => {
+        const input = {
+            ...setup(),
+            selectedQueryUuids: ['query-second', 'query-first', 'query-second'],
+        };
+        const previews = await getSlackTablePreviews(input);
+        expect(previews.map((preview) => preview.title)).toEqual([
+            'Results second',
+            'Results first',
+        ]);
+        expect(
+            input.getResults.mock.calls.map(([args]) => args.queryUuid),
+        ).toEqual(['query-second', 'query-first']);
+    });
+
+    it('ignores unknown, previous-turn, failed and non-table selections', async () => {
+        const input = {
+            ...setup(),
+            toolCalls: [call('first'), call('chart', 'bar'), call('failed')],
+            toolResults: [
+                result('first'),
+                result('chart'),
+                result('failed', 'error'),
+            ],
+            selectedQueryUuids: [
+                'unknown',
+                'query-previous',
+                'query-failed',
+                'query-chart',
+            ],
+        };
+        expect(await getSlackTablePreviews(input)).toEqual([]);
+        expect(input.getResults).not.toHaveBeenCalled();
+    });
+
+    it('bounds selected table reads to ten executions', async () => {
+        const ids = Array.from({ length: 12 }, (_, index) => String(index));
+        const input = {
+            ...setup(),
+            toolCalls: ids.map((id) => call(id)),
+            toolResults: ids.map((id) => result(id)),
+            selectedQueryUuids: ids.map((id) => `query-${id}`),
+        };
+        expect(await getSlackTablePreviews(input)).toHaveLength(10);
+        expect(input.getResults).toHaveBeenCalledTimes(10);
+    });
+
+    it('identifies table artifact versions so omitted tables cannot resurface as cards', () => {
+        expect(isSlackTableArtifact(artifact('table', 'table'))).toBe(true);
+        expect(isSlackTableArtifact(artifact('chart', 'bar'))).toBe(false);
+    });
+
     it('embeds a proposed chart that was corrected to a saved table', async () => {
         const input = setup();
         const previews = await getSlackTablePreviews({

@@ -507,7 +507,14 @@ import {
     getSlackTableBlocks,
     type SlackTableQueryResults,
 } from '../ai/utils/slackTableBlocks';
-import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
+import {
+    getSlackTablePreviews,
+    isSlackTableArtifact,
+} from '../ai/utils/slackTablePreviews';
+import {
+    parseSlackTableSelection,
+    stripSlackTableSelection,
+} from '../ai/utils/slackTableSelection';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
@@ -14361,13 +14368,28 @@ Use your existing tools to inspect them when relevant to the user's question (re
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => {
-                const updatePromise = this.persistTrackedPromptUpdate(update, {
-                    organizationUuid: agentSettings.organizationUuid,
-                    projectUuid: prompt.projectUuid,
-                    agentUuid: agentSettings.uuid,
-                    threadUuid: prompt.threadUuid,
-                    userUuid: user.userUuid,
-                });
+                // Generation saves step and terminal responses before Slack
+                // delivery. Keep presentation markers out of stored history and
+                // classifiers while returning the original text for selection.
+                const visibleUpdate =
+                    isSlackPrompt(prompt) && update.response !== undefined
+                        ? {
+                              ...update,
+                              response: stripSlackTableSelection(
+                                  update.response,
+                              ),
+                          }
+                        : update;
+                const updatePromise = this.persistTrackedPromptUpdate(
+                    visibleUpdate,
+                    {
+                        organizationUuid: agentSettings.organizationUuid,
+                        projectUuid: prompt.projectUuid,
+                        agentUuid: agentSettings.uuid,
+                        threadUuid: prompt.threadUuid,
+                        userUuid: user.userUuid,
+                    },
+                );
                 if (!updatePromise) {
                     return Promise.resolve();
                 }
@@ -15086,6 +15108,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
+            selectedQueryUuids: parseSlackTableSelection(response),
             toolCalls,
             toolResults,
             artifacts: artifactVersions,
@@ -15132,15 +15155,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }),
         });
         const tableBlocks = getSlackTableBlocks(tablePreviews);
-        const inlineTableVersions = new Set(
-            tablePreviews.flatMap((preview) =>
-                preview.artifactVersionUuid
-                    ? [preview.artifactVersionUuid]
-                    : [],
-            ),
-        );
+        // Selecting no table must also omit its artifact card. Links-only and
+        // data-access-disabled agents keep their existing link presentation.
+        const canShowInlineTables =
+            agent?.enableDataAccess === true &&
+            slackSettings?.aiLinksOnly !== true;
         const cardArtifacts = artifactVersions.filter(
-            (artifact) => !inlineTableVersions.has(artifact.versionUuid),
+            (artifact) =>
+                !canShowInlineTables || !isSlackTableArtifact(artifact),
         );
 
         const exploreBlocks = await getModernArtifactCardBlocks(
@@ -16121,7 +16143,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 runtimeTableResults,
             });
             const blocksFinishedAt = Date.now();
-            const slackResponse = stripMemoryCitations(response);
+            const visibleResponse = stripSlackTableSelection(response);
+            const slackResponse = stripMemoryCitations(visibleResponse);
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
                 '\n',
@@ -16168,7 +16191,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
             await this.aiAgentModel.updateModelResponse({
                 promptUuid: slackPrompt.promptUuid,
-                response,
+                response: visibleResponse,
             });
 
             // The answer is already delivered. Only enqueue image work here;
