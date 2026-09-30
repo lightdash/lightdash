@@ -111,19 +111,29 @@ export const getSqlTileDefaults = (
 type TabToggleTile = {
     tileUuid: string;
     isFiltered: boolean;
+    isDefaultFiltered: boolean;
     defaultTarget: DashboardTileTarget | null;
 };
 
-/** Tab switch: turn every tile off if any is filtered, otherwise revert them all to default. */
+/**
+ * Tab checkbox: first turn on any off tile that has the field (back to default),
+ * otherwise turn every filtered tile off.
+ */
 export const getTabToggleChanges = (
     tiles: TabToggleTile[],
 ): Record<string, DashboardTileTarget | null> => {
-    const isAnyFiltered = tiles.some((tile) => tile.isFiltered);
+    const turnOn = tiles.filter(
+        (tile) => !tile.isFiltered && tile.isDefaultFiltered,
+    );
+    if (turnOn.length > 0) {
+        return Object.fromEntries(
+            turnOn.map((tile) => [tile.tileUuid, tile.defaultTarget]),
+        );
+    }
     return Object.fromEntries(
-        tiles.map((tile) => [
-            tile.tileUuid,
-            isAnyFiltered ? false : tile.defaultTarget,
-        ]),
+        tiles
+            .filter((tile) => tile.isFiltered)
+            .map((tile) => [tile.tileUuid, false as const]),
     );
 };
 

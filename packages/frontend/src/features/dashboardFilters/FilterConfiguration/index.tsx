@@ -404,8 +404,9 @@ const FilterConfiguration: FC<Props> = ({
     return (
         // Keep dropdowns in document flow so the panel grows and Apply stays
         // reachable — PROD-2395.
-        <Stack className={classes.inlineDropdowns}>
+        <Stack className={`${classes.inlineDropdowns} ${classes.configRoot}`}>
             <Tabs
+                className={classes.tabsRoot}
                 value={selectedTabId}
                 onChange={(tabId) => {
                     if (tabId) setSelectedTabId(tabId as FilterTabs);
@@ -451,6 +452,7 @@ const FilterConfiguration: FC<Props> = ({
                 <Tabs.Panel
                     value={FilterTabs.SETTINGS}
                     w="min(400px, calc(100vw - 56px))"
+                    className={classes.tabPanel}
                 >
                     <Stack gap="sm">
                         {isCreatingNew ? (
@@ -595,7 +597,8 @@ const FilterConfiguration: FC<Props> = ({
                 {draftFilterRule && selectedTabId === FilterTabs.TILES && (
                     <Tabs.Panel
                         value={FilterTabs.TILES}
-                        w="min(500px, calc(100vw - 56px))"
+                        w="min(640px, calc(100vw - 56px))"
+                        className={classes.tabPanel}
                         data-testid="DashboardFilterConfiguration/ChartTiles"
                     >
                         <TileFilterConfiguration

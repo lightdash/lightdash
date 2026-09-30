@@ -1,12 +1,24 @@
-.tileScrollArea {
-    max-height: min(50vh, calc(100vh - 200px));
-    overflow: auto;
+.configRoot {
+    flex: 1;
+    min-height: 0;
+}
+
+/* The popover caps its height to the viewport; only the panel scrolls so Apply stays visible */
+.tabsRoot {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tabPanel {
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .tileHeader,
 .tileRow {
     display: grid;
-    grid-template-columns: 32px minmax(0, 1fr) 190px 28px;
+    grid-template-columns: 24px minmax(0, 1fr) 220px 28px;
     column-gap: var(--mantine-spacing-xs);
     align-items: center;
 }
@@ -19,6 +31,10 @@
 .tileRow {
     padding-block: var(--mantine-spacing-xs);
     border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.tileRowNested {
+    padding-inline-start: 28px;
 }
 
 .overridePicker input {

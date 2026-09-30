@@ -519,13 +519,13 @@ describe('FilterConfiguration', () => {
 
         await user.click(screen.getByRole('tab', { name: 'Tiles' }));
 
-        const dataAppSwitch = screen.getByRole('switch', {
+        const dataAppCheckbox = screen.getByRole('checkbox', {
             name: 'Customer data app',
         });
-        expect(dataAppSwitch).toBeEnabled();
-        expect(dataAppSwitch).toBeChecked();
+        expect(dataAppCheckbox).toBeEnabled();
+        expect(dataAppCheckbox).toBeChecked();
 
-        await user.click(dataAppSwitch);
+        await user.click(dataAppCheckbox);
         fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
 
         await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
@@ -537,7 +537,7 @@ describe('FilterConfiguration', () => {
 
         await user.click(screen.getByRole('tab', { name: 'Tiles' }));
         await user.click(
-            screen.getByRole('switch', { name: 'Customer data app' }),
+            screen.getByRole('checkbox', { name: 'Customer data app' }),
         );
         fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
 
@@ -584,7 +584,7 @@ describe('FilterConfiguration', () => {
 
         await user.click(screen.getByRole('tab', { name: 'Tiles' }));
 
-        const tileSwitch = screen.getByRole('switch', {
+        const tileSwitch = screen.getByRole('checkbox', {
             name: 'Customers chart',
         });
         const revertButton = screen.getByRole('button', {
@@ -644,7 +644,7 @@ describe('FilterConfiguration', () => {
         );
 
         await user.click(screen.getByRole('tab', { name: 'Tiles' }));
-        const tileSwitch = screen.getByRole('switch', {
+        const tileSwitch = screen.getByRole('checkbox', {
             name: 'Customers chart',
         });
 

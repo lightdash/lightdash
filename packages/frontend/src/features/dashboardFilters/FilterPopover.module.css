@@ -1,0 +1,5 @@
+/* The size middleware caps max-height to the viewport; content scrolls inside FilterConfiguration */
+.dropdown {
+    display: flex;
+    flex-direction: column;
+}

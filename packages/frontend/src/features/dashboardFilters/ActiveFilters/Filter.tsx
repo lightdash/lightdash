@@ -27,6 +27,7 @@ import {
     IconLockOpen,
     IconX,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
 import {
     getConditionalRuleLabel,
@@ -40,6 +41,8 @@ import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashb
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FilterConfiguration from '../FilterConfiguration';
+import popoverClasses from '../FilterPopover.module.css';
+import { FILTER_POPOVER_MIDDLEWARES } from '../filterPopoverMiddlewares';
 import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
 import { useFilterChipRequirementState } from '../FilterRequirements/useFilterChipRequirementState';
 import classes from './Filter.module.css';
@@ -278,7 +281,10 @@ const Filter: FC<Props> = ({
                 withArrow
                 offset={1}
                 arrowOffset={14}
-                classNames={{ dropdown: dropdownClassName }}
+                middlewares={FILTER_POPOVER_MIDDLEWARES}
+                classNames={{
+                    dropdown: clsx(popoverClasses.dropdown, dropdownClassName),
+                }}
             >
                 <Popover.Target>
                     <Tooltip

@@ -2,6 +2,7 @@ import { FeatureFlags, type DashboardFilterRule } from '@lightdash/common';
 import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -9,6 +10,8 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import FilterConfiguration from './FilterConfiguration';
+import popoverClasses from './FilterPopover.module.css';
+import { FILTER_POPOVER_MIDDLEWARES } from './filterPopoverMiddlewares';
 
 type Props = {
     isEditMode: boolean;
@@ -168,7 +171,10 @@ const AddFilterButton: FC<Props> = ({
                 withArrow
                 offset={1}
                 arrowOffset={14}
-                classNames={{ dropdown: dropdownClassName }}
+                middlewares={FILTER_POPOVER_MIDDLEWARES}
+                classNames={{
+                    dropdown: clsx(popoverClasses.dropdown, dropdownClassName),
+                }}
             >
                 <Popover.Target>
                     <Tooltip

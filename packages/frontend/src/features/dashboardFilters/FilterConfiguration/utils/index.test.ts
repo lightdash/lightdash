@@ -601,21 +601,33 @@ describe('getSqlTileDefaults', () => {
 });
 
 describe('getTabToggleChanges', () => {
-    it('turns every tile off when any tile is filtered', () => {
+    const tile = (
+        tileUuid: string,
+        isFiltered: boolean,
+        isDefaultFiltered: boolean,
+    ) => ({ tileUuid, isFiltered, isDefaultFiltered, defaultTarget: null });
+
+    it('turns matching tiles back on before turning anything off', () => {
         expect(
             getTabToggleChanges([
-                { tileUuid: 'a', isFiltered: true, defaultTarget: null },
-                { tileUuid: 'b', isFiltered: false, defaultTarget: null },
+                tile('a', true, true),
+                tile('b', false, true),
+                tile('c', false, false),
+            ]),
+        ).toEqual({ b: null });
+    });
+
+    it('turns filtered tiles off once every matching tile is on', () => {
+        expect(
+            getTabToggleChanges([
+                tile('a', true, true),
+                tile('b', true, false),
+                tile('c', false, false),
             ]),
         ).toEqual({ a: false, b: false });
     });
 
-    it('reverts every tile to its default when none is filtered', () => {
-        expect(
-            getTabToggleChanges([
-                { tileUuid: 'a', isFiltered: false, defaultTarget: null },
-                { tileUuid: 'b', isFiltered: false, defaultTarget: false },
-            ]),
-        ).toEqual({ a: null, b: false });
+    it('does nothing when no tile can be turned on or off', () => {
+        expect(getTabToggleChanges([tile('a', false, false)])).toEqual({});
     });
 });

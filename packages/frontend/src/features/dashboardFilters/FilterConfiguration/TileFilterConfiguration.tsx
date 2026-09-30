@@ -20,12 +20,12 @@ import {
     ActionIcon,
     Box,
     Button,
+    Checkbox,
     Collapse,
     Group,
     Menu,
     Select,
     Stack,
-    Switch,
     Text,
     Tooltip,
     type PopoverProps,
@@ -524,7 +524,7 @@ const TileFilterConfiguration: FC<Props> = ({
         );
     };
 
-    const renderRows = (tileList: TileTarget[]) => {
+    const renderRows = (tileList: TileTarget[], isNested: boolean) => {
         if (tileList.length === 0) {
             return (
                 <Text size="xs" c="dimmed">
@@ -535,10 +535,14 @@ const TileFilterConfiguration: FC<Props> = ({
         return tileList.map((value) => (
             <Box
                 key={value.key}
-                className={classes.tileRow}
+                className={
+                    isNested
+                        ? `${classes.tileRow} ${classes.tileRowNested}`
+                        : classes.tileRow
+                }
                 data-testid="tile-filter-item"
             >
-                <Switch
+                <Checkbox
                     size="xs"
                     aria-label={value.label}
                     checked={value.isFiltered}
@@ -605,7 +609,8 @@ const TileFilterConfiguration: FC<Props> = ({
     const renderTab = (tab: DashboardTab) => {
         const tileList = tabTiles(tab.uuid);
         const isCollapsed = collapsedTabs[tab.uuid] ?? true;
-        const isAnyFiltered = tileList.some((v) => v.isFiltered);
+        const filteredCount = tileList.filter((v) => v.isFiltered).length;
+        const tabChanges = getTabToggleChanges(tileList);
         return (
             <Box key={tab.uuid}>
                 <Group gap="xs" wrap="nowrap">
@@ -629,14 +634,18 @@ const TileFilterConfiguration: FC<Props> = ({
                             }
                         />
                     </ActionIcon>
-                    <Switch
+                    <Checkbox
                         size="xs"
                         aria-label={tab.name}
-                        checked={isAnyFiltered}
-                        disabled={tileList.length === 0}
-                        onChange={() =>
-                            onBulkChange(getTabToggleChanges(tileList))
+                        checked={
+                            tileList.length > 0 &&
+                            filteredCount === tileList.length
                         }
+                        indeterminate={
+                            filteredCount > 0 && filteredCount < tileList.length
+                        }
+                        disabled={Object.keys(tabChanges).length === 0}
+                        onChange={() => onBulkChange(tabChanges)}
                     />
                     <Text fz="sm" fw={500}>
                         {tab.name}
@@ -647,7 +656,7 @@ const TileFilterConfiguration: FC<Props> = ({
                 </Group>
                 <Collapse expanded={!isCollapsed}>
                     <Stack gap={0} mt="xs">
-                        {renderRows(tileList)}
+                        {renderRows(tileList, true)}
                     </Stack>
                 </Collapse>
             </Box>
@@ -672,7 +681,7 @@ const TileFilterConfiguration: FC<Props> = ({
     );
 
     return (
-        <Stack gap="sm" className={classes.tileScrollArea}>
+        <Stack gap="sm">
             <Group justify="space-between" wrap="nowrap">
                 <Text fz="xs" c="dimmed">
                     {formatFilteredCount(tileTargetList)}
@@ -777,7 +786,7 @@ const TileFilterConfiguration: FC<Props> = ({
             {tabs.length > 1 ? (
                 <Stack gap="sm">{tabs.map(renderTab)}</Stack>
             ) : (
-                <Stack gap={0}>{renderRows(tileTargetList)}</Stack>
+                <Stack gap={0}>{renderRows(tileTargetList, false)}</Stack>
             )}
         </Stack>
     );
