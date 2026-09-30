@@ -3,17 +3,9 @@ import { clsx } from 'clsx';
 import { type FC } from 'react';
 import classes from './PixelBlocks.module.css';
 
-const PATTERN = [
-    '......g',
-    '.....9.',
-    '......1',
-    '....95.',
-    '...g..3',
-    '..9.517',
-    '.51.9g5',
-];
+const PATTERN = ['......g', '.....9.', '....5.1', '...9g35'];
 
-const STRIPED = new Set(['2-6', '4-6', '5-5', '6-2']);
+const STRIPED = new Set(['2-6', '3-5']);
 
 const SHADE_CLASSES: Record<string, string> = {
     g: classes.shadeDim,

@@ -70,6 +70,12 @@
     animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+.brandScene {
+    position: relative;
+    margin-top: var(--mantine-spacing-3xl);
+    padding-inline: var(--mantine-spacing-md);
+}
+
 .headline {
     max-width: rem(520px);
     color: var(--mantine-color-white);

@@ -1,0 +1,274 @@
+@property --kpi {
+    syntax: '<integer>';
+    inherits: false;
+    initial-value: 842;
+}
+
+.scene {
+    position: relative;
+    width: 100%;
+    max-width: rem(480px);
+    height: rem(290px);
+}
+
+.card {
+    position: absolute;
+    border: 1px solid rgba(229, 231, 235, 0.16);
+    border-radius: var(--mantine-radius-sm);
+    background-color: #0b0a14;
+}
+
+.prompt {
+    composes: card;
+    top: 0;
+    left: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-color: rgba(94, 76, 255, 0.6);
+    border-radius: var(--mantine-radius-xl);
+    animation: enter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s both;
+}
+
+.promptText {
+    color: var(--mantine-color-white);
+    white-space: nowrap;
+    animation: type 1.2s steps(28, end) 0.8s both;
+}
+
+.caret {
+    width: 2px;
+    height: 1em;
+    margin-left: -6px;
+    background-color: #a499ff;
+    animation: blink 1s step-end infinite;
+}
+
+.codeCard {
+    composes: card;
+    top: rem(58px);
+    left: 0;
+    width: 56%;
+    overflow: hidden;
+    animation: enter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 1.8s both;
+}
+
+.windowBar {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-bottom: 1px solid rgba(229, 231, 235, 0.1);
+}
+
+.windowDot {
+    width: rem(8px);
+    height: rem(8px);
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.fileName {
+    margin-left: var(--mantine-spacing-xs);
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.code {
+    padding: var(--mantine-spacing-sm);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1.7;
+    white-space: pre;
+}
+
+.codeLine {
+    animation: reveal 0.35s steps(14, end) both;
+}
+
+.codeLine:nth-child(1) {
+    animation-delay: 2.1s;
+}
+
+.codeLine:nth-child(2) {
+    animation-delay: 2.35s;
+}
+
+.codeLine:nth-child(3) {
+    animation-delay: 2.6s;
+}
+
+.codeLine:nth-child(4) {
+    animation-delay: 2.85s;
+}
+
+.codeLine:nth-child(5) {
+    animation-delay: 3.1s;
+}
+
+.codeKey {
+    color: #a499ff;
+}
+
+.codeValue {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.chartCard {
+    composes: card;
+    top: rem(104px);
+    right: 0;
+    width: 62%;
+    padding: var(--mantine-spacing-md);
+    animation: enter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 3.3s both;
+}
+
+.chartLabel {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.kpi {
+    color: var(--mantine-color-white);
+    counter-reset: kpi var(--kpi);
+    animation: count 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) 3.5s both;
+}
+
+.kpi::after {
+    content: '$' counter(kpi) 'K';
+}
+
+.delta {
+    padding: 2px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-xl);
+    color: #d1ccff;
+    background-color: rgba(94, 76, 255, 0.24);
+    animation: enter 0.4s ease-out 4.7s both;
+}
+
+.chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: var(--mantine-spacing-md);
+    overflow: visible;
+    animation: wipe 1.2s cubic-bezier(0.4, 0, 0.2, 1) 3.5s both;
+}
+
+.bars {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: grow 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 3.5s both;
+}
+
+.bar {
+    fill: #5e4cff;
+}
+
+.bar:nth-last-child(-n + 3) {
+    fill: #a499ff;
+}
+
+.trend {
+    fill: none;
+    stroke: var(--mantine-color-white);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+    animation: draw 1.4s cubic-bezier(0.4, 0, 0.2, 1) 4s both;
+}
+
+.liveDot {
+    width: rem(6px);
+    height: rem(6px);
+    background-color: #a499ff;
+    animation: blink 2s step-end 4.8s infinite;
+}
+
+@keyframes enter {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes type {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes reveal {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes wipe {
+    from {
+        clip-path: inset(-10% 100% -10% 0);
+    }
+    to {
+        clip-path: inset(-10% -2% -10% 0);
+    }
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+@keyframes count {
+    from {
+        --kpi: 0;
+    }
+    to {
+        --kpi: 842;
+    }
+}
+
+@keyframes grow {
+    from {
+        transform: scaleY(0.2);
+    }
+    to {
+        transform: scaleY(1);
+    }
+}
+
+@keyframes draw {
+    from {
+        stroke-dashoffset: 1;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@media (max-height: 860px) {
+    .scene {
+        zoom: 0.8;
+    }
+}
+
+@media (max-height: 740px) {
+    .scene {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scene,
+    .scene * {
+        animation: none !important;
+    }
+
+    .caret {
+        display: none;
+    }
+}

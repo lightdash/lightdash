@@ -4,6 +4,7 @@ import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import classes from './AuthLayout.module.css';
+import BrandShowcase from './BrandShowcase';
 import LightdashWordmark from './LightdashWordmark';
 import PixelBlocks from './PixelBlocks';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
@@ -90,6 +91,10 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                             minutes.
                         </Text>
                     </Stack>
+
+                    <Box className={classes.brandScene}>
+                        <BrandShowcase />
+                    </Box>
 
                     <PixelBlocks />
                 </Box>
