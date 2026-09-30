@@ -33,6 +33,11 @@ import type { Knex } from 'knex';
 import { isEqual } from 'lodash';
 import pLimit from 'p-limit';
 import { validate as isUuid } from 'uuid';
+import type {
+    DocumentCellCounts,
+    DocumentChangeSource,
+    LightdashAnalytics,
+} from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { AppModel } from '../../models/AppModel';
 import type {
@@ -49,8 +54,18 @@ import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
+/** Who made a Document change, for analytics. */
+export type DocumentChangeContext = {
+    source: DocumentChangeSource;
+    aiPromptUuid?: string;
+    aiThreadUuid?: string;
+};
+
+const API_CHANGE: DocumentChangeContext = { source: 'api' };
+
 type DocumentServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     appModel: Pick<
         AppModel,
         | 'findAppsBySlugs'
@@ -125,7 +140,8 @@ export class DocumentService extends BaseService {
             projectUuid,
             documentUuid,
         );
-        if (this.dependencies.lightdashConfig.softDelete.enabled) {
+        const { softDelete } = this.dependencies.lightdashConfig;
+        if (softDelete.enabled) {
             await this.dependencies.documentModel.softDelete(
                 projectUuid,
                 documentUuid,
@@ -142,6 +158,16 @@ export class DocumentService extends BaseService {
                 },
             );
         }
+        this.dependencies.analytics.track({
+            event: 'document.deleted',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: document.projectUuid,
+                documentId: documentUuid,
+                softDelete: softDelete.enabled,
+            },
+        });
     }
 
     async softDelete(
@@ -193,6 +219,15 @@ export class DocumentService extends BaseService {
             projectUuid,
             documentUuid,
         );
+        this.dependencies.analytics.track({
+            event: 'document.restored',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: document.projectUuid,
+                documentId: documentUuid,
+            },
+        });
     }
 
     async permanentDelete(
@@ -232,6 +267,7 @@ export class DocumentService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         input: CreateDocumentRequest,
+        change: DocumentChangeContext = API_CHANGE,
     ): Promise<Document> {
         const project = await this.assertProjectAccess(account, projectUuid);
         const context =
@@ -272,6 +308,19 @@ export class DocumentService extends BaseService {
             projectUuid,
             createdByUserUuid: account.user.userUuid,
         });
+        this.dependencies.analytics.track({
+            event: 'document.created',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: created.organizationUuid,
+                projectId: created.projectUuid,
+                documentId: created.documentUuid,
+                source: change.source,
+                schemaVersion: created.version.schemaVersion,
+                ...DocumentService.getCellCounts(created.version.content),
+                ...DocumentService.getAiProperties(change),
+            },
+        });
         return this.authorizeDocument(account, created);
     }
 
@@ -286,13 +335,18 @@ export class DocumentService extends BaseService {
             projectUuid,
             documentUuidOrSlug,
         );
-        return this.create(account, projectUuid, {
-            name: input.name,
-            description: input.description ?? source.description,
-            spaceUuid: input.spaceUuid,
-            schemaVersion: source.version.schemaVersion,
-            content: source.version.content,
-        });
+        return this.create(
+            account,
+            projectUuid,
+            {
+                name: input.name,
+                description: input.description ?? source.description,
+                spaceUuid: input.spaceUuid,
+                schemaVersion: source.version.schemaVersion,
+                content: source.version.content,
+            },
+            { source: 'duplicate' },
+        );
     }
 
     async updateMetadata(
@@ -300,7 +354,13 @@ export class DocumentService extends BaseService {
         projectUuid: string,
         documentUuid: string,
         input: UpdateDocumentMetadataRequest,
-        { allowedSpaceUuids }: { allowedSpaceUuids?: string[] } = {},
+        {
+            allowedSpaceUuids,
+            change = API_CHANGE,
+        }: {
+            allowedSpaceUuids?: string[];
+            change?: DocumentChangeContext;
+        } = {},
     ): Promise<Document> {
         const document = await this.get(account, projectUuid, documentUuid);
         DocumentService.assertSpaceScope(document, allowedSpaceUuids);
@@ -316,6 +376,18 @@ export class DocumentService extends BaseService {
             documentUuid,
             { ...input, expectedSpaceUuid: document.spaceUuid },
         );
+        this.dependencies.analytics.track({
+            event: 'document.updated',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: updated.organizationUuid,
+                projectId: updated.projectUuid,
+                documentId: updated.documentUuid,
+                source: change.source,
+                change: 'metadata',
+                ...DocumentService.getAiProperties(change),
+            },
+        });
         return this.authorizeDocument(account, updated);
     }
 
@@ -324,7 +396,13 @@ export class DocumentService extends BaseService {
         projectUuid: string,
         documentUuid: string,
         input: DocumentContentUpdate,
-        { allowedSpaceUuids }: { allowedSpaceUuids?: string[] } = {},
+        {
+            allowedSpaceUuids,
+            change = API_CHANGE,
+        }: {
+            allowedSpaceUuids?: string[];
+            change?: DocumentChangeContext;
+        } = {},
     ): Promise<Document> {
         const document = await this.get(account, projectUuid, documentUuid);
         DocumentService.assertSpaceScope(document, allowedSpaceUuids);
@@ -352,7 +430,49 @@ export class DocumentService extends BaseService {
             { ...input, content, expectedSpaceUuid: document.spaceUuid },
             account.user.userUuid,
         );
+        this.dependencies.analytics.track({
+            event: 'document.updated',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: updated.organizationUuid,
+                projectId: updated.projectUuid,
+                documentId: updated.documentUuid,
+                source: change.source,
+                change: 'content',
+                versionNumber: updated.version.versionNumber,
+                ...DocumentService.getCellCounts(updated.version.content),
+                ...DocumentService.getAiProperties(change),
+            },
+        });
         return this.authorizeDocument(account, updated);
+    }
+
+    private static getCellCounts(content: DocumentContent): DocumentCellCounts {
+        const charts = content.cells.flatMap((cell) =>
+            cell.type === 'chart' ? [cell.content] : [],
+        );
+        return {
+            cellCount: content.cells.length,
+            markdownCellCount: content.cells.length - charts.length,
+            chartCellCount: charts.length,
+            customChartCellCount: charts.filter(
+                ({ chart }) =>
+                    chart.chartConfig.type === ChartType.DATA_APP_VIZ,
+            ).length,
+            mergeChartCellCount: charts.filter(
+                ({ source }) => source === 'merge',
+            ).length,
+        };
+    }
+
+    private static getAiProperties({
+        aiPromptUuid,
+        aiThreadUuid,
+    }: DocumentChangeContext) {
+        return {
+            ...(aiPromptUuid ? { aiPromptId: aiPromptUuid } : {}),
+            ...(aiThreadUuid ? { aiThreadId: aiThreadUuid } : {}),
+        };
     }
 
     private static assertSpaceScope(

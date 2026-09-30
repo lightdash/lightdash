@@ -194,7 +194,9 @@ const setup = () => {
         }),
         compileMergeQuery: vi.fn().mockResolvedValue({ errors: [] }),
     };
+    const analytics = { track: vi.fn() };
     const service = new DocumentService({
+        analytics,
         documentModel,
         projectModel,
         featureFlagModel,
@@ -203,6 +205,7 @@ const setup = () => {
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     return {
         service,
+        analytics,
         documentModel,
         featureFlagModel,
         spacePermissionService,
@@ -253,6 +256,99 @@ const mutate = (
             return assertUnreachable(mutation, 'Unknown Document mutation');
     }
 };
+
+describe('DocumentService mutation analytics', () => {
+    test.each([
+        ['create', 'document.created', 'api'],
+        ['duplicate', 'document.created', 'duplicate'],
+        ['metadata', 'document.updated', 'api'],
+        ['content', 'document.updated', 'api'],
+    ] as const)(
+        '%s sends one %s event with source %s',
+        async (mutation, event, source) => {
+            const { service, analytics } = setup();
+            await mutate(service, mutation);
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    event,
+                    userId: userUuid,
+                    properties: expect.objectContaining({
+                        organizationId: document.organizationUuid,
+                        projectId: projectUuid,
+                        documentId: document.documentUuid,
+                        source,
+                    }),
+                }),
+            );
+        },
+    );
+
+    test('counts cells by kind and never sends names or content', async () => {
+        const { service, analytics, documentModel } = setup();
+        documentModel.create.mockResolvedValueOnce({
+            ...document,
+            version: {
+                ...document.version,
+                content: { cells: [markdown, semantic, merge] },
+            },
+        });
+        await service.create(makeAccount(), projectUuid, createInput);
+        const [{ properties }] = analytics.track.mock.calls[0];
+        expect(properties).toEqual({
+            organizationId: document.organizationUuid,
+            projectId: projectUuid,
+            documentId: document.documentUuid,
+            source: 'api',
+            schemaVersion: 1,
+            cellCount: 3,
+            markdownCellCount: 1,
+            chartCellCount: 2,
+            customChartCellCount: 0,
+            mergeChartCellCount: 1,
+        });
+    });
+
+    test('records the AI prompt and thread for agent and MCP changes', async () => {
+        const { service, analytics } = setup();
+        await service.updateContent(
+            makeAccount(),
+            projectUuid,
+            documentUuid,
+            { baseVersionUuid, content: { cells: [markdown] } },
+            {
+                change: {
+                    source: 'mcp',
+                    aiPromptUuid: 'prompt-uuid',
+                    aiThreadUuid: 'thread-uuid',
+                },
+            },
+        );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'document.updated',
+                properties: expect.objectContaining({
+                    source: 'mcp',
+                    change: 'content',
+                    versionNumber: document.version.versionNumber,
+                    aiPromptId: 'prompt-uuid',
+                    aiThreadId: 'thread-uuid',
+                }),
+            }),
+        );
+    });
+
+    test('does not track a mutation that fails', async () => {
+        const { service, analytics } = setup();
+        await expect(
+            mutate(
+                service,
+                'create',
+                makeAccount(OrganizationMemberRole.VIEWER),
+            ),
+        ).rejects.toThrow();
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+});
 
 describe('DocumentService mutations', () => {
     test.each([semantic, merge])(
