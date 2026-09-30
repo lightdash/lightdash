@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const TOOL_UPDATE_USER_NAME_DESCRIPTION =
     "Update the first and last name of the user you are currently talking to. Use this when the user tells you their name — either because you asked (their name has not been collected yet) or because they want to correct how their name is stored. Only save a name the user explicitly provided for themselves; never invent or infer one, and never use it to change another user's name.";
@@ -20,9 +21,25 @@ const toolUpdateUserNameMetadataSchema = z.discriminatedUnion('status', [
     }),
 ]);
 
+export const toolUpdateUserNameStructuredContentSchema = z.object({
+    fullName: z
+        .string()
+        .describe('The saved name as "<firstName> <lastName>", trimmed.'),
+});
+
+export type ToolUpdateUserNameStructuredContent = z.infer<
+    typeof toolUpdateUserNameStructuredContentSchema
+>;
+
+// Same envelope as structuredToolOutputSchema, which cannot take this
+// tool's discriminated-union metadata.
 export const toolUpdateUserNameOutputSchema = z.object({
     result: z.string(),
     metadata: toolUpdateUserNameMetadataSchema,
+    structuredContent: z.union([
+        toolUpdateUserNameStructuredContentSchema,
+        toolErrorStructuredContentSchema,
+    ]),
 });
 
 export type ToolUpdateUserNameOutput = z.infer<
