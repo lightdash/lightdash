@@ -14,6 +14,7 @@ export type LauncherPendingContext = {
     chartUuid?: string;
     dashboardUuid?: string;
     dataAppUuid?: string;
+    documentUuid?: string;
 };
 
 export type LauncherCurrentDashboard = {
@@ -26,6 +27,12 @@ export type LauncherCurrentDashboard = {
 
 // The data app page the user is on; no runtime overrides are captured.
 export type LauncherCurrentDataApp = {
+    projectUuid: string;
+    uuid: string;
+};
+
+// The Document page the user is on.
+export type LauncherCurrentDocument = {
     projectUuid: string;
     uuid: string;
 };
@@ -45,6 +52,7 @@ export interface AiAgentLauncherState {
     pendingContext: LauncherPendingContext | null;
     currentDashboard: LauncherCurrentDashboard | null;
     currentDataApp: LauncherCurrentDataApp | null;
+    currentDocument: LauncherCurrentDocument | null;
     dashboardRefreshRequest: DashboardRefreshRequest | null;
 }
 
@@ -55,6 +63,7 @@ const initialState: AiAgentLauncherState = {
     pendingContext: null,
     currentDashboard: null,
     currentDataApp: null,
+    currentDocument: null,
     dashboardRefreshRequest: null,
 };
 
@@ -126,6 +135,12 @@ export const aiAgentLauncherSlice = createSlice({
         ) => {
             state.currentDataApp = action.payload;
         },
+        setCurrentDocument: (
+            state,
+            action: PayloadAction<LauncherCurrentDocument | null>,
+        ) => {
+            state.currentDocument = action.payload;
+        },
         requestDashboardRefresh: (
             state,
             action: PayloadAction<{
@@ -151,5 +166,6 @@ export const {
     dockItemRemoved,
     setCurrentDashboard,
     setCurrentDataApp,
+    setCurrentDocument,
     requestDashboardRefresh,
 } = aiAgentLauncherSlice.actions;

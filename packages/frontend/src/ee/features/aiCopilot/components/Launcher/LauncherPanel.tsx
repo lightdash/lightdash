@@ -46,6 +46,7 @@ import {
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
+import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnAgentSave';
 import { openPanel } from '../../store/aiAgentLauncherSlice';
 import {
     selectThreadSqlMode,
@@ -142,6 +143,7 @@ const NewThreadPanel: FC<{
     const chartUuid = pendingContext?.chartUuid;
     const dashboardUuid = pendingContext?.dashboardUuid;
     const dataAppUuid = pendingContext?.dataAppUuid;
+    const documentUuid = pendingContext?.documentUuid;
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
@@ -158,6 +160,7 @@ const NewThreadPanel: FC<{
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
         dataAppUuidOrSlug: dataAppUuid,
+        documentUuid,
     });
     const { curateContext } = useDashboardPageContextCuration({
         previousContext: contextInput,
@@ -193,8 +196,11 @@ const NewThreadPanel: FC<{
     }, [concreteAgent?.uuid]);
     const [composerSeed, setComposerSeed] = useState<string | null>(null);
     const dispatchToStore = useAiAgentStoreDispatch();
+    const refreshDocumentOnAgentSave =
+        useRefreshDocumentOnAgentSave(projectUuid);
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
+            refreshDocumentOnAgentSave(toolResult);
             const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
                 projectUuid,
                 toolResult,
@@ -203,7 +209,7 @@ const NewThreadPanel: FC<{
 
             void navigate(dashboardUrl, { viewTransition: true });
         },
-        [navigate, projectUuid],
+        [navigate, projectUuid, refreshDocumentOnAgentSave],
     );
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
@@ -482,8 +488,11 @@ const ExistingThreadPanel: FC<{
         refetch,
     );
 
+    const refreshDocumentOnAgentSave =
+        useRefreshDocumentOnAgentSave(projectUuid);
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
+            refreshDocumentOnAgentSave(toolResult);
             const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
                 projectUuid,
                 toolResult,
@@ -492,7 +501,7 @@ const ExistingThreadPanel: FC<{
 
             void navigate(dashboardUrl, { viewTransition: true });
         },
-        [navigate, projectUuid],
+        [navigate, projectUuid, refreshDocumentOnAgentSave],
     );
 
     const {

@@ -62,11 +62,14 @@ type ChartEditorState =
 
 const DocumentEditor = ({
     document,
+    newerVersionSaved,
     onClose,
     initialScrollTop,
     onScrollTopChange,
 }: {
     document: Document;
+    /** Someone, such as the AI agent, saved a newer version while this editor was open. */
+    newerVersionSaved: boolean;
     onClose: () => void;
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
@@ -350,6 +353,14 @@ const DocumentEditor = ({
                 }
             >
                 <Stack gap="lg">
+                    {newerVersionSaved && !saveError && (
+                        <Callout variant="warning">
+                            A newer version of this document was saved while you
+                            were editing. Saving will fail, so copy any text you
+                            want to keep, then cancel and reopen the editor to
+                            load the latest version.
+                        </Callout>
+                    )}
                     {saveError && (
                         <Callout variant="danger">
                             {saveError.error.statusCode === 409

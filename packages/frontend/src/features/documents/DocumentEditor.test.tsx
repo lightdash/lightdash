@@ -183,7 +183,7 @@ beforeAll(() => {
 });
 
 const clients: QueryClient[] = [];
-const renderEditor = (document = report) => {
+const renderEditor = (document = report, newerVersionSaved = false) => {
     const client = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -196,7 +196,11 @@ const renderEditor = (document = report) => {
         {
             path: '/',
             element: (
-                <DocumentEditor document={document} onClose={mocks.close} />
+                <DocumentEditor
+                    document={document}
+                    newerVersionSaved={newerVersionSaved}
+                    onClose={mocks.close}
+                />
             ),
         },
         { path: '/away', element: <div>Away</div> },
@@ -368,6 +372,21 @@ it('hides chart authoring without independent Explore permission', async () => {
     expect(
         screen.getByRole('button', { name: 'Remove chart Orders' }),
     ).toBeInTheDocument();
+});
+
+it('warns before saving when a newer version was saved elsewhere', async () => {
+    renderEditor(report, true);
+    expect(
+        await screen.findByText(/A newer version of this document was saved/),
+    ).toBeInTheDocument();
+});
+
+it('shows no newer-version warning while the draft is current', async () => {
+    renderEditor();
+    expect(await screen.findByText('Live chart: Orders')).toBeInTheDocument();
+    expect(
+        screen.queryByText(/A newer version of this document was saved/),
+    ).not.toBeInTheDocument();
 });
 
 it('keeps the draft on a stale save and explains the conflict', async () => {

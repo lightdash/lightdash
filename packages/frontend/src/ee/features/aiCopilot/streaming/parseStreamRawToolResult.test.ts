@@ -1,4 +1,7 @@
-import { parseStreamRawToolCall } from './parseStreamRawToolResult';
+import {
+    parseStreamRawToolCall,
+    parseStreamRawToolResult,
+} from './parseStreamRawToolResult';
 
 const expressionToolArgs = {
     title: 'Orders by status',
@@ -71,6 +74,46 @@ describe('parseStreamRawToolCall', () => {
                     ],
                 },
             },
+        });
+    });
+});
+
+describe('parseStreamRawToolResult', () => {
+    it('keeps a Document edit so the open Document can refresh', () => {
+        const parsed = parseStreamRawToolResult({
+            toolName: 'editContent',
+            toolArgs: {
+                type: 'document',
+                slug: 'q3-review',
+                documentEdit: { type: 'metadata', name: 'Q3 review' },
+            },
+            toolOutput: {
+                result: '<document href="/projects/p1/documents/doc-1" />',
+                metadata: {
+                    status: 'success',
+                    slug: 'q3-review',
+                    name: 'Q3 review',
+                    uuid: 'doc-1',
+                    href: '/projects/p1/documents/doc-1',
+                    versionUuids: { before: null, after: 'v2' },
+                    warnings: [],
+                },
+                structuredContent: {
+                    type: 'document',
+                    href: '/projects/p1/documents/doc-1',
+                    uuid: 'doc-1',
+                    versionUuid: 'v2',
+                    content: {},
+                    warnings: [],
+                },
+            },
+            isPreliminary: false,
+        });
+
+        expect(parsed).toMatchObject({
+            toolName: 'editContent',
+            toolArgs: { type: 'document' },
+            toolResult: { metadata: { status: 'success', uuid: 'doc-1' } },
         });
     });
 });

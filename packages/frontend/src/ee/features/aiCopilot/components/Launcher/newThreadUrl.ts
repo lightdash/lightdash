@@ -31,6 +31,9 @@ export const buildNewThreadUrl = ({
     if (pendingContext?.dataAppUuid) {
         params.set('dataAppUuid', pendingContext.dataAppUuid);
     }
+    if (pendingContext?.documentUuid) {
+        params.set('documentUuid', pendingContext.documentUuid);
+    }
     const isAuto = isLauncherAutoAgent(agent);
     if (isAuto) {
         params.set(AI_ROUTING_SEARCH_PARAM, AI_ROUTING_AUTO_VALUE);

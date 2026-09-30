@@ -5,7 +5,9 @@ import {
     isDashboardChartTileType,
     type AiPromptContextInput,
     type AiPromptContextItem,
+    type Document,
 } from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useGetApp } from '../../../../features/apps/hooks/useGetApp';
 import { useDashboardQuery } from '../../../../hooks/dashboard/useDashboard';
@@ -20,6 +22,7 @@ type Args = {
     chartUuidOrSlug?: string | null;
     dashboardUuidOrSlug?: string | null;
     dataAppUuidOrSlug?: string | null;
+    documentUuid?: string | null;
 };
 
 const sortPinnedContext = <
@@ -44,7 +47,17 @@ export const usePinnedContext = ({
     chartUuidOrSlug,
     dashboardUuidOrSlug,
     dataAppUuidOrSlug,
+    documentUuid,
 }: Args) => {
+    // Reuse the Document the page already loaded: fetching it again would
+    // count a view. The server resolves the name when the prompt is sent.
+    const queryClient = useQueryClient();
+    const cachedDocument = documentUuid
+        ? queryClient
+              .getQueriesData<Document>({ queryKey: ['document', projectUuid] })
+              .map(([, data]) => data)
+              .find((data) => data?.documentUuid === documentUuid)
+        : undefined;
     const { data: chart } = useSavedQuery({
         uuidOrSlug: chartUuidOrSlug ?? undefined,
         projectUuid,
@@ -86,8 +99,17 @@ export const usePinnedContext = ({
                 appSlug: dataApp.slug,
             });
         }
+        if (documentUuid) {
+            items.push({
+                type: 'document',
+                documentUuid,
+                documentSlug: cachedDocument?.slug ?? null,
+            });
+        }
         return sortPinnedContext(items);
     }, [
+        documentUuid,
+        cachedDocument?.slug,
         chart?.uuid,
         dashboard?.uuid,
         chart?.slug,
@@ -140,8 +162,20 @@ export const usePinnedContext = ({
                 isPersonal: dataApp.spaceUuid === null,
             });
         }
+        if (documentUuid) {
+            items.push({
+                type: 'document',
+                documentUuid,
+                documentSlug: cachedDocument?.slug ?? null,
+                displayName: cachedDocument?.name ?? null,
+                pinnedVersionUuid: null,
+            });
+        }
         return sortPinnedContext(items);
     }, [
+        documentUuid,
+        cachedDocument?.slug,
+        cachedDocument?.name,
         chart?.uuid,
         chart?.slug,
         chart?.name,

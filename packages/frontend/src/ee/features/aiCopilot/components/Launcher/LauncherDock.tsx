@@ -47,6 +47,9 @@ export const LauncherDock: FC<Props> = ({
     const currentDataApp = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDataApp,
     );
+    const currentDocument = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDocument,
+    );
 
     const agentsByUuid = useMemo(
         () => new Map(agents.map((a) => [a.uuid, a])),
@@ -92,7 +95,9 @@ export const LauncherDock: FC<Props> = ({
                 ? { dashboardUuid: currentDashboard.uuid }
                 : currentDataApp?.projectUuid === projectUuid
                   ? { dataAppUuid: currentDataApp.uuid }
-                  : null;
+                  : currentDocument?.projectUuid === projectUuid
+                    ? { documentUuid: currentDocument.uuid }
+                    : null;
         dispatch(
             openPanel({
                 threadId: null,
