@@ -1615,6 +1615,8 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
+                    appModel: this.models.getAppModel(),
+                    getDocumentService: () => this.getDocumentService(),
                     // Lazy accessor (not the instance) to promote embedded data
                     // apps during dashboard promotion. AppGenerateService depends
                     // on PromoteService, so resolving it eagerly here would cycle.

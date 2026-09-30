@@ -1,4 +1,6 @@
+import type { ApiSuccess } from './api/success';
 import { type DashboardDAO } from './dashboard';
+import type { Document } from './document';
 import { type SavedChartDAO } from './savedCharts';
 import { type SpaceSummaryBase } from './space';
 
@@ -37,6 +39,11 @@ export type PromotedApp = {
     name: string;
 };
 
+export type PromotedDocument = {
+    uuid: string;
+    name: string;
+};
+
 export type PromotionChanges = {
     spaces: {
         action: PromotionAction;
@@ -61,7 +68,13 @@ export type PromotionChanges = {
         action: PromotionAction;
         data: PromotedApp;
     }[];
+    documents?: {
+        action: PromotionAction;
+        data: PromotedDocument;
+    }[];
 };
+
+export type ApiPromoteDocumentResponse = ApiSuccess<Document>;
 
 export type ApiPromoteChartResponse = {
     status: 'ok';

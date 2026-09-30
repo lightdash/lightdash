@@ -1662,7 +1662,8 @@ export type DocumentChangeSource =
     | 'api'
     | 'ai_agent'
     | 'mcp'
-    | 'duplicate';
+    | 'duplicate'
+    | 'promotion';
 
 /** Cell counts of a Document version; never its content. */
 export type DocumentCellCounts = {
