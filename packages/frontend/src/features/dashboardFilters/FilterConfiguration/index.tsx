@@ -631,6 +631,7 @@ const FilterConfiguration: FC<Props> = ({
                                 filterType={filterType}
                                 field={selectedField}
                                 filterRule={draftFilterRule}
+                                boundaryContexts={boundaryContexts}
                                 originalFilterRule={originalFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
                                 onEditRequirementRules={onEditRequirementRules}

@@ -214,6 +214,138 @@ describe('dashboard boundaries on derived queries', () => {
         },
     );
 
+    it('keeps independent same-field boundaries on their own tiles for omitted and explicit selections', () => {
+        const configured: DashboardFilters = {
+            ...saved,
+            dimensions: [
+                {
+                    ...saved.dimensions[0],
+                    id: 'pending',
+                    values: ['Pending'],
+                    boundaries: { type: 'string', values: ['Pending'] },
+                    tileTargets: { active: false },
+                },
+                {
+                    ...saved.dimensions[0],
+                    id: 'active',
+                    values: ['Active'],
+                    boundaries: { type: 'string', values: ['Active'] },
+                    tileTargets: { pending: false },
+                },
+            ],
+        };
+        for (const dimensions of [
+            [],
+            configured.dimensions,
+            [
+                {
+                    ...configured.dimensions[0],
+                    id: 'stale-pending',
+                    boundaries: undefined,
+                },
+            ],
+        ]) {
+            for (const [tileUuid, value] of [
+                ['pending', 'Pending'],
+                ['active', 'Active'],
+            ]) {
+                const resolved = resolveDashboardFilterBoundaries({
+                    savedFilters: configured,
+                    filters: { ...configured, dimensions },
+                    tileUuid,
+                    explore: validExplore,
+                    context: {},
+                });
+                expect(resolved.dimensions.map((rule) => rule.id)).toEqual([
+                    'pending',
+                    'active',
+                ]);
+                const { metricQuery } = applyDashboardFiltersForTile({
+                    tileUuid,
+                    explore: validExplore,
+                    dashboardFilters: resolved,
+                    metricQuery: {
+                        exploreName: validExplore.name,
+                        dimensions: ['a_dim1'],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 100,
+                        tableCalculations: [],
+                    },
+                });
+                expect(
+                    getFilterRulesFromGroup(metricQuery.filters.dimensions),
+                ).toMatchObject([
+                    { operator: FilterOperator.EQUALS, values: [value] },
+                ]);
+                expect(() =>
+                    assertDashboardMetricFilterBoundaries({
+                        savedFilters: configured,
+                        filters: metricQuery.filters,
+                        tileUuid,
+                        explore: validExplore,
+                        context: {},
+                    }),
+                ).not.toThrow();
+            }
+        }
+    });
+
+    it.each(['and', 'or'] as const)(
+        'enforces the full boundary outside chart %s branches without inheriting nullable predicates',
+        (operator) => {
+            const resolved = resolveDashboardFilterBoundaries({
+                savedFilters: saved,
+                filters: { dimensions: [], metrics: [], tableCalculations: [] },
+                tileUuid: 'tile',
+                explore: validExplore,
+                context: {},
+            });
+            const chartRules = [
+                {
+                    ...selection,
+                    id: 'chart-status',
+                    values: ['Other'],
+                    includeNull: true,
+                },
+                {
+                    id: 'chart-category',
+                    operator: FilterOperator.EQUALS,
+                    target: { fieldId: 'b_dim1' },
+                    values: ['X'],
+                },
+            ];
+            const group =
+                operator === 'and'
+                    ? { id: 'chart-group', and: chartRules }
+                    : { id: 'chart-group', or: chartRules };
+            const { metricQuery } = applyDashboardFiltersForTile({
+                tileUuid: 'tile',
+                explore: validExplore,
+                dashboardFilters: resolved,
+                metricQuery: {
+                    exploreName: validExplore.name,
+                    dimensions: ['a_dim1'],
+                    metrics: [],
+                    filters: { dimensions: group },
+                    sorts: [],
+                    limit: 100,
+                    tableCalculations: [],
+                },
+            });
+            expect(() =>
+                assertDashboardMetricFilterBoundaries({
+                    savedFilters: saved,
+                    filters: metricQuery.filters,
+                    tileUuid: 'tile',
+                    explore: validExplore,
+                    context: {},
+                }),
+            ).not.toThrow();
+        },
+    );
+
     const validate = (filters: Filters) =>
         assertDashboardMetricFilterBoundaries({
             savedFilters: saved,

@@ -11,15 +11,24 @@ import { useDebounce } from 'react-use';
 interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     value: unknown;
     onChange: (value: number | null) => void;
+    onInvalidChange?: (value: string) => void;
 }
 
 /**
  * Parses a text input into a number or null.
  * Returns null for empty strings or invalid formats.
  */
-function parseNumberInput(text: string): number | null {
-    if (text === '') {
-        return null;
+function parseNumberInput(
+    text: string,
+    allowNumberSyntax: boolean,
+): number | null {
+    if (text === '') return null;
+    if (allowNumberSyntax) {
+        const number = Number(text);
+        return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text) &&
+            Number.isFinite(number)
+            ? number
+            : null;
     }
     if (/^-?\d+$/.test(text)) {
         return parseInt(text, 10);
@@ -45,6 +54,7 @@ const FilterNumberInput: FC<Props> = ({
     disabled,
     placeholder,
     onChange,
+    onInvalidChange,
     onBlur,
     ...rest
 }) => {
@@ -66,25 +76,23 @@ const FilterNumberInput: FC<Props> = ({
         }
     }, [value]);
 
-    // Parse input text and notify parent if value actually changed
+    const flushInput = useCallback(() => {
+        const parsedNumber = parseNumberInput(inputText, !!onInvalidChange);
+        if (onInvalidChange && inputText !== '' && parsedNumber === null) {
+            if (inputText !== value) onInvalidChange(inputText);
+        } else if (parsedNumber !== (value ?? null)) onChange(parsedNumber);
+    }, [inputText, onChange, onInvalidChange, value]);
+
     useDebounce(
         () => {
-            const parsedNumber = parseNumberInput(inputText);
-            const normalizedPropValue = value ?? null;
-
             const isIntermediateState =
                 inputText.endsWith('.') ||
                 inputText === '-' ||
                 inputText === '.';
-
-            // Only notify parent if the parsed value differs from current prop
-            // This prevents infinite loops from unnecessary onChange calls
-            if (!isIntermediateState && parsedNumber !== normalizedPropValue) {
-                onChange(parsedNumber);
-            }
+            if (!isIntermediateState) flushInput();
         },
         300,
-        [inputText, value, onChange],
+        [inputText, flushInput],
     );
 
     const handleInputChange = useCallback(
@@ -102,14 +110,14 @@ const FilterNumberInput: FC<Props> = ({
             disabled={disabled}
             placeholder={placeholder}
             {...rest}
-            type="number"
+            type={onInvalidChange ? 'text' : 'number'}
+            inputMode={onInvalidChange ? 'decimal' : undefined}
             value={inputText}
             onChange={handleInputChange}
             onBlur={(event) => {
                 // Apply blurs the input before validating. Flush the pending
                 // value now so it cannot validate the previous debounced value.
-                const parsedNumber = parseNumberInput(inputText);
-                if (parsedNumber !== (value ?? null)) onChange(parsedNumber);
+                flushInput();
                 onBlur?.(event);
             }}
         />

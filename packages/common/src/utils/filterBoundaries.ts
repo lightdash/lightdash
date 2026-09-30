@@ -460,25 +460,42 @@ export const getDashboardBoundaryErrors = (
     const now = new Date();
     (['dimensions', 'metrics', 'tableCalculations'] as const).forEach(
         (kind) => {
+            const savedRuleIds = new Set(saved[kind].map((rule) => rule.id));
+            const claimedOverrideIds = new Set<string>();
             saved[kind].forEach((savedRule) => {
-                if (
-                    !savedRule.boundaries ||
-                    savedRule.tileTargets?.[tileUuid] === false
-                )
-                    return;
+                if (!savedRule.boundaries) return;
                 const target =
                     savedRule.tileTargets?.[tileUuid] || savedRule.target;
-                if (!availableFieldIds.includes(target.fieldId)) return;
-                const candidates = effective[kind].filter(
-                    (candidate) =>
-                        candidate.id === savedRule.id ||
-                        (candidate.target.fieldId ===
-                            savedRule.target.fieldId &&
-                            candidate.target.tableName ===
-                                savedRule.target.tableName) ||
-                        (candidate.target.fieldId === target.fieldId &&
-                            candidate.target.tableName === target.tableName),
+                const exactMatches = effective[kind].filter(
+                    (candidate) => candidate.id === savedRule.id,
                 );
+                const fallback = exactMatches.length
+                    ? undefined
+                    : effective[kind].find(
+                          (candidate) =>
+                              !savedRuleIds.has(candidate.id) &&
+                              !claimedOverrideIds.has(candidate.id) &&
+                              ((candidate.target.fieldId ===
+                                  savedRule.target.fieldId &&
+                                  candidate.target.tableName ===
+                                      savedRule.target.tableName) ||
+                                  (candidate.target.fieldId ===
+                                      target.fieldId &&
+                                      candidate.target.tableName ===
+                                          target.tableName)),
+                      );
+                let candidates = exactMatches;
+                if (fallback) {
+                    candidates = effective[kind].filter(
+                        (candidate) => candidate.id === fallback.id,
+                    );
+                    claimedOverrideIds.add(fallback.id);
+                }
+                if (
+                    savedRule.tileTargets?.[tileUuid] === false ||
+                    !availableFieldIds.includes(target.fieldId)
+                )
+                    return;
                 const context = { now, ...getContext(target) };
                 getUiString = context.getUiString ?? getUiString;
                 const label =
@@ -575,18 +592,29 @@ export const restoreDashboardFilterBoundaries = (
         'tableCalculations',
     ] as const) {
         const rules = [...effective[kind]];
+        const savedRuleIds = new Set(saved[kind].map((rule) => rule.id));
+        const claimedOverrideIds = new Set<string>();
         saved[kind].forEach((savedRule) => {
             if (!savedRule.boundaries) return;
-            const index = rules.findIndex(
-                (candidate) =>
-                    candidate.id === savedRule.id ||
-                    (candidate.target.fieldId === savedRule.target.fieldId &&
-                        candidate.target.tableName ===
-                            savedRule.target.tableName),
+            const exactIndex = rules.findIndex(
+                (candidate) => candidate.id === savedRule.id,
             );
+            const index =
+                exactIndex >= 0
+                    ? exactIndex
+                    : rules.findIndex(
+                          (candidate) =>
+                              !savedRuleIds.has(candidate.id) &&
+                              !claimedOverrideIds.has(candidate.id) &&
+                              candidate.target.fieldId ===
+                                  savedRule.target.fieldId &&
+                              candidate.target.tableName ===
+                                  savedRule.target.tableName,
+                      );
             if (index < 0) {
                 rules.push({ ...savedRule, values: [], disabled: true });
             } else {
+                claimedOverrideIds.add(rules[index].id);
                 rules[index] = {
                     ...rules[index],
                     id: savedRule.id,

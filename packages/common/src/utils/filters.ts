@@ -1598,7 +1598,53 @@ const convertDashboardFilterRuleToFilterRule = (
     ...(dashboardFilterRule.disabled && {
         disabled: dashboardFilterRule.disabled,
     }),
+    ...(dashboardFilterRule.boundaries && {
+        includeNull: false,
+        caseSensitive: dashboardFilterRule.caseSensitive,
+    }),
 });
+
+const hasConjunctiveFilterRule = (
+    group: FilterGroup,
+    ruleId: string,
+): boolean =>
+    isAndFilterGroup(group) &&
+    group.and.some((item) =>
+        isFilterGroup(item)
+            ? hasConjunctiveFilterRule(item, ruleId)
+            : item.id === ruleId,
+    );
+
+const mergeDashboardFilterGroup = (
+    group: FilterGroup | undefined,
+    dashboardRules: DashboardFilterRule[],
+    timeBasedOverrideMap: TimeBasedOverrideMap | undefined,
+): FilterGroup => {
+    const rules = dashboardRules.map(convertDashboardFilterRuleToFilterRule);
+    const merged = overrideFilterGroupWithFilterRules(
+        group,
+        rules,
+        timeBasedOverrideMap,
+    );
+    const boundedIds = new Set(
+        dashboardRules.filter((rule) => rule.boundaries).map((rule) => rule.id),
+    );
+    const boundedRules = rules.filter((rule) => boundedIds.has(rule.id));
+    if (!boundedRules.length) return merged;
+    const normalized = replaceOverriddenRules(
+        merged,
+        new Map(boundedRules.map((rule) => [rule.id, rule])),
+    );
+    return {
+        id: normalized.id,
+        and: [
+            ...(isAndFilterGroup(normalized) ? normalized.and : [normalized]),
+            ...boundedRules.filter(
+                (rule) => !hasConjunctiveFilterRule(normalized, rule.id),
+            ),
+        ],
+    };
+};
 
 const getFieldIdWithoutTable = (fieldId: string, tableName: string) =>
     fieldId.replace(`${tableName}_`, '');
@@ -1787,29 +1833,28 @@ export const addDashboardFiltersToMetricQuery = (
                 timeBasedOverrideMap[filter.id] = result.overrideData;
             }
             return result.filter;
-        })
-        .map(convertDashboardFilterRuleToFilterRule);
+        });
 
     return {
         ...metricQuery,
         filters: {
-            dimensions: overrideFilterGroupWithFilterRules(
+            dimensions: mergeDashboardFilterGroup(
                 metricQuery.filters?.dimensions,
                 processedDimensionFilters,
                 timeBasedOverrideMap,
             ),
-            metrics: overrideFilterGroupWithFilterRules(
+            metrics: mergeDashboardFilterGroup(
                 metricQuery.filters?.metrics,
-                dashboardFilters.metrics
-                    .filter((filter) => !isEmptyDashboardFilterRule(filter))
-                    .map(convertDashboardFilterRuleToFilterRule),
+                dashboardFilters.metrics.filter(
+                    (filter) => !isEmptyDashboardFilterRule(filter),
+                ),
                 undefined,
             ),
-            tableCalculations: overrideFilterGroupWithFilterRules(
+            tableCalculations: mergeDashboardFilterGroup(
                 metricQuery.filters?.tableCalculations,
-                dashboardFilters.tableCalculations
-                    .filter((filter) => !isEmptyDashboardFilterRule(filter))
-                    .map(convertDashboardFilterRuleToFilterRule),
+                dashboardFilters.tableCalculations.filter(
+                    (filter) => !isEmptyDashboardFilterRule(filter),
+                ),
                 undefined,
             ),
         },

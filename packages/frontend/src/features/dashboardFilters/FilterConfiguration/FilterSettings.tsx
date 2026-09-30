@@ -8,6 +8,7 @@ import {
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type FilterBoundaryContext,
     type FilterRule,
 } from '@lightdash/common';
 import {
@@ -41,6 +42,7 @@ interface FilterSettingsProps {
     filterType: FilterType;
     field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
+    boundaryContexts?: FilterBoundaryContext[];
     originalFilterRule?: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
@@ -53,6 +55,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     field,
     filterType,
     filterRule,
+    boundaryContexts,
     originalFilterRule,
     popoverProps,
     onChangeFilterRule,
@@ -285,6 +288,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 field={field}
                                 rule={filterRule}
                                 boundaries={boundaries}
+                                boundaryContexts={boundaryContexts}
                                 onChange={(newFilterRule) =>
                                     onChangeFilterRule(
                                         newFilterRule as DashboardFilterRule,

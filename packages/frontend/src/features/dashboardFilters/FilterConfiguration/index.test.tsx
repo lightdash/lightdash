@@ -311,32 +311,108 @@ describe('FilterConfiguration', () => {
         );
     });
 
-    it('validates the current numeric input when Apply is clicked before its debounce', async () => {
+    it('retains a partial bounded range as an invalid draft instead of applying the full boundary', async () => {
         const user = userEvent.setup();
         const onSave = vi.fn();
-        const numberField = {
-            ...mockField,
-            type: DimensionType.NUMBER,
-        } as DashboardFilterableField;
+        const rule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+            operator: FilterOperator.IN_BETWEEN,
+            values: [2, 8],
+            boundaries: { type: 'number', min: 0, max: 10 },
+        };
+        renderWithProviders(
+            filterConfiguration(rule, {
+                field: {
+                    ...mockField,
+                    type: DimensionType.NUMBER,
+                } as DashboardFilterableField,
+                onSave,
+            }),
+        );
+        await user.clear(screen.getByPlaceholderText('Max value'));
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        expect(
+            screen.getByText('Enter a number between 0 and 10.'),
+        ).toBeVisible();
+        expect(screen.getByPlaceholderText('Min value')).toHaveValue('2');
+    });
+
+    it.each([
+        { text: '20', value: 20, valid: false },
+        { text: '1e2', value: 100, valid: false },
+        { text: '.5', value: 0.5, valid: true },
+        { text: 'notnumber', value: 'notnumber', valid: false },
+    ])(
+        'validates numeric input $text when Apply is clicked before its debounce',
+        async ({ text, value, valid }) => {
+            const user = userEvent.setup();
+            const onSave = vi.fn();
+            const numberField = {
+                ...mockField,
+                type: DimensionType.NUMBER,
+            } as DashboardFilterableField;
+            const rule: DashboardFilterRule = {
+                ...anyValueRule,
+                disabled: false,
+                singleValue: true,
+                values: [5],
+                boundaries: { type: 'number', min: 0, max: 10 },
+            };
+            renderWithProviders(
+                filterConfiguration(rule, {
+                    field: numberField,
+                    onSave: onSave,
+                }),
+            );
+            const input = screen.getByDisplayValue('5');
+            await user.click(input);
+            fireEvent.change(input, { target: { value: text } });
+            fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+            if (valid)
+                expect(onSave).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        values: [value],
+                        disabled: false,
+                    }),
+                );
+            else {
+                expect(onSave).not.toHaveBeenCalled();
+                expect(
+                    screen.getByText('Enter a number between 0 and 10.'),
+                ).toBeVisible();
+            }
+            expect(input).toHaveAttribute('value', String(value));
+        },
+    );
+
+    it('validates every pasted token before reducing a bounded single selection', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
         const rule: DashboardFilterRule = {
             ...anyValueRule,
             disabled: false,
             singleValue: true,
-            values: [5],
-            boundaries: { type: 'number', min: 0, max: 10 },
+            values: ['Pending'],
+            boundaries: { type: 'string', values: ['Pending', 'Active'] },
         };
         renderWithProviders(
-            filterConfiguration(rule, { field: numberField, onSave: onSave }),
+            filterConfiguration(rule, { field: mockField, onSave }),
         );
-        const input = screen.getByRole('spinbutton');
-        await user.click(input);
-        fireEvent.change(input, { target: { value: '20' } });
-        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
-        expect(onSave).not.toHaveBeenCalled();
+        fireEvent.paste(screen.getByRole('textbox'), {
+            clipboardData: { getData: () => 'Other,Active' },
+        });
+        await user.click(
+            screen.getByRole('button', { name: /multiple values/i }),
+        );
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
         expect(
-            screen.getByText('Enter a number between 0 and 10.'),
+            screen.getByText('Choose one of: Pending, Active.'),
         ).toBeVisible();
-        expect(input).toHaveValue(20);
+        expect(screen.getByText('Other', { exact: true })).toBeVisible();
+        expect(onSave).not.toHaveBeenCalled();
     });
 
     it('keeps single selection behavior when a bounded filter is switched to single value', async () => {

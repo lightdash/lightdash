@@ -2,12 +2,14 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    FilterType,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type default as FilterInputComponent } from '../../../components/common/Filters/FilterInputs';
 import { renderWithProviders } from '../../../testing/testUtils';
 import GuidedFilterSetupOverlay from './GuidedFilterSetupOverlay';
 
@@ -41,24 +43,37 @@ const memberInputPopoverProps = vi.hoisted(() => ({
     } | null,
 }));
 
-vi.mock('../../../components/common/Filters/FilterInputs', () => ({
-    default: vi.fn(({ popoverProps, rule, onChange, disabled }) => {
-        memberInputPopoverProps.current = popoverProps;
-        return (
-            <input
-                placeholder="any value"
-                disabled={disabled}
-                value={rule.values?.join(',') ?? ''}
-                onChange={(event) =>
-                    onChange({
-                        ...rule,
-                        values: event.target.value ? [event.target.value] : [],
-                    })
-                }
-            />
-        );
-    }),
-}));
+vi.mock(
+    '../../../components/common/Filters/FilterInputs',
+    async (importOriginal) => {
+        const { default: OriginalInput } = await importOriginal<{
+            default: typeof FilterInputComponent;
+        }>();
+        return {
+            default: vi.fn((props) => {
+                const { popoverProps, rule, onChange, disabled } = props;
+                memberInputPopoverProps.current = popoverProps;
+                if (props.filterType === FilterType.NUMBER)
+                    return <OriginalInput {...props} />;
+                return (
+                    <input
+                        placeholder="any value"
+                        disabled={disabled}
+                        value={rule.values?.join(',') ?? ''}
+                        onChange={(event) =>
+                            onChange({
+                                ...rule,
+                                values: event.target.value
+                                    ? [event.target.value]
+                                    : [],
+                            })
+                        }
+                    />
+                );
+            }),
+        };
+    },
+);
 
 describe('GuidedFilterSetupOverlay', () => {
     beforeEach(() => {
@@ -94,6 +109,7 @@ describe('GuidedFilterSetupOverlay', () => {
     });
 
     afterEach(() => {
+        vi.restoreAllMocks();
         delete (Element.prototype as Partial<Element>).scrollIntoView;
     });
 
@@ -276,41 +292,99 @@ describe('GuidedFilterSetupOverlay', () => {
         );
     });
 
-    it('keeps an invalid bounded required selection as a draft without updating the dashboard', async () => {
-        const boundedRule: DashboardFilterRule = {
-            ...unmetRule,
-            boundaries: { type: 'string', values: ['Pending', 'Active'] },
-        };
-        mockDashboardContext.current.dashboardFilters = {
-            dimensions: [boundedRule],
-            metrics: [],
-            tableCalculations: [],
-        };
-        mockDashboardContext.current.allFilters =
-            mockDashboardContext.current.dashboardFilters;
-        renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
-        expect(screen.getByText('1 of 1 set')).toBeVisible();
-        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
-        const input = screen.getByPlaceholderText('any value');
-        await waitFor(() => expect(input).toBeVisible());
-        fireEvent.change(input, { target: { value: 'Other' } });
-        expect(input).toHaveValue('Other');
-        expect(
-            screen.getByText('Choose one of: Pending, Active.'),
-        ).toBeVisible();
-        expect(
-            mockDashboardContext.current.updateDimensionDashboardFilter,
-        ).not.toHaveBeenCalled();
-        fireEvent.change(input, { target: { value: 'Active' } });
-        expect(
-            mockDashboardContext.current.updateDimensionDashboardFilter,
-        ).toHaveBeenCalledWith(
-            expect.objectContaining({ values: ['Active'], disabled: false }),
-            0,
-            false,
-            false,
-        );
-    });
+    it.each(['string', 'number'])(
+        'keeps an invalid bounded required %s selection as a draft without updating the dashboard',
+        async (kind) => {
+            const boundedRule: DashboardFilterRule = {
+                ...unmetRule,
+                disabled: kind === 'number' ? false : true,
+                operator:
+                    kind === 'number'
+                        ? FilterOperator.IN_BETWEEN
+                        : FilterOperator.EQUALS,
+                values: kind === 'number' ? [25, 75] : [],
+                boundaries:
+                    kind === 'number'
+                        ? { type: 'number', min: 0, max: 100 }
+                        : { type: 'string', values: ['Pending', 'Active'] },
+            };
+            mockDashboardContext.current.dashboardFilters = {
+                dimensions: [boundedRule],
+                metrics: [],
+                tableCalculations: [],
+            };
+            mockDashboardContext.current.allFilters =
+                mockDashboardContext.current.dashboardFilters;
+            if (kind === 'number')
+                mockDashboardContext.current.allFilterableFieldsMap = {
+                    customers_first_name: {
+                        name: 'first_name',
+                        table: 'customers',
+                        tableLabel: 'Customers',
+                        label: 'First name',
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.NUMBER,
+                        sql: 'first_name',
+                        hidden: false,
+                    },
+                };
+            // jsdom focuses hidden Collapse inputs before their values initialize.
+            const initialFocus =
+                kind === 'number'
+                    ? vi
+                          .spyOn(HTMLElement.prototype, 'focus')
+                          .mockImplementation(() => {})
+                    : null;
+            renderWithProviders(
+                <GuidedFilterSetupOverlay onDismiss={vi.fn()} />,
+            );
+            expect(screen.getByText('1 of 1 set')).toBeVisible();
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Change' }),
+            );
+            const input =
+                kind === 'number'
+                    ? screen.getByPlaceholderText('Max value')
+                    : screen.getByPlaceholderText('any value');
+            await waitFor(() => expect(input).toBeVisible());
+            initialFocus?.mockRestore();
+            if (kind === 'number') {
+                await waitFor(() => {
+                    expect(
+                        screen.getByPlaceholderText('Min value'),
+                    ).toHaveValue('25');
+                    expect(input).toHaveValue('75');
+                });
+                await userEvent.clear(input);
+                fireEvent.blur(input);
+            } else fireEvent.change(input, { target: { value: 'Other' } });
+            expect(
+                screen.getByText(
+                    kind === 'number'
+                        ? 'Enter a number between 0 and 100.'
+                        : 'Choose one of: Pending, Active.',
+                ),
+            ).toBeVisible();
+            expect(
+                mockDashboardContext.current.updateDimensionDashboardFilter,
+            ).not.toHaveBeenCalled();
+            if (kind === 'number') {
+                fireEvent.change(input, { target: { value: '75' } });
+                fireEvent.blur(input);
+            } else fireEvent.change(input, { target: { value: 'Active' } });
+            expect(
+                mockDashboardContext.current.updateDimensionDashboardFilter,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    values: kind === 'number' ? [25, 75] : ['Active'],
+                    disabled: false,
+                }),
+                0,
+                false,
+                false,
+            );
+        },
+    );
 
     it('only offers permitted operators for a bounded required filter', async () => {
         const boundedRule: DashboardFilterRule = {

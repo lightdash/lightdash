@@ -12,6 +12,7 @@ import {
     isFilterRule,
     ParameterError,
     restoreDashboardFilterBoundaries,
+    validateFilterBoundary,
     type DashboardFilters,
     type Explore,
     type FilterBoundaryContext,
@@ -94,13 +95,16 @@ export const assertDashboardMetricFilterBoundaries = ({
             };
         });
     }
-    const savedFilters = { ...args.savedFilters };
+    const contextNow = new Date();
     for (const kind of [
         'dimensions',
         'metrics',
         'tableCalculations',
     ] as const) {
-        savedFilters[kind] = args.savedFilters[kind].filter((rule) => {
+        const savedRuleIds = new Set(
+            args.savedFilters[kind].map((rule) => rule.id),
+        );
+        args.savedFilters[kind].forEach((rule) => {
             const target = rule.tileTargets?.[args.tileUuid] || rule.target;
             if (
                 !rule.boundaries ||
@@ -109,8 +113,9 @@ export const assertDashboardMetricFilterBoundaries = ({
                     target.fieldId,
                 )
             )
-                return true;
+                return;
             const context = {
+                now: contextNow,
                 ...args.context,
                 startOfWeek:
                     args.context.startOfWeek ??
@@ -122,7 +127,10 @@ export const assertDashboardMetricFilterBoundaries = ({
                 ),
             };
             const candidates = dashboardFilters[kind].filter(
-                (candidate) => candidate.target.fieldId === target.fieldId,
+                (candidate) =>
+                    candidate.target.fieldId === target.fieldId &&
+                    (candidate.id === rule.id ||
+                        !savedRuleIds.has(candidate.id)),
             );
             if (
                 rule.boundaries.type === 'date' &&
@@ -141,13 +149,18 @@ export const assertDashboardMetricFilterBoundaries = ({
                     ),
                 )
             )
-                return false;
+                return;
             if (
                 !candidates.length ||
                 candidates.some(
                     (candidate) =>
                         candidate.disabled ||
-                        isEmptyDashboardFilterRule(candidate),
+                        isEmptyDashboardFilterRule(candidate) ||
+                        validateFilterBoundary(
+                            rule.boundaries,
+                            candidate,
+                            context,
+                        ),
                 )
             ) {
                 throw new ParameterError(
@@ -162,14 +175,8 @@ export const assertDashboardMetricFilterBoundaries = ({
                     ),
                 );
             }
-            return true;
         });
     }
-    assertDashboardFilterBoundaries({
-        ...args,
-        savedFilters,
-        filters: dashboardFilters,
-    });
 };
 
 export const resolveBoundaryDefaults = ({

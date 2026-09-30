@@ -9,6 +9,7 @@ import styles from './FilterNumberRangeInput.module.css';
 interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     value?: unknown[];
     onChange: (value: unknown[]) => void;
+    preserveInvalidValues?: boolean;
 }
 
 const numberRangeSchema = z
@@ -36,6 +37,7 @@ const FilterNumberRangeInput: FC<Props> = ({
     placeholder,
     onChange,
     autoFocus,
+    preserveInvalidValues = false,
     ...rest
 }) => {
     const getUiString = useUiStrings();
@@ -49,18 +51,25 @@ const FilterNumberRangeInput: FC<Props> = ({
             ? getUiString('filters.inputs.bothValuesRequired')
             : errorId === 'minLessThanMax'
               ? getUiString('filters.inputs.minLessThanMax')
-              : errorId;
+              : preserveInvalidValues
+                ? null
+                : errorId;
 
     return (
         <Stack gap={2} w="100%">
             <Group wrap="nowrap" align="start" gap="xs">
                 <FilterNumberInput
-                    error={!!errorMessage}
+                    error={!validationResult.success}
                     disabled={disabled}
                     data-autofocus={autoFocus || undefined}
                     placeholder={getUiString('filters.inputs.minValue')}
                     {...rest}
                     value={value?.[0]}
+                    onInvalidChange={
+                        preserveInvalidValues
+                            ? (newValue) => onChange([newValue, value?.[1]])
+                            : undefined
+                    }
                     onChange={(newValue) => {
                         onChange([newValue, value?.[1]]);
                     }}
@@ -71,11 +80,16 @@ const FilterNumberRangeInput: FC<Props> = ({
                 </Text>
 
                 <FilterNumberInput
-                    error={!!errorMessage}
+                    error={!validationResult.success}
                     disabled={disabled}
                     placeholder={getUiString('filters.inputs.maxValue')}
                     {...rest}
                     value={value?.[1]}
+                    onInvalidChange={
+                        preserveInvalidValues
+                            ? (newValue) => onChange([value?.[0], newValue])
+                            : undefined
+                    }
                     onChange={(newValue) => {
                         onChange([value?.[0], newValue]);
                     }}

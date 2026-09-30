@@ -4,6 +4,8 @@ import {
     FilterType,
     isFilterRule,
     isTableCalculation,
+    getFilterBoundaryFieldContext,
+    validateFilterBoundary,
     type BaseFilterRule,
 } from '@lightdash/common';
 import { TagsInput } from '@mantine/core';
@@ -21,6 +23,7 @@ import FilterStringAutoComplete from './FilterStringAutoComplete';
 const DefaultFilterInputs = <T extends BaseFilterRule>({
     field,
     boundaries,
+    boundaryContexts,
     filterType,
     rule,
     disabled,
@@ -65,6 +68,29 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         <FilterMultiStringInput
                             singleValue={isSingleValue}
                             preserveWhitespace={boundaries?.type === 'string'}
+                            validatePastedValues={
+                                boundaries && isFilterRule(rule)
+                                    ? (values) =>
+                                          (
+                                              boundaryContexts ?? [
+                                                  getFilterBoundaryFieldContext(
+                                                      field,
+                                                  ),
+                                              ]
+                                          ).every(
+                                              (context) =>
+                                                  validateFilterBoundary(
+                                                      boundaries,
+                                                      {
+                                                          ...rule,
+                                                          values,
+                                                          disabled: false,
+                                                      },
+                                                      context,
+                                                  ) === null,
+                                          )
+                                    : undefined
+                            }
                             suggestions={
                                 boundaries?.type === 'string'
                                     ? boundaries.values
@@ -134,6 +160,15 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                                 data-autofocus
                                 placeholder={placeholder}
                                 value={rule.values?.[0]}
+                                onInvalidChange={
+                                    boundaries
+                                        ? (value) =>
+                                              onChange({
+                                                  ...rule,
+                                                  values: [value],
+                                              })
+                                        : undefined
+                                }
                                 onChange={(newValue) => {
                                     onChange({
                                         ...rule,
@@ -212,6 +247,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                     data-autofocus
                     placeholder={placeholder}
                     value={rule.values}
+                    preserveInvalidValues={!!boundaries}
                     onChange={(value) => {
                         onChange({
                             ...rule,

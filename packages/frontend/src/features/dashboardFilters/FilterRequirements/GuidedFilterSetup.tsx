@@ -154,6 +154,7 @@ const MemberInput: FC<MemberInputProps> = ({
                     field={field}
                     rule={currentRule}
                     boundaries={currentRule.boundaries}
+                    boundaryContexts={contexts}
                     disabled={isContextLoading}
                     popoverProps={popoverProps}
                     onChange={(newRule) =>

@@ -32,6 +32,7 @@ type Props = {
     preserveWhitespace?: boolean;
     singleValue?: boolean;
     onChange: (values: string[]) => void;
+    validatePastedValues?: (values: string[]) => boolean;
     disabled?: boolean;
     placeholder?: string;
     'data-autofocus'?: boolean;
@@ -50,6 +51,7 @@ const FilterMultiStringInput: FC<Props> = ({
     singleValue = false,
     disabled,
     onChange,
+    validatePastedValues,
     placeholder,
     onBlur: onInputBlur,
     onDropdownClose: onInputDropdownClose,
@@ -92,9 +94,15 @@ const FilterMultiStringInput: FC<Props> = ({
 
     const handleAddMultiple = useCallback(
         (newValues: string[]) => {
-            handleChange([...values, ...newValues]);
+            if (
+                singleValue &&
+                validatePastedValues &&
+                !validatePastedValues(newValues)
+            )
+                onChange(newValues);
+            else handleChange([...values, ...newValues]);
         },
-        [handleChange, values],
+        [handleChange, values, singleValue, validatePastedValues, onChange],
     );
 
     const handleRemove = useCallback(

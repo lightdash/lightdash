@@ -212,6 +212,10 @@ export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
             return filterRule.settings && filterRule.settings.unitOfTime;
         case FilterOperator.IN_BETWEEN:
         case FilterOperator.NOT_IN_BETWEEN:
+            if (filterRule.boundaries)
+                return filterRule.values?.some(
+                    (val) => val != null && val !== '',
+                );
             return (
                 filterRule.values &&
                 filterRule.values.length === 2 &&
