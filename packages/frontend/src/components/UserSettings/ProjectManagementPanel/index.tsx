@@ -252,17 +252,22 @@ const ProjectManagementPanel: FC = () => {
         });
     }, [projects, activeFilter, search, selectedWarehouses, selectedCreators]);
 
-    const allSelectedProjects = useMemo(() => {
-        return selectedProjects
-            .map((uuid) => projects.find((p) => p.projectUuid === uuid))
-            .filter((p): p is OrganizationProject => !!p);
-    }, [projects, selectedProjects]);
+    // A selection can outlive a filter change, so bulk actions only ever act
+    // on selected projects that are still in view.
+    const visibleSelectedProjects = useMemo(() => {
+        const selected = new Set(selectedProjects);
+        return filteredProjects.filter((project) =>
+            selected.has(project.projectUuid),
+        );
+    }, [filteredProjects, selectedProjects]);
 
     const handleSelectAll = useCallback(() => {
         setSelectedProjects(
-            filteredProjects.map((project) => project.projectUuid),
+            filteredProjects
+                .filter(canDeleteProject)
+                .map((project) => project.projectUuid),
         );
-    }, [filteredProjects]);
+    }, [filteredProjects, canDeleteProject]);
 
     const handleDeleteInBulk = useCallback(() => {
         setDeletingProjectInBulk(true);
@@ -934,10 +939,10 @@ const ProjectManagementPanel: FC = () => {
                             </ActionIcon>
                         </Tooltip>
                     )}
-                    {selectedProjects.length > 0 && (
+                    {visibleSelectedProjects.length > 0 && (
                         <>
                             <Text size="sm" c="dimmed">
-                                {selectedProjects.length} selected
+                                {visibleSelectedProjects.length} selected
                             </Text>
                             <Button
                                 size="xs"
@@ -990,9 +995,9 @@ const ProjectManagementPanel: FC = () => {
             {deletingProjectInBulk && (
                 <ProjectDeleteInBulkModal
                     currentProjectUuid={lastProjectUuid ?? null}
-                    opened={selectedProjects.length > 0}
+                    opened={visibleSelectedProjects.length > 0}
                     onClose={handleCloseDeleteInBulk}
-                    projects={allSelectedProjects}
+                    projects={visibleSelectedProjects}
                 />
             )}
 
