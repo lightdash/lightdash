@@ -6373,49 +6373,6 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
-        const primaryStartedAt = Date.now();
-        const [
-            {
-                manifest: rawPrimaryManifest,
-                selectedModelIds: primarySelectedModelIds,
-                timings: primaryTimings,
-            },
-            identity,
-        ] = await Promise.all([
-            primary.adapter.getDbtManifest(),
-            this.projectModel.getDbtSourceIdentity(projectUuid),
-        ]);
-        this.logDbtSourceFetched({
-            event: 'dbt.compile.primarySourceFetched',
-            projectUuid,
-            jobUuid: jobUuid ?? null,
-            sourceName: identity.dbtSourceName,
-            durationMs: Date.now() - primaryStartedAt,
-            manifest: rawPrimaryManifest,
-            selectedModelIds: primarySelectedModelIds,
-            timings: primaryTimings,
-        });
-        const selectedPrimaryManifest = manifestWithCompilationSelection(
-            rawPrimaryManifest,
-            primarySelectedModelIds,
-        );
-        const primaryManifest = {
-            ...selectedPrimaryManifest,
-            nodes: Object.fromEntries(
-                Object.entries(selectedPrimaryManifest.nodes).map(
-                    ([uniqueId, node]) => [
-                        uniqueId,
-                        node.resource_type === 'model' ||
-                        node.resource_type === 'seed'
-                            ? {
-                                  ...node,
-                                  lightdash_source_uuid: identity.dbtSourceUuid,
-                              }
-                            : node,
-                    ],
-                ),
-            ),
-        };
 
         // A credential error fails the whole deploy by name, matching every
         // other per-source failure below (broken clone, broken manifest) — a
@@ -6446,6 +6403,9 @@ export class ProjectService extends BaseService {
                 );
             });
 
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+
         const concurrencyDecision = resolveDbtSourceFetchConcurrency(
             this.lightdashConfig.dbt.sourceFetchConcurrency,
         );
@@ -6474,95 +6434,156 @@ export class ProjectService extends BaseService {
             },
         );
 
-        const sourceFetchStartedAt = Date.now();
-        const built = await runWithConcurrency(
-            compilableSources,
-            concurrencyDecision.chosen,
-            async (source) => {
-                // Name the source (and repo) in any failure so the user can tell
-                // which one to fix — the raw git error only mentions a temp dir.
-                const repoSuffix =
-                    'repository' in source.dbtConnection &&
-                    source.dbtConnection.repository
-                        ? ` (${source.dbtConnection.repository})`
-                        : '';
-                const sourceStartedAt = Date.now();
-                let sourceAdapter: ProjectAdapter;
-                try {
-                    sourceAdapter = await this.buildSourceAdapter(
-                        source.dbtConnection,
-                        source.warehouseLocation,
-                        organizationUuid,
-                        shared,
-                        primary.dbtPartialParse
-                            ? getDbtPartialParseBaselinePath({
-                                  projectUuid,
-                                  dbtSourceUuid: source.projectDbtSourceUuid,
-                              })
-                            : null,
-                    );
-                } catch (e) {
-                    throw new ParameterError(
-                        `Failed to connect dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
-                            e,
-                        )}`,
-                    );
-                }
-                // Push before fetching the manifest so the caller's cleanup
-                // destroys this clone even if the fetch below throws.
-                manifestFetchAdapters.push(sourceAdapter);
-                try {
-                    const {
-                        manifest,
-                        selectedModelIds: sourceSelectedModelIds,
-                        timings,
-                    } = await sourceAdapter.getDbtManifest();
-                    const selectedManifest = manifestWithCompilationSelection(
-                        manifest,
-                        sourceSelectedModelIds,
-                    );
-                    const sourceManifest = {
-                        ...selectedManifest,
-                        nodes: Object.fromEntries(
-                            Object.entries(selectedManifest.nodes).map(
-                                ([uniqueId, node]) => [
-                                    uniqueId,
-                                    node.resource_type === 'model' ||
-                                    node.resource_type === 'seed'
-                                        ? {
-                                              ...node,
-                                              lightdash_source_uuid:
-                                                  source.projectDbtSourceUuid,
-                                          }
-                                        : node,
-                                ],
-                            ),
+        const fetchPrimarySource = async () => {
+            const primaryStartedAt = Date.now();
+            const {
+                manifest: rawPrimaryManifest,
+                selectedModelIds: primarySelectedModelIds,
+                timings: primaryTimings,
+            } = await primary.adapter.getDbtManifest();
+            this.logDbtSourceFetched({
+                event: 'dbt.compile.primarySourceFetched',
+                projectUuid,
+                jobUuid: jobUuid ?? null,
+                sourceName: identity.dbtSourceName,
+                durationMs: Date.now() - primaryStartedAt,
+                manifest: rawPrimaryManifest,
+                selectedModelIds: primarySelectedModelIds,
+                timings: primaryTimings,
+            });
+            const selectedPrimaryManifest = manifestWithCompilationSelection(
+                rawPrimaryManifest,
+                primarySelectedModelIds,
+            );
+            return {
+                name: identity.dbtSourceName,
+                precedence: 0,
+                manifest: {
+                    ...selectedPrimaryManifest,
+                    nodes: Object.fromEntries(
+                        Object.entries(selectedPrimaryManifest.nodes).map(
+                            ([uniqueId, node]) => [
+                                uniqueId,
+                                node.resource_type === 'model' ||
+                                node.resource_type === 'seed'
+                                    ? {
+                                          ...node,
+                                          lightdash_source_uuid:
+                                              identity.dbtSourceUuid,
+                                      }
+                                    : node,
+                            ],
                         ),
-                    };
-                    this.logDbtSourceFetched({
-                        event: 'dbt.compile.sourceFetched',
-                        projectUuid,
-                        jobUuid: jobUuid ?? null,
-                        sourceName: source.name,
-                        durationMs: Date.now() - sourceStartedAt,
-                        manifest,
-                        selectedModelIds: sourceSelectedModelIds,
-                        timings,
-                    });
-                    return {
-                        name: source.name,
-                        precedence: source.precedence,
-                        manifest: sourceManifest,
-                        selectedModelIds: sourceSelectedModelIds,
-                    };
-                } catch (e) {
-                    throw new ParameterError(
-                        `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
-                            e,
-                        )}`,
-                    );
-                }
-            },
+                    ),
+                },
+                selectedModelIds: primarySelectedModelIds,
+            };
+        };
+
+        const fetchAdditionalSource = async (
+            source: (typeof compilableSources)[number],
+        ) => {
+            // Name the source (and repo) in any failure so the user can tell
+            // which one to fix — the raw git error only mentions a temp dir.
+            const repoSuffix =
+                'repository' in source.dbtConnection &&
+                source.dbtConnection.repository
+                    ? ` (${source.dbtConnection.repository})`
+                    : '';
+            const sourceStartedAt = Date.now();
+            let sourceAdapter: ProjectAdapter;
+            try {
+                sourceAdapter = await this.buildSourceAdapter(
+                    source.dbtConnection,
+                    source.warehouseLocation,
+                    organizationUuid,
+                    shared,
+                    primary.dbtPartialParse
+                        ? getDbtPartialParseBaselinePath({
+                              projectUuid,
+                              dbtSourceUuid: source.projectDbtSourceUuid,
+                          })
+                        : null,
+                );
+            } catch (e) {
+                throw new ParameterError(
+                    `Failed to connect dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
+            // Push before fetching the manifest so the caller's cleanup
+            // destroys this clone even if the fetch below throws.
+            manifestFetchAdapters.push(sourceAdapter);
+            try {
+                const {
+                    manifest,
+                    selectedModelIds: sourceSelectedModelIds,
+                    timings,
+                } = await sourceAdapter.getDbtManifest();
+                const selectedManifest = manifestWithCompilationSelection(
+                    manifest,
+                    sourceSelectedModelIds,
+                );
+                const sourceManifest = {
+                    ...selectedManifest,
+                    nodes: Object.fromEntries(
+                        Object.entries(selectedManifest.nodes).map(
+                            ([uniqueId, node]) => [
+                                uniqueId,
+                                node.resource_type === 'model' ||
+                                node.resource_type === 'seed'
+                                    ? {
+                                          ...node,
+                                          lightdash_source_uuid:
+                                              source.projectDbtSourceUuid,
+                                      }
+                                    : node,
+                            ],
+                        ),
+                    ),
+                };
+                this.logDbtSourceFetched({
+                    event: 'dbt.compile.sourceFetched',
+                    projectUuid,
+                    jobUuid: jobUuid ?? null,
+                    sourceName: source.name,
+                    durationMs: Date.now() - sourceStartedAt,
+                    manifest,
+                    selectedModelIds: sourceSelectedModelIds,
+                    timings,
+                });
+                return {
+                    name: source.name,
+                    precedence: source.precedence,
+                    manifest: sourceManifest,
+                    selectedModelIds: sourceSelectedModelIds,
+                };
+            } catch (e) {
+                throw new ParameterError(
+                    `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
+        };
+
+        // The primary runs in the same pool as the additional sources, first in
+        // the queue, so it overlaps with them and counts against the same limit.
+        const sourceFetchStartedAt = Date.now();
+        const fetched = await runWithConcurrency(
+            [
+                { kind: 'primary' as const },
+                ...compilableSources.map((source) => ({
+                    kind: 'additional' as const,
+                    source,
+                })),
+            ],
+            concurrencyDecision.chosen,
+            async (task) =>
+                task.kind === 'primary'
+                    ? fetchPrimarySource()
+                    : fetchAdditionalSource(task.source),
         );
         const sourceFetchDurationMs = Date.now() - sourceFetchStartedAt;
         const memoryAfterFetch = process.memoryUsage();
@@ -6586,18 +6607,11 @@ export class ProjectService extends BaseService {
             },
         );
 
-        const manifestSources: ManifestSource[] = [
-            {
-                name: identity.dbtSourceName,
-                precedence: 0,
-                manifest: primaryManifest,
-            },
-            ...built.map((b) => ({
-                name: b.name,
-                precedence: b.precedence,
-                manifest: b.manifest,
-            })),
-        ];
+        const manifestSources: ManifestSource[] = fetched.map((b) => ({
+            name: b.name,
+            precedence: b.precedence,
+            manifest: b.manifest,
+        }));
 
         const { manifest: mergedManifest, collisions } =
             combineManifestSources(manifestSources);
@@ -6662,16 +6676,12 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const sourceSelections = [
-            {
-                manifest: primaryManifest,
-                selectedModelIds: primarySelectedModelIds,
-            },
-            ...built.map(({ manifest, selectedModelIds }) => ({
+        const sourceSelections = fetched.map(
+            ({ manifest, selectedModelIds }) => ({
                 manifest,
                 selectedModelIds,
-            })),
-        ];
+            }),
+        );
         // Selector-less sources contribute every model when any source uses a selector.
         const selectedModelIds = sourceSelections.every(
             (source) => source.selectedModelIds === undefined,
