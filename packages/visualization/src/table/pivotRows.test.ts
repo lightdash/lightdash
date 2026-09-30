@@ -5,6 +5,7 @@ import {
     type ItemsMap,
     type TableCalculation,
 } from '@lightdash/common';
+import { describe, expect, it } from 'vitest';
 import {
     isPivotRowValue,
     resolvePivotRowFieldIds,
