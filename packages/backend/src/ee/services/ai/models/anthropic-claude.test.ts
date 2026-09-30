@@ -31,6 +31,7 @@ describe('getAnthropicModel', () => {
                 availableModels: [],
                 customHeaders: {},
                 supportsStreaming: true,
+                supportsContextManagement: true,
             },
             preset,
         );
@@ -51,6 +52,7 @@ describe('getAnthropicModel', () => {
                 availableModels: [],
                 customHeaders: {},
                 supportsStreaming: true,
+                supportsContextManagement: true,
             },
             preset,
         );
@@ -70,6 +72,7 @@ describe('getAnthropicModel reasoning effort', () => {
         availableModels: [],
         customHeaders: {},
         supportsStreaming: true,
+        supportsContextManagement: true,
     };
 
     test('raises the thinking budget and max tokens for budget-style models at xhigh', () => {
@@ -104,4 +107,60 @@ describe('getAnthropicModel reasoning effort', () => {
         });
         expect(model.callOptions.maxOutputTokens).toBeUndefined();
     });
+});
+
+describe('getAnthropicModel context management', () => {
+    test.each([
+        { enableReasoning: false, reasoningStyle: 'budget' as const },
+        { enableReasoning: true, reasoningStyle: 'budget' as const },
+        { enableReasoning: true, reasoningStyle: 'adaptive' as const },
+    ])(
+        'honours endpoint support with $reasoningStyle reasoning=$enableReasoning',
+        ({ enableReasoning, reasoningStyle }) => {
+            const config = {
+                apiKey: 'gateway-token',
+                modelName: preset.name,
+                baseUrl: 'https://gateway.example',
+                customHeaders: {},
+                supportsStreaming: true,
+                supportsContextManagement: true,
+            };
+            const enabled = getAnthropicModel(
+                config,
+                { ...preset, reasoningStyle },
+                { enableReasoning },
+            );
+            const disabled = getAnthropicModel(
+                { ...config, supportsContextManagement: false },
+                { ...preset, reasoningStyle },
+                { enableReasoning },
+            );
+
+            expect(disabled.providerOptions?.anthropic).not.toHaveProperty(
+                'contextManagement',
+            );
+            expect(enabled.providerOptions?.anthropic).toMatchObject({
+                contextManagement: {
+                    edits: [
+                        ...(enableReasoning
+                            ? [{ type: 'clear_thinking_20251015' }]
+                            : []),
+                        {
+                            type: 'clear_tool_uses_20250919',
+                            trigger: { type: 'input_tokens', value: 120_000 },
+                            keep: { type: 'tool_uses', value: 3 },
+                            clearAtLeast: {
+                                type: 'input_tokens',
+                                value: 5_000,
+                            },
+                        },
+                    ],
+                },
+            });
+            const { contextManagement, ...otherOptions } =
+                enabled.providerOptions!.anthropic;
+            expect(disabled.providerOptions?.anthropic).toEqual(otherOptions);
+            expect(disabled.callOptions).toEqual(enabled.callOptions);
+        },
+    );
 });

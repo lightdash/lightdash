@@ -478,6 +478,7 @@ describe('Opus model lifecycle', () => {
                 modelName: 'claude-opus-5',
                 customHeaders: {},
                 supportsStreaming: true,
+                supportsContextManagement: true,
             },
             bedrock: {
                 apiKey: 'test',
@@ -540,6 +541,7 @@ describe('Sonnet model lifecycle', () => {
                 modelName: 'claude-sonnet-5',
                 customHeaders: {},
                 supportsStreaming: true,
+                supportsContextManagement: true,
             },
             bedrock: {
                 apiKey: 'test',
@@ -1097,6 +1099,7 @@ describe('getFastModelForAccessibleKey', () => {
                 apiKey: 'sk-ant-x',
                 modelName: 'claude-sonnet-5',
                 supportsStreaming: false,
+                supportsContextManagement: true,
                 customHeaders: {},
             },
         },

@@ -1448,6 +1448,9 @@ export const getAiConfig = () => ({
                       supportsStreaming: getProviderSupportsStreaming(
                           'ANTHROPIC_SUPPORTS_STREAMING',
                       ),
+                      supportsContextManagement:
+                          process.env.ANTHROPIC_SUPPORTS_CONTEXT_MANAGEMENT !==
+                          'false',
                   }
                 : undefined,
         google: process.env.GEMINI_API_KEY
