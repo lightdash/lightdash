@@ -150,6 +150,25 @@ export type HomepageQuickActionClickedEvent = {
     };
 };
 
+type DocumentChartEventProperties = {
+    projectUuid: string;
+    documentUuid: string;
+    chartType: string;
+    isCustomChart: boolean;
+};
+
+export type DocumentChartExploreClickedEvent = {
+    name: EventName.DOCUMENT_CHART_EXPLORE_CLICKED;
+    properties: DocumentChartEventProperties;
+};
+
+export type DocumentChartAppliedEvent = {
+    name: EventName.DOCUMENT_CHART_APPLIED;
+    properties: DocumentChartEventProperties & {
+        mode: 'add' | 'edit';
+    };
+};
+
 export type HomepageV2PromoViewedEvent = {
     name: EventName.HOMEPAGE_V2_PROMO_VIEWED;
     properties: {
@@ -1114,6 +1133,8 @@ export type EventData =
     | HomepageStarsMediaCardClickedEvent
     | CreateProjectColumnsDefinedButtonClickedEvent
     | HomepageQuickActionClickedEvent
+    | DocumentChartExploreClickedEvent
+    | DocumentChartAppliedEvent
     | HomepageV2PromoViewedEvent
     | HomepageV2PromoDismissedEvent
     | HomepageV2OptedInEvent

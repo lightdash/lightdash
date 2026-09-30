@@ -10,8 +10,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type * as ReactRouter from 'react-router';
 import DocumentChartExploreButton from './DocumentChartExploreButton';
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), navigate: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    api: vi.fn(),
+    navigate: vi.fn(),
+    track: vi.fn(),
+}));
 vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: mocks.track }),
+}));
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
     useNavigate: () => mocks.navigate,
@@ -69,6 +76,7 @@ describe('Document chart exploration', () => {
     beforeEach(() => {
         mocks.api.mockReset();
         mocks.navigate.mockReset();
+        mocks.track.mockReset();
         sessionStorage.clear();
         window.history.replaceState(
             {},
@@ -87,6 +95,7 @@ describe('Document chart exploration', () => {
                 <MantineProvider env="test">
                     <DocumentChartExploreButton
                         projectUuid="project"
+                        documentUuid="document"
                         chart={chart}
                     />
                 </MantineProvider>
@@ -107,6 +116,15 @@ describe('Document chart exploration', () => {
             expect(mocks.navigate).toHaveBeenCalledWith('/share/explore-link'),
         );
         expect(mocks.api).toHaveBeenCalledTimes(1);
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            name: 'document_chart_explore.clicked',
+            properties: {
+                projectUuid: 'project',
+                documentUuid: 'document',
+                chartType: ChartType.CARTESIAN,
+                isCustomChart: false,
+            },
+        });
         const request = mocks.api.mock.calls[0][0];
         expect(request).toMatchObject({ url: '/share/', method: 'POST' });
         const payload = JSON.parse(request.body);

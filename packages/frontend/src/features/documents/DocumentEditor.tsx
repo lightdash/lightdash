@@ -1,4 +1,8 @@
-import { type Document, type SemanticChartAsCode } from '@lightdash/common';
+import {
+    ChartType,
+    type Document,
+    type SemanticChartAsCode,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -25,6 +29,8 @@ import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import DocumentByline from './DocumentByline';
 import DocumentPageLayout from './DocumentPageLayout';
 import {
@@ -65,6 +71,7 @@ const DocumentEditor = ({
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
 }) => {
+    const { track } = useTracking();
     const { canDrillInto: canAuthorCharts } = useContextMenuPermissions({
         projectUuid: document.projectUuid,
         organizationUuid: document.organizationUuid,
@@ -216,6 +223,17 @@ const DocumentEditor = ({
                 )
                 .run();
         }
+        track({
+            name: EventName.DOCUMENT_CHART_APPLIED,
+            properties: {
+                projectUuid: document.projectUuid,
+                documentUuid: document.documentUuid,
+                chartType: chart.chartConfig.type,
+                isCustomChart:
+                    chart.chartConfig.type === ChartType.DATA_APP_VIZ,
+                mode: chartEditor.mode === 'edit' ? 'edit' : 'add',
+            },
+        });
         setChartEditor(null);
     };
 

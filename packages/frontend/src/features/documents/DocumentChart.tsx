@@ -61,6 +61,7 @@ const DocumentChart = ({
                 !query.isFetching ? (
                     <DocumentChartExploreButton
                         projectUuid={projectUuid}
+                        documentUuid={documentUuid}
                         chart={{
                             ...chart,
                             chartConfig: getDocumentRuntimeChartConfig(

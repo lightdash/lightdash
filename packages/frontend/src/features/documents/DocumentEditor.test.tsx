@@ -20,7 +20,11 @@ const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     close: vi.fn(),
     chart: vi.fn(),
+    track: vi.fn(),
     canAuthorCharts: true,
+}));
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: mocks.track }),
 }));
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
     useContextMenuPermissions: () => ({ canDrillInto: mocks.canAuthorCharts }),
@@ -251,6 +255,16 @@ it('applies chart edits in place, keeps the surrounding text, and saves them as 
     expect(
         await screen.findByText('Draft preview: Edited chart'),
     ).toBeInTheDocument();
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+        name: 'document_chart.applied',
+        properties: {
+            projectUuid: report.projectUuid,
+            documentUuid: report.documentUuid,
+            chartType: ChartType.TABLE,
+            isCustomChart: false,
+            mode: 'edit',
+        },
+    });
     expect(mocks.api).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
     await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
@@ -298,6 +312,16 @@ it('adds a chart as a draft node without touching saved charts', async () => {
     expect(
         await screen.findByText('Draft preview: New chart'),
     ).toBeInTheDocument();
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+        name: 'document_chart.applied',
+        properties: {
+            projectUuid: report.projectUuid,
+            documentUuid: report.documentUuid,
+            chartType: ChartType.TABLE,
+            isCustomChart: false,
+            mode: 'add',
+        },
+    });
     expect(screen.getByText('Live chart: Orders')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
     await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
