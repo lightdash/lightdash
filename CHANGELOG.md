@@ -1,3 +1,17 @@
+# [2.393.0](https://github.com/lightdash/lightdash/compare/2.392.0...2.393.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* label tile parameters with the values the tile runs with ([#30274](https://github.com/lightdash/lightdash/issues/30274)) ([ee99f25](https://github.com/lightdash/lightdash/commit/ee99f25fdbd083ade8eb7fab8e97a71b4c42ac12))
+* show saved dashboard parameters on embedded dashboards ([#30278](https://github.com/lightdash/lightdash/issues/30278)) ([2b78450](https://github.com/lightdash/lightdash/commit/2b784505b86e0bc178c878548a79169cc3b8f614))
+
+
+### Features
+
+* **ai:** prepare document write-ups in one model call ([#30277](https://github.com/lightdash/lightdash/issues/30277)) ([fecec88](https://github.com/lightdash/lightdash/commit/fecec885cf844c40d9467a3182ab4b63112e4c0a)), closes [#30276](https://github.com/lightdash/lightdash/issues/30276) [#30275](https://github.com/lightdash/lightdash/issues/30275) [#30276](https://github.com/lightdash/lightdash/issues/30276)
+* **documents:** export Documents as paginated PDFs ([#30267](https://github.com/lightdash/lightdash/issues/30267)) ([d6f4ee6](https://github.com/lightdash/lightdash/commit/d6f4ee6c1b1fe927ee7e56794ab1eb277dfb13ea))
+
 # [2.392.0](https://github.com/lightdash/lightdash/compare/2.391.0...2.392.0) (2026-09-30)
 
 

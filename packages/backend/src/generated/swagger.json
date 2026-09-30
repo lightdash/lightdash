@@ -51008,6 +51008,7 @@
                     "generateDailyJobs",
                     "exportCsvDashboard",
                     "exportContent",
+                    "exportDocumentPdf",
                     "renameResources",
                     "materializePreAggregate",
                     "cleanQueryHistory",
@@ -68461,7 +68462,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.392.0",
+        "version": "2.393.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -106061,6 +106062,55 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/exports/pdf": {
+            "post": {
+                "operationId": "ExportDocumentPdf",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiJobScheduledResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Export the Document as a paginated PDF, rendered with your access.\nPoll `GET /api/v1/schedulers/job/{jobId}/status`; the completed job's\ndetails hold the file `url` and `numFailures` (charts that failed to load).",
+                "summary": "Export document as PDF",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}": {
