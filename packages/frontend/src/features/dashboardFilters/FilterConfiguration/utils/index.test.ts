@@ -5,14 +5,16 @@ import {
     FilterOperator,
     type DashboardFilterRule,
     type DashboardTile,
+    type Field,
     type FilterableDimension,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { FilterActions } from '../constants';
 import {
     doesFilterApplyToTile,
     getFilterTileRelation,
-    getTabToggleAction,
+    getFieldTileDefaults,
+    getSqlTileDefaults,
+    getTabToggleChanges,
     getValidSqlColumnReferences,
     getTabsForFilterRule,
 } from './index';
@@ -489,22 +491,131 @@ describe('getTabsForFilterRule', () => {
     });
 });
 
-describe('getTabToggleAction', () => {
-    it('turns every tile off when any tile is filtered', () => {
+describe('getFieldTileDefaults', () => {
+    const filterField = {
+        name: 'payment_method',
+        table: 'payments',
+        label: 'Payment method',
+        tableLabel: 'Payments',
+    } as unknown as Field;
+    const relabelled = { ...filterField, tableLabel: 'Refunds' } as Field;
+    const pinnedToMatch = {
+        fieldId: 'payments_payment_method',
+        tableName: 'payments',
+    };
+
+    it('treats auto and a pin to the matching field as the default', () => {
         expect(
-            getTabToggleAction([
-                { tileUuid: 'a', isFiltered: true },
-                { tileUuid: 'b', isFiltered: false },
-            ]),
-        ).toEqual({ action: FilterActions.REMOVE, tileUuids: ['a', 'b'] });
+            getFieldTileDefaults('auto', undefined, filterField, filterField),
+        ).toEqual({
+            defaultTarget: null,
+            isDefaultFiltered: true,
+            isOverride: false,
+        });
+        expect(
+            getFieldTileDefaults(
+                'mapped',
+                pinnedToMatch,
+                filterField,
+                filterField,
+            ).isOverride,
+        ).toBe(false);
     });
 
-    it('reverts every tile to default when none is filtered', () => {
+    it('marks another field or turning off as an override', () => {
         expect(
-            getTabToggleAction([
-                { tileUuid: 'a', isFiltered: false },
-                { tileUuid: 'b', isFiltered: false },
+            getFieldTileDefaults(
+                'mapped',
+                { fieldId: 'refunds_payment_method', tableName: 'refunds' },
+                filterField,
+                filterField,
+            ).isOverride,
+        ).toBe(true);
+        expect(
+            getFieldTileDefaults('disabled', false, filterField, filterField)
+                .isOverride,
+        ).toBe(true);
+    });
+
+    it('defaults relabelled tiles to excluded', () => {
+        expect(
+            getFieldTileDefaults('disabled', false, relabelled, filterField),
+        ).toEqual({
+            defaultTarget: false,
+            isDefaultFiltered: false,
+            isOverride: false,
+        });
+        expect(
+            getFieldTileDefaults(
+                'mapped',
+                pinnedToMatch,
+                relabelled,
+                filterField,
+            ).isOverride,
+        ).toBe(true);
+    });
+
+    it('does not filter tiles without the field by default', () => {
+        expect(
+            getFieldTileDefaults('auto', undefined, undefined, filterField),
+        ).toEqual({
+            defaultTarget: null,
+            isDefaultFiltered: false,
+            isOverride: false,
+        });
+    });
+});
+
+describe('getSqlTileDefaults', () => {
+    const defaultTarget = {
+        fieldId: 'payment_method',
+        tableName: 'sql_chart',
+        isSqlColumn: true,
+    };
+
+    it('treats a pin to the filter column as the default', () => {
+        expect(
+            getSqlTileDefaults('mapped', defaultTarget, defaultTarget),
+        ).toEqual({
+            defaultTarget,
+            isDefaultFiltered: true,
+            isOverride: false,
+        });
+    });
+
+    it('marks another column or turning off as an override', () => {
+        expect(
+            getSqlTileDefaults(
+                'mapped',
+                { ...defaultTarget, fieldId: 'amount' },
+                defaultTarget,
+            ).isOverride,
+        ).toBe(true);
+        expect(
+            getSqlTileDefaults('disabled', false, defaultTarget).isOverride,
+        ).toBe(true);
+        expect(
+            getSqlTileDefaults('mapped', defaultTarget, null).isOverride,
+        ).toBe(true);
+    });
+});
+
+describe('getTabToggleChanges', () => {
+    it('turns every tile off when any tile is filtered', () => {
+        expect(
+            getTabToggleChanges([
+                { tileUuid: 'a', isFiltered: true, defaultTarget: null },
+                { tileUuid: 'b', isFiltered: false, defaultTarget: null },
             ]),
-        ).toEqual({ action: FilterActions.RESET, tileUuids: ['a', 'b'] });
+        ).toEqual({ a: false, b: false });
+    });
+
+    it('reverts every tile to its default when none is filtered', () => {
+        expect(
+            getTabToggleChanges([
+                { tileUuid: 'a', isFiltered: false, defaultTarget: null },
+                { tileUuid: 'b', isFiltered: false, defaultTarget: false },
+            ]),
+        ).toEqual({ a: null, b: false });
     });
 });

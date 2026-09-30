@@ -8,11 +8,12 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
+    type DashboardTileTarget,
+    type Field,
     type FilterRule,
 } from '@lightdash/common';
 import { produce } from 'immer';
 import isEqual from 'lodash/isEqual';
-import { FilterActions, type BulkFilterAction } from '../constants';
 
 /**
  * Describes the relationship between a filter and a tile based on tileTargets configuration.
@@ -30,20 +31,101 @@ export const getValidSqlColumnReferences = (
         typeof reference === 'string' ? [reference] : [],
     );
 
+type TileDefaults = {
+    /** What revert restores: null removes the tile's entry (auto) */
+    defaultTarget: DashboardTileTarget | null;
+    isDefaultFiltered: boolean;
+    isOverride: boolean;
+};
+
+/** Relabelled tiles (same query field, different labels) default to excluded, as on filter creation. */
+export const getFieldTileDefaults = (
+    relation: FilterTileRelation,
+    tileConfig: DashboardTileTarget | undefined,
+    matchingField: Field | undefined,
+    filterField: Field | undefined,
+): TileDefaults => {
+    const isRelabelled =
+        !!matchingField &&
+        !!filterField &&
+        (matchingField.label !== filterField.label ||
+            matchingField.tableLabel !== filterField.tableLabel);
+    const isMappedToMatch =
+        !!matchingField &&
+        isDashboardFieldTarget(tileConfig) &&
+        tileConfig.fieldId === getItemId(matchingField);
+
+    let isOverride: boolean;
+    switch (relation) {
+        case 'auto':
+            isOverride = false;
+            break;
+        case 'disabled':
+            isOverride = !isRelabelled;
+            break;
+        case 'mapped':
+            isOverride = isRelabelled || !isMappedToMatch;
+            break;
+        default:
+            return assertUnreachable(relation, 'Unknown tile relation');
+    }
+
+    return {
+        defaultTarget: isRelabelled ? false : null,
+        isDefaultFiltered: !!matchingField && !isRelabelled,
+        isOverride,
+    };
+};
+
+/** SQL tiles never auto-apply; a SQL-column filter pins tiles that have its column. */
+export const getSqlTileDefaults = (
+    relation: FilterTileRelation,
+    tileConfig: DashboardTileTarget | undefined,
+    defaultTarget: DashboardFieldTarget | null,
+): TileDefaults => {
+    let isOverride: boolean;
+    switch (relation) {
+        case 'auto':
+            isOverride = false;
+            break;
+        case 'disabled':
+            isOverride = true;
+            break;
+        case 'mapped':
+            isOverride =
+                !defaultTarget ||
+                !isDashboardFieldTarget(tileConfig) ||
+                tileConfig.fieldId !== defaultTarget.fieldId;
+            break;
+        default:
+            return assertUnreachable(relation, 'Unknown tile relation');
+    }
+
+    return {
+        defaultTarget,
+        isDefaultFiltered: !!defaultTarget,
+        isOverride,
+    };
+};
+
 type TabToggleTile = {
     tileUuid: string;
     isFiltered: boolean;
+    defaultTarget: DashboardTileTarget | null;
 };
 
 /** Tab switch: turn every tile off if any is filtered, otherwise revert them all to default. */
-export const getTabToggleAction = (
+export const getTabToggleChanges = (
     tiles: TabToggleTile[],
-): { action: BulkFilterAction; tileUuids: string[] } => ({
-    action: tiles.some((tile) => tile.isFiltered)
-        ? FilterActions.REMOVE
-        : FilterActions.RESET,
-    tileUuids: tiles.map((tile) => tile.tileUuid),
-});
+): Record<string, DashboardTileTarget | null> => {
+    const isAnyFiltered = tiles.some((tile) => tile.isFiltered);
+    return Object.fromEntries(
+        tiles.map((tile) => [
+            tile.tileUuid,
+            isAnyFiltered ? false : tile.defaultTarget,
+        ]),
+    );
+};
 
 /**
  * Gets the relationship between a filter and a tile based on tileTargets configuration.

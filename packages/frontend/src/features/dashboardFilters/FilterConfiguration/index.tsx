@@ -14,6 +14,7 @@ import {
     matchFieldByTypeAndName,
     matchFieldExact,
     type DashboardFieldTarget,
+    type DashboardTileTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTab,
@@ -42,12 +43,7 @@ import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
-import {
-    DEFAULT_TAB,
-    FilterActions,
-    FilterTabs,
-    type BulkFilterAction,
-} from './constants';
+import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
@@ -345,21 +341,16 @@ const FilterConfiguration: FC<Props> = ({
     );
 
     const handleBulkChange = useCallback(
-        (action: BulkFilterAction, tileUuids: string[]) => {
+        (changes: Record<string, DashboardTileTarget | null>) => {
             const newFilterRule = produce(draftFilterRule, (draftState) => {
                 if (!draftState) return;
 
                 const tileTargets = draftState.tileTargets ?? {};
-                tileUuids.forEach((tileUuid) => {
-                    switch (action) {
-                        case FilterActions.REMOVE:
-                            tileTargets[tileUuid] = false;
-                            break;
-                        case FilterActions.RESET:
-                            delete tileTargets[tileUuid];
-                            break;
-                        default:
-                            assertUnreachable(action, 'Invalid bulk action');
+                Object.entries(changes).forEach(([tileUuid, target]) => {
+                    if (target === null) {
+                        delete tileTargets[tileUuid];
+                    } else {
+                        tileTargets[tileUuid] = target;
                     }
                 });
                 draftState.tileTargets = tileTargets;

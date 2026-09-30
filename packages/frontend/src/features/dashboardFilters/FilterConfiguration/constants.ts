@@ -10,5 +10,3 @@ export enum FilterActions {
     REMOVE = 'remove',
     RESET = 'reset',
 }
-
-export type BulkFilterAction = FilterActions.REMOVE | FilterActions.RESET;

@@ -12,6 +12,7 @@ import {
     type DashboardFieldTarget,
     type DashboardFilterRule,
     type DashboardTab,
+    type DashboardTileTarget,
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
@@ -40,11 +41,13 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
-import { FilterActions, type BulkFilterAction } from './constants';
+import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
 import {
+    getFieldTileDefaults,
     getFilterTileRelation,
-    getTabToggleAction,
+    getSqlTileDefaults,
+    getTabToggleChanges,
     getValidSqlColumnReferences,
 } from './utils';
 
@@ -54,6 +57,8 @@ type TileWithTargetFields = {
     label: string;
     isFiltered: boolean;
     isOverride: boolean;
+    isDefaultFiltered: boolean;
+    defaultTarget: DashboardTileTarget | null;
     disabled: boolean;
     invalidField?: string;
     tileUuid: string;
@@ -61,7 +66,7 @@ type TileWithTargetFields = {
     sortedFilters: Field[] | undefined;
     selectedField: Field | undefined;
     tabUuid?: string | null;
-    hasExactMatch: boolean;
+    matchingFieldId: string | undefined;
 };
 
 type TileWithTargetColumns = {
@@ -70,6 +75,8 @@ type TileWithTargetColumns = {
     label: string;
     isFiltered: boolean;
     isOverride: boolean;
+    isDefaultFiltered: boolean;
+    defaultTarget: DashboardTileTarget | null;
     disabled: boolean;
     invalidField?: string;
     tileUuid: string;
@@ -77,7 +84,6 @@ type TileWithTargetColumns = {
     sortedFilters: string[];
     selectedField: string | undefined;
     tabUuid?: string | null;
-    hasExactMatch: boolean;
 };
 
 type DataAppTileTarget = {
@@ -86,6 +92,8 @@ type DataAppTileTarget = {
     label: string;
     isFiltered: boolean;
     isOverride: boolean;
+    isDefaultFiltered: boolean;
+    defaultTarget: DashboardTileTarget | null;
     disabled: false;
     invalidField: undefined;
     tileUuid: string;
@@ -93,7 +101,6 @@ type DataAppTileTarget = {
     sortedFilters: undefined;
     selectedField: undefined;
     tabUuid: string | null;
-    hasExactMatch: true;
 };
 
 type TileTarget =
@@ -113,7 +120,7 @@ type Props = {
         tileUuid: string,
         target?: DashboardFieldTarget,
     ) => void;
-    onBulkChange: (action: BulkFilterAction, tileUuids: string[]) => void;
+    onBulkChange: (changes: Record<string, DashboardTileTarget | null>) => void;
 };
 
 const TileFilterConfiguration: FC<Props> = ({
@@ -247,18 +254,22 @@ const TileFilterConfiguration: FC<Props> = ({
                         }
                     }
 
-                    const hasExactMatch = field
-                        ? (sortedFilters?.some((f) =>
-                              matchFieldExact(f)(field),
-                          ) ?? false)
-                        : false;
+                    const matchingField = field
+                        ? filters?.find((f) => matchFieldExact(f)(field))
+                        : undefined;
+                    const defaults = getFieldTileDefaults(
+                        relation,
+                        tileConfig,
+                        matchingField,
+                        field,
+                    );
 
                     return {
                         targetType: 'field',
                         key: tileUuid + index,
                         label: tileLabel,
                         isFiltered: !!selectedField || !!invalidField,
-                        isOverride: relation !== 'auto',
+                        ...defaults,
                         disabled: !isFilterAvailable,
                         invalidField,
                         tileUuid,
@@ -271,7 +282,9 @@ const TileFilterConfiguration: FC<Props> = ({
                         sortedFilters,
                         selectedField,
                         tabUuid: tabUuidFromTile,
-                        hasExactMatch,
+                        matchingFieldId: matchingField
+                            ? getItemId(matchingField)
+                            : undefined,
                     };
                 },
             );
@@ -312,6 +325,25 @@ const TileFilterConfiguration: FC<Props> = ({
                             : undefined;
                 }
 
+                const defaultColumn = filterRule.target.isSqlColumn
+                    ? metadata.columns.find(
+                          (column) =>
+                              column.reference === filterRule.target.fieldId,
+                      )
+                    : undefined;
+                const defaults = getSqlTileDefaults(
+                    relation,
+                    tileConfig,
+                    defaultColumn
+                        ? {
+                              fieldId: defaultColumn.reference,
+                              tableName: 'sql_chart',
+                              isSqlColumn: true,
+                              fallbackType: defaultColumn.type,
+                          }
+                        : null,
+                );
+
                 const tileWithoutTitle =
                     !tile.properties.title ||
                     tile.properties.title.length === 0;
@@ -327,14 +359,13 @@ const TileFilterConfiguration: FC<Props> = ({
                     key: tileUuid + index,
                     label: tileLabel,
                     isFiltered: !!selectedField || !!invalidField,
-                    isOverride: relation !== 'auto',
+                    ...defaults,
                     disabled: false,
                     invalidField,
                     tileUuid,
                     sortedFilters: columns,
                     selectedField,
                     tabUuid: tile.tabUuid,
-                    hasExactMatch: false, // SQL tiles don't have exact field match concept
                 });
                 return acc;
             },
@@ -354,6 +385,8 @@ const TileFilterConfiguration: FC<Props> = ({
                     label: tile.properties.title,
                     isFiltered: relation !== 'disabled',
                     isOverride: relation !== 'auto',
+                    isDefaultFiltered: true,
+                    defaultTarget: null,
                     disabled: false,
                     invalidField: undefined,
                     tileUuid: tile.uuid,
@@ -361,7 +394,6 @@ const TileFilterConfiguration: FC<Props> = ({
                     sortedFilters: undefined,
                     selectedField: undefined,
                     tabUuid: tile.tabUuid ?? null,
-                    hasExactMatch: true,
                 };
             });
 
@@ -382,24 +414,40 @@ const TileFilterConfiguration: FC<Props> = ({
     const tabTiles = (tabUuid: string) =>
         tileTargetList.filter((v) => v.tabUuid === tabUuid);
 
+    const applyTarget = (
+        tileUuid: string,
+        target: DashboardTileTarget | null,
+    ) => {
+        if (target === null) {
+            onChange(FilterActions.RESET, tileUuid);
+        } else if (target === false) {
+            onChange(FilterActions.REMOVE, tileUuid);
+        } else {
+            onChange(FilterActions.ADD, tileUuid, target);
+        }
+    };
+
     const handleToggleTile = (value: TileTarget, isFiltered: boolean) => {
         if (!isFiltered) {
             onChange(FilterActions.REMOVE, value.tileUuid);
-        } else if (value.hasExactMatch) {
-            onChange(FilterActions.RESET, value.tileUuid);
+        } else if (value.isDefaultFiltered) {
+            applyTarget(value.tileUuid, value.defaultTarget);
         } else {
             onChange(FilterActions.ADD, value.tileUuid);
         }
     };
 
     const handlePickField = (
-        value: TileTarget,
+        value: TileWithTargetFields,
         newField: Field | undefined,
     ) => {
         if (!newField) return;
-        if (field && matchFieldExact(field)(newField)) {
+        if (
+            value.isDefaultFiltered &&
+            getItemId(newField) === value.matchingFieldId
+        ) {
             // Picking the matching field is the default, not an override
-            onChange(FilterActions.RESET, value.tileUuid);
+            applyTarget(value.tileUuid, value.defaultTarget);
             return;
         }
         onChange(FilterActions.ADD, value.tileUuid, {
@@ -457,6 +505,13 @@ const TileFilterConfiguration: FC<Props> = ({
                 data={value.sortedFilters}
                 onChange={(newColumn) => {
                     if (!newColumn) return;
+                    if (
+                        value.defaultTarget &&
+                        value.defaultTarget.fieldId === newColumn
+                    ) {
+                        applyTarget(value.tileUuid, value.defaultTarget);
+                        return;
+                    }
                     onChange(FilterActions.ADD, value.tileUuid, {
                         fieldId: newColumn,
                         tableName: 'mock_table',
@@ -529,7 +584,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         aria-label={getUiString('filters.config.revertTile')}
                         disabled={!value.isOverride}
                         onClick={() =>
-                            onChange(FilterActions.RESET, value.tileUuid)
+                            applyTarget(value.tileUuid, value.defaultTarget)
                         }
                     >
                         <MantineIcon icon={IconRotate2} />
@@ -577,10 +632,9 @@ const TileFilterConfiguration: FC<Props> = ({
                         aria-label={tab.name}
                         checked={isAnyFiltered}
                         disabled={tileList.length === 0}
-                        onChange={() => {
-                            const action = getTabToggleAction(tileList);
-                            onBulkChange(action.action, action.tileUuids);
-                        }}
+                        onChange={() =>
+                            onBulkChange(getTabToggleChanges(tileList))
+                        }
                     />
                     <Text fz="sm" fw={500}>
                         {tab.name}
@@ -625,10 +679,11 @@ const TileFilterConfiguration: FC<Props> = ({
                     disabled={overrideCount === 0}
                     onClick={() =>
                         onBulkChange(
-                            FilterActions.RESET,
-                            tileTargetList
-                                .filter((v) => v.isOverride)
-                                .map((v) => v.tileUuid),
+                            Object.fromEntries(
+                                tileTargetList
+                                    .filter((v) => v.isOverride)
+                                    .map((v) => [v.tileUuid, v.defaultTarget]),
+                            ),
                         )
                     }
                 >
