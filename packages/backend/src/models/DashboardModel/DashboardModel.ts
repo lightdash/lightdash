@@ -1127,6 +1127,9 @@ export class DashboardModel {
             )
             .select<
                 (GetDashboardQuery & {
+                    content_created_at: Date;
+                    project_name: string;
+                    project_type: DashboardDAO['projectType'];
                     space_uuid: string;
                     space_name: string;
                     deleted_at: Date | null;
@@ -1137,6 +1140,11 @@ export class DashboardModel {
                 })[]
             >([
                 `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${ProjectTableName}.project_type`,
+                this.database.raw(
+                    `${DashboardsTableName}.created_at::timestamp as content_created_at`,
+                ),
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
@@ -1444,6 +1452,9 @@ export class DashboardModel {
         }
 
         return {
+            createdAt: dashboard.content_created_at,
+            projectName: dashboard.project_name,
+            projectType: dashboard.project_type,
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
             dashboardVersionId: dashboard.dashboard_version_id,

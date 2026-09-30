@@ -438,6 +438,24 @@ describe('DashboardService', () => {
         );
     });
 
+    test('enriches the existing dashboard event from the authorized result', async () => {
+        const { track } = analyticsMock;
+        await service.getByIdOrSlug(user, dashboard.uuid);
+        expect(track).toHaveBeenCalledTimes(1);
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'dashboard.view',
+                userId: user.userUuid,
+            }),
+            expect.objectContaining({
+                contentId: dashboard.uuid,
+                contentName: dashboard.name,
+                context: 'backend',
+                actorType: 'user',
+            }),
+        );
+    });
+
     test('should get dashboard by uuid', async () => {
         const result = await service.getByIdOrSlug(user, dashboard.uuid);
 

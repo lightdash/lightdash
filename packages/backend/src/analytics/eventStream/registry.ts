@@ -12,6 +12,11 @@ import {
 } from './agentStepsStream';
 import { aiUsageCompactedColumns, aiUsageProjections } from './aiUsageStream';
 import {
+    contentViewsColumns,
+    contentViewsProjections,
+    type ContentViewEvent,
+} from './contentViewsStream';
+import {
     dataAppEventsCompactedColumns,
     dataAppEventsProjections,
     type DataAppStreamEvent,
@@ -37,6 +42,7 @@ import type { CompactedStreamColumn } from './types';
  * below; nothing else needs to change.
  */
 export type ProjectedEvent =
+    | ContentViewEvent
     | QueryCompletedEvent
     | AiUsageEvent
     | AiAgentStepCompletedEvent
@@ -54,6 +60,7 @@ export type EventStreamRegistry = {
  * not present here are ignored by the sink.
  */
 export const eventStreamRegistry: EventStreamRegistry = {
+    ...contentViewsProjections,
     ...queryEventsProjections,
     ...aiUsageProjections,
     ...agentStepsProjections,
@@ -71,6 +78,7 @@ export const compactedStreamSchemas: Record<
     StreamName,
     CompactedStreamColumn[]
 > = {
+    content_views: contentViewsColumns,
     query_events: queryEventsCompactedColumns,
     ai_usage: aiUsageCompactedColumns,
     agent_steps: agentStepsCompactedColumns,

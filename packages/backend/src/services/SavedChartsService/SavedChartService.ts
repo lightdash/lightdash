@@ -46,6 +46,7 @@ import {
     normalizeSavedMergeDefinition,
     NotFoundError,
     ParameterError,
+    ProjectType,
     SavedChart,
     SavedChartDAO,
     SchedulerAndTargets,
@@ -1985,17 +1986,38 @@ export class SavedChartService
                 }),
             );
 
-        this.analytics.trackAccount(account, {
-            event: 'saved_chart.view',
-            properties: {
-                savedChartId: savedChart.uuid,
-                organizationId: savedChart.organizationUuid,
-                projectId: savedChart.projectUuid,
-                parametersCount: Object.keys(savedChart.parameters || {})
-                    .length,
-                chartType: savedChart.chartConfig.type,
+        const projectViewContext =
+            savedChart.projectType === ProjectType.PREVIEW
+                ? 'preview'
+                : 'backend';
+        this.analytics.trackAccount(
+            account,
+            {
+                event: 'saved_chart.view',
+                properties: {
+                    savedChartId: savedChart.uuid,
+                    organizationId: savedChart.organizationUuid,
+                    projectId: savedChart.projectUuid,
+                    parametersCount: Object.keys(savedChart.parameters || {})
+                        .length,
+                    chartType: savedChart.chartConfig.type,
+                },
             },
-        });
+            {
+                contentId: savedChart.uuid,
+                contentType: 'chart',
+                contentName: savedChart.name,
+                projectName: savedChart.projectName ?? null,
+                spaceId: savedChart.spaceUuid,
+                spaceName: savedChart.spaceName,
+                createdAt: savedChart.createdAt?.toISOString() ?? null,
+                isVerified: !!savedChart.verification,
+                context: account.isRegisteredUser()
+                    ? projectViewContext
+                    : 'embed',
+                actorType: account.isRegisteredUser() ? 'user' : 'embed',
+            },
+        );
 
         return {
             ...savedChart,

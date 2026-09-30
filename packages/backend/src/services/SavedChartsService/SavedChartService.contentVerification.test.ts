@@ -189,6 +189,28 @@ describe('SavedChartService - Content Verification', () => {
         vi.clearAllMocks();
     });
 
+    it('enriches one existing chart event without changing the legacy view counter', async () => {
+        const track = vi.spyOn(analyticsMock, 'trackAccount');
+        const account = fromSession(adminUser, 'session-cookie');
+        try {
+            await service.get('chart-uuid', account);
+            expect(track).toHaveBeenCalledTimes(1);
+            expect(track).toHaveBeenCalledWith(
+                account,
+                expect.objectContaining({ event: 'saved_chart.view' }),
+                expect.objectContaining({
+                    contentId: savedChartData.uuid,
+                    contentName: savedChartData.name,
+                    context: 'backend',
+                    actorType: 'user',
+                }),
+            );
+            expect(analyticsModel.addChartViewEvent).toHaveBeenCalledTimes(1);
+        } finally {
+            track.mockRestore();
+        }
+    });
+
     it('resolves a project slug before loading a saved chart', async () => {
         await service.get('orders', fromSession(adminUser, 'session-cookie'), {
             projectUuid: 'my-project',

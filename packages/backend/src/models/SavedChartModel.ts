@@ -2303,6 +2303,9 @@ export class SavedChartModel {
                     )
                     .select<
                         (DbSavedChartDetails & {
+                            content_created_at: Date;
+                            project_name: string;
+                            project_type: SavedChartDAO['projectType'];
                             space_uuid: string;
                             spaceName: string;
                             dashboardName: string | null;
@@ -2315,6 +2318,11 @@ export class SavedChartModel {
                         })[]
                     >([
                         `${SavedChartsTableName}.project_uuid`,
+                        `${ProjectTableName}.name as project_name`,
+                        `${ProjectTableName}.project_type`,
+                        this.database.raw(
+                            `${SavedChartsTableName}.created_at::timestamp as content_created_at`,
+                        ),
                         `${SavedChartsTableName}.saved_query_id`,
                         `${SavedChartsTableName}.saved_query_uuid`,
                         `${SavedChartsTableName}.name`,
@@ -2522,6 +2530,9 @@ export class SavedChartModel {
                     description: savedQuery.description,
                     tableName: savedQuery.explore_name,
                     merge,
+                    createdAt: savedQuery.content_created_at,
+                    projectName: savedQuery.project_name,
+                    projectType: savedQuery.project_type,
                     updatedAt: savedQuery.created_at,
                     updatedByUser: {
                         userUuid: savedQuery.user_uuid,

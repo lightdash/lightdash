@@ -23,6 +23,11 @@ import {
     userActivityColumns,
 } from '../../../analytics/eventStream/userActivity';
 import {
+    contentReachColumns,
+    contentReachMetrics,
+    contentReachSql,
+} from '../../../analytics/systemExplores/contentReach';
+import {
     systemStreamMetrics,
     userActivityMetrics,
 } from '../../../analytics/systemExplores/systemStreamMetrics';
@@ -52,9 +57,12 @@ export const createAnalyticsExplores = (): Explore[] => {
     const sqlBuilder = warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB);
     const compiler = new ExploreCompiler(sqlBuilder);
     const streams = [
-        ...analyticsStreams.filter((name) => name !== 'mcp_tool_calls'),
+        ...analyticsStreams.filter(
+            (name) => name !== 'mcp_tool_calls' && name !== 'content_views',
+        ),
         'user_activity',
         'tool_activity',
+        'content_reach',
     ] as const;
 
     const buildTable = (name: (typeof streams)[number]) => {
@@ -66,6 +74,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            content_reach: {
+                columns: contentReachColumns,
+                metrics: contentReachMetrics,
+            },
             user_activity: {
                 columns: userActivityColumns,
                 metrics: userActivityMetrics,
@@ -76,7 +88,9 @@ export const createAnalyticsExplores = (): Explore[] => {
             },
         };
         const modelDefinition =
-            name === 'user_activity' || name === 'tool_activity'
+            name === 'user_activity' ||
+            name === 'tool_activity' ||
+            name === 'content_reach'
                 ? model[name]
                 : {
                       columns: compactedStreamSchemas[name],
@@ -105,13 +119,30 @@ export const createAnalyticsExplores = (): Explore[] => {
                 sql: "1.0 * SUM(CASE WHEN ${status} = 'error' THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN ${status} IN ('success', 'error') THEN 1 ELSE 0 END), 0)",
             };
         }
+        if (name === 'content_reach') {
+            metrics.verified_audience_share = {
+                ...base,
+                name: 'verified_audience_share',
+                label: 'Verified audience share',
+                description:
+                    'Distinct viewers of verified content divided by distinct viewers with known verification state in the selected period. A viewer of both counts once; SQL charts and legacy unknown states are excluded from the denominator.',
+                type: MetricType.NUMBER,
+                sql: '1.0 * COUNT(DISTINCT ${verified_viewer_id}) / NULLIF(COUNT(DISTINCT ${known_verification_viewer_id}), 0)',
+            };
+        }
         const table = {
             name,
             label,
             ...(name === 'query_events'
                 ? { primaryKey: ['org_id', 'query_id'] }
                 : {}),
-            sqlTable: name === 'tool_activity' ? toolActivitySql : `"${name}"`,
+            sqlTable:
+                (
+                    {
+                        tool_activity: toolActivitySql,
+                        content_reach: contentReachSql,
+                    } as Partial<Record<typeof name, string>>
+                )[name] ?? `"${name}"`,
             database: 'memory',
             schema: 'main',
             lineageGraph: { nodes: [], edges: [] },
@@ -131,6 +162,26 @@ export const createAnalyticsExplores = (): Explore[] => {
         };
         table.dimensions.user_id.label = 'User UUID';
         table.dimensions.project_id.label = 'Project UUID';
+        if (name === 'content_reach') {
+            for (const column of [
+                'org_id',
+                'schema_version',
+                'qualifying_view_at',
+                'viewer_id',
+                'returning_viewer_id',
+                'first_week_returning_viewer_id',
+                'known_verification_viewer_id',
+                'verified_viewer_id',
+            ]) {
+                for (const field of Object.values(table.dimensions)) {
+                    if (
+                        field.name === column ||
+                        field.name.startsWith(`${column}_`)
+                    )
+                        field.hidden = true;
+                }
+            }
+        }
         if (name === 'user_activity') {
             table.dimensions.org_id.hidden = true;
             for (const column of userActivityColumns.filter(

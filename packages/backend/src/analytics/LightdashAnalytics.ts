@@ -87,6 +87,7 @@ import {
     type AiKeyManagement,
     type AiUsageEvent,
 } from './aiUsage';
+import type { ContentViewMetadata } from './eventStream/contentViewsStream';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
     UpgradeEventName,
@@ -1468,7 +1469,7 @@ type AppReadyWaitEvent = BaseTrack & {
     };
 };
 
-type SavedChartView = BaseTrack & {
+export type SavedChartView = BaseTrack & {
     event: 'saved_chart.view';
     userId?: string;
     properties: {
@@ -1480,7 +1481,7 @@ type SavedChartView = BaseTrack & {
     };
 };
 
-type DashboardView = BaseTrack & {
+export type DashboardView = BaseTrack & {
     event: 'dashboard.view';
     userId: string;
     properties: {
@@ -1491,7 +1492,7 @@ type DashboardView = BaseTrack & {
     };
 };
 
-type ViewSqlChart = BaseTrack & {
+export type ViewSqlChart = BaseTrack & {
     event: 'sql_chart.view';
     userId: string;
     properties: {
@@ -4447,9 +4448,26 @@ export class LightdashAnalytics extends Analytics {
         return { ...payload, anonymousId: LightdashAnalytics.anonymousId };
     }
 
-    track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
-        // Usage event stream fires regardless of Rudderstack/anonymization settings
-        this.eventStreamSink?.handle(payload);
+    track<T extends BaseTrack>(
+        payload: TypedEvent | UntypedEvent<T>,
+        contentView?: ContentViewMetadata,
+    ) {
+        // Enrich only the usage copy; RudderStack and event metrics retain their payloads.
+        this.eventStreamSink?.handle(
+            contentView
+                ? {
+                      ...payload,
+                      properties: {
+                          ...payload.properties,
+                          contentView: {
+                              ...contentView,
+                              eventId: uuidv4(),
+                              occurredAt: new Date().toISOString(),
+                          },
+                      },
+                  }
+                : payload,
+        );
 
         if (
             this.lightdashConfig.prometheus.enabled &&
@@ -4594,6 +4612,7 @@ export class LightdashAnalytics extends Analytics {
     trackAccount<T extends BaseTrack>(
         account: Account,
         basePayload: TypedEvent | UntypedEvent<T>,
+        contentView?: ContentViewMetadata,
     ) {
         const payload = {
             ...basePayload,
@@ -4614,6 +4633,7 @@ export class LightdashAnalytics extends Analytics {
         payload.properties.organizationId =
             account.organization.organizationUuid;
 
-        this.track(payload);
+        if (contentView) this.track(payload, contentView);
+        else this.track(payload);
     }
 }

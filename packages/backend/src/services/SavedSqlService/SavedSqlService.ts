@@ -16,6 +16,7 @@ import {
     Organization,
     ParameterError,
     Project,
+    ProjectType,
     QueryExecutionContext,
     SchedulerAndTargets,
     SchedulerFormat,
@@ -31,6 +32,7 @@ import { uniq } from 'lodash';
 import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,
+    type ViewSqlChart,
 } from '../../analytics/LightdashAnalytics';
 import { getAccountWriteContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -356,7 +358,7 @@ export class SavedSqlService
             },
         );
 
-        this.analytics.track({
+        const viewEvent: ViewSqlChart = {
             event: 'sql_chart.view',
             userId: user.userUuid,
             properties: {
@@ -364,14 +366,35 @@ export class SavedSqlService
                 projectId: savedChart.project.projectUuid,
                 organizationId: savedChart.organization.organizationUuid,
             },
-        });
+        };
 
-        const resolvedColorPalette =
-            await this.savedSqlModel.resolveColorPalette({
+        const resolvedColorPalette = await this.savedSqlModel
+            .resolveColorPalette({
                 projectUuid: savedChart.project.projectUuid,
                 dashboardUuid: savedChart.dashboard?.uuid,
                 spaceUuid: savedChart.space.uuid,
+            })
+            .catch((error: unknown) => {
+                // Preserve the existing event without qualifying a failed fetch.
+                this.analytics.track(viewEvent);
+                throw error;
             });
+
+        this.analytics.track(viewEvent, {
+            contentId: savedChart.savedSqlUuid,
+            contentType: 'sql_chart',
+            contentName: savedChart.name,
+            projectName: savedChart.project.name ?? null,
+            spaceId: savedChart.space.uuid,
+            spaceName: savedChart.space.name,
+            createdAt: savedChart.createdAt?.toISOString() ?? null,
+            isVerified: null,
+            context:
+                savedChart.project.type === ProjectType.PREVIEW
+                    ? 'preview'
+                    : 'backend',
+            actorType: 'user',
+        });
 
         return {
             ...savedChart,
@@ -425,7 +448,7 @@ export class SavedSqlService
                 : { savedSqlUuid: savedChart.savedSqlUuid },
         );
 
-        this.analytics.track({
+        const viewEvent: ViewSqlChart = {
             event: 'sql_chart.view',
             userId: user.userUuid,
             properties: {
@@ -433,14 +456,37 @@ export class SavedSqlService
                 projectId: savedChart.project.projectUuid,
                 organizationId: savedChart.organization.organizationUuid,
             },
-        });
+        };
 
-        const resolvedColorPalette =
-            await this.savedSqlModel.resolveColorPalette({
+        const resolvedColorPalette = await this.savedSqlModel
+            .resolveColorPalette({
                 projectUuid: savedChart.project.projectUuid,
                 dashboardUuid: savedChart.dashboard?.uuid,
                 spaceUuid: savedChart.space.uuid,
+            })
+            .catch((error: unknown) => {
+                // Preserve the existing event without qualifying a failed fetch.
+                this.analytics.track(viewEvent);
+                throw error;
             });
+
+        const projectViewContext =
+            savedChart.project.type === ProjectType.PREVIEW
+                ? 'preview'
+                : 'backend';
+        const isEmbedded = !!embedWriteActions || !account.isRegisteredUser();
+        this.analytics.track(viewEvent, {
+            contentId: savedChart.savedSqlUuid,
+            contentType: 'sql_chart',
+            contentName: savedChart.name,
+            projectName: savedChart.project.name ?? null,
+            spaceId: savedChart.space.uuid,
+            spaceName: savedChart.space.name,
+            createdAt: savedChart.createdAt?.toISOString() ?? null,
+            isVerified: null,
+            context: isEmbedded ? 'embed' : projectViewContext,
+            actorType: isEmbedded ? 'embed' : 'user',
+        });
 
         return {
             ...savedChart,
