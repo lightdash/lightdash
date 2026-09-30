@@ -702,7 +702,7 @@ describe('ExplorerChartTypeAuthoring', () => {
         expect(explorer.isVisualizationConfigOpen).toBe(true);
         expect(explorer.chartSidebarStep).toBe('choose');
         expect(explorer.unsavedChartVersion.chartConfig.type).toBe(
-            ChartType.CARTESIAN,
+            ChartType.TABLE,
         );
     });
 

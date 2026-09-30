@@ -122,7 +122,7 @@ describe('Explore', () => {
         // open the chart gallery and change chart types
         cy.findByText('Configure').click();
         cy.findByRole('button', { name: 'Change chart type' }).click();
-        cy.findByRole('button', { name: 'Bar chart', pressed: true }).should(
+        cy.findByRole('button', { name: 'Table', pressed: true }).should(
             'be.visible',
         );
 
@@ -137,7 +137,6 @@ describe('Explore', () => {
             cy.findByText('Choose chart type').should('be.visible');
         };
 
-        selectChartType('Table');
         selectChartType('Bar chart');
         selectChartType('Horizontal bar chart');
         selectChartType('Line chart');
@@ -145,6 +144,7 @@ describe('Explore', () => {
         selectChartType('Scatter chart');
         selectChartType('Pie chart');
         selectChartType('Big value');
+        selectChartType('Table');
     });
 
     // todo: move to unit test

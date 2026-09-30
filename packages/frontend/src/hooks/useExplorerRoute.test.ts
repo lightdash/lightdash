@@ -16,6 +16,7 @@ import {
     buildInitialExplorerState,
     createExplorerStore,
 } from '../features/explorer/store';
+import { createEmptyTableChartConfig } from '../providers/Explorer/utils';
 import { renderWithProviders } from '../testing/testUtils';
 import {
     getSavedChartEditUrlFromCreateSavedChartVersion,
@@ -249,8 +250,8 @@ describe('parseChartFromExplorerSearchParams', () => {
 
         expect(parsed).toBeDefined();
         expect(parsed!.chartConfig).toEqual({
-            type: ChartType.CARTESIAN,
-            config: { layout: {}, eChartsConfig: {} },
+            type: ChartType.TABLE,
+            config: createEmptyTableChartConfig(),
         });
         expect(parsed!.tableConfig).toEqual({ columnOrder: [] });
         expect(parsed!.metricQuery.filters).toEqual({});
