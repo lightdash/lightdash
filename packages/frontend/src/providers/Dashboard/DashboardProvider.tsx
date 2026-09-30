@@ -729,6 +729,23 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }, {} as ParametersValuesMap);
     }, [parameters]);
 
+    const savedParameterValues: ParametersValuesMap = useMemo(
+        () =>
+            Object.fromEntries(
+                Object.entries(savedParameters).map(([key, parameter]) => [
+                    key,
+                    parameter.value,
+                ]),
+            ),
+        [savedParameters],
+    );
+
+    // Tile queries run with the saved values under the current ones, so labels must too
+    const appliedParameterValues = useMemo(
+        () => ({ ...savedParameterValues, ...parameterValues }),
+        [savedParameterValues, parameterValues],
+    );
+
     // Keep runtime parameter overrides in shared dashboard URLs. Saved defaults
     // are omitted so unchanged dashboards keep clean, stable URLs.
     useEffect(() => {
@@ -807,12 +824,16 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
                 }),
             ),
-            dashboardValues: dashboardParameterValues,
+            dashboardValues: {
+                ...savedParameterValues,
+                ...dashboardParameterValues,
+            },
             definitions: translatedParameterDefinitions,
         };
     }, [
         tileParameterReferences,
         tileChartSavedParameters,
+        savedParameterValues,
         parameters,
         translatedParameterDefinitions,
     ]);
@@ -1942,6 +1963,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         parametersHaveChanged,
         dashboardParameters: parameters,
         parameterValues,
+        appliedParameterValues,
         selectedParametersCount,
         setParameter,
         parameterDefinitions: translatedParameterDefinitions,

@@ -809,6 +809,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const dashboardParameters = useDashboardContext(
             (c) => c.parameterValues,
         );
+        const appliedParameterValues = useDashboardContext(
+            (c) => c.appliedParameterValues,
+        );
         const { mutate: exportSavedChartImage } = useSavedChartImageExport();
         const canExportSavedDataAppVizImage =
             isSavedDataAppVizDashboardImageExportAvailable({
@@ -1598,7 +1601,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     definitions:
                                                                         parameterDefinitions,
                                                                     dashboardValues:
-                                                                        dashboardParameters,
+                                                                        appliedParameterValues,
                                                                     chartSavedValues:
                                                                         chart.parameters ??
                                                                         {},

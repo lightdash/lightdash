@@ -148,6 +148,7 @@ export type DashboardContextType = {
     parametersHaveChanged: boolean;
     dashboardParameters: DashboardParameters;
     parameterValues: ParametersValuesMap;
+    appliedParameterValues: ParametersValuesMap;
     clearAllParameters: () => void;
     setParameter: (key: string, value: ParameterValue | null) => void;
     dashboardParameterReferences: Set<string>;
