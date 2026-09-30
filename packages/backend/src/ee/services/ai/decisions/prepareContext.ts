@@ -2,6 +2,7 @@ import { UnexpectedServerError } from '@lightdash/common';
 import type { ToolSet } from 'ai';
 import { extractKeywords } from '../tools/grepFieldsIndex';
 import { renderProjectContextEntries } from '../tools/loadProjectContext';
+import { formatSkillResult } from '../tools/loadSkill';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import { getAgentQuestion, getAgentRetrievalContext } from './agentQuestion';
 import {
@@ -23,6 +24,8 @@ export type PreparedContext = {
     /** Turn types whose tools start the turn; the confident type, or the likely ones when none is confident. */
     toolIntents: TurnIntent[];
 };
+
+const DOCUMENT_AUTHORING_SKILL = 'developing-in-lightdash';
 
 const TURN_INTENTS = [
     'reference_answer',
@@ -390,10 +393,44 @@ export const prepareRelevantContext = async (
         .sort((a, b) => b.relevance - a.relevance)
         .slice(0, 5)
         .map(({ entry }) => entry);
+    const classifiedTurnIntent = confidentChoice(
+        answers.turnIntent,
+        0.9,
+    ) as TurnIntent | null;
+    let turnIntent: TurnIntent | null = null;
+    let toolIntents: TurnIntent[] = [];
+    if (questions.turnIntent) {
+        if (args.forceChartMutationRouting) {
+            turnIntent = 'chart_from_previous';
+        } else if (
+            !conversation.incomplete ||
+            conversation.routingContextComplete
+        ) {
+            turnIntent = classifiedTurnIntent;
+            const question = questions.turnIntent;
+            toolIntents =
+                !turnIntent && question.type === 'choice'
+                    ? likelyTurnIntents(
+                          answers.turnIntent,
+                          new Set(Object.keys(question.criteria)),
+                      )
+                    : [];
+        }
+    }
+    if (turnIntent) toolIntents = [turnIntent];
+    // Document write-ups always need the authoring skill; load it with its
+    // resource list so the model can fetch chart references in one step.
+    const preloadedSkill =
+        skillReference ??
+        (turnIntent === 'document_write'
+            ? availableSkills.find(
+                  ({ name }) => name === DOCUMENT_AUTHORING_SKILL,
+              )
+            : undefined);
     const [skill, loadedDocuments] = await Promise.all([
-        skillReference
+        preloadedSkill
             ? dependencies
-                  .loadSkill(skillReference.name, { arguments: null })
+                  .loadSkill(preloadedSkill.name, { arguments: null })
                   .catch(() => null)
             : null,
         Promise.all(
@@ -425,7 +462,9 @@ export const prepareRelevantContext = async (
             : null,
     );
     include(
-        skill ? `Skill already loaded: ${skill.name}\n${skill.body}` : null,
+        skill
+            ? `Skill already loaded; call loadSkill only for its resources.\n${formatSkillResult(skill)}`
+            : null,
     );
     loadedDocuments.forEach((document) => {
         include(
@@ -435,31 +474,6 @@ export const prepareRelevantContext = async (
         );
     });
     const content = parts.join('\n\n') || null;
-    const classifiedTurnIntent = confidentChoice(
-        answers.turnIntent,
-        0.9,
-    ) as TurnIntent | null;
-    let turnIntent: TurnIntent | null = null;
-    let toolIntents: TurnIntent[] = [];
-    if (questions.turnIntent) {
-        if (args.forceChartMutationRouting) {
-            turnIntent = 'chart_from_previous';
-        } else if (
-            !conversation.incomplete ||
-            conversation.routingContextComplete
-        ) {
-            turnIntent = classifiedTurnIntent;
-            const question = questions.turnIntent;
-            toolIntents =
-                !turnIntent && question.type === 'choice'
-                    ? likelyTurnIntents(
-                          answers.turnIntent,
-                          new Set(Object.keys(question.criteria)),
-                      )
-                    : [];
-        }
-    }
-    if (turnIntent) toolIntents = [turnIntent];
     return content || preloadedMcpTool || turnIntent || toolIntents.length
         ? {
               content,
