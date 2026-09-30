@@ -105,6 +105,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -130,6 +131,7 @@ import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseCon
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../../projectAdapters/githubAuthorization';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
@@ -455,6 +457,7 @@ const emailModel = {
 const schedulerClient = {
     copyPreviewContent: vi.fn(),
     compileProject: vi.fn(),
+    testAndCompileProject: vi.fn(async () => undefined),
     backfillDefaultUserSpaces: vi.fn(async () => ({
         jobId: 'backfill-job-1',
     })),
@@ -510,6 +513,7 @@ const getMockedProjectService = (
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
             | 'projectDbtSourcesModel'
+            | 'githubAppInstallationsModel'
         >
     > = {},
 ) =>
@@ -589,6 +593,7 @@ const getMockedProjectService = (
             overrides.organizationWarehouseCredentialsModel ??
             (organizationWarehouseCredentialsModel as unknown as OrganizationWarehouseCredentialsModel),
         organizationModel: {} as unknown as OrganizationModel,
+        githubAppInstallationsModel: overrides.githubAppInstallationsModel,
         projectCompileLogModel:
             projectCompileLogModel as unknown as ProjectCompileLogModel,
         adminNotificationService: {
@@ -1818,6 +1823,106 @@ describe('ProjectService', () => {
             });
         });
     });
+    describe('GitHub App connections on save', () => {
+        const postgresWarehouseConnection: CreateWarehouseCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            port: 5432,
+            user: 'postgres',
+            password: 'postgres',
+            dbname: 'analytics',
+            schema: 'public',
+        };
+        // The PROD-11711 shape: OAuth selected, installation id never filled,
+        // previous PAT still stored from an earlier save.
+        const savedGithubOAuthProject = {
+            ...projectWithSensitiveFields,
+            warehouseConnection: postgresWarehouseConnection,
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                installation_id: '',
+                personal_access_token: 'ghp_stale',
+                repository: 'org/repo',
+                branch: 'main',
+                project_sub_path: '/',
+            },
+        } as unknown as typeof projectWithSensitiveFields;
+        // What the settings form sends: secrets stripped, id still empty.
+        const updateData: UpdateProject = {
+            name: savedGithubOAuthProject.name,
+            dbtVersion: savedGithubOAuthProject.dbtVersion,
+            warehouseConnection: postgresWarehouseConnection,
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                installation_id: '',
+                repository: 'org/repo',
+                branch: 'main',
+                project_sub_path: '/',
+            },
+        };
+        const serviceWithOrgInstallation = (
+            installationId: string | undefined,
+        ) =>
+            getMockedProjectService(lightdashConfigMock, {
+                githubAppInstallationsModel: {
+                    findInstallationId: vi.fn(async () => installationId),
+                } as unknown as GithubAppInstallationsModel,
+            });
+
+        beforeEach(() => {
+            projectModel.update.mockClear();
+            jobModel.create.mockClear();
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                savedGithubOAuthProject,
+            );
+        });
+
+        test('fills the org installation id into an OAuth connection saved with an empty one', async () => {
+            await serviceWithOrgInstallation('999').updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                updateData,
+                RequestMethod.WEB_APP,
+            );
+
+            expect(projectModel.update).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    dbtConnection: expect.objectContaining({
+                        authorization_method: 'installation_id',
+                        installation_id: '999',
+                    }),
+                }),
+            );
+            // The stale PAT is not carried into the OAuth connection.
+            expect(projectModel.update).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    dbtConnection: expect.not.objectContaining({
+                        personal_access_token: expect.anything(),
+                    }),
+                }),
+            );
+        });
+
+        test('refuses to save an OAuth connection when the org has no GitHub App installation', async () => {
+            await expect(
+                serviceWithOrgInstallation(
+                    undefined,
+                ).updateAndScheduleAsyncWork(
+                    projectUuid,
+                    developerAccount,
+                    updateData,
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(GITHUB_APP_NOT_INSTALLED_MESSAGE);
+            expect(projectModel.update).not.toHaveBeenCalled();
+            expect(jobModel.create).not.toHaveBeenCalled();
+        });
+    });
+
     describe('organization warehouse credential authorization', () => {
         const organizationWarehouseCredentialsUuid =
             'organization-warehouse-credentials-uuid';
