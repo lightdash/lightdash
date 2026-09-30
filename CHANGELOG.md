@@ -1,3 +1,10 @@
+# [2.386.0](https://github.com/lightdash/lightdash/compare/2.385.0...2.386.0) (2026-09-30)
+
+
+### Features
+
+* **documents:** track Explore from here and chart additions in Documents ([#30236](https://github.com/lightdash/lightdash/issues/30236)) ([c032e58](https://github.com/lightdash/lightdash/commit/c032e58fd8bfee16a39de7ad66574a3dfe44f971)), closes [#30235](https://github.com/lightdash/lightdash/issues/30235)
+
 # [2.385.0](https://github.com/lightdash/lightdash/compare/2.384.0...2.385.0) (2026-09-30)
 
 

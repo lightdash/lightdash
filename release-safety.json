@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.385.0",
-  "previousVersion": "2.384.0",
-  "releaseDate": "2026-09-30T10:40:04.840Z",
+  "version": "2.386.0",
+  "previousVersion": "2.385.0",
+  "releaseDate": "2026-09-30T10:48:42.674Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260930100000_add_view_counts_to_documents.ts",
-        "edition": "core",
-        "tables": [
-          "documents"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
