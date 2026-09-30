@@ -1,6 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
 import type { Knex } from 'knex';
 import type { UsageDimensionName } from '../analytics/eventStream/usageDimensions';
+import { usageContentInventoryQuery } from './usageContentInventory';
 
 export const USAGE_DIMENSION_PAGE_SIZE = 1000;
 
@@ -55,6 +56,13 @@ export class UsageDimensionsModel {
         const { organization_id: orgId, organization_uuid: orgUuid } =
             organization;
         switch (dimension) {
+            case 'content': {
+                yield* this.readPages(
+                    usageContentInventoryQuery(this.database, orgId, orgUuid),
+                    'inventory.inventory_id',
+                );
+                return;
+            }
             case 'agents': {
                 const agents = this.database('ai_agent as a')
                     .where('a.organization_uuid', orgUuid)

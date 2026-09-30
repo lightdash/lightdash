@@ -71,6 +71,19 @@ describe('signed analytics file manifests', () => {
         } as unknown as Awaited<ReturnType<typeof DuckDBInstance.create>>);
     });
 
+    it('serves inventory-only organizations with empty activity tables', async () => {
+        send.mockResolvedValue({
+            Contents: [{ Key: `${prefix}dim=content/content.parquet` }],
+        });
+        const source = await createS3AnalyticsSourceResolver(config)();
+        expect(source.tables.map(({ name }) => name)).toEqual([
+            'lightdash_content',
+        ]);
+        expect(source.emptyTables?.map(({ name }) => name)).toContain(
+            'content_views',
+        );
+    });
+
     it('uses writer config only for prefix listing and signing exact GETs', async () => {
         const resolve = createS3AnalyticsSourceResolver(config);
         expect(createS3ClientFromConfig).not.toHaveBeenCalled();
@@ -183,6 +196,7 @@ describe('signed analytics file manifests', () => {
         ]);
         expect(source.emptyTables?.map(({ name }) => name)).toEqual([
             'lightdash_dashboards',
+            'lightdash_content',
             'ai_usage',
             'data_app_events',
             'export_events',
