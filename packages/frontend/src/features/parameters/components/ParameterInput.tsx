@@ -380,9 +380,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         fetchedLabelMap,
         shouldFetch,
         optionsData,
-        parameter.allow_custom_values,
-        parameter.default,
-        parameter.type,
+        parameter,
         search,
     ]);
 
