@@ -129,11 +129,16 @@ export type BuildTreemapDataArgs = {
     selectedSizeMetric: TreemapMetricItem | undefined;
     colorMetricId: string | null;
     groupFieldIds: string[];
-    /**
-     * Subtotals of every grouping level, from the API. A parent without one
-     * is sized by the sum of its children, so the treemap draws either way.
-     */
+    /** Subtotals of every grouping level, from the API. */
     groupedSubtotals: TreemapGroupedSubtotals | undefined;
+    /**
+     * Size a parent the subtotals did not size by the sum of its children.
+     * Off in the explorer, which leaves it at 0 (ECharts then draws nothing)
+     * until the subtotals arrive: a sum is wrong for metrics that do not
+     * add up, such as averages. `renderChart` turns it on, so a caller
+     * without subtotals still gets a treemap.
+     */
+    sumParentsWithoutSubtotals?: boolean;
 };
 
 /**
@@ -147,6 +152,7 @@ export const buildTreemapData = ({
     colorMetricId,
     groupFieldIds,
     groupedSubtotals,
+    sumParentsWithoutSubtotals = false,
 }: BuildTreemapDataArgs): TreemapNode[] => {
     if (!resultsData) return [];
     if (
@@ -215,12 +221,13 @@ export const buildTreemapData = ({
     // Parents whose size came from the API's subtotals.
     const subtotalled = new Set<MutableTreemapNode>();
 
-    // Convert the structure's children into an array. A parent the subtotals
-    // did not size takes the sum of its children, as ECharts would.
+    // Convert the structure's children into an array.
     const convertToArray = (node: MutableTreemapNode): TreemapNode[] => {
         const children = Object.values(node.children).flatMap(convertToArray);
         const value: number[] =
-            children.length > 0 && !subtotalled.has(node)
+            sumParentsWithoutSubtotals &&
+            children.length > 0 &&
+            !subtotalled.has(node)
                 ? [
                       children.reduce(
                           (sum, child) => sum + (child.value?.[0] ?? 0),
@@ -278,6 +285,8 @@ export type ResolveTreemapChartConfigArgs = {
     tableCalculationsMetadata?: TableCalculationMetadata[];
     /** Subtotals of every grouping level, from the API; parent values stay 0 without them. */
     groupedSubtotals?: TreemapGroupedSubtotals;
+    /** See `buildTreemapData`. */
+    sumParentsWithoutSubtotals?: boolean;
 };
 
 export type ResolvedTreemapChartConfig = {
@@ -303,6 +312,7 @@ export const resolveTreemapChartConfig = ({
     numericMetrics,
     tableCalculationsMetadata,
     groupedSubtotals,
+    sumParentsWithoutSubtotals,
 }: ResolveTreemapChartConfigArgs): ResolvedTreemapChartConfig => {
     const visibleMin = chartConfig?.visibleMin ?? TREEMAP_DEFAULT_VISIBLE_MIN;
     const leafDepth = chartConfig?.leafDepth ?? TREEMAP_DEFAULT_LEAF_DEPTH;
@@ -339,6 +349,7 @@ export const resolveTreemapChartConfig = ({
         colorMetricId,
         groupFieldIds,
         groupedSubtotals,
+        sumParentsWithoutSubtotals,
     });
 
     return {

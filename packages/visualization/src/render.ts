@@ -269,6 +269,7 @@ export const resolveChart = (
                 dimensions: pools.dimensions,
                 numericMetrics: pools.numericMetrics,
                 groupedSubtotals: data.groupedSubtotals,
+                sumParentsWithoutSubtotals: true,
             });
             return {
                 chartType: ChartType.TREEMAP,

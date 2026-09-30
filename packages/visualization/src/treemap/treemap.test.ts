@@ -194,7 +194,7 @@ describe('buildTreemapData', () => {
         ]);
     });
 
-    test('sizes parents by their children without subtotals', () => {
+    test('leaves parents at 0 until the subtotals arrive, as the explorer does', () => {
         const data = buildTreemapData({
             resultsData: { rows },
             sizeMetricId: 'orders_revenue',
@@ -203,14 +203,28 @@ describe('buildTreemapData', () => {
             groupFieldIds: ['orders_region', 'orders_country'],
             groupedSubtotals: undefined,
         });
+        expect(data.map((node) => node.value)).toEqual([
+            [0, 0],
+            [0, 0],
+        ]);
+        expect(data[0].children?.[0].value).toEqual([10, 0]);
+    });
 
-        // EU = PT 10 + ES 20; US = CA 30. Without this the parents have no
-        // area and the treemap draws nothing.
+    test('sizes parents by their children when asked, for headless renders', () => {
+        const data = buildTreemapData({
+            resultsData: { rows },
+            sizeMetricId: 'orders_revenue',
+            selectedSizeMetric: numericMetrics.orders_revenue,
+            colorMetricId: null,
+            groupFieldIds: ['orders_region', 'orders_country'],
+            groupedSubtotals: undefined,
+            sumParentsWithoutSubtotals: true,
+        });
+        // EU = PT 10 + ES 20; US = CA 30.
         expect(data.map((node) => node.value)).toEqual([
             [30, 0],
             [30, 0],
         ]);
-        expect(data[0].children?.[0].value).toEqual([10, 0]);
     });
 
     test('is empty without a size metric, rows or group fields', () => {
