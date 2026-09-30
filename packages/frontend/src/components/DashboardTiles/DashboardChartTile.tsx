@@ -806,9 +806,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 projectUuid: chart.projectUuid,
             }),
         );
-        const dashboardParameters = useDashboardContext(
-            (c) => c.parameterValues,
-        );
         const appliedParameterValues = useDashboardContext(
             (c) => c.appliedParameterValues,
         );
@@ -822,7 +819,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 ).every((filters) => filters.length === 0),
                 hasParameterOverrides: hasDashboardTileParameterOverrides({
                     usedParameterValues: usedParametersValues ?? {},
-                    dashboardValues: dashboardParameters,
+                    dashboardValues: appliedParameterValues,
                     chartSavedValues: chart.parameters ?? {},
                 }),
                 hasUnpublishedChanges: !!chart.hasUnpublishedChanges,

@@ -599,8 +599,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     );
 
     const clearAllParameters = useCallback(() => {
-        setParameters({});
-    }, []);
+        setParameters(isEditMode ? {} : savedParameters);
+    }, [isEditMode, savedParameters]);
 
     const setPinnedParameters = useCallback((pinnedParams: string[]) => {
         setPinnedParametersState(pinnedParams);
@@ -807,16 +807,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }, [projectParameters, addParameterDefinitions]);
 
     const dashboardParameterStatus = useMemo(() => {
-        // Map by key presence (a param is "set" even with an empty value), not the
-        // empty-stripping `parameterValues`, so dashboard semantics are unchanged.
-        const dashboardParameterValues: ParametersValuesMap =
-            Object.fromEntries(
-                Object.entries(parameters).map(([key, parameter]) => [
-                    key,
-                    parameter.value,
-                ]),
-            );
-
         return {
             tiles: Object.entries(tileParameterReferences).map(
                 ([tileUuid, parameterReferences]) => ({
@@ -824,17 +814,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
                 }),
             ),
-            dashboardValues: {
-                ...savedParameterValues,
-                ...dashboardParameterValues,
-            },
+            dashboardValues: appliedParameterValues,
             definitions: translatedParameterDefinitions,
         };
     }, [
         tileParameterReferences,
         tileChartSavedParameters,
-        savedParameterValues,
-        parameters,
+        appliedParameterValues,
         translatedParameterDefinitions,
     ]);
 
