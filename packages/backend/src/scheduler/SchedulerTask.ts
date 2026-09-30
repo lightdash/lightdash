@@ -4400,9 +4400,12 @@ export default class SchedulerTask {
                     );
                 }
 
-                // Get the dashboard parameters to override the saved chart parameters
-                const dashboardParameters =
-                    getDashboardParametersValuesMap(dashboard);
+                const dashboardParameters: ParametersValuesMap = {
+                    ...getDashboardParametersValuesMap(dashboard),
+                    ...(isDashboardScheduler(scheduler)
+                        ? scheduler.parameters
+                        : {}),
+                };
 
                 // We want to process all charts in sequence, so we don't load all chart results in memory
                 await chartTiles
