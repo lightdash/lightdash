@@ -1,3 +1,10 @@
+## [2.389.2](https://github.com/lightdash/lightdash/compare/2.389.1...2.389.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* **learn:** regenerate agent walkthrough text from updated docs ([#30262](https://github.com/lightdash/lightdash/issues/30262)) ([2aa98ba](https://github.com/lightdash/lightdash/commit/2aa98ba4f9bd7611cbc89161ab26275c25619fe1))
+
 ## [2.389.1](https://github.com/lightdash/lightdash/compare/2.389.0...2.389.1) (2026-09-30)
 
 
