@@ -31,6 +31,7 @@ import { EventName } from '../../types/Events';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
 import { readLearnOrigin } from '../learn/origin';
 import { useLearnProgress, useLearnProgressActions } from '../learn/progress';
+import { SCOPE_TOUR_PARAM, SCOPE_TOUR_STORAGE_KEY } from './isScopeTourRunning';
 import { tourFor } from './tourFor';
 import {
     createTrainingPreview,
@@ -39,14 +40,11 @@ import {
     LEAVING_COPY_STATE,
 } from './trainingCopy';
 
-const TOUR_PARAM = 'tour';
-
 /**
  * The running tour, kept for the tab: some pages (Ask AI) live under another
  * layout, so the host remounts when the learner clicks into them, and a
  * reload would otherwise lose the tour while the copy it runs in remains.
  */
-const STORAGE_KEY = 'lightdash.scopeTour';
 type StoredTour = {
     scope: string;
     projectUuid: string;
@@ -63,7 +61,7 @@ type StoredTour = {
 };
 const readStoredTour = (): StoredTour | null => {
     try {
-        const raw = sessionStorage.getItem(STORAGE_KEY);
+        const raw = sessionStorage.getItem(SCOPE_TOUR_STORAGE_KEY);
         return raw ? (JSON.parse(raw) as StoredTour) : null;
     } catch {
         return null;
@@ -71,8 +69,12 @@ const readStoredTour = (): StoredTour | null => {
 };
 const writeStoredTour = (tour: StoredTour | null) => {
     try {
-        if (tour) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(tour));
-        else sessionStorage.removeItem(STORAGE_KEY);
+        if (tour)
+            sessionStorage.setItem(
+                SCOPE_TOUR_STORAGE_KEY,
+                JSON.stringify(tour),
+            );
+        else sessionStorage.removeItem(SCOPE_TOUR_STORAGE_KEY);
     } catch {
         // Storage unavailable: the tour still runs, it just will not survive
         // a remount.
@@ -186,7 +188,7 @@ const ScopeTourHost: FC = () => {
         setActiveScope(stored.scope);
     }, [activeScope, projectUuid]);
 
-    const requested = searchParams.get(TOUR_PARAM);
+    const requested = searchParams.get(SCOPE_TOUR_PARAM);
     const requestedFrom: ReturnTo =
         searchParams.get(FROM_PARAM) === 'learn' ? 'learn' : 'home';
     // Tours run only in the training project or a learner's copy of it.
@@ -414,12 +416,12 @@ const ScopeTourHost: FC = () => {
         if (!project || !projects) return; // wait to learn where we are
         if (project.type !== ProjectType.TRAINING && !isTrainingCopy) {
             const next = new URLSearchParams(searchParams);
-            next.delete(TOUR_PARAM);
+            next.delete(SCOPE_TOUR_PARAM);
             next.delete(COPY_PARAM);
             next.delete(FROM_PARAM);
             if (trainingProject) {
                 void navigate(
-                    `/projects/${trainingProject.projectUuid}/home?${TOUR_PARAM}=${encodeURIComponent(requested)}${requestedFrom === 'learn' ? `&${FROM_PARAM}=learn` : ''}`,
+                    `/projects/${trainingProject.projectUuid}/home?${SCOPE_TOUR_PARAM}=${encodeURIComponent(requested)}${requestedFrom === 'learn' ? `&${FROM_PARAM}=learn` : ''}`,
                 );
             } else {
                 setSearchParams(next, { replace: true });
@@ -480,7 +482,7 @@ const ScopeTourHost: FC = () => {
         });
         // Consume the parameters so a reload does not restart the tour.
         const next = new URLSearchParams(searchParams);
-        next.delete(TOUR_PARAM);
+        next.delete(SCOPE_TOUR_PARAM);
         next.delete(COPY_PARAM);
         next.delete(FROM_PARAM);
         setSearchParams(next, { replace: true });
