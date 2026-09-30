@@ -3,6 +3,7 @@ export * from './types';
 export * from './theme';
 export * from './fonts';
 export * from './rows';
+export * from './results';
 
 // Colors
 export * from './colors/series';

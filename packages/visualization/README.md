@@ -53,6 +53,10 @@ const option = buildCartesianEchartsOption({
 });
 ```
 
+The engine never runs a query. Rows can come from the query API, the query
+SDK, a CSV, or anything else keyed by field id; `toResultRows(rawRows, itemsMap)`
+formats them the way the builders expect.
+
 Every chart type follows the same two steps: `resolve<Type>ChartConfig` then
 `build<Type>EchartsOption` (or `build<Type>Model` for the table and the big
 number). Anything that needs the network, such as table totals and treemap
