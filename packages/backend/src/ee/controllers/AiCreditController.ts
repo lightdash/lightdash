@@ -1,5 +1,7 @@
 import {
     assertRegisteredAccount,
+    type AiCreditUsageBreakdown,
+    type ApiAiCreditDailyUsageResponse,
     type ApiAiCreditUsageResponse,
     type ApiErrorPayload,
 } from '@lightdash/common';
@@ -7,6 +9,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Query,
     Request,
     Response,
     Route,
@@ -40,6 +43,28 @@ export class AiCreditController extends BaseController {
         const results = await this.services
             .getAiCreditService<AiCreditService>()
             .getOrganizationUsage(toSessionUser(req.account));
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Billable AI credits per day of the current period, split by feature,
+     * channel, user, project or agent. Organization admins only.
+     * @summary Get daily AI credit usage
+     * @param breakdown what to split each day's credits by
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Retrieved daily AI credit usage')
+    @Get('/usage/daily')
+    @OperationId('getOrganizationAiCreditDailyUsage')
+    async getDailyUsage(
+        @Request() req: express.Request,
+        @Query() breakdown: AiCreditUsageBreakdown,
+    ): Promise<ApiAiCreditDailyUsageResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getAiCreditService<AiCreditService>()
+            .getOrganizationDailyUsage(toSessionUser(req.account), breakdown);
         this.setStatus(200);
         return { status: 'ok', results };
     }
