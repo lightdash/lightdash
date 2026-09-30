@@ -135,7 +135,12 @@ const getBlockTextLength = (block: Block | KnownBlock): number => {
 export const splitMarkdownIntoMessages = (
     text: string,
     maxMessages: number = SLACK_MAX_ANSWER_MESSAGES,
+    reservedBlockCount = 0,
 ): SlackMarkdownMessages => {
+    const blockLimit = Math.max(
+        1,
+        SLACK_MESSAGE_BLOCK_LIMIT - reservedBlockCount,
+    );
     const blocks = getMarkdownBlocks(text);
     const messages: (Block | KnownBlock)[][] = [];
     let current: (Block | KnownBlock)[] = [];
@@ -146,7 +151,7 @@ export const splitMarkdownIntoMessages = (
         const exceedsBudget =
             current.length > 0 &&
             (currentChars + blockChars > SLACK_MESSAGE_TEXT_BUDGET ||
-                current.length >= SLACK_MESSAGE_BLOCK_LIMIT);
+                current.length >= blockLimit);
         if (exceedsBudget) {
             messages.push(current);
             current = [];

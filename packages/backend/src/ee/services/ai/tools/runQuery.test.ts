@@ -1783,7 +1783,7 @@ describe('getRunQuery custom chart types', () => {
             expect(output.metadata).toMatchObject({ status: 'success' });
         });
 
-        it('falls back to CSV without failing the answer when the export keeps failing', async () => {
+        it('keeps the result card without uploading a CSV when the export keeps failing', async () => {
             const exportCustomChartTypeImage = vi
                 .fn()
                 .mockRejectedValue(
@@ -1795,17 +1795,12 @@ describe('getRunQuery custom chart types', () => {
             });
 
             expect(exportCustomChartTypeImage).toHaveBeenCalledTimes(2);
-            expect(sendFile).toHaveBeenCalledTimes(1);
-            expect(sendFile).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    filename: 'lightdash-results.csv',
-                }),
-            );
+            expect(sendFile).not.toHaveBeenCalled();
             expect(output.metadata).toMatchObject({ status: 'success' });
             expect(output.metadata.chartImageUrl).toBeUndefined();
         });
 
-        it('falls back to CSV when the export exhausts the time budget', async () => {
+        it('keeps the result card without uploading a CSV when the export exhausts the time budget', async () => {
             vi.useFakeTimers();
             try {
                 const exportCustomChartTypeImage = vi
@@ -1822,11 +1817,7 @@ describe('getRunQuery custom chart types', () => {
 
                 // Budget exhausted on the first attempt — no retry.
                 expect(exportCustomChartTypeImage).toHaveBeenCalledTimes(1);
-                expect(sendFile).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        filename: 'lightdash-results.csv',
-                    }),
-                );
+                expect(sendFile).not.toHaveBeenCalled();
                 expect(output.metadata).toMatchObject({ status: 'success' });
             } finally {
                 vi.useRealTimers();
@@ -2129,9 +2120,10 @@ describe('getRunQuery Slack links only', () => {
             artifactUuid: 'artifact-uuid',
             versionUuid: 'version-uuid',
         });
+        const agentContext = new AgentContext([validExplore]);
         const queryTool = getRunQuery({
             purpose,
-            agentContext: new AgentContext([validExplore]),
+            agentContext,
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery,
@@ -2160,6 +2152,7 @@ describe('getRunQuery Slack links only', () => {
         }
         return {
             output,
+            agentContext,
             runAsyncQuery,
             runAsyncMergeQuery,
             sendFile,
@@ -2206,7 +2199,7 @@ describe('getRunQuery Slack links only', () => {
                 status: 'success',
                 queryUuid: 'query-uuid',
             });
-            if (slackLinksOnly) expect(sendFile).not.toHaveBeenCalled();
+            expect(sendFile).not.toHaveBeenCalled();
         },
     );
 
@@ -2280,9 +2273,71 @@ describe('getRunQuery Slack links only', () => {
         expect(sendFile).not.toHaveBeenCalled();
     });
 
-    it('keeps table CSV delivery on its existing path', async () => {
+    it.each([false, true])(
+        'retains executed Slack table rows in context (merge=%s)',
+        async (merge) => {
+            const input = merge ? mergeInput : toolInput;
+            const { output, agentContext, runAsyncQuery, runAsyncMergeQuery } =
+                await executeLinksOnly({
+                    enableDataAccess: true,
+                    slackLinksOnly: false,
+                    merge,
+                    input: {
+                        ...input,
+                        chartConfig: {
+                            ...input.chartConfig,
+                            defaultVizType: 'table',
+                        },
+                    },
+                });
+            expect(output.metadata.status).toBe('success');
+            expect(
+                agentContext.getSlackTableResults().get('query-uuid'),
+            ).toEqual({
+                rows: merge
+                    ? [{ merge_key: 'one', primary_a_met1: 1 }]
+                    : [{ a_dim1: 'one', a_met1: 1 }],
+                fields: {},
+                truncated: false,
+            });
+            expect(
+                merge ? runAsyncMergeQuery : runAsyncQuery,
+            ).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it.each([
+        { enableDataAccess: false, slackLinksOnly: false },
+        { enableDataAccess: true, slackLinksOnly: true },
+    ])(
+        'does not retain table rows when inline sharing is disabled (%j)',
+        async (flags) => {
+            const { agentContext } = await executeLinksOnly({
+                ...flags,
+                input: {
+                    ...toolInput,
+                    chartConfig: {
+                        ...toolInput.chartConfig,
+                        defaultVizType: 'table',
+                    },
+                },
+            });
+            expect(agentContext.getSlackTableResults().size).toBe(0);
+        },
+    );
+
+    it('does not retain chart rows as Slack table previews', async () => {
+        const { agentContext } = await executeLinksOnly({
+            enableDataAccess: true,
+            slackLinksOnly: false,
+        });
+        expect(agentContext.getSlackTableResults().size).toBe(0);
+    });
+
+    it('leaves tables in the final answer without rendering or uploading a CSV', async () => {
         const deferSlackVisualization = vi.fn();
-        const { sendFile } = await executeLinksOnly({
+        const previousRenders = vi.mocked(renderEcharts).mock.calls.length;
+        const { output, sendFile } = await executeLinksOnly({
             enableDataAccess: true,
             slackLinksOnly: false,
             deferSlackVisualization,
@@ -2295,9 +2350,12 @@ describe('getRunQuery Slack links only', () => {
             },
         });
         expect(deferSlackVisualization).not.toHaveBeenCalled();
-        expect(sendFile).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({ filename: 'lightdash-results.csv' }),
+        expect(sendFile).not.toHaveBeenCalled();
+        expect(vi.mocked(renderEcharts).mock.calls).toHaveLength(
+            previousRenders,
         );
+        expect(output.metadata.status).toBe('success');
+        expect(output.result).toContain('one');
     });
 
     it('posts neither a chart image nor a CSV into Slack while the model still sees the rows', async () => {

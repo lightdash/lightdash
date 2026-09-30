@@ -441,17 +441,18 @@ describe('getRunSql Slack links only', () => {
         expect(dependencies.sendFile).not.toHaveBeenCalled();
     });
 
-    it('keeps uploading the full CSV when the setting is off', async () => {
+    it('keeps large query rows in the answer without uploading a CSV when the setting is off', async () => {
         const { tool, dependencies } = makeTool({
             prompt: makeSlackPrompt(),
         });
         dependencies.runSqlJob.mockResolvedValue(largeResult);
 
-        await executeRunSql(tool);
+        const output = await executeRunSql(tool);
 
-        expect(dependencies.sendFile).toHaveBeenCalledWith(
-            expect.objectContaining({ filename: 'lightdash-sql-results.csv' }),
-        );
+        expect(dependencies.sendFile).not.toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
+        expect(output.result).toContain('```csv');
+        expect(output.result).toContain('answer');
     });
 });
 

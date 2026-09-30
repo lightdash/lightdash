@@ -992,10 +992,13 @@ export class SlackClient {
             })
             .catch(async (e) => {
                 if (getSlackErrorCode(e) === 'invalid_blocks') {
+                    const { blocks } = slackMessageArgs;
+                    const rejectedIndices = getSlackInvalidBlockIndices(e);
                     Logger.error(
                         `Slack invalid_blocks error for channel ${channel}`,
                         {
-                            blocks: JSON.stringify(slackMessageArgs.blocks),
+                            blockTypes: blocks?.map((block) => block.type),
+                            rejectedIndices,
                         },
                     );
                     // Slack points at the rejected blocks in the error
@@ -1004,8 +1007,6 @@ export class SlackClient {
                     // those blocks swapped for a notice so the message still
                     // delivers. Any other rejected block means the message
                     // itself is malformed — retrying wouldn't help.
-                    const { blocks } = slackMessageArgs;
-                    const rejectedIndices = getSlackInvalidBlockIndices(e);
                     const onlyImagesRejected =
                         blocks !== undefined &&
                         rejectedIndices.length > 0 &&

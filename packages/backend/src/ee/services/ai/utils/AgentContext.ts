@@ -2,6 +2,10 @@ import type { Explore } from '@lightdash/common';
 import { AnswerEvidence } from '../decisions/answerEvidence';
 import type { ChartExportSource } from './chartAsCode';
 import { GeneratedResponseBlocks } from './GeneratedResponseBlocks';
+import {
+    SLACK_TABLE_MAX_ROWS,
+    type SlackTableQueryResults,
+} from './slackTableBlocks';
 
 type AgentStage = 'query' | 'api' | 'render';
 
@@ -20,6 +24,10 @@ export class AgentContext {
     readonly responseBlocks = new GeneratedResponseBlocks();
 
     private readonly chartExports = new Map<string, ChartExportSource>();
+    private readonly slackTableResults = new Map<
+        string,
+        SlackTableQueryResults
+    >();
 
     constructor(
         private readonly availableExplores: Explore[],
@@ -43,6 +51,29 @@ export class AgentContext {
         } finally {
             this.recordStageSpan?.(stage, startedAt, Date.now() - startedAt);
         }
+    }
+
+    registerSlackTableResults(
+        queryUuid: string,
+        results: Pick<SlackTableQueryResults, 'rows' | 'fields'>,
+    ): void {
+        if (
+            this.slackTableResults.size >= 10 &&
+            !this.slackTableResults.has(queryUuid)
+        )
+            return;
+        this.slackTableResults.set(
+            queryUuid,
+            structuredClone({
+                rows: results.rows.slice(0, SLACK_TABLE_MAX_ROWS),
+                fields: results.fields,
+                truncated: results.rows.length > SLACK_TABLE_MAX_ROWS,
+            }),
+        );
+    }
+
+    getSlackTableResults(): ReadonlyMap<string, SlackTableQueryResults> {
+        return structuredClone(this.slackTableResults);
     }
 
     registerChartExport(queryUuid: string, chart: ChartExportSource): void {

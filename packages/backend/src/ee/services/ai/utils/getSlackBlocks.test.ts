@@ -19,6 +19,7 @@ import {
     getProjectSelectionBlocks,
     getSlackToolTitle,
     getSqlArtifactCardBlocks,
+    splitMarkdownIntoMessages,
 } from './getSlackBlocks';
 import { mockOrdersExplore } from './validationExplore.mock';
 
@@ -45,6 +46,16 @@ const parseStoredArtifact = <
 };
 
 describe('Slack AI agent blocks', () => {
+    it('reserves room for inline tables when splitting the answer', () => {
+        const { messages } = splitMarkdownIntoMessages(
+            'x'.repeat(8000),
+            undefined,
+            43,
+        );
+        expect(messages.map((blocks) => blocks.length)).toEqual([2, 1]);
+        expect(messages.flat()).toHaveLength(3);
+    });
+
     it('maps known tool names to readable task titles', () => {
         expect(getSlackToolTitle('runSql')).toBe('Reviewing SQL');
         expect(getSlackToolTitle('editDbtProject')).toBe(
