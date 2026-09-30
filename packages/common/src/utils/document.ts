@@ -3,7 +3,7 @@ import { validate as isUuid } from 'uuid';
 import chartAsCodeSchema from '../schemas/json/chart-as-code-1.0.json';
 import type { UuidOrSlug } from '../types/api/uuid';
 import type { ChartAsCodeConfig } from '../types/contentAsCode/charts';
-import type { DocumentContent } from '../types/document';
+import type { DocumentAsCode, DocumentContent } from '../types/document';
 import { ParameterError } from '../types/errors';
 import { parseSavedMergeQuery } from '../types/mergeQuery';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
@@ -170,6 +170,62 @@ export const parseDocumentContent = (
         }
     });
     return raw;
+};
+
+const DOCUMENT_AS_CODE_KEYS = [
+    'name',
+    'slug',
+    'description',
+    'spaceSlug',
+    'schemaVersion',
+    'content',
+] as const;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isNonBlankString = (value: unknown): value is string =>
+    typeof value === 'string' && value.trim() !== '';
+
+/** A Document as code, as downloaded; an omitted description is empty. */
+export const parseDocumentAsCode = (raw: unknown): DocumentAsCode => {
+    if (!isRecord(raw)) {
+        throw new ParameterError('Document as code must be an object');
+    }
+    const unknownKeys = Object.keys(raw).filter(
+        (key) => !(DOCUMENT_AS_CODE_KEYS as readonly string[]).includes(key),
+    );
+    if (unknownKeys.length > 0) {
+        throw new ParameterError(
+            `Unknown Document fields: ${unknownKeys.join(', ')}`,
+        );
+    }
+    const { name, slug, description = '', spaceSlug, schemaVersion } = raw;
+    if (
+        !isNonBlankString(name) ||
+        !isNonBlankString(slug) ||
+        !isNonBlankString(spaceSlug)
+    ) {
+        throw new ParameterError(
+            'Document name, slug and spaceSlug must be non-empty strings',
+        );
+    }
+    if (typeof description !== 'string') {
+        throw new ParameterError('Document description must be a string');
+    }
+    if (schemaVersion !== DOCUMENT_SCHEMA_VERSION) {
+        throw new ParameterError(
+            `Unsupported Document schema version: ${String(schemaVersion)}`,
+        );
+    }
+    return {
+        name,
+        slug,
+        description,
+        spaceSlug,
+        schemaVersion,
+        content: parseDocumentContent(schemaVersion, raw.content),
+    };
 };
 
 /**

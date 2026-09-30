@@ -13,6 +13,8 @@ import {
     ApiContentResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
+    ApiDocumentAsCodeListResponse,
+    ApiDocumentAsCodeUpsertResponse,
     ApiEmbedProjectAppsResponse,
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
@@ -34,6 +36,7 @@ import {
     DashboardAsCode,
     DashboardTileTypes,
     DATA_APP_VIZ_TEMPLATE,
+    DocumentAsCode,
     ExternalConnectionAsCode,
     generateSlug,
     getErrorMessage,
@@ -116,6 +119,7 @@ import {
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
+    DOCUMENT_CODE_RESOURCE,
     EXTERNAL_CONNECTION_CODE_RESOURCE,
     GOOGLE_SHEETS_CODE_RESOURCE,
     SCHEDULED_DELIVERY_CODE_RESOURCE,
@@ -181,6 +185,7 @@ export type DownloadHandlerOptions = {
     skipHomepages?: boolean;
     publish?: boolean;
     externalConnections: string[]; // external connection slugs (enterprise)
+    documents?: string[];
     apps?: string[]; // specific app UUIDs or URLs (enterprise); absent = no explicit selection
     chartTypes?: string[]; // specific custom chart type UUIDs or URLs (enterprise); absent = no explicit selection
     includeAgents?: boolean;
@@ -216,11 +221,13 @@ export type DownloadHandlerOptions = {
     skipScheduledDeliveries: boolean;
     skipVirtualViews: boolean;
     skipExternalConnections: boolean;
+    skipDocuments?: boolean;
     includeAlerts: boolean;
     includeGoogleSheets: boolean;
     includeScheduledDeliveries: boolean;
     includeVirtualViews: boolean;
     includeExternalConnections: boolean;
+    includeDocuments?: boolean;
     includeAll: boolean;
     appsOnly?: boolean; // download: implies skipCharts + skipDashboards + skipSpaces; upload: apps-only filtered run
     chartTypesOnly?: boolean; // download: implies skipCharts + skipDashboards + skipSpaces; upload: chart-types-only filtered run
@@ -280,6 +287,7 @@ const hasContentFilters = ({
     scheduledDeliveries,
     virtualViews,
     externalConnections,
+    documents = [],
     homepages,
     apps,
     chartTypes,
@@ -296,6 +304,7 @@ const hasContentFilters = ({
     | 'scheduledDeliveries'
     | 'virtualViews'
     | 'externalConnections'
+    | 'documents'
     | 'homepages'
     | 'apps'
     | 'chartTypes'
@@ -311,6 +320,7 @@ const hasContentFilters = ({
         scheduledDeliveries,
         virtualViews,
         externalConnections,
+        documents,
         homepages ?? [],
         apps ?? [],
         chartTypes ?? [],
@@ -1476,6 +1486,119 @@ const upsertExternalConnections = async (
     return changes;
 };
 
+/**
+ * Documents are behind a feature flag and content-as-code access; when the
+ * download was reached implicitly through --include-all these statuses mean
+ * "not available here" rather than a real failure: 403 = flag off or no
+ * access, 404 = pre-feature server.
+ */
+const isDocumentsUnavailableError = (error: unknown): boolean =>
+    error instanceof LightdashError && [403, 404].includes(error.statusCode);
+
+const downloadDocuments = async (
+    projectId: string,
+    slugs: string[],
+    implicit: boolean,
+    customPath?: string,
+): Promise<number> => {
+    const fetchPage = (offset: number) =>
+        lightdashApi<ApiDocumentAsCodeListResponse['results']>({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/code/documents?${new URLSearchParams(
+                [
+                    ...slugs.map((slug): [string, string] => ['slugs', slug]),
+                    ['offset', String(offset)],
+                ],
+            ).toString()}`,
+            body: undefined,
+        });
+    const documents: DocumentAsCode[] = [];
+    // Requested slugs come back in a single page.
+    let missingSlugs: string[] = [];
+    try {
+        let offset: number | null = 0;
+        while (offset !== null) {
+            const page = await fetchPage(offset);
+            documents.push(...page.documents);
+            missingSlugs = page.missingSlugs;
+            offset = page.nextOffset;
+        }
+    } catch (error) {
+        if (implicit && isDocumentsUnavailableError(error)) {
+            GlobalState.log(
+                styles.warning(`Skipping documents: ${getErrorMessage(error)}`),
+            );
+            return 0;
+        }
+        throw error;
+    }
+
+    missingSlugs.forEach((slug) =>
+        GlobalState.log(styles.warning(`Document "${slug}" was not found`)),
+    );
+    await writeCodeResourceDocuments({
+        definition: DOCUMENT_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+        documents,
+        pruneOtherDocuments: slugs.length === 0,
+    });
+    return documents.length;
+};
+
+const upsertDocuments = async (
+    projectId: string,
+    slugs: string[],
+    changes: Record<string, number>,
+    customPath?: string,
+): Promise<Record<string, number>> => {
+    const errorKey = 'documents with errors';
+    const { files, failures } = await readCodeResourceFiles({
+        definition: DOCUMENT_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+    });
+    failures.forEach(({ message }) => {
+        changes[errorKey] = (changes[errorKey] ?? 0) + 1;
+        GlobalState.log(styles.error(message));
+    });
+    const selected =
+        slugs.length > 0
+            ? files.filter(({ document }) => slugs.includes(document.slug))
+            : files;
+    const selectedSlugs = new Set(
+        selected.map(({ document }) => document.slug),
+    );
+    slugs
+        .filter((slug) => !selectedSlugs.has(slug))
+        .forEach((slug) =>
+            GlobalState.log(
+                styles.warning(`Document "${slug}" was not found locally`),
+            ),
+        );
+    for (const { filePath, document } of selected) {
+        try {
+            const result = await lightdashApi<
+                ApiDocumentAsCodeUpsertResponse['results']
+            >({
+                method: 'POST',
+                url: `/api/v1/projects/${projectId}/code/documents/${encodeURIComponent(
+                    document.slug,
+                )}`,
+                body: JSON.stringify(document),
+            });
+            const action = `documents ${getPromoteAction(result.action)}`;
+            changes[action] = (changes[action] ?? 0) + 1;
+        } catch (error) {
+            changes[errorKey] = (changes[errorKey] ?? 0) + 1;
+            GlobalState.log(
+                styles.error(
+                    `Error upserting document:\n\t"${document.name}" (slug: "${document.slug}", file: "${filePath}")\n\t${getErrorMessage(error)}`,
+                ),
+            );
+        }
+    }
+    return changes;
+};
+
 type ScheduledContentAsCode =
     | ScheduledDeliveryAsCode
     | AlertAsCode
@@ -1926,6 +2049,7 @@ export const downloadHandler = async (
         options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
         options.includeExternalConnections = false;
+        options.includeDocuments = false;
     }
 
     if (options.chartTypesOnly) {
@@ -1950,6 +2074,7 @@ export const downloadHandler = async (
         options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
         options.includeExternalConnections = false;
+        options.includeDocuments = false;
     }
 
     if (options.spacesOnly) {
@@ -1968,6 +2093,7 @@ export const downloadHandler = async (
         options.scheduledDeliveries = [];
         options.virtualViews = [];
         options.externalConnections = [];
+        options.documents = [];
         options.includeAgents = false;
         options.includeApps = false;
         options.includeAlerts = false;
@@ -1975,6 +2101,7 @@ export const downloadHandler = async (
         options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
         options.includeExternalConnections = false;
+        options.includeDocuments = false;
     }
 
     if (options.rootSpaces && options.nested) {
@@ -2495,6 +2622,30 @@ export const downloadHandler = async (
                         options.path,
                     );
                     counts.externalConnectionsNum = total;
+                    return total;
+                },
+                detail: (total) => `${total} downloaded`,
+            });
+        }
+
+        const documentSlugs = options.documents ?? [];
+        if (
+            includeAllOptionalContent ||
+            options.includeDocuments ||
+            documentSlugs.length > 0
+        ) {
+            await output.runItem({
+                label: 'Documents',
+                action: async () => {
+                    const total = await downloadDocuments(
+                        projectId,
+                        documentSlugs,
+                        includeAllOptionalContent &&
+                            !options.includeDocuments &&
+                            documentSlugs.length === 0,
+                        options.path,
+                    );
+                    counts.documentsNum = total;
                     return total;
                 },
                 detail: (total) => `${total} downloaded`,
@@ -4710,6 +4861,32 @@ export const uploadHandler = async (
                 return result.changes;
             },
         });
+
+        // Documents go after custom chart types, which their charts reference.
+        if (!options.skipDocuments) {
+            const documentSlugs = options.documents ?? [];
+            if (hasFilters && documentSlugs.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No document filters provided, skipping`),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Documents',
+                    changes,
+                    action: () =>
+                        upsertDocuments(
+                            projectId,
+                            documentSlugs,
+                            changes,
+                            contentPathOption,
+                        ),
+                    onCount: (count) => {
+                        counts.documentsNum = count;
+                    },
+                });
+            }
+        }
 
         // Skills go before agents: an agent's `skills:` list must resolve
         // against skills that already exist on the server.

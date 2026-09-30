@@ -23,6 +23,8 @@ import {
     type ApiContentDraftWriteBackResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
+    type ApiDocumentAsCodeListResponse,
+    type ApiDocumentAsCodeUpsertResponse,
     type ApiErrorPayload,
     type ApiExternalConnectionAsCodeListResponse,
     type ApiExternalConnectionAsCodeUpsertRequest,
@@ -45,6 +47,7 @@ import {
     type ContentDraftRebaseRequest,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
+    type DocumentAsCode,
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
     type HomepageAsCode,
@@ -1543,5 +1546,51 @@ export class ProjectCoderController extends BaseController {
         @Query() force?: boolean,
     ): Promise<ApiAgentAsCodeUpsertResponse> {
         return this.upsertAiAgentsAsCode(req, projectUuid, body, force);
+    }
+
+    /**
+     * List the Documents you can view, in code representation
+     * @summary List Documents as code
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/documents')
+    @OperationId('getCodeDocuments')
+    async getDocumentsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiDocumentAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        return codeSuccess(
+            await this.services
+                .getDocumentService()
+                .listAsCode(req.account, projectUuid, { slugs, offset }),
+        );
+    }
+
+    /**
+     * Create or update a Document, matched by slug, from code representation
+     * @summary Upsert Document as code
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/documents/{slug}')
+    @OperationId('upsertCodeDocument')
+    async upsertDocumentAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() document: DocumentAsCode,
+        @Request() req: express.Request,
+    ): Promise<ApiDocumentAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        return codeSuccess({
+            action: await this.services
+                .getDocumentService()
+                .upsertAsCode(req.account, projectUuid, slug, document),
+        });
     }
 }
