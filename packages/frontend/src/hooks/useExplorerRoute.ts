@@ -40,6 +40,7 @@ import {
     ExplorerSection,
     type ExplorerReduceState,
 } from '../providers/Explorer/types';
+import { createEmptyTableChartConfig } from '../providers/Explorer/utils';
 import useToaster from './toaster/useToaster';
 
 const CHART_SIDEBAR_PARAM = 'chartSidebar';
@@ -57,11 +58,8 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
         limit: 500,
     },
     chartConfig: {
-        type: ChartType.CARTESIAN,
-        config: {
-            layout: {},
-            eChartsConfig: {},
-        },
+        type: ChartType.TABLE,
+        config: createEmptyTableChartConfig(),
     },
     tableConfig: {
         columnOrder: [],
@@ -453,8 +451,8 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                               },
                           }
                         : {
-                              type: ChartType.CARTESIAN,
-                              config: { layout: {}, eChartsConfig: {} },
+                              type: ChartType.TABLE,
+                              config: createEmptyTableChartConfig(),
                           },
                 };
 

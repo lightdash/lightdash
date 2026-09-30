@@ -117,7 +117,7 @@ describe('explorerSlice chart type authoring', () => {
         expect(authoringNew.chartSidebarStep).toBe('configure');
         expect(authoringNew.isVisualizationConfigOpen).toBe(true);
         expect(
-            authoringNew.cachedChartConfigs[ChartType.CARTESIAN]?.chartConfig,
+            authoringNew.cachedChartConfigs[ChartType.TABLE]?.chartConfig,
         ).toEqual(fromChoose.unsavedChartVersion.chartConfig.config);
     });
 

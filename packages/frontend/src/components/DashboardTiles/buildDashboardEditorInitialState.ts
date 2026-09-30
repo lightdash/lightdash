@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { buildInitialExplorerState } from '../../features/explorer/store';
 import { ExplorerSection } from '../../providers/Explorer/types';
+import { createEmptyTableChartConfig } from '../../providers/Explorer/utils';
 /**
  * Explorer state for a dashboard-hosted editing session. Seeded registry
  * metrics fill gaps in the draft (the chart's own snapshot wins on collision)
@@ -65,11 +66,8 @@ export const buildDashboardEditorInitialState = ({
                     timezone: undefined,
                 },
                 chartConfig: editChart?.chartConfig ?? {
-                    type: ChartType.CARTESIAN,
-                    config: {
-                        layout: { xField: '', yField: [] },
-                        eChartsConfig: { series: [] },
-                    },
+                    type: ChartType.TABLE,
+                    config: createEmptyTableChartConfig(),
                 },
                 tableConfig: editChart?.tableConfig ?? {
                     columnOrder: [],
