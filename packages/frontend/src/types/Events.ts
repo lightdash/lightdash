@@ -88,6 +88,8 @@ export enum SectionName {
 
 export enum EventName {
     HOMEPAGE_QUICK_ACTION_CLICKED = 'homepage_quick_action.clicked',
+    DOCUMENT_CHART_EXPLORE_CLICKED = 'document_chart_explore.clicked',
+    DOCUMENT_CHART_APPLIED = 'document_chart.applied',
     HOMEPAGE_V2_PROMO_VIEWED = 'homepage_v2_promo.viewed',
     HOMEPAGE_V2_PROMO_DISMISSED = 'homepage_v2_promo.dismissed',
     HOMEPAGE_V2_OPTED_IN = 'homepage_v2.opted_in',

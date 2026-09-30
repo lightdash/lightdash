@@ -154,6 +154,7 @@ describe('Document chart titles', () => {
         renderChart();
         expect(mocks.explore).toHaveBeenCalledWith({
             projectUuid: 'project',
+            documentUuid: 'document',
             chart: {
                 ...semanticCell.content.chart,
                 metricQuery,
