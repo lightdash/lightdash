@@ -1,1 +1,4 @@
-export { computeLimitedRowCount, sliceRows } from '@lightdash/visualization/editor';
+export {
+    computeLimitedRowCount,
+    sliceRows,
+} from '@lightdash/visualization/editor';
