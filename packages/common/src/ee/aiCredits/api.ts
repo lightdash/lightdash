@@ -1,5 +1,9 @@
 import { type ApiSuccess } from '../../types/api/success';
-import { type AiCreditHold, type AiCreditPeriod } from './types';
+import {
+    type AiCreditContract,
+    type AiCreditHold,
+    type AiCreditPeriod,
+} from './types';
 
 export type AiCreditUsageTotals = {
     credits: number;
@@ -11,31 +15,24 @@ export type AiCreditUsageBreakdownRow = AiCreditUsageTotals & {
     key: string;
 };
 
-/** One entitlement covering now, with the billable credits used in its own period. */
-export type AiCreditEntitlementUsage = AiCreditPeriod & {
-    uuid: string;
-    allowanceCredits: number | null;
-    usedCredits: number;
-};
-
 export type AiCreditUsageSummary = {
-    // The period the totals and breakdowns cover: the shortest entitlement
-    // period covering now, or the calendar month when there is none.
+    // The contract window containing now, or the calendar month without a contract.
     period: AiCreditPeriod;
-    entitlements: AiCreditEntitlementUsage[];
-    // Whether to say "credits": a licensed instance with an agreed entitlement.
+    contract: Omit<AiCreditContract, 'organizationUuid'> | null;
+    // Whether to say "credits": the organization has a contract in force.
     canShowCredits: boolean;
-    // Billable calls: the figure compared to an allowance.
+    // Billable calls: the figure compared to the contract's allowance.
     billable: AiCreditUsageTotals;
-    // Calls on the organization's own key, priced for comparison, never charged.
+    // Completed billable-feature calls on the organization's own key, priced for comparison, never charged.
     selfManaged: AiCreditUsageTotals;
-    // Background features and failed runs, never charged.
+    // Background features and failed runs on either key, never charged.
     excluded: AiCreditUsageTotals;
     // Tokens on models the rate card cannot price.
     unpricedTokens: number;
     // Billable calls only.
     byFeature: AiCreditUsageBreakdownRow[];
     byTier: AiCreditUsageBreakdownRow[];
+    byChannel: AiCreditUsageBreakdownRow[];
     // Every priced call.
     byKeyOrigin: AiCreditUsageBreakdownRow[];
     activeHolds: AiCreditHold[];
