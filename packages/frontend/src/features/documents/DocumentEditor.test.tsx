@@ -106,6 +106,8 @@ vi.mock('./DocumentPageLayout', () => ({
 const report: Document = {
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
+    ownerUserUuid: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'organization',

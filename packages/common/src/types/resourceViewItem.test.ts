@@ -25,6 +25,7 @@ describe('Document content presentation', () => {
         firstViewedAt: null,
         verification: null,
         directAccessRoles: [SpaceMemberRole.VIEWER],
+        owner: null,
     };
 
     it('preserves identity and direct grants without requiring a surviving creator', () => {

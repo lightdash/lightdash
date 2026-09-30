@@ -427,6 +427,8 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     projectService: this.getProjectService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     spacePermissionService: this.getSpacePermissionService(),

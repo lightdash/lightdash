@@ -21,6 +21,7 @@ import {
     up as grantsUp,
 } from '../20260916100000_create_document_access_tables';
 import { up as provenanceUp } from '../20260916110000_add_document_space_deletion_provenance';
+import { up as ownerUp } from '../20260930150000_add_document_owner_user_uuid_to_documents';
 
 describe('DocumentModel PostgreSQL integration', () => {
     let database: Knex;
@@ -54,8 +55,9 @@ describe('DocumentModel PostgreSQL integration', () => {
             CREATE TABLE organizations (organization_id integer PRIMARY KEY, organization_uuid uuid NOT NULL);
             CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE NOT NULL, organization_id integer NOT NULL);
             CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid NOT NULL, project_id integer NOT NULL, deleted_at timestamptz, deleted_by_user_uuid uuid);
-            CREATE TABLE users (user_uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4(), first_name text, last_name text, avatar_gradient text, is_marketing_opted_in boolean, is_tracking_anonymized boolean, is_setup_complete boolean, is_active boolean);
+            CREATE TABLE users (user_id serial UNIQUE, user_uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4(), first_name text, last_name text, avatar_gradient text, is_marketing_opted_in boolean, is_tracking_anonymized boolean, is_setup_complete boolean, is_active boolean);
             CREATE TABLE user_avatars (user_uuid uuid PRIMARY KEY REFERENCES users(user_uuid) ON DELETE CASCADE, content_hash text NOT NULL);
+            CREATE TABLE emails (user_id integer NOT NULL REFERENCES users(user_id) ON DELETE CASCADE, email text NOT NULL, is_primary boolean NOT NULL);
         `);
         await transaction.raw('INSERT INTO organizations VALUES (1, ?)', [
             randomUUID(),
@@ -72,6 +74,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         ]);
         await up(transaction);
         await provenanceUp(transaction);
+        await ownerUp(transaction);
         model = new DocumentModel({ database: transaction });
         const space = await transaction('spaces')
             .join('projects', 'projects.project_id', 'spaces.project_id')
@@ -113,7 +116,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         let grantStore: DirectAccessModel;
         beforeEach(async () => {
             await transaction.raw(`
-                ALTER TABLE users ADD COLUMN user_id serial;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS user_id serial;
                 CREATE TABLE groups (group_uuid uuid PRIMARY KEY, organization_id integer, name text);
                 CREATE TABLE organization_memberships (user_id integer,organization_id integer,role text,role_uuid uuid);
                 CREATE TABLE organization_membership_custom_roles (user_id integer,organization_id integer);
@@ -885,6 +888,55 @@ describe('DocumentModel PostgreSQL integration', () => {
         expect(
             await model.get(input.projectUuid, document.documentUuid),
         ).toEqual(document);
+    });
+
+    test('owners are assigned and cleared without counting as an edit', async () => {
+        const {
+            rows: [owner],
+        } = await transaction.raw<{
+            rows: Array<{ user_id: number; user_uuid: string }>;
+        }>(
+            "INSERT INTO users (first_name, last_name) VALUES ('Ada', 'Lovelace') RETURNING user_id, user_uuid",
+        );
+        await transaction('emails').insert({
+            user_id: owner.user_id,
+            email: 'ada@example.com',
+            is_primary: true,
+        });
+        const document = await model.create({
+            ...input,
+            ownerUserUuid: owner.user_uuid,
+        });
+        expect(document).toMatchObject({
+            createdByUserUuid: input.createdByUserUuid,
+            ownerUserUuid: owner.user_uuid,
+            owner: {
+                userUuid: owner.user_uuid,
+                firstName: 'Ada',
+                lastName: 'Lovelace',
+                email: 'ada@example.com',
+            },
+        });
+        const cleared = await model.updateMetadata(
+            input.projectUuid,
+            document.documentUuid,
+            { ownerUserUuid: null, expectedSpaceUuid: input.spaceUuid },
+        );
+        expect(cleared).toMatchObject({ ownerUserUuid: null, owner: null });
+        expect(cleared.updatedAt).toEqual(document.updatedAt);
+        const reassigned = await model.updateMetadata(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                ownerUserUuid: owner.user_uuid,
+                expectedSpaceUuid: input.spaceUuid,
+            },
+        );
+        expect(reassigned.updatedAt).toEqual(document.updatedAt);
+        await transaction('users').where('user_uuid', owner.user_uuid).delete();
+        expect(
+            await model.get(input.projectUuid, document.documentUuid),
+        ).toMatchObject({ ownerUserUuid: null, owner: null });
     });
 
     test('metadata updates preserve the immutable content version', async () => {

@@ -19,7 +19,7 @@ describe('Document content discovery', () => {
         ).toBe(false);
     });
 
-    it('includes enabled Documents and deleted Documents but excludes dashboard owner filters', () => {
+    it('includes enabled, deleted and owner-filtered Documents', () => {
         const filters = { documents: { allowedSpaceUuids: [spaceUuid] } };
         expect(
             documentContentConfiguration.shouldQueryBeIncluded(filters),
@@ -35,13 +35,45 @@ describe('Document content discovery', () => {
                 ...filters,
                 ownerUserUuids: ['owner'],
             }),
-        ).toBe(false);
+        ).toBe(true);
         expect(
             documentContentConfiguration.shouldQueryBeIncluded({
                 ...filters,
                 contentTypes: [ContentType.CHART],
             }),
         ).toBe(false);
+    });
+
+    it('filters by assigned owner and projects the owner', () => {
+        const ownerUuid = '00000000-0000-0000-0000-000000000003';
+        const query = documentContentConfiguration
+            .getSummaryQuery(database, {
+                documents: { allowedSpaceUuids: [spaceUuid] },
+                ownerUserUuids: [ownerUuid],
+            })
+            .toSQL();
+        expect(query.sql).toContain(
+            '"documents"."document_owner_user_uuid" in (?)',
+        );
+        expect(query.bindings).toContain(ownerUuid);
+        expect(query.sql).toContain('"owner_email"."is_primary" = ?');
+        const row = documentContentConfiguration.convertSummaryRow({
+            content_type: ContentType.DOCUMENT,
+            owner_user_uuid: ownerUuid,
+            owner_user_first_name: 'Ada',
+            owner_user_last_name: 'Lovelace',
+            owner_user_email: 'ada@example.com',
+        } as Parameters<
+            typeof documentContentConfiguration.convertSummaryRow
+        >[0]);
+        expect(row).toMatchObject({
+            owner: {
+                userUuid: ownerUuid,
+                firstName: 'Ada',
+                lastName: 'Lovelace',
+                email: 'ada@example.com',
+            },
+        });
     });
 
     it('projects metadata only and scopes before pagination to authorized Spaces', () => {

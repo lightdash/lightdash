@@ -69,6 +69,7 @@ const makeDocument = (
 ): Document => ({
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
     documentUuid,
     organizationUuid,
     projectUuid,
@@ -77,6 +78,7 @@ const makeDocument = (
     slug: 'review',
     description: 'Quarterly review',
     createdByUserUuid: userUuid,
+    ownerUserUuid: null,
     createdAt: new Date('2026-09-01'),
     updatedAt: new Date('2026-09-01'),
     version: {

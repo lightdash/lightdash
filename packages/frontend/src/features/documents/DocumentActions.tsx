@@ -17,6 +17,7 @@ import {
     IconTrash,
     IconPin,
     IconPinnedOff,
+    IconUserCircle,
     IconUsers,
 } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -42,6 +43,7 @@ import {
 } from '../promotion/hooks/usePromoteDocument';
 import DocumentAsCodeModal from './DocumentAsCodeModal';
 import DocumentDuplicateModal from './DocumentDuplicateModal';
+import DocumentOwnerModal from './DocumentOwnerModal';
 import { useCanDeleteDocument } from './useCanDeleteDocument';
 import { useCanEditDocument } from './useCanEditDocument';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
@@ -72,12 +74,14 @@ const DocumentActions = ({ document }: { document: Document }) => {
     const [isDeleteOpen, setDeleteOpen] = useState(false);
     const [isCodeOpen, setCodeOpen] = useState(false);
     const [isDuplicateOpen, setDuplicateOpen] = useState(false);
+    const [isOwnerOpen, setOwnerOpen] = useState(false);
+    const canEdit = useCanEditDocument(document);
     const { writableSpaces } = useDocumentCreationSpaces(document.projectUuid);
     const navigate = useNavigate();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const canDelete = useCanDeleteDocument(document);
     const exportPdf = useExportDocumentPdf();
-    const canPromote = useCanEditDocument(document);
+    const canPromote = canEdit;
     const { data: project } = useProject(document.projectUuid);
     const hasUpstreamProject = project?.upstreamProjectUuid !== undefined;
     const promotionDiff = usePromoteDocumentDiffMutation(document.projectUuid);
@@ -167,6 +171,14 @@ const DocumentActions = ({ document }: { document: Document }) => {
                             {isPinned
                                 ? 'Unpin from homepage'
                                 : 'Pin to homepage'}
+                        </Menu.Item>
+                    )}
+                    {canEdit && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconUserCircle} />}
+                            onClick={() => setOwnerOpen(true)}
+                        >
+                            {document.owner ? 'Change owner' : 'Assign owner'}
                         </Menu.Item>
                     )}
                     {writableSpaces.length > 0 && (
@@ -263,6 +275,13 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     document={document}
                     opened
                     onClose={() => setCodeOpen(false)}
+                />
+            )}
+            {canEdit && isOwnerOpen && (
+                <DocumentOwnerModal
+                    document={document}
+                    opened
+                    onClose={() => setOwnerOpen(false)}
                 />
             )}
             {isDuplicateOpen && (

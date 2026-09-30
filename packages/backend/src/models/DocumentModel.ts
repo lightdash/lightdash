@@ -18,6 +18,7 @@ import {
     DocumentsTableName,
     DocumentVersionsTableName,
 } from '../database/entities/documents';
+import { EmailTableName } from '../database/entities/emails';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
@@ -36,6 +37,7 @@ export type CreateDocument = {
     description: string;
     content: DocumentContent;
     createdByUserUuid: string | null;
+    ownerUserUuid?: string | null;
 };
 
 export type DocumentContentUpdate = UpdateDocumentContentRequest;
@@ -60,6 +62,7 @@ const toSummary = (row: DocumentRow): DocumentSummary => ({
     slug: row.slug,
     description: row.description,
     createdByUserUuid: row.created_by_user_uuid,
+    ownerUserUuid: row.document_owner_user_uuid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });
@@ -477,6 +480,26 @@ export class DocumentModel {
                 'users.avatar_gradient as creator_avatar_gradient',
                 'user_avatars.content_hash as creator_avatar_content_hash',
             )
+            .leftJoin(
+                `${UserTableName} as owner_user`,
+                'owner_user.user_uuid',
+                'documents.document_owner_user_uuid',
+            )
+            .leftJoin(
+                `${EmailTableName} as owner_email`,
+                function ownerEmail() {
+                    this.on(
+                        'owner_email.user_id',
+                        '=',
+                        'owner_user.user_id',
+                    ).andOnVal('owner_email.is_primary', true);
+                },
+            )
+            .select(
+                'owner_user.first_name as owner_first_name',
+                'owner_user.last_name as owner_last_name',
+                'owner_email.email as owner_email',
+            )
             .where('documents.document_uuid', documentUuid)
             .first();
         if (!row) {
@@ -504,6 +527,14 @@ export class DocumentModel {
                 avatar_gradient: row.creator_avatar_gradient,
                 avatar_content_hash: row.creator_avatar_content_hash,
             }),
+            owner: row.document_owner_user_uuid
+                ? {
+                      userUuid: row.document_owner_user_uuid,
+                      firstName: row.owner_first_name ?? '',
+                      lastName: row.owner_last_name ?? '',
+                      email: row.owner_email ?? null,
+                  }
+                : null,
             version: {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
@@ -570,6 +601,7 @@ export class DocumentModel {
                     slug,
                     description: input.description,
                     created_by_user_uuid: input.createdByUserUuid,
+                    document_owner_user_uuid: input.ownerUserUuid ?? null,
                 })
                 .returning(['document_id', 'document_uuid']);
             await transaction(DocumentVersionsTableName).insert({
@@ -644,8 +676,13 @@ export class DocumentModel {
             name?: string;
             slug?: string;
             description?: string;
+            ownerUserUuid?: string | null;
         },
     ): Promise<Document> {
+        const isEdit =
+            input.name !== undefined ||
+            input.slug !== undefined ||
+            input.description !== undefined;
         return this.database.transaction(async (transaction) => {
             if (input.slug !== undefined) {
                 await acquireProjectSlugLock(
@@ -683,7 +720,9 @@ export class DocumentModel {
                     name: input.name,
                     slug: input.slug,
                     description: input.description,
-                    updated_at: new Date(),
+                    document_owner_user_uuid: input.ownerUserUuid,
+                    // Reassigning the owner is not an edit to the Document itself
+                    ...(isEdit ? { updated_at: new Date() } : {}),
                 });
             return this.getWithDatabase(transaction, projectUuid, documentUuid);
         });

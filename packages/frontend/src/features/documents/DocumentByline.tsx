@@ -4,7 +4,7 @@ import { type ReactNode } from 'react';
 import { LightdashUserAvatar } from '../../components/Avatar';
 import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
 
-/** Original creator beside an independent last-edited time; never attributes the edit to the creator. */
+/** Original creator and assigned owner beside an independent last-edited time; never attributes the edit to the creator. */
 const DocumentByline = ({
     document,
     status,
@@ -15,6 +15,11 @@ const DocumentByline = ({
 }) => {
     const creatorName = document.createdBy
         ? `${document.createdBy.firstName} ${document.createdBy.lastName}`.trim() ||
+          'Unknown user'
+        : null;
+    const ownerName = document.owner
+        ? `${document.owner.firstName} ${document.owner.lastName}`.trim() ||
+          document.owner.email ||
           'Unknown user'
         : null;
     return (
@@ -39,6 +44,16 @@ const DocumentByline = ({
                             {creatorName}
                         </Text>
                     </Group>
+                    <Text fz="xs" c="dimmed" aria-hidden>
+                        ·
+                    </Text>
+                </>
+            )}
+            {ownerName && (
+                <>
+                    <Text fz="xs" c="dimmed">
+                        Owned by {ownerName}
+                    </Text>
                     <Text fz="xs" c="dimmed" aria-hidden>
                         ·
                     </Text>

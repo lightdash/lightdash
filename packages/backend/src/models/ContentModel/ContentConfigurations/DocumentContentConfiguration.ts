@@ -8,7 +8,6 @@ import { applyContentNameSearch } from '../ContentSearchUtils';
 export const documentContentConfiguration: ContentConfiguration = {
     shouldQueryBeIncluded: (filters) =>
         filters.documents !== undefined &&
-        !filters.ownerUserUuids &&
         (!filters.contentTypes ||
             filters.contentTypes.includes(ContentType.DOCUMENT)),
     getSummaryQuery: (knex, filters) =>
@@ -57,6 +56,18 @@ export const documentContentConfiguration: ContentConfiguration = {
                 'updater.user_uuid',
                 'latest.created_by_user_uuid',
             )
+            .leftJoin(
+                'users as owner_user',
+                'owner_user.user_uuid',
+                'documents.document_owner_user_uuid',
+            )
+            .leftJoin('emails as owner_email', function ownerEmail() {
+                this.on(
+                    'owner_email.user_id',
+                    '=',
+                    'owner_user.user_id',
+                ).andOnVal('owner_email.is_primary', true);
+            })
             .select([
                 knex.raw('? as content_type', [ContentType.DOCUMENT]),
                 knex.raw('?::integer as content_type_rank', [
@@ -92,10 +103,10 @@ export const documentContentConfiguration: ContentConfiguration = {
                 knex.raw('null::uuid as verified_by_user_uuid'),
                 knex.raw('null::text as verified_by_user_first_name'),
                 knex.raw('null::text as verified_by_user_last_name'),
-                knex.raw('null::uuid as owner_user_uuid'),
-                knex.raw('null::text as owner_user_first_name'),
-                knex.raw('null::text as owner_user_last_name'),
-                knex.raw('null::text as owner_user_email'),
+                'documents.document_owner_user_uuid as owner_user_uuid',
+                'owner_user.first_name as owner_user_first_name',
+                'owner_user.last_name as owner_user_last_name',
+                'owner_email.email as owner_user_email',
                 knex.raw("'{}'::json as metadata"),
             ])
             .whereNull('spaces.deleted_at')
@@ -121,6 +132,12 @@ export const documentContentConfiguration: ContentConfiguration = {
                     void builder.whereIn(
                         'documents.document_uuid',
                         filters.uuids,
+                    );
+                }
+                if (filters.ownerUserUuids) {
+                    void builder.whereIn(
+                        'documents.document_owner_user_uuid',
+                        filters.ownerUserUuids,
                     );
                 }
                 if (filters.spaceUuids) {
@@ -193,5 +210,13 @@ export const documentContentConfiguration: ContentConfiguration = {
         firstViewedAt: null,
         lastViewedAt: null,
         verification: null,
+        owner: value.owner_user_uuid
+            ? {
+                  userUuid: value.owner_user_uuid,
+                  firstName: value.owner_user_first_name ?? '',
+                  lastName: value.owner_user_last_name ?? '',
+                  email: value.owner_user_email,
+              }
+            : null,
     }),
 };

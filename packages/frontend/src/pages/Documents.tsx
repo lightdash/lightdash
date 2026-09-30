@@ -64,8 +64,10 @@ const Documents = () => {
                                 projectUuid,
                                 contentTypes: [ContentType.DOCUMENT],
                             }}
+                            ownerFilter
                             columnVisibility={{
                                 [ColumnVisibility.VIEWS]: false,
+                                [ColumnVisibility.OWNER]: true,
                             }}
                             emptyState={{ entityName: 'documents' }}
                             errorStateTitle="Unable to load documents"

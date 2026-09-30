@@ -70,6 +70,7 @@ const markdown: DocumentCell = {
 const makeDocument = (content: DocumentContent): Document => ({
     pinnedListUuid: null,
     createdBy: null,
+    owner: null,
     documentUuid,
     organizationUuid,
     projectUuid,
@@ -78,6 +79,7 @@ const makeDocument = (content: DocumentContent): Document => ({
     slug: 'review',
     description: '',
     createdByUserUuid: userUuid,
+    ownerUserUuid: null,
     createdAt: new Date('2026-09-15'),
     updatedAt: new Date('2026-09-15'),
     version: {
