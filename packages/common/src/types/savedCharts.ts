@@ -12,6 +12,7 @@ import { type SavedMergeDefinition, type SavedMergeQuery } from './mergeQuery';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
+import { type ProjectType } from './projects';
 import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceAccess } from './space';
@@ -933,6 +934,9 @@ export type SavedChartDAO = Omit<
 >;
 
 export type SavedChart = {
+    createdAt?: Date;
+    projectName?: string;
+    projectType?: ProjectType;
     uuid: string;
     projectUuid: string;
     /** Display name of the chart */

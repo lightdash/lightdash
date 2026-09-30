@@ -14,7 +14,7 @@ import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfi
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import {
     contentViewsProjections,
-    type ContentPageView,
+    type CapturedContentView,
 } from './contentViewsStream';
 import { mcpToolCallsProjections } from './mcpToolCallsStream';
 import { compactedStreamSchemas } from './registry';
@@ -179,7 +179,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         content_type: "'dashboard'",
                         content_name: "'Synthetic dashboard'",
                         actor_type: "'user'",
-                        view_context: "'direct'",
+                        view_context: "'backend'",
                         is_qualifying: 'true',
                         is_verified: 'n % 2 = 0',
                         ingested_at: `TIMESTAMP '${date} 12:00:00'`,
@@ -201,7 +201,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         `COPY (SELECT ${compactedStreamSchemas[stream].map(({ name, type }) => `(${values[name] ?? 'NULL'})::${type} AS "${name}"`).join(', ')} FROM range(${rows}) t(n)) TO '${base}/${prefix(stream)}/load.parquet' (FORMAT PARQUET, COMPRESSION zstd)`,
                     );
                 }
-                const page: ContentPageView = {
+                const page: CapturedContentView = {
                     event: 'dashboard.view',
                     userId: userUuid(0),
                     properties: {
@@ -218,7 +218,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                             spaceName: 'Shared',
                             createdAt: '2025-12-25T00:00:00Z',
                             isVerified: false,
-                            context: 'direct',
+                            context: 'backend',
                             actorType: 'user',
                         },
                     },

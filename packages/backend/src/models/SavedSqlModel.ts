@@ -65,8 +65,10 @@ type SelectSavedSql = Pick<
     Pick<DbSavedSqlVersion, 'sql' | 'limit' | 'config' | 'chart_kind'> & {
         warehouse_connection_uuid: string | null;
     } & Pick<DbSpace, 'space_uuid' | 'path'> &
-    Pick<DbProject, 'project_uuid'> &
-    Pick<DbOrganization, 'organization_uuid'> & {
+    Pick<DbProject, 'project_uuid'> & {
+        project_name: string;
+        project_type: DbProject['project_type'];
+    } & Pick<DbOrganization, 'organization_uuid'> & {
         updated_at: Date;
         spaceName: string;
         space_inherit_parent_permissions: boolean;
@@ -146,6 +148,8 @@ export class SavedSqlModel {
             },
             project: {
                 projectUuid: row.project_uuid,
+                name: row.project_name,
+                type: row.project_type,
             },
             dashboard: row.dashboard_uuid
                 ? {
@@ -215,6 +219,8 @@ export class SavedSqlModel {
             )
             .select<SelectSavedSql[]>([
                 `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${ProjectTableName}.project_type`,
                 `${SavedSqlTableName}.saved_sql_uuid`,
                 `${SavedSqlTableName}.name`,
                 `${SavedSqlTableName}.description`,

@@ -33,7 +33,6 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import { useTrackContentView } from '../hooks/useTrackContentView';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
 import { getCandidateExploreNames } from '../utils/exploreSplitError';
@@ -94,12 +93,6 @@ const SavedExplorer = () => {
         projectUuid,
         includeUnpublishedDraft: true,
     });
-    useTrackContentView(
-        projectUuid,
-        'chart',
-        !isInitialLoading && !error ? data?.uuid : undefined,
-        isEditMode ? 'preview' : 'direct',
-    );
     useRecordContentView(
         projectUuid,
         'chart',

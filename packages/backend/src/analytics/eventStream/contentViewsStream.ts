@@ -7,7 +7,7 @@ import type {
 import { buildEnvelope, type ProjectionResult } from './projection';
 import type { CompactedStreamColumn } from './types';
 
-export type ContentPageView = BaseTrack & {
+export type CapturedContentView = BaseTrack & {
     event: 'dashboard.view' | 'saved_chart.view' | 'sql_chart.view';
     userId: string;
     properties: {
@@ -19,18 +19,23 @@ export type ContentPageView = BaseTrack & {
             contentId: string;
             contentType: 'dashboard' | 'chart' | 'sql_chart';
             contentName: string;
-            projectName: string;
+            projectName: string | null;
             spaceId: string | null;
             spaceName: string | null;
-            createdAt: string;
+            createdAt: string | null;
             isVerified: boolean | null;
-            context: 'direct' | 'preview';
-            actorType: 'user';
+            context: 'backend' | 'preview' | 'embed';
+            actorType: 'user' | 'embed';
         };
     };
 };
+export type ContentViewMetadata = Omit<
+    CapturedContentView['properties']['contentView'],
+    'eventId' | 'occurredAt'
+>;
+
 export type ContentViewEvent =
-    | ContentPageView
+    | CapturedContentView
     | DashboardView
     | SavedChartView
     | ViewSqlChart;
@@ -95,7 +100,10 @@ const projectContentView = (payload: ContentViewEvent): ProjectionResult => {
                 view?.context ??
                 (payload.anonymousId === 'embed' ? 'embed' : 'unknown'),
             is_qualifying:
-                !!view && view.context === 'direct' && !!payload.userId,
+                !!view &&
+                view.context === 'backend' &&
+                view.actorType === 'user' &&
+                !!payload.userId,
         },
     };
 };

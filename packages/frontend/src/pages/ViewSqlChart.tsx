@@ -45,7 +45,6 @@ import {
     updateParameterValue,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { useProjectUuid } from '../hooks/useProjectUuid';
-import { useTrackContentView } from '../hooks/useTrackContentView';
 
 enum TabOption {
     CHART = 'chart',
@@ -87,12 +86,6 @@ const ViewSqlChart = () => {
         ...(isUuid ? { savedSqlUuid: slugParam } : { slug: slugParam }),
         parameters: parameterValues,
     });
-
-    useTrackContentView(
-        projectUuid,
-        'sql_chart',
-        !isChartLoading && !chartError ? chartData?.savedSqlUuid : undefined,
-    );
 
     const handleParameterChange = useCallback(
         (key: string, value: ParameterValue | null) => {

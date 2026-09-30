@@ -76,7 +76,6 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import { useTrackContentView } from '../hooks/useTrackContentView';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
@@ -123,12 +122,6 @@ const Dashboard: FC = () => {
     );
 
     const dashboardError = useDashboardContext((c) => c.dashboardError);
-    useTrackContentView(
-        projectUuid,
-        'dashboard',
-        !isDashboardLoading && !dashboardError ? dashboardUuid : undefined,
-        mode === 'edit' ? 'preview' : 'direct',
-    );
     useRecordContentView(
         projectUuid,
         'dashboard',

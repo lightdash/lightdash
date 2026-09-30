@@ -27,8 +27,6 @@ export type ContentFilters = {
     contentTypes?: ContentType[];
     chart?: {
         sources?: ChartContent['source'][];
-        /** Internal metadata lookup: resolve dashboard-owned charts through the owner's space. */
-        includeDashboardCharts?: boolean;
     };
     search?: string;
     space?: {

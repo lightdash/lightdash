@@ -7,7 +7,7 @@ import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder'
 import {
     contentViewsColumns,
     contentViewsProjections,
-    type ContentPageView,
+    type CapturedContentView,
 } from '../eventStream/contentViewsStream';
 import { contentReachSql } from './contentReach';
 
@@ -34,11 +34,11 @@ const compile = (dimensions: string[], metrics: string[]) =>
         timezone: 'UTC',
     }).compileQuery().query;
 
-export const pageView = (
+export const backendView = (
     id: string,
     day: string,
     verified: boolean | null = false,
-): ContentPageView => ({
+): CapturedContentView => ({
     event: 'dashboard.view',
     userId: 'reader',
     properties: {
@@ -55,7 +55,7 @@ export const pageView = (
             spaceName: 'Shared',
             createdAt: '2026-09-01T10:00:00Z',
             isVerified: verified,
-            context: 'direct',
+            context: 'backend',
             actorType: 'user',
         },
     },
@@ -76,17 +76,17 @@ describe('Content reach', () => {
         await db.run(
             "INSERT INTO lightdash_users VALUES ('org','reader','Alex'), ('other','reader','Other tenant')",
         );
-        const first = pageView('one', '2026-09-01');
-        const preview = pageView('preview', '2026-09-09');
+        const first = backendView('one', '2026-09-01');
+        const preview = backendView('preview', '2026-09-09');
         preview.properties.contentView.context = 'preview';
-        const unknownVerification = pageView('sql', '2026-09-09', null);
+        const unknownVerification = backendView('sql', '2026-09-09', null);
         unknownVerification.userId = 'sql-reader';
         for (const event of [
             first,
             first,
-            pageView('reload', '2026-09-01'),
-            pageView('two', '2026-09-02', true),
-            pageView('week-two', '2026-09-09', true),
+            backendView('reload', '2026-09-01'),
+            backendView('two', '2026-09-02', true),
+            backendView('week-two', '2026-09-09', true),
             preview,
             unknownVerification,
         ]) {
@@ -103,7 +103,7 @@ describe('Content reach', () => {
             await statement.run();
             statement.destroySync();
         }
-        // Fetching a dashboard with N tiles must not become N readers/views.
+        // Legacy events without capture metadata remain unclassified.
         for (let i = 0; i < 5; i += 1) {
             await db.run(
                 "INSERT INTO content_views (org_id,user_id,content_id,event_ts,view_context,is_qualifying) VALUES ('org','reader','tile','2026-09-10','unknown',false)",

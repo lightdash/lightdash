@@ -1,6 +1,3 @@
-vi.mock('../hooks/useTrackContentView', () => ({
-    useTrackContentView: vi.fn(),
-}));
 import { ChartKind } from '@lightdash/common';
 import { Button, MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';

@@ -251,7 +251,8 @@ export type SqlChart = {
     > | null;
     space: Pick<SpaceSummary, 'uuid' | 'name' | 'userAccess'>;
     dashboard: Pick<Dashboard, 'uuid' | 'name'> | null;
-    project: Pick<Project, 'projectUuid'>;
+    project: Pick<Project, 'projectUuid'> &
+        Partial<Pick<Project, 'name' | 'type'>>;
     organization: Pick<Organization, 'organizationUuid'>;
     views: number;
     firstViewedAt: Date;

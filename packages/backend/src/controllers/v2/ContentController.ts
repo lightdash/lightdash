@@ -9,12 +9,10 @@ import {
     ApiRestoreContentBody,
     ApiSuccessEmpty,
     assertRegisteredAccount,
-    assertSessionAuth,
     ContentActionDelete,
     ContentActionMove,
     ContentType,
     ParameterError,
-    RecordContentView,
 } from '@lightdash/common';
 import {
     Body,
@@ -42,32 +40,6 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Content')
 export class ContentController extends BaseController {
-    /**
-     * Record a loaded content page interaction for usage analytics.
-     * @summary Record view
-     */
-    @Post('/views')
-    @Middlewares([isAuthenticated])
-    async recordContentView(
-        @Request() req: express.Request,
-        @Body() body: RecordContentView,
-    ): Promise<ApiSuccessEmpty> {
-        assertSessionAuth(req.account);
-        // UUID's shared TSOA pattern validates format; bound the length as well
-        // because the shared pattern intentionally has no start/end anchors.
-        if (
-            [body.projectUuid, body.contentUuid, body.viewId].some(
-                (id) => id.length !== 36,
-            )
-        ) {
-            throw new ParameterError('View identifiers must be UUIDs');
-        }
-        await this.services
-            .getContentService()
-            .recordView(toSessionUser(req.account), body);
-        return { status: 'ok', results: undefined };
-    }
-
     /**
      * Get content (charts, dashboards, spaces)
      * @summary List content

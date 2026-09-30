@@ -16,6 +16,7 @@ import {
     Organization,
     ParameterError,
     Project,
+    ProjectType,
     QueryExecutionContext,
     SchedulerAndTargets,
     SchedulerFormat,
@@ -356,22 +357,39 @@ export class SavedSqlService
             },
         );
 
-        this.analytics.track({
-            event: 'sql_chart.view',
-            userId: user.userUuid,
-            properties: {
-                chartId: savedChart.savedSqlUuid,
-                projectId: savedChart.project.projectUuid,
-                organizationId: savedChart.organization.organizationUuid,
-            },
-        });
-
         const resolvedColorPalette =
             await this.savedSqlModel.resolveColorPalette({
                 projectUuid: savedChart.project.projectUuid,
                 dashboardUuid: savedChart.dashboard?.uuid,
                 spaceUuid: savedChart.space.uuid,
             });
+
+        this.analytics.track(
+            {
+                event: 'sql_chart.view',
+                userId: user.userUuid,
+                properties: {
+                    chartId: savedChart.savedSqlUuid,
+                    projectId: savedChart.project.projectUuid,
+                    organizationId: savedChart.organization.organizationUuid,
+                },
+            },
+            {
+                contentId: savedChart.savedSqlUuid,
+                contentType: 'sql_chart',
+                contentName: savedChart.name,
+                projectName: savedChart.project.name ?? null,
+                spaceId: savedChart.space.uuid,
+                spaceName: savedChart.space.name,
+                createdAt: savedChart.createdAt?.toISOString() ?? null,
+                isVerified: null,
+                context:
+                    savedChart.project.type === ProjectType.PREVIEW
+                        ? 'preview'
+                        : 'backend',
+                actorType: 'user',
+            },
+        );
 
         return {
             ...savedChart,
@@ -425,22 +443,41 @@ export class SavedSqlService
                 : { savedSqlUuid: savedChart.savedSqlUuid },
         );
 
-        this.analytics.track({
-            event: 'sql_chart.view',
-            userId: user.userUuid,
-            properties: {
-                chartId: savedChart.savedSqlUuid,
-                projectId: savedChart.project.projectUuid,
-                organizationId: savedChart.organization.organizationUuid,
-            },
-        });
-
         const resolvedColorPalette =
             await this.savedSqlModel.resolveColorPalette({
                 projectUuid: savedChart.project.projectUuid,
                 dashboardUuid: savedChart.dashboard?.uuid,
                 spaceUuid: savedChart.space.uuid,
             });
+
+        const projectViewContext =
+            savedChart.project.type === ProjectType.PREVIEW
+                ? 'preview'
+                : 'backend';
+        const isEmbedded = !!embedWriteActions || !account.isRegisteredUser();
+        this.analytics.track(
+            {
+                event: 'sql_chart.view',
+                userId: user.userUuid,
+                properties: {
+                    chartId: savedChart.savedSqlUuid,
+                    projectId: savedChart.project.projectUuid,
+                    organizationId: savedChart.organization.organizationUuid,
+                },
+            },
+            {
+                contentId: savedChart.savedSqlUuid,
+                contentType: 'sql_chart',
+                contentName: savedChart.name,
+                projectName: savedChart.project.name ?? null,
+                spaceId: savedChart.space.uuid,
+                spaceName: savedChart.space.name,
+                createdAt: savedChart.createdAt?.toISOString() ?? null,
+                isVerified: null,
+                context: isEmbedded ? 'embed' : projectViewContext,
+                actorType: isEmbedded ? 'embed' : 'user',
+            },
+        );
 
         return {
             ...savedChart,

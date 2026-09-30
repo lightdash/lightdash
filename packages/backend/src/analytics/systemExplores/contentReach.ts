@@ -52,21 +52,21 @@ export const contentReachMetrics: SystemMetricDefinition[] = [
     {
         name: 'qualifying_views',
         description:
-            'Rendered saved-content page visits by signed-in users. Excludes previews, embeds and unknown/background fetches; stable event IDs deduplicate delivery.',
+            'Successful backend content fetches attributed to users. Excludes known previews, embeds and unclassified legacy events. Refetches count separately; browser-cache-only visits are not captured.',
         type: MetricType.COUNT,
         column: 'qualifying_view_at',
     },
     {
         name: 'distinct_viewers',
         description:
-            'Distinct registered users with a qualifying page visit in the selected period.',
+            'Distinct registered users with a qualifying backend fetch in the selected period.',
         type: MetricType.COUNT_DISTINCT,
         column: 'viewer_id',
     },
     {
         name: 'returning_viewers',
         description:
-            'Distinct users with a qualifying visit on a later UTC day than their first captured qualifying visit to the same content. First visits are calculated before date filters.',
+            'Distinct users with a qualifying backend fetch on a later UTC day than their first captured qualifying backend fetch to the same content. First visits are calculated before date filters.',
         type: MetricType.COUNT_DISTINCT,
         column: 'returning_viewer_id',
     },
@@ -87,7 +87,7 @@ export const contentReachMetrics: SystemMetricDefinition[] = [
     {
         name: 'last_viewed_at',
         description:
-            'Most recent qualifying page visit in the selected period.',
+            'Most recent qualifying backend fetch in the selected period.',
         type: MetricType.MAX,
         column: 'qualifying_view_at',
     },

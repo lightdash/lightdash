@@ -39,6 +39,7 @@ import {
     NotFoundError,
     ParameterError,
     PossibleAbilities,
+    ProjectType,
     RegisteredAccount,
     SCHEDULER_TASKS,
     SchedulerAndTargets,
@@ -842,16 +843,34 @@ export class DashboardService
                 });
             });
 
-        this.analytics.track({
-            event: 'dashboard.view',
-            userId: user.userUuid,
-            properties: {
-                dashboardId: dashboard.uuid,
-                organizationId: dashboard.organizationUuid,
-                projectId: dashboard.projectUuid,
-                parametersCount: Object.keys(dashboard.parameters || {}).length,
+        this.analytics.track(
+            {
+                event: 'dashboard.view',
+                userId: user.userUuid,
+                properties: {
+                    dashboardId: dashboard.uuid,
+                    organizationId: dashboard.organizationUuid,
+                    projectId: dashboard.projectUuid,
+                    parametersCount: Object.keys(dashboard.parameters || {})
+                        .length,
+                },
             },
-        });
+            {
+                contentId: dashboard.uuid,
+                contentType: 'dashboard',
+                contentName: dashboard.name,
+                projectName: dashboard.projectName ?? null,
+                spaceId: dashboard.spaceUuid,
+                spaceName: dashboard.spaceName,
+                createdAt: dashboard.createdAt?.toISOString() ?? null,
+                isVerified: !!dashboard.verification,
+                context:
+                    dashboard.projectType === ProjectType.PREVIEW
+                        ? 'preview'
+                        : 'backend',
+                actorType: 'user',
+            },
+        );
 
         // Wide observability event for diagnosing stale dashboard filter references
         // (e.g. PROD-5931). Best-effort — never block the request on logging errors.

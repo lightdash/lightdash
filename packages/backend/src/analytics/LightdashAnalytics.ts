@@ -87,7 +87,7 @@ import {
     type AiKeyManagement,
     type AiUsageEvent,
 } from './aiUsage';
-import type { ContentPageView } from './eventStream/contentViewsStream';
+import type { ContentViewMetadata } from './eventStream/contentViewsStream';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
     UpgradeEventName,
@@ -4448,21 +4448,26 @@ export class LightdashAnalytics extends Analytics {
         return { ...payload, anonymousId: LightdashAnalytics.anonymousId };
     }
 
-    get usageEventsEnabled(): boolean {
-        return (
-            this.lightdashConfig.usageEvents.enabled && !!this.eventStreamSink
+    track<T extends BaseTrack>(
+        payload: TypedEvent | UntypedEvent<T>,
+        contentView?: ContentViewMetadata,
+    ) {
+        // Enrich only the usage copy; RudderStack and event metrics retain their payloads.
+        this.eventStreamSink?.handle(
+            contentView
+                ? {
+                      ...payload,
+                      properties: {
+                          ...payload.properties,
+                          contentView: {
+                              ...contentView,
+                              eventId: uuidv4(),
+                              occurredAt: new Date().toISOString(),
+                          },
+                      },
+                  }
+                : payload,
         );
-    }
-
-    // Explicit page interactions feed usage only. Legacy RudderStack events and
-    // view counters keep their existing semantics.
-    trackContentView(payload: ContentPageView) {
-        this.eventStreamSink?.handle(payload);
-    }
-
-    track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
-        // Usage event stream fires regardless of Rudderstack/anonymization settings
-        this.eventStreamSink?.handle(payload);
 
         if (
             this.lightdashConfig.prometheus.enabled &&
@@ -4607,6 +4612,7 @@ export class LightdashAnalytics extends Analytics {
     trackAccount<T extends BaseTrack>(
         account: Account,
         basePayload: TypedEvent | UntypedEvent<T>,
+        contentView?: ContentViewMetadata,
     ) {
         const payload = {
             ...basePayload,
@@ -4627,6 +4633,7 @@ export class LightdashAnalytics extends Analytics {
         payload.properties.organizationId =
             account.organization.organizationUuid;
 
-        this.track(payload);
+        if (contentView) this.track(payload, contentView);
+        else this.track(payload);
     }
 }

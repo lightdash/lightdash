@@ -5,6 +5,7 @@ import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type AdditionalMetric } from './metricQuery';
 import { type DashboardParameters } from './parameters';
+import { type ProjectType } from './projects';
 import {
     type ChartKind,
     type ChartVersionSummary,
@@ -270,6 +271,9 @@ export type DashboardDraftOverlayError = {
 };
 
 export type Dashboard = {
+    createdAt?: Date;
+    projectName?: string;
+    projectType?: ProjectType;
     organizationUuid: string;
     projectUuid: string;
     /** Set when the viewer has an unpublished draft applied on top */

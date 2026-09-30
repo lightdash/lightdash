@@ -20,8 +20,6 @@ import {
     KnexPaginatedData,
     NotFoundError,
     ParameterError,
-    ProjectType,
-    RecordContentView,
     SessionUser,
     SpaceContentBase,
     SummaryContent,
@@ -47,10 +45,7 @@ import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentService } from '../DocumentService/DocumentService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
-import type {
-    AccessTarget,
-    SpacePermissionService,
-} from '../SpaceService/SpacePermissionService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { SpaceService } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
@@ -135,131 +130,6 @@ export class ContentService extends BaseService {
             throw new ParameterError('Data apps are not available');
         }
         return this.appGenerateService;
-    }
-
-    async recordView(
-        user: SessionUser,
-        view: RecordContentView,
-    ): Promise<void> {
-        // Disabled deployments do not perform additional metadata queries.
-        if (!this.analytics.usageEventsEnabled) return;
-        const occurredAt = new Date().toISOString();
-        const contentType =
-            view.contentType === 'dashboard'
-                ? ContentType.DASHBOARD
-                : ContentType.CHART;
-        const result = await this.contentModel.findSummaryContents(
-            {
-                projectUuids: [view.projectUuid],
-                uuids: [view.contentUuid],
-                contentTypes: [contentType],
-                chart: { includeDashboardCharts: true },
-            },
-            {},
-            { page: 1, pageSize: 1 },
-        );
-        const content = result.data.find(
-            (item) =>
-                item.uuid === view.contentUuid &&
-                item.project.uuid === view.projectUuid &&
-                item.organization.uuid === user.organizationUuid &&
-                item.contentType === contentType,
-        );
-        if (
-            !content ||
-            (content.contentType === ContentType.CHART &&
-                content.source !==
-                    (view.contentType === 'sql_chart'
-                        ? ChartSourceType.SQL
-                        : ChartSourceType.DBT_EXPLORE))
-        ) {
-            throw new NotFoundError('Content not found');
-        }
-        // Authorize the actual resource, including chart access inherited from
-        // its owning dashboard. A browse/space listing is not an access check.
-        let target: AccessTarget;
-        if (content.contentType === ContentType.DASHBOARD) {
-            target = {
-                type: 'dashboard',
-                dashboardUuid: content.uuid,
-                spaceUuid: content.space.uuid,
-            };
-        } else if (
-            content.contentType === ContentType.CHART &&
-            content.source === ChartSourceType.DBT_EXPLORE
-        ) {
-            target = {
-                type: 'chart',
-                chartUuid: content.uuid,
-                dashboardUuid: content.dashboard?.uuid ?? null,
-                spaceUuid: content.space.uuid,
-            };
-        } else if (content.contentType === ContentType.CHART) {
-            target = {
-                type: 'sqlChart',
-                savedSqlUuid: content.uuid,
-                spaceUuid: content.space.uuid,
-            };
-        } else {
-            throw new NotFoundError('Content not found');
-        }
-        const context = await this.spacePermissionService.resolveAccess(
-            user.userUuid,
-            target,
-        );
-        if (
-            this.createAuditedAbility(user).cannot(
-                'view',
-                subject(
-                    content.contentType === ContentType.DASHBOARD
-                        ? 'Dashboard'
-                        : 'SavedChart',
-                    {
-                        ...context,
-                        uuid: content.uuid,
-                        organizationUuid: content.organization.uuid,
-                        projectUuid: content.project.uuid,
-                    },
-                ),
-            )
-        )
-            throw new ForbiddenError('Cannot view this content');
-        const project = await this.projectModel.getSummary(view.projectUuid);
-        this.analytics.trackContentView({
-            event: (
-                {
-                    dashboard: 'dashboard.view',
-                    chart: 'saved_chart.view',
-                    sql_chart: 'sql_chart.view',
-                } as const
-            )[view.contentType],
-            userId: user.userUuid,
-            properties: {
-                organizationId: content.organization.uuid,
-                projectId: content.project.uuid,
-                contentView: {
-                    eventId: view.viewId,
-                    occurredAt,
-                    contentId: content.uuid,
-                    contentType: view.contentType,
-                    contentName: content.name,
-                    projectName: content.project.name,
-                    spaceId: content.space?.uuid ?? null,
-                    spaceName: content.space?.name ?? null,
-                    createdAt: content.createdAt.toISOString(),
-                    isVerified:
-                        content.contentType === ContentType.CHART &&
-                        content.source === ChartSourceType.SQL
-                            ? null
-                            : !!content.verification,
-                    context:
-                        project.type === ProjectType.PREVIEW
-                            ? 'preview'
-                            : view.context,
-                    actorType: 'user',
-                },
-            },
-        });
     }
 
     async find(

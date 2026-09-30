@@ -194,6 +194,40 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
         projectModel.getConnectionRoute.mockResolvedValue('single');
     });
 
+    test('tracks one successful SQL chart fetch and excludes denied or failed fetches', async () => {
+        const track = vi.spyOn(analyticsMock, 'track');
+        try {
+            await service.getSqlChart(adminUser, projectUuid, savedSqlUuid);
+            expect(track).toHaveBeenCalledTimes(1);
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'sql_chart.view',
+                    userId: adminUser.userUuid,
+                }),
+                expect.objectContaining({
+                    contentId: savedSqlUuid,
+                    contentName: sqlChart.name,
+                    context: 'backend',
+                    actorType: 'user',
+                }),
+            );
+            track.mockClear();
+            await expect(
+                service.getSqlChart(viewerUser, projectUuid, savedSqlUuid),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+            savedSqlModel.resolveColorPalette.mockRejectedValueOnce(
+                new Error('palette unavailable'),
+            );
+            await expect(
+                service.getSqlChart(adminUser, projectUuid, savedSqlUuid),
+            ).rejects.toThrow('palette unavailable');
+            expect(track).not.toHaveBeenCalled();
+        } finally {
+            track.mockRestore();
+        }
+    });
+
     test('loads a saved SQL chart through its resource access target', async () => {
         const user = {
             ...baseUser,
