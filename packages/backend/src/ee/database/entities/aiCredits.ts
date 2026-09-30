@@ -1,4 +1,5 @@
 import {
+    type AiCreditAllowanceAlertThreshold,
     type AiCreditHoldReason,
     type AiCreditModelTier,
 } from '@lightdash/common';
@@ -101,4 +102,35 @@ export type AiCreditHoldsTable = Knex.CompositeTableType<
     DbAiCreditHold,
     DbAiCreditHoldInsert,
     Partial<Pick<DbAiCreditHold, 'released_at' | 'expires_at'>>
+>;
+
+export const AiCreditAllowanceAlertsTableName = 'ai_credit_allowance_alerts';
+
+export type DbAiCreditAllowanceAlert = {
+    ai_credit_allowance_alert_uuid: string;
+    organization_uuid: string;
+    ai_credit_contract_uuid: string;
+    window_start: Date;
+    threshold_percent: AiCreditAllowanceAlertThreshold;
+    // Numeric columns arrive as strings through the pg driver.
+    allowance_credits: string;
+    used_credits: string;
+    reached_at: Date;
+    delivered_at: Date | null;
+};
+
+export type DbAiCreditAllowanceAlertInsert = Pick<
+    DbAiCreditAllowanceAlert,
+    | 'organization_uuid'
+    | 'ai_credit_contract_uuid'
+    | 'window_start'
+    | 'threshold_percent'
+> & { allowance_credits: number; used_credits: number };
+
+export type AiCreditAllowanceAlertsTable = Knex.CompositeTableType<
+    DbAiCreditAllowanceAlert,
+    DbAiCreditAllowanceAlertInsert,
+    Partial<Pick<DbAiCreditAllowanceAlert, 'delivered_at'>> & {
+        allowance_credits?: number;
+    }
 >;

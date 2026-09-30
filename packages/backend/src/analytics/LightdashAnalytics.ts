@@ -4,6 +4,7 @@ import {
     AdminNotificationType,
     AI_WRITEBACK_STAGES,
     AiAgentSkillVersionSource,
+    AiCreditAllowanceAlertThreshold,
     AnyType,
     CacheMetadata,
     CartesianSeriesType,
@@ -3663,6 +3664,19 @@ export type ContentReviewNotificationSentEvent = BaseTrack & {
     };
 };
 
+export type AiCreditAllowanceAlertSentEvent = BaseTrack & {
+    event: 'ai_credit_allowance_alert.sent';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        thresholdPercent: AiCreditAllowanceAlertThreshold;
+        allowanceCredits: number;
+        usedCredits: number;
+        periodEnd: string;
+        recipientCount: number;
+    };
+};
+
 export type ContentReviewRequestEvent = BaseTrack & {
     event:
         | 'content_review_request.submitted'
@@ -4639,6 +4653,7 @@ type TypedEvent =
     | ContentReviewSettingsUpdatedEvent
     | ContentReviewSimilarContentFoundEvent
     | ContentReviewNotificationSentEvent
+    | AiCreditAllowanceAlertSentEvent
     | SchedulerOwnershipReassignedEvent
     | DashboardOwnershipReassignedEvent
     | DashboardOwnerAssignedEvent

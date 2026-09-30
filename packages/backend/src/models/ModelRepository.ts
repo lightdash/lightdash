@@ -228,6 +228,7 @@ export type ModelManifest = {
     aiCreditContractModel: unknown;
     aiCreditUsageModel: unknown;
     aiCreditHoldModel: unknown;
+    aiCreditAllowanceAlertModel: unknown;
     embedModel: unknown;
     serviceAccountModel: unknown;
     scimRequestLogModel: unknown;
@@ -1210,6 +1211,10 @@ export class ModelRepository
 
     public getAiCreditHoldModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiCreditHoldModel');
+    }
+
+    public getAiCreditAllowanceAlertModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiCreditAllowanceAlertModel');
     }
 
     /** Whether an edition-specific model was registered, so callers can skip it instead of failing. */

@@ -19,6 +19,7 @@ import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
+import { AiCreditsUsageBar } from './AiCreditsUsageBar';
 import { useAiCreditUsage } from './hooks/useAiCreditUsage';
 import { getAiCreditChannelLabel, getAiCreditFeatureLabel } from './labels';
 
@@ -67,12 +68,8 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                     credits used
                 </Text>
                 {allowance !== null && allowance > 0 && (
-                    <Progress
-                        value={Math.min(
-                            (billable.credits / allowance) * 100,
-                            100,
-                        )}
-                        aria-label="Credits used"
+                    <AiCreditsUsageBar
+                        percent={(billable.credits / allowance) * 100}
                     />
                 )}
                 <Text fz="sm" c="dimmed">
