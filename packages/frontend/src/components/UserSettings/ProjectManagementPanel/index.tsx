@@ -252,22 +252,50 @@ const ProjectManagementPanel: FC = () => {
         });
     }, [projects, activeFilter, search, selectedWarehouses, selectedCreators]);
 
+    const selectedUuids = useMemo(
+        () => new Set(selectedProjects),
+        [selectedProjects],
+    );
+
     // A selection can outlive a filter change, so bulk actions only ever act
     // on selected projects that are still in view.
-    const visibleSelectedProjects = useMemo(() => {
-        const selected = new Set(selectedProjects);
-        return filteredProjects.filter((project) =>
-            selected.has(project.projectUuid),
-        );
-    }, [filteredProjects, selectedProjects]);
+    const visibleSelectedProjects = useMemo(
+        () =>
+            filteredProjects.filter((project) =>
+                selectedUuids.has(project.projectUuid),
+            ),
+        [filteredProjects, selectedUuids],
+    );
 
-    const handleSelectAll = useCallback(() => {
-        setSelectedProjects(
-            filteredProjects
-                .filter(canDeleteProject)
-                .map((project) => project.projectUuid),
+    const selectableProjects = useMemo(
+        () => filteredProjects.filter(canDeleteProject),
+        [filteredProjects, canDeleteProject],
+    );
+
+    const allVisibleSelected =
+        selectableProjects.length > 0 &&
+        selectableProjects.every((project) =>
+            selectedUuids.has(project.projectUuid),
         );
-    }, [filteredProjects, canDeleteProject]);
+
+    // The header checkbox reflects and toggles only the rows in view;
+    // selections hidden by a filter are left untouched.
+    const handleToggleSelectAll = useCallback(() => {
+        const visibleUuids = new Set(
+            filteredProjects.map((project) => project.projectUuid),
+        );
+        setSelectedProjects((prev) => {
+            const hidden = prev.filter((uuid) => !visibleUuids.has(uuid));
+            return allVisibleSelected
+                ? hidden
+                : [
+                      ...hidden,
+                      ...selectableProjects.map(
+                          (project) => project.projectUuid,
+                      ),
+                  ];
+        });
+    }, [filteredProjects, selectableProjects, allVisibleSelected]);
 
     const handleDeleteInBulk = useCallback(() => {
         setDeletingProjectInBulk(true);
@@ -303,13 +331,18 @@ const ProjectManagementPanel: FC = () => {
                 enableSorting: false,
                 Header: () =>
                     activeFilter === ProjectTypeFilter.PREVIEW ? (
-                        <Button
-                            variant="subtle"
-                            size="compact-xs"
-                            onClick={handleSelectAll}
-                        >
-                            Select all
-                        </Button>
+                        <Center>
+                            <Checkbox
+                                aria-label="Select all projects"
+                                checked={allVisibleSelected}
+                                indeterminate={
+                                    !allVisibleSelected &&
+                                    visibleSelectedProjects.length > 0
+                                }
+                                disabled={selectableProjects.length === 0}
+                                onChange={handleToggleSelectAll}
+                            />
+                        </Center>
                     ) : null,
                 Cell: ({ row }) => {
                     const project = row.original;
@@ -571,14 +604,17 @@ const ProjectManagementPanel: FC = () => {
         ],
         [
             activeFilter,
+            allVisibleSelected,
             handleProjectSettingsClick,
             handleSelect,
-            handleSelectAll,
+            handleToggleSelectAll,
             lastProjectUuid,
+            selectableProjects.length,
             selectedProjects,
             user.data?.ability,
             canDeleteProject,
             user.data?.organizationUuid,
+            visibleSelectedProjects.length,
         ],
     );
 
