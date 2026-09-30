@@ -3,6 +3,7 @@ import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useAiCreditUsage } from '../../ee/features/aiCredits/hooks/useAiCreditUsage';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
 import useApp from '../../providers/App/useApp';
@@ -163,6 +164,21 @@ export const useSettingsContext = (): SettingsContext => {
             subject('Organization', { organizationUuid }),
         ) ??
             false);
+    const { data: aiCreditsFlag, isInitialLoading: isAiCreditsFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.AiCredits);
+    const isOrganizationAdmin =
+        !!organizationUuid &&
+        (user?.ability.can(
+            'manage',
+            subject('Organization', { organizationUuid }),
+        ) ??
+            false);
+    // The page only exists for an organization with a contract in force.
+    const { data: aiCreditUsage, isInitialLoading: isAiCreditUsageLoading } =
+        useAiCreditUsage({
+            enabled: aiCreditsFlag?.enabled === true && isOrganizationAdmin,
+        });
+    const canAccessAiCredits = aiCreditUsage?.canShowCredits === true;
     const canManageOrgAiAgent =
         user?.ability?.can(
             'manage',
@@ -219,6 +235,8 @@ export const useSettingsContext = (): SettingsContext => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
+        canAccessAiCredits,
+        isAiCreditsLoading: isAiCreditsFlagLoading || isAiCreditUsageLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isScimTokenManagementEnabled,

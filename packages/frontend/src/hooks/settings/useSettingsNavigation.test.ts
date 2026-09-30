@@ -20,6 +20,8 @@ const settingsContext = (
     canAccessAnalyticsSettings: false,
     isAnalyticsProjectFlagLoading: false,
     isOrganizationRoadmapEnabled: false,
+    canAccessAiCredits: false,
+    isAiCreditsLoading: false,
     isSsoOrganizationSettingsEnabled: false,
     isEmailWhitelabelEnabled: false,
     isScimTokenManagementEnabled: undefined,
@@ -130,5 +132,17 @@ describe('MCP settings navigation', () => {
                 )
                 .map(({ label, to }) => ({ label, to })),
         ).toEqual([{ label: 'Connect', to: '/generalSettings/mcp/connect' }]);
+    });
+});
+
+describe('AI credits settings navigation', () => {
+    it('shows AI credits only to organizations that can access them', () => {
+        const aiCredits = (canAccessAiCredits: boolean) =>
+            organizationNavigation({ canAccessAiCredits })?.find(
+                (item) => item.to === '/generalSettings/aiCredits',
+            );
+
+        expect(aiCredits(true)?.label).toBe('AI credits');
+        expect(aiCredits(false)).toBeUndefined();
     });
 });

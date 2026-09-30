@@ -11,6 +11,7 @@ import {
     IconCalendarStats,
     IconChecklist,
     IconClock,
+    IconCoins,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
@@ -81,6 +82,7 @@ export const useSettingsNavigation = (
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
@@ -508,6 +510,17 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/serviceAccounts',
                 icon: IconUserCode,
                 keywords: ['api', 'ci', 'automation', 'tokens'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (canAccessAiCredits) {
+            organizationItems.push({
+                label: 'AI credits',
+                to: '/generalSettings/aiCredits',
+                icon: IconCoins,
+                keywords: ['ai', 'credits', 'usage', 'allowance', 'billing'],
                 children: [],
                 exact: true,
             });
@@ -1193,6 +1206,7 @@ export const useSettingsNavigation = (
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
