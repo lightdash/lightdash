@@ -18,6 +18,7 @@ const project: NonNullable<AnalyticsProjectStatus['project']> = {
     slug: 'lightdash-analytics-1',
     url: '/projects/lightdash-analytics-1/tables',
     createdAt: '2026-09-10T00:00:00Z',
+    hasContentUpdates: false,
 };
 
 const renderPanel = () =>
@@ -193,6 +194,51 @@ describe('LightdashAnalyticsPanel', () => {
             'href',
             project.url,
         );
+    });
+
+    it('shows available content in the tooltip and clears the indicator after sync', async () => {
+        let hasContentUpdates = true;
+        vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
+            if (url.includes('/dashboards?')) return [];
+            if (method === 'POST') {
+                hasContentUpdates = false;
+                return undefined;
+            }
+            return { project: { ...project, hasContentUpdates } };
+        });
+        renderPanel();
+        expect(
+            await screen.findByRole('img', {
+                name: 'New analytics content available',
+            }),
+        ).toBeVisible();
+        const sync = screen.getByRole('button', { name: /Sync content/ });
+        await userEvent.hover(sync);
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'New analytics content is available.',
+        );
+        expect(screen.getByRole('tooltip')).toHaveTextContent(
+            'replacing edits to them',
+        );
+        await userEvent.unhover(sync);
+        await userEvent.click(sync);
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('img', {
+                    name: 'New analytics content available',
+                }),
+            ).not.toBeInTheDocument(),
+        );
+    });
+
+    it('does not show an update indicator when counts match', async () => {
+        renderPanel();
+        await screen.findByRole('button', { name: 'Sync content' });
+        expect(
+            screen.queryByRole('img', {
+                name: 'New analytics content available',
+            }),
+        ).not.toBeInTheDocument();
     });
 
     it('requires confirmation before deleting and returns to Create', async () => {

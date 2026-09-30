@@ -8,6 +8,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { IconSparkles } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
@@ -20,6 +21,7 @@ import {
 import { useDeleteActiveProjectMutation } from '../../hooks/useActiveProject';
 import Callout from '../common/Callout';
 import EmptyStateLoader from '../common/EmptyStateLoader';
+import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { SettingsPage } from '../common/Settings/SettingsPage';
@@ -113,10 +115,21 @@ const LightdashAnalyticsPanel = ({
                                             focus: true,
                                             touch: true,
                                         }}
-                                        label="Updates built-in dashboards and charts, replacing edits to them. Custom dashboards and copies are kept. Duplicate built-in dashboards to keep your edits."
+                                        label={`${analyticsProject.hasContentUpdates ? 'New analytics content is available. Sync to update your models and dashboards. ' : ''}Updates built-in dashboards and charts, replacing edits to them. Custom dashboards and copies are kept. Duplicate built-in dashboards to keep your edits.`}
                                     >
                                         <Button
                                             variant="default"
+                                            rightSection={
+                                                analyticsProject.hasContentUpdates ? (
+                                                    <MantineIcon
+                                                        icon={IconSparkles}
+                                                        color="blue"
+                                                        aria-hidden={false}
+                                                        role="img"
+                                                        aria-label="New analytics content available"
+                                                    />
+                                                ) : undefined
+                                            }
                                             loading={
                                                 installSampleContent.isLoading
                                             }

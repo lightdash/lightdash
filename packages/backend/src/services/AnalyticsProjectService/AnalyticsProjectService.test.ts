@@ -27,6 +27,7 @@ describe('AnalyticsProjectService', () => {
     };
     const getAllByOrganizationUuid = vi.fn();
     const saveExploresToCache = vi.fn();
+    const getCachedExploreNames = vi.fn();
     const assertAnalyticsProjectAccess = vi.fn();
     const ensureAnalyticsProject = vi.fn();
     const deleteProject = vi.fn();
@@ -43,6 +44,7 @@ describe('AnalyticsProjectService', () => {
         projectModel: {
             getAllByOrganizationUuid,
             saveExploresToCache,
+            getCachedExploreNames,
             runInAnalyticsProvisioningLock: async <T>(
                 org: string,
                 callback: () => Promise<T>,
@@ -63,6 +65,9 @@ describe('AnalyticsProjectService', () => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
         findDashboard.mockResolvedValue([{ uuid: 'existing-dashboard' }]);
+        getCachedExploreNames.mockResolvedValue([
+            ...analyticsExplores.analyticsExploreNames,
+        ]);
         getChart.mockRejectedValue(new NotFoundError('missing'));
         getAllByOrganizationUuid.mockResolvedValue([
             defaultProject,
@@ -71,6 +76,11 @@ describe('AnalyticsProjectService', () => {
     });
 
     it('returns only safe metadata for the org-owned analytics project, including its actual slug', async () => {
+        findDashboard.mockResolvedValue(
+            analyticsContentAsCode.map(({ dashboard }) => ({
+                slug: dashboard.slug,
+            })),
+        );
         const result = await service.getStatus(user);
         expect(assertAnalyticsProjectAccess).toHaveBeenCalledWith(user, {
             organizationUuid: user.organizationUuid,
@@ -86,9 +96,66 @@ describe('AnalyticsProjectService', () => {
                 slug: 'lightdash-analytics-1',
                 url: '/projects/lightdash-analytics-1/tables',
                 createdAt: '2026-09-10T00:00:00.000Z',
+                hasContentUpdates: false,
             },
         });
         expect(ensureAnalyticsProject).not.toHaveBeenCalled();
+        expect(getCachedExploreNames).toHaveBeenCalledExactlyOnceWith(
+            analyticsProject.projectUuid,
+        );
+        expect(findDashboard).toHaveBeenCalledExactlyOnceWith({
+            projectUuid: analyticsProject.projectUuid,
+            slugs: analyticsContentAsCode.map(
+                ({ dashboard }) => dashboard.slug,
+            ),
+        });
+        expect(saveExploresToCache).not.toHaveBeenCalled();
+        expect(upsertDashboard).not.toHaveBeenCalled();
+    });
+
+    it('flags missing models even when all managed dashboards exist', async () => {
+        getCachedExploreNames.mockResolvedValue(
+            analyticsExplores.analyticsExploreNames.slice(1),
+        );
+        findDashboard.mockResolvedValue(
+            analyticsContentAsCode.map(({ dashboard }) => ({
+                slug: dashboard.slug,
+            })),
+        );
+        expect((await service.getStatus(user)).project?.hasContentUpdates).toBe(
+            true,
+        );
+    });
+
+    it('flags missing dashboards even when all models exist', async () => {
+        findDashboard.mockResolvedValue([]);
+        expect((await service.getStatus(user)).project?.hasContentUpdates).toBe(
+            true,
+        );
+    });
+
+    it('ignores custom models when managed counts match', async () => {
+        getCachedExploreNames.mockResolvedValue([
+            ...analyticsExplores.analyticsExploreNames,
+            'custom_model',
+        ]);
+        findDashboard.mockResolvedValue(
+            analyticsContentAsCode.map(({ dashboard }) => ({
+                slug: dashboard.slug,
+            })),
+        );
+        expect((await service.getStatus(user)).project?.hasContentUpdates).toBe(
+            false,
+        );
+    });
+
+    it('checks authorization before reading content counts', async () => {
+        assertAnalyticsProjectAccess.mockRejectedValue(
+            new ForbiddenError('Not allowed'),
+        );
+        await expect(service.getStatus(user)).rejects.toThrow('Not allowed');
+        expect(getCachedExploreNames).not.toHaveBeenCalled();
+        expect(findDashboard).not.toHaveBeenCalled();
     });
 
     it('returns null without provisioning when no analytics project exists', async () => {
@@ -96,6 +163,8 @@ describe('AnalyticsProjectService', () => {
         await expect(service.getStatus(user)).resolves.toEqual({
             project: null,
         });
+        expect(getCachedExploreNames).not.toHaveBeenCalled();
+        expect(findDashboard).not.toHaveBeenCalled();
         expect(ensureAnalyticsProject).not.toHaveBeenCalled();
     });
 
