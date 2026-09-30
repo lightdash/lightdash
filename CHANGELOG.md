@@ -1,3 +1,10 @@
+## [2.380.1](https://github.com/lightdash/lightdash/compare/2.380.0...2.380.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* preserve numeric values in SQL chart Google Sheets sync ([#30221](https://github.com/lightdash/lightdash/issues/30221)) ([b0fb19f](https://github.com/lightdash/lightdash/commit/b0fb19f58be3aa5305da201fdbbe765dda6aa224))
+
 # [2.380.0](https://github.com/lightdash/lightdash/compare/2.379.1...2.380.0) (2026-09-29)
 
 
