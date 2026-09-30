@@ -50,7 +50,10 @@ export class AiUsageLedgerModel {
         await this.database(AiUsageLedgerTableName).insert(row);
     }
 
-    async deleteOlderThan(days: number): Promise<number> {
+    async deleteOlderThan(
+        days: number,
+        retainedOrganizationUuids: string[],
+    ): Promise<number> {
         if (!Number.isInteger(days) || days <= 0) {
             throw new Error(`Invalid retention days: ${days}`);
         }
@@ -60,6 +63,7 @@ export class AiUsageLedgerModel {
                 '<',
                 this.database.raw('now() - make_interval(days => ?)', [days]),
             )
+            .whereNotIn('organization_uuid', retainedOrganizationUuids)
             .delete();
     }
 }
