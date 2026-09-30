@@ -1,0 +1,135 @@
+name: Scope walkthrough docs sync
+
+# Moves the docs pin in scripts/scope-tours/docs-ref forward (CS-347).
+# Walkthrough text is cited from lightdash/mintlify-docs, and
+# scope-tours-check.yml reads the docs at the pinned commit so that a docs
+# merge cannot fail an unrelated pull request. This workflow regenerates the
+# walkthroughs from the latest docs and, when learners would see a change,
+# opens (or refreshes) one pull request for the Learn owners to review.
+
+on:
+    schedule:
+        - cron: '0 7 * * 1-5'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: scope-tours-docs-sync
+    cancel-in-progress: false
+
+env:
+    BRANCH: learn/sync-docs
+
+jobs:
+    sync:
+        if: github.repository == 'lightdash/lightdash'
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  ref: main
+                  persist-credentials: false
+            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            # After the setup action: it cleans the workspace, which would remove
+            # a docs checkout made before it.
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  repository: lightdash/mintlify-docs
+                  path: mintlify-docs
+                  token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
+                  persist-credentials: false
+            - name: Pin the latest docs commit
+              id: pin
+              run: |
+                  old=$(cat scripts/scope-tours/docs-ref)
+                  new=$(git -C mintlify-docs rev-parse HEAD)
+                  echo "$new" > scripts/scope-tours/docs-ref
+                  echo "old=$old" >> "$GITHUB_OUTPUT"
+                  echo "new=$new" >> "$GITHUB_OUTPUT"
+            - name: Build common
+              run: pnpm common-build
+            - name: Regenerate from the latest docs
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: |
+                  pnpm scope-tours:generate
+                  pnpm scope-tours:order
+            - name: Did anything learners see change?
+              id: diff
+              run: |
+                  if git diff --quiet -- packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/curriculum.ts; then
+                      echo "changed=false" >> "$GITHUB_OUTPUT"
+                      echo "Walkthroughs are unchanged at docs ${{ steps.pin.outputs.new }}; nothing to sync." >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      echo "changed=true" >> "$GITHUB_OUTPUT"
+                  fi
+            - name: Checks against the latest docs
+              if: steps.diff.outputs.changed == 'true'
+              id: check
+              continue-on-error: true
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: pnpm scope-tours:check
+            # A token from an App, not GITHUB_TOKEN: pull requests opened with
+            # GITHUB_TOKEN do not trigger CI, and this one needs its checks.
+            - name: Create Cloud operations token
+              if: steps.diff.outputs.changed == 'true'
+              id: app-token
+              uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+              with:
+                  app-id: ${{ vars.CLOUD_OPS_APP_ID }}
+                  private-key: ${{ secrets.CLOUD_OPS_APP_PRIVATE_KEY }}
+                  owner: ${{ github.repository_owner }}
+                  repositories: lightdash
+            - name: Open or refresh the sync pull request
+              if: steps.diff.outputs.changed == 'true'
+              env:
+                  GH_TOKEN: ${{ steps.app-token.outputs.token }}
+                  APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+                  REPO: ${{ github.repository }}
+                  OLD: ${{ steps.pin.outputs.old }}
+                  NEW: ${{ steps.pin.outputs.new }}
+                  CHECK: ${{ steps.check.outcome }}
+              run: |
+                  set -euo pipefail
+                  bot="${APP_SLUG}[bot]"
+                  bot_id=$(gh api "/users/${bot}" --jq .id)
+                  git config user.name "$bot"
+                  git config user.email "${bot_id}+${bot}@users.noreply.github.com"
+                  git checkout -B "$BRANCH"
+                  git add scripts/scope-tours/docs-ref \
+                      packages/frontend/src/features/scopeTours/generated.ts \
+                      packages/frontend/src/features/scopeTours/curriculum.ts
+                  git commit -m "chore(learn): sync walkthroughs with docs ${NEW:0:7}"
+                  git push --force "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:refs/heads/${BRANCH}"
+
+                  title="chore(learn): sync walkthroughs with the latest docs"
+                  {
+                      echo "Regenerated the Learn walkthroughs from [lightdash/mintlify-docs@${NEW:0:7}](https://github.com/lightdash/mintlify-docs/commit/${NEW}) and moved the docs pin forward."
+                      echo
+                      echo "Docs changes since the last pin: https://github.com/lightdash/mintlify-docs/compare/${OLD}...${NEW}"
+                      echo
+                      echo "Read the diff to \`generated.ts\` and \`curriculum.ts\`: every change there is text learners will see."
+                      if [ "$CHECK" != "success" ]; then
+                          echo
+                          echo "> [!WARNING]"
+                          echo "> \`pnpm scope-tours:check\` fails against these docs: a cited page or sentence moved. See [maintaining-walkthroughs.md](https://github.com/${REPO}/blob/main/docs/learn/maintaining-walkthroughs.md) for the fix."
+                      fi
+                      echo
+                      echo "Opened by \`scope-tours-docs-sync.yml\` (CS-347)."
+                  } > body.md
+
+                  number=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+                  if [ -n "$number" ]; then
+                      gh pr edit "$number" --repo "$REPO" --title "$title" --body-file body.md
+                      echo "Refreshed #$number" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      gh pr create --repo "$REPO" --base main --head "$BRANCH" --title "$title" --body-file body.md
+                      echo "Opened a sync pull request" >> "$GITHUB_STEP_SUMMARY"
+                  fi

@@ -4,6 +4,7 @@
  * markers becomes a walkthrough. See generate.ts for the marker contract.
  */
 import { friendlyName, getScopes } from '@lightdash/common';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type {
@@ -17,6 +18,33 @@ export const frontendSrc = path.join(root, 'packages/frontend/src');
 export const docsDir = path.resolve(
     process.env.LIGHTDASH_DOCS_DIR ?? path.join(root, '../mintlify-docs'),
 );
+/**
+ * The mintlify-docs commit the committed walkthroughs were generated from. CI
+ * checks the docs out at this commit, so a docs merge cannot fail an unrelated
+ * pull request here; the docs sync workflow moves it forward.
+ */
+const docsRefPath = path.join(root, 'scripts/scope-tours/docs-ref');
+const docsRef = (): string => readFileSync(docsRefPath, 'utf8').trim();
+
+/** Say so when the docs checkout is not at the pinned commit. */
+export const warnIfDocsNotPinned = (): void => {
+    let head: string;
+    try {
+        head = execFileSync('git', ['-C', docsDir, 'rev-parse', 'HEAD'], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+    } catch {
+        return;
+    }
+    const pinned = docsRef();
+    if (head !== pinned) {
+        console.warn(
+            `warning: ${docsDir} is at ${head.slice(0, 7)}, not the pinned ${pinned.slice(0, 7)} (scripts/scope-tours/docs-ref); the output may differ from CI. Run: git -C ${docsDir} checkout ${pinned}`,
+        );
+    }
+};
+
 export const outputPath = path.join(
     frontendSrc,
     'features/scopeTours/generated.ts',

@@ -6,6 +6,8 @@ A Learn walkthrough is built from the product, so a product change can break one
 
 Each walkthrough step is a control in the product marked with `data-tour-*` attributes. `scripts/scope-tours/generate.ts` reads those attributes, plus sentences cited from the docs repository, and writes `packages/frontend/src/features/scopeTours/generated.ts`. The library order is generated the same way into `curriculum.ts`.
 
+The docs are read at a pinned commit, `scripts/scope-tours/docs-ref`, not at the tip of the docs repository. A docs merge therefore cannot fail your pull request. `scope-tours-docs-sync.yml` runs every weekday morning (or by hand from the Actions tab): it regenerates from the latest docs and, when learners would see a change, opens or refreshes the pull request `chore(learn): sync walkthroughs with the latest docs` for the Learn owners to review and merge. A docs pull request that removes or moves a page a walkthrough cites fails the `Learn walkthrough citations` check in `lightdash/mintlify-docs`, so that breakage is caught where it was made.
+
 Two kinds of change can break a walkthrough:
 
 - **Structural.** A marked control is deleted, renamed or loses its attributes in a refactor, or a click path names an anchor that no longer exists. `scope-tours-check.yml` catches these on every pull request that touches `packages/frontend/src`.
@@ -14,7 +16,7 @@ Two kinds of change can break a walkthrough:
 ## Who fixes what
 
 - **Your pull request** keeps `Scope walkthrough checks` green for failures your change caused. Most are fixed by putting an attribute back on the equivalent control or by regenerating the walkthroughs and committing the result.
-- **The Learn owners** (Customer Success team, Linear project *Lightdash University*) own failures you did not cause (a docs page renamed upstream, a checker bug, CI setup) and any walkthrough that needs a new click path. Say so on your pull request and ask them; they fix it in a separate pull request against `main` and you rebase.
+- **The Learn owners** (Customer Success team, Linear project *Lightdash University*) own failures you did not cause (a checker bug, CI setup, the docs sync pull request) and any walkthrough that needs a new click path. Say so on your pull request and ask them; they fix it in a separate pull request against `main` and you rebase.
 - **Never change product UI to make a walkthrough pass.** Adapt the walkthrough instead. For a control only some instances show, that means an optional hop (see *When a learner reports a stuck walkthrough*).
 
 To tell whether you caused a failure, run the same command on `main`. If it fails there too, it is not yours.
@@ -36,7 +38,13 @@ To tell whether you caused a failure, run the same command on `main`. If it fail
 
 2. **Keep the attributes on the equivalent control.** When you refactor, every `data-tour-*` attribute stays on the element a user clicks to do the same thing. When a control moves to another component, its attributes move with it. When you rename a `data-tour-nav` or `data-tour-anchor` value, update every path that names it (`git grep -n 'the-old-value' -- packages/frontend/src`). The two homepage components (`PinnedItemsPanel/index.tsx` and `DayOneHomepage.tsx`) carry the same result markers; change one, change both.
 
-3. **Run the checks locally.** They read the docs from `../mintlify-docs` (a checkout of `lightdash/mintlify-docs` beside this repository) or from `LIGHTDASH_DOCS_DIR`.
+3. **Run the checks locally.** They read the docs from `../mintlify-docs` (a checkout of `lightdash/mintlify-docs` beside this repository) or from `LIGHTDASH_DOCS_DIR`. Check that out at the pinned commit first, or the output will not match CI (the generator warns when it does not):
+
+    ```sh
+    git -C ../mintlify-docs fetch && git -C ../mintlify-docs checkout "$(cat scripts/scope-tours/docs-ref)"
+    ```
+
+    Then:
 
     ```sh
     pnpm common-build            # if common is not built yet
@@ -124,9 +132,9 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 - `staleDispositions`: a listed scope now has a walkthrough or no longer exists. Remove the entry.
 - `pending` or `related`: a listed gap that blocks a release. Ask the Learn owners.
 
-**Generated tours are up to date.** Either the generator threw (the log names the file, selector or docs citation; see the table below), or `generated.ts` differs from what the markers and docs produce now. For a diff, run `pnpm scope-tours:generate` and commit. If the diff changes step text and you did not touch any `data-tour-*` attribute, the docs changed upstream; committing the regenerated file is fine.
+**Generated tours are up to date.** Either the generator threw (the log names the file, selector or docs citation; see the table below), or `generated.ts` differs from what the markers and docs produce now. For a diff, run `pnpm scope-tours:generate` and commit. If the diff changes step text and you did not touch any `data-tour-*` attribute, your docs checkout is not at the pinned commit; check it out (step 3 above) and regenerate.
 
-**The teaching order is up to date.** `curriculum.ts` differs from what the docs produce now. Run `pnpm scope-tours:order` and commit. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
+**The teaching order is up to date.** `curriculum.ts` differs from what the markers and pinned docs produce. Run `pnpm scope-tours:order` with the docs at the pinned commit and commit. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
 
 **Generation checks.** `pnpm scope-tours:check` found a rule broken. It prints `file:line: error: message`; warnings do not fail the job.
 

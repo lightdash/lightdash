@@ -21,7 +21,14 @@ import {
     GROUP_ORDER,
     type LearnModule,
 } from '../../packages/frontend/src/features/learn/catalogue';
-import { docsDir, findMarkers, frontendSrc, listTsx, slugify } from './lib';
+import {
+    docsDir,
+    findMarkers,
+    frontendSrc,
+    listTsx,
+    slugify,
+    warnIfDocsNotPinned,
+} from './lib';
 
 /**
  * A docs page's headings, in page order, as anchors. Code blocks are
@@ -195,6 +202,7 @@ ${lines}
 };
 
 if (require.main === module) {
+    warnIfDocsNotPinned();
     const modules = curriculum();
     writeFileSync(curriculumPath, fileFor(modules), 'utf8');
     process.stdout.write(

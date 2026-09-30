@@ -108,9 +108,10 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { SANDBOX_LESSONS } from '../../packages/frontend/src/features/learn/sandboxLessons';
-import { buildTours, outputPath, root } from './lib';
+import { buildTours, outputPath, root, warnIfDocsNotPinned } from './lib';
 
 const main = () => {
+    warnIfDocsNotPinned();
     const { tours, markers } = buildTours(undefined, SANDBOX_LESSONS);
     const body = tours
         .map(

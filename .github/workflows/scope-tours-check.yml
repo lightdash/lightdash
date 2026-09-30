@@ -3,7 +3,9 @@ name: Scope walkthrough checks
 # Generation checks for scope walkthroughs (CS-209): every rule the first
 # modules settled by hand, enforced on any change to the frontend markers or
 # the generator. The docs are checked out because step text is cited from
-# them.
+# them, at the commit pinned in scripts/scope-tours/docs-ref, so a docs merge
+# cannot fail an unrelated pull request here (CS-347). The pin moves forward
+# through scope-tours-docs-sync.yml.
 
 on:
     pull_request:
@@ -32,11 +34,15 @@ jobs:
                   egress-policy: audit
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
             - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            - name: Read the pinned docs commit
+              id: docs-ref
+              run: echo "sha=$(cat scripts/scope-tours/docs-ref)" >> "$GITHUB_OUTPUT"
             # After the setup action: it cleans the workspace, which would remove
             # a docs checkout made before it.
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
               with:
                   repository: lightdash/mintlify-docs
+                  ref: ${{ steps.docs-ref.outputs.sha }}
                   path: mintlify-docs
                   token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
             - name: Docs checkout is complete
