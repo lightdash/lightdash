@@ -97,6 +97,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
+import * as winston from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -1988,7 +1989,8 @@ describe('ProjectService', () => {
     });
 
     describe('ensurePlaygroundProject', () => {
-        test('throws ForbiddenError without invoking the provisioner when the user cannot create invite links', async () => {
+        const organizationUuid = 'organization-uuid';
+        const ensureAs = async (ability: SessionUser['ability']) => {
             const provisionPlaygroundProject = vi.fn(async () => ({
                 projectUuid: 'project-uuid',
                 created: true,
@@ -1997,19 +1999,97 @@ describe('ProjectService', () => {
                 lightdashConfigMock,
                 { provisionPlaygroundProject },
             );
-            const userWithoutInviteLinkPermission: SessionUser = {
+            const result = serviceWithProvisioner.ensurePlaygroundProject({
                 ...user,
-                organizationUuid: 'organization-uuid',
-                ability: new Ability<PossibleAbilities>([]),
-            };
+                organizationUuid,
+                ability,
+            });
+            return { result, provisionPlaygroundProject };
+        };
+        const roleAbility = (role: OrganizationMemberRole) =>
+            defineUserAbility(
+                { organizationUuid, userUuid: user.userUuid, role },
+                [],
+            );
 
-            await expect(
-                serviceWithProvisioner.ensurePlaygroundProject(
-                    userWithoutInviteLinkPermission,
-                ),
-            ).rejects.toThrowError(ForbiddenError);
+        test('allows an organization admin', async () => {
+            const { result, provisionPlaygroundProject } = await ensureAs(
+                roleAbility(OrganizationMemberRole.ADMIN),
+            );
+            await expect(result).resolves.toEqual({
+                projectUuid: 'project-uuid',
+                created: true,
+            });
+            expect(provisionPlaygroundProject).toHaveBeenCalledOnce();
+        });
 
+        test('refuses a viewer with a message about projects', async () => {
+            const { result, provisionPlaygroundProject } = await ensureAs(
+                roleAbility(OrganizationMemberRole.VIEWER),
+            );
+            await expect(result).rejects.toThrowError(
+                "You don't have permission to create projects in this organization",
+            );
             expect(provisionPlaygroundProject).not.toHaveBeenCalled();
+        });
+
+        test('records the decision against Project in the audit log', async () => {
+            const levelSpy = vi
+                .spyOn(winston.winstonLogger, 'isLevelEnabled')
+                .mockReturnValue(true);
+            const auditLogSpy = vi
+                .spyOn(winston, 'logAuditEvent')
+                .mockImplementation(() => {});
+            try {
+                const { result } = await ensureAs(
+                    roleAbility(OrganizationMemberRole.VIEWER),
+                );
+                await expect(result).rejects.toThrowError(ForbiddenError);
+                expect(auditLogSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        action: 'create',
+                        status: 'denied',
+                        resource: expect.objectContaining({ type: 'Project' }),
+                    }),
+                );
+            } finally {
+                levelSpy.mockRestore();
+                auditLogSpy.mockRestore();
+            }
+        });
+
+        test('follows project creation, not invite link creation', async () => {
+            const canCreateProjects = await ensureAs(
+                new Ability<PossibleAbilities>([
+                    {
+                        action: 'create',
+                        subject: 'Project',
+                        conditions: {
+                            organizationUuid,
+                            type: ProjectType.DEFAULT,
+                        },
+                    },
+                ]),
+            );
+            await expect(canCreateProjects.result).resolves.toMatchObject({
+                projectUuid: 'project-uuid',
+            });
+
+            const canOnlyInvite = await ensureAs(
+                new Ability<PossibleAbilities>([
+                    {
+                        action: 'manage',
+                        subject: 'InviteLink',
+                        conditions: { organizationUuid },
+                    },
+                ]),
+            );
+            await expect(canOnlyInvite.result).rejects.toThrowError(
+                ForbiddenError,
+            );
+            expect(
+                canOnlyInvite.provisionPlaygroundProject,
+            ).not.toHaveBeenCalled();
         });
     });
 

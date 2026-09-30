@@ -83,6 +83,9 @@ const buildArguments = () => {
     const recordPlaygroundBundleVersionSeen = vi.fn<
         ProvisionPlaygroundProjectArguments['projectModel']['recordPlaygroundBundleVersionSeen']
     >(async () => now);
+    const hasCachedExplores = vi.fn<
+        ProvisionPlaygroundProjectArguments['projectModel']['hasCachedExplores']
+    >(async () => true);
     const validatePlaygroundDatabase = vi.fn(async () => undefined);
     const canViewProject = vi.fn(() => true);
     const indexCatalog = vi.fn(async () => ({
@@ -131,6 +134,7 @@ const buildArguments = () => {
                 saveExploresToCache,
                 getPlaygroundBundleVersion,
                 recordPlaygroundBundleVersionSeen,
+                hasCachedExplores,
             },
             onboardingModel,
             projectService: { createWithoutCompile },
@@ -149,6 +153,7 @@ const buildArguments = () => {
         saveExploresToCache,
         getPlaygroundBundleVersion,
         recordPlaygroundBundleVersionSeen,
+        hasCachedExplores,
         validatePlaygroundDatabase,
         canViewProject,
         indexCatalog,
@@ -186,7 +191,7 @@ describe('provisionPlaygroundProject', () => {
         });
     });
 
-    it('repairs an existing playground cache idempotently', async () => {
+    it('leaves a cache on the current version alone and still seeds content', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
             project('playground'),
@@ -196,13 +201,7 @@ describe('provisionPlaygroundProject', () => {
             created: false,
         });
         expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
-        expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
-            projectUuid,
-            expect.any(Array),
-            true,
-            undefined,
-            currentVersion,
-        );
+        expect(mocks.saveExploresToCache).not.toHaveBeenCalled();
         expect(mocks.seedPlaygroundContent).toHaveBeenCalledWith({
             projectUuid,
             user,
@@ -279,6 +278,29 @@ describe('provisionPlaygroundProject', () => {
         }
     });
 
+    it('repairs an empty cache left by an interrupted provisioning at once', async () => {
+        const mocks = buildArguments();
+        mocks.getAllByOrganizationUuid.mockResolvedValue([
+            project('playground'),
+        ]);
+        mocks.getPlaygroundContentSeedVersion.mockResolvedValue(1);
+        mocks.getPlaygroundBundleVersion.mockResolvedValue(null);
+        mocks.hasCachedExplores.mockResolvedValue(false);
+
+        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
+            projectUuid,
+            created: false,
+        });
+
+        expect(mocks.saveExploresToCache).toHaveBeenCalledExactlyOnceWith(
+            projectUuid,
+            expect.any(Array),
+            true,
+            undefined,
+            currentVersion,
+        );
+    });
+
     it('does not reseed an existing playground after content was seeded', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
@@ -291,13 +313,8 @@ describe('provisionPlaygroundProject', () => {
             created: false,
         });
 
-        expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
-            projectUuid,
-            expect.any(Array),
-            true,
-            undefined,
-            currentVersion,
-        );
+        expect(mocks.saveExploresToCache).not.toHaveBeenCalled();
+        expect(mocks.validatePlaygroundDatabase).not.toHaveBeenCalled();
         expect(mocks.seedPlaygroundContent).not.toHaveBeenCalled();
         expect(mocks.setPlaygroundContentSeedVersion).not.toHaveBeenCalled();
     });

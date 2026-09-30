@@ -26,11 +26,13 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type CatalogService } from '../../../services/CatalogService/CatalogService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
+    getCurrentPlaygroundBundleVersion,
     getServablePlaygroundBundleVersions,
     loadPlaygroundBundle,
     PLAYGROUND_DATASET,
     shouldAdoptPlaygroundBundle,
     validatePlaygroundDatabaseBundle,
+    type PlaygroundBundle,
     type PlaygroundDatabaseCheck,
 } from '../../../services/ProjectService/playgroundBundle';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
@@ -46,6 +48,7 @@ export type ProvisionPlaygroundProjectArguments = {
         | 'saveExploresToCache'
         | 'getPlaygroundBundleVersion'
         | 'recordPlaygroundBundleVersionSeen'
+        | 'hasCachedExplores'
     >;
     onboardingModel: Pick<
         OnboardingModel,
@@ -146,39 +149,50 @@ export const provisionPlaygroundProject = async ({
                 );
                 if (playground) {
                     lastKnownProjectUuid = playground.projectUuid;
-                    const bundle = await loadPlaygroundBundle(
-                        dataDirectory,
-                        validatePlaygroundDatabase,
-                    );
-                    const { content } = bundle;
+                    let bundle: PlaygroundBundle | null = null;
+                    const getBundle = async () => {
+                        bundle ??= await loadPlaygroundBundle(
+                            dataDirectory,
+                            validatePlaygroundDatabase,
+                        );
+                        return bundle;
+                    };
+                    const currentVersion =
+                        getCurrentPlaygroundBundleVersion(dataDirectory);
                     const projectVersion =
                         await projectModel.getPlaygroundBundleVersion(
                             playground.projectUuid,
                         );
-                    // A project on a version other servers still serve keeps
-                    // its explores until the adoption rule moves it.
+                    // A cache on the current version needs no write. An empty
+                    // cache means provisioning stopped before it was filled.
+                    // Otherwise the adoption rule decides, because other
+                    // servers may still serve the project's version.
                     if (
-                        projectVersion === bundle.version ||
-                        shouldAdoptPlaygroundBundle({
-                            projectVersion,
-                            currentVersion: bundle.version,
-                            servableVersions:
-                                getServablePlaygroundBundleVersions(
-                                    dataDirectory,
-                                ),
-                            currentFirstSeenAt:
-                                await projectModel.recordPlaygroundBundleVersionSeen(
-                                    bundle.version,
-                                ),
-                            now,
-                        })
+                        projectVersion !== currentVersion &&
+                        (!(await projectModel.hasCachedExplores(
+                            playground.projectUuid,
+                        )) ||
+                            shouldAdoptPlaygroundBundle({
+                                projectVersion,
+                                currentVersion,
+                                servableVersions:
+                                    getServablePlaygroundBundleVersions(
+                                        dataDirectory,
+                                    ),
+                                currentFirstSeenAt:
+                                    await projectModel.recordPlaygroundBundleVersionSeen(
+                                        currentVersion,
+                                    ),
+                                now,
+                            }))
                     ) {
+                        const { explores, version } = await getBundle();
                         await projectModel.saveExploresToCache(
                             playground.projectUuid,
-                            bundle.explores,
+                            explores,
                             true,
                             undefined,
-                            bundle.version,
+                            version,
                         );
                     }
                     try {
@@ -188,6 +202,7 @@ export const provisionPlaygroundProject = async ({
                                 trx,
                             );
                         if (seedVersion === null) {
+                            const { content } = await getBundle();
                             await seedPlaygroundContent({
                                 projectUuid: playground.projectUuid,
                                 user,

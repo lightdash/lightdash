@@ -4615,6 +4615,14 @@ export class ProjectModel {
         return row.playground_bundle_version;
     }
 
+    async hasCachedExplores(projectUuid: string): Promise<boolean> {
+        const row = await this.database(CachedExploreTableName)
+            .select('project_uuid')
+            .where('project_uuid', projectUuid)
+            .first();
+        return row !== undefined;
+    }
+
     /** Projects whose cached explores come from the playground bundle, excluding learner copies. */
     async getPlaygroundBundleProjectsNotOnVersion(
         version: string,
