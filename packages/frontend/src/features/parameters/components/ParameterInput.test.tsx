@@ -20,6 +20,57 @@ const getOptionLabels = (container: HTMLElement) =>
     );
 
 describe('ParameterInput', () => {
+    it.each([
+        { type: 'string' as const, default: 'all', value: 'Cancelled' },
+        { type: 'number' as const, default: 0, value: 10 },
+    ])(
+        'selects a missing $type default as an explicit value',
+        async (parameter) => {
+            const onParameterChange = vi.fn();
+            const { getByRole } = renderWithProviders(
+                <ParameterInput
+                    paramKey="status"
+                    parameter={{ ...parameter, options: [parameter.value] }}
+                    value={parameter.value}
+                    onParameterChange={onParameterChange}
+                />,
+            );
+            await userEvent.click(getByRole('combobox'));
+            await userEvent.click(
+                getByRole('option', { name: `${parameter.default} (default)` }),
+            );
+            expect(onParameterChange).toHaveBeenCalledWith(
+                'status',
+                parameter.default,
+            );
+        },
+    );
+
+    it('does not duplicate an existing labelled default option', async () => {
+        const { container, getByRole } = renderParameter({
+            default: 'all',
+            options: [{ label: 'All statuses', value: 'all' }, 'Cancelled'],
+        });
+        await userEvent.click(getByRole('combobox'));
+        expect(getOptionLabels(container)).toEqual([
+            'All statuses',
+            'Cancelled',
+        ]);
+    });
+
+    it('includes missing multi-value defaults once', async () => {
+        const { container, getByRole } = renderParameter({
+            multiple: true,
+            default: ['all', 'all', 'Cancelled'],
+            options: ['Cancelled'],
+        });
+        await userEvent.click(getByRole('combobox'));
+        expect(getOptionLabels(container)).toEqual([
+            'Cancelled',
+            'all (default)',
+        ]);
+    });
+
     it.each([false, true])(
         'shows the scrollbar without hovering or scrolling (multiple=%s)',
         async (multiple) => {
