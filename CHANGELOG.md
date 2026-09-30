@@ -1,3 +1,12 @@
+# [2.383.0](https://github.com/lightdash/lightdash/compare/2.382.0...2.383.0) (2026-09-30)
+
+
+### Features
+
+* **ai:** embed Slack result tables ([#30079](https://github.com/lightdash/lightdash/issues/30079)) ([cdda0d6](https://github.com/lightdash/lightdash/commit/cdda0d6910c09a3a0350960f36c75e6c48296774))
+* **ai:** select charts in final Slack answers ([#30081](https://github.com/lightdash/lightdash/issues/30081)) ([0ddaa4a](https://github.com/lightdash/lightdash/commit/0ddaa4a8132cccc2fc211b3ef6f112519bcc9fd7))
+* **ai:** select tables in final Slack answers ([#30080](https://github.com/lightdash/lightdash/issues/30080)) ([9afd8b3](https://github.com/lightdash/lightdash/commit/9afd8b3f9faf4f6ba17a8ff538d402b5fc107a63))
+
 # [2.382.0](https://github.com/lightdash/lightdash/compare/2.381.0...2.382.0) (2026-09-30)
 
 
