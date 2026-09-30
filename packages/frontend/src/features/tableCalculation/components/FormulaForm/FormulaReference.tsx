@@ -27,6 +27,7 @@ import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { type FieldSuggestionItem } from '../../../../components/common/SuggestionList';
 import TruncatedText from '../../../../components/common/TruncatedText';
+import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
 import classes from './FormulaReference.module.css';
 import {
     CATEGORY_LABELS,
@@ -321,6 +322,7 @@ export const FormulaReferenceBar: FC<BarProps> = ({
     onInsertField,
 }) => {
     const toggle = () => onToggle(!opened);
+    const isEmbedded = useIsEmbedded();
 
     const kbdHints = (
         <Group gap="md" wrap="nowrap" className={classes.kbdHints}>
@@ -374,26 +376,29 @@ export const FormulaReferenceBar: FC<BarProps> = ({
                 </Group>
             )}
 
-            {opened ? (
-                <Group gap="sm" wrap="nowrap">
-                    <Divider orientation="vertical" />
-                    <Anchor
-                        href="https://docs.lightdash.com/guides/formula-table-calculations"
-                        target="_blank"
-                        rel="noreferrer"
-                        size="xs"
-                        underline="hover"
-                        className={classes.docsLink}
-                    >
-                        <Group gap={2} wrap="nowrap">
-                            Docs
-                            <MantineIcon icon={IconArrowUpRight} size="xs" />
-                        </Group>
-                    </Anchor>
-                </Group>
-            ) : (
-                kbdHints
-            )}
+            {opened
+                ? !isEmbedded && (
+                      <Group gap="sm" wrap="nowrap">
+                          <Divider orientation="vertical" />
+                          <Anchor
+                              href="https://docs.lightdash.com/guides/formula-table-calculations"
+                              target="_blank"
+                              rel="noreferrer"
+                              size="xs"
+                              underline="hover"
+                              className={classes.docsLink}
+                          >
+                              <Group gap={2} wrap="nowrap">
+                                  Docs
+                                  <MantineIcon
+                                      icon={IconArrowUpRight}
+                                      size="xs"
+                                  />
+                              </Group>
+                          </Anchor>
+                      </Group>
+                  )
+                : kbdHints}
         </Group>
     );
 };

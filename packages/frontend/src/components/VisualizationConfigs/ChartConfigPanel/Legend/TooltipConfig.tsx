@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useDeepCompareEffect } from 'react-use';
 import { AiTooltipInput } from '../../../../ee/features/ambientAi/components/tooltip';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
+import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
 import { getLightdashMonacoTheme } from '../../../../features/sqlRunner/utils/monaco';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -113,6 +114,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
     const { visualizationConfig } = useVisualizationContext();
     const { colorScheme } = useMantineColorScheme();
     const isAmbientAiEnabled = useAmbientAiEnabled();
+    const isEmbedded = useIsEmbedded();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
 
@@ -261,26 +263,28 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
         <Stack gap="xs">
             <Group gap="xs" align="center">
                 <Config.Label>Custom</Config.Label>
-                <Tooltip
-                    maw={350}
-                    label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
+                {!isEmbedded && (
+                    <Tooltip
+                        maw={350}
+                        label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
                                 Click here to read more about this on our docs."
-                >
-                    <MantineIcon
-                        onClick={() => {
-                            window.open(
-                                'https://docs.lightdash.com/references/custom-tooltip',
-                                '_blank',
-                                'noopener,noreferrer',
-                            );
-                        }}
-                        icon={IconHelpCircle}
-                        size="md"
-                        display="inline"
-                        color="ldGray.5"
-                        className={styles.helpIcon}
-                    />
-                </Tooltip>
+                    >
+                        <MantineIcon
+                            onClick={() => {
+                                window.open(
+                                    'https://docs.lightdash.com/references/custom-tooltip',
+                                    '_blank',
+                                    'noopener,noreferrer',
+                                );
+                            }}
+                            icon={IconHelpCircle}
+                            size="md"
+                            display="inline"
+                            color="ldGray.5"
+                            className={styles.helpIcon}
+                        />
+                    </Tooltip>
+                )}
                 <Switch
                     size="xs"
                     checked={show}

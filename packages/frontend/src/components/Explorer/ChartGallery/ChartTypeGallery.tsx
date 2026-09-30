@@ -31,6 +31,7 @@ import {
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import ChartTypeForkModal from '../../../features/chartTypes/components/ChartTypeForkModal';
@@ -540,6 +541,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const selectProjectChartType = useSelectProjectChartType();
     const { disabled, options, vegaOption } = useChartTypeOptions();
     const isVegaEditorAvailable = useIsVegaEditorAvailable();
+    const isEmbedded = useIsEmbedded();
     const [forkTarget, setForkTarget] = useState<DataAppViz | null>(null);
 
     const projectTypes = useMemo(
@@ -593,7 +595,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             description:
                 dataAppViz.description ||
                 `${dataAppViz.schema?.fields.length ?? 0} fields`,
-            provenance: isOfficial ? 'official' : 'custom',
+            provenance: isEmbedded ? null : isOfficial ? 'official' : 'custom',
             icon,
             rotatedIcon,
             selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,

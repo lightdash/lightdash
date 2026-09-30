@@ -23,6 +23,7 @@ import {
     AiTableCalculationInputBody,
 } from '../../../ee/features/ambientAi/components/tableCalculation';
 import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
+import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { type TableCalculationForm } from '../types';
@@ -113,6 +114,7 @@ export const SqlForm: FC<Props> = ({
 
     const { setAceEditor } = useTableCalculationAceEditorCompleter();
     const isAmbientAiEnabled = useAmbientAiEnabled();
+    const isEmbedded = useIsEmbedded();
 
     const handleEditorLoad = useCallback(
         (editor: any) => {
@@ -234,7 +236,9 @@ export const SqlForm: FC<Props> = ({
             </ScrollArea>
 
             <Box flex="0 0 auto">
-                {readOnly && !conversionState ? null : !isAmbientAiEnabled ? (
+                {(readOnly && !conversionState) ||
+                (!isAmbientAiEnabled &&
+                    isEmbedded) ? null : !isAmbientAiEnabled ? (
                     <Alert
                         radius={0}
                         icon={<MantineIcon icon={IconSparkles} />}
