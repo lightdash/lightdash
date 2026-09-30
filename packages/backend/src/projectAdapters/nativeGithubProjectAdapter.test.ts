@@ -61,6 +61,7 @@ describe('native GitHub server compilation', () => {
             { warehouseCatalog: undefined, onWarehouseCatalogChange: vi.fn() },
             SupportedDbtVersions.V1_10,
             [],
+            null,
         );
     const adapters: Awaited<ReturnType<typeof createAdapter>>[] = [];
 

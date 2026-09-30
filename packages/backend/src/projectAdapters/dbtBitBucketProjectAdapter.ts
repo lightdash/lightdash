@@ -25,10 +25,12 @@ type Args = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    partialParseBaselinePath: string | null;
 };
 
 export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
     constructor({
+        partialParseBaselinePath,
         analytics,
         warehouseClient,
         username,
@@ -50,6 +52,7 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         }/${repository}.git`;
         super({
             analytics,
+            partialParseBaselinePath,
             warehouseClient,
             gitBranch: branch,
             remoteRepositoryUrl,

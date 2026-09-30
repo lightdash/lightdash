@@ -323,6 +323,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
+import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
@@ -4320,6 +4321,7 @@ export class ProjectService extends BaseService {
                         user,
                         'project_create',
                         method,
+                        null,
                     ),
             );
 
@@ -5165,6 +5167,7 @@ export class ProjectService extends BaseService {
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
+                dbtPartialParse,
             } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
@@ -5174,6 +5177,7 @@ export class ProjectService extends BaseService {
                         user,
                         'project_update',
                         method,
+                        projectUuid,
                     ),
             );
             timings.testAdapter.end = performance.now();
@@ -5203,6 +5207,7 @@ export class ProjectService extends BaseService {
                                 warehouseCredentials,
                                 cachedWarehouse,
                                 dbtVersionOption,
+                                dbtPartialParse,
                             };
                             if (
                                 (await this.projectModel.getConnectionRoute(
@@ -5440,12 +5445,14 @@ export class ProjectService extends BaseService {
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         context: 'project_create' | 'project_update',
         method: RequestMethod,
+        projectUuid: string | null,
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         warehouseCredentials: CreateWarehouseCredentials;
         cachedWarehouse: CachedWarehouse;
         dbtVersionOption: DbtVersionOption;
+        dbtPartialParse: boolean;
     }> {
         const onboardingFlow = await this.getOnboardingFlow(user);
         const sshTunnel = new SshTunnel(
@@ -5466,12 +5473,21 @@ export class ProjectService extends BaseService {
             };
             const dbtVersionOption =
                 data.dbtVersion || DefaultSupportedDbtVersion;
+            const dbtPartialParse =
+                projectUuid !== null &&
+                (await this.isDbtPartialParseEnabled(user));
             adapter = await projectAdapterFromConfig(
                 dbtConnection,
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
+                dbtPartialParse && projectUuid !== null
+                    ? getDbtPartialParseBaselinePath({
+                          projectUuid,
+                          dbtSourceUuid: null,
+                      })
+                    : null,
                 this.analytics,
             );
             await adapter.test();
@@ -5504,6 +5520,7 @@ export class ProjectService extends BaseService {
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
+                dbtPartialParse,
             };
         } catch (error) {
             const errorType =
@@ -5903,6 +5920,7 @@ export class ProjectService extends BaseService {
         warehouseCredentials: CreateWarehouseCredentials;
         cachedWarehouse: CachedWarehouse;
         dbtVersionOption: DbtVersionOption;
+        dbtPartialParse: boolean;
     }> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -6076,12 +6094,19 @@ export class ProjectService extends BaseService {
         };
         const dbtVersionOption =
             project.dbtVersion || DefaultSupportedDbtVersion;
+        const dbtPartialParse = await this.isDbtPartialParseEnabled(user);
         const adapter = await projectAdapterFromConfig(
             dbtConnection,
             sshTunnel.overrideCredentials,
             cachedWarehouse,
             dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
+            dbtPartialParse
+                ? getDbtPartialParseBaselinePath({
+                      projectUuid,
+                      dbtSourceUuid: null,
+                  })
+                : null,
             this.analytics,
         );
         return {
@@ -6090,6 +6115,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials: sshTunnel.overrideCredentials,
             cachedWarehouse,
             dbtVersionOption,
+            dbtPartialParse,
         };
     }
 
@@ -6110,6 +6136,7 @@ export class ProjectService extends BaseService {
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
         },
+        partialParseBaselinePath: string | null,
     ): Promise<ProjectAdapter> {
         const resolvedConnection =
             await this.resolveDbtConnectionInstallationId(
@@ -6125,8 +6152,22 @@ export class ProjectService extends BaseService {
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
+            partialParseBaselinePath,
             this.analytics,
         );
+    }
+
+    private async isDbtPartialParseEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.DbtPartialParse,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+        });
+        return enabled;
     }
 
     /**
@@ -6318,6 +6359,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
+            dbtPartialParse: boolean;
         };
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
@@ -6452,6 +6494,12 @@ export class ProjectService extends BaseService {
                         source.warehouseLocation,
                         organizationUuid,
                         shared,
+                        primary.dbtPartialParse
+                            ? getDbtPartialParseBaselinePath({
+                                  projectUuid,
+                                  dbtSourceUuid: source.projectDbtSourceUuid,
+                              })
+                            : null,
                     );
                 } catch (e) {
                     throw new ParameterError(
@@ -6662,6 +6710,7 @@ export class ProjectService extends BaseService {
                 shared.cachedWarehouse,
                 shared.dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
+                null,
                 this.analytics,
                 // Keep the primary source's lightdash.config.yml / project_context.yml
                 // (spotlight categories, table_groups, parameters, AI context). The
@@ -6692,6 +6741,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
+            dbtPartialParse: boolean;
         };
         manifestFetchAdapters: ProjectAdapter[];
         trackingParams: TrackingParams;
@@ -6724,6 +6774,12 @@ export class ProjectService extends BaseService {
                         cachedWarehouse: primary.cachedWarehouse,
                         dbtVersionOption: primary.dbtVersionOption,
                     },
+                    primary.dbtPartialParse
+                        ? getDbtPartialParseBaselinePath({
+                              projectUuid,
+                              dbtSourceUuid: source.projectDbtSourceUuid,
+                          })
+                        : null,
                 );
                 manifestFetchAdapters.push(sourceAdapter);
                 return sourceAdapter.getDbtManifest();
@@ -6771,6 +6827,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
+            dbtPartialParse: boolean;
         };
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;

@@ -354,6 +354,14 @@ export enum FeatureFlags {
      * agent bindings, the slash menu, as-code and MCP exposure.
      */
     AiAgentCustomSkills = 'ai-agent-custom-skills',
+    /**
+     * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
+     * the worker and seed the next compile of the same project and dbt source
+     * with it, so `dbt ls` re-parses only changed files. dbt checks file
+     * hashes, profile, vars and its own version and falls back to a full parse
+     * on any mismatch. Off by default.
+     */
+    DbtPartialParse = 'dbt-partial-parse',
 }
 
 export type FeatureFlag = {

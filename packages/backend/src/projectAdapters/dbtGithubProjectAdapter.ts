@@ -31,6 +31,7 @@ type DbtGithubProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    partialParseBaselinePath: string | null;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -52,6 +53,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         selector,
         analytics,
+        partialParseBaselinePath,
     }: DbtGithubProjectAdapterArgs) {
         const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
         if (!isValid) {
@@ -80,6 +82,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             dbtVersion,
             selector,
             analytics,
+            partialParseBaselinePath,
             gitConfigGlobalPath: gitCredentialFiles.configPath,
             dbtDepsErrorHint: githubInstallationId
                 ? 'If a dependency is a private GitHub repository, ensure it is included in the same GitHub App installation as this project.'

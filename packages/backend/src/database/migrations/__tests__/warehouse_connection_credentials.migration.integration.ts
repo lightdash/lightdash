@@ -620,6 +620,12 @@ describe('Extra connection credentials on the real schema', () => {
             });
         service = new ProjectService({
             lightdashConfig: lightdashConfigMock,
+            featureFlagModel: {
+                get: async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled: false,
+                }),
+            },
             projectModel: new ProjectModel({
                 database,
                 lightdashConfig: lightdashConfigMock,

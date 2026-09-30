@@ -275,6 +275,7 @@ export async function seed(knex: Knex): Promise<void> {
             },
             SupportedDbtVersions.V1_12,
             lightdashConfig.dbt.environmentVariableAllowlist,
+            null,
         );
         const explores = await adapter.compileAllExplores({
             userUuid: user.user_uuid,

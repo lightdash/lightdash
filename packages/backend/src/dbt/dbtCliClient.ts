@@ -23,6 +23,10 @@ import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient } from '../types';
 import {
+    saveDbtPartialParse,
+    seedDbtPartialParse,
+} from './dbtPartialParseBaseline';
+import {
     getDbtProcessEnvironment,
     getMissingEnvironmentVariableHint,
 } from './dbtProcessEnvironment';
@@ -38,6 +42,7 @@ type DbtCliArgs = {
     selector?: string;
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
+    partialParseBaselinePath: string | null;
 };
 
 enum DbtCommands {
@@ -75,6 +80,10 @@ export class DbtCliClient implements DbtClient {
 
     dbtDepsErrorHint?: string;
 
+    partialParseBaselinePath: string | null;
+
+    partialParseSeeded: boolean;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -86,6 +95,7 @@ export class DbtCliClient implements DbtClient {
         selector,
         gitConfigGlobalPath,
         dbtDepsErrorHint,
+        partialParseBaselinePath,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -98,6 +108,8 @@ export class DbtCliClient implements DbtClient {
         this.selector = selector;
         this.gitConfigGlobalPath = gitConfigGlobalPath;
         this.dbtDepsErrorHint = dbtDepsErrorHint;
+        this.partialParseBaselinePath = partialParseBaselinePath;
+        this.partialParseSeeded = false;
     }
 
     getSelector(): string | undefined {
@@ -114,6 +126,12 @@ export class DbtCliClient implements DbtClient {
             this.targetDirectory = await fs.mkdtemp(
                 path.join(os.tmpdir(), 'dbt_target_'),
             );
+            if (this.partialParseBaselinePath !== null) {
+                this.partialParseSeeded = await seedDbtPartialParse(
+                    this.partialParseBaselinePath,
+                    this.targetDirectory,
+                );
+            }
         }
         return this.targetDirectory;
     }
@@ -126,6 +144,38 @@ export class DbtCliClient implements DbtClient {
             });
             this.targetDirectory = undefined;
         }
+    }
+
+    private async keepPartialParse(
+        command: 'ls' | 'parse',
+        logs: DbtLog[],
+    ): Promise<void> {
+        if (
+            this.partialParseBaselinePath === null ||
+            this.targetDirectory === undefined
+        ) {
+            return;
+        }
+        const unableReason =
+            logs.find((log) => log.info.name === 'UnableToPartialParse')?.info
+                .msg ?? null;
+        const reused = this.partialParseSeeded && unableReason === null;
+        Logger.info(
+            `dbt.partialParse command=${command} seeded=${this.partialParseSeeded} reused=${reused}${
+                unableReason ? ` reason="${unableReason}"` : ''
+            }`,
+            {
+                event: 'dbt.partialParse',
+                command,
+                seeded: this.partialParseSeeded,
+                reused,
+                unableReason,
+            },
+        );
+        await saveDbtPartialParse(
+            this.partialParseBaselinePath,
+            this.targetDirectory,
+        );
     }
 
     static parseDbtJsonLogs(logs: string | undefined): DbtLog[] {
@@ -212,6 +262,7 @@ export class DbtCliClient implements DbtClient {
                         this.environmentVariableAllowlist,
                     projectEnvironment: this.environment,
                     targetPath,
+                    partialParse: this.partialParseBaselinePath !== null,
                     gitConfigGlobalPath: this.gitConfigGlobalPath,
                 }),
             });
@@ -361,6 +412,7 @@ export class DbtCliClient implements DbtClient {
                 Logger.info(
                     `dbt ls completed in ${elapsed}ms, found ${selectedModelIds.length} model(s)`,
                 );
+                await this.keepPartialParse('ls', logs);
                 const rawManifest = {
                     manifest: await this.loadDbtTargetArtifact('manifest.json'),
                 };
@@ -442,7 +494,8 @@ export class DbtCliClient implements DbtClient {
             async () => {
                 await this.ensureDbtProjectDir();
                 await this.installDeps();
-                await this._runDbtCommand('parse');
+                const { logs } = await this._runDbtCommand('parse');
+                await this.keepPartialParse('parse', logs);
             },
         );
     }

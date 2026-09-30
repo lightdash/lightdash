@@ -13,6 +13,7 @@ export const cliArgs = {
     environmentVariableAllowlist: [],
     profileName: 'profileName',
     target: 'target',
+    partialParseBaselinePath: null,
 };
 
 export const expectedDbtOptions = ['--no-use-colors', '--log-format', 'json'];
