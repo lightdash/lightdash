@@ -1,6 +1,5 @@
 import {
     AiAgentValidatorError,
-    AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
     generateVisualizationFilterExpressionToolDefinition,
@@ -9,7 +8,6 @@ import {
     getReferencedExploreParameterDefinitions,
     getRunQueryAgentViewRejectingMerge,
     getRunQueryFilterExpressionAgentViewRejectingMerge,
-    getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
     isCustomChartTypeSlugChartConfig,
@@ -30,7 +28,6 @@ import {
     type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
-    type SlackPrompt,
     type ToolRunQueryArgs,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryBuiltinChartConfig,
@@ -93,7 +90,6 @@ import {
     formatFilterExpressionError,
     resolveFilterExpressionArgs,
 } from '../utils/filterExpressions';
-import { getPivotedResults } from '../utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -102,7 +98,6 @@ import {
     getContextTruncationNote,
     getQueryResultSummary,
 } from '../utils/queryResultSummary';
-import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -158,6 +153,19 @@ const getQueryReference = ({
         ? ` This execution's queryUuid is ${queryUuid}; use exactly this value to reference it.`
         : '';
 };
+
+const getChartReference = (
+    prompt: Awaited<ReturnType<GetPromptFn>>,
+    chartConfig: ToolRunQueryArgsTransformed['chartConfig'],
+    artifact: Pick<AiArtifact, 'versionUuid'> | undefined,
+) =>
+    isSlackPrompt(prompt) &&
+    artifact &&
+    chartConfig &&
+    (isCustomChartTypeSlugChartConfig(chartConfig) ||
+        chartConfig.defaultVizType !== 'table')
+        ? ` This chart's versionUuid is ${artifact.versionUuid}; use exactly this value to select the saved chart in your final answer.`
+        : '';
 
 type Dependencies = {
     purpose?: 'visualization' | 'answer';
@@ -349,9 +357,6 @@ export const validateRunQueryTool = (
     );
 };
 
-const CUSTOM_CHART_TYPE_IMAGE_BUDGET_MS = 60_000;
-const CUSTOM_CHART_TYPE_IMAGE_ATTEMPTS = 2;
-
 type ResolvedRunQueryArtifactConfig =
     | AiSemanticChartArtifactConfig
     | AiMergeChartArtifactConfig
@@ -390,136 +395,43 @@ const buildResolvedRunQueryArtifactConfig = ({
     };
 };
 
-// One retry inside a total wall-clock budget. An image failure must never
-// fail the answer — null leaves the final answer with an explorable result card.
-const exportCustomChartTypeImageBounded = async (
-    exportImage: () => Promise<Buffer>,
-): Promise<Buffer | null> => {
-    const deadline = Date.now() + CUSTOM_CHART_TYPE_IMAGE_BUDGET_MS;
-    for (
-        let attempt = 0;
-        attempt < CUSTOM_CHART_TYPE_IMAGE_ATTEMPTS;
-        attempt += 1
-    ) {
-        const remainingMs = deadline - Date.now();
-        if (remainingMs <= 0) break;
-        let timer: NodeJS.Timeout | undefined;
-        try {
-            const attemptPromise = exportImage();
-            // Swallow a late failure after the timeout wins the race.
-            attemptPromise.catch(() => {});
-            // eslint-disable-next-line no-await-in-loop
-            return await Promise.race([
-                attemptPromise,
-                new Promise<never>((_, reject) => {
-                    timer = setTimeout(
-                        () =>
-                            reject(
-                                new Error(
-                                    'Custom chart type image export timed out',
-                                ),
-                            ),
-                        remainingMs,
-                    );
-                }),
-            ]);
-        } catch {
-            // Retry, or leave the final answer with an explorable result card.
-        } finally {
-            clearTimeout(timer);
-        }
-    }
-    return null;
-};
-
-// Renders charts as images for Slack. Tables stay in the final answer.
-// Returns the chart image URL when one was sent.
-const sendSlackVisualization = async ({
-    prompt,
+// Images are registered for delivery after the final answer selects its charts.
+// If registration is unavailable, the selected chart still has a Lightdash link.
+const deferSlackChart = async ({
     queryTool,
     queryResults,
-    sendFile,
-    exportImage,
     artifact,
     deferSlackVisualization,
 }: {
-    prompt: SlackPrompt;
     queryTool: ToolRunQueryArgsTransformed;
-    queryResults: {
-        queryUuid: string;
-        rows: Record<string, unknown>[];
-        fields: ItemsMap;
-    };
-    sendFile: SendFileFn;
+    queryResults: { queryUuid: string; rows: Record<string, unknown>[] };
     artifact: AiArtifact | undefined;
     deferSlackVisualization?: DeferSlackVisualizationFn;
-    // Pre-bound export of the answer's artifact; null when no artifact
-    // can be exported (merge branch).
-    exportImage: (() => Promise<Buffer>) | null;
-}): Promise<string | undefined> => {
+}): Promise<void> => {
     if (
+        !artifact ||
+        !deferSlackVisualization ||
         !queryTool.chartConfig ||
         (!isCustomChartTypeSlugChartConfig(queryTool.chartConfig) &&
-            queryTool.chartConfig.defaultVizType === 'table')
-    ) {
-        return undefined;
-    }
-
-    if (
-        artifact &&
-        deferSlackVisualization &&
-        queryTool.chartConfig &&
-        (isCustomChartTypeSlugChartConfig(queryTool.chartConfig) ||
-            ['bar', 'horizontal', 'line', 'scatter', 'pie', 'funnel'].includes(
+            !['bar', 'horizontal', 'line', 'scatter', 'pie', 'funnel'].includes(
                 queryTool.chartConfig.defaultVizType,
             ))
     ) {
-        try {
-            if (
-                await deferSlackVisualization({
-                    artifactUuid: artifact.artifactUuid,
-                    versionUuid: artifact.versionUuid,
-                    queryUuid: queryResults.queryUuid,
-                    rowLimit: queryResults.rows.length,
-                    queryTool,
-                })
-            )
-                return undefined;
-        } catch {
-            Logger.warn(
-                '[AiAgent] Deferred Slack image unavailable; using immediate delivery.',
-            );
-        }
+        return;
     }
-    const echartsOptions = await getSlackAiEchartsConfig({
-        toolArgs: {
-            type: AiResultType.QUERY_RESULT,
-            tool: queryTool,
-        },
-        queryResults,
-        getPivotedResults,
-    });
-    let chartImage: Buffer | null = null;
-    if (echartsOptions) {
-        chartImage = await renderEcharts(echartsOptions);
-    } else if (
-        isCustomChartTypeSlugChartConfig(queryTool.chartConfig) &&
-        exportImage
-    ) {
-        chartImage = await exportCustomChartTypeImageBounded(exportImage);
-    }
-    if (chartImage) {
-        return sendFile({
-            channelId: prompt.slackChannelId,
-            threadTs: prompt.slackThreadTs,
-            organizationUuid: prompt.organizationUuid,
-            title: queryTool.title || 'Generated by Lightdash',
-            comment: queryTool.description || 'Chart generated by Lightdash',
-            filename: 'lightdash-chart.png',
-            file: chartImage,
+    try {
+        await deferSlackVisualization({
+            artifactUuid: artifact.artifactUuid,
+            versionUuid: artifact.versionUuid,
+            queryUuid: queryResults.queryUuid,
+            rowLimit: queryResults.rows.length,
+            queryTool,
         });
+    } catch {
+        Logger.warn(
+            '[AiAgent] Deferred Slack image unavailable; retaining the chart link.',
+        );
     }
-    return undefined;
 };
 
 const getSuccessMetadata = ({
@@ -587,7 +499,6 @@ export const getRunQuery = ({
     runAsyncQuery,
     agentContext: ctx,
     getPrompt,
-    sendFile,
     deferSlackVisualization,
     createOrUpdateArtifact,
     maxLimit,
@@ -600,7 +511,6 @@ export const getRunQuery = ({
     enableFilterExpressions,
     runAsyncMergeQuery,
     resolveCustomChartType,
-    exportCustomChartTypeImage,
     decisions,
     question,
     conversation,
@@ -869,10 +779,18 @@ export const getRunQuery = ({
                         !enableDataAccess &&
                         (!isSlackPrompt(prompt) || slackLinksOnly)
                     ) {
-                        await createMergeArtifactHook();
+                        const artifact = await createMergeArtifactHook();
                         return {
-                            result: 'Success',
-                            metadata: { status: 'success' },
+                            result: `Success${getChartReference(prompt, queryTool.chartConfig, artifact)}`,
+                            metadata: {
+                                status: 'success',
+                                ...(isSlackPrompt(prompt) && artifact
+                                    ? {
+                                          artifactVersionUuid:
+                                              artifact.versionUuid,
+                                      }
+                                    : {}),
+                            },
                         };
                     }
 
@@ -1015,15 +933,15 @@ export const getRunQuery = ({
                         );
                     }
 
-                    let chartImageUrl: string | undefined;
+                    const chartReference = getChartReference(
+                        prompt,
+                        queryTool.chartConfig,
+                        artifact,
+                    );
                     if (isSlackPrompt(prompt) && !slackLinksOnly) {
-                        chartImageUrl = await sendSlackVisualization({
-                            prompt,
+                        await deferSlackChart({
                             queryTool,
                             queryResults,
-                            sendFile,
-                            // Merge × custom chart type is rejected above.
-                            exportImage: null,
                             artifact,
                             deferSlackVisualization,
                         });
@@ -1050,7 +968,7 @@ export const getRunQuery = ({
                     return {
                         result: enableDataAccess
                             ? [
-                                  `${resultSummary}${queryReference}${getContextTruncationNote(
+                                  `${resultSummary}${queryReference}${chartReference}${getContextTruncationNote(
                                       {
                                           rowCount: queryResults.rows.length,
                                           maxContextRows,
@@ -1058,7 +976,7 @@ export const getRunQuery = ({
                                   )}${exportReference}${review}${presentationNote}${decisions ? chartQualityHints(queryTool, queryResults.rows) : ''}`,
                                   serializeData(csv, 'csv'),
                               ].join('\n\n')
-                            : `Success. ${resultSummary}`,
+                            : `Success. ${resultSummary}${chartReference}`,
                         metadata: getSuccessMetadata({
                             queryUuid: queryResults.queryUuid,
                             queryCacheHit:
@@ -1066,7 +984,6 @@ export const getRunQuery = ({
                             queryReuseHit:
                                 queryResults.cacheMetadata.queryReuseHit ===
                                 true,
-                            chartImageUrl,
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
                             fastResponse:
@@ -1243,10 +1160,15 @@ export const getRunQuery = ({
                     !enableDataAccess &&
                     (!isSlackPrompt(prompt) || slackLinksOnly)
                 ) {
-                    await createOrUpdateArtifactHook();
+                    const artifact = await createOrUpdateArtifactHook();
                     return {
-                        result: `Success`,
-                        metadata: { status: 'success' },
+                        result: `Success${getChartReference(prompt, queryTool.chartConfig, artifact)}`,
+                        metadata: {
+                            status: 'success',
+                            ...(isSlackPrompt(prompt) && artifact
+                                ? { artifactVersionUuid: artifact.versionUuid }
+                                : {}),
+                        },
                     };
                 }
 
@@ -1430,16 +1352,15 @@ export const getRunQuery = ({
                     );
                 }
 
-                let chartImageUrl: string | undefined;
+                const chartReference = getChartReference(
+                    prompt,
+                    queryTool.chartConfig,
+                    artifact,
+                );
                 if (isSlackPrompt(prompt) && !slackLinksOnly) {
-                    chartImageUrl = await sendSlackVisualization({
-                        prompt,
+                    await deferSlackChart({
                         queryTool,
                         queryResults,
-                        sendFile,
-                        exportImage: artifact
-                            ? () => exportCustomChartTypeImage(artifact)
-                            : null,
                         artifact,
                         deferSlackVisualization,
                     });
@@ -1469,7 +1390,7 @@ export const getRunQuery = ({
 
                 if (!enableDataAccess) {
                     return {
-                        result: `Success. ${resultSummary}${queryReference}`,
+                        result: `Success. ${resultSummary}${queryReference}${chartReference}`,
                         metadata: getSuccessMetadata({
                             queryUuid: queryResults.queryUuid,
                             queryCacheHit:
@@ -1477,7 +1398,6 @@ export const getRunQuery = ({
                             queryReuseHit:
                                 queryResults.cacheMetadata.queryReuseHit ===
                                 true,
-                            chartImageUrl,
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
                         }),
@@ -1493,7 +1413,7 @@ export const getRunQuery = ({
                         `${resultSummary}${getContextTruncationNote({
                             rowCount: queryResults.rows.length,
                             maxContextRows,
-                        })}${queryReference}${exportReference}${intentNote}${presentationNote}${decisions ? joinedMeasureGuidance(queryTool.queryConfig.metrics, explore, queryResults.rows, ctx.getAvailableExplores()) + chartQualityHints(queryTool, queryResults.rows) : ''}`,
+                        })}${queryReference}${chartReference}${exportReference}${intentNote}${presentationNote}${decisions ? joinedMeasureGuidance(queryTool.queryConfig.metrics, explore, queryResults.rows, ctx.getAvailableExplores()) + chartQualityHints(queryTool, queryResults.rows) : ''}`,
                         serializeData(csv, 'csv'),
                     ].join('\n\n'),
                     metadata: getSuccessMetadata({
@@ -1502,7 +1422,6 @@ export const getRunQuery = ({
                             queryResults.cacheMetadata.cacheHit === true,
                         queryReuseHit:
                             queryResults.cacheMetadata.queryReuseHit === true,
-                        chartImageUrl,
                         artifact,
                         deferredSlack: !!deferSlackVisualization,
                         fastResponse: fastAnswer

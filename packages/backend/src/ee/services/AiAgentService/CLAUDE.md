@@ -77,3 +77,5 @@ Query results in Slack (from `ai/tools/runQuery.ts`):
 | Table             | Optional inline `data_table`, selected by the final answer |
 
 Slack final answers default to a summary without supporting tables. To include a useful executed table, the model emits `<slack-table queryUuid="<execution UUID>" />`. Only successful table executions from the current prompt are eligible; the server removes these markers from visible and stored answer text. Unselected semantic table artifacts are omitted from the answer cards when inline data sharing is allowed.
+
+Generated Slack charts are optional too. The final answer selects exact successful chart versions from the current prompt using `<slack-chart versionUuid="<artifact version UUID>" />`. Prefer a single useful chart, and include several when the user requests them or distinct views materially improve the answer. Omit diagnostics, redundant charts and superseded versions. Chart images are deferred until after selection; missing deferred images leave a Lightdash link. Both chart and table markers are removed before persistence and display.

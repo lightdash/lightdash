@@ -1201,8 +1201,9 @@ describe('getRunQuery', () => {
                 queryUuid: '11111111-1111-4111-8111-111111111111',
             },
         });
-        // Proves the Slack chart path ran rather than short-circuiting.
-        expect(vi.mocked(renderEcharts)).toHaveBeenCalled();
+        // Query evidence remains available without an early Slack image upload.
+        expect(runAsyncQuery).toHaveBeenCalled();
+        expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
     });
 
     it('does not expose a query UUID for an empty result', async () => {
@@ -1735,94 +1736,57 @@ describe('getRunQuery custom chart types', () => {
             expect(sendFile).not.toHaveBeenCalled();
         });
 
-        it('attaches the rendered image through the file-send path on success', async () => {
-            const image = Buffer.from('custom-chart-png');
+        it('returns the saved custom chart reference without exporting or uploading its image', async () => {
             const exportCustomChartTypeImage = vi
                 .fn()
-                .mockResolvedValue(image) as ExportCustomChartTypeImageFn;
-
+                .mockResolvedValue(
+                    Buffer.from('custom-chart-png'),
+                ) as ExportCustomChartTypeImageFn;
             const { output, sendFile } = await executeCustomSlack({
                 exportCustomChartTypeImage,
             });
-
-            expect(exportCustomChartTypeImage).toHaveBeenCalledWith(artifact);
-            expect(sendFile).toHaveBeenCalledTimes(1);
-            expect(sendFile).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    filename: 'lightdash-chart.png',
-                    file: image,
-                }),
+            expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
+            expect(sendFile).not.toHaveBeenCalled();
+            expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
+            expect(output.result).toContain(
+                "This chart's versionUuid is version-uuid",
             );
             expect(output.metadata).toMatchObject({
                 status: 'success',
-                chartImageUrl:
-                    'https://lightdash.example/api/v1/slack/card-image/abc',
+                artifactVersionUuid: artifact.versionUuid,
             });
-            // Custom chart types never take the builtin echarts render path.
-            expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
-        });
-
-        it('retries once and attaches the image when the second attempt succeeds', async () => {
-            const image = Buffer.from('custom-chart-png');
-            const exportCustomChartTypeImage = vi
-                .fn()
-                .mockRejectedValueOnce(new Error('render crashed'))
-                .mockResolvedValueOnce(image) as ExportCustomChartTypeImageFn;
-
-            const { output, sendFile } = await executeCustomSlack({
-                exportCustomChartTypeImage,
-            });
-
-            expect(exportCustomChartTypeImage).toHaveBeenCalledTimes(2);
-            expect(sendFile).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    filename: 'lightdash-chart.png',
-                    file: image,
-                }),
+            expect(output.metadata).not.toHaveProperty(
+                'chartImageUrl',
+                expect.any(String),
             );
-            expect(output.metadata).toMatchObject({ status: 'success' });
         });
 
-        it('keeps the result card without uploading a CSV when the export keeps failing', async () => {
-            const exportCustomChartTypeImage = vi
-                .fn()
-                .mockRejectedValue(
-                    new Error('render crashed'),
-                ) as ExportCustomChartTypeImageFn;
-
-            const { output, sendFile } = await executeCustomSlack({
-                exportCustomChartTypeImage,
-            });
-
-            expect(exportCustomChartTypeImage).toHaveBeenCalledTimes(2);
-            expect(sendFile).not.toHaveBeenCalled();
-            expect(output.metadata).toMatchObject({ status: 'success' });
-            expect(output.metadata.chartImageUrl).toBeUndefined();
-        });
-
-        it('keeps the result card without uploading a CSV when the export exhausts the time budget', async () => {
-            vi.useFakeTimers();
-            try {
-                const exportCustomChartTypeImage = vi
-                    .fn()
-                    .mockReturnValue(
-                        new Promise<never>(() => {}),
-                    ) as ExportCustomChartTypeImageFn;
-
-                const pending = executeCustomSlack({
+        it.each(['declined', 'failed'] as const)(
+            'retains the saved custom chart link without early uploads when deferral is %s',
+            async (reason) => {
+                const exportCustomChartTypeImage =
+                    vi.fn() as ExportCustomChartTypeImageFn;
+                const deferSlackVisualization = vi.fn();
+                if (reason === 'failed') {
+                    deferSlackVisualization.mockRejectedValue(
+                        new Error('Storage unavailable'),
+                    );
+                } else {
+                    deferSlackVisualization.mockResolvedValue(false);
+                }
+                const { output, sendFile } = await executeCustomSlack({
                     exportCustomChartTypeImage,
+                    deferSlackVisualization,
                 });
-                await vi.advanceTimersByTimeAsync(60_000);
-                const { output, sendFile } = await pending;
-
-                // Budget exhausted on the first attempt — no retry.
-                expect(exportCustomChartTypeImage).toHaveBeenCalledTimes(1);
+                expect(deferSlackVisualization).toHaveBeenCalledTimes(1);
+                expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
                 expect(sendFile).not.toHaveBeenCalled();
-                expect(output.metadata).toMatchObject({ status: 'success' });
-            } finally {
-                vi.useRealTimers();
-            }
-        });
+                expect(output.metadata.status).toBe('success');
+                expect(output.result).toContain(
+                    "This chart's versionUuid is version-uuid",
+                );
+            },
+        );
     });
 });
 
@@ -2208,6 +2172,7 @@ describe('getRunQuery Slack links only', () => {
         merge = false,
         input = merge ? mergeInput : toolInput,
         purpose = 'visualization',
+        artifactVersionUuid = 'version-uuid',
     }: {
         enableDataAccess: boolean;
         slackLinksOnly: boolean;
@@ -2215,6 +2180,7 @@ describe('getRunQuery Slack links only', () => {
         input?: ToolRunQueryArgs;
         merge?: boolean;
         purpose?: 'answer' | 'visualization';
+        artifactVersionUuid?: string;
     }) => {
         const runAsyncQuery = vi.fn().mockResolvedValue({
             queryUuid: 'query-uuid',
@@ -2236,7 +2202,7 @@ describe('getRunQuery Slack links only', () => {
             ) as SendFileFn;
         const createOrUpdateArtifact = vi.fn().mockResolvedValue({
             artifactUuid: 'artifact-uuid',
-            versionUuid: 'version-uuid',
+            versionUuid: artifactVersionUuid,
         });
         const agentContext = new AgentContext([validExplore]);
         const queryTool = getRunQuery({
@@ -2361,6 +2327,65 @@ describe('getRunQuery Slack links only', () => {
         },
     );
 
+    it.each([
+        { enableDataAccess: true, slackLinksOnly: false },
+        { enableDataAccess: true, slackLinksOnly: true },
+        { enableDataAccess: false, slackLinksOnly: false },
+        { enableDataAccess: false, slackLinksOnly: true },
+    ])(
+        'exposes saved normal and merged chart versions without granting row access: %j',
+        async ({ enableDataAccess, slackLinksOnly }) => {
+            const executions = await Promise.all(
+                [false, true].map((merge) =>
+                    executeLinksOnly({
+                        enableDataAccess,
+                        slackLinksOnly,
+                        merge,
+                    }),
+                ),
+            );
+            for (const { output, sendFile } of executions) {
+                expect(output.result).toContain(
+                    "This chart's versionUuid is version-uuid",
+                );
+                expect(output.metadata).toMatchObject({
+                    status: 'success',
+                    artifactVersionUuid: 'version-uuid',
+                });
+                if (!enableDataAccess)
+                    expect(output.result).not.toContain('```csv');
+                expect(sendFile).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    it('distinguishes two chart versions that share an executed query', async () => {
+        const first = await executeLinksOnly({
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            artifactVersionUuid: 'first-version',
+        });
+        const second = await executeLinksOnly({
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            artifactVersionUuid: 'second-version',
+        });
+        expect(first.output.metadata).toMatchObject({
+            queryUuid: 'query-uuid',
+        });
+        expect(second.output.metadata).toMatchObject({
+            queryUuid: 'query-uuid',
+        });
+        expect(first.output.result).toContain(
+            "This chart's versionUuid is first-version",
+        );
+        expect(first.output.result).not.toContain('second-version');
+        expect(second.output.result).toContain(
+            "This chart's versionUuid is second-version",
+        );
+        expect(second.output.result).not.toContain('first-version');
+    });
+
     it('returns query evidence immediately after durable image registration', async () => {
         const deferSlackVisualization = vi.fn().mockResolvedValue(true);
         const previousRenders = vi.mocked(renderEcharts).mock.calls.length;
@@ -2396,7 +2421,7 @@ describe('getRunQuery Slack links only', () => {
     });
 
     it.each(['declined', 'failed'] as const)(
-        'keeps immediate rendering when durable registration is %s',
+        'retains the saved chart link without early uploads when durable registration is %s',
         async (reason) => {
             const deferSlackVisualization = vi.fn();
             if (reason === 'failed')
@@ -2410,12 +2435,14 @@ describe('getRunQuery Slack links only', () => {
                 deferSlackVisualization,
             });
             expect(output.metadata.status).toBe('success');
-            expect(sendFile).toHaveBeenCalledExactlyOnceWith(
-                expect.objectContaining({ filename: 'lightdash-chart.png' }),
-            );
-            expect(output.metadata).toHaveProperty(
+            expect(sendFile).not.toHaveBeenCalled();
+            expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
+            expect(output.metadata).not.toHaveProperty(
                 'chartImageUrl',
-                'https://lightdash.example/api/v1/slack/card-image/abc',
+                expect.any(String),
+            );
+            expect(output.result).toContain(
+                "This chart's versionUuid is version-uuid",
             );
         },
     );
@@ -2541,22 +2568,29 @@ describe('getRunQuery Slack links only', () => {
         expect(runAsyncQuery).not.toHaveBeenCalled();
         expect(sendFile).not.toHaveBeenCalled();
         expect(createOrUpdateArtifact).toHaveBeenCalledTimes(1);
-        expect(output.result).toBe('Success');
+        expect(output.result).toContain(
+            "Success This chart's versionUuid is version-uuid",
+        );
+        expect(output.metadata).toMatchObject({
+            artifactVersionUuid: 'version-uuid',
+        });
     });
 
-    it('keeps posting the chart image when the setting is off', async () => {
+    it('never uploads an image before the final answer selects a chart', async () => {
         const { output, sendFile } = await executeLinksOnly({
             enableDataAccess: true,
             slackLinksOnly: false,
         });
 
-        expect(sendFile).toHaveBeenCalledWith(
-            expect.objectContaining({ filename: 'lightdash-chart.png' }),
+        expect(sendFile).not.toHaveBeenCalled();
+        expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
+        expect(output.result).toContain(
+            "This chart's versionUuid is version-uuid",
         );
-        expect(output.metadata).toMatchObject({
-            chartImageUrl:
-                'https://lightdash.example/api/v1/slack/card-image/abc',
-        });
+        expect(output.metadata).not.toHaveProperty(
+            'chartImageUrl',
+            expect.any(String),
+        );
     });
 });
 
