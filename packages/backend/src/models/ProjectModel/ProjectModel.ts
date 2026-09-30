@@ -790,7 +790,7 @@ export class ProjectModel {
                     "TRIM(CONCAT(users.first_name, ' ', users.last_name)) as created_by_user_name",
                 ),
                 this.database.raw(
-                    '(agg_project_group_access_counts.member_count + agg_project_membership_counts.member_count) as member_count',
+                    '(COALESCE(agg_project_group_access_counts.member_count, 0) + COALESCE(agg_project_membership_counts.member_count, 0)) as member_count',
                 ),
             )
             .leftJoin(
