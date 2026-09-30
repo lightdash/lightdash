@@ -97,8 +97,7 @@ const AllowanceUsedBanner: FC<{ usage: AiCreditUsageSummary }> = ({
     if (!isAllowanceUsed) return null;
     return (
         <Callout variant="neutral" title="You've used this period's allowance">
-            No worries, your usage isn&apos;t blocked. We&apos;ll reach out to
-            talk about your plan. Your allowance resets on{' '}
+            No worries, your usage isn&apos;t blocked. Your allowance resets on{' '}
             {formatDate(usage.period.periodEnd)}.
         </Callout>
     );
