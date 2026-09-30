@@ -3607,6 +3607,12 @@ export const streamAgentResponse = async ({
                         ...timing.getStageTiming(),
                         fastDecisionsEnabled: !!args.decisions,
                         fastToolModelEnabled: !!args.toolCallModel,
+                        decisionInputTokens:
+                            args.decisionUsage?.inputTokens ?? null,
+                        decisionOutputTokens:
+                            args.decisionUsage?.outputTokens ?? null,
+                        decisionServiceMs:
+                            args.decisionUsage?.serviceMs ?? null,
                         turnIntent: preparedContext?.turnIntent ?? null,
                         surface:
                             args.slackChannelId === null ? 'web_app' : 'slack',

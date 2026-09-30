@@ -34,6 +34,7 @@ import {
     AiMcpServer,
     AiMetricQueryWithFilters,
     AiModelOption,
+    AiPrompt,
     AiPromptContext,
     AiPromptSteer,
     AiResultType,
@@ -232,6 +233,7 @@ import {
     AiAgentThreadsRetentionCleanedEvent,
     AiAgentToolCallEvent,
     AiAgentToolCallFailedEvent,
+    AiAgentTurnDecisionEvent,
     AiAgentUpdatedEvent,
     ContentVerificationEvent,
     LightdashAnalytics,
@@ -12858,7 +12860,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }
 
     private async recordTurnDecision({
-        promptUuid,
+        prompt,
         decisions,
         turn,
         latencyMs,
@@ -12867,7 +12869,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         fallbackReason,
         instantReply,
     }: {
-        promptUuid: string;
+        prompt: AiPrompt;
         decisions: AiDecisionClient;
         turn: Awaited<ReturnType<typeof decideTurn>>;
         latencyMs: number;
@@ -12899,10 +12901,29 @@ Use your existing tools to inspect them when relevant to the user's question (re
             // pg writes a bare JS array as a Postgres array, which jsonb rejects.
             intent = { steps: chart.steps };
         } else if (chart) outcome = chart.type;
+        const operation = chart ? 'chart-intent' : 'model-routing';
+        this.analytics.track<AiAgentTurnDecisionEvent>({
+            event: 'ai_agent.turn_decision',
+            userId: prompt.createdByUserUuid,
+            properties: {
+                organizationId: prompt.organizationUuid,
+                projectId: prompt.projectUuid,
+                aiAgentId: prompt.agentUuid,
+                promptId: prompt.promptUuid,
+                threadId: prompt.threadUuid,
+                operation,
+                outcome,
+                applied,
+                fallbackReason,
+                latencyMs: Math.round(latencyMs),
+                serviceMs: serviceMs === null ? null : Math.round(serviceMs),
+                jevModel: decisions.modelName,
+            },
+        });
         try {
             await this.aiAgentModel.createPromptDecision({
-                ai_prompt_uuid: promptUuid,
-                operation: chart ? 'chart-intent' : 'model-routing',
+                ai_prompt_uuid: prompt.promptUuid,
+                operation,
                 outcome,
                 reason,
                 intent,
@@ -13137,7 +13158,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
                 if (turn)
                     await this.recordTurnDecision({
-                        promptUuid: prompt.promptUuid,
+                        prompt,
                         decisions,
                         turn,
                         latencyMs: decisionLatencyMs,
@@ -13174,7 +13195,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 if (editResult.type === 'applied') {
                     if (turn)
                         await this.recordTurnDecision({
-                            promptUuid: prompt.promptUuid,
+                            prompt,
                             decisions,
                             turn,
                             latencyMs: decisionLatencyMs,
@@ -13237,7 +13258,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     }),
                 });
                 await this.recordTurnDecision({
-                    promptUuid: prompt.promptUuid,
+                    prompt,
                     decisions,
                     turn,
                     latencyMs: decisionLatencyMs,
@@ -13251,7 +13272,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
         if (decisions && turn)
             await this.recordTurnDecision({
-                promptUuid: prompt.promptUuid,
+                prompt,
                 decisions,
                 turn,
                 latencyMs: decisionLatencyMs,
