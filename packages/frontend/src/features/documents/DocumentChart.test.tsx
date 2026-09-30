@@ -3,6 +3,7 @@ import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import DocumentChart from './DocumentChart';
+import { DocumentExportStatusContext } from './documentExportStatus';
 
 const mocks = vi.hoisted(() => ({
     query: {
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     canExplore: true,
     authoringEnabled: true,
     explore: vi.fn(),
+    visualization: vi.fn(),
 }));
 
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
@@ -54,7 +56,10 @@ vi.mock(
     }),
 );
 vi.mock('../../components/LightdashVisualization', () => ({
-    default: () => <div>Visualization</div>,
+    default: (props: unknown) => {
+        mocks.visualization(props);
+        return <div>Visualization</div>;
+    },
 }));
 
 const semanticCell: Extract<DocumentCell, { type: 'chart' }> = {
@@ -271,6 +276,64 @@ describe('Document chart titles', () => {
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: /retry/i }),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('Document charts printed to PDF', () => {
+    const exportStatus = { markReady: vi.fn(), markErrored: vi.fn() };
+    const renderForExport = () =>
+        render(
+            <MantineProvider env="test">
+                <DocumentExportStatusContext.Provider value={exportStatus}>
+                    <DocumentChart
+                        projectUuid="project"
+                        spaceUuid="space"
+                        documentUuid="document"
+                        versionUuid="version"
+                        cellIndex={2}
+                        cell={semanticCell}
+                    />
+                </DocumentExportStatusContext.Provider>
+            </MantineProvider>,
+        );
+    beforeEach(() => {
+        mocks.query.error = undefined;
+        mocks.query.data = {};
+        mocks.visualization.mockClear();
+        exportStatus.markReady.mockClear();
+        exportStatus.markErrored.mockClear();
+    });
+
+    test('reports its cell once the visualization has drawn or failed', () => {
+        renderForExport();
+        const [props] = mocks.visualization.mock.lastCall as [
+            { onScreenshotReady: () => void; onScreenshotError: () => void },
+        ];
+        props.onScreenshotReady();
+        expect(exportStatus.markReady).toHaveBeenCalledExactlyOnceWith(2);
+        props.onScreenshotError();
+        expect(exportStatus.markErrored).toHaveBeenCalledExactlyOnceWith(2);
+    });
+
+    test('prints a failed query as an explicit error, without controls', () => {
+        mocks.query.error = { error: { message: 'Query failed' } };
+        renderForExport();
+        expect(
+            screen.getByText(
+                'The live data for this chart could not be loaded.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Retry' }),
+        ).not.toBeInTheDocument();
+        expect(exportStatus.markErrored).toHaveBeenCalledWith(2);
+    });
+
+    test('leaves out the Explore action', () => {
+        renderForExport();
+        expect(
+            screen.queryByRole('button', { name: 'Explore from here' }),
         ).not.toBeInTheDocument();
     });
 });

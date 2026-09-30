@@ -153,6 +153,16 @@ const MINIMAL_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/minimal/projects/:projectUuid/documents/:documentUuid',
+                lazy: async () => {
+                    const MinimalDocument = await loadLazyRouteDefault(
+                        './pages/MinimalDocument',
+                        () => import('./pages/MinimalDocument'),
+                    );
+                    return { Component: MinimalDocument };
+                },
+            },
+            {
                 path: '/minimal/projects/:projectUuid/apps/:appUuid',
                 lazy: async () => {
                     const MinimalApp = await loadLazyRouteDefault(

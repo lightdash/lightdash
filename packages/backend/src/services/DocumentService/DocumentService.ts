@@ -15,6 +15,7 @@ import {
     parseDocumentAsCode,
     parseDocumentContent,
     PromotionAction,
+    SCHEDULER_TASKS,
     type ContentAsCodeUpsertAction,
     type CreateDocumentRequest,
     type Document,
@@ -53,6 +54,7 @@ import type {
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
+import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { resolveDataAppVizBinding } from '../CoderService/dataAppVizBinding';
 import { normalizeFilterIds } from '../CoderService/filterIds';
@@ -84,6 +86,7 @@ type DocumentServiceArguments = {
     directAccessService: DirectAccessService;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
+    schedulerClient: Pick<SchedulerClient, 'scheduleTask'>;
     spaceModel: SpaceModel;
     spacePermissionService: SpacePermissionService;
     projectService: ProjectService;
@@ -1070,6 +1073,30 @@ export class DocumentService extends BaseService {
             },
         });
         return document;
+    }
+
+    /** Queues a PDF of the Document's current version, rendered as this user. */
+    async scheduleExportPdf(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+    ): Promise<{ jobId: string }> {
+        const document = await this.getByIdOrSlug(
+            account,
+            projectUuid,
+            documentUuidOrSlug,
+        );
+        return this.dependencies.schedulerClient.scheduleTask(
+            SCHEDULER_TASKS.EXPORT_DOCUMENT_PDF,
+            {
+                organizationUuid: document.organizationUuid,
+                projectUuid: document.projectUuid,
+                userUuid: account.user.userUuid,
+                documentUuid: document.documentUuid,
+                versionUuid: document.version.versionUuid,
+                documentName: document.name,
+            },
+        );
     }
 
     /** Version history, newest first; readable by anyone who can view the Document. */

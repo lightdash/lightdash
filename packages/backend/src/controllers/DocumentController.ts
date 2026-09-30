@@ -10,6 +10,7 @@ import {
     type ApiDocumentResponse,
     type ApiDocumentVersionListResponse,
     type ApiErrorPayload,
+    type ApiJobScheduledResponse,
     type ApiTogglePinnedItem,
     type CreateDocumentRequest,
     type DuplicateDocumentRequest,
@@ -152,6 +153,33 @@ export class DocumentController extends BaseController {
             results: await this.services
                 .getDocumentService()
                 .duplicate(req.account, projectUuid, documentUuidOrSlug, body),
+        };
+    }
+
+    /**
+     * Export the Document as a paginated PDF, rendered with your access.
+     * Poll `GET /api/v1/schedulers/job/{jobId}/status`; the completed job's
+     * details hold the file `url` and `numFailures` (charts that failed to load).
+     * @summary Export document as PDF
+     */
+    @Post('{documentUuidOrSlug}/exports/pdf')
+    @OperationId('ExportDocumentPdf')
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    async exportPdf(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuidOrSlug: UuidOrSlug,
+    ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .scheduleExportPdf(
+                    req.account,
+                    projectUuid,
+                    documentUuidOrSlug,
+                ),
         };
     }
 
