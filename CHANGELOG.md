@@ -1,3 +1,10 @@
+## [2.399.1](https://github.com/lightdash/lightdash/compare/2.399.0...2.399.1) (2026-09-30)
+
+
+### Performance Improvements
+
+* **backend:** fetch the primary dbt source alongside the additional sources ([#30307](https://github.com/lightdash/lightdash/issues/30307)) ([e30974b](https://github.com/lightdash/lightdash/commit/e30974b11ca5a81465b0dc459e4034c74426b019))
+
 # [2.399.0](https://github.com/lightdash/lightdash/compare/2.398.0...2.399.0) (2026-09-30)
 
 
