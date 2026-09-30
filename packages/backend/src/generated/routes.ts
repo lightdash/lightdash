@@ -52625,6 +52625,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['cleanScimRequestLogs'] },
                 { dataType: 'enum', enums: ['publishAnnouncement'] },
                 { dataType: 'enum', enums: ['sweepDueAnnouncements'] },
+                { dataType: 'enum', enums: ['sendAiCreditAllowanceAlerts'] },
                 { dataType: 'enum', enums: ['ingestExternalSource'] },
                 { dataType: 'enum', enums: ['ingestExternalSourceAttachment'] },
                 { dataType: 'enum', enums: ['maintainExternalSources'] },
@@ -60048,6 +60049,58 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiNotificationResourceType.AiCreditAllowance': {
+        dataType: 'refEnum',
+        enums: ['aiCreditAllowance'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiCreditAllowanceAlertThreshold: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: [50] },
+                { dataType: 'enum', enums: [80] },
+                { dataType: 'enum', enums: [100] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NotificationAiCreditAllowance: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'NotificationBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        metadata: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                periodEnd: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                thresholdPercent: {
+                                    ref: 'AiCreditAllowanceAlertThreshold',
+                                    required: true,
+                                },
+                            },
+                            required: true,
+                        },
+                        resourceType: {
+                            ref: 'ApiNotificationResourceType.AiCreditAllowance',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Notification: {
         dataType: 'refAlias',
         type: {
@@ -60056,6 +60109,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'NotificationDashboardComment' },
                 { ref: 'NotificationAiReview' },
                 { ref: 'NotificationContentReview' },
+                { ref: 'NotificationAiCreditAllowance' },
             ],
             validators: {},
         },
@@ -60084,7 +60138,12 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiNotificationResourceType: {
         dataType: 'refEnum',
-        enums: ['dashboardComments', 'aiReview', 'contentReview'],
+        enums: [
+            'dashboardComments',
+            'aiReview',
+            'contentReview',
+            'aiCreditAllowance',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Notification.viewed_': {

@@ -51006,6 +51006,7 @@
                     "cleanScimRequestLogs",
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
+                    "sendAiCreditAllowanceAlerts",
                     "ingestExternalSource",
                     "ingestExternalSourceAttachment",
                     "maintainExternalSources",
@@ -58566,6 +58567,42 @@
                     }
                 ]
             },
+            "ApiNotificationResourceType.AiCreditAllowance": {
+                "enum": ["aiCreditAllowance"],
+                "type": "string"
+            },
+            "AiCreditAllowanceAlertThreshold": {
+                "type": "number",
+                "enum": [50, 80, 100]
+            },
+            "NotificationAiCreditAllowance": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/NotificationBase"
+                    },
+                    {
+                        "properties": {
+                            "metadata": {
+                                "properties": {
+                                    "periodEnd": {
+                                        "type": "string"
+                                    },
+                                    "thresholdPercent": {
+                                        "$ref": "#/components/schemas/AiCreditAllowanceAlertThreshold"
+                                    }
+                                },
+                                "required": ["periodEnd", "thresholdPercent"],
+                                "type": "object"
+                            },
+                            "resourceType": {
+                                "$ref": "#/components/schemas/ApiNotificationResourceType.AiCreditAllowance"
+                            }
+                        },
+                        "required": ["metadata", "resourceType"],
+                        "type": "object"
+                    }
+                ]
+            },
             "Notification": {
                 "anyOf": [
                     {
@@ -58576,6 +58613,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/NotificationContentReview"
+                    },
+                    {
+                        "$ref": "#/components/schemas/NotificationAiCreditAllowance"
                     }
                 ]
             },
@@ -58600,7 +58640,12 @@
                 "type": "object"
             },
             "ApiNotificationResourceType": {
-                "enum": ["dashboardComments", "aiReview", "contentReview"],
+                "enum": [
+                    "dashboardComments",
+                    "aiReview",
+                    "contentReview",
+                    "aiCreditAllowance"
+                ],
                 "type": "string"
             },
             "Pick_Notification.viewed_": {
@@ -68492,7 +68537,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.395.1",
+        "version": "2.396.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

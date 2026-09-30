@@ -1,3 +1,10 @@
+# [2.396.0](https://github.com/lightdash/lightdash/compare/2.395.1...2.396.0) (2026-09-30)
+
+
+### Features
+
+* **ai:** alert org admins in the app on AI credit usage thresholds ([#30293](https://github.com/lightdash/lightdash/issues/30293)) ([6cd1c82](https://github.com/lightdash/lightdash/commit/6cd1c82b6c0fe2b3878b378133fc84d1d466360c))
+
 ## [2.395.1](https://github.com/lightdash/lightdash/compare/2.395.0...2.395.1) (2026-09-30)
 
 
