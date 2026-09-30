@@ -73,14 +73,21 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             try {
                 await db.raw('CREATE SCHEMA ??', [schema]);
                 await db.raw(`
+                    CREATE TABLE apps (app_id uuid PRIMARY KEY, name text, project_uuid uuid, space_uuid uuid, created_at timestamp, deleted_at timestamp);
+                    CREATE TABLE dashboard_versions (dashboard_version_id integer, dashboard_id integer);
+                    CREATE TABLE dashboard_tile_charts (dashboard_version_id integer, saved_chart_id integer);
+                    CREATE TABLE dashboard_tile_sql_charts (dashboard_version_id integer, saved_sql_uuid uuid);
+                    CREATE TABLE dashboard_tile_data_apps (dashboard_version_id integer, app_uuid uuid);
+                    CREATE TABLE content_verification (content_uuid uuid, project_uuid uuid, content_type text);
+                    CREATE TABLE scheduler (enabled boolean, deleted_at timestamp, project_uuid uuid, saved_chart_uuid uuid, saved_sql_uuid uuid, dashboard_uuid uuid, app_uuid uuid);
                     CREATE TABLE ai_agent (ai_agent_uuid uuid PRIMARY KEY, organization_uuid uuid, name text);
                     CREATE TABLE organizations (organization_id integer PRIMARY KEY, organization_uuid uuid UNIQUE);
-                    CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE, organization_id integer);
+                    CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE, organization_id integer, name text);
                     CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid UNIQUE, project_id integer, name text, deleted_at timestamp);
-                    CREATE TABLE dashboards (dashboard_id integer PRIMARY KEY, dashboard_uuid uuid UNIQUE, space_id integer, name text, slug text, deleted_at timestamp);
-                    CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp);
+                    CREATE TABLE dashboards (dashboard_id integer PRIMARY KEY, dashboard_uuid uuid UNIQUE, space_id integer, name text, slug text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP, owner_user_uuid uuid);
+                    CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
                     CREATE INDEX ON saved_queries(project_uuid);
-                    CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp);
+                    CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
                     CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean, is_internal boolean);
                     CREATE TABLE organization_memberships (organization_id integer, user_id integer, PRIMARY KEY(organization_id, user_id));
                 `);
@@ -119,8 +126,23 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     dashboard_id: 1,
                     dashboard_uuid: dashboard,
                     space_id: 1,
+                    owner_user_uuid: user,
                     name: 'Dashboard before',
+
                     slug: 'dashboard',
+                });
+                await fixture('dashboard_versions').insert({
+                    dashboard_version_id: 1,
+                    dashboard_id: 1,
+                });
+                await fixture('dashboard_tile_charts').insert([
+                    { dashboard_version_id: 1, saved_chart_id: 1 },
+                    { dashboard_version_id: 1, saved_chart_id: 1 },
+                ]);
+                await fixture('scheduler').insert({
+                    enabled: true,
+                    saved_chart_uuid: chart,
+                    project_uuid: project,
                 });
                 await fixture('saved_queries').insert({
                     saved_query_id: 1,
@@ -192,6 +214,8 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 ].map((event) => ({
                     ...event,
                     org_id: org,
+                    project_id: project,
+                    event_name: 'query.completed',
                     event_ts: '2026-01-01T00:00:00Z',
                     status: 'success',
                     query_id: randomUUID(),
@@ -246,7 +270,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     }).run(new Date('2026-01-02'));
                 const summary = await run();
                 expect(summary.dimensions).toEqual({
-                    refreshed: 8,
+                    refreshed: 10,
                     failed: 0,
                 });
                 const source = createS3AnalyticsSourceResolver({
@@ -285,6 +309,47 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         timezone: 'UTC',
                     }).compileQuery().query;
                 expect(sql([])).not.toContain('JOIN');
+                const healthExplore = createAnalyticsExplores().find(
+                    (e) => e.name === 'content_health',
+                )!;
+                const healthSql = sql(
+                    [
+                        'content_health_content_type',
+                        'content_health_owner_status',
+                    ],
+                    healthExplore,
+                    [
+                        'content_health_total_content',
+                        'content_health_total_observed_queries',
+                    ],
+                );
+                expect((await reader.runQuery(healthSql)).rows).toEqual(
+                    expect.arrayContaining([
+                        {
+                            content_health_content_type: 'dashboard',
+                            content_health_owner_status:
+                                'Active organization member',
+                            content_health_total_content: '1',
+                            content_health_total_observed_queries: '1',
+                        },
+                        {
+                            content_health_content_type: 'saved_chart',
+                            content_health_owner_status: 'Not recorded',
+                            content_health_total_content: String(rows + 1),
+                            content_health_total_observed_queries: '1',
+                        },
+                    ]),
+                );
+                expect(
+                    (
+                        await reader.runQuery(
+                            `SELECT dashboard_references, enabled_schedules FROM lightdash_content WHERE content_id = '${chart}'`,
+                        )
+                    ).rows,
+                ).toEqual([
+                    { dashboard_references: '1', enabled_schedules: '1' },
+                ]);
+
                 const exportResult = await reader.runQuery(
                     sql(
                         [
@@ -301,6 +366,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         {
                             lightdash_charts_name: 'Chart before',
                             lightdash_dashboards_name: 'Dashboard before',
+
                             lightdash_users_name: 'Same Name',
                             export_events_total_events: '1',
                         },
@@ -429,7 +495,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     ).ETag,
                 ).toBe(originalSnapshot.ETag);
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 8,
+                    refreshed: 10,
                     failed: 0,
                 });
                 await fixture('ai_agent')
@@ -445,7 +511,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     .where('user_id', 1)
                     .update({ first_name: 'User renamed' });
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 8,
+                    refreshed: 10,
                     failed: 0,
                 });
                 expect((await reader.runQuery(joinedSql)).rows).toEqual(
@@ -471,6 +537,20 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     .where('saved_query_id', 1)
                     .update({ deleted_at: new Date() });
                 await run();
+                expect(
+                    (
+                        await reader.runQuery(
+                            `SELECT owner_status FROM lightdash_content WHERE content_id = '${dashboard}'`,
+                        )
+                    ).rows,
+                ).toEqual([{ owner_status: 'Not an organization member' }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            `SELECT is_deleted FROM lightdash_content WHERE content_id = '${chart}'`,
+                        )
+                    ).rows,
+                ).toEqual([{ is_deleted: true }]);
                 expect(
                     (await reader.runQuery(joinedSql)).rows.every(
                         (row) => row.lightdash_users_name === 'Unknown user',

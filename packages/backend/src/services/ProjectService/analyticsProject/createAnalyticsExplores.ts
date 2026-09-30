@@ -23,6 +23,11 @@ import {
     userActivityColumns,
 } from '../../../analytics/eventStream/userActivity';
 import {
+    contentHealthColumns,
+    contentHealthMetrics,
+    contentHealthSql,
+} from '../../../analytics/systemExplores/contentHealth';
+import {
     contentReachColumns,
     contentReachMetrics,
     contentReachSql,
@@ -63,6 +68,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         'user_activity',
         'tool_activity',
         'content_reach',
+        'content_health',
     ] as const;
 
     const buildTable = (name: (typeof streams)[number]) => {
@@ -74,6 +80,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            content_health: {
+                columns: contentHealthColumns,
+                metrics: contentHealthMetrics,
+            },
             content_reach: {
                 columns: contentReachColumns,
                 metrics: contentReachMetrics,
@@ -90,7 +100,8 @@ export const createAnalyticsExplores = (): Explore[] => {
         const modelDefinition =
             name === 'user_activity' ||
             name === 'tool_activity' ||
-            name === 'content_reach'
+            name === 'content_reach' ||
+            name === 'content_health'
                 ? model[name]
                 : {
                       columns: compactedStreamSchemas[name],
@@ -141,6 +152,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                     {
                         tool_activity: toolActivitySql,
                         content_reach: contentReachSql,
+                        content_health: contentHealthSql,
                     } as Partial<Record<typeof name, string>>
                 )[name] ?? `"${name}"`,
             database: 'memory',
@@ -160,8 +172,18 @@ export const createAnalyticsExplores = (): Explore[] => {
             }),
             metrics,
         };
-        table.dimensions.user_id.label = 'User UUID';
+        if (table.dimensions.user_id)
+            table.dimensions.user_id.label = 'User UUID';
         table.dimensions.project_id.label = 'Project UUID';
+        if (name === 'content_health') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.observed_viewers.description =
+                'Distinct qualifying registered viewers per item across retained history. Do not sum across items.';
+            table.dimensions.first_observed_event_at.description =
+                'Earliest retained event for this organization; this is not proof of complete capture since that date.';
+            table.dimensions.owner_status.description =
+                'Current ownership evidence. Not an organization member does not imply employment ended. Creators and editors are not inferred to be owners.';
+        }
         if (name === 'content_reach') {
             for (const column of [
                 'org_id',
@@ -194,10 +216,12 @@ export const createAnalyticsExplores = (): Explore[] => {
     };
 
     return streams.map((name) => {
-        const dimensions: UsageDimensionName[] =
-            name === 'query_events' || name === 'export_events'
-                ? ['charts', 'dashboards', 'users']
-                : ['users'];
+        const dimensions: Exclude<UsageDimensionName, 'content'>[] = [];
+        if (name === 'query_events' || name === 'export_events') {
+            dimensions.push('charts', 'dashboards', 'users');
+        } else if (name !== 'content_health') {
+            dimensions.push('users');
+        }
         if (
             name === 'ai_usage' ||
             name === 'agent_steps' ||
