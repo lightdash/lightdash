@@ -1,5 +1,7 @@
 import {
-    buildCartesianEchartsOption,
+    buildCartesianChartData,
+    buildCartesianEchartsOptionFromData,
+    buildCartesianLegendState,
     CARTESIAN_HOVER_EMPHASIS,
     getAxisTypeFromField,
     type LegendValues,
@@ -42,9 +44,12 @@ const useEchartsCartesianConfig = (
     const tooltipHtmlTemplate = cartesianConfig?.tooltip;
     const tooltipSort = cartesianConfig?.tooltipSort;
 
-    return useMemo(
+    // Three memo stages, like the hook's memo chain before the option moved
+    // into @lightdash/visualization: a legend toggle re-runs the last two and
+    // a resize (SimpleChart updates chartWidth on every frame) only the last.
+    const chartData = useMemo(
         () =>
-            buildCartesianEchartsOption({
+            buildCartesianChartData({
                 validCartesianConfig,
                 tooltipHtmlTemplate,
                 tooltipSort,
@@ -58,8 +63,6 @@ const useEchartsCartesianConfig = (
                 colorPalette,
                 resolvedTimezone,
                 theme,
-                legendSelected: validCartesianConfigLegend,
-                chartWidth,
             }),
         [
             validCartesianConfig,
@@ -75,10 +78,30 @@ const useEchartsCartesianConfig = (
             colorPalette,
             resolvedTimezone,
             theme,
-            validCartesianConfigLegend,
             isInDashboard,
-            chartWidth,
         ],
+    );
+
+    const legendState = useMemo(
+        () => buildCartesianLegendState(chartData, validCartesianConfigLegend),
+        [chartData, validCartesianConfigLegend],
+    );
+
+    // The width only sizes outside-legend labels; ignore it otherwise so a
+    // resize doesn't rebuild the option at all.
+    const legendPlacement =
+        validCartesianConfig?.eChartsConfig.legend?.placement;
+    const legendChartWidth =
+        legendPlacement === 'outsideLeft' || legendPlacement === 'outsideRight'
+            ? chartWidth
+            : null;
+
+    return useMemo(
+        () =>
+            buildCartesianEchartsOptionFromData(legendState, {
+                chartWidth: legendChartWidth,
+            }),
+        [legendState, legendChartWidth],
     );
 };
 

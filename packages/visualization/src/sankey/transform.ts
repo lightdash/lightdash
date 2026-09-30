@@ -111,8 +111,9 @@ const analyzeFlowGraph = (
 
     let processed = 0;
     let maxDepth = 0;
-    while (queue.length > 0) {
-        const node = queue.shift()!;
+    // Read through a head index; shift() is linear in the queue length
+    for (let head = 0; head < queue.length; head += 1) {
+        const node = queue[head];
         processed += 1;
         const depth = depthByNode.get(node) ?? 0;
         for (const target of adjacency.get(node) ?? []) {
@@ -219,8 +220,8 @@ const buildSteppedSankey = (
     const visited = new Set<string>(); // "name:depth"
     let maxDepth = 0;
 
-    while (queue.length > 0) {
-        const { name, depth } = queue.shift()!;
+    for (let head = 0; head < queue.length; head += 1) {
+        const { name, depth } = queue[head];
         if (depth > MAX_DEPTH) continue;
 
         const key = `${name}:${depth}`;

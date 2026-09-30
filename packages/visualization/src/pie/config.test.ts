@@ -70,6 +70,38 @@ describe('getPieChartData', () => {
             }),
         ).toEqual([]);
     });
+
+    test('skips rows that lack the metric cell', () => {
+        const { orders_revenue: _missing, ...rowWithoutMetric } = PIE_ROWS[0];
+        const data = getPieChartData({
+            resultsData: { rows: [rowWithoutMetric, ...PIE_ROWS.slice(1)] },
+            groupFieldIds: ['orders_status'],
+            metricId: 'orders_revenue',
+            selectedMetric: PIE_REVENUE_METRIC,
+        });
+
+        expect(data.map(({ name, value }) => [name, value])).toEqual([
+            ['completed', 50],
+            ['pending', 30],
+            ['cancelled', 20],
+        ]);
+        expect(data[0].meta.rows).toHaveLength(1);
+    });
+
+    test('keeps integer-like group names in their original tie order', () => {
+        const rows = ['b', '2', 'a', '1'].map((status) => ({
+            ...PIE_ROWS[0],
+            orders_status: { value: { raw: status, formatted: status } },
+        }));
+        const data = getPieChartData({
+            resultsData: { rows },
+            groupFieldIds: ['orders_status'],
+            metricId: 'orders_revenue',
+            selectedMetric: PIE_REVENUE_METRIC,
+        });
+
+        expect(data.map(({ name }) => name)).toEqual(['1', '2', 'b', 'a']);
+    });
 });
 
 describe('repairPieGroupFieldIds', () => {

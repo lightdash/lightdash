@@ -13,10 +13,13 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { renderChart, type RenderedChart } from '@lightdash/visualization';
-import { getGaugeSizes } from '@lightdash/visualization/editor';
+import {
+    getGaugeSizes,
+    resolveThemeColors,
+} from '@lightdash/visualization/editor';
 import { cleanup, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import useEchartsFunnelConfig from '../../hooks/echarts/useEchartsFunnelConfig';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
@@ -35,8 +38,24 @@ import VisualizationProvider from './VisualizationProvider';
  * app's hooks build inside `VisualizationProvider` equals the one
  * `renderChart` builds from the saved chart alone. Functions (formatters)
  * are dropped from both sides by the JSON round trip; everything else, down
- * to colours and axis labels, must match.
+ * to colours and axis labels, must match. The app keeps Mantine's CSS
+ * variables, which `renderChart` resolves against the theme, so the app's
+ * option is resolved the same way before comparing.
  */
+
+// The treemap's parent sizes come from the subtotals query; both sides get
+// the same subtotals.
+const subtotals = vi.hoisted(() => ({
+    current: undefined as Record<string, Record<string, number>[]> | undefined,
+}));
+vi.mock('../../hooks/useAsyncCalculateTotal', async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    useAsyncCalculateSubtotals: () => ({
+        data: subtotals.current,
+        isFetching: false,
+        error: null,
+    }),
+}));
 
 vi.mock('@shopify/react-web-worker', () => ({
     createWorkerFactory: () => () => ({}),
@@ -241,6 +260,7 @@ const Probe = ({
             fields,
             query: results.metricQuery,
             pivotDetails: results.pivotDetails,
+            groupedSubtotals: subtotals.current,
         },
         {
             theme,
@@ -256,7 +276,9 @@ const Probe = ({
     return (
         <div
             data-testid="probe"
-            data-app={JSON.stringify(plain(appOption))}
+            data-app={JSON.stringify(
+                plain(appOption && resolveThemeColors(appOption, theme)),
+            )}
             data-headless={JSON.stringify(plain(headlessOption))}
         />
     );
@@ -382,6 +404,24 @@ describe('the app and the headless engine draw the same chart', () => {
     });
 
     it('treemap', () => {
+        const byStatus = new Map<string, number>();
+        resultsData.rows.forEach((row) => {
+            const status = String(row.orders_status.value.raw);
+            byStatus.set(
+                status,
+                (byStatus.get(status) ?? 0) +
+                    Number(row.orders_revenue.value.raw),
+            );
+        });
+        subtotals.current = {
+            orders_status: [...byStatus].map(([status, revenue]) => ({
+                orders_status: status as never,
+                orders_revenue: revenue,
+            })),
+        };
+        onTestFinished(() => {
+            subtotals.current = undefined;
+        });
         const { app, headless } = renderBoth({
             type: ChartType.TREEMAP,
             config: {

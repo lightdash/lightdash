@@ -30,7 +30,8 @@
         "no-nested-ternary": "off",
         "arrow-body-style": "off",
         "no-continue": "off",
-        "no-console": "off"
+        // A library leaves logging to its caller.
+        "no-console": "error"
     },
     "overrides": [
         {

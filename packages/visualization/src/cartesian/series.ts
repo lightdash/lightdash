@@ -179,13 +179,14 @@ export const getExpectedSeriesMap = ({
                                 : undefined,
                     };
                 }
-                return { ...acc, [getSeriesId(series)]: series };
+                acc[getSeriesId(series)] = series;
+                return acc;
             },
             {},
         );
     } else {
         expectedSeriesMap = (yFields || []).reduce<Record<string, Series>>(
-            (sum, yField) => {
+            (acc, yField) => {
                 const properties = getPropertiesForField(yField);
                 const series = {
                     ...properties,
@@ -200,7 +201,8 @@ export const getExpectedSeriesMap = ({
                             ? 'stack-all-series'
                             : undefined,
                 };
-                return { ...sum, [getSeriesId(series)]: series };
+                acc[getSeriesId(series)] = series;
+                return acc;
             },
             {},
         );
@@ -237,39 +239,21 @@ export const mergeExistingAndExpectedSeries = ({
     existingSeries,
     sortedByPivot,
 }: MergeExistingAndExpectedSeriesArgs) => {
-    const { existingValidSeries, existingValidSeriesIds } =
-        existingSeries.reduce<{
-            existingValidSeries: Series[];
-            existingValidSeriesIds: string[];
-        }>(
-            (sum, series) => {
-                const id = getSeriesId(series);
-
-                const isSeriesExpected =
-                    Object.keys(expectedSeriesMap).includes(id);
-
-                const isSeriesFilteredOut =
-                    !isSeriesExpected &&
-                    hasSamePivotFields(series, expectedSeriesMap);
-
-                if (!isSeriesExpected && !isSeriesFilteredOut) {
-                    return { ...sum };
-                }
-
-                return {
-                    ...sum,
-                    existingValidSeries: [
-                        ...sum.existingValidSeries,
-                        {
-                            ...series,
-                            isFilteredOut: isSeriesFilteredOut,
-                        },
-                    ],
-                    existingValidSeriesIds: [...sum.existingValidSeriesIds, id],
-                };
-            },
-            { existingValidSeries: [], existingValidSeriesIds: [] },
-        );
+    const existingValidSeries: Series[] = [];
+    const existingValidSeriesIds = new Set<string>();
+    for (const series of existingSeries) {
+        const id = getSeriesId(series);
+        const isSeriesExpected = Object.hasOwn(expectedSeriesMap, id);
+        const isSeriesFilteredOut =
+            !isSeriesExpected && hasSamePivotFields(series, expectedSeriesMap);
+        if (isSeriesExpected || isSeriesFilteredOut) {
+            existingValidSeries.push({
+                ...series,
+                isFilteredOut: isSeriesFilteredOut,
+            });
+            existingValidSeriesIds.add(id);
+        }
+    }
 
     if (existingValidSeries.length <= 0) {
         return Object.values(expectedSeriesMap);
@@ -279,7 +263,7 @@ export const mergeExistingAndExpectedSeries = ({
     const mergedSeries = Object.entries(expectedSeriesMap).reduce<Series[]>(
         (acc, [expectedSeriesId, expectedSeries]) => {
             // Don't add the expected series if there is a valid one already
-            if (existingValidSeriesIds.includes(expectedSeriesId)) {
+            if (existingValidSeriesIds.has(expectedSeriesId)) {
                 return acc;
             }
 
@@ -304,9 +288,10 @@ export const mergeExistingAndExpectedSeries = ({
                 }
             }
 
-            return [...acc, seriesToAdd];
+            acc.push(seriesToAdd);
+            return acc;
         },
-        existingValidSeries,
+        [...existingValidSeries],
     );
 
     // Reorder series to match expectedSeriesMap order only when sorted by
@@ -316,10 +301,12 @@ export const mergeExistingAndExpectedSeries = ({
         return mergedSeries;
     }
 
-    const expectedSeriesIds = Object.keys(expectedSeriesMap);
+    const expectedSeriesIndex = new Map(
+        Object.keys(expectedSeriesMap).map((id, index) => [id, index]),
+    );
     return [...mergedSeries].sort((a, b) => {
-        const aIndex = expectedSeriesIds.indexOf(getSeriesId(a));
-        const bIndex = expectedSeriesIds.indexOf(getSeriesId(b));
+        const aIndex = expectedSeriesIndex.get(getSeriesId(a)) ?? -1;
+        const bIndex = expectedSeriesIndex.get(getSeriesId(b)) ?? -1;
         if (aIndex === -1 && bIndex === -1) return 0;
         if (aIndex === -1) return 1;
         if (bIndex === -1) return -1;
@@ -336,18 +323,11 @@ export const getSeriesGroupedByField = (series: Series[]) => {
             !!obj.encode.yRef.pivotValues &&
             obj.encode.yRef.pivotValues.length > 0
         ) {
-            return {
-                ...acc,
-                [obj.encode.yRef.field]: {
-                    ...acc[obj.encode.yRef.field],
-                    value: [...acc[obj.encode.yRef.field].value, obj],
-                },
-            };
+            acc[obj.encode.yRef.field].value.push(obj);
+            return acc;
         }
-        return {
-            ...acc,
-            [obj.encode.yRef.field]: { index, value: [obj] },
-        };
+        acc[obj.encode.yRef.field] = { index, value: [obj] };
+        return acc;
     }, {});
     return Object.values(seriesGroupMap).sort((a, b) => a.index - b.index);
 };

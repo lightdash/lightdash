@@ -187,36 +187,28 @@ export const getPieChartData = ({
         return [];
     }
 
-    const mappedData = resultsData.rows.map((row) => {
+    // A null-prototype object rather than a Map: Object.entries orders
+    // integer-like group names first, and the tie order of the value sort
+    // below depends on it.
+    const groups: Record<string, { value: number; rows: ResultRow[] }> =
+        Object.create(null);
+    for (const row of resultsData.rows) {
+        // A row without the metric cell has nothing to add to a slice
+        const metricCell = row[metricId];
+        if (!metricCell) continue;
+
         const name = groupFieldIds
             .map((groupFieldId) => row[groupFieldId]?.value?.formatted)
             .filter(Boolean)
             .join(' - ');
+        const value = Number(metricCell.value.raw);
 
-        const value = Number(row[metricId].value.raw);
+        groups[name] ??= { value: 0, rows: [] };
+        groups[name].value += value;
+        groups[name].rows.push(row);
+    }
 
-        return { name, value, row };
-    });
-
-    return Object.entries(
-        mappedData.reduce<
-            Record<
-                string,
-                {
-                    value: number;
-                    rows: ResultRow[];
-                }
-            >
-        >((acc, { name, value, row }) => {
-            return {
-                ...acc,
-                [name]: {
-                    value: (acc[name]?.value ?? 0) + value,
-                    rows: [...(acc[name]?.rows ?? []), row],
-                },
-            };
-        }, {}),
-    )
+    return Object.entries(groups)
         .map(([name, { value, rows }]) => ({
             name,
             value,

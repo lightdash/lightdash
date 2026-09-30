@@ -166,3 +166,9 @@ export {
 } from './colors/series';
 export { canHaveWarehouseTotal } from './table/totals';
 export { computeLimitedRowCount, sliceRows } from './rows';
+export {
+    buildCartesianChartData,
+    buildCartesianEchartsOptionFromData,
+    buildCartesianLegendState,
+} from './cartesian/echartsOption';
+export { resolveThemeColors } from './themeColors';
