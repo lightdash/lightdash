@@ -163,6 +163,11 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             >
                 Sign in with GitHub
             </Button>
+            {form.errors['dbt.installation_id'] && (
+                <Text c="red" fz="xs">
+                    {form.errors['dbt.installation_id']}
+                </Text>
+            )}
             <TextInput
                 label="Repository"
                 readOnly
@@ -253,12 +258,11 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const isNative = form.values.dbt.semanticLayer === 'lightdash';
 
     const formAuthorizationMethod = form.values.dbt?.authorization_method;
+    // Saved connections always carry a method (the API normalises legacy
+    // rows), so only a brand-new form can be missing one. The old fallback on
+    // savedProject.personal_access_token never fired: the API strips secrets.
     const authorizationMethod: DbtGithubProjectConfig['authorization_method'] =
-        formAuthorizationMethod ??
-        (savedProject?.dbtConnection.type === DbtProjectType.GITHUB &&
-        savedProject?.dbtConnection?.personal_access_token !== undefined
-            ? 'personal_access_token'
-            : 'installation_id');
+        formAuthorizationMethod ?? 'installation_id';
 
     useEffect(() => {
         if (formAuthorizationMethod !== authorizationMethod) {
