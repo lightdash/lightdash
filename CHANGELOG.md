@@ -1,3 +1,10 @@
+## [2.386.2](https://github.com/lightdash/lightdash/compare/2.386.1...2.386.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* **frontend:** preserve repository selector search while typing ([#30243](https://github.com/lightdash/lightdash/issues/30243)) ([747aead](https://github.com/lightdash/lightdash/commit/747aead24cbe28cfbc22dccbe098c825660ed765))
+
 ## [2.386.1](https://github.com/lightdash/lightdash/compare/2.386.0...2.386.1) (2026-09-30)
 
 
