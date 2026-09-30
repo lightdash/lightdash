@@ -2,11 +2,13 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    VizAggregationOptions,
     type Dimension,
     type ItemsMap,
     type Metric,
     type MetricQuery,
     type RawResultRow,
+    type ReadyQueryResultsPage,
     type ResultRow,
 } from '@lightdash/common';
 
@@ -120,3 +122,44 @@ export const ordersResults = {
 };
 
 export const palette = ['#111111', '#222222', '#333333', '#444444'];
+
+/**
+ * The same orders pivoted by channel, as the query API answers a pivoted
+ * query: one revenue column per channel, and the pivot details that map
+ * each column back to its field and pivot value.
+ */
+export const ordersPivotDetails: NonNullable<
+    ReadyQueryResultsPage['pivotDetails']
+> = {
+    totalColumnCount: 2,
+    indexColumn: undefined,
+    groupByColumns: [{ reference: 'orders_channel' }],
+    sortBy: undefined,
+    originalColumns: {},
+    valuesColumns: ['web', 'store'].map((channel) => ({
+        referenceField: 'orders_revenue',
+        pivotColumnName: `orders_revenue_any_${channel}`,
+        aggregation: VizAggregationOptions.ANY,
+        pivotValues: [{ referenceField: 'orders_channel', value: channel }],
+    })),
+};
+
+export const ordersPivotedRows: ResultRow[] = [
+    {
+        orders_status: cell('completed', 'completed'),
+        orders_revenue_any_web: cell(1200.5, '$1,200.50'),
+        orders_revenue_any_store: cell(300, '$300.00'),
+    },
+    {
+        orders_status: cell('shipped', 'shipped'),
+        orders_revenue_any_web: cell(800, '$800.00'),
+        orders_revenue_any_store: cell(0, '$0.00'),
+    },
+];
+
+export const ordersPivotedResults = {
+    rows: ordersPivotedRows,
+    fields: ordersItemsMap,
+    metricQuery: ordersMetricQuery,
+    pivotDetails: ordersPivotDetails,
+};

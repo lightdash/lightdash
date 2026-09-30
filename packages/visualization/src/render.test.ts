@@ -7,6 +7,7 @@ import { describe, expect, test } from 'vitest';
 import {
     ordersColumnOrder,
     ordersItemsMap,
+    ordersPivotedResults,
     ordersRawRows,
     ordersResults,
     palette,
@@ -50,6 +51,26 @@ describe('renderChart', () => {
             { type: 'bar', color: palette[0] },
         ]);
         expect(option.dataset).toMatchObject({ source: expect.any(Array) });
+    });
+
+    test('cartesian grouped by a pivot: one series per channel, from the palette', () => {
+        const option = echartsOf(
+            render(cartesian, {
+                results: ordersPivotedResults,
+                pivotConfig: { columns: ['orders_channel'] },
+            }),
+        );
+        const series = option.series as {
+            color?: string;
+            pivotReference?: { pivotValues?: { value: unknown }[] };
+        }[];
+        expect(
+            series.map((s) => s.pivotReference?.pivotValues?.[0]?.value),
+        ).toEqual(['web', 'store']);
+        expect(series.map((s) => s.color)).toEqual([palette[0], palette[1]]);
+        // The legend names the channels.
+        expect(JSON.stringify(option.legend)).toContain('web');
+        expect(JSON.stringify(option.legend)).toContain('store');
     });
 
     test('pie: one slice per status', () => {

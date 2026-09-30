@@ -12,6 +12,7 @@ import {
 
 const ECHARTS_CASES = [
     'bar',
+    'bar-grouped',
     'line-two-metrics',
     'horizontal-stacked',
     'pie',
@@ -35,7 +36,7 @@ const textsOf = async (svg: Locator) =>
 
 const openHarness = async (page: Page, theme: 'light' | 'dark' = 'light') => {
     await page.goto(`/?theme=${theme}`);
-    await expect(page.locator('section[data-case]')).toHaveCount(10);
+    await expect(page.locator('section[data-case]')).toHaveCount(11);
 };
 
 test.describe('every chart type draws', () => {
@@ -87,6 +88,25 @@ test.describe('every chart type draws', () => {
         await expect(tooltip).toBeVisible();
         await expect(tooltip).toContainText('$1,200.50');
         await expect(tooltip).toContainText('Revenue');
+    });
+
+    test('grouped bars: a series per channel in the legend, and clicking one hides its bars', async ({
+        page,
+    }) => {
+        await openHarness(page);
+        const svg = svgOf(page, 'bar-grouped');
+        const texts = await textsOf(svg);
+        expect(texts).toEqual(expect.arrayContaining(['web', 'store']));
+
+        const bars = () =>
+            svg.locator('path[fill="#111111"], path[fill="#222222"]');
+        const before = await bars().count();
+        expect(before).toBeGreaterThanOrEqual(4);
+
+        await page.evaluate(() =>
+            window.harness.toggleLegend('bar-grouped', 'store'),
+        );
+        await expect.poll(() => bars().count()).toBeLessThan(before);
     });
 
     test('line with two metrics: a legend, two lines and two value axes', async ({

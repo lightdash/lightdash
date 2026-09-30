@@ -5,6 +5,7 @@ import {
     FunnelChartDataInput,
     MetricType,
     QueryHistoryStatus,
+    VizAggregationOptions,
     type ChartConfig,
     type Dimension,
     type ItemsMap,
@@ -138,6 +139,35 @@ const resultsData: InfiniteQueryResults & {
     fields,
 };
 
+const pivotedResults: typeof resultsData = {
+    ...resultsData,
+    rows: [
+        {
+            orders_status: cell('completed', 'completed'),
+            orders_revenue_any_web: cell(1200.5, '$1,200.50'),
+            orders_revenue_any_store: cell(300, '$300.00'),
+        },
+        {
+            orders_status: cell('shipped', 'shipped'),
+            orders_revenue_any_web: cell(800, '$800.00'),
+            orders_revenue_any_store: cell(0, '$0.00'),
+        },
+    ],
+    pivotDetails: {
+        totalColumnCount: 2,
+        indexColumn: undefined,
+        groupByColumns: [{ reference: 'orders_channel' }],
+        sortBy: undefined,
+        originalColumns: {},
+        valuesColumns: ['web', 'store'].map((channel) => ({
+            referenceField: 'orders_revenue',
+            pivotColumnName: `orders_revenue_any_${channel}`,
+            aggregation: VizAggregationOptions.ANY,
+            pivotValues: [{ referenceField: 'orders_channel', value: channel }],
+        })),
+    },
+};
+
 const colorPalette = ['#111111', '#222222', '#333333'];
 const columnOrder = [
     'orders_status',
@@ -190,14 +220,23 @@ const useAppOption = (type: ChartType) => {
 };
 
 /** Renders the chart the app's way and the headless way, in the same theme. */
-const Probe = ({ chartConfig }: { chartConfig: ChartConfig }) => {
+const Probe = ({
+    chartConfig,
+    pivotColumns,
+    results,
+}: {
+    chartConfig: ChartConfig;
+    pivotColumns?: string[];
+    results: typeof resultsData;
+}) => {
     const appOption = useAppOption(chartConfig.type);
     const theme = useVisualizationTheme();
     // The same render options the app derives from its context.
     const { isTouchDevice, minimal, isDashboard } = useVisualizationContext();
     const headless: RenderedChart = renderChart({
         chartConfig,
-        results: resultsData,
+        results,
+        pivotConfig: pivotColumns ? { columns: pivotColumns } : undefined,
         itemsMap: fields,
         columnOrder,
         colorPalette,
@@ -218,19 +257,26 @@ const Probe = ({ chartConfig }: { chartConfig: ChartConfig }) => {
     );
 };
 
-const renderBoth = (chartConfig: ChartConfig) => {
+const renderBoth = (
+    chartConfig: ChartConfig,
+    options: { pivotColumns?: string[]; results?: typeof resultsData } = {},
+) => {
     renderWithProviders(
         <MemoryRouter>
             <ChartColorMappingContextProvider>
                 <VisualizationProvider
                     chartConfig={chartConfig}
-                    initialPivotDimensions={undefined}
-                    resultsData={resultsData}
+                    initialPivotDimensions={options.pivotColumns}
+                    resultsData={options.results ?? resultsData}
                     isLoading={false}
                     columnOrder={columnOrder}
                     colorPalette={colorPalette}
                 >
-                    <Probe chartConfig={chartConfig} />
+                    <Probe
+                        chartConfig={chartConfig}
+                        pivotColumns={options.pivotColumns}
+                        results={options.results ?? resultsData}
+                    />
                 </VisualizationProvider>
             </ChartColorMappingContextProvider>
         </MemoryRouter>,
@@ -282,6 +328,38 @@ describe('the app and the headless engine draw the same chart', () => {
         });
 
         expect(app).not.toBeNull();
+        expect(headless).toEqual(app);
+    });
+
+    it('bars grouped by a pivot dimension', () => {
+        // Saved with the pivot series expanded, as the explorer saves them.
+        const pivotSeries = ['web', 'store'].map((channel) => ({
+            type: 'bar' as never,
+            encode: {
+                xRef: { field: 'orders_status' },
+                yRef: {
+                    field: 'orders_revenue',
+                    pivotValues: [{ field: 'orders_channel', value: channel }],
+                },
+            },
+            yAxisIndex: 0,
+        }));
+        const { app, headless } = renderBoth(
+            {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'orders_status',
+                        yField: ['orders_revenue'],
+                    },
+                    eChartsConfig: { series: pivotSeries },
+                },
+            },
+            { pivotColumns: ['orders_channel'], results: pivotedResults },
+        );
+
+        expect(app).not.toBeNull();
+        expect((app as { series: unknown[] }).series).toHaveLength(2);
         expect(headless).toEqual(app);
     });
 

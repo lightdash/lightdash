@@ -15,6 +15,7 @@ import * as echarts from 'echarts';
 import {
     ordersColumnOrder,
     ordersItemsMap,
+    ordersPivotedResults,
     ordersRawRows,
     palette,
 } from '../src/fixtures.mock';
@@ -26,11 +27,27 @@ import {
     type RenderedChart,
 } from '../src/index';
 
-export type HarnessCase = { id: string; chartConfig: ChartConfig };
+export type HarnessCase = {
+    id: string;
+    chartConfig: ChartConfig;
+    /** Grouped by a pivot dimension, from the pivoted results. */
+    pivotColumns?: string[];
+};
 
 export const CASES: HarnessCase[] = [
     {
         id: 'bar',
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: { xField: 'orders_status', yField: ['orders_revenue'] },
+                eChartsConfig: {},
+            },
+        },
+    },
+    {
+        id: 'bar-grouped',
+        pivotColumns: ['orders_channel'],
         chartConfig: {
             type: ChartType.CARTESIAN,
             config: {
@@ -177,7 +194,10 @@ for (const testCase of CASES) {
 
     const output = renderChart({
         chartConfig: testCase.chartConfig,
-        results,
+        results: testCase.pivotColumns ? ordersPivotedResults : results,
+        pivotConfig: testCase.pivotColumns
+            ? { columns: testCase.pivotColumns }
+            : undefined,
         itemsMap: ordersItemsMap,
         columnOrder: ordersColumnOrder,
         colorPalette: palette,
@@ -254,6 +274,8 @@ declare global {
                 seriesIndex: number,
                 dataIndex: number,
             ) => void;
+            /** Toggles a legend entry, as clicking it would. */
+            toggleLegend: (id: string, name: string) => void;
         };
     }
 }
@@ -261,4 +283,6 @@ window.harness = {
     rendered,
     showTip: (id, seriesIndex, dataIndex) =>
         charts[id]?.dispatchAction({ type: 'showTip', seriesIndex, dataIndex }),
+    toggleLegend: (id, name) =>
+        charts[id]?.dispatchAction({ type: 'legendToggleSelect', name }),
 };
