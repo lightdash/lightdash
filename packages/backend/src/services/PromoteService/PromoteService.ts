@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     ChartSummary,
     ChartType,
+    ConflictError,
     DashboardDAO,
     DashboardTileTypes,
     ForbiddenError,
@@ -25,16 +26,23 @@ import {
     SpaceGroup,
     UnexpectedServerError,
     UpdateSqlChart,
+    type Document,
+    type DocumentCell,
+    type DocumentContent,
+    type RegisteredAccount,
     type SpaceSummaryBase,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
+import { isEqual } from 'lodash';
 import { validate as isValidUuid } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import type { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import Logger from '../../logging/logger';
+import type { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -49,6 +57,7 @@ import {
     listContentConnections,
     type ContentConnectionModels,
 } from '../CoderService/handlers/contentConnections';
+import type { DocumentService } from '../DocumentService/DocumentService';
 import type {
     SpaceAccessContextForCasl,
     SpacePermissionService,
@@ -128,6 +137,12 @@ type PromoteServiceArguments = {
     // AppGenerateService depends on PromoteService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+    // A thunk too: eager resolution of DocumentService risks a construction cycle.
+    getDocumentService: () => DocumentService;
+    appModel: Pick<
+        AppModel,
+        'findApp' | 'getLatestRenderableDataAppVizVersion'
+    >;
     warehouseConnectionModel: ContentConnectionModels['warehouseConnectionModel'];
 };
 
@@ -135,6 +150,59 @@ type SavedSqlChart = Awaited<ReturnType<SavedSqlModel['getByUuid']>>;
 
 const isChartWithinDashboard = (chart: Pick<SavedChartDAO, 'dashboardUuid'>) =>
     chart.dashboardUuid !== null;
+
+type DataAppVizBinding = { appUuid: string; version: number };
+
+const getDataAppVizUuid = (cell: DocumentCell): string | undefined =>
+    cell.type === 'chart' &&
+    cell.content.chart.chartConfig.type === ChartType.DATA_APP_VIZ
+        ? cell.content.chart.chartConfig.config?.dataAppVizUuid
+        : undefined;
+
+/**
+ * Point custom chart cells at the given chart types. Reads add a portable
+ * slug that names a different app upstream, so it is always dropped.
+ */
+const bindDataAppVizs = (
+    content: DocumentContent,
+    bindings: ReadonlyMap<string, DataAppVizBinding>,
+): DocumentContent => ({
+    ...content,
+    cells: content.cells.map((cell) => {
+        if (
+            cell.type !== 'chart' ||
+            cell.content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            cell.content.chart.chartConfig.config === undefined
+        ) {
+            return cell;
+        }
+        const { dataAppVizSlug, ...config } =
+            cell.content.chart.chartConfig.config;
+        const binding =
+            config.dataAppVizUuid === undefined
+                ? undefined
+                : bindings.get(config.dataAppVizUuid);
+        return {
+            ...cell,
+            content: {
+                ...cell.content,
+                chart: {
+                    ...cell.content.chart,
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: binding
+                            ? {
+                                  ...config,
+                                  dataAppVizUuid: binding.appUuid,
+                                  dataAppVizVersion: binding.version,
+                              }
+                            : config,
+                    },
+                },
+            },
+        } as DocumentCell;
+    }),
+});
 
 export class PromoteService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -155,6 +223,10 @@ export class PromoteService extends BaseService {
 
     private readonly warehouseConnectionModel: ContentConnectionModels['warehouseConnectionModel'];
 
+    private readonly getDocumentService: () => DocumentService;
+
+    private readonly appModel: PromoteServiceArguments['appModel'];
+
     private readonly getAppGenerateService?: () =>
         | AppGenerateService
         | undefined;
@@ -170,6 +242,8 @@ export class PromoteService extends BaseService {
         this.dashboardModel = args.dashboardModel;
         this.spacePermissionService = args.spacePermissionService;
         this.getAppGenerateService = args.getAppGenerateService;
+        this.getDocumentService = args.getDocumentService;
+        this.appModel = args.appModel;
         this.warehouseConnectionModel = args.warehouseConnectionModel;
     }
 
@@ -1921,6 +1995,28 @@ export class PromoteService extends BaseService {
         sourceSpaceUuid: string,
         upstreamProjectUuid: string,
     ): Promise<string> {
+        const { path, projectUuid, spaceChanges } =
+            await this.getUpstreamSpaceChanges(
+                sourceSpaceUuid,
+                upstreamProjectUuid,
+            );
+        const result = await this.upsertSpaces(user, projectUuid, {
+            spaces: spaceChanges,
+            dashboards: [],
+            charts: [],
+        });
+        return PromoteService.getSpaceByPath(result.spaces, path).uuid;
+    }
+
+    /** Changes that mirror a space and its ancestors into the upstream project. */
+    private async getUpstreamSpaceChanges(
+        sourceSpaceUuid: string,
+        upstreamProjectUuid: string,
+    ): Promise<{
+        path: string;
+        projectUuid: string;
+        spaceChanges: PromotionChanges['spaces'];
+    }> {
         const promotedSpace =
             await this.spaceModel.getSpaceSummary(sourceSpaceUuid);
 
@@ -1938,19 +2034,11 @@ export class PromoteService extends BaseService {
                 this.getSpaceChange(upstreamProjectUuid, space),
             ),
         );
-
-        const result = await this.upsertSpaces(
-            user,
-            promotedSpace.projectUuid,
-            {
-                spaces: spaceChanges,
-                dashboards: [],
-                charts: [],
-            },
-        );
-
-        return PromoteService.getSpaceByPath(result.spaces, promotedSpace.path)
-            .uuid;
+        return {
+            path: promotedSpace.path,
+            projectUuid: promotedSpace.projectUuid,
+            spaceChanges,
+        };
     }
 
     async upsertSpaces(
@@ -2867,5 +2955,327 @@ export class PromoteService extends BaseService {
             );
             throw e;
         }
+    }
+
+    /** Read-only preview of promoting a Document to its upstream project. */
+    async getPromoteDocumentDiff(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: UUID,
+    ): Promise<PromotionChanges> {
+        const { source, upstream, upstreamProjectUuid, spaceChanges } =
+            await this.getDocumentPromotion(account, projectUuid, documentUuid);
+        const { bindings, missingAppUuids } = await this.getDataAppVizBindings(
+            projectUuid,
+            upstreamProjectUuid,
+            source.version.content,
+        );
+        const dataAppChanges =
+            missingAppUuids.length > 0
+                ? await this.getRequiredAppGenerateService().getDataAppPromoteChanges(
+                      toSessionUser(account),
+                      projectUuid,
+                      missingAppUuids,
+                  )
+                : [];
+        const isUnchanged =
+            upstream !== null &&
+            upstream.spaceUuid ===
+                PromoteService.getSpaceByPath(spaceChanges, source.spacePath)
+                    .uuid &&
+            upstream.name === source.name &&
+            upstream.description === source.description &&
+            isEqual(
+                bindDataAppVizs(upstream.version.content, new Map()),
+                bindDataAppVizs(source.version.content, bindings),
+            );
+        const getAction = () => {
+            if (upstream === null) {
+                return PromotionAction.CREATE;
+            }
+            return isUnchanged
+                ? PromotionAction.NO_CHANGES
+                : PromotionAction.UPDATE;
+        };
+        return {
+            spaces: PromoteService.sortSpaceChanges(spaceChanges),
+            dashboards: [],
+            charts: [],
+            dataApps: dataAppChanges.map(({ uuid, name, action }) => ({
+                action:
+                    action === 'create'
+                        ? PromotionAction.CREATE
+                        : PromotionAction.UPDATE,
+                data: { uuid, name },
+            })),
+            documents: [
+                {
+                    action: getAction(),
+                    data: {
+                        uuid: upstream?.documentUuid ?? source.documentUuid,
+                        name: source.name,
+                    },
+                },
+            ],
+        };
+    }
+
+    /**
+     * Upstream writes go through DocumentService, which enforces the flag,
+     * permissions and chart validation. Unchanged parts are skipped, so a
+     * retried promotion writes nothing new.
+     */
+    async promoteDocument(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: UUID,
+    ): Promise<Document> {
+        const documentService = this.getDocumentService();
+        const { source, upstream, upstreamProjectUuid } =
+            await this.getDocumentPromotion(account, projectUuid, documentUuid);
+        const user = toSessionUser(account);
+        const { bindings, missingAppUuids } = await this.getDataAppVizBindings(
+            projectUuid,
+            upstreamProjectUuid,
+            source.version.content,
+        );
+        const promotedBindings = await this.promoteDataAppVizs(
+            user,
+            projectUuid,
+            missingAppUuids,
+        );
+        const content = bindDataAppVizs(
+            source.version.content,
+            new Map([...bindings, ...promotedBindings]),
+        );
+        const spaceUuid = await this.getOrCreateUpstreamSpace(
+            user,
+            source.spaceUuid,
+            upstreamProjectUuid,
+        );
+        const change = { source: 'promotion' as const };
+
+        if (upstream === null) {
+            return documentService.create(
+                account,
+                upstreamProjectUuid,
+                {
+                    name: source.name,
+                    slug: source.slug,
+                    description: source.description,
+                    spaceUuid,
+                    schemaVersion: source.version.schemaVersion,
+                    content,
+                },
+                change,
+            );
+        }
+        // Content first: it is the write most likely to be rejected upstream.
+        if (
+            !isEqual(
+                content,
+                bindDataAppVizs(upstream.version.content, new Map()),
+            )
+        ) {
+            await documentService.updateContent(
+                account,
+                upstreamProjectUuid,
+                upstream.documentUuid,
+                { baseVersionUuid: upstream.version.versionUuid, content },
+                { change },
+            );
+        }
+        if (
+            source.name !== upstream.name ||
+            source.description !== upstream.description
+        ) {
+            await documentService.updateMetadata(
+                account,
+                upstreamProjectUuid,
+                upstream.documentUuid,
+                { name: source.name, description: source.description },
+                { change },
+            );
+        }
+        if (upstream.spaceUuid !== spaceUuid) {
+            await documentService.moveToSpace(account, {
+                projectUuid: upstreamProjectUuid,
+                itemUuid: upstream.documentUuid,
+                targetSpaceUuid: spaceUuid,
+            });
+        }
+        return documentService.get(
+            account,
+            upstreamProjectUuid,
+            upstream.documentUuid,
+        );
+    }
+
+    private async getDocumentPromotion(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: UUID,
+    ) {
+        const documentService = this.getDocumentService();
+        const source = await documentService.get(
+            account,
+            projectUuid,
+            documentUuid,
+        );
+        const { upstreamProjectUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (!upstreamProjectUuid) {
+            throw new NotFoundError(
+                'This Document does not have an upstream project',
+            );
+        }
+        const ability = this.createAuditedAbility(account);
+        const upstreamProject =
+            await this.projectModel.getSummary(upstreamProjectUuid);
+        if (ability.cannot('view', subject('Project', upstreamProject))) {
+            throw new NotFoundError('Upstream project not found');
+        }
+
+        const [upstream, { path, spaceChanges }] = await Promise.all([
+            documentService
+                .getBySlug(account, upstreamProjectUuid, source.slug)
+                .catch((error: unknown) => {
+                    if (error instanceof NotFoundError) {
+                        return null;
+                    }
+                    throw error;
+                }),
+            this.getUpstreamSpaceChanges(source.spaceUuid, upstreamProjectUuid),
+        ]);
+        await Promise.all(
+            spaceChanges
+                .filter(({ action }) => action !== PromotionAction.NO_CHANGES)
+                .map(async ({ action, data }) => {
+                    const isNew = action === PromotionAction.CREATE;
+                    PromoteService.checkPromoteSpacePermissions(
+                        ability,
+                        source.organizationUuid,
+                        {
+                            projectUuid: upstreamProjectUuid,
+                            space: isNew ? undefined : data,
+                            spaceAccessContext: isNew
+                                ? undefined
+                                : await this.spacePermissionService.resolveAccess(
+                                      account.user.userUuid,
+                                      { type: 'space', spaceUuid: data.uuid },
+                                  ),
+                        },
+                    );
+                }),
+        );
+        return {
+            source: { ...source, spacePath: path },
+            upstream,
+            upstreamProjectUuid,
+            spaceChanges,
+        };
+    }
+
+    /**
+     * Custom chart types linked upstream are reused at their latest renderable
+     * version, so promotions don't mint a new chart type version each time.
+     */
+    private async getDataAppVizBindings(
+        sourceProjectUuid: string,
+        upstreamProjectUuid: string,
+        content: DocumentContent,
+    ): Promise<{
+        bindings: Map<string, DataAppVizBinding>;
+        missingAppUuids: string[];
+    }> {
+        const appUuids = [
+            ...new Set(
+                content.cells.flatMap((cell) => getDataAppVizUuid(cell) ?? []),
+            ),
+        ];
+        const resolved = await Promise.all(
+            appUuids.map(async (appUuid) => {
+                const sourceApp = await this.appModel.findApp(
+                    appUuid,
+                    sourceProjectUuid,
+                );
+                if (!sourceApp) {
+                    throw new NotFoundError(
+                        `Custom chart type ${appUuid} used by this Document no longer exists`,
+                    );
+                }
+                const upstreamApp = sourceApp.upstream_app_uuid
+                    ? await this.appModel.findApp(
+                          sourceApp.upstream_app_uuid,
+                          upstreamProjectUuid,
+                      )
+                    : undefined;
+                const version = upstreamApp
+                    ? await this.appModel.getLatestRenderableDataAppVizVersion(
+                          upstreamApp.app_id,
+                      )
+                    : null;
+                return {
+                    appUuid,
+                    binding:
+                        upstreamApp && version
+                            ? {
+                                  appUuid: upstreamApp.app_id,
+                                  version: version.version,
+                              }
+                            : null,
+                };
+            }),
+        );
+        return {
+            bindings: new Map(
+                resolved.flatMap(({ appUuid, binding }) =>
+                    binding ? [[appUuid, binding]] : [],
+                ),
+            ),
+            missingAppUuids: resolved
+                .filter(({ binding }) => binding === null)
+                .map(({ appUuid }) => appUuid),
+        };
+    }
+
+    private getRequiredAppGenerateService(): AppGenerateService {
+        const appGenerateService = this.getAppGenerateService?.();
+        if (!appGenerateService) {
+            throw new ParameterError(
+                'Custom chart types are not available in this instance',
+            );
+        }
+        return appGenerateService;
+    }
+
+    private async promoteDataAppVizs(
+        user: SessionUser,
+        sourceProjectUuid: string,
+        appUuids: string[],
+    ): Promise<Map<string, DataAppVizBinding>> {
+        if (appUuids.length === 0) {
+            return new Map();
+        }
+        const promoted =
+            await this.getRequiredAppGenerateService().promoteAppsForDashboard(
+                user,
+                sourceProjectUuid,
+                appUuids,
+            );
+        // Chart types deleted meanwhile are skipped; their cells would dangle.
+        if (promoted.length !== appUuids.length) {
+            throw new ConflictError(
+                'A custom chart type used by this Document was deleted. Reload the Document and promote again.',
+            );
+        }
+        return new Map(
+            promoted.map(
+                ({ sourceAppUuid, upstreamAppUuid, upstreamAppVersion }) => [
+                    sourceAppUuid,
+                    { appUuid: upstreamAppUuid, version: upstreamAppVersion },
+                ],
+            ),
+        );
     }
 }

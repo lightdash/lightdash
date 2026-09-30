@@ -196,6 +196,8 @@ describe('PromoteService chart changes', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         warehouseConnectionModel: warehouseConnectionModel as never,
+        getDocumentService: () => ({}) as never,
+        appModel: {} as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -463,6 +465,8 @@ describe('PromoteService dashboard changes', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         warehouseConnectionModel: warehouseConnectionModel as never,
+        getDocumentService: () => ({}) as never,
+        appModel: {} as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -944,6 +948,8 @@ describe('PromoteService promoting and mutating changes', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         warehouseConnectionModel: warehouseConnectionModel as never,
+        getDocumentService: () => ({}) as never,
+        appModel: {} as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -2213,6 +2219,8 @@ describe('PromoteService data app promotion', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         warehouseConnectionModel: warehouseConnectionModel as never,
+        getDocumentService: () => ({}) as never,
+        appModel: {} as never,
     };
 
     const serviceWithApps = new PromoteService({

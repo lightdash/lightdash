@@ -8,6 +8,7 @@ import {
     IconAppWindow,
     IconChartAreaLine,
     IconDatabase,
+    IconFileText,
     IconFolder,
     IconLayoutDashboard,
     IconRocket,
@@ -20,7 +21,7 @@ import MantineModal, {
 } from '../../../components/common/MantineModal';
 
 type Props = Pick<MantineModalProps, 'onClose'> & {
-    type: 'chart' | 'dashboard';
+    type: 'chart' | 'dashboard' | 'document';
     resourceName: string;
     promotionChanges: PromotionChanges | undefined;
     onConfirm: () => void;
@@ -33,7 +34,13 @@ type PromotionChange = {
 };
 
 const PromotionChangesAccordion: FC<{
-    type: 'spaces' | 'charts' | 'dashboards' | 'sqlCharts' | 'dataApps';
+    type:
+        | 'spaces'
+        | 'charts'
+        | 'dashboards'
+        | 'sqlCharts'
+        | 'dataApps'
+        | 'documents';
     items: {
         created: PromotionChange[];
         updated: PromotionChange[];
@@ -170,6 +177,20 @@ export const PromotionConfirmDialog: FC<Props> = ({
                     (item) => item.action === PromotionAction.DELETE,
                 ),
             },
+            documents: {
+                total: (promotionChanges.documents ?? []).filter(
+                    (item) => item.action !== PromotionAction.NO_CHANGES,
+                ).length,
+                created: (promotionChanges.documents ?? []).filter(
+                    (item) => item.action === PromotionAction.CREATE,
+                ),
+                updated: (promotionChanges.documents ?? []).filter(
+                    (item) => item.action === PromotionAction.UPDATE,
+                ),
+                deleted: (promotionChanges.documents ?? []).filter(
+                    (item) => item.action === PromotionAction.DELETE,
+                ),
+            },
             dashboards: {
                 total: promotionChanges.dashboards.filter(
                     (item) => item.action !== PromotionAction.NO_CHANGES,
@@ -191,6 +212,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
             changes.charts.total +
             changes.sqlCharts.total +
             changes.dataApps.total +
+            changes.documents.total +
             changes.dashboards.total;
         const withoutChangesNum =
             promotionChanges.spaces.filter(
@@ -206,6 +228,9 @@ export const PromotionConfirmDialog: FC<Props> = ({
                 (item) => item.action === PromotionAction.NO_CHANGES,
             ).length +
             (promotionChanges.dataApps ?? []).filter(
+                (item) => item.action === PromotionAction.NO_CHANGES,
+            ).length +
+            (promotionChanges.documents ?? []).filter(
                 (item) => item.action === PromotionAction.NO_CHANGES,
             ).length;
 
@@ -280,6 +305,24 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 <PromotionChangesAccordion
                                     type="dashboards"
                                     items={groupedChanges.dashboards}
+                                />
+                            </>
+                        )}
+                        {groupedChanges.documents.total > 0 && (
+                            <>
+                                <Text fz="sm">
+                                    These changes will be applied:
+                                </Text>
+                                <Flex gap="xs" align="center">
+                                    <MantineIcon
+                                        icon={IconFileText}
+                                        color="indigo.7"
+                                    />
+                                    <Text fw={600}>Documents:</Text>
+                                </Flex>
+                                <PromotionChangesAccordion
+                                    type="documents"
+                                    items={groupedChanges.documents}
                                 />
                             </>
                         )}

@@ -11,6 +11,8 @@ import {
     type ApiDocumentVersionListResponse,
     type ApiErrorPayload,
     type ApiJobScheduledResponse,
+    type ApiPromoteDocumentResponse,
+    type ApiPromotionChangesResponse,
     type ApiTogglePinnedItem,
     type CreateDocumentRequest,
     type DuplicateDocumentRequest,
@@ -180,6 +182,53 @@ export class DocumentController extends BaseController {
                     projectUuid,
                     documentUuidOrSlug,
                 ),
+        };
+    }
+
+    /**
+     * Preview promoting a Document to its upstream project: the spaces, custom
+     * chart types and Document it would create or update.
+     * @summary Get Document promotion diff
+     */
+    @Get('{documentUuid}/promoteDiff')
+    @OperationId('GetDocumentPromotionDiff')
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    async getPromotionDiff(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+    ): Promise<ApiPromotionChangesResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPromoteService()
+                .getPromoteDocumentDiff(req.account, projectUuid, documentUuid),
+        };
+    }
+
+    /**
+     * Promote a Document to its upstream project.
+     * @summary Promote Document
+     */
+    @Post('{documentUuid}/promote')
+    @OperationId('PromoteDocument')
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    async promote(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+    ): Promise<ApiPromoteDocumentResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPromoteService()
+                .promoteDocument(req.account, projectUuid, documentUuid),
         };
     }
 

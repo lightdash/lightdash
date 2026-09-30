@@ -6,9 +6,10 @@ import {
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
-import { ActionIcon, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
 import {
     IconCode,
+    IconDatabaseExport,
     IconHistory,
     IconCopy,
     IconDots,
@@ -27,15 +28,22 @@ import DocumentDeleteModal from '../../components/common/modal/DocumentDeleteMod
 import { useFavoriteMutation } from '../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useDocumentPinningMutation } from '../../hooks/pinning/useDocumentPinningMutation';
+import { useProject } from '../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import DirectAccessModal from '../directAccess/components/DirectAccessModal';
 import { useCanManageDirectAccess } from '../directAccess/hooks/useCanManageDirectAccess';
 import { useDirectAccessAvailability } from '../directAccess/hooks/useDirectAccess';
+import { PromotionConfirmDialog } from '../promotion/components/PromotionConfirmDialog';
+import {
+    usePromoteDocumentDiffMutation,
+    usePromoteDocumentMutation,
+} from '../promotion/hooks/usePromoteDocument';
 import DocumentAsCodeModal from './DocumentAsCodeModal';
 import DocumentDuplicateModal from './DocumentDuplicateModal';
 import { useCanDeleteDocument } from './useCanDeleteDocument';
+import { useCanEditDocument } from './useCanEditDocument';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
 import { useExportDocumentPdf } from './useExportDocumentPdf';
 
@@ -69,6 +77,11 @@ const DocumentActions = ({ document }: { document: Document }) => {
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const canDelete = useCanDeleteDocument(document);
     const exportPdf = useExportDocumentPdf();
+    const canPromote = useCanEditDocument(document);
+    const { data: project } = useProject(document.projectUuid);
+    const hasUpstreamProject = project?.upstreamProjectUuid !== undefined;
+    const promotionDiff = usePromoteDocumentDiffMutation(document.projectUuid);
+    const promoteDocument = usePromoteDocumentMutation(document.projectUuid);
     const { isAvailable } = useDirectAccessAvailability();
     const canManage = useCanManageDirectAccess({
         projectUuid: document.projectUuid,
@@ -164,6 +177,30 @@ const DocumentActions = ({ document }: { document: Document }) => {
                             Duplicate
                         </Menu.Item>
                     )}
+                    {canPromote && (
+                        <Tooltip
+                            label="You must enable first an upstream project in settings > Data ops"
+                            disabled={hasUpstreamProject}
+                        >
+                            <Box>
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconDatabaseExport}
+                                        />
+                                    }
+                                    disabled={!hasUpstreamProject}
+                                    onClick={() =>
+                                        promotionDiff.mutate(
+                                            document.documentUuid,
+                                        )
+                                    }
+                                >
+                                    Promote document
+                                </Menu.Item>
+                            </Box>
+                        </Tooltip>
+                    )}
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconHistory} />}
                         onClick={() =>
@@ -207,6 +244,17 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     onClose={() => setDeleteOpen(false)}
                     onConfirm={() =>
                         navigate(`/projects/${projectUrlIdentifier}/documents`)
+                    }
+                />
+            )}
+            {(promotionDiff.data || promotionDiff.isLoading) && (
+                <PromotionConfirmDialog
+                    type="document"
+                    resourceName={document.name}
+                    promotionChanges={promotionDiff.data}
+                    onClose={promotionDiff.reset}
+                    onConfirm={() =>
+                        promoteDocument.mutate(document.documentUuid)
                     }
                 />
             )}
