@@ -1,3 +1,10 @@
+# [2.388.0](https://github.com/lightdash/lightdash/compare/2.387.0...2.388.0) (2026-09-30)
+
+
+### Features
+
+* **ai:** report an organization's AI usage in credits against an allowance declared once ([#30205](https://github.com/lightdash/lightdash/issues/30205)) ([70089c5](https://github.com/lightdash/lightdash/commit/70089c5083545e47c4ea1060e236dd6285a1c0fc))
+
 # [2.387.0](https://github.com/lightdash/lightdash/compare/2.386.2...2.387.0) (2026-09-30)
 
 

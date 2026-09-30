@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "2.387.0",
-  "previousVersion": "2.386.2",
-  "releaseDate": "2026-09-30T11:44:45.919Z",
+  "version": "2.388.0",
+  "previousVersion": "2.387.0",
+  "releaseDate": "2026-09-30T12:02:30.377Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20260930100000_create_ai_credit_contracts.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_credit_contracts",
+          "ai_credit_holds",
+          "organizations"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

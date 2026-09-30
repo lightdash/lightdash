@@ -40394,6 +40394,249 @@
             "ApiAiDeepResearchEventsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchEventsPage_"
             },
+            "AiCreditPeriod": {
+                "properties": {
+                    "periodEnd": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "periodStart": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["periodEnd", "periodStart"],
+                "type": "object"
+            },
+            "Pick_AiCreditContract.Exclude_keyofAiCreditContract.organizationUuid__": {
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "startsAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "endsAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "resetIntervalMonths": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowanceCredits": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "startsAt",
+                    "endsAt",
+                    "resetIntervalMonths",
+                    "allowanceCredits"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_AiCreditContract.organizationUuid_": {
+                "$ref": "#/components/schemas/Pick_AiCreditContract.Exclude_keyofAiCreditContract.organizationUuid__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "AiCreditUsageTotals": {
+                "properties": {
+                    "calls": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "credits": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["calls", "tokens", "credits"],
+                "type": "object"
+            },
+            "AiCreditUsageBreakdownRow": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiCreditUsageTotals"
+                    },
+                    {
+                        "properties": {
+                            "key": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["key"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiCreditHoldReason": {
+                "type": "string",
+                "enum": [
+                    "allowance_exhausted",
+                    "admin_cap_reached",
+                    "manual_pause",
+                    "trial_ended"
+                ]
+            },
+            "AiCreditHold": {
+                "properties": {
+                    "releasedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "placedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "placedBy": {
+                        "type": "string"
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "$ref": "#/components/schemas/AiCreditHoldReason"
+                    },
+                    "contractUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "userUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "releasedAt",
+                    "expiresAt",
+                    "placedAt",
+                    "placedBy",
+                    "notes",
+                    "reason",
+                    "contractUuid",
+                    "userUuid",
+                    "organizationUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiCreditUsageSummary": {
+                "properties": {
+                    "activeHolds": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiCreditHold"
+                        },
+                        "type": "array"
+                    },
+                    "byKeyOrigin": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiCreditUsageBreakdownRow"
+                        },
+                        "type": "array"
+                    },
+                    "byChannel": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiCreditUsageBreakdownRow"
+                        },
+                        "type": "array"
+                    },
+                    "byTier": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiCreditUsageBreakdownRow"
+                        },
+                        "type": "array"
+                    },
+                    "byFeature": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiCreditUsageBreakdownRow"
+                        },
+                        "type": "array"
+                    },
+                    "unpricedTokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "excluded": {
+                        "$ref": "#/components/schemas/AiCreditUsageTotals"
+                    },
+                    "selfManaged": {
+                        "$ref": "#/components/schemas/AiCreditUsageTotals"
+                    },
+                    "billable": {
+                        "$ref": "#/components/schemas/AiCreditUsageTotals"
+                    },
+                    "canShowCredits": {
+                        "type": "boolean"
+                    },
+                    "contract": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Omit_AiCreditContract.organizationUuid_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "period": {
+                        "$ref": "#/components/schemas/AiCreditPeriod"
+                    }
+                },
+                "required": [
+                    "activeHolds",
+                    "byKeyOrigin",
+                    "byChannel",
+                    "byTier",
+                    "byFeature",
+                    "unpricedTokens",
+                    "excluded",
+                    "selfManaged",
+                    "billable",
+                    "canShowCredits",
+                    "contract",
+                    "period"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiCreditUsageSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiCreditUsageSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiCreditUsageResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiCreditUsageSummary_"
+            },
             "AiAgentUserMemoryItem": {
                 "properties": {
                     "generatedAt": {
@@ -67970,7 +68213,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.387.0",
+        "version": "2.388.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -83098,6 +83341,37 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/ai-credits/usage": {
+            "get": {
+                "operationId": "getOrganizationAiCreditUsage",
+                "responses": {
+                    "200": {
+                        "description": "Retrieved AI credit usage",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiCreditUsageResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The organization's AI usage for the current period, in tokens and credits,\nwith its allowance when one is agreed. Organization admins only.",
+                "summary": "Get AI credit usage",
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgentMemories": {
