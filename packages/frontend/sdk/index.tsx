@@ -854,7 +854,7 @@ const AiAgent: FC<AiAgentProps> = ({
 
     return (
         <iframe
-            title="Lightdash AI agent"
+            title="AI agent"
             src={getAiAgentEmbedUrl({
                 agentUuid,
                 instanceUrl,
