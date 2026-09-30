@@ -13,7 +13,7 @@ Two kinds of change can break a walkthrough:
 
 ## Who fixes what
 
-- **Your pull request** keeps `Scope walkthrough checks` green for failures your change caused. Most are fixed by putting an attribute back on the equivalent control or by regenerating the walkthroughs and committing the result.
+- **Your pull request** keeps `Scope walkthrough checks` green for failures your change caused. Most are fixed by putting an attribute back on the equivalent control. PR CI regenerates the walkthrough artifacts for validation, and the release workflow commits them.
 - **The Learn owners** (Customer Success team, Linear project *Lightdash University*) own failures you did not cause (a docs page renamed upstream, a checker bug, CI setup) and any walkthrough that needs a new click path. Say so on your pull request and ask them; they fix it in a separate pull request against `main` and you rebase.
 - **Never change product UI to make a walkthrough pass.** Adapt the walkthrough instead. For a control only some instances show, that means an optional hop (see *When a learner reports a stuck walkthrough*).
 
@@ -45,7 +45,7 @@ To tell whether you caused a failure, run the same command on `main`. If it fail
     pnpm scope-tours:check
     ```
 
-    Commit any change to `generated.ts` and `curriculum.ts`. Read the diff: a step whose title or text changed is a change learners will see.
+    Do not commit changes to `generated.ts` or `curriculum.ts`; the pre-commit hook unstages them and the release workflow commits them. Still read the local diff: a step whose title or text changed is a change learners will see.
 
 4. **If the click path changed, run the smoke** for the walkthroughs you found in step 1.
 
@@ -124,9 +124,7 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 - `staleDispositions`: a listed scope now has a walkthrough or no longer exists. Remove the entry.
 - `pending` or `related`: a listed gap that blocks a release. Ask the Learn owners.
 
-**Generated tours are up to date.** Either the generator threw (the log names the file, selector or docs citation; see the table below), or `generated.ts` differs from what the markers and docs produce now. For a diff, run `pnpm scope-tours:generate` and commit. If the diff changes step text and you did not touch any `data-tour-*` attribute, the docs changed upstream; committing the regenerated file is fine.
-
-**The teaching order is up to date.** `curriculum.ts` differs from what the docs produce now. Run `pnpm scope-tours:order` and commit. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
+**Generate walkthrough artifacts.** The generator threw; the log names the file, selector or docs citation. PR CI does not require `generated.ts` or `curriculum.ts` to match the latest docs checkout because the release workflow owns those files. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
 
 **Generation checks.** `pnpm scope-tours:check` found a rule broken. It prints `file:line: error: message`; warnings do not fail the job.
 

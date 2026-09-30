@@ -54,7 +54,7 @@ Customers embed Lightdash (iframe or SDK) inside their own product, so their end
 Attributes named `data-tour-*` are steps in Learn walkthroughs, the in-app training generated from the product (`docs/learn/architecture.md`). They are not test ids and not dead code.
 
 -   **Before changing a component**, check it: `git grep -n 'data-tour-' -- <file>`. When refactoring, keep every attribute on the equivalent control; when a control moves to another component, its attributes move with it. Renaming a `data-tour-nav` or `data-tour-anchor` value means updating every path that names it.
--   **After changing a marked component**, run `pnpm scope-tours:generate`, `pnpm scope-tours:order` and `pnpm scope-tours:check` (docs from `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`) and commit any change to `src/features/scopeTours/generated.ts` and `curriculum.ts`.
+-   **After changing a marked component**, run `pnpm scope-tours:generate`, `pnpm scope-tours:order` and `pnpm scope-tours:check` (docs from `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`). Do not commit changes to `src/features/scopeTours/generated.ts` or `curriculum.ts`; PR CI regenerates them for validation and the release workflow commits them.
 -   **If the change alters what a user clicks through** (a new dialog or menu, a control moved, disabled, or shown only under some configuration), run `pnpm scope-tours:smoke` for the affected walkthroughs. CI cannot catch this.
 -   **Never change product UI to make a walkthrough pass.** Adapt the walkthrough instead.
 -   Finding affected walkthroughs, running the smoke, what each failure means and who fixes it: `docs/learn/maintaining-walkthroughs.md`.
