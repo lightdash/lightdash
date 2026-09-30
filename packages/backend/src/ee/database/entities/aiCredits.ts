@@ -1,4 +1,7 @@
-import { type AiCreditModelTier } from '@lightdash/common';
+import {
+    type AiCreditHoldReason,
+    type AiCreditModelTier,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AiCreditRateCardTableName = 'ai_credit_rate_card';
@@ -36,4 +39,54 @@ export type DbAiCreditRateCardInsert = Omit<
 export type AiCreditRateCardTable = Knex.CompositeTableType<
     DbAiCreditRateCard,
     DbAiCreditRateCardInsert
+>;
+
+export const AiCreditEntitlementsTableName = 'ai_credit_entitlements';
+
+export type DbAiCreditEntitlement = {
+    ai_credit_entitlement_uuid: string;
+    organization_uuid: string;
+    period_start: Date;
+    period_end: Date;
+    allowance_credits: string | null;
+    created_at: Date;
+};
+
+export type DbAiCreditEntitlementInsert = {
+    organization_uuid: string;
+    period_start: Date;
+    period_end: Date;
+    allowance_credits: number | null;
+};
+
+export type AiCreditEntitlementsTable = Knex.CompositeTableType<
+    DbAiCreditEntitlement,
+    DbAiCreditEntitlementInsert,
+    Partial<DbAiCreditEntitlementInsert>
+>;
+
+export const AiCreditHoldsTableName = 'ai_credit_holds';
+
+export type DbAiCreditHold = {
+    ai_credit_hold_uuid: string;
+    organization_uuid: string;
+    user_uuid: string | null;
+    ai_credit_entitlement_uuid: string | null;
+    reason: AiCreditHoldReason;
+    notes: string | null;
+    placed_by: string;
+    placed_at: Date;
+    expires_at: Date | null;
+    released_at: Date | null;
+};
+
+export type DbAiCreditHoldInsert = Omit<
+    DbAiCreditHold,
+    'ai_credit_hold_uuid' | 'placed_at' | 'released_at'
+>;
+
+export type AiCreditHoldsTable = Knex.CompositeTableType<
+    DbAiCreditHold,
+    DbAiCreditHoldInsert,
+    { released_at: Date }
 >;

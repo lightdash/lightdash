@@ -41,7 +41,10 @@ import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiAgentSkillModel } from './models/AiAgentSkillModel';
+import { AiCreditEntitlementModel } from './models/AiCreditEntitlementModel';
+import { AiCreditHoldModel } from './models/AiCreditHoldModel';
 import { AiCreditRateCardModel } from './models/AiCreditRateCardModel';
+import { AiCreditUsageModel } from './models/AiCreditUsageModel';
 import { AiDeepResearchRunModel } from './models/AiDeepResearchRunModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
@@ -1556,6 +1559,20 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiCreditRateCardModel: ({ database }) =>
                 new AiCreditRateCardModel({ database }),
+            aiCreditEntitlementModel: ({ database }) =>
+                new AiCreditEntitlementModel({ database }),
+            aiCreditHoldModel: ({ database }) =>
+                new AiCreditHoldModel({ database }),
+            aiCreditUsageModel: ({ database, repository }) =>
+                new AiCreditUsageModel({
+                    database,
+                    rateCardModel:
+                        repository.getAiCreditRateCardModel<AiCreditRateCardModel>(),
+                    entitlementModel:
+                        repository.getAiCreditEntitlementModel<AiCreditEntitlementModel>(),
+                    holdModel:
+                        repository.getAiCreditHoldModel<AiCreditHoldModel>(),
+                }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
             slackAuthenticationModel: ({ database }) =>

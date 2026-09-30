@@ -7,6 +7,7 @@ import express from 'express';
 import http from 'http';
 import { Knex } from 'knex';
 import {
+    createAiUsageLedgerSink,
     registerAiUsageLedger,
     registerAiUsageTracker,
 } from './analytics/aiUsage';
@@ -218,9 +219,7 @@ export default class SchedulerApp {
             database: this.database,
             utils,
         });
-        registerAiUsageLedger((event) =>
-            this.models.getAiUsageLedgerModel().recordEvent(event),
-        );
+        registerAiUsageLedger(createAiUsageLedgerSink(this.models));
 
         this.clients = new ClientRepository({
             clientProviders: args.clientProviders,

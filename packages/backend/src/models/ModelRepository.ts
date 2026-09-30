@@ -225,6 +225,9 @@ export type ModelManifest = {
     mobilePushNotificationModel: unknown;
     aiOrganizationSettingsModel: unknown;
     aiCreditRateCardModel: unknown;
+    aiCreditEntitlementModel: unknown;
+    aiCreditUsageModel: unknown;
+    aiCreditHoldModel: unknown;
     embedModel: unknown;
     serviceAccountModel: unknown;
     scimRequestLogModel: unknown;
@@ -1195,6 +1198,23 @@ export class ModelRepository
 
     public getAiCreditRateCardModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiCreditRateCardModel');
+    }
+
+    public getAiCreditEntitlementModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiCreditEntitlementModel');
+    }
+
+    public getAiCreditUsageModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiCreditUsageModel');
+    }
+
+    public getAiCreditHoldModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiCreditHoldModel');
+    }
+
+    /** Whether an edition-specific model was registered, so callers can skip it instead of failing. */
+    public hasModelProvider(modelName: keyof ModelManifest): boolean {
+        return this.providers[modelName] != null;
     }
 
     public getEmbedModel<ModelImplT>(): ModelImplT {

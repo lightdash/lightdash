@@ -33,6 +33,7 @@ import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
 import {
+    createAiUsageLedgerSink,
     registerAiUsageLedger,
     registerAiUsageTracker,
 } from './analytics/aiUsage';
@@ -297,9 +298,7 @@ export default class App {
             database: this.database,
             utils: this.utils,
         });
-        registerAiUsageLedger((event) =>
-            this.models.getAiUsageLedgerModel().recordEvent(event),
-        );
+        registerAiUsageLedger(createAiUsageLedgerSink(this.models));
         this.readinessService = new ReadinessService({
             migrationModel: this.models.getMigrationModel(),
             migrationRunLedger: new MigrationLeaseManager({

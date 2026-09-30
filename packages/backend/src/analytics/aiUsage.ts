@@ -7,7 +7,9 @@ import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import type { AiCreditUsageModel } from '../ee/models/AiCreditUsageModel';
 import Logger from '../logging/logger';
+import type { ModelRepository } from '../models/ModelRepository';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 
@@ -249,6 +251,21 @@ let aiUsageLedgerFn: AiUsageLedgerFn | null = null;
 export const registerAiUsageLedger = (fn: AiUsageLedgerFn): void => {
     aiUsageLedgerFn = fn;
 };
+
+export const createAiUsageLedgerSink =
+    (models: ModelRepository): AiUsageLedgerFn =>
+    async (event) => {
+        await models.getAiUsageLedgerModel().recordEvent(event);
+        if (!models.hasModelProvider('aiCreditUsageModel')) return;
+        await models
+            .getAiCreditUsageModel<AiCreditUsageModel>()
+            .onUsageRecorded(event)
+            .catch((error) => {
+                Logger.warn(
+                    `Failed to evaluate the AI credit allowance for usage ${event.properties.eventId}: ${error}`,
+                );
+            });
+    };
 
 /**
  * Structural subset of the telemetry options built by `getAiCallTelemetry`,
