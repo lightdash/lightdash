@@ -452,6 +452,78 @@ describe('LearnPage access', () => {
     });
 });
 
+describe('LearnPage filters', () => {
+    const location = () => screen.getByTestId('location').textContent;
+    const shown = (container: HTMLElement) =>
+        [...container.querySelectorAll('[data-learn-module]')].map((card) =>
+            card.getAttribute('data-learn-module'),
+        );
+
+    beforeEach(() => {
+        sessionStorage.clear();
+        progressState.current = {
+            completed: [],
+            started: [],
+            lastStarted: null,
+        };
+        learnFlagState.current = { enabled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
+        accessState.current = ['view:Dashboard', 'manage:Validation'];
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+        ];
+    });
+
+    it('opens with the filters in the address', () => {
+        const { container } = renderPage('?extra=1&q=pin');
+
+        expect(shown(container)).toContain('manage:PinnedItems');
+        expect(
+            screen.getByRole('textbox', { name: 'Search the library' }),
+        ).toHaveValue('pin');
+    });
+
+    it('writes the Extra modules toggle to the address, and remembers it for the way back', async () => {
+        renderPage();
+
+        await userEvent.click(screen.getByLabelText('Filter'));
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Show extra modules' }),
+        );
+
+        expect(location()).toBe('?extra=1');
+        expect(sessionStorage.getItem('lightdash.learn.librarySearch')).toBe(
+            '?extra=1',
+        );
+    });
+
+    it('writes the group tab to the address', async () => {
+        renderPage('?extra=1');
+
+        await userEvent.click(
+            screen.getByRole('button', { name: /Developer/, pressed: false }),
+        );
+
+        expect(location()).toBe('?extra=1&group=developer');
+    });
+
+    it('takes the group out of the address on All', async () => {
+        renderPage('?extra=1&group=developer');
+
+        await userEvent.click(screen.getByRole('button', { name: 'All' }));
+
+        expect(location()).toBe('?extra=1');
+    });
+
+    it('shows All for a group the library does not have', () => {
+        renderPage('?group=nonsense');
+
+        expect(
+            screen.getByRole('button', { name: 'All', pressed: true }),
+        ).toBeInTheDocument();
+    });
+});
+
 describe('LearnPage unsupported modules', () => {
     beforeEach(() => {
         progressState.current = {

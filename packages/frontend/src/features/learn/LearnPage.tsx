@@ -16,15 +16,8 @@ import {
     IconSearch,
     IconCircleCheck,
 } from '@tabler/icons-react';
-import {
-    type FC,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
-import { Navigate } from 'react-router';
+import { type FC, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Navigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
@@ -44,12 +37,18 @@ import {
     GROUP_ORDER,
     holds,
     sortForLearner,
-    type LearnGroup,
     type LearnModule,
 } from './catalogue';
 import { EnableLearnPanel } from './EnableLearnPanel';
 import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
+import {
+    libraryPath,
+    readLibraryFilters,
+    rememberLibrarySearch,
+    writeLibraryFilters,
+    type LibraryFilters,
+} from './libraryFilters';
 import { readLearnOrigin, rememberLearnOrigin } from './origin';
 import { useLearnProgress } from './progress';
 import { createLearnSearch } from './search';
@@ -202,7 +201,7 @@ const LearnPage: FC = () => {
             projects?.some((project) => project.projectUuid === origin)
                 ? origin
                 : trainingProject.projectUuid;
-        return `/projects/${returnProject}/learn`;
+        return libraryPath(returnProject);
     })();
 
     // Only modules this instance can run: a walkthrough clicks the real
@@ -223,11 +222,36 @@ const LearnPage: FC = () => {
     // library is that; everything else waits behind the Extra modules
     // toggle.
     const { held } = useLearnAccess();
-    const [query, setQuery] = useState('');
-    const [showExtra, setShowExtra] = useState(false);
-    const [showSoon, setShowSoon] = useState(true);
-    // One group tab, or All.
-    const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
+    // The filters live in the address (see libraryFilters.ts), so a
+    // walkthrough brings the learner back to the library as they left it.
+    // groupFilter is one group tab, or All.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const {
+        query,
+        showExtra,
+        showSoon,
+        group: groupFilter,
+    } = readLibraryFilters(searchParams);
+    const setFilters = useCallback(
+        (patch: Partial<LibraryFilters>) =>
+            setSearchParams((current) => writeLibraryFilters(current, patch), {
+                replace: true,
+            }),
+        [setSearchParams],
+    );
+    // Remembered for the walkthrough's way back, once this is the library
+    // being shown rather than a preview on its way to one.
+    const filterSearch = writeLibraryFilters(new URLSearchParams(), {
+        query,
+        showExtra,
+        showSoon,
+        group: groupFilter,
+    }).toString();
+    const isShowingLibrary = !!projects && !previewRedirect;
+    useEffect(() => {
+        if (!isShowingLibrary) return;
+        rememberLibrarySearch(filterSearch ? `?${filterSearch}` : '');
+    }, [isShowingLibrary, filterSearch]);
 
     const search = useMemo(
         () =>
@@ -371,7 +395,7 @@ const LearnPage: FC = () => {
                         leftSection={<MantineIcon icon={IconSearch} />}
                         value={query}
                         onChange={(event) =>
-                            setQuery(event.currentTarget.value)
+                            setFilters({ query: event.currentTarget.value })
                         }
                     />
                 </Box>
@@ -448,7 +472,7 @@ const LearnPage: FC = () => {
                                 groupFilter === null ? styles.tabOn : ''
                             }`}
                             aria-pressed={groupFilter === null}
-                            onClick={() => setGroupFilter(null)}
+                            onClick={() => setFilters({ group: null })}
                         >
                             All
                         </UnstyledButton>
@@ -462,7 +486,7 @@ const LearnPage: FC = () => {
                                 style={groupVars(group)}
                                 aria-pressed={groupFilter === group}
                                 data-learn-chip={group}
-                                onClick={() => setGroupFilter(group)}
+                                onClick={() => setFilters({ group })}
                             >
                                 <span
                                     className={styles.chipSwatch}
@@ -497,7 +521,9 @@ const LearnPage: FC = () => {
                         <Menu.Dropdown>
                             <Menu.Label>Show</Menu.Label>
                             <Menu.Item
-                                onClick={() => setShowExtra(!showExtra)}
+                                onClick={() =>
+                                    setFilters({ showExtra: !showExtra })
+                                }
                                 rightSection={
                                     showExtra ? (
                                         <MantineIcon
@@ -512,7 +538,9 @@ const LearnPage: FC = () => {
                                 Extra modules
                             </Menu.Item>
                             <Menu.Item
-                                onClick={() => setShowSoon(!showSoon)}
+                                onClick={() =>
+                                    setFilters({ showSoon: !showSoon })
+                                }
                                 rightSection={
                                     showSoon ? (
                                         <MantineIcon
