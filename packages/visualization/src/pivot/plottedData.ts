@@ -43,12 +43,10 @@ export const getPivotedDataFromPivotDetails = (
         (acc, column) => {
             column.pivotValues.forEach((value) => {
                 const field = itemsMap?.[value.referenceField];
-                acc[value.referenceField] = {
-                    ...acc[value.referenceField],
-                    [String(value.value)]: {
-                        raw: value.value,
-                        formatted: formatItemValue(field, value.value),
-                    },
+                acc[value.referenceField] ??= {};
+                acc[value.referenceField][String(value.value)] = {
+                    raw: value.value,
+                    formatted: formatItemValue(field, value.value),
                 };
             });
             return acc;
