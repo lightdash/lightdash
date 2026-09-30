@@ -31,6 +31,7 @@ import {
     type EmailNotificationPayload,
     type ExportContentPayload,
     type Filters,
+    type GsheetsNotificationPayload,
     type LearnSandboxCommandPayload,
     type MetricQuery,
     type NotificationPayloadBase,
@@ -1518,6 +1519,108 @@ describe('uploadGsheets — pivot routing', () => {
         expect(result.executeSavedChartQueryAndGetResults).toHaveBeenCalledWith(
             expect.objectContaining({ chartUuid: 'chart-1', schedulerFilters }),
             expect.anything(),
+        );
+    });
+});
+
+describe('uploadGsheets — SQL chart values', () => {
+    it('preserves numbers and booleans while retaining text, blank, and date values', async () => {
+        const row = {
+            orders_any_complete: 42,
+            rate: -0.125,
+            zero: 0,
+            active: true,
+            inactive: false,
+            numericText: '000042',
+            nullValue: null,
+            missingValue: undefined,
+            date: new Date('2026-09-30T12:00:00Z'),
+        };
+        const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            googleDriveClient: asDep<'googleDriveClient'>({
+                isEnabled: true,
+                uploadMetadata: vi.fn().mockResolvedValue(undefined),
+                appendCsvToSheet,
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                schedulerModel: {
+                    getSchedulerAndTargets: vi.fn().mockResolvedValue({
+                        schedulerUuid: 'scheduler-1',
+                        name: 'SQL chart sync',
+                        createdBy: 'user-1',
+                        format: SchedulerFormat.GSHEETS,
+                        savedChartUuid: null,
+                        dashboardUuid: null,
+                        savedSqlUuid: 'sql-chart-1',
+                        appUuid: null,
+                        cron: '0 7 * * *',
+                        timezone: 'UTC',
+                        options: { gdriveId: 'sheet-1', tabName: 'Results' },
+                    }),
+                },
+                getSchedulerDefaultTimezone: vi.fn().mockResolvedValue('UTC'),
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { email: 'demo@lightdash.com' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+                getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                savedSqlModel: {
+                    getByUuid: vi.fn().mockResolvedValue({
+                        slug: 'sql-chart',
+                        project: { projectUuid: 'project-1' },
+                    }),
+                },
+                executeSqlChartQueryAndGetResults: vi.fn().mockResolvedValue({
+                    rows: [row],
+                }),
+            }),
+            analytics: asDep<'analytics'>({ track: vi.fn() }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'http://localhost:8090',
+            }),
+        });
+
+        await (
+            task as unknown as {
+                uploadGsheets(
+                    jobId: string,
+                    notification: GsheetsNotificationPayload,
+                ): Promise<void>;
+            }
+        ).uploadGsheets('job-1', {
+            schedulerUuid: 'scheduler-1',
+            scheduledTime: new Date('2026-09-30T07:00:00Z'),
+            jobGroup: 'scheduled_delivery',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+        });
+
+        expect(appendCsvToSheet).toHaveBeenCalledExactlyOnceWith(
+            'refresh-token',
+            'sheet-1',
+            [
+                Object.keys(row),
+                [
+                    42,
+                    -0.125,
+                    0,
+                    true,
+                    false,
+                    '000042',
+                    '',
+                    '',
+                    '2026-09-30T12:00:00.000Z',
+                ],
+            ],
+            'Results',
         );
     });
 });
