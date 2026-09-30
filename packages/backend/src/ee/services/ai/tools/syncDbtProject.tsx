@@ -1,11 +1,17 @@
-import { syncDbtProjectToolDefinition } from '@lightdash/common';
+import {
+    assertUnreachable,
+    syncDbtProjectToolDefinition,
+    type ToolSyncDbtProjectOutput,
+    type ToolSyncDbtProjectStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     SyncDbtProjectFn,
+    SyncDbtProjectResult,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -15,7 +21,7 @@ type Dependencies = {
 
 const toolDefinition = syncDbtProjectToolDefinition.for('agent');
 
-const generateResponse = (result: Awaited<ReturnType<SyncDbtProjectFn>>) => (
+const generateResponse = (result: SyncDbtProjectResult) => (
     <syncDbtProject status={result.status} jobUuid={result.jobUuid}>
         <message>{result.message}</message>
         {result.status === 'success' && (
@@ -35,36 +41,56 @@ const generateResponse = (result: Awaited<ReturnType<SyncDbtProjectFn>>) => (
     </syncDbtProject>
 );
 
+const toStructuredContent = (
+    status: 'success' | 'in_progress',
+    result: SyncDbtProjectResult,
+): ToolSyncDbtProjectStructuredContent => {
+    switch (status) {
+        case 'success':
+        case 'in_progress':
+            return {
+                status,
+                jobUuid: result.jobUuid,
+                message: result.message,
+            };
+        default:
+            return assertUnreachable(status, 'Unknown sync status');
+    }
+};
+
 export const getSyncDbtProject = ({
     syncDbtProject,
     updateProgress,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (args): Promise<ToolSyncDbtProjectOutput> => {
             try {
                 await updateProgress('Syncing the dbt project...');
 
                 const result = await syncDbtProject({
                     reason: args.reason,
                 });
+                const text = generateResponse(result).toString();
+
+                if (result.status === 'error') {
+                    return {
+                        result: text,
+                        metadata: { status: 'error' as const },
+                        structuredContent: { error: text },
+                    };
+                }
 
                 return {
-                    result: generateResponse(result).toString(),
-                    metadata: {
-                        status: result.status === 'error' ? 'error' : 'success',
-                    },
+                    result: text,
+                    metadata: { status: 'success' as const },
+                    structuredContent: toStructuredContent(
+                        result.status,
+                        result,
+                    ),
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        'Error syncing the dbt project.',
-                    ),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(error, 'Error syncing the dbt project.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

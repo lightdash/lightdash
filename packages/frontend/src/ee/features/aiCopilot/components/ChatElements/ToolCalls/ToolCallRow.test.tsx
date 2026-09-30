@@ -23,16 +23,28 @@ const toolCall: ToolCallSummary = {
     },
 };
 
-const result = (status: 'success' | 'error'): AiAgentToolResult => ({
-    uuid: 'result-1',
-    promptUuid: 'prompt-1',
-    createdAt: new Date(),
-    toolCallId: 'call-1',
-    toolType: 'built-in',
-    toolName: 'runComposerQueries',
-    result: '',
-    metadata: { status },
-});
+const result = (status: 'success' | 'error'): AiAgentToolResult =>
+    status === 'success'
+        ? {
+              uuid: 'result-1',
+              promptUuid: 'prompt-1',
+              createdAt: new Date(),
+              toolCallId: 'call-1',
+              toolType: 'built-in',
+              toolName: 'runComposerQueries',
+              result: '',
+              metadata: { status: 'success' },
+          }
+        : {
+              uuid: 'result-1',
+              promptUuid: 'prompt-1',
+              createdAt: new Date(),
+              toolCallId: 'call-1',
+              toolType: 'built-in',
+              toolName: 'runComposerQueries',
+              result: '',
+              metadata: { status: 'error' },
+          };
 
 const renderRow = (props: {
     status: ToolCallRowStatus;
