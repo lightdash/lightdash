@@ -7780,12 +7780,6 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
 
-        if (provisioningSource === 'analytics') {
-            throw new ForbiddenError(
-                'SQL Runner is unavailable for managed analytics projects',
-            );
-        }
-
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -7797,6 +7791,12 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (provisioningSource === 'analytics') {
+            throw new ForbiddenError(
+                'SQL Runner is unavailable for managed analytics projects',
+            );
         }
 
         // Agent-run SQL is additionally constrained to the project's agent SQL

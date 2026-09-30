@@ -9444,12 +9444,6 @@ export class ProjectService extends BaseService {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
 
-        if (provisioningSource === 'analytics') {
-            throw new ForbiddenError(
-                'SQL Runner is unavailable for managed analytics projects',
-            );
-        }
-
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -9458,6 +9452,12 @@ export class ProjectService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (provisioningSource === 'analytics') {
+            throw new ForbiddenError(
+                'SQL Runner is unavailable for managed analytics projects',
+            );
         }
 
         const {

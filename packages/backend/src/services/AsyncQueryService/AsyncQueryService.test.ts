@@ -5989,28 +5989,35 @@ describe('AsyncQueryService', () => {
             expect(warehouse).not.toHaveBeenCalled();
         });
 
-        it('throws ForbiddenError when the account lacks manage:SqlRunner', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
+        it.each([undefined, 'analytics'])(
+            'checks SQL permissions before project restrictions (%s)',
+            async (provisioningSource) => {
+                projectModel.getSummary.mockResolvedValueOnce({
+                    ...projectSummary,
+                    provisioningSource,
+                });
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
 
-            const viewerAccount = {
-                ...sessionAccount,
-                user: {
-                    ...sessionAccount.user,
-                    ability: new Ability<PossibleAbilities>([
-                        { subject: 'Project', action: ['view'] },
-                    ]),
-                },
-            } as unknown as Account;
+                const viewerAccount = {
+                    ...sessionAccount,
+                    user: {
+                        ...sessionAccount.user,
+                        ability: new Ability<PossibleAbilities>([
+                            { subject: 'Project', action: ['view'] },
+                        ]),
+                    },
+                } as unknown as Account;
 
-            await expect(
-                service.executeAsyncSqlQuery({
-                    account: viewerAccount,
-                    projectUuid,
-                    sql: 'SELECT 1',
-                    context: QueryExecutionContext.SQL_RUNNER,
-                }),
-            ).rejects.toThrow(ForbiddenError);
-        });
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: viewerAccount,
+                        projectUuid,
+                        sql: 'SELECT 1',
+                        context: QueryExecutionContext.SQL_RUNNER,
+                    }),
+                ).rejects.toEqual(new ForbiddenError());
+            },
+        );
 
         it('disconnects the SSH tunnel when column discovery fails', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
