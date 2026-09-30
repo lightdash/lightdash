@@ -27,6 +27,7 @@ const tools = () => ({
     runContentQuery: tool({ inputSchema: z.object({}) }),
     runSql: tool({ inputSchema: z.object({}) }),
     editRepo: tool({ inputSchema: z.object({}) }),
+    loadSkill: tool({ inputSchema: z.object({}) }),
 });
 
 describe('intent toolbox', () => {
@@ -155,6 +156,19 @@ describe('intent toolbox', () => {
         expect(
             createIntentToolGate(tools(), 'data_app_read').activeTools(),
         ).not.toContain('createContent');
+        expect(
+            createIntentToolGate(tools(), 'document_write').activeTools(),
+        ).toEqual(
+            expect.arrayContaining([
+                'findContent',
+                'loadSkill',
+                'runContentQuery',
+                'createContent',
+            ]),
+        );
+        expect(
+            createIntentToolGate(tools(), 'document_write').activeTools(),
+        ).not.toContain('generateDataApp');
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
         ).toEqual(expect.arrayContaining(['editRepo']));

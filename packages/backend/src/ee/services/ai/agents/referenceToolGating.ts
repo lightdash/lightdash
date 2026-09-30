@@ -56,6 +56,21 @@ const DATA_APP_ITERATE_TOOLS = new Set([
 
 const DATA_APP_READ_TOOLS = new Set(REFERENCE_TOOLS);
 
+const DOCUMENT_WRITE_TOOLS = new Set([
+    ...REFERENCE_TOOLS,
+    'loadSkill',
+    'createContent',
+    'editContent',
+    'runContentQuery',
+    'runSavedChart',
+    'runQuery',
+    'searchFieldValues',
+    'exportChartAsCode',
+    'getDashboardCharts',
+    'findCustomChartTypes',
+    'generateUuids',
+]);
+
 const REPOSITORY_CHANGE_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'analyzeFieldImpact',
@@ -90,6 +105,8 @@ const toolsForIntent = (intent: TurnIntent | null): Set<string> | null => {
             return DATA_APP_ITERATE_TOOLS;
         case 'data_app_read':
             return DATA_APP_READ_TOOLS;
+        case 'document_write':
+            return DOCUMENT_WRITE_TOOLS;
         case 'repository_change':
             return REPOSITORY_CHANGE_TOOLS;
         case 'other':

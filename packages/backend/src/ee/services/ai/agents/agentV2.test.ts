@@ -43,6 +43,7 @@ import {
     getDataAnswerFastResponse,
     getDataAppBuildFastResponse,
     getDeepResearchBudgetInstruction,
+    getDocumentWriteFastResponse,
     getFastDataAnswerPreparedContext,
     getPromptMcpServers,
     getRecentQueryFieldIds,
@@ -2525,6 +2526,48 @@ describe('buildAgentMessages', () => {
         expect(
             getDataAppBuildFastResponse(
                 step({ result: 'failed', metadata: { status: 'error' } }),
+            ),
+        ).toBeNull();
+    });
+
+    it('finishes a document write-up once the document saves cleanly', () => {
+        const save = (
+            output: unknown,
+            input: unknown = { type: 'document' },
+            toolName = 'createContent',
+        ) => [
+            {
+                toolCalls: [{ toolCallId: 'save-1', toolName, input }],
+                toolResults: [{ toolCallId: 'save-1', toolName, output }],
+            },
+        ];
+        const saved = (warnings: string[] = []) => ({
+            result: '<document />',
+            metadata: {
+                status: 'success',
+                name: 'Revenue [Q3]',
+                href: '/projects/p/documents/revenue',
+                warnings,
+            },
+        });
+
+        expect(getDocumentWriteFastResponse(save(saved()))).toBe(
+            'Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).',
+        );
+        expect(
+            getDocumentWriteFastResponse(
+                save(saved(), { type: 'document' }, 'editContent'),
+            ),
+        ).toBe('Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).');
+        expect(
+            getDocumentWriteFastResponse(save(saved(['Chart 2 failed']))),
+        ).toBeNull();
+        expect(
+            getDocumentWriteFastResponse(save(saved(), { type: 'chart' })),
+        ).toBeNull();
+        expect(
+            getDocumentWriteFastResponse(
+                save({ result: 'failed', metadata: { status: 'error' } }),
             ),
         ).toBeNull();
     });
