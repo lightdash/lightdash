@@ -1,5 +1,5 @@
 import { type S3, type S3Client } from '@aws-sdk/client-s3';
-import { HttpRequest } from '@smithy/protocol-http';
+import { HttpRequest, HttpResponse } from '@smithy/protocol-http';
 import { GoogleAuth, type AuthClient } from 'google-auth-library';
 import { createHash } from 'node:crypto';
 
@@ -49,6 +49,30 @@ const HEADERS_GCS_READS_UNDER_OAUTH =
  * token keeps working.
  */
 export function applyGcpOAuth(client: S3 | S3Client): void {
+    client.middlewareStack.add(
+        (next) => async (args) => {
+            const result = await next(args);
+            if (HttpResponse.isInstance(result.response)) {
+                // GCS returns OAuth user metadata as x-goog-meta-*. The S3
+                // deserializer only reads x-amz-meta-*, including source-hash
+                // used to skip unchanged usage summaries.
+                const { headers } = result.response;
+                Object.entries(headers).forEach(([name, value]) => {
+                    const lower = name.toLowerCase();
+                    if (lower.startsWith('x-goog-meta-')) {
+                        headers[lower.replace('x-goog-', 'x-amz-')] ??= value;
+                    }
+                });
+            }
+            return result;
+        },
+        {
+            step: 'deserialize',
+            name: 'gcpOAuthResponseMetadata',
+            // Run inside the SDK deserializer so it receives normalized headers.
+            priority: 'low',
+        },
+    );
     client.middlewareStack.add(
         (next, context) => async (args) => {
             const { request } = args;

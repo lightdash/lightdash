@@ -1,13 +1,27 @@
-import { S3 } from '@aws-sdk/client-s3';
+import { HeadObjectCommand, S3, S3Client } from '@aws-sdk/client-s3';
+import { HttpResponse } from '@smithy/protocol-http';
 import { writeFile } from 'fs/promises';
+import { applyGcpOAuth } from '../../clients/Aws/gcpOAuth';
+import { buildS3ClientConfig } from '../../clients/Aws/S3BaseClient';
 import {
     UsageUserActivityBuilder,
     validateUserActivityRange,
 } from './UsageUserActivityBuilder';
 
 const upload = vi.hoisted(() => vi.fn());
+const uploadConstructor = vi.hoisted(() => vi.fn());
+vi.mock('google-auth-library', () => ({
+    GoogleAuth: class {
+        async getClient() {
+            return { getAccessToken: async () => 'test-access-token' };
+        }
+    },
+}));
 vi.mock('@aws-sdk/lib-storage', () => ({
     Upload: class {
+        constructor(options: unknown) {
+            uploadConstructor(options);
+        }
         done = upload;
     },
 }));
@@ -190,6 +204,73 @@ describe('user activity safeguards', () => {
             ),
         ).rejects.toThrow('Incomplete S3 listing');
         expect(runSqlWithMetrics).not.toHaveBeenCalled();
+    });
+
+    it('skips a GCS summary on an unchanged rerun but rebuilds after its source changes', async () => {
+        const source = {
+            Key: `events/compacted/org_id=${org}/stream=query_events/dt=2026-01-01/test.parquet`,
+            ETag: 'first-version',
+            Size: 100,
+        };
+        vi.spyOn(S3.prototype, 'listObjectsV2').mockImplementation(
+            async ({ Prefix }) =>
+                ({
+                    Contents: Prefix?.startsWith('events/raw/') ? [] : [source],
+                }) as never,
+        );
+        const runSqlWithMetrics = vi.fn(async (sql: string) => {
+            const output = sql.match(/TO '([^']+)' \(FORMAT/)![1];
+            await writeFile(output, 'test parquet');
+            return { queryMs: 1, bootstrapMs: 0, totalMs: 1 };
+        });
+        const run = () =>
+            new UsageUserActivityBuilder(storage, { runSqlWithMetrics }).run(
+                org,
+                '2026-01-01',
+                '2026-01-01',
+                now,
+            );
+        upload.mockResolvedValue(undefined);
+        expect(await run()).toMatchObject({ published: 1, unchanged: 0 });
+        const fingerprint =
+            uploadConstructor.mock.calls[0][0].params.Metadata['source-hash'];
+        const client = new S3Client({
+            ...buildS3ClientConfig({
+                region: 'auto',
+                endpoint: 'https://storage.googleapis.com',
+                authMode: 'gcp_oauth',
+            }),
+            requestHandler: {
+                handle: async () => ({
+                    response: new HttpResponse({
+                        statusCode: 200,
+                        headers: { 'x-goog-meta-source-hash': fingerprint },
+                    }),
+                }),
+                updateHttpClientConfig: () => {},
+                httpHandlerConfigs: () => ({}),
+            },
+        });
+        applyGcpOAuth(client);
+        vi.spyOn(S3.prototype, 'headObject').mockImplementation(
+            async (input) => client.send(new HeadObjectCommand(input)) as never,
+        );
+        try {
+            expect(await run()).toMatchObject({ published: 0, unchanged: 1 });
+            expect(runSqlWithMetrics).toHaveBeenCalledTimes(1);
+            expect(upload).toHaveBeenCalledTimes(1);
+            source.ETag = 'second-version';
+            expect(await run()).toMatchObject({ published: 1, unchanged: 0 });
+            expect(runSqlWithMetrics).toHaveBeenCalledTimes(2);
+            expect(upload).toHaveBeenCalledTimes(2);
+            expect(
+                uploadConstructor.mock.calls[1][0].params.Metadata[
+                    'source-hash'
+                ],
+            ).not.toBe(fingerprint);
+        } finally {
+            client.destroy();
+        }
     });
 
     it('propagates upload failures so operators retry the failed day', async () => {

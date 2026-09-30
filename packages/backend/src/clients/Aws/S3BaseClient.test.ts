@@ -273,8 +273,8 @@ describe('S3BaseClient', () => {
             const client = new TestableS3Client(gcpConfig);
 
             expect(client.getS3()).toBeInstanceOf(s3Mocks.FakeS3);
-            expect(s3Mocks.mockMiddlewareAdd).toHaveBeenCalledTimes(1);
-            expect(s3Mocks.mockMiddlewareAdd.mock.calls[0][1]).toEqual({
+            expect(s3Mocks.mockMiddlewareAdd).toHaveBeenCalledTimes(2);
+            expect(s3Mocks.mockMiddlewareAdd.mock.calls[1][1]).toEqual({
                 step: 'finalizeRequest',
                 name: 'gcpOAuthBearer',
                 priority: 'low',
