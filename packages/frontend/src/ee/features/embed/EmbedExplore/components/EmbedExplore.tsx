@@ -110,6 +110,9 @@ const EmbedExploreContent: FC<{
                     allowChartUpdate && savedChart && 'uuid' in savedChart
                         ? savedChart
                         : undefined,
+                // An explored saved chart still runs its query on load
+                isExploreFromHere:
+                    savedChart !== undefined && 'uuid' in savedChart,
                 unsavedChartVersion: {
                     tableName: exploreId,
                     metricQuery: savedChart?.metricQuery || {
