@@ -7,6 +7,7 @@ import {
     type ModelMessage,
     type ToolSet,
 } from 'ai';
+import { MockLanguageModelV4 } from 'ai/test';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
@@ -590,6 +591,87 @@ describe('empty finishes and interrupts', () => {
         Object.assign(dependencies, { isPromptInterrupted });
         return { updatePrompt, dependencies };
     };
+
+    it.each([false, true])(
+        'generate: pauses or answers Slack SQL queries with thread auto-approval %s',
+        async (autoApproved) => {
+            const { generateText: generateWithSdk } =
+                await vi.importActual<typeof import('ai')>('ai');
+            vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+            const { updatePrompt, dependencies } =
+                buildInterruptibleDependencies(false);
+            const runSqlJob = vi.fn().mockResolvedValue({
+                rows: [{ answer: 1 }],
+                columns: ['answer'],
+                rowCount: 1,
+            });
+            Object.assign(dependencies, {
+                getPrompt: async () => ({
+                    promptUuid: 'prompt-1',
+                    threadUuid: 'thread-1',
+                    slackUserId: 'slack-user',
+                }),
+                isThreadSqlAutoApproved: async () => autoApproved,
+                recordSqlApproval: async () => true,
+                updateProgress: vi.fn().mockResolvedValue(undefined),
+                runSqlJob,
+                consumePromptSteers: async () => [],
+            });
+            const args = buildAgentArgs();
+            args.useSlackStreamCard = true;
+            args.slackChannelId = 'slack-channel';
+            let calls = 0;
+            args.model = new MockLanguageModelV4({
+                doGenerate: async () => {
+                    calls += 1;
+                    return {
+                        content:
+                            calls === 1
+                                ? [
+                                      {
+                                          type: 'tool-call' as const,
+                                          toolCallId: 'sql-call',
+                                          toolName: 'runSql',
+                                          input: '{"sql":"SELECT 1","limit":10}',
+                                      },
+                                  ]
+                                : [
+                                      {
+                                          type: 'text' as const,
+                                          text: 'The answer is 1.',
+                                      },
+                                  ],
+                        finishReason: {
+                            unified: calls === 1 ? 'tool-calls' : 'stop',
+                            raw: undefined,
+                        },
+                        usage: {
+                            inputTokens: {
+                                total: 1,
+                                noCache: 1,
+                                cacheRead: 0,
+                                cacheWrite: 0,
+                            },
+                            outputTokens: { total: 1, text: 1, reasoning: 0 },
+                        },
+                        warnings: [],
+                    };
+                },
+            });
+
+            await expect(
+                generateAgentResponse({
+                    args,
+                    dependencies,
+                    mcpToolSetup: mcpToolSetup(),
+                }),
+            ).resolves.toBe(autoApproved ? 'The answer is 1.' : '');
+            expect(runSqlJob).toHaveBeenCalledTimes(autoApproved ? 1 : 0);
+            expect(updatePrompt).not.toHaveBeenCalledWith(
+                expect.objectContaining({ errorMessage: expect.any(String) }),
+            );
+        },
+    );
 
     it('generate: persists an empty response instead of an error when the prompt was interrupted', async () => {
         const { updatePrompt, dependencies } =

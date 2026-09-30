@@ -4018,14 +4018,29 @@ export class AiAgentService extends BaseService {
         this.enqueueMobilePushThreadReconciliation(threadUuid);
         if (!recorded) {
             // A decision was already in place for this tool call — likely a
-            // double-click or a race between Slack and the web UI. First
-            // write wins; subsequent calls are a no-op.
+            // double-click, or a retry after scheduling the resume failed.
+            // First write wins; Slack scheduling below is idempotent.
             this.logger.info(
-                `SQL approval for ${toolCallId} was already recorded; ignoring duplicate.`,
+                `SQL approval for ${toolCallId} was already recorded; retrying Slack resume if applicable.`,
             );
+        }
+        if (context.toolName === 'runSql') {
+            await this.resumeSlackSqlApproval(context.promptUuid);
         }
 
         return { decision };
+    }
+
+    private async resumeSlackSqlApproval(promptUuid: string): Promise<void> {
+        const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
+        if (!prompt) return;
+
+        await this.schedulerClient.slackAiPrompt({
+            slackPromptUuid: prompt.promptUuid,
+            userUuid: prompt.createdByUserUuid,
+            projectUuid: prompt.projectUuid,
+            organizationUuid: prompt.organizationUuid,
+        });
     }
 
     /**
@@ -16838,18 +16853,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // The reply job rebuilds history with the approval response, so
                 // the SDK executes runSql (approve) or skips it (reject).
                 if (isNative && recorded) {
-                    const resumePrompt =
-                        await this.aiAgentModel.findSlackPrompt(
-                            approvalContext.promptUuid,
-                        );
-                    if (resumePrompt) {
-                        await this.schedulerClient.slackAiPrompt({
-                            slackPromptUuid: resumePrompt.promptUuid,
-                            userUuid: resumePrompt.createdByUserUuid,
-                            projectUuid: resumePrompt.projectUuid,
-                            organizationUuid: resumePrompt.organizationUuid,
-                        });
-                    }
+                    await this.resumeSlackSqlApproval(
+                        approvalContext.promptUuid,
+                    );
                 }
 
                 const emoji =
