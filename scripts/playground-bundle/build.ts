@@ -86,10 +86,25 @@ const stableId = (seed: string) => {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 };
 
+type LineageGraph = Record<string, { type: string; name: string }[]>;
+
+/** dbt lists lineage in parse order, which differs between machines. */
+const sortLineageGraph = (graph: LineageGraph): LineageGraph =>
+    Object.fromEntries(
+        Object.entries(graph)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([name, nodes]) => [
+                name,
+                [...nodes].sort((a, b) =>
+                    `${a.type}.${a.name}`.localeCompare(`${b.type}.${b.name}`),
+                ),
+            ]),
+    );
+
 /**
  * The compiler gives filters random ids. Each one is replaced by an id
  * derived from where it first appears, so rebuilds are stable and ids that
- * the compiler shared between explores stay shared.
+ * the compiler shared between explores stay shared. Lineage is sorted.
  */
 const normaliseExplores = (
     explores: (Explore | ExploreError)[],
@@ -113,6 +128,9 @@ const normaliseExplores = (
                         replacements.set(item, stableId(`${location}.id`));
                     }
                     return [key, replacements.get(item)];
+                }
+                if (key === 'lineageGraph' && item !== null) {
+                    return [key, sortLineageGraph(item as LineageGraph)];
                 }
                 return [key, replaceIds(item, `${location}.${key}`)];
             }),
