@@ -1,6 +1,7 @@
 import { type S3, type S3Client } from '@aws-sdk/client-s3';
 import { HttpRequest } from '@smithy/protocol-http';
 import { GoogleAuth, type AuthClient } from 'google-auth-library';
+import { createHash } from 'node:crypto';
 
 /** The OAuth scope that grants read and write access to Google Cloud Storage objects. */
 const GCS_SCOPE = 'https://www.googleapis.com/auth/devstorage.read_write';
@@ -49,9 +50,17 @@ const HEADERS_GCS_READS_UNDER_OAUTH =
  */
 export function applyGcpOAuth(client: S3 | S3Client): void {
     client.middlewareStack.add(
-        (next) => async (args) => {
+        (next, context) => async (args) => {
             const { request } = args;
             if (!HttpRequest.isInstance(request)) return next(args);
+            if (context.commandName === 'DeleteObjectsCommand') {
+                // Batch deletion requires a checksum. We strip the SDK's
+                // x-amz-checksum-* headers below, so use the GCS-compatible
+                // Content-MD5 header over the exact serialized XML bytes.
+                request.headers['content-md5'] = createHash('md5')
+                    .update(request.body)
+                    .digest('base64');
+            }
             request.headers.authorization = `Bearer ${await getGcpAccessToken()}`;
             Object.keys(request.headers).forEach((name) => {
                 const lower = name.toLowerCase();

@@ -1,9 +1,11 @@
 import {
     CopyObjectCommand,
+    DeleteObjectsCommand,
     PutObjectCommand,
     S3Client,
 } from '@aws-sdk/client-s3';
 import { HttpResponse, type HttpRequest } from '@smithy/protocol-http';
+import { createHash } from 'node:crypto';
 import { applyGcpOAuth } from './gcpOAuth';
 import { buildS3ClientConfig } from './S3BaseClient';
 
@@ -50,6 +52,45 @@ describe('gcp_oauth request authentication', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         gcpMocks.getAccessToken.mockResolvedValue('test-access-token');
+    });
+
+    it('supplies Content-MD5 over the serialized batch-delete XML', async () => {
+        const { requests, handler } = createCapturingRequestHandler();
+        const client = new S3Client({
+            ...buildS3ClientConfig({
+                region: 'auto',
+                endpoint: 'https://storage.googleapis.com',
+                forcePathStyle: true,
+                authMode: 'gcp_oauth',
+            }),
+            requestHandler: handler,
+        });
+        applyGcpOAuth(client);
+
+        await client.send(
+            new DeleteObjectsCommand({
+                Bucket: 'a-bucket',
+                Delete: {
+                    Objects: [
+                        { Key: 'events/a.jsonl.gz' },
+                        { Key: 'é<&>.jsonl.gz' },
+                    ],
+                    Quiet: true,
+                },
+            }),
+        );
+
+        expect(requests).toHaveLength(1);
+        const { headers, body } = requests[0];
+        expect(typeof body).toBe('string');
+        expect(body).toContain('é&lt;&amp;&gt;.jsonl.gz');
+        expect(headers['content-md5']).toBe(
+            createHash('md5').update(body).digest('base64'),
+        );
+        expect(headers.authorization).toBe('Bearer test-access-token');
+        expect(
+            Object.keys(headers).filter((name) => name.startsWith('x-amz-')),
+        ).toEqual([]);
     });
 
     /**
