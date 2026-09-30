@@ -110,9 +110,58 @@ jobs:
   # ============================================================================
   # Stage 1: Build, lint, typecheck, and test
   # ============================================================================
+  scope-tours-artifacts:
+    name: Prepare Walkthrough Artifacts
+    runs-on: depot-ubuntu-24.04-4
+    outputs:
+      scope_tours_docs_sha: ${{ steps.docs.outputs.commit }}
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_API: https://cache.depot.dev
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          cache: true
+          install: false
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      - name: Checkout walkthrough docs
+        id: docs
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          repository: lightdash/mintlify-docs
+          path: mintlify-docs
+          token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - name: Build common for walkthrough generation
+        run: pnpm common-build
+      - name: Generate walkthrough artifacts
+        env:
+          LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+        run: |
+          pnpm scope-tours:generate
+          pnpm scope-tours:order
+      - name: Docs archive download tests
+        run: node --test scripts/scope-tours/download-docs.test.mjs
+      - name: Upload walkthrough artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: scope-tours-artifacts
+          path: |
+            packages/frontend/src/features/scopeTours/generated.ts
+            packages/frontend/src/features/scopeTours/curriculum.ts
+          if-no-files-found: error
+
   build-and-test:
     name: Build & Test
     runs-on: depot-ubuntu-24.04-8
+    needs: scope-tours-artifacts
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
@@ -130,6 +179,11 @@ jobs:
 
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      - name: Download walkthrough artifacts before build
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: scope-tours-artifacts
+          path: packages/frontend/src/features/scopeTours
       - name: Build
         run: pnpm build
       - name: Run quality checks in parallel
@@ -228,7 +282,7 @@ jobs:
         run: pnpm -F visualization test:pack
 
   # ============================================================================
-  # Stage 2: Deploy preview environment (only if stage 1 passes)
+  # Stage 2: Deploy preview environment using the prepared docs revision
   # ============================================================================
   files-changed:
     name: Select Tests to Run
@@ -401,7 +455,7 @@ jobs:
   preview:
     name: Deploy Preview
     runs-on: depot-ubuntu-24.04-4
-    needs: files-changed
+    needs: [files-changed, scope-tours-artifacts]
     if: needs.files-changed.outputs.preview == 'true'
     outputs:
       url: ${{ steps.deploy.outputs.url }}
@@ -436,7 +490,7 @@ jobs:
           # retry with a full migrate + seed (see okteto.preview.yaml)
           timeout: 40m
           file: okteto.preview.yaml
-          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
+          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }},SCOPE_TOURS_DOCS_SHA=${{ needs.scope-tours-artifacts.outputs.scope_tours_docs_sha }},MINTLIFY_DOCS_READ_TOKEN=${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
 
       - name: Collect failed preview diagnostics
         if: ${{ failure() && steps.deploy.outcome == 'failure' }}

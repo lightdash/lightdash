@@ -116,6 +116,8 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 
 **Playground teaching samples survive a bundle rebuild.** `scripts/playground-bundle/content.ts` and the shipped `packages/backend/assets/playground/content.json` differ. Walkthroughs rely on that seeded content, so the two must change together.
 
+**Generate walkthrough artifacts.** The generator threw; the log names the file, selector or docs citation. PR CI does not require `generated.ts` or `curriculum.ts` to match the latest docs checkout because the release workflow owns those files. Coverage checks run against these freshly generated artifacts. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
+
 **Content coverage tests.** Tests for the coverage audit (`scripts/scope-tours/coverage.test.ts`). Same as the checker tests: yours only if you changed `scripts/scope-tours`.
 
 **Every curriculum permission has a walkthrough or explicit disposition.** Every permission a training copy grants must either have a walkthrough or be listed as Coming Soon or excluded. The JSON output names the problem:
@@ -123,8 +125,6 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 - `unclassified`: a permission with neither. This happens when you add a new scope to the project admin role (the trainee set derives from it) or delete the markers of an existing walkthrough. Add the scope to `COMING_SOON_SCOPES` in `packages/frontend/src/features/learn/comingSoon.ts`, or add an `excluded` entry with a reason and a `CS-` ticket to `SCOPE_DISPOSITIONS` in `scripts/scope-tours/coverage.ts`. Ask the Learn owners which one; a new permission is usually Coming Soon until it gets a walkthrough.
 - `staleDispositions`: a listed scope now has a walkthrough or no longer exists. Remove the entry.
 - `pending` or `related`: a listed gap that blocks a release. Ask the Learn owners.
-
-**Generate walkthrough artifacts.** The generator threw; the log names the file, selector or docs citation. PR CI does not require `generated.ts` or `curriculum.ts` to match the latest docs checkout because the release workflow owns those files. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
 
 **Generation checks.** `pnpm scope-tours:check` found a rule broken. It prints `file:line: error: message`; warnings do not fail the job.
 

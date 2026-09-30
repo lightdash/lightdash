@@ -66,7 +66,7 @@ module.exports = {
             '@semantic-release/exec',
             {
                 prepareCmd:
-                    'pnpm scope-tours:generate && pnpm scope-tours:order && pnpm scope-tours:check',
+                    'pnpm scope-tours:generate && pnpm scope-tours:order && pnpm scope-tours:check && pnpm scope-tours:release-check',
             },
         ],
 

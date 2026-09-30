@@ -47,6 +47,7 @@ jobs:
           pnpm scope-tours:generate
           pnpm scope-tours:order
           pnpm scope-tours:check
+          pnpm scope-tours:release-check
       - name: Build all packages
         run: pnpm build
 

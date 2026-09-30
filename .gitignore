@@ -4,6 +4,7 @@
 .git
 .local/
 .worktrees/
+/mintlify-docs/
 
 # Conductor workspace context
 /.context/

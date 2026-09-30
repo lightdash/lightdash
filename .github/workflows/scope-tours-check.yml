@@ -47,16 +47,16 @@ jobs:
               run: pnpm exec tsx scripts/scope-tours/scope-tours.test.ts
             - name: Playground teaching samples survive a bundle rebuild
               run: pnpm test:playground-content
-            - name: Content coverage tests
-              run: pnpm scope-tours:coverage:test
-            - name: Every curriculum permission has a walkthrough or explicit disposition
-              run: pnpm scope-tours:release-check
             - name: Generate walkthrough artifacts
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
               run: |
                   pnpm scope-tours:generate
                   pnpm scope-tours:order
+            - name: Content coverage tests
+              run: pnpm scope-tours:coverage:test
+            - name: Every curriculum permission has a walkthrough or explicit disposition
+              run: pnpm scope-tours:release-check
             - name: Generation checks
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
