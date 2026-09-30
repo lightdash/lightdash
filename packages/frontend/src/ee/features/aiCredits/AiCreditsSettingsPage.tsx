@@ -98,7 +98,7 @@ const AllowanceUsedBanner: FC<{ usage: AiCreditUsageSummary }> = ({
     );
     if (!isAllowanceUsed) return null;
     return (
-        <Callout variant="info" title="You've used this period's allowance">
+        <Callout variant="neutral" title="You've used this period's allowance">
             AI keeps working as usual, and we&apos;ll reach out to talk about
             your plan. Your allowance resets on{' '}
             {formatDate(usage.period.periodEnd)}.
