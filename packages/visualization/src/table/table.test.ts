@@ -15,7 +15,7 @@ import {
     getConditionalFormattingMinMaxMap,
     resolveTableChartConfig,
 } from './config';
-import { buildTableModel } from './model';
+import { buildTableModel, getUniqueColumnOrder } from './model';
 
 const dimension = (name: string): Dimension => ({
     name,
@@ -209,21 +209,15 @@ describe('buildTableModel', () => {
         expect(model.columns[2].total).toEqual({ kind: 'loading' });
     });
 
-    test('dedupes the column order and reports the duplicate', () => {
-        const duplicates: string[][] = [];
+    test('dedupes the column order', () => {
+        const repeated = [...columnOrder, 'orders_status'];
         const model = buildTableModel({
             ...columnsInput,
-            columnOrder: [...columnOrder, 'orders_status'],
-            onDuplicateColumns: (order, unique) => {
-                duplicates.push(order, unique);
-            },
+            columnOrder: repeated,
         });
 
         expect(model.columns.map((column) => column.id)).toEqual(columnOrder);
-        expect(duplicates).toEqual([
-            [...columnOrder, 'orders_status'],
-            columnOrder,
-        ]);
+        expect(getUniqueColumnOrder(repeated)).toEqual(columnOrder);
     });
 
     test('has no flat columns when pivoted', () => {

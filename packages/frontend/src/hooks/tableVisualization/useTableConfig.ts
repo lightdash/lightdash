@@ -33,7 +33,7 @@ import {
     shouldDefaultShowTableNames,
     shouldDisableMetricsAsRows,
     shouldDisableSubtotals,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';

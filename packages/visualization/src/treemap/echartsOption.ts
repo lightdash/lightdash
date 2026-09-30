@@ -24,13 +24,17 @@ const EchartsTreemapType = 'treemap';
  * and the package's `resolveTreemapChartConfig` result both fit it.
  */
 export type TreemapEchartsChartConfig = {
-    validConfig: Pick<TreemapChart, 'visibleMin' | 'leafDepth'>;
+    validConfig: Pick<
+        TreemapChart,
+        | 'visibleMin'
+        | 'leafDepth'
+        | 'startColor'
+        | 'endColor'
+        | 'startColorThreshold'
+        | 'endColorThreshold'
+    >;
     sizeMetricId: string | null;
     colorMetricId: string | null;
-    startColor?: string;
-    endColor?: string;
-    startColorThreshold?: number;
-    endColorThreshold?: number;
     groupFieldIds: (string | null)[];
     data: TreemapNode[];
 };
@@ -53,10 +57,9 @@ export const buildTreemapEchartsOption = ({
     itemsMap,
     colorPalette,
     parameters,
-    isTouchDevice,
-    minimal,
+    tooltipAppendToBody = true,
     resolvedTimezone,
-    isInDashboard,
+    animation = true,
     theme,
 }: TreemapEchartsOptionInput):
     | { eChartsOption: EChartsOption; treemapSeriesOption: TreemapSeriesOption }
@@ -94,20 +97,23 @@ export const buildTreemapEchartsOption = ({
         };
 
         const {
-            validConfig: { visibleMin, leafDepth },
+            validConfig: {
+                visibleMin,
+                leafDepth,
+                startColor,
+                endColor,
+                startColorThreshold,
+                endColorThreshold,
+            },
             sizeMetricId,
             colorMetricId,
-            startColor,
-            endColor,
-            startColorThreshold,
-            endColorThreshold,
             groupFieldIds,
             data,
         } = chartConfig;
 
         let levels = groupFieldIds?.map((fieldId, index) => ({
             itemStyle: {
-                borderColor: theme.gray[index % theme.gray.length],
+                borderColor: theme.neutral[index % theme.neutral.length],
                 borderRadius: 4,
             },
         }));
@@ -176,7 +182,7 @@ export const buildTreemapEchartsOption = ({
                         return formatTooltipHeader(name);
 
                     const segmentColor =
-                        typeof color === 'string' ? color : theme.gray[6];
+                        typeof color === 'string' ? color : theme.neutral[6];
                     const header = formatTooltipHeader(name);
                     const divider = getTooltipDivider();
                     const sizeMetricDisplay = getStyledMetricDisplay(
@@ -220,14 +226,12 @@ export const buildTreemapEchartsOption = ({
     const eChartsOption: EChartsOption | undefined = (() => {
         if (!chartConfig || !treemapSeriesOption) return undefined;
 
-        const animation = !(isInDashboard || minimal);
-
         return {
             textStyle: {
                 fontFamily: sanitizeEchartsFontFamily(theme.chartFont),
             },
             tooltip: {
-                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+                ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
                 trigger: 'item' as const, //Even though this is the default, tooltips will not show up if this is not set.
             },
             // The treemap series runs its own animation and ignores the root flag.

@@ -188,38 +188,32 @@ export const getFunnelChartData = ({
             }),
             maxValue: dataMaxValue,
         };
-    } else {
-        return {
-            data: allNumericFieldIds.reduce<FunnelSeriesDataPoint[]>(
-                (acc, id) => {
-                    if (resultsData.rows[0][id]) {
-                        const dataValue = Number(
-                            resultsData.rows[0][id].value.raw,
-                        );
-                        if (dataValue > dataMaxValue) {
-                            dataMaxValue = dataValue;
-                        }
-                        const item = itemsMap?.[id];
-                        const fieldName = item
-                            ? getItemLabelWithoutTableName(item)
-                            : id;
-                        acc.push({
-                            id,
-                            name: fieldName,
-                            value: dataValue,
-                            meta: {
-                                value: resultsData.rows[0][id].value,
-                                rows: resultsData.rows,
-                            },
-                        });
-                    }
-                    return acc;
-                },
-                [],
-            ),
-            maxValue: dataMaxValue,
-        };
     }
+    return {
+        data: allNumericFieldIds.reduce<FunnelSeriesDataPoint[]>((acc, id) => {
+            if (resultsData.rows[0][id]) {
+                const dataValue = Number(resultsData.rows[0][id].value.raw);
+                if (dataValue > dataMaxValue) {
+                    dataMaxValue = dataValue;
+                }
+                const item = itemsMap?.[id];
+                const fieldName = item
+                    ? getItemLabelWithoutTableName(item)
+                    : id;
+                acc.push({
+                    id,
+                    name: fieldName,
+                    value: dataValue,
+                    meta: {
+                        value: resultsData.rows[0][id].value,
+                        rows: resultsData.rows,
+                    },
+                });
+            }
+            return acc;
+        }, []),
+        maxValue: dataMaxValue,
+    };
 };
 
 /** The palette color of each step, by its position. */
@@ -296,12 +290,17 @@ export const resolveFunnelChartConfig = ({
 }: ResolveFunnelChartConfigArgs): ResolvedFunnelChartConfig => {
     const allNumericFieldIds = Object.keys(numericFields);
 
+    // Twice: a renamed table calculation is first followed to its new name,
+    // then dropped if that name is not in the pool, which is what the editor
+    // settles on over two renders.
+    const repair = (id: string | null) =>
+        resolveFunnelFieldId({
+            fieldId: id,
+            allNumericFieldIds,
+            tableCalculationsMetadata,
+        });
     const fieldId = resultsData
-        ? resolveFunnelFieldId({
-              fieldId: chartConfig?.fieldId ?? null,
-              allNumericFieldIds,
-              tableCalculationsMetadata,
-          })
+        ? repair(repair(chartConfig?.fieldId ?? null))
         : (chartConfig?.fieldId ?? null);
 
     const dataInput = chartConfig?.dataInput ?? DEFAULT_FUNNEL_DATA_INPUT;

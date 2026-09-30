@@ -16,7 +16,7 @@ import {
     type StackType,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { createSeriesColorResolver } from '@lightdash/visualization';
+import { createSeriesColorResolver } from '@lightdash/visualization/editor';
 import { useMantineTheme } from '@mantine/core';
 import type { Map as LeafletMap } from 'leaflet';
 import isEqual from 'lodash/isEqual';
@@ -230,7 +230,7 @@ const VisualizationProvider: FC<
      * when series change.
      */
     const nullColor = theme.colors.ldGray[6];
-    const { getSeriesColor, getGroupColor } = useMemo(
+    const { getSeriesColor } = useMemo(
         () =>
             createSeriesColorResolver({
                 colorPalette,
@@ -250,6 +250,19 @@ const VisualizationProvider: FC<
             computedSeries,
             isCalculateSeriesColorEnabled,
         ],
+    );
+    // Group colors do not depend on the chart config, so they keep their
+    // identity while it is edited.
+    const { getGroupColor } = useMemo(
+        () =>
+            createSeriesColorResolver({
+                colorPalette,
+                colorMappings,
+                nullColor,
+                chartConfig: undefined,
+                itemsMap,
+            }),
+        [colorPalette, colorMappings, nullColor, itemsMap],
     );
 
     // Detect if the device supports touch events

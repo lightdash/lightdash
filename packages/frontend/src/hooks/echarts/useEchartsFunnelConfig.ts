@@ -1,7 +1,7 @@
 import {
     buildFunnelEchartsOption,
     type FunnelSeriesDataPoint,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -49,12 +49,11 @@ const useEchartsFunnelConfig = (
                 itemsMap,
                 colorPalette,
                 parameters,
-                isTouchDevice,
-                minimal,
+                tooltipAppendToBody: !isTouchDevice,
+                animation: !(isInDashboard || minimal),
                 resolvedTimezone,
                 theme,
-                selectedLegends,
-                isInDashboard,
+                legendSelected: selectedLegends,
             }),
         [
             validFunnelConfig,

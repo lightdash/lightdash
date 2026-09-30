@@ -1,5 +1,5 @@
 import { ChartType } from '@lightdash/common';
-import { getSankeyFields } from '@lightdash/visualization';
+import { getSankeyFields } from '@lightdash/visualization/editor';
 import { useEffect, useMemo, type FC } from 'react';
 import useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
 import { type VisualizationConfigSankeyProps } from './types';

@@ -23,7 +23,7 @@ import {
     repairPieGroupFieldIds,
     repairPieMetricId,
     type PieChartDataPoint,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useDebouncedValue } from '@mantine/hooks';
 import isEmpty from 'lodash/isEmpty';
 import isEqual from 'lodash/isEqual';

@@ -76,6 +76,10 @@ export default defineConfig({
                           __dirname,
                           '../formula/src/index.ts',
                       ),
+                      '@lightdash/visualization/editor': path.resolve(
+                          __dirname,
+                          '../visualization/src/editor.ts',
+                      ),
                       '@lightdash/visualization': path.resolve(
                           __dirname,
                           '../visualization/src/index.ts',

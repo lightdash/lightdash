@@ -58,9 +58,8 @@ export const getTableFieldLabelDefault = (
 
     if (isField(item) && !showTableNames) {
         return item.label;
-    } else {
-        return getItemLabel(item);
     }
+    return getItemLabel(item);
 };
 
 export const getTableFieldLabelOverride = (

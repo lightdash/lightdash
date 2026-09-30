@@ -329,7 +329,7 @@ describe('buildTreemapEchartsOption', () => {
             itemsMap,
             colorPalette,
             theme: LIGHT_VISUALIZATION_THEME,
-            isInDashboard: false,
+            animation: true,
         });
 
         expect(result).toBeDefined();
@@ -348,7 +348,7 @@ describe('buildTreemapEchartsOption', () => {
         expect(treemapSeriesOption.levels).toHaveLength(2);
         expect(treemapSeriesOption.levels?.[1]).toEqual({
             itemStyle: {
-                borderColor: LIGHT_VISUALIZATION_THEME.gray[0],
+                borderColor: LIGHT_VISUALIZATION_THEME.neutral[0],
                 borderRadius: 4,
             },
         });
@@ -367,16 +367,19 @@ describe('buildTreemapEchartsOption', () => {
             treemapConfig: {
                 ...treemapConfig,
                 colorMetricId: 'orders_margin',
-                validConfig: { visibleMin: 100, leafDepth: 0 },
-                startColor: '#000000',
-                endColor: '#ffffff',
-                startColorThreshold: 0,
-                endColorThreshold: 5,
+                validConfig: {
+                    visibleMin: 100,
+                    leafDepth: 0,
+                    startColor: '#000000',
+                    endColor: '#ffffff',
+                    startColorThreshold: 0,
+                    endColorThreshold: 5,
+                },
             },
             itemsMap,
             colorPalette,
             theme: LIGHT_VISUALIZATION_THEME,
-            minimal: true,
+            animation: false,
         });
 
         expect(result?.treemapSeriesOption).toMatchObject({

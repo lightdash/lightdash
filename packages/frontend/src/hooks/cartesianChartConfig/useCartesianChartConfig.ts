@@ -36,10 +36,11 @@ import {
     isConditionalFormattingEligible,
     isStackTypeStacked,
     repairCartesianLayout,
+    toStackType,
     repairConditionalFormattings,
     type CartesianTypeOptions,
     type ReferenceLineField,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { InfiniteQueryResults } from '../useQueryResults';
@@ -636,25 +637,20 @@ const useCartesianChartConfig = ({
         (stack: boolean | StackType) => {
             // The y fields the stack applies to are read once, from the
             // layout at call time, as they always were.
-            const layoutWithYFields = { yField: dirtyLayout?.yField };
+            const yFields = dirtyLayout?.yField;
 
             setIsStacked(isStackTypeStacked(stack));
 
             // Store the stack type in the layout
-            setDirtyLayout(
-                (prev) =>
-                    applyCartesianStacking(
-                        { ...prev, ...layoutWithYFields },
-                        undefined,
-                        stack,
-                        pivotKeys,
-                    ).layout,
-            );
+            setDirtyLayout((prev) => ({
+                ...prev,
+                stack: toStackType(stack),
+            }));
 
             setDirtyEchartsConfig(
                 (prevState) =>
                     applyCartesianStacking(
-                        layoutWithYFields,
+                        { yField: yFields },
                         prevState,
                         stack,
                         pivotKeys,

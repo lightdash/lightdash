@@ -1,4 +1,4 @@
-import { buildTreemapEchartsOption } from '@lightdash/visualization';
+import { buildTreemapEchartsOption } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isTreemapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -31,10 +31,9 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 itemsMap,
                 colorPalette,
                 parameters,
-                isTouchDevice,
-                minimal,
+                tooltipAppendToBody: !isTouchDevice,
+                animation: !(isInDashboard || minimal),
                 resolvedTimezone,
-                isInDashboard,
                 theme,
             }),
         [

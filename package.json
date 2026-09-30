@@ -92,7 +92,7 @@
         "frontend-test": "pnpm -F frontend test",
         "frontend-typecheck": "pnpm -F frontend typecheck",
         "sdk-typecheck": "pnpm -F frontend typecheck-sdk",
-        "sdk-build": "pnpm formula:build && pnpm common-build && pnpm frontend-build-sdk",
+        "sdk-build": "pnpm formula:build && pnpm common-build && pnpm visualization-build && pnpm frontend-build-sdk",
         "e2e-open": "pnpm -F e2e cypress:open",
         "e2e-open-native": "pnpm -F e2e cypress:open:native",
         "e2e-run": "pnpm -F e2e cypress:run",
@@ -195,6 +195,10 @@
         ],
         "packages/common/src/**/*.json": [
             "pnpm -F common run formatter"
+        ],
+        "packages/visualization/src/**/*.ts": [
+            "pnpm -F visualization run linter --fix",
+            "pnpm -F visualization run formatter"
         ],
         "packages/e2e/cypress/**/*.ts": [
             "pnpm -F e2e run linter --fix",

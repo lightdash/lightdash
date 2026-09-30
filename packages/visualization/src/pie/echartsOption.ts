@@ -51,13 +51,12 @@ export const buildPieEchartsOption = ({
     pieChartConfig: chartConfig,
     itemsMap,
     getGroupColor,
-    minimal,
     parameters,
-    isTouchDevice,
+    tooltipAppendToBody = true,
     resolvedTimezone,
     theme,
     legendSelected: selectedLegends,
-    isInDashboard,
+    animation = true,
 }: PieEchartsOptionInput) => {
     const seriesData = (() => {
         if (!chartConfig) return undefined;
@@ -157,9 +156,8 @@ export const buildPieEchartsOption = ({
                                     return `{name|${params.name}: }{value|${meta.value.formatted}}`;
                                 } else if (showPercentage) {
                                     return `{name|${params.name}: }{value|${params.percent}%}`;
-                                } else {
-                                    return `{name|${params.name}}`;
                                 }
+                                return `{name|${params.name}}`;
                             }
 
                             // For inside labels, use plain formatting (no rich text)
@@ -289,10 +287,10 @@ export const buildPieEchartsOption = ({
             },
             tooltip: {
                 trigger: 'item',
-                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+                ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
             },
             series: [pieSeriesOption],
-            animation: !(isInDashboard || minimal),
+            animation,
         };
     })();
 

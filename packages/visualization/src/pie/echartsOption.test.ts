@@ -74,7 +74,7 @@ describe('buildPieEchartsOption', () => {
             itemsMap: PIE_ITEMS_MAP,
             getGroupColor,
             theme: LIGHT_VISUALIZATION_THEME,
-            minimal: true,
+            animation: false,
         });
 
         const data = slicesOf(option);
@@ -105,7 +105,7 @@ describe('buildPieEchartsOption', () => {
             getGroupColor,
             theme: LIGHT_VISUALIZATION_THEME,
             legendSelected: { pending: false },
-            isInDashboard: true,
+            animation: false,
         });
 
         const legend = option!.eChartsOption.legend as Record<string, unknown>;

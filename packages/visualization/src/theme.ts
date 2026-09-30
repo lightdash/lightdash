@@ -12,20 +12,20 @@ export type VisualizationTheme = {
     background: string;
     /** Default ink color. */
     foreground: string;
-    /** Neutral ramp, 0 lightest to 9 darkest (`ldGray` in the frontend theme). */
-    gray: readonly string[];
-    /** Contrast ramp used by gauges (`ldDark` in the frontend theme). */
-    dark: readonly string[];
-    /** The app chrome ramp in dark mode (`dark` in the frontend theme); gauge section borders. */
-    chromeDark: readonly string[];
-    /** Blue ramp used by gauge progress. */
-    blue: readonly string[];
+    /** Neutral ramp, 0 lightest to 9 darkest: axis lines, labels, borders (`ldGray` in the frontend theme). */
+    neutral: readonly string[];
+    /** Contrast ramp, 0 lightest to 9 darkest: gauge badges (`ldDark` in the frontend theme). */
+    contrast: readonly string[];
+    /** The app chrome ramp in dark mode (`dark` in the frontend theme): gauge section borders. */
+    chrome: readonly string[];
+    /** Accent ramp: gauge progress. */
+    accent: readonly string[];
     /** Font stack for chart text. */
     chartFont: string;
-    /** Extra small spacing in px; tooltip padding. */
-    spacingXs: number;
+    /** Horizontal padding of floating chart tooltips, in px. */
+    tooltipPadding: number;
     /** Box shadow of floating chart tooltips. */
-    shadowSubtle: string;
+    tooltipShadow: string;
 };
 
 const MANTINE_BLUE = [
@@ -58,7 +58,7 @@ export const LIGHT_VISUALIZATION_THEME: VisualizationTheme = {
     colorScheme: 'light',
     background: '#ffffff',
     foreground: '#18181b',
-    gray: [
+    neutral: [
         '#fafafa',
         '#f4f4f5',
         '#ebebee',
@@ -70,7 +70,7 @@ export const LIGHT_VISUALIZATION_THEME: VisualizationTheme = {
         '#3f3f46',
         '#18181b',
     ],
-    dark: [
+    contrast: [
         '#e4e4e7',
         '#d4d4d8',
         '#a1a1aa',
@@ -82,18 +82,18 @@ export const LIGHT_VISUALIZATION_THEME: VisualizationTheme = {
         '#232326',
         '#18181b',
     ],
-    blue: MANTINE_BLUE,
-    chromeDark: DARK_CHROME,
+    accent: MANTINE_BLUE,
+    chrome: DARK_CHROME,
     chartFont: 'Inter, sans-serif',
-    spacingXs: 10,
-    shadowSubtle: 'none',
+    tooltipPadding: 10,
+    tooltipShadow: 'none',
 };
 
 export const DARK_VISUALIZATION_THEME: VisualizationTheme = {
     colorScheme: 'dark',
     background: '#141417',
     foreground: '#ececee',
-    gray: [
+    neutral: [
         '#151517',
         '#232326',
         '#303034',
@@ -105,7 +105,7 @@ export const DARK_VISUALIZATION_THEME: VisualizationTheme = {
         '#d4d4d9',
         '#ececee',
     ],
-    dark: [
+    contrast: [
         '#151517',
         '#232326',
         '#303034',
@@ -117,9 +117,9 @@ export const DARK_VISUALIZATION_THEME: VisualizationTheme = {
         '#d4d4d9',
         '#ececee',
     ],
-    blue: MANTINE_BLUE,
-    chromeDark: DARK_CHROME,
+    accent: MANTINE_BLUE,
+    chrome: DARK_CHROME,
     chartFont: 'Inter, sans-serif',
-    spacingXs: 10,
-    shadowSubtle: 'none',
+    tooltipPadding: 10,
+    tooltipShadow: 'none',
 };

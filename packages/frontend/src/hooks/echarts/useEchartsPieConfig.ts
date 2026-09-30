@@ -1,7 +1,7 @@
 import {
     buildPieEchartsOption,
     type PieSeriesDataPoint,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -41,13 +41,12 @@ const useEchartsPieConfig = (
                 resultsData,
                 itemsMap,
                 getGroupColor,
-                minimal,
+                animation: !(isInDashboard || minimal),
                 parameters,
-                isTouchDevice,
+                tooltipAppendToBody: !isTouchDevice,
                 resolvedTimezone,
                 theme,
                 legendSelected: selectedLegends,
-                isInDashboard,
             }),
         [
             pieChartConfig,

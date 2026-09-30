@@ -1,4 +1,4 @@
-import { buildSankeyEchartsOption } from '@lightdash/visualization';
+import { buildSankeyEchartsOption } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isSankeyVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -37,11 +37,10 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
                 itemsMap: undefined,
                 colorPalette,
                 parameters,
-                isTouchDevice,
-                minimal,
+                tooltipAppendToBody: !isTouchDevice,
+                animation: !(isInDashboard || minimal),
                 resolvedTimezone,
                 theme,
-                isInDashboard,
             }),
         [
             validSankeyConfig,

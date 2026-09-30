@@ -308,7 +308,7 @@ describe('buildFunnelEchartsOption', () => {
                 showLegend: true,
                 legendPosition: FunnelChartLegendPosition.HORIZONTAL,
             }),
-            selectedLegends: { Visited: false },
+            legendSelected: { Visited: false },
         });
 
         expect(option).toBeDefined();
@@ -378,7 +378,7 @@ describe('buildFunnelEchartsOption', () => {
                 showLegend: true,
                 legendPosition: FunnelChartLegendPosition.VERTICAL,
             }),
-            isInDashboard: true,
+            animation: false,
         });
 
         const series = (option!.series as FunnelSeriesOption[])[0];

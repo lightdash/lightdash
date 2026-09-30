@@ -1,4 +1,4 @@
-import { buildGaugeEchartsOption } from '@lightdash/visualization';
+import { buildGaugeEchartsOption } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isGaugeVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -44,9 +44,8 @@ const useEchartsGaugeConfig = ({
                 itemsMap,
                 resultsData,
                 parameters,
-                minimal,
+                animation: !(isInDashboard || minimal),
                 resolvedTimezone,
-                isInDashboard,
                 theme,
                 tileFontSize,
                 detailsFontSize,

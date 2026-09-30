@@ -64,18 +64,17 @@ export const formatBigNumberValue = (
         // No compact override: honour the field's full format (legacy compact,
         // separator, round), matching the results table
         return formatItemValue(item, value, false, parameters, timezone);
-    } else {
-        const metricRound = isField(item) ? item.round : undefined;
-        return applyCustomFormat(
-            value,
-            getCustomFormatFromLegacy({
-                format: isField(item) ? item.format : undefined,
-                round: metricRound ?? 2,
-                compact: style,
-            }),
-            timezone,
-        );
     }
+    const metricRound = isField(item) ? item.round : undefined;
+    return applyCustomFormat(
+        value,
+        getCustomFormatFromLegacy({
+            format: isField(item) ? item.format : undefined,
+            round: metricRound ?? 2,
+            compact: style,
+        }),
+        timezone,
+    );
 };
 
 export const formatComparisonValue = (

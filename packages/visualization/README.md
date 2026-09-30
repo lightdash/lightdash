@@ -11,6 +11,38 @@ desktop app) draws exactly what the web app draws.
 
 ## Using it
 
+One call renders any saved chart:
+
+```ts
+import { renderChart, toResultRows } from '@lightdash/visualization';
+
+const rendered = renderChart({
+    chartConfig: savedChart.chartConfig,
+    pivotConfig: savedChart.pivotConfig,
+    columnOrder: savedChart.tableConfig.columnOrder,
+    results: { rows: toResultRows(rawRows, itemsMap), fields: itemsMap, metricQuery },
+    itemsMap,
+    colorPalette,
+});
+
+switch (rendered.kind) {
+    case 'echarts':   echarts.init(el).setOption(rendered.option); break;
+    case 'table':     rendered.model.columns; rendered.model.rows; break;
+    case 'bigNumber': rendered.model.value; rendered.model.comparison; break;
+    case 'custom':    rendered.spec; rendered.data.series; break;
+    case 'empty':     /* no rows, or no usable field */ break;
+    case 'unsupported': /* maps and data-app visualizations */ break;
+}
+```
+
+`renderChart` takes a `theme` (light by default), a `size` for gauges, shared
+`colorMappings` so the same group value keeps its color across a page, and
+the network-derived values a table or treemap needs: `totals`,
+`groupedSubtotals`, `pivotData`.
+
+The two steps behind it are available per chart type when a caller wants to
+keep the resolved config, for instance to edit it:
+
 ```ts
 import {
     buildCartesianEchartsOption,
@@ -61,6 +93,15 @@ Every chart type follows the same two steps: `resolve<Type>ChartConfig` then
 `build<Type>EchartsOption` (or `build<Type>Model` for the table and the big
 number). Anything that needs the network, such as table totals and treemap
 subtotals, is an input.
+
+## Entry points
+
+- `@lightdash/visualization`: the surface above. What a renderer needs and
+  nothing else.
+- `@lightdash/visualization/editor`: everything, including the pure helpers
+  the Lightdash explorer's editing hooks call between keystrokes (layout
+  repair, series expansion, eligibility checks, table column predicates).
+  The frontend imports this one.
 
 ## Layout
 

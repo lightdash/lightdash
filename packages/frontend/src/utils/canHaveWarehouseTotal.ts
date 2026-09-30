@@ -1,1 +1,1 @@
-export { canHaveWarehouseTotal } from '@lightdash/visualization';
+export { canHaveWarehouseTotal } from '@lightdash/visualization/editor';

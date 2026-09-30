@@ -7,7 +7,7 @@ import {
 import {
     getAvailableGaugeFieldIds,
     getEffectiveGaugeSelectedField,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useCallback, useMemo, useState } from 'react';
 
 /**

@@ -20,7 +20,7 @@ import {
     TREEMAP_DEFAULT_START_COLOR,
     TREEMAP_DEFAULT_VISIBLE_MIN,
     type TreemapNode,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAsyncCalculateSubtotals } from './useAsyncCalculateTotal';
 import { useProjectUuid } from './useProjectUuid';

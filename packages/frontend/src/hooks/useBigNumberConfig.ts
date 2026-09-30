@@ -10,7 +10,7 @@ import {
     buildBigNumberModel,
     getAvailableBigNumberFieldIds,
     resolveBigNumberSelectedField,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';
 

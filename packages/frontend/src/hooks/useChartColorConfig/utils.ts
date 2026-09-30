@@ -2,4 +2,4 @@ export {
     calculateFallbackSeriesColors,
     calculateSeriesLikeIdentifier,
     getDimensionValueColor,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';

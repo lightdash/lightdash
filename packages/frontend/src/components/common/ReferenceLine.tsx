@@ -1,1 +1,1 @@
-export { type ReferenceLineField } from '@lightdash/visualization';
+export { type ReferenceLineField } from '@lightdash/visualization/editor';

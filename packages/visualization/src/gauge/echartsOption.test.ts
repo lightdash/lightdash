@@ -150,10 +150,10 @@ describe('buildGaugeEchartsOption', () => {
         expect(mainSeries.data).toStrictEqual([{ value: 75, name: 'Revenue' }]);
         expect(mainSeries.progress?.itemStyle?.color).toBe('#00ff00');
         expect(mainSeries.axisLine?.lineStyle?.color).toStrictEqual([
-            [1, LIGHT_VISUALIZATION_THEME.gray[2]],
+            [1, LIGHT_VISUALIZATION_THEME.neutral[2]],
         ]);
         expect(mainSeries.detail?.rich?.percentage?.backgroundColor).toBe(
-            lightenColor(LIGHT_VISUALIZATION_THEME.gray[0], 0.5),
+            lightenColor(LIGHT_VISUALIZATION_THEME.neutral[0], 0.5),
         );
     });
 
@@ -184,17 +184,17 @@ describe('buildGaugeEchartsOption', () => {
 
     test('disables animation in a dashboard and uses the dark border', () => {
         const option = build({
-            isInDashboard: true,
+            animation: false,
             theme: DARK_VISUALIZATION_THEME,
         });
         expect(option?.animation).toBe(false);
         const [sectionSeries, mainSeries] =
             option?.series as GaugeSeriesOption[];
         expect(sectionSeries.progress?.itemStyle?.borderColor).toBe(
-            DARK_VISUALIZATION_THEME.chromeDark[6],
+            DARK_VISUALIZATION_THEME.chrome[6],
         );
         expect(mainSeries.detail?.rich?.percentage?.backgroundColor).toBe(
-            DARK_VISUALIZATION_THEME.dark[4],
+            DARK_VISUALIZATION_THEME.contrast[4],
         );
     });
 });

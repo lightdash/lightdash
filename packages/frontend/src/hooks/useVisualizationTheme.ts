@@ -1,4 +1,4 @@
-import { type VisualizationTheme } from '@lightdash/visualization';
+import { type VisualizationTheme } from '@lightdash/visualization/editor';
 import { px, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
 
@@ -15,13 +15,13 @@ export const useVisualizationTheme = (): VisualizationTheme => {
             colorScheme,
             background: theme.colors.background[0],
             foreground: theme.colors.foreground[0],
-            gray: theme.colors.ldGray,
-            dark: theme.colors.ldDark,
-            blue: theme.colors.blue,
-            chromeDark: theme.colors.dark,
+            neutral: theme.colors.ldGray,
+            contrast: theme.colors.ldDark,
+            accent: theme.colors.blue,
+            chrome: theme.colors.dark,
             chartFont: theme.other.chartFont,
-            spacingXs: Number(px(theme.spacing.xs)),
-            shadowSubtle: theme.shadows.subtle,
+            tooltipPadding: Number(px(theme.spacing.xs)),
+            tooltipShadow: theme.shadows.subtle,
         }),
         [theme, colorScheme],
     );

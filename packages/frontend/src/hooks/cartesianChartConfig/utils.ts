@@ -7,4 +7,4 @@ export {
     sortDimensions,
     type GetExpectedSeriesMapArgs,
     type SeriesGroup,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';

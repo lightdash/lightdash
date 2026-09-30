@@ -14,7 +14,7 @@ import {
     resolveSankeySourceFieldId,
     resolveSankeyTargetFieldId,
     type SankeySeriesDataPoint,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useEffect, useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';
 

@@ -1,6 +1,7 @@
 import { type ResultRow, type ResultValue } from '@lightdash/common';
 import {
     buildTableColumns,
+    getUniqueColumnOrder,
     findMatchingSubtotal as findMatchingSubtotalHeadless,
     getRowSubtotalValue,
     getSubtotalGroupKey,
@@ -8,7 +9,7 @@ import {
     getTableSubtotalCell,
     type TableColumnsInput,
     type TableModelColumn,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { Skeleton, Text } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
@@ -29,7 +30,7 @@ import { getFormattedValueCell } from '../useColumns';
 
 export { getRowSubtotalValue, getSubtotalValueFromGroup };
 
-type Args = Omit<TableColumnsInput, 'onDuplicateColumns'>;
+type Args = TableColumnsInput;
 
 export function getGroupingValuesAndSubtotalKey(
     info: Pick<CellContext<ResultRow, unknown>, 'row' | 'table'>,
@@ -142,21 +143,22 @@ const getDataAndColumns = (args: Args): Array<TableHeader | TableColumn> => {
     const { groupedSubtotals, subtotalsLoading, subtotalsError, parameters } =
         args;
 
-    const columns = buildTableColumns({
-        ...args,
-        onDuplicateColumns: (columnOrder, uniqueColumnOrder) => {
-            console.warn(
-                'Duplicate columns in columnOrder',
-                columnOrder,
-                uniqueColumnOrder,
-            );
-            captureException(new Error('Duplicate columns in columnOrder'), {
-                level: 'error',
-                tags: { errorType: 'duplicateColumns' },
-                extra: { columnOrder, uniqueColumnOrder },
-            });
-        },
-    });
+    const { columnOrder } = args;
+    const uniqueColumnOrder = getUniqueColumnOrder(columnOrder);
+    if (uniqueColumnOrder.length !== columnOrder.length) {
+        console.warn(
+            'Duplicate columns in columnOrder',
+            columnOrder,
+            uniqueColumnOrder,
+        );
+        captureException(new Error('Duplicate columns in columnOrder'), {
+            level: 'error',
+            tags: { errorType: 'duplicateColumns' },
+            extra: { columnOrder, uniqueColumnOrder },
+        });
+    }
+
+    const columns = buildTableColumns(args);
 
     return columns.map((modelColumn) => {
         const { id: itemId, item } = modelColumn;

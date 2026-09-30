@@ -3,7 +3,7 @@ import {
     CARTESIAN_HOVER_EMPHASIS,
     getAxisTypeFromField,
     type LegendValues,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -52,14 +52,13 @@ const useEchartsCartesianConfig = (
                 resultsData,
                 itemsMap,
                 getSeriesColor,
-                minimal,
+                animation: !(isInDashboard || minimal),
                 parameters,
-                isTouchDevice,
+                tooltipAppendToBody: !isTouchDevice,
                 colorPalette,
                 resolvedTimezone,
                 theme,
                 legendSelected: validCartesianConfigLegend,
-                isInDashboard,
                 chartWidth,
             }),
         [

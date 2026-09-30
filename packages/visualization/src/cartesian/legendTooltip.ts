@@ -7,16 +7,16 @@ export const LEGEND_INTERACTION_HINT =
 export const getLegendDoubleClickTooltip = (theme: VisualizationTheme) => ({
     show: true,
     backgroundColor: theme.background,
-    borderColor: theme.gray[3],
+    borderColor: theme.neutral[3],
     borderWidth: 0,
     borderRadius: 4,
     textStyle: {
-        color: theme.gray[7],
+        color: theme.neutral[7],
         fontSize: 12,
         fontWeight: 400,
     },
-    padding: [4, theme.spacingXs],
-    extraCssText: `box-shadow: ${theme.shadowSubtle};`,
+    padding: [4, theme.tooltipPadding],
+    extraCssText: `box-shadow: ${theme.tooltipShadow};`,
     formatter: () => LEGEND_INTERACTION_HINT,
 });
 

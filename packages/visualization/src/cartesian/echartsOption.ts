@@ -87,7 +87,6 @@ import {
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import {
-    format as echartsFormat,
     type DefaultLabelFormatterCallbackParams,
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
@@ -124,6 +123,15 @@ import {
 } from './timezoneShift';
 
 dayjs.extend(quarterOfYear);
+
+/** Escapes text for tooltip HTML; the same characters ECharts' own encoder escapes. */
+const encodeHtml = (text: string): string =>
+    text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 
 // SimpleChart owns series focus through a custom state. Native blur must stay
 // off because axis-pointer highlight/downplay actions repeatedly clear it.
@@ -183,9 +191,8 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
         return getDateGroupLabel(item) || getItemLabelWithoutTableName(item);
     } else if (key) {
         return friendlyName(key);
-    } else {
-        return '';
     }
+    return '';
 };
 
 const addPx = (pxValue: string, amount: number): string => {
@@ -343,8 +350,8 @@ export const getAxisDefaultMinValue = ({
     max: any;
 }) => {
     if (
-        isNaN(parseInt(min)) ||
-        isNaN(parseInt(max)) ||
+        isNaN(parseInt(min, 10)) ||
+        isNaN(parseInt(max, 10)) ||
         min instanceof Date ||
         max instanceof Date
     ) {
@@ -366,8 +373,8 @@ export const getAxisDefaultMaxValue = ({
     max: any;
 }) => {
     if (
-        isNaN(parseInt(min)) ||
-        isNaN(parseInt(max)) ||
+        isNaN(parseInt(min, 10)) ||
+        isNaN(parseInt(max, 10)) ||
         min instanceof Date ||
         max instanceof Date
     ) {
@@ -594,7 +601,7 @@ export const composeLegendConfig = (
             ? {
                   ...doubleClickTooltip,
                   formatter: (params: unknown) =>
-                      `<div style="font-weight: 500">${echartsFormat.encodeHTML(
+                      `<div style="font-weight: 500">${encodeHtml(
                           getLegendItemName(params),
                       )}</div>${LEGEND_INTERACTION_HINT}`,
               }
@@ -668,7 +675,7 @@ export const getMinAndMaxValues = (
 ): (string | number)[] => {
     if (!series || series.length === 0) return [];
 
-    let rawValues = [];
+    const rawValues = [];
     for (const s of series) {
         // Get the actual column names to look up (handles backend pivoting)
         const columnNames = getColumnNamesForField(s, pivotDetails);
@@ -770,7 +777,7 @@ const getMinAndMaxReferenceLines = (
                                 const axisValue =
                                     axis === 'yAxis' ? data.yAxis : data.xAxis;
                                 if (axisValue === undefined) return acc;
-                                const value = parseInt(axisValue);
+                                const value = parseInt(axisValue, 10);
                                 if (isNaN(value)) return acc;
                                 return [...acc, value];
                             } catch (e) {
@@ -813,7 +820,7 @@ const getMinAndMaxReferenceLines = (
                                 const axisValue =
                                     axis === 'yAxis' ? data.yAxis : data.xAxis;
                                 if (axisValue === undefined) return acc;
-                                const value = parseInt(axisValue);
+                                const value = parseInt(axisValue, 10);
                                 if (isNaN(value)) return acc;
                                 return [...acc, value];
                             } catch (e) {
@@ -943,24 +950,21 @@ const seriesValueFormatter = (
             parameters,
             resolvedTimezone,
         );
-    } else {
-        const defaultFormatOptions = getCustomFormatFromLegacy({
-            format: item.format,
-            round: item.round,
-            compact: item.compact,
-        });
-        // Check for formatOptions from both metrics and dimension overrides
-        // Dimension overrides add formatOptions to the item via the itemsMap
-        const formatOptions =
-            isMetric(item) || isDimension(item)
-                ? item.formatOptions
-                : undefined;
-        return applyCustomFormat(
-            value,
-            formatOptions || defaultFormatOptions,
-            resolvedTimezone,
-        );
     }
+    const defaultFormatOptions = getCustomFormatFromLegacy({
+        format: item.format,
+        round: item.round,
+        compact: item.compact,
+    });
+    // Check for formatOptions from both metrics and dimension overrides
+    // Dimension overrides add formatOptions to the item via the itemsMap
+    const formatOptions =
+        isMetric(item) || isDimension(item) ? item.formatOptions : undefined;
+    return applyCustomFormat(
+        value,
+        formatOptions || defaultFormatOptions,
+        resolvedTimezone,
+    );
 };
 
 /**
@@ -2338,18 +2342,17 @@ const getEchartAxes = ({
           LEFT_VALUE_LABEL_GUTTER_PADDING
         : 0;
 
-    const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
-        {},
-        bottomAxisFormatterConfig,
-        hasBottomBarValueLabels &&
-            typeof bottomAxisFormatterConfig.nameGap === 'number'
+    const bottomAxisConfigWithStyle: Record<string, unknown> = {
+        ...bottomAxisFormatterConfig,
+        ...(hasBottomBarValueLabels &&
+        typeof bottomAxisFormatterConfig.nameGap === 'number'
             ? {
                   nameGap:
                       bottomAxisFormatterConfig.nameGap +
                       BOTTOM_VALUE_LABEL_NAME_GAP_EXTRA,
               }
-            : {},
-        showXAxis && bottomAxisFormatterConfig.axisLabel
+            : {}),
+        ...(showXAxis && bottomAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
@@ -2359,8 +2362,8 @@ const getEchartAxes = ({
                           : {}),
                   },
               }
-            : {},
-    );
+            : {}),
+    };
 
     const topAxisFormatterConfig = getAxisFormatterConfig({
         axisItem: topAxisXField,
@@ -2371,18 +2374,17 @@ const getEchartAxes = ({
         timezone: resolvedTimezone,
         displayTimezone,
     });
-    const topAxisConfigWithStyle: Record<string, unknown> = Object.assign(
-        {},
-        topAxisFormatterConfig,
-        showXAxis && topAxisFormatterConfig.axisLabel
+    const topAxisConfigWithStyle: Record<string, unknown> = {
+        ...topAxisFormatterConfig,
+        ...(showXAxis && topAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
                       ...topAxisFormatterConfig.axisLabel,
                   },
               }
-            : {},
-    );
+            : {}),
+    };
 
     const leftAxisFormatterConfig = getAxisFormatterConfig({
         axisItem: leftAxisYField,
@@ -2392,17 +2394,16 @@ const getEchartAxes = ({
         timezone: resolvedTimezone,
         displayTimezone,
     });
-    const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
-        {},
-        leftAxisFormatterConfig,
-        hasLeftBarValueLabels &&
-            typeof leftAxisFormatterConfig.nameGap === 'number'
+    const leftAxisConfigWithStyle: Record<string, unknown> = {
+        ...leftAxisFormatterConfig,
+        ...(hasLeftBarValueLabels &&
+        typeof leftAxisFormatterConfig.nameGap === 'number'
             ? {
                   nameGap:
                       leftAxisFormatterConfig.nameGap + leftValueLabelGutter,
               }
-            : {},
-        showLeftYAxis && leftAxisFormatterConfig.axisLabel
+            : {}),
+        ...(showLeftYAxis && leftAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
@@ -2416,8 +2417,8 @@ const getEchartAxes = ({
                           : {}),
                   },
               }
-            : {},
-    );
+            : {}),
+    };
 
     const rightAxisFormatterConfig = getAxisFormatterConfig({
         axisItem: rightAxisYField,
@@ -2427,18 +2428,17 @@ const getEchartAxes = ({
         timezone: resolvedTimezone,
         displayTimezone,
     });
-    const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
-        {},
-        rightAxisFormatterConfig,
-        showRightYAxis && rightAxisFormatterConfig.axisLabel
+    const rightAxisConfigWithStyle: Record<string, unknown> = {
+        ...rightAxisFormatterConfig,
+        ...(showRightYAxis && rightAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
                       ...rightAxisFormatterConfig.axisLabel,
                   },
               }
-            : {},
-    );
+            : {}),
+    };
 
     const bottomAxisOffset = {
         enabled:
@@ -2493,10 +2493,10 @@ const getEchartAxes = ({
                 // Baseline offset to ensure minimum value
                 const baselineOffset = 0.5;
 
-                let minOffset =
+                const minOffset =
                     ((bottomAxisOffset.minOffset ?? 0) / 100) * logRange +
                     baselineOffset;
-                let maxOffset =
+                const maxOffset =
                     ((bottomAxisOffset.maxOffset ?? 0) / 100) * logRange +
                     baselineOffset;
 
@@ -3384,14 +3384,13 @@ export const buildCartesianEchartsOption = ({
     resultsData,
     itemsMap,
     getSeriesColor,
-    minimal,
     parameters,
-    isTouchDevice = false,
+    tooltipAppendToBody = true,
     colorPalette,
     resolvedTimezone,
     theme,
     legendSelected: validCartesianConfigLegend,
-    isInDashboard,
+    animation = true,
     chartWidth = null,
 }: CartesianEchartsOptionInput) => {
     const { timeAxisField, axisTimezone, axisDisplayTimezone } =
@@ -3792,9 +3791,11 @@ export const buildCartesianEchartsOption = ({
                     ) {
                         const startA = parseInt(
                             (a[xFieldId] as string).split('-')[0],
+                            10,
                         );
                         const startB = parseInt(
                             (b[xFieldId] as string).split('-')[0],
+                            10,
                         );
                         return startA - startB;
                     }
@@ -4090,9 +4091,10 @@ export const buildCartesianEchartsOption = ({
             show: true,
             trigger: 'axis',
             enterable: true,
-            ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+            ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
             extraCssText: `overflow-y: auto; max-height:280px; ${
-                getTooltipStyle({ appendToBody: !isTouchDevice }).extraCssText
+                getTooltipStyle({ appendToBody: tooltipAppendToBody })
+                    .extraCssText
             }`,
             axisPointer: getAxisPointerStyle(hasLineAreaScatterSeries),
             formatter: buildCartesianTooltipFormatter({
@@ -4172,11 +4174,10 @@ export const buildCartesianEchartsOption = ({
         if (flipAxis) {
             // ~7px per character + 10px buffer
             return { right: maxCharCount * 7 + 10, top: 0 };
-        } else {
-            // Vertical bars: labels on top, need height-based padding
-            // Fixed ~25px for label height (font size + small margin)
-            return { right: 0, top: maxCharCount > 0 ? 25 : 0 };
         }
+        // Vertical bars: labels on top, need height-based padding
+        // Fixed ~25px for label height (font size + small margin)
+        return { right: 0, top: maxCharCount > 0 ? 25 : 0 };
     })();
 
     const currentGrid = (() => {
@@ -4483,7 +4484,7 @@ export const buildCartesianEchartsOption = ({
                     validCartesianConfigLegend,
                 ),
             ),
-            animation: !(isInDashboard || minimal),
+            animation,
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
                 id: 'lightdashResults',

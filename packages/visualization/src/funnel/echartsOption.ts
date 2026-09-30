@@ -76,9 +76,8 @@ export type FunnelEchartsOptionInput = Pick<
     | 'itemsMap'
     | 'parameters'
     | 'resolvedTimezone'
-    | 'minimal'
-    | 'isInDashboard'
-    | 'isTouchDevice'
+    | 'animation'
+    | 'tooltipAppendToBody'
 > & {
     /** The resolved chart config; see `resolveFunnelChartConfig`. */
     validFunnelConfig: FunnelChart | undefined;
@@ -93,7 +92,7 @@ export type FunnelEchartsOptionInput = Pick<
     colorPalette: string[];
     theme: VisualizationTheme;
     /** Legend entries the viewer toggled off, by step name. */
-    selectedLegends?: Record<string, boolean>;
+    legendSelected?: Record<string, boolean>;
 };
 
 /**
@@ -109,12 +108,11 @@ export const buildFunnelEchartsOption = ({
     itemsMap,
     colorPalette,
     parameters,
-    isTouchDevice,
-    minimal,
+    tooltipAppendToBody = true,
     resolvedTimezone,
     theme,
-    selectedLegends,
-    isInDashboard,
+    legendSelected,
+    animation = true,
 }: FunnelEchartsOptionInput): EChartsOption | undefined => {
     const chartConfig = validFunnelConfig;
 
@@ -263,7 +261,7 @@ export const buildFunnelEchartsOption = ({
                       top: 'top' as const,
                       align: 'auto' as const,
                   }),
-            selected: selectedLegends,
+            selected: legendSelected,
         };
 
         return {
@@ -282,11 +280,11 @@ export const buildFunnelEchartsOption = ({
                 fontFamily: sanitizeEchartsFontFamily(theme.chartFont),
             },
             tooltip: {
-                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+                ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
                 trigger: 'item' as const,
             },
             series: [funnelSeriesOptions],
-            animation: !(isInDashboard || minimal),
+            animation,
         };
 
         return {

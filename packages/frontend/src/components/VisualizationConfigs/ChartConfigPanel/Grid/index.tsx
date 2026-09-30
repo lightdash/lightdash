@@ -1,4 +1,4 @@
-import { defaultGrid } from '@lightdash/visualization';
+import { defaultGrid } from '@lightdash/visualization/editor';
 import { type FC } from 'react';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';

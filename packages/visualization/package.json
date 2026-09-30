@@ -19,8 +19,15 @@
             "types": "./dist/esm/index.d.ts",
             "module": "./dist/esm/index.js",
             "require": "./dist/cjs/index.js",
-            "import": "./dist/cjs/index.js",
+            "import": "./dist/esm/index.js",
             "default": "./dist/cjs/index.js"
+        },
+        "./editor": {
+            "types": "./dist/esm/editor.d.ts",
+            "module": "./dist/esm/editor.js",
+            "require": "./dist/cjs/editor.js",
+            "import": "./dist/esm/editor.js",
+            "default": "./dist/cjs/editor.js"
         },
         "./src": "./src/index.ts",
         "./src/*": [
@@ -32,8 +39,10 @@
     "scripts": {
         "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
         "build": "tsc --build ./tsconfig.build.json",
+        "postbuild": "node ./scripts/markEsmOutput.mjs",
         "typecheck": "tsc --project tsconfig.json --noEmit --composite false",
         "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+        "formatter": "oxfmt",
         "lint": "pnpm run linter ./src",
         "fix-lint": "pnpm run linter ./src --fix",
         "format": "oxfmt ./src --check",

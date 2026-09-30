@@ -116,8 +116,8 @@ describe('buildSankeyEchartsOption', () => {
     });
 
     test('disables animation in a dashboard or a minimal render', () => {
-        expect(build({ isInDashboard: true })!.animation).toBe(false);
-        expect(build({ minimal: true })!.animation).toBe(false);
+        expect(build({ animation: false })!.animation).toBe(false);
+        expect(build({ animation: false })!.animation).toBe(false);
     });
 
     test('formats link tooltips with the node labels and the metric value', () => {

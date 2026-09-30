@@ -183,7 +183,7 @@ export const applyReferenceLines = (
     },
 ): Series[] => {
     // Track which reference lines have been applied to visible series
-    let appliedReferenceLines: string[] = [];
+    const appliedReferenceLines: string[] = [];
     const uniqueReferenceLines = dedupeReferenceLines(referenceLines).map(
         (referenceLine) => {
             const fieldId = resolveReferenceLineFieldId(
@@ -926,6 +926,12 @@ export const resolveCartesianChartConfig = ({
         eChartsConfig?.series,
     );
     const columnLimit = initialChartConfig?.columnLimit;
+    // The editor reads the reference lines off the saved series and the
+    // saved axis orientation, before any type or stacking override applies.
+    const referenceLines = getReferenceLinesFromSeries(
+        eChartsConfig?.series,
+        layout?.flipAxes,
+    );
 
     if (cartesianType !== undefined) {
         ({ layout, eChartsConfig } = applyCartesianType(
@@ -935,6 +941,23 @@ export const resolveCartesianChartConfig = ({
         ));
     }
 
+    const { availableFields, availableDimensions, availableMetrics } =
+        getAvailableCartesianFields({
+            metricQuery: resultsData?.metricQuery,
+            itemsMap,
+            columnOrder,
+        });
+    layout = repairCartesianLayout({
+        layout,
+        availableFields,
+        availableDimensions,
+        availableMetrics,
+        tableCalculationsMetadata,
+        pendingFieldIds: getPendingFieldIds(unsavedMetricQuery),
+    });
+
+    // Stacking follows the repaired y fields, as the editor re-applies it
+    // whenever the layout's y fields change.
     // If the xField is a table calculation and its type is a number, do not stack
     const xTableCalculation = resultsData?.metricQuery?.tableCalculations?.find(
         (tc) => tc.name === layout?.xField,
@@ -954,26 +977,6 @@ export const resolveCartesianChartConfig = ({
             pivotKeys,
         ));
     }
-
-    const { availableFields, availableDimensions, availableMetrics } =
-        getAvailableCartesianFields({
-            metricQuery: resultsData?.metricQuery,
-            itemsMap,
-            columnOrder,
-        });
-    layout = repairCartesianLayout({
-        layout,
-        availableFields,
-        availableDimensions,
-        availableMetrics,
-        tableCalculationsMetadata,
-        pendingFieldIds: getPendingFieldIds(unsavedMetricQuery),
-    });
-
-    const referenceLines = getReferenceLinesFromSeries(
-        eChartsConfig?.series,
-        layout?.flipAxes,
-    );
 
     if (
         isCompleteLayout(layout) &&

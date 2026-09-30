@@ -389,7 +389,8 @@ export const sortDimensions = (
     switch (dateDimensions.length) {
         case 0:
             return dimensionIds; // No dates, we return the same order
-        case 1: // Only 1 date, we return this date first
+        case 1: {
+            // Only 1 date, we return this date first
             const dateDimensionId = getItemId(dateDimensions[0]);
             return [
                 dateDimensionId,
@@ -397,7 +398,8 @@ export const sortDimensions = (
                     (dimensionId) => dimensionId !== dateDimensionId,
                 ),
             ];
-        default:
+        }
+        default: {
             // 2 or more dates, we return first the date further left in the results table
             const sortedDateDimensions = dateDimensions.sort(
                 (a, b) =>
@@ -412,5 +414,6 @@ export const sortDimensions = (
                         !sortedDateDimensionIds.includes(dimensionId),
                 ),
             ];
+        }
     }
 };

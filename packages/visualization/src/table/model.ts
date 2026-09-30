@@ -82,8 +82,6 @@ export type TableColumnsInput = {
     subtotalsLoading?: boolean;
     subtotalsError?: unknown;
     parameters?: ParametersValuesMap;
-    /** Called when `columnOrder` repeats a field; the frontend reports it. */
-    onDuplicateColumns?: (columnOrder: string[], unique: string[]) => void;
 };
 
 export type TableModelInput = TableColumnsInput & {
@@ -220,6 +218,11 @@ export const getTableSubtotalCell = ({
 };
 
 /** The ordered, deduplicated columns of a flat (non-pivoted) table. */
+/** The column order with repeated fields dropped; a repeat is a saved-chart defect worth reporting. */
+export const getUniqueColumnOrder = (columnOrder: string[]): string[] => [
+    ...new Set(columnOrder),
+];
+
 export const buildTableColumns = ({
     itemsMap,
     selectedItemIds,
@@ -235,14 +238,9 @@ export const buildTableColumns = ({
     isMergedResult,
     mergeColumnTotals = {},
     parameters,
-    onDuplicateColumns,
 }: TableColumnsInput): TableModelColumn[] => {
     // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
-    const uniqueColumnOrder = [...new Set(columnOrder)];
-
-    if (uniqueColumnOrder.length !== columnOrder.length) {
-        onDuplicateColumns?.(columnOrder, uniqueColumnOrder);
-    }
+    const uniqueColumnOrder = getUniqueColumnOrder(columnOrder);
 
     return uniqueColumnOrder.reduce<TableModelColumn[]>((acc, itemId) => {
         const item = itemsMap[itemId] as (typeof itemsMap)[number] | undefined;

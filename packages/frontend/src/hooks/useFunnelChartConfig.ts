@@ -18,7 +18,7 @@ import {
     getFunnelSelectedField,
     resolveFunnelFieldId,
     type FunnelSeriesDataPoint,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';

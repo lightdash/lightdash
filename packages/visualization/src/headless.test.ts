@@ -107,7 +107,7 @@ describe('headless cartesian render', () => {
         const { getSeriesColor } = createSeriesColorResolver({
             colorPalette,
             colorMappings: createColorMappings(),
-            nullColor: LIGHT_VISUALIZATION_THEME.gray[6],
+            nullColor: LIGHT_VISUALIZATION_THEME.neutral[6],
             chartConfig: {
                 type: ChartType.CARTESIAN,
                 config: validCartesianConfig,

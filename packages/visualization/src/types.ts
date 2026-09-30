@@ -43,14 +43,12 @@ export type VisualizationContextInput = {
     itemsMap: ItemsMap | undefined;
     parameters?: ParametersValuesMap;
     resolvedTimezone?: string;
-    /** Renders without animation and interaction hints (exports, screenshots). */
-    minimal?: boolean;
-    /** Charts inside a dashboard animate nothing. */
-    isInDashboard?: boolean;
+    /** Animate series on first draw; off for dashboards, exports and screenshots. */
+    animation?: boolean;
     /**
-     * Touch devices keep tooltips inside the chart container: appending them
-     * to the body breaks positioning while dragging to scroll.
+     * Float tooltips in the document body rather than inside the chart.
+     * Off on touch devices, where a body tooltip drifts while dragging to scroll.
      * @see https://github.com/apache/echarts/issues/12776
      */
-    isTouchDevice?: boolean;
+    tooltipAppendToBody?: boolean;
 };

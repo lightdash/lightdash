@@ -35,11 +35,10 @@ export const buildSankeyEchartsOption = ({
     numericFields,
     colorPalette,
     parameters,
-    isTouchDevice,
-    minimal,
+    tooltipAppendToBody = true,
     resolvedTimezone,
     theme,
-    isInDashboard,
+    animation = true,
 }: SankeyEchartsOptionInput): EChartsOption | undefined => {
     if (!validSankeyConfig || !data) return undefined;
 
@@ -122,7 +121,7 @@ export const buildSankeyEchartsOption = ({
             fontFamily: sanitizeEchartsFontFamily(theme.chartFont),
         },
         tooltip: {
-            ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+            ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
             trigger: 'item' as const,
             formatter: (params: any) => {
                 if (params.dataType === 'edge') {
@@ -156,6 +155,6 @@ export const buildSankeyEchartsOption = ({
             },
         },
         series: [sankeySeriesOption],
-        animation: !(isInDashboard || minimal),
+        animation,
     };
 };

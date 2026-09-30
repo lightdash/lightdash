@@ -140,9 +140,8 @@ export const buildGaugeEchartsOption = ({
     itemsMap,
     resultsData,
     parameters,
-    minimal,
     resolvedTimezone,
-    isInDashboard,
+    animation = true,
     theme,
     tileFontSize,
     detailsFontSize,
@@ -238,7 +237,7 @@ export const buildGaugeEchartsOption = ({
             foregroundColor: theme.foreground,
             numericValue,
             sections: sectionsWithResolvedValues,
-            primaryColor: theme.blue[6],
+            primaryColor: theme.accent[6],
             gaugeMax: effectiveMax,
         });
 
@@ -320,7 +319,7 @@ export const buildGaugeEchartsOption = ({
                 show: true,
                 lineStyle: {
                     width: lineSize,
-                    color: [[1, theme.gray[2]]],
+                    color: [[1, theme.neutral[2]]],
                 },
             },
             progress: {
@@ -333,7 +332,7 @@ export const buildGaugeEchartsOption = ({
             },
             axisLabel: {
                 show: showAxisLabels ?? false,
-                color: theme.gray[9],
+                color: theme.neutral[9],
                 fontSize: detailsFontSize / 4,
                 distance:
                     lineSize *
@@ -355,7 +354,7 @@ export const buildGaugeEchartsOption = ({
                 show: true,
                 offsetCenter: [0, '-25%'],
                 fontSize: tileFontSize,
-                color: theme.gray[9],
+                color: theme.neutral[9],
             },
             detail: {
                 valueAnimation: true,
@@ -403,7 +402,7 @@ export const buildGaugeEchartsOption = ({
                     percentageLabel: {
                         fontSize: tileFontSize * 0.8,
                         lineHeight: tileFontSize * 1.5,
-                        color: theme.gray[7],
+                        color: theme.neutral[7],
                         fontWeight: 500,
                     },
                     percentage: {
@@ -411,14 +410,14 @@ export const buildGaugeEchartsOption = ({
                         lineHeight: tileFontSize * 1.5,
                         color:
                             colorScheme === 'dark'
-                                ? theme.gray[9]
-                                : theme.gray[7],
+                                ? theme.neutral[9]
+                                : theme.neutral[7],
                         fontWeight: 500,
                         backgroundColor:
                             colorScheme === 'dark'
-                                ? theme.dark[4]
-                                : lightenColor(theme.gray[0], 0.5),
-                        borderColor: theme.gray[2],
+                                ? theme.contrast[4]
+                                : lightenColor(theme.neutral[0], 0.5),
+                        borderColor: theme.neutral[2],
                         borderWidth: 1,
                         borderRadius: 8,
                         padding: [4, 8],
@@ -452,7 +451,7 @@ export const buildGaugeEchartsOption = ({
                     color: 'transparent', // we only want the border
                     borderWidth: Math.max(lineSize * 0.06, 2),
                     borderColor:
-                        colorScheme === 'light' ? 'white' : theme.chromeDark[6],
+                        colorScheme === 'light' ? 'white' : theme.chrome[6],
                 },
             },
             data: [
@@ -473,7 +472,7 @@ export const buildGaugeEchartsOption = ({
                 fontFamily: sanitizeEchartsFontFamily(theme.chartFont),
             },
             series: gaugeSeries,
-            animation: !(isInDashboard || minimal),
+            animation,
         };
     })();
 

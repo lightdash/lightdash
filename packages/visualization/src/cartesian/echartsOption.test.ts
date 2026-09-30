@@ -2025,7 +2025,7 @@ describe('padDatasetForContinuousAxis ∘ transformToPercentageStacking', () => 
         ).transformedResults;
 
         // Cats must match xAxis.data in both orders.
-        for (let i = 0; i < range.length; i++) {
+        for (let i = 0; i < range.length; i += 1) {
             expect(padThenTransform[i][xField]).toBe(range[i]);
             expect(transformThenPad[i][xField]).toBe(range[i]);
         }
@@ -2033,7 +2033,7 @@ describe('padDatasetForContinuousAxis ∘ transformToPercentageStacking', () => 
         // Ratios for present rows must match. Gap-row values legitimately
         // differ between orders (undefined vs explicit 0%) — covered by the
         // gap-tolerance test in tooltipFormatter.test.ts.
-        for (let i = 0; i < range.length; i++) {
+        for (let i = 0; i < range.length; i += 1) {
             for (const y of yFields) {
                 expect(transformThenPad[i][y]).toBe(padThenTransform[i][y]);
             }

@@ -401,12 +401,17 @@ export const resolvePieChartConfig = ({
 
     let metricId = pieChartConfig?.metricId ?? null;
     if (!isLoading && allNumericMetricIds.length > 0) {
-        metricId = repairPieMetricId({
-            metricId,
-            allNumericMetricIds,
-            pendingMetricIds,
-            tableCalculationsMetadata,
-        });
+        // Twice: a renamed table calculation is first followed to its new
+        // name, then dropped if that name is not in the pool, which is what
+        // the editor settles on over two renders.
+        const repair = (id: string | null) =>
+            repairPieMetricId({
+                metricId: id,
+                allNumericMetricIds,
+                pendingMetricIds,
+                tableCalculationsMetadata,
+            });
+        metricId = repair(repair(metricId));
     }
 
     const isDonut = pieChartConfig?.isDonut ?? true;

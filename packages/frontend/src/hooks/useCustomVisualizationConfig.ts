@@ -3,7 +3,7 @@ import {
     buildCustomVisualizationData,
     parseCustomVisualizationSpec,
     serializeCustomVisualizationSpec,
-} from '@lightdash/visualization';
+} from '@lightdash/visualization/editor';
 import { useEffect, useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';
 

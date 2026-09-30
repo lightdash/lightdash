@@ -182,7 +182,7 @@ export const buildTreemapData = ({
                 : 0;
 
             // Assumes parent-child relationship is determined by the order of groupFieldIds
-            for (let i = 0; i < groupFieldIds.length; i++) {
+            for (let i = 0; i < groupFieldIds.length; i += 1) {
                 const dimensionValueRaw = String(
                     row[groupFieldIds[i]]?.value?.raw,
                 );
