@@ -32,6 +32,7 @@ const buildEnvironment = (projectEnvironment: Record<string, string> = {}) =>
         environmentVariableAllowlist: [],
         projectEnvironment,
         targetPath: '/tmp/dbt_target_test',
+        partialParse: false,
     });
 
 describe('getDbtProcessEnvironment', () => {
@@ -89,6 +90,7 @@ describe('getDbtProcessEnvironment', () => {
             ],
             projectEnvironment: {},
             targetPath: '/tmp/dbt_target_test',
+            partialParse: false,
         });
 
         expect(environment.UTILS_PII_SALT).toEqual('machine-owned-salt');
@@ -111,6 +113,7 @@ describe('getDbtProcessEnvironment', () => {
                 UTILS_PII_SALT: 'project-owned-salt',
             },
             targetPath: '/tmp/dbt_target_test',
+            partialParse: false,
         });
 
         expect(environment.UTILS_PII_SALT).toEqual('project-owned-salt');
@@ -119,11 +122,24 @@ describe('getDbtProcessEnvironment', () => {
     it('keeps the Lightdash controlled dbt variables', () => {
         const environment = buildEnvironment({
             DBT_TARGET_PATH: '/tmp/attacker',
+            DBT_PARTIAL_PARSE: 'true',
         });
 
         expect(environment.DBT_PARTIAL_PARSE).toEqual('false');
         expect(environment.DBT_SEND_ANONYMOUS_USAGE_STATS).toEqual('false');
         expect(environment.DBT_TARGET_PATH).toEqual('/tmp/dbt_target_test');
+    });
+
+    it('enables partial parsing only when Lightdash seeds the target directory', () => {
+        const environment = getDbtProcessEnvironment({
+            processEnvironment,
+            environmentVariableAllowlist: [],
+            projectEnvironment: { DBT_PARTIAL_PARSE: 'false' },
+            targetPath: '/tmp/dbt_target_test',
+            partialParse: true,
+        });
+
+        expect(environment.DBT_PARTIAL_PARSE).toEqual('true');
     });
 
     it('uses only the Lightdash-controlled git config when provided', () => {
@@ -135,6 +151,7 @@ describe('getDbtProcessEnvironment', () => {
                 GIT_TERMINAL_PROMPT: '1',
             },
             targetPath: '/tmp/dbt_target_test',
+            partialParse: false,
             gitConfigGlobalPath: '/tmp/lightdash-gitconfig',
         });
 

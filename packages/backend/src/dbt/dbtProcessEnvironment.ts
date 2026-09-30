@@ -85,6 +85,7 @@ type DbtProcessEnvironmentArgs = {
     environmentVariableAllowlist: string[];
     projectEnvironment: Record<string, string>;
     targetPath: string;
+    partialParse: boolean;
     gitConfigGlobalPath?: string;
 };
 
@@ -102,6 +103,7 @@ export const getDbtProcessEnvironment = ({
     environmentVariableAllowlist,
     projectEnvironment,
     targetPath,
+    partialParse,
     gitConfigGlobalPath,
 }: DbtProcessEnvironmentArgs): Record<string, string> => ({
     // Ambient cloud credentials sit below the project, because profiles.ts
@@ -117,7 +119,8 @@ export const getDbtProcessEnvironment = ({
     // proxy and CA settings decide where dbt deps fetches from, so a project
     // cannot redirect either.
     ...inheritKeys(processEnvironment, RUNTIME_ENVIRONMENT_VARIABLE_KEYS),
-    DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
+    // Off unless the compile seeds the target directory with a baseline. https://docs.getdbt.com/reference/parsing#partial-parsing
+    DBT_PARTIAL_PARSE: partialParse ? 'true' : 'false',
     DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
     DBT_TARGET_PATH: targetPath,
     ...(gitConfigGlobalPath

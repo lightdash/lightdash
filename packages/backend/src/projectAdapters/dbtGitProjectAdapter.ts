@@ -36,6 +36,7 @@ export type DbtGitProjectAdapterArgs = {
     analytics?: LightdashAnalytics;
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
+    partialParseBaselinePath: string | null;
 };
 
 export class DbtGitProjectAdapter
@@ -70,6 +71,7 @@ export class DbtGitProjectAdapter
         analytics,
         gitConfigGlobalPath,
         dbtDepsErrorHint,
+        partialParseBaselinePath,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
@@ -89,6 +91,7 @@ export class DbtGitProjectAdapter
             analytics,
             gitConfigGlobalPath,
             dbtDepsErrorHint,
+            partialParseBaselinePath,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;

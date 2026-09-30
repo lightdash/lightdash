@@ -94,6 +94,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -8766,6 +8767,7 @@ type ResolveCompileAdapterArgs = {
         warehouseCredentials: CreateWarehouseCredentials;
         cachedWarehouse: { warehouseCatalog: {}; warehouseTables: {} };
         dbtVersionOption: DbtVersionOptionLatest;
+        dbtPartialParse: boolean;
     };
     manifestFetchAdapters: ProjectAdapter[];
 };
@@ -8834,6 +8836,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         warehouseCredentials: warehouseClientMock.credentials,
         cachedWarehouse: { warehouseCatalog: {}, warehouseTables: {} },
         dbtVersionOption: DbtVersionOptionLatest.LATEST,
+        dbtPartialParse: false,
     };
     const baseArgs: ResolveCompileAdapterArgs = {
         projectUuid: 'project-uuid',
@@ -9113,6 +9116,61 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(stageManifest).toHaveBeenCalledOnce();
         expect(result.manifest).toBe(stageManifest.mock.calls[0][1]);
     });
+
+    it.each([
+        { dbtPartialParse: true, expected: 'source baseline' },
+        { dbtPartialParse: false, expected: null },
+    ])(
+        'passes each additional source its own partial parse baseline when enabled is $dbtPartialParse',
+        async ({ dbtPartialParse, expected }) => {
+            const projectService = getMockedProjectService(
+                lightdashConfigMock,
+            ) as unknown as ProjectServiceInternals;
+            const buildSourceAdapter = vi
+                .spyOn(projectService, 'buildSourceAdapter')
+                .mockResolvedValue(
+                    buildAdapterWithManifest(
+                        buildManifest([
+                            {
+                                uniqueId: 'model.pkg_b.customers',
+                                name: 'customers',
+                                packageName: 'pkg_b',
+                            },
+                        ]),
+                    ),
+                );
+
+            await projectService.buildMergedManifestAdapter({
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: {
+                    ...primary,
+                    dbtPartialParse,
+                    adapter: buildAdapterWithManifest(
+                        buildManifest([
+                            {
+                                uniqueId: 'model.pkg_a.orders',
+                                name: 'orders',
+                                packageName: 'pkg_a',
+                            },
+                        ]),
+                    ),
+                },
+                sources: [buildSource('source-b')],
+                manifestFetchAdapters: [],
+            });
+
+            expect(buildSourceAdapter).toHaveBeenCalledOnce();
+            expect(buildSourceAdapter.mock.calls[0][4]).toBe(
+                expected === null
+                    ? null
+                    : getDbtPartialParseBaselinePath({
+                          projectUuid: 'project-uuid',
+                          dbtSourceUuid: 'source-b-uuid',
+                      }),
+            );
+        },
+    );
 
     it('logs the git, dependency and manifest time of the primary and each source', async () => {
         const primaryManifest = buildManifest([
@@ -9502,6 +9560,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             expect.objectContaining({
                 warehouseCredentials: primary.warehouseCredentials,
             }),
+            null,
         );
     });
 
@@ -9516,6 +9575,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             { database: null, schema: 'source_schema' },
             'org-uuid',
             primary,
+            null,
         );
 
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(

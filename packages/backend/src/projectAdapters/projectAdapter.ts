@@ -33,6 +33,7 @@ export const projectAdapterFromConfig = async (
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     environmentVariableAllowlist: string[],
+    partialParseBaselinePath: string | null,
     analytics?: LightdashAnalytics,
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
     // Ignored by every other adapter type.
@@ -51,6 +52,7 @@ export const projectAdapterFromConfig = async (
     switch (config.type) {
         case DbtProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
+                partialParseBaselinePath,
                 analytics,
                 warehouseClient,
                 projectDir: config.project_dir || '/usr/app/dbt',
@@ -123,6 +125,7 @@ export const projectAdapterFromConfig = async (
                 });
             }
             return new DbtGithubProjectAdapter({
+                partialParseBaselinePath,
                 analytics,
                 warehouseClient,
                 githubPersonalAccessToken: githubToken,
@@ -145,6 +148,7 @@ export const projectAdapterFromConfig = async (
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
+                partialParseBaselinePath,
                 analytics,
                 warehouseClient,
                 gitlabPersonalAccessToken: config.personal_access_token,
@@ -175,6 +179,7 @@ export const projectAdapterFromConfig = async (
                 });
             }
             return new DbtBitBucketProjectAdapter({
+                partialParseBaselinePath,
                 analytics,
                 warehouseClient,
                 username: config.username,
@@ -194,6 +199,7 @@ export const projectAdapterFromConfig = async (
             });
         case DbtProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
+                partialParseBaselinePath,
                 analytics,
                 warehouseClient,
                 personalAccessToken: config.personal_access_token,

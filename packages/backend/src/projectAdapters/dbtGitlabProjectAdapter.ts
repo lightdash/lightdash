@@ -24,6 +24,7 @@ type DbtGitlabProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    partialParseBaselinePath: string | null;
 };
 
 export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
@@ -42,6 +43,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         selector,
         analytics,
+        partialParseBaselinePath,
     }: DbtGitlabProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://lightdash:${gitlabPersonalAccessToken}@${
             hostDomain || DEFAULT_GITLAB_HOST_DOMAIN
@@ -60,6 +62,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             dbtVersion,
             selector,
             analytics,
+            partialParseBaselinePath,
         });
     }
 }

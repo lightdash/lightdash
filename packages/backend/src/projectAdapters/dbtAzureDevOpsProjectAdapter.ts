@@ -24,10 +24,12 @@ type Args = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    partialParseBaselinePath: string | null;
 };
 
 export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
     constructor({
+        partialParseBaselinePath,
         analytics,
         warehouseClient,
         personalAccessToken,
@@ -47,6 +49,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         const remoteRepositoryUrl = `https://${personalAccessToken}@dev.azure.com/${organization}/${project}/_git/${repository}`;
         super({
             analytics,
+            partialParseBaselinePath,
             warehouseClient,
             gitBranch: branch,
             remoteRepositoryUrl,

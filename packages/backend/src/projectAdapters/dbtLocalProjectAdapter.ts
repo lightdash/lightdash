@@ -19,6 +19,7 @@ type DbtLocalProjectAdapterArgs = {
     analytics?: LightdashAnalytics;
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
+    partialParseBaselinePath: string | null;
 };
 
 export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
@@ -36,6 +37,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         selector,
         gitConfigGlobalPath,
         dbtDepsErrorHint,
+        partialParseBaselinePath,
     }: DbtLocalProjectAdapterArgs) {
         const dbtClient = new DbtCliClient({
             dbtProjectDirectory: projectDir,
@@ -48,6 +50,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             selector,
             gitConfigGlobalPath,
             dbtDepsErrorHint,
+            partialParseBaselinePath,
         });
         super(
             dbtClient,
