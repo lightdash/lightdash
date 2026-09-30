@@ -3371,12 +3371,12 @@ export type CartesianEchartsOptionInput = VisualizationContextInput & {
     chartWidth?: number | null;
 };
 
-/**
- * Builds the ECharts option for a cartesian chart (bar, line, area, scatter),
- * or undefined when there is nothing to draw: no fields, no rows, or no
- * complete config.
- */
-export const buildCartesianEchartsOption = ({
+export type CartesianChartDataInput = Omit<
+    CartesianEchartsOptionInput,
+    'legendSelected' | 'chartWidth'
+>;
+
+const buildCartesianChartBase = ({
     validCartesianConfig,
     tooltipHtmlTemplate: tooltipConfig,
     tooltipSort: tooltipSortConfig,
@@ -3389,10 +3389,8 @@ export const buildCartesianEchartsOption = ({
     colorPalette,
     resolvedTimezone,
     theme,
-    legendSelected: validCartesianConfigLegend,
     animation = true,
-    chartWidth = null,
-}: CartesianEchartsOptionInput) => {
+}: CartesianChartDataInput) => {
     const { timeAxisField, axisTimezone, axisDisplayTimezone } =
         resolveAxisTimezone({
             validCartesianConfig,
@@ -3830,127 +3828,199 @@ export const buildCartesianEchartsOption = ({
         }
     })();
 
-    const { xAxisSortedResults, xAxisSortedCategoryValues } = (() => {
-        if (!stackedSeriesWithColorAssignments?.length) {
-            return {
-                xAxisSortedResults: sortedResults,
-                xAxisSortedCategoryValues: undefined,
-            };
-        }
+    return {
+        validCartesianConfig,
+        tooltipConfig,
+        tooltipSortConfig,
+        pivotDimensions,
+        resultsData,
+        itemsMap,
+        parameters,
+        tooltipAppendToBody,
+        resolvedTimezone,
+        theme,
+        animation,
+        axisTimezone,
+        axisDisplayTimezone,
+        pivotValuesColumnsMap,
+        rows,
+        hiddenSeriesPivotRefs,
+        series,
+        axes,
+        timeAxisMode,
+        dynamicRadius,
+        stackedSeriesWithColorAssignments,
+        sortedResults,
+    };
+};
 
-        const axis = validCartesianConfig?.layout.flipAxes
-            ? axes.yAxis[0]
-            : axes.xAxis[0];
+type CartesianChartBase = ReturnType<typeof buildCartesianChartBase>;
 
-        const xFieldId = validCartesianConfig?.layout?.xField;
-        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
-
-        // When xField is EMPTY_X_AXIS (no x-axis dimension, bars are pivoted series),
-        // row-based sorting is meaningless (single row) and produces undefined category values.
-        // Series-level sorting for this case is handled separately in sortedSeriesForChart.
-        if (xFieldId === EMPTY_X_AXIS) {
-            return {
-                xAxisSortedResults: sortedResults,
-                xAxisSortedCategoryValues: undefined,
-            };
-        }
-
-        // Handle bar totals sorting
-        if (
-            xFieldId &&
-            axis?.type === 'category' &&
-            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
-        ) {
-            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
-                ? 1
-                : 0;
-
-            const stackTotals = getStackTotalRows(
-                sortedResults,
-                stackedSeriesWithColorAssignments,
-                validCartesianConfig?.layout.flipAxes,
-                validCartesianConfigLegend,
-            );
-
-            // Using entries since we cannot use a map here (cannot index with unknown)
-            // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
-            const stackTotalEntries: [unknown, number][] = Object.entries(
-                groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
-            ).reduce<[unknown, number][]>((acc, [key, totals]) => {
-                acc.push([
-                    key,
-                    totals.reduce((sum, total) => sum + total[2], 0),
-                ]);
-                return acc;
-            }, []);
-
-            // ! good candidate for deduplication, we loop over the result set in many places in this file - should mostly impact very large datasets
-            const sorted = sortedResults.slice().sort((a, b) => {
-                const totalA =
-                    stackTotalEntries.find(
-                        (entry) => entry[0] === a[xFieldId],
-                    )?.[1] ?? 0;
-
-                const totalB =
-                    stackTotalEntries.find(
-                        (entry) => entry[0] === b[xFieldId],
-                    )?.[1] ?? 0;
-
-                return totalA - totalB; // Asc/Desc will be taken care of by inverse config
-            });
-
-            // Extract sorted category values for ECharts axis data property
-            const categoryValues = Array.from(
-                new Set(
-                    sorted.map((row) =>
-                        EMPTY_X_AXIS in row ? undefined : row[xFieldId],
-                    ),
-                ),
-            );
-
-            return {
-                xAxisSortedResults: sorted,
-                xAxisSortedCategoryValues: categoryValues,
-            };
-        }
-
-        // Handle alphabetical category sorting
-        if (
-            xFieldId &&
-            axis?.type === 'category' &&
-            xAxisConfig?.sortType === XAxisSortType.CATEGORY
-        ) {
-            const sorted = [...sortedResults].sort((a, b) => {
-                const valueA = EMPTY_X_AXIS in a ? '' : a[xFieldId];
-                const valueB = EMPTY_X_AXIS in b ? '' : b[xFieldId];
-
-                const valA = String(valueA ?? '');
-                const valB = String(valueB ?? '');
-
-                return valA.localeCompare(valB);
-            });
-
-            // Extract sorted category values for ECharts axis data property
-            const categoryValues = Array.from(
-                new Set(
-                    sorted.map((row) =>
-                        EMPTY_X_AXIS in row ? undefined : row[xFieldId],
-                    ),
-                ),
-            );
-
-            return {
-                xAxisSortedResults: sorted,
-                xAxisSortedCategoryValues: categoryValues,
-            };
-        }
-
+/**
+ * Orders the rows along the category axis. Only the bar-totals sort reads the
+ * legend selection (hidden series don't count towards a bar's total), so
+ * `dependsOnLegend` tells the caller whether the order can be reused across
+ * legend toggles.
+ */
+const sortRowsByXAxis = (
+    {
+        validCartesianConfig,
+        axes,
+        stackedSeriesWithColorAssignments,
+        sortedResults,
+    }: CartesianChartBase,
+    validCartesianConfigLegend: LegendValues,
+) => {
+    if (!stackedSeriesWithColorAssignments?.length) {
         return {
             xAxisSortedResults: sortedResults,
             xAxisSortedCategoryValues: undefined,
+            dependsOnLegend: false,
         };
-    })();
+    }
 
+    const axis = validCartesianConfig?.layout.flipAxes
+        ? axes.yAxis[0]
+        : axes.xAxis[0];
+
+    const xFieldId = validCartesianConfig?.layout?.xField;
+    const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+
+    // When xField is EMPTY_X_AXIS (no x-axis dimension, bars are pivoted series),
+    // row-based sorting is meaningless (single row) and produces undefined category values.
+    // Series-level sorting for this case is handled separately in sortedSeriesForChart.
+    if (xFieldId === EMPTY_X_AXIS) {
+        return {
+            xAxisSortedResults: sortedResults,
+            xAxisSortedCategoryValues: undefined,
+            dependsOnLegend: false,
+        };
+    }
+
+    // Handle bar totals sorting
+    if (
+        xFieldId &&
+        axis?.type === 'category' &&
+        xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
+    ) {
+        const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
+            ? 1
+            : 0;
+
+        const stackTotals = getStackTotalRows(
+            sortedResults,
+            stackedSeriesWithColorAssignments,
+            validCartesianConfig?.layout.flipAxes,
+            validCartesianConfigLegend,
+        );
+
+        // Using entries since we cannot use a map here (cannot index with unknown)
+        // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
+        const stackTotalEntries: [unknown, number][] = Object.entries(
+            groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
+        ).reduce<[unknown, number][]>((acc, [key, totals]) => {
+            acc.push([key, totals.reduce((sum, total) => sum + total[2], 0)]);
+            return acc;
+        }, []);
+
+        // ! good candidate for deduplication, we loop over the result set in many places in this file - should mostly impact very large datasets
+        const sorted = sortedResults.slice().sort((a, b) => {
+            const totalA =
+                stackTotalEntries.find(
+                    (entry) => entry[0] === a[xFieldId],
+                )?.[1] ?? 0;
+
+            const totalB =
+                stackTotalEntries.find(
+                    (entry) => entry[0] === b[xFieldId],
+                )?.[1] ?? 0;
+
+            return totalA - totalB; // Asc/Desc will be taken care of by inverse config
+        });
+
+        // Extract sorted category values for ECharts axis data property
+        const categoryValues = Array.from(
+            new Set(
+                sorted.map((row) =>
+                    EMPTY_X_AXIS in row ? undefined : row[xFieldId],
+                ),
+            ),
+        );
+
+        return {
+            xAxisSortedResults: sorted,
+            xAxisSortedCategoryValues: categoryValues,
+            dependsOnLegend: true,
+        };
+    }
+
+    // Handle alphabetical category sorting
+    if (
+        xFieldId &&
+        axis?.type === 'category' &&
+        xAxisConfig?.sortType === XAxisSortType.CATEGORY
+    ) {
+        const sorted = [...sortedResults].sort((a, b) => {
+            const valueA = EMPTY_X_AXIS in a ? '' : a[xFieldId];
+            const valueB = EMPTY_X_AXIS in b ? '' : b[xFieldId];
+
+            const valA = String(valueA ?? '');
+            const valB = String(valueB ?? '');
+
+            return valA.localeCompare(valB);
+        });
+
+        // Extract sorted category values for ECharts axis data property
+        const categoryValues = Array.from(
+            new Set(
+                sorted.map((row) =>
+                    EMPTY_X_AXIS in row ? undefined : row[xFieldId],
+                ),
+            ),
+        );
+
+        return {
+            xAxisSortedResults: sorted,
+            xAxisSortedCategoryValues: categoryValues,
+            dependsOnLegend: false,
+        };
+    }
+
+    return {
+        xAxisSortedResults: sortedResults,
+        xAxisSortedCategoryValues: undefined,
+        dependsOnLegend: false,
+    };
+};
+
+/**
+ * The dataset and tooltip for one row order: continuous-axis padding, the
+ * 100%-stack transform and the tooltip formatter that reads those rows.
+ */
+const buildRenderedRows = (
+    {
+        validCartesianConfig,
+        axes,
+        stackedSeriesWithColorAssignments,
+        series,
+        itemsMap,
+        tooltipAppendToBody,
+        hiddenSeriesPivotRefs,
+        tooltipConfig,
+        tooltipSortConfig,
+        pivotValuesColumnsMap,
+        parameters,
+        axisTimezone,
+        axisDisplayTimezone,
+    }: CartesianChartBase,
+    {
+        xAxisSortedResults,
+        xAxisSortedCategoryValues,
+    }: Pick<
+        ReturnType<typeof sortRowsByXAxis>,
+        'xAxisSortedResults' | 'xAxisSortedCategoryValues'
+    >,
+) => {
     const paddedSortedResults = (() => {
         const continuousRange = axes.continuousDateRange;
         const dateFieldId = validCartesianConfig?.layout?.xField;
@@ -3995,6 +4065,104 @@ export const buildCartesianEchartsOption = ({
             originalValues: originalValuesMap,
         };
     })();
+
+    const tooltip: TooltipOption = (() => {
+        // Check if any series is line/area/scatter (use line pointer) vs bar (use shadow pointer)
+        const hasLineAreaScatterSeries = series.some(
+            (s) =>
+                s.type === CartesianSeriesType.LINE ||
+                s.type === CartesianSeriesType.AREA ||
+                s.type === CartesianSeriesType.SCATTER,
+        );
+
+        return {
+            show: true,
+            trigger: 'axis',
+            enterable: true,
+            ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
+            extraCssText: `overflow-y: auto; max-height:280px; ${
+                getTooltipStyle({ appendToBody: tooltipAppendToBody })
+                    .extraCssText
+            }`,
+            axisPointer: getAxisPointerStyle(hasLineAreaScatterSeries),
+            formatter: buildCartesianTooltipFormatter({
+                itemsMap,
+                stackValue: validCartesianConfig?.layout?.stack,
+                flipAxes: validCartesianConfig?.layout.flipAxes,
+                xFieldId: validCartesianConfig?.layout?.xField,
+                originalValues,
+                series,
+                hiddenSeriesPivotRefs,
+                tooltipHtmlTemplate: tooltipConfig,
+                tooltipSort: tooltipSortConfig,
+                pivotValuesColumnsMap,
+                parameters,
+                rows: dataToRender,
+                timezone: axisTimezone,
+                displayTimezone: axisDisplayTimezone,
+            }),
+        };
+    })();
+
+    return {
+        xAxisSortedResults,
+        xAxisSortedCategoryValues,
+        paddedSortedResults,
+        dataToRender,
+        tooltip,
+    };
+};
+
+/**
+ * Stage 1 of the cartesian option: series, axes, colors and the sorted
+ * dataset. Nothing here reads the legend selection or the chart width, so the
+ * app memoises it on its own and a resize or a legend toggle skips it.
+ */
+export const buildCartesianChartData = (input: CartesianChartDataInput) => {
+    const base = buildCartesianChartBase(input);
+    const order = sortRowsByXAxis(base, undefined);
+    return {
+        ...base,
+        // Reused by every legend selection unless the order reads the legend.
+        legendIndependentRows: order.dependsOnLegend
+            ? undefined
+            : buildRenderedRows(base, order),
+    };
+};
+
+export type CartesianChartData = ReturnType<typeof buildCartesianChartData>;
+
+/**
+ * Stage 2: everything that reads the legend selection. Hidden series drop
+ * out of bar totals, stack totals, rounded stack ends and the 100%-stack
+ * label padding.
+ */
+export const buildCartesianLegendState = (
+    data: CartesianChartData,
+    validCartesianConfigLegend: LegendValues,
+) => {
+    const {
+        validCartesianConfig,
+        pivotDimensions,
+        itemsMap,
+        resolvedTimezone,
+        series,
+        axes,
+        dynamicRadius,
+        stackedSeriesWithColorAssignments,
+    } = data;
+    const {
+        xAxisSortedResults,
+        xAxisSortedCategoryValues,
+        paddedSortedResults,
+        dataToRender,
+        tooltip,
+    } =
+        data.legendIndependentRows ??
+        buildRenderedRows(
+            data,
+            sortRowsByXAxis(data, validCartesianConfigLegend),
+        );
 
     // Decorate the stacked series off the same padded dataset: cats match
     // xAxis.data exactly, and stack totals read raw values instead of the
@@ -4076,44 +4244,6 @@ export const buildCartesianEchartsOption = ({
                 valueAxisMaxes,
             ),
         ];
-    })();
-
-    const tooltip: TooltipOption = (() => {
-        // Check if any series is line/area/scatter (use line pointer) vs bar (use shadow pointer)
-        const hasLineAreaScatterSeries = series.some(
-            (s) =>
-                s.type === CartesianSeriesType.LINE ||
-                s.type === CartesianSeriesType.AREA ||
-                s.type === CartesianSeriesType.SCATTER,
-        );
-
-        return {
-            show: true,
-            trigger: 'axis',
-            enterable: true,
-            ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
-            extraCssText: `overflow-y: auto; max-height:280px; ${
-                getTooltipStyle({ appendToBody: tooltipAppendToBody })
-                    .extraCssText
-            }`,
-            axisPointer: getAxisPointerStyle(hasLineAreaScatterSeries),
-            formatter: buildCartesianTooltipFormatter({
-                itemsMap,
-                stackValue: validCartesianConfig?.layout?.stack,
-                flipAxes: validCartesianConfig?.layout.flipAxes,
-                xFieldId: validCartesianConfig?.layout?.xField,
-                originalValues,
-                series,
-                hiddenSeriesPivotRefs,
-                tooltipHtmlTemplate: tooltipConfig,
-                tooltipSort: tooltipSortConfig,
-                pivotValuesColumnsMap,
-                parameters,
-                rows: dataToRender,
-                timezone: axisTimezone,
-                displayTimezone: axisDisplayTimezone,
-            }),
-        };
     })();
 
     // Calculate max stack label padding for 100% stacking grid
@@ -4314,45 +4444,6 @@ export const buildCartesianEchartsOption = ({
         };
     })();
 
-    const legendDoubleClickTooltip = getLegendDoubleClickTooltip(theme);
-
-    const legendConfigWithInstructionsTooltip = (() => {
-        // Use line icon only for line/area charts, otherwise use square with border radius
-        const hasOnlyLineCharts = series.every(
-            (s) =>
-                s.type === CartesianSeriesType.LINE ||
-                s.type === CartesianSeriesType.AREA,
-        );
-
-        const legendStyle = getLegendStyle(
-            hasOnlyLineCharts ? 'line' : 'square',
-        );
-
-        const legendAreaWidth =
-            validCartesianConfig?.eChartsConfig.legend?.placement ===
-            'outsideLeft'
-                ? currentGrid.left
-                : currentGrid.right;
-        const outsideLabelWidth = getOutsideLegendLabelWidth(
-            chartWidth,
-            legendAreaWidth,
-            legendStyle,
-        );
-
-        const mergedLegendConfig = mergeLegendSettings(
-            validCartesianConfig?.eChartsConfig.legend,
-            validCartesianConfigLegend,
-            series,
-            outsideLabelWidth,
-        );
-
-        return composeLegendConfig(
-            mergedLegendConfig,
-            legendStyle,
-            legendDoubleClickTooltip,
-        );
-    })();
-
     // When BAR_TOTALS or CATEGORY sorting is active, we need to explicitly set the category axis data
     // to preserve our sorted order, as ECharts would otherwise sort it differently
     const sortedAxes = (() => {
@@ -4446,6 +4537,84 @@ export const buildCartesianEchartsOption = ({
         return sorted;
     })();
 
+    return {
+        data,
+        legendSelected: validCartesianConfigLegend,
+        dataToRender,
+        tooltip,
+        currentGrid,
+        sortedAxes,
+        sortedSeriesForChart,
+    };
+};
+
+export type CartesianLegendState = ReturnType<typeof buildCartesianLegendState>;
+
+/**
+ * Stage 3: the legend component and the final option. The chart width only
+ * sizes outside-legend labels, so a resize re-runs this stage alone.
+ */
+export const buildCartesianEchartsOptionFromData = (
+    {
+        data,
+        legendSelected: validCartesianConfigLegend,
+        dataToRender,
+        tooltip,
+        currentGrid,
+        sortedAxes,
+        sortedSeriesForChart,
+    }: CartesianLegendState,
+    { chartWidth = null }: { chartWidth?: number | null } = {},
+) => {
+    const {
+        validCartesianConfig,
+        itemsMap,
+        theme,
+        animation,
+        series,
+        rows,
+        timeAxisMode,
+    } = data;
+
+    const legendDoubleClickTooltip = getLegendDoubleClickTooltip(theme);
+
+    const legendConfigWithInstructionsTooltip = (() => {
+        // Use line icon only for line/area charts, otherwise use square with border radius
+        const hasOnlyLineCharts = series.every(
+            (s) =>
+                s.type === CartesianSeriesType.LINE ||
+                s.type === CartesianSeriesType.AREA,
+        );
+
+        const legendStyle = getLegendStyle(
+            hasOnlyLineCharts ? 'line' : 'square',
+        );
+
+        const legendAreaWidth =
+            validCartesianConfig?.eChartsConfig.legend?.placement ===
+            'outsideLeft'
+                ? currentGrid.left
+                : currentGrid.right;
+        const outsideLabelWidth = getOutsideLegendLabelWidth(
+            chartWidth,
+            legendAreaWidth,
+            legendStyle,
+        );
+
+        const mergedLegendConfig = mergeLegendSettings(
+            validCartesianConfig?.eChartsConfig.legend,
+            validCartesianConfigLegend,
+            series,
+            outsideLabelWidth,
+        );
+
+        return composeLegendConfig(
+            mergedLegendConfig,
+            legendStyle,
+            legendDoubleClickTooltip,
+        );
+    })();
+
     const eChartsOptions = (() => {
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
@@ -4535,6 +4704,24 @@ export const buildCartesianEchartsOption = ({
 
     return eChartsOptions;
 };
+
+/**
+ * Builds the ECharts option for a cartesian chart (bar, line, area, scatter),
+ * or undefined when there is nothing to draw: no fields, no rows, or no
+ * complete config.
+ */
+export const buildCartesianEchartsOption = ({
+    legendSelected,
+    chartWidth,
+    ...input
+}: CartesianEchartsOptionInput) =>
+    buildCartesianEchartsOptionFromData(
+        buildCartesianLegendState(
+            buildCartesianChartData(input),
+            legendSelected,
+        ),
+        { chartWidth },
+    );
 
 export type CartesianEchartsOption = NonNullable<
     ReturnType<typeof buildCartesianEchartsOption>
