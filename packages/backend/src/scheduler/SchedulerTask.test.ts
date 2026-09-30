@@ -1018,6 +1018,7 @@ describe('PDF content export', () => {
         schedulerUuid: undefined,
         selectedTabs: ['tab-1'],
         parameters: { region: 'APAC' },
+        clearedParameters: ['status'],
     };
 
     const setup = (storageEnabled = true) => {
@@ -1050,7 +1051,10 @@ describe('PDF content export', () => {
             'export-job',
             false,
             undefined,
-            expect.objectContaining({ parameters: payload.parameters }),
+            expect.objectContaining({
+                parameters: payload.parameters,
+                clearedParameters: payload.clearedParameters,
+            }),
             undefined,
             undefined,
             PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,

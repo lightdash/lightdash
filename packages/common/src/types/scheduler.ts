@@ -968,6 +968,7 @@ export type ExportContentFormat =
     | SchedulerFormat.XLSX;
 
 export type ExportContentPayload = TraceTaskBase & {
+    clearedParameters?: string[];
     resourceType: SchedulerResourceType.DASHBOARD | SchedulerResourceType.CHART;
     resourceUuid: string;
     format: ExportContentFormat;
@@ -983,6 +984,7 @@ export type ExportContentPayload = TraceTaskBase & {
 };
 
 export type ExportContentRequest = {
+    clearedParameters?: string[];
     format: ExportContentFormat;
     options?: SchedulerCsvOptions | SchedulerImageOptions;
     dashboardFilters?: DashboardFilters;

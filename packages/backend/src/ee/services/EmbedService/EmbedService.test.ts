@@ -175,7 +175,10 @@ describe('EmbedService', () => {
                     combineParameters,
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
-            const combine = (dashboardUuid: string | null) =>
+            const combine = (
+                dashboardUuid: string | null,
+                clearedParameters?: string[],
+            ) =>
                 (
                     embedService as unknown as {
                         _combineSavedChartParameters(args: {
@@ -184,6 +187,7 @@ describe('EmbedService', () => {
                             chart: SavedChartDAO;
                             dashboardUuid: string | null;
                             acceptedUserParameters: ParametersValuesMap;
+                            clearedParameters?: string[];
                         }): Promise<ParametersValuesMap>;
                     }
                 )._combineSavedChartParameters({
@@ -192,6 +196,7 @@ describe('EmbedService', () => {
                     chart,
                     dashboardUuid,
                     acceptedUserParameters: { region: 'US' },
+                    clearedParameters,
                 });
             return {
                 combine,
@@ -1836,13 +1841,14 @@ describe('EmbedService', () => {
                     filters: undefined,
                     forceRefresh: false,
                     parameters: { date_granularity: 'Month' },
+                    clearedParameters: ['date_granularity'],
                 });
 
                 expect(combineParameters).toHaveBeenCalledWith(
                     mockProjectUuid,
                     validExplore,
                     expectedRequestParameters,
-                    { date_granularity: 'Week' },
+                    isInteractivityEnabled ? {} : { date_granularity: 'Week' },
                 );
                 expect(runEmbedQuery).toHaveBeenCalledWith(
                     expect.objectContaining({

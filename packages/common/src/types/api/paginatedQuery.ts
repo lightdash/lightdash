@@ -55,6 +55,7 @@ export type ExecuteAsyncSavedChartRequestParams =
 
 export type ExecuteAsyncDashboardChartRequestParams =
     CommonExecuteQueryRequestParams & {
+        clearedParameters?: string[];
         chartUuid: string;
         tileUuid: string;
         dashboardUuid: string;
@@ -156,6 +157,7 @@ export const isExecuteAsyncSqlChartByUuidParams = (
 
 type ExecuteAsyncDashboardSqlChartCommonParams =
     CommonExecuteQueryRequestParams & {
+        clearedParameters?: string[];
         dashboardUuid: string;
         tileUuid: string;
         dashboardFilters: DashboardFilters;

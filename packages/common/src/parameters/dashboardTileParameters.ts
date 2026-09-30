@@ -5,6 +5,24 @@ import {
 import { resolveParameterDefault } from './parameterDefaults';
 import { isReservedParameterName } from './reservedParameters';
 
+export const applyDashboardParameterOverrides = ({
+    savedValues = {},
+    overrides,
+    clearedParameters = [],
+}: {
+    savedValues?: ParametersValuesMap;
+    overrides?: ParametersValuesMap;
+    clearedParameters?: string[];
+}): ParametersValuesMap => {
+    const cleared = new Set(clearedParameters);
+    return {
+        ...Object.fromEntries(
+            Object.entries(savedValues).filter(([key]) => !cleared.has(key)),
+        ),
+        ...overrides,
+    };
+};
+
 // Project defaults < explore defaults < virtual-view saved values
 export type ParameterFallbackSources = {
     projectDefinitions: ParameterDefinitions;

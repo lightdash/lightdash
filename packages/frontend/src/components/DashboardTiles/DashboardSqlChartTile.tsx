@@ -108,6 +108,7 @@ const SqlChartTile: FC<Props> = ({
         (c) => c.updateSqlChartTilesMetadata,
     );
     const parameters = useDashboardContext((c) => c.parameterValues);
+    const clearedParameters = useDashboardContext((c) => c.clearedParameters);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -150,6 +151,7 @@ const SqlChartTile: FC<Props> = ({
                   dashboardFilters,
                   dashboardSorts: [],
                   parameters,
+                  clearedParameters,
                   isEmbed: true,
               }
             : {
@@ -161,6 +163,7 @@ const SqlChartTile: FC<Props> = ({
                   dashboardFilters,
                   dashboardSorts: [],
                   parameters,
+                  clearedParameters,
               },
     );
     const connections = useConnectionBadges(effectiveProjectUuid);

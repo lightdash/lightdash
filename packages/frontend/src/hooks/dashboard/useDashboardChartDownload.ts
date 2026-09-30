@@ -24,6 +24,7 @@ export const useDashboardChartDownload = (
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const parameters = useDashboardContext((c) => c.parameterValues);
+    const clearedParameters = useDashboardContext((c) => c.clearedParameters);
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
@@ -65,6 +66,7 @@ export const useDashboardChartDownload = (
                         limit,
                         invalidateCache: false,
                         parameters,
+                        clearedParameters,
                         pivotResults: shouldPivotResults,
                     }),
                 });
@@ -97,6 +99,7 @@ export const useDashboardChartDownload = (
             dashboardSorts,
             dateZoom,
             parameters,
+            clearedParameters,
             canExportPivotedData,
             originalQueryUuid,
         ],

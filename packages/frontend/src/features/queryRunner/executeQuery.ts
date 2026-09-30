@@ -187,6 +187,7 @@ export const executeEmbedDashboardSqlChartPivotQuery = async (
         | 'dashboardSorts'
         | 'invalidateCache'
         | 'parameters'
+        | 'clearedParameters'
         | 'limit'
     >,
 ) => {

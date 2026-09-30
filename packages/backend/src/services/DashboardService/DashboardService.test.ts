@@ -571,6 +571,7 @@ describe('DashboardService', () => {
                 {
                     format,
                     parameters: { region: 'APAC' },
+                    clearedParameters: ['status'],
                 },
             );
 
@@ -579,6 +580,7 @@ describe('DashboardService', () => {
                 expect.objectContaining({
                     format,
                     parameters: { region: 'APAC' },
+                    clearedParameters: ['status'],
                 }),
             );
         },

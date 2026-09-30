@@ -51,6 +51,7 @@ const postEmbedDashboardTileQuery = async (
         | 'invalidateCache'
         | 'dateZoom'
         | 'parameters'
+        | 'clearedParameters'
     >,
 ): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
     lightdashApi<ApiExecuteAsyncDashboardChartQueryResults>({
@@ -82,6 +83,7 @@ export const useDashboardChartReadyQuery = (
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const clearedParameters = useDashboardContext((c) => c.clearedParameters);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -280,6 +282,7 @@ export const useDashboardChartReadyQuery = (
             isZoomLikelyApplied ? (tileDateZoom?.xAxisFieldId ?? null) : null,
             invalidateCache,
             chartParameterValues,
+            clearedParameters,
             sessionTimezone,
         ],
         [
@@ -296,6 +299,7 @@ export const useDashboardChartReadyQuery = (
             tileDateZoom,
             invalidateCache,
             chartParameterValues,
+            clearedParameters,
             sessionTimezone,
         ],
     );
@@ -328,6 +332,7 @@ export const useDashboardChartReadyQuery = (
                           dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
+                          clearedParameters,
                           pivotResults: true,
                           timezone: sessionTimezone ?? undefined,
                       },
@@ -344,6 +349,7 @@ export const useDashboardChartReadyQuery = (
                           dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
+                          clearedParameters,
                           pivotResults: true,
                           ...(includeUnpublishedDraft && {
                               includeUnpublishedDraft: true,

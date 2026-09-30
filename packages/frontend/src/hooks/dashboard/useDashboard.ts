@@ -248,6 +248,7 @@ const exportDashboardContent = async (
         customViewportWidth?: number;
         selectedTabs?: string[] | null;
         parameters?: ParametersValuesMap;
+        clearedParameters?: string[];
     },
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
@@ -284,6 +285,7 @@ export const useExportDashboardContent = () => {
             customViewportWidth?: number;
             selectedTabs?: string[] | null;
             parameters?: ParametersValuesMap;
+            clearedParameters?: string[];
         }
     >(
         (data) =>
@@ -298,6 +300,7 @@ export const useExportDashboardContent = () => {
                     customViewportWidth: data.customViewportWidth,
                     selectedTabs: data.selectedTabs,
                     parameters: data.parameters,
+                    clearedParameters: data.clearedParameters,
                 },
             ),
         {
@@ -393,6 +396,7 @@ export const useExportDashboardContentPreview = () => {
             customViewportWidth?: number;
             selectedTabs?: string[] | null;
             parameters?: ParametersValuesMap;
+            clearedParameters?: string[];
         }
     >(
         async (data) => {
@@ -407,6 +411,7 @@ export const useExportDashboardContentPreview = () => {
                     customViewportWidth: data.customViewportWidth,
                     selectedTabs: data.selectedTabs,
                     parameters: data.parameters,
+                    clearedParameters: data.clearedParameters,
                 },
             );
             const details = (await pollJobStatus(

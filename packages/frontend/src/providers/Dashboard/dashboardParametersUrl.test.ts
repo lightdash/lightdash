@@ -2,11 +2,34 @@ import { describe, expect, it } from 'vitest';
 import {
     getDashboardParameterOverrides,
     parseDashboardParametersUrl,
+    parseClearedDashboardParametersUrl,
     reconcileDashboardParameters,
     toDashboardParameters,
 } from './dashboardParametersUrl';
 
 describe('dashboard parameter URL helpers', () => {
+    it('hydrates and deduplicates explicit cleared keys', () => {
+        expect(
+            parseClearedDashboardParametersUrl('["status","status","region"]'),
+        ).toEqual(['status', 'region']);
+        expect(parseClearedDashboardParametersUrl(null)).toEqual([]);
+    });
+    it.each(['{}', '[1]', 'null', 'invalid'])(
+        'rejects invalid cleared keys: %s',
+        (value) => {
+            expect(() => parseClearedDashboardParametersUrl(value)).toThrow();
+        },
+    );
+    it('does not hydrate suppressed saved values', () => {
+        expect(
+            reconcileDashboardParameters(
+                {},
+                { status: { parameterName: 'status', value: 'Shipped' } },
+                false,
+                ['status'],
+            ),
+        ).toEqual({});
+    });
     it('parses supported parameter values', () => {
         expect(
             parseDashboardParametersUrl(

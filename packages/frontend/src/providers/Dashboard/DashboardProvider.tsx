@@ -1,5 +1,6 @@
 import {
     applyDimensionOverrides,
+    applyDashboardParameterOverrides,
     applyMetricOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
@@ -81,6 +82,7 @@ import DashboardContext from './context';
 import {
     getDashboardParameterOverrides,
     parseDashboardParametersUrl,
+    parseClearedDashboardParametersUrl,
     reconcileDashboardParameters,
     toDashboardParameters,
 } from './dashboardParametersUrl';
@@ -100,6 +102,7 @@ type DashboardProviderProps = React.PropsWithChildren<{
     schedulerDashboardFilters?: DashboardFilters | undefined;
     schedulerFilters?: DashboardFilterRule[] | undefined;
     schedulerParameters?: ParametersValuesMap | undefined;
+    schedulerClearedParameters?: string[];
     schedulerTabsSelected?: (string | null)[] | undefined;
     dateZoom?: DateGranularity | string | undefined;
     projectUuid?: string;
@@ -118,6 +121,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     schedulerDashboardFilters,
     schedulerFilters,
     schedulerParameters,
+    schedulerClearedParameters,
     schedulerTabsSelected,
     dateZoom,
     projectUuid,
@@ -351,6 +355,20 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     });
     const [parametersHaveChanged, setParametersHaveChanged] =
         useState<boolean>(false);
+    const [clearedParameters, setClearedParameters] = useState<string[]>(() => {
+        if (isEditMode) return [];
+        try {
+            return parseClearedDashboardParametersUrl(
+                new URLSearchParams(search).get('clearedParameters'),
+            );
+        } catch {
+            hasInvalidUrlParametersRef.current = true;
+            return [];
+        }
+    });
+    const clearedParametersRef = useRef(clearedParameters);
+    clearedParametersRef.current = clearedParameters;
+    const previousIsEditModeRef = useRef(isEditMode);
 
     // Pinned parameters state
     const [pinnedParameters, setPinnedParametersState] = useState<string[]>([]);
@@ -439,14 +457,34 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     );
 
     useEffect(() => {
+        if (previousIsEditModeRef.current !== isEditMode) {
+            previousIsEditModeRef.current = isEditMode;
+            setClearedParameters([]);
+            setParameters(savedParameters);
+            return;
+        }
         setParameters((currentParameters) =>
             reconcileDashboardParameters(
                 currentParameters,
                 savedParameters,
                 isEditMode,
+                clearedParametersRef.current,
             ),
         );
     }, [isEditMode, savedParameters]);
+
+    useEffect(() => {
+        if (schedulerClearedParameters) {
+            setClearedParameters(schedulerClearedParameters);
+            setParameters((current) =>
+                Object.fromEntries(
+                    Object.entries(current).filter(
+                        ([key]) => !schedulerClearedParameters.includes(key),
+                    ),
+                ),
+            );
+        }
+    }, [schedulerClearedParameters]);
 
     useEffect(() => {
         if (hasInvalidUrlParametersRef.current) {
@@ -568,24 +606,16 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 (Array.isArray(value) && value.length === 0);
 
             if (isEmpty) {
-                // In view mode, reverting to "no value" should fall back to the
-                // dashboard-saved default (which the tile queries also use), keeping
-                // the widget and queries in sync. In edit mode, clearing fully removes
-                // the override so authors can drop it.
-                const savedParam = savedParameters[key];
-                if (!isEditMode && savedParam) {
-                    setParameters((prev) => ({
-                        ...prev,
-                        [key]: savedParam,
-                    }));
-                } else {
-                    setParameters((prev) => {
-                        const newParams = { ...prev };
-                        delete newParams[key];
-                        return newParams;
-                    });
-                }
+                setClearedParameters((prev) => [...new Set([...prev, key])]);
+                setParameters((prev) => {
+                    const newParams = { ...prev };
+                    delete newParams[key];
+                    return newParams;
+                });
             } else {
+                setClearedParameters((prev) =>
+                    prev.filter((clearedKey) => clearedKey !== key),
+                );
                 setParameters((prev) => ({
                     ...prev,
                     [key]: {
@@ -595,12 +625,19 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 }));
             }
         },
-        [isEditMode, savedParameters],
+        [],
     );
 
     const clearAllParameters = useCallback(() => {
+        setClearedParameters((prev) => [
+            ...new Set([
+                ...prev,
+                ...Object.keys(savedParameters),
+                ...Object.keys(parameters),
+            ]),
+        ]);
         setParameters({});
-    }, []);
+    }, [parameters, savedParameters]);
 
     const setPinnedParameters = useCallback((pinnedParams: string[]) => {
         setPinnedParametersState(pinnedParams);
@@ -742,8 +779,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     // Tile queries run with the saved values under the current ones, so labels must too
     const appliedParameterValues = useMemo(
-        () => ({ ...savedParameterValues, ...parameterValues }),
-        [savedParameterValues, parameterValues],
+        () =>
+            applyDashboardParameterOverrides({
+                savedValues: savedParameterValues,
+                overrides: parameterValues,
+                clearedParameters,
+            }),
+        [savedParameterValues, parameterValues, clearedParameters],
     );
 
     // Keep runtime parameter overrides in shared dashboard URLs. Saved defaults
@@ -757,6 +799,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             parameterValues,
             savedParameters,
         );
+        if (clearedParameters.length === 0)
+            newParams.delete('clearedParameters');
+        else
+            newParams.set(
+                'clearedParameters',
+                JSON.stringify(clearedParameters),
+            );
 
         if (Object.keys(overrides).length === 0) {
             newParams.delete('parameters');
@@ -775,6 +824,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         isEditMode,
         navigate,
         parameterValues,
+        clearedParameters,
         pathname,
         savedParameters,
         search,
@@ -824,10 +874,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
                 }),
             ),
-            dashboardValues: {
-                ...savedParameterValues,
-                ...dashboardParameterValues,
-            },
+            dashboardValues: applyDashboardParameterOverrides({
+                savedValues: savedParameterValues,
+                overrides: dashboardParameterValues,
+                clearedParameters,
+            }),
             definitions: translatedParameterDefinitions,
         };
     }, [
@@ -835,6 +886,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         tileChartSavedParameters,
         savedParameterValues,
         parameters,
+        clearedParameters,
         translatedParameterDefinitions,
     ]);
 
@@ -1964,6 +2016,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboardParameters: parameters,
         parameterValues,
         appliedParameterValues,
+        clearedParameters,
         selectedParametersCount,
         setParameter,
         parameterDefinitions: translatedParameterDefinitions,

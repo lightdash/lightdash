@@ -135,6 +135,7 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
+    clearedParameters?: string[];
     chartUuid: string;
     tileUuid: string;
     dashboardUuid: string;
@@ -222,6 +223,7 @@ export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
+    clearedParameters?: string[];
     dashboardUuid: string;
     tileUuid: string;
     dashboardFilters: DashboardFilters;

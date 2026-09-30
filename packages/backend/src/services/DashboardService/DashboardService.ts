@@ -339,6 +339,7 @@ export class DashboardService
             customViewportWidth: data.customViewportWidth,
             selectedTabs: data.selectedTabs ?? null,
             parameters: data.parameters,
+            clearedParameters: data.clearedParameters,
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             userUuid: account.user.id,

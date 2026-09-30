@@ -7240,11 +7240,13 @@ describe('AsyncQueryService', () => {
                 chartStatus,
                 dashboardStatus,
                 requestStatus,
+                clearedParameters,
             }: {
                 statusDefault: string | null;
                 chartStatus: string;
                 dashboardStatus: string | null;
                 requestStatus: string | null;
+                clearedParameters?: string[];
             }) => {
                 const { service } = buildService();
                 const internals = service as AnyType;
@@ -7302,10 +7304,41 @@ describe('AsyncQueryService', () => {
                             ? undefined
                             : { status: requestStatus },
                     pivotResults: false,
+                    clearedParameters,
                 });
                 return internals.prepareMetricQueryAsyncQueryArgs.mock
                     .calls[0][0].parameters;
             };
+
+            test.each([
+                ['all', 'all'],
+                [null, 'Cancelled'],
+            ])(
+                'clearing a saved dashboard value uses its fallback (%s)',
+                async (statusDefault, expected) => {
+                    await expect(
+                        runTile({
+                            statusDefault,
+                            chartStatus: 'Cancelled',
+                            dashboardStatus: 'Shipped',
+                            requestStatus: null,
+                            clearedParameters: ['status'],
+                        }),
+                    ).resolves.toEqual({ status: expected });
+                },
+            );
+
+            test('an explicit value wins over a clear in the same request', async () => {
+                await expect(
+                    runTile({
+                        statusDefault: 'all',
+                        chartStatus: 'Cancelled',
+                        dashboardStatus: 'Shipped',
+                        requestStatus: 'Returned',
+                        clearedParameters: ['status'],
+                    }),
+                ).resolves.toEqual({ status: 'Returned' });
+            });
 
             test.each(['Cancelled', 'Expired'])(
                 'a chart saved as %s runs with the definition default',

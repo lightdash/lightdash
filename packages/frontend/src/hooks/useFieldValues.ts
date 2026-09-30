@@ -29,8 +29,10 @@ import {
     useState,
 } from 'react';
 import { useDebounce } from 'react-use';
+import { useContextSelector } from 'use-context-selector';
 import { lightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import DashboardContext from '../providers/Dashboard/context';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 import { useSessionTimezone } from './useSessionTimezone';
 
@@ -121,6 +123,7 @@ const getEmbedFilterValues = async (options: {
     fieldId: string | undefined;
     timezone: string | null;
     parameters: ParametersValuesMap | undefined;
+    clearedParameters: string[] | undefined;
 }) => {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
@@ -134,6 +137,7 @@ const getEmbedFilterValues = async (options: {
             fieldId: options.fieldId,
             timezone: options.timezone ?? undefined,
             parameters: options.parameters,
+            clearedParameters: options.clearedParameters,
         }),
     });
 };
@@ -312,6 +316,13 @@ export const useFieldValues = (
     parameterValues?: ParametersValuesMap,
 ) => {
     const { embedToken } = useEmbed();
+    const dashboardClearedParameters = useContextSelector(
+        DashboardContext,
+        (context) => context?.clearedParameters,
+    );
+    const clearedParameters = embedToken
+        ? dashboardClearedParameters
+        : undefined;
     const sessionTimezone = useSessionTimezone();
     const { data: resultsCacheFlag } = useServerFeatureFlag(
         FeatureFlags.ResultsCacheEnabled,
@@ -339,8 +350,13 @@ export const useFieldValues = (
     const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
 
     const filtersKey = useMemo(
-        () => hashQueryKey([stripTileTargetsFromFilters(filters)?.and ?? []]),
-        [filters],
+        () =>
+            hashQueryKey([
+                stripTileTargetsFromFilters(filters)?.and ?? [],
+                parameterValues,
+                clearedParameters,
+            ]),
+        [filters, parameterValues, clearedParameters],
     );
     const [previousFiltersKey, setPreviousFiltersKey] = useState(filtersKey);
 
@@ -405,6 +421,7 @@ export const useFieldValues = (
         'search',
         debouncedSearch,
         parameterValues,
+        clearedParameters,
         useAsyncPath ? 'v2' : 'v1',
         sessionTimezone,
         filtersKey,
@@ -425,6 +442,7 @@ export const useFieldValues = (
                     fieldId,
                     timezone: sessionTimezone,
                     parameters: parameterValues,
+                    clearedParameters,
                 });
             }
             if (useAsyncPath) {

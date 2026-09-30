@@ -16,7 +16,11 @@ vi.mock('../../features/queryRunner/executeQuery', () => ({
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: (selector: (context: unknown) => unknown) =>
-        selector({ chartSort: {}, parameterValues: {} }),
+        selector({
+            chartSort: {},
+            parameterValues: {},
+            clearedParameters: ['status'],
+        }),
 }));
 vi.mock('./useDashboardFiltersForTile', () => ({ default: () => ({}) }));
 
@@ -75,6 +79,15 @@ describe.each(Object.entries(hooks))(
                     }),
                 );
             }
+        });
+        it('carries explicit clears into the reexecuted download', async () => {
+            const { result } = renderHook(useDownload);
+            await result.current.getDownloadQueryUuid(null, Limit.ALL);
+            expect(
+                JSON.parse(
+                    String(vi.mocked(lightdashApi).mock.calls[0][0].body),
+                ),
+            ).toMatchObject({ parameters: {}, clearedParameters: ['status'] });
         });
     },
 );

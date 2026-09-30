@@ -341,6 +341,9 @@ const MinimalDashboard: FC = () => {
     >({
         key: SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS,
     });
+    const [sendNowSchedulerClearedParameters] = useSessionStorage<string[]>({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_CLEARED_PARAMETERS,
+    });
 
     const schedulerTabs = useSearchParams('selectedTabs');
     const dateZoom = useDateZoomGranularitySearch();
@@ -619,6 +622,7 @@ const MinimalDashboard: FC = () => {
             schedulerDashboardFilters={schedulerDashboardFilters}
             schedulerFilters={schedulerFilters}
             schedulerParameters={schedulerParameters}
+            schedulerClearedParameters={sendNowSchedulerClearedParameters}
             schedulerTabsSelected={schedulerTabsSelected}
             dateZoom={dateZoom}
             defaultInvalidateCache={true}
