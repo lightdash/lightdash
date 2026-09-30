@@ -1,3 +1,16 @@
+# [2.382.0](https://github.com/lightdash/lightdash/compare/2.381.0...2.382.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* **frontend:** keep overflowing dropdown scrollbars visible ([#29196](https://github.com/lightdash/lightdash/issues/29196)) ([0cb1d5c](https://github.com/lightdash/lightdash/commit/0cb1d5c0ae1732badede1766fb1405fa7e000d97))
+* preserve the required checksum for GCS batch deletion ([#30222](https://github.com/lightdash/lightdash/issues/30222)) ([f5be850](https://github.com/lightdash/lightdash/commit/f5be85064f19b35bbf4b520800752817956712c1))
+
+
+### Features
+
+* add content reach usage analytics ([#30196](https://github.com/lightdash/lightdash/issues/30196)) ([426f34d](https://github.com/lightdash/lightdash/commit/426f34de49029acdb17eb4a27ab7a2534998bfbb))
+
 # [2.381.0](https://github.com/lightdash/lightdash/compare/2.380.1...2.381.0) (2026-09-30)
 
 

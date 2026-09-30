@@ -9265,6 +9265,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ProjectType: {
+        dataType: 'refEnum',
+        enums: ['DEFAULT', 'PREVIEW', 'TRAINING'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardDraftOverlayError: {
         dataType: 'refAlias',
         type: {
@@ -9379,6 +9384,27 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
+                    },
+                    createdAt: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'datetime' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    projectName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    projectType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ProjectType' },
+                            { dataType: 'undefined' },
+                        ],
                     },
                     hasUnpublishedChanges: {
                         dataType: 'union',
@@ -9807,6 +9833,27 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
+                    },
+                    createdAt: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'datetime' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    projectName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    projectType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ProjectType' },
+                            { dataType: 'undefined' },
+                        ],
                     },
                     hasUnpublishedChanges: {
                         dataType: 'union',
@@ -15081,6 +15128,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 projectUuid: { dataType: 'string', required: true },
+                createdAt: { dataType: 'string', required: true },
                 organization: {
                     ref: 'Pick_Organization.name-or-organizationUuid-or-createdAt_',
                     required: true,
@@ -15103,7 +15151,6 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
-                createdAt: { dataType: 'string', required: true },
                 user: {
                     dataType: 'union',
                     subSchemas: [
@@ -15689,6 +15736,9 @@ const models: TsoaRoute.Models = {
                 hasUnpublishedChanges: { dataType: 'boolean' },
                 projectUuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
+                projectType: { ref: 'ProjectType' },
+                projectName: { dataType: 'string' },
+                createdAt: { dataType: 'datetime' },
             },
             validators: {},
         },
@@ -16398,6 +16448,9 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
+                projectType: { ref: 'ProjectType' },
+                projectName: { dataType: 'string' },
+                createdAt: { dataType: 'datetime' },
             },
             validators: {},
         },
@@ -18178,17 +18231,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Project.projectUuid_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                projectUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Organization.organizationUuid_': {
         dataType: 'refAlias',
         type: {
@@ -18216,7 +18258,15 @@ const models: TsoaRoute.Models = {
                     ref: 'Pick_Organization.organizationUuid_',
                     required: true,
                 },
-                project: { ref: 'Pick_Project.projectUuid_', required: true },
+                project: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        type: { ref: 'ProjectType' },
+                        name: { dataType: 'string' },
+                        projectUuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
                 dashboard: {
                     dataType: 'union',
                     subSchemas: [
@@ -32955,8 +33005,8 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    versionUuid: { dataType: 'string', required: true },
                     createdAt: { dataType: 'datetime', required: true },
+                    versionUuid: { dataType: 'string', required: true },
                     versionNumber: { dataType: 'double', required: true },
                     artifactUuid: { dataType: 'string', required: true },
                     artifactType: {
@@ -46461,11 +46511,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ProjectType: {
-        dataType: 'refEnum',
-        enums: ['DEFAULT', 'PREVIEW', 'TRAINING'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UserWarehouseCredentialsProject: {
         dataType: 'refAlias',
         type: {
@@ -47218,6 +47263,7 @@ const models: TsoaRoute.Models = {
                 },
                 error: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
+                createdAt: { dataType: 'datetime', required: true },
                 spaceUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -47225,7 +47271,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                createdAt: { dataType: 'datetime', required: true },
                 validationUuid: { dataType: 'string', required: true },
                 validationId: {
                     dataType: 'union',
@@ -49974,6 +50019,14 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    projectName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     cron: { dataType: 'string', required: true },
                     enabled: { dataType: 'boolean', required: true },
                     message: {
@@ -50028,14 +50081,6 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     includeLinks: { dataType: 'boolean', required: true },
-                    projectName: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     targets: {
                         dataType: 'array',
                         array: {
@@ -52098,8 +52143,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                versionUuid: { dataType: 'string', required: true },
                 createdAt: { dataType: 'datetime', required: true },
+                versionUuid: { dataType: 'string', required: true },
                 chartUuid: { dataType: 'string', required: true },
                 createdBy: {
                     dataType: 'union',
@@ -57187,17 +57232,17 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                colorPaletteUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
                 createdAt: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'datetime' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                colorPaletteUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -63671,8 +63716,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                versionUuid: { dataType: 'string', required: true },
                 createdAt: { dataType: 'datetime', required: true },
+                versionUuid: { dataType: 'string', required: true },
                 versionNumber: { dataType: 'double', required: true },
             },
             validators: {},
@@ -67595,6 +67640,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 uuid: { dataType: 'string', required: true },
+                createdAt: { dataType: 'datetime', required: true },
                 views: { dataType: 'double', required: true },
                 firstViewedAt: {
                     dataType: 'union',
@@ -67612,7 +67658,6 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
-                createdAt: { dataType: 'datetime', required: true },
                 project: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -67707,6 +67752,7 @@ const models: TsoaRoute.Models = {
                 required: true,
             },
             uuid: { dataType: 'string', required: true },
+            createdAt: { dataType: 'datetime', required: true },
             views: { dataType: 'double', required: true },
             firstViewedAt: {
                 dataType: 'union',
@@ -67724,7 +67770,6 @@ const models: TsoaRoute.Models = {
                 },
                 required: true,
             },
-            createdAt: { dataType: 'datetime', required: true },
             project: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {

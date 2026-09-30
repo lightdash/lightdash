@@ -9608,6 +9608,10 @@
                     }
                 ]
             },
+            "ProjectType": {
+                "enum": ["DEFAULT", "PREVIEW", "TRAINING"],
+                "type": "string"
+            },
             "DashboardDraftOverlayError": {
                 "properties": {
                     "draftUuid": {
@@ -9718,6 +9722,16 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "projectType": {
+                        "$ref": "#/components/schemas/ProjectType"
                     },
                     "hasUnpublishedChanges": {
                         "type": "boolean",
@@ -10183,6 +10197,16 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "projectType": {
+                        "$ref": "#/components/schemas/ProjectType"
                     },
                     "hasUnpublishedChanges": {
                         "type": "boolean",
@@ -15551,6 +15575,9 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "createdAt": {
+                        "type": "string"
+                    },
                     "organization": {
                         "$ref": "#/components/schemas/Pick_Organization.name-or-organizationUuid-or-createdAt_"
                     },
@@ -15581,9 +15608,6 @@
                         },
                         "type": "array"
                     },
-                    "createdAt": {
-                        "type": "string"
-                    },
                     "user": {
                         "allOf": [
                             {
@@ -15595,6 +15619,7 @@
                 },
                 "required": [
                     "projectUuid",
+                    "createdAt",
                     "organization",
                     "dashboardUuids",
                     "allowAllDashboards",
@@ -15602,7 +15627,6 @@
                     "allowAllCharts",
                     "allowAllApps",
                     "appUuids",
-                    "createdAt",
                     "user"
                 ],
                 "type": "object",
@@ -16283,6 +16307,16 @@
                     },
                     "organizationUuid": {
                         "type": "string"
+                    },
+                    "projectType": {
+                        "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     }
                 },
                 "required": [
@@ -17288,6 +17322,16 @@
                     },
                     "uuid": {
                         "type": "string"
+                    },
+                    "projectType": {
+                        "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     }
                 },
                 "required": [
@@ -19350,16 +19394,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_Project.projectUuid_": {
-                "properties": {
-                    "projectUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["projectUuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
             "Pick_Organization.organizationUuid_": {
                 "properties": {
                     "organizationUuid": {
@@ -19394,7 +19428,19 @@
                         "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
                     },
                     "project": {
-                        "$ref": "#/components/schemas/Pick_Project.projectUuid_"
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/ProjectType"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["projectUuid"],
+                        "type": "object"
                     },
                     "dashboard": {
                         "allOf": [
@@ -32325,12 +32371,12 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "versionUuid": {
-                        "type": "string"
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "versionUuid": {
+                        "type": "string"
                     },
                     "versionNumber": {
                         "type": "number",
@@ -32379,8 +32425,8 @@
                 "required": [
                     "title",
                     "description",
-                    "versionUuid",
                     "createdAt",
+                    "versionUuid",
                     "versionNumber",
                     "artifactUuid",
                     "artifactType",
@@ -45369,10 +45415,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ProjectType": {
-                "enum": ["DEFAULT", "PREVIEW", "TRAINING"],
-                "type": "string"
-            },
             "UserWarehouseCredentialsProject": {
                 "properties": {
                     "type": {
@@ -46061,12 +46103,12 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     },
                     "validationUuid": {
                         "type": "string"
@@ -48775,6 +48817,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "projectName": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "cron": {
                         "type": "string"
                     },
@@ -48811,10 +48857,6 @@
                     },
                     "includeLinks": {
                         "type": "boolean"
-                    },
-                    "projectName": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "targets": {
                         "items": {
@@ -50992,12 +51034,12 @@
             },
             "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
                 "properties": {
-                    "versionUuid": {
-                        "type": "string"
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "versionUuid": {
+                        "type": "string"
                     },
                     "chartUuid": {
                         "type": "string"
@@ -51012,8 +51054,8 @@
                     }
                 },
                 "required": [
-                    "versionUuid",
                     "createdAt",
+                    "versionUuid",
                     "chartUuid",
                     "createdBy"
                 ],
@@ -56194,13 +56236,13 @@
                         "type": "string",
                         "description": "The name of the organization"
                     },
-                    "colorPaletteUuid": {
-                        "type": "string",
-                        "description": "The active color palette uuid for all projects in the organization"
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "description": "The active color palette uuid for all projects in the organization"
                     },
                     "chartColors": {
                         "items": {
@@ -62661,19 +62703,19 @@
             },
             "Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_": {
                 "properties": {
-                    "versionUuid": {
-                        "type": "string"
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "versionUuid": {
+                        "type": "string"
                     },
                     "versionNumber": {
                         "type": "number",
                         "format": "double"
                     }
                 },
-                "required": ["versionUuid", "createdAt", "versionNumber"],
+                "required": ["createdAt", "versionUuid", "versionNumber"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -66683,6 +66725,10 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "views": {
                         "type": "number",
                         "format": "double"
@@ -66703,10 +66749,6 @@
                         },
                         "required": ["name", "uuid"],
                         "type": "object"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "project": {
                         "properties": {
@@ -66770,10 +66812,10 @@
                     "slug",
                     "verification",
                     "uuid",
+                    "createdAt",
                     "views",
                     "firstViewedAt",
                     "organization",
-                    "createdAt",
                     "project",
                     "createdBy",
                     "lastUpdatedAt",
@@ -66808,6 +66850,10 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "views": {
                         "type": "number",
                         "format": "double"
@@ -66828,10 +66874,6 @@
                         },
                         "required": ["name", "uuid"],
                         "type": "object"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "project": {
                         "properties": {
@@ -66954,10 +66996,10 @@
                     "slug",
                     "verification",
                     "uuid",
+                    "createdAt",
                     "views",
                     "firstViewedAt",
                     "organization",
-                    "createdAt",
                     "project",
                     "createdBy",
                     "lastUpdatedAt",
@@ -67928,7 +67970,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.381.0",
+        "version": "2.382.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
