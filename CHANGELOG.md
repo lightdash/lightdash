@@ -1,3 +1,11 @@
+# [2.384.0](https://github.com/lightdash/lightdash/compare/2.383.2...2.384.0) (2026-09-30)
+
+
+### Features
+
+* **ai-agents:** track JEV turn decisions and token usage in analytics ([#30231](https://github.com/lightdash/lightdash/issues/30231)) ([66dcd75](https://github.com/lightdash/lightdash/commit/66dcd7528db9abd4084766ff3645e54cab13fb57))
+* **documents:** track Document create, update, delete and restore events ([#30234](https://github.com/lightdash/lightdash/issues/30234)) ([e745999](https://github.com/lightdash/lightdash/commit/e74599900f502eb60549c58d65291860b35996ff))
+
 ## [2.383.2](https://github.com/lightdash/lightdash/compare/2.383.1...2.383.2) (2026-09-30)
 
 
