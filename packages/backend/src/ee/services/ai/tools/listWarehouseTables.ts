@@ -135,25 +135,28 @@ export const getListWarehouseTables = ({
                 }
                 matches = matches.slice(0, limit);
 
-                const structuredContent: ToolListWarehouseTablesStructuredContent =
-                    {
-                        matchCount: matches.length,
-                        filters: {
-                            schema: schema ?? null,
-                            search: search ?? null,
-                        },
-                        tables: matches,
-                    };
-
-                if (structuredContent.matchCount === 0) {
+                if (matches.length === 0) {
                     return {
                         result: `No tables matched. Filters: schema=${
                             schema ?? '(none)'
                         }, search=${search ?? '(none)'}. Try a broader search.`,
                         metadata: { status: 'success' },
-                        structuredContent,
+                        structuredContent: {
+                            matchCount: 0,
+                            filters: {
+                                schema: schema ?? null,
+                                search: search ?? null,
+                            },
+                            tables: matches,
+                        },
                     };
                 }
+
+                const structuredContent: ToolListWarehouseTablesStructuredContent =
+                    {
+                        matchCount: matches.length,
+                        tables: matches,
+                    };
 
                 // Group only adjacent schemas: regrouping all tables by schema
                 // would move lower-ranked siblings ahead of more relevant tables.

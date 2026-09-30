@@ -12,17 +12,21 @@ import {
     toolRunMetricQueryOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { getAgentQuestion } from '../decisions/agentQuestion';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
-import { diagnoseEmptyResult } from '../decisions/emptyResults';
+import {
+    diagnoseEmptyResult,
+    EMPTY_QUERY_GUIDANCE,
+} from '../decisions/emptyResults';
+import { QUERY_INTENT_CHECKS, queryReviewNote } from '../decisions/queryChecks';
 import { createQueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
+import { stringifyAgentCsv } from '../utils/stringifyAgentCsv';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
@@ -35,6 +39,16 @@ import {
 } from '../utils/validators';
 
 const toolDefinition = runMetricQueryToolDefinition.for('agent');
+
+const instructionalReviews = new Set(
+    Object.values(QUERY_INTENT_CHECKS)
+        .reduce<string[][]>(
+            (combinations, [, hint]) =>
+                combinations.flatMap((hints) => [hints, [...hints, hint]]),
+            [[]],
+        )
+        .map(queryReviewNote),
+);
 
 type Dependencies = {
     decisions?: AiDecisionClient;
@@ -144,22 +158,27 @@ export const getRunMetricQuery = ({
                         : '',
                 ]);
 
+                const structuredReview = instructionalReviews.has(review)
+                    ? null
+                    : review;
+
                 if (results.rows.length === 0) {
+                    const result = decisions
+                        ? await diagnoseEmptyResult({
+                              decisions,
+                              question: getAgentQuestion({
+                                  messageHistory: messages,
+                              }),
+                              explores: ctx.getAvailableExplores(),
+                              plan: {
+                                  kind: 'semantic',
+                                  query: reviewedQuery,
+                              },
+                              review,
+                          })
+                        : NO_RESULTS_RETRY_PROMPT;
                     return {
-                        result: decisions
-                            ? await diagnoseEmptyResult({
-                                  decisions,
-                                  question: getAgentQuestion({
-                                      messageHistory: messages,
-                                  }),
-                                  explores: ctx.getAvailableExplores(),
-                                  plan: {
-                                      kind: 'semantic',
-                                      query: reviewedQuery,
-                                  },
-                                  review,
-                              })
-                            : NO_RESULTS_RETRY_PROMPT,
+                        result,
                         metadata: {
                             status: 'success',
                             queryCacheHit:
@@ -169,6 +188,11 @@ export const getRunMetricQuery = ({
                             columns: [],
                             rows: [],
                             rowCount: 0,
+                            review:
+                                decisions &&
+                                result !== `${EMPTY_QUERY_GUIDANCE}${review}`
+                                    ? result
+                                    : structuredReview,
                         },
                     };
                 }
@@ -179,15 +203,10 @@ export const getRunMetricQuery = ({
 
                 const columns = fieldIds.map((fieldId) => {
                     const item = results.fields[fieldId];
-                    return {
-                        fieldId,
-                        label: item
-                            ? getItemLabelWithoutTableName(item)
-                            : fieldId,
-                    };
+                    return item ? getItemLabelWithoutTableName(item) : fieldId;
                 });
 
-                const csvRows = results.rows.map((row) =>
+                const rows = results.rows.map((row) =>
                     CsvService.convertRowToCsv(
                         row,
                         results.fields,
@@ -196,19 +215,7 @@ export const getRunMetricQuery = ({
                     ),
                 );
 
-                const csv = stringify(csvRows, {
-                    header: true,
-                    columns: columns.map((column) => column.label),
-                });
-
-                const rows = csvRows.map((values) =>
-                    Object.fromEntries(
-                        fieldIds.map((fieldId, index) => [
-                            fieldId,
-                            values[index],
-                        ]),
-                    ),
-                );
+                const csv = stringifyAgentCsv(rows, columns);
 
                 return {
                     result: `${serializeData(csv, 'csv')}${review}`,
@@ -220,6 +227,7 @@ export const getRunMetricQuery = ({
                         columns,
                         rows,
                         rowCount: rows.length,
+                        review: structuredReview,
                     },
                 };
             } catch (e) {

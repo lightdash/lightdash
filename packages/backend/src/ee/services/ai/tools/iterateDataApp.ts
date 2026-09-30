@@ -51,15 +51,19 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
                     toolCallId,
                 });
                 const started = {
-                    status: 'pending' as const,
+                    status: 'pending',
                     appUuid,
                     version,
-                };
+                } satisfies PendingMetadata;
+                const estimatedDuration = 'a few minutes';
 
                 return {
-                    result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
+                    result: `Started the data app build. Tell the user it has started and will take ${estimatedDuration}, then end your turn.`,
                     metadata: started,
-                    structuredContent: started,
+                    structuredContent: {
+                        status: started.status,
+                        estimatedDuration,
+                    },
                 };
             } catch (error) {
                 return {

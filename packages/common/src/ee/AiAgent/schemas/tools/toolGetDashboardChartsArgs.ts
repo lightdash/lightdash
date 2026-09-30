@@ -49,7 +49,7 @@ const dashboardChartSchema = z.object({
                 .describe('Full name of the user who verified the chart.'),
             verifiedAt: z
                 .string()
-                .describe('When the chart was verified, as an ISO 8601 date.'),
+                .describe('When the chart was verified, as relative time.'),
         })
         .nullable()
         .describe('Null when the chart is not verified.'),

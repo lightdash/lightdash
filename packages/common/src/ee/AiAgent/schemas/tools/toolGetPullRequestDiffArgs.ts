@@ -41,7 +41,9 @@ export const toolGetPullRequestDiffStructuredContentSchema = z.object({
     totalChars: z
         .number()
         .int()
-        .describe('Length of the full diff in characters, before any cut.'),
+        .describe(
+            'Length of the full diff in characters, before any cut; zero for whitespace-only diffs normalized to empty.',
+        ),
 });
 
 export type ToolGetPullRequestDiffStructuredContent = z.infer<

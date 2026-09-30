@@ -48,7 +48,7 @@ export const toolAnalyzeFieldImpactStructuredContentSchema = z.object({
         .nativeEnum(DBFieldTypes)
         .nullable()
         .describe(
-            'Inferred from the content referencing the field; null when nothing references it.',
+            'Inferred from the first chart referencing the field; null when no chart references it.',
         ),
     severity: z
         .nativeEnum(FieldImpactSeverity)

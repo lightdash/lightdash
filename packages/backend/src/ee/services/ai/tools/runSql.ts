@@ -10,7 +10,6 @@ import {
     type ToolRunSqlStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
 import type {
     CreateOrUpdateArtifactFn,
@@ -30,6 +29,7 @@ import {
     formatSqlScopeError,
     type SqlScope,
 } from '../utils/sqlScope';
+import { stringifyAgentCsv } from '../utils/stringifyAgentCsv';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
 
@@ -84,7 +84,10 @@ const pickColumns = (rows: SqlRow[], columns: string[]): SqlRow[] =>
     );
 
 const toCsv = (rows: SqlRow[], columns: string[]) =>
-    stringify(pickColumns(rows, columns), { header: true, columns });
+    stringifyAgentCsv(
+        rows.map((row) => columns.map((column) => row[column])),
+        columns,
+    );
 
 const nonSuccessOutput = (
     result: string,
@@ -345,18 +348,26 @@ export const getRunSql = ({
                         inlineCsv: '',
                         truncated: false,
                     });
+                    const emptyReview =
+                        enableDataAccess && reviewQuery
+                            ? await reviewQuery(
+                                  { kind: 'sql', sql, limit: effectiveLimit },
+                                  { emptyResult: true, review },
+                              )
+                            : null;
                     const emptyContent: ToolRunSqlStructuredContent = {
                         rowCount: 0,
                         columns,
                         rows: [],
                         truncated: false,
+                        review: emptyReview || null,
                     };
                     return await persistResumeResult({
                         result: `Query returned 0 rows.${
                             columns.length > 0
                                 ? ` Columns: ${columns.join(', ')}`
                                 : ''
-                        }${enableDataAccess && reviewQuery ? ` ${await reviewQuery({ kind: 'sql', sql, limit: effectiveLimit }, { emptyResult: true, review })}` : ''}`,
+                        }${emptyReview !== null ? ` ${emptyReview}` : ''}`,
                         metadata: { status: 'success', rowCount: 0 },
                         structuredContent: emptyContent,
                     });
@@ -387,6 +398,7 @@ export const getRunSql = ({
                         columns,
                         rows: null,
                         truncated: false,
+                        review: null,
                     };
                     return await persistResumeResult({
                         result: resultSummary,
@@ -404,11 +416,9 @@ export const getRunSql = ({
                     columns,
                     rows: previewRows,
                     truncated: rowCount > RUN_SQL_PREVIEW_ROW_LIMIT,
+                    review: review || null,
                 };
-                const previewCsv = stringify(previewRows, {
-                    header: true,
-                    columns,
-                });
+                const previewCsv = toCsv(previewRows, columns);
 
                 const truncatedNote = previewContent.truncated
                     ? `\n(Showing first ${RUN_SQL_PREVIEW_ROW_LIMIT} of ${rowCount} rows.)`

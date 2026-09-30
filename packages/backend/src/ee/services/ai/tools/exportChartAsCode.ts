@@ -1,34 +1,31 @@
-import { ParameterError } from '@lightdash/common';
+import {
+    exportChartAsCodeToolDefinition,
+    ParameterError,
+    type ToolExportChartAsCodeOutput,
+} from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import { AgentContext } from '../utils/AgentContext';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { prepareChartAsCode, serializeChartAsCode } from '../utils/chartAsCode';
 import { yamlCodeBlock } from '../utils/GeneratedResponseBlocks';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
+
+const toolDefinition = exportChartAsCodeToolDefinition.for('agent');
 
 export const getExportChartAsCode = (
     agentContext: AgentContext,
     artifacts?: ArtifactChartExportAccess,
 ) =>
     tool({
-        description:
-            'Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Always call this tool for chart YAML; never reconstruct YAML yourself. For charts generated in this turn pass queryUuid from generateVisualization and null artifact identifiers. For an existing chart in this conversation, use its exact artifactUuid and versionUuid with null queryUuid. If these identifiers are unknown, pass null for all three source identifiers to list available artifacts first; never regenerate the chart just to export it. Never invent or use placeholder UUIDs. Supports built-in semantic, merged and pinned custom charts; use content tools for other sources. Pass null for an unspecified destination slug or spaceSlug: the tool will report exactly what is missing so you can ask the user. Never search content to infer a destination.',
-        inputSchema: z.object({
-            queryUuid: z.string().uuid().nullable().optional(),
-            artifactUuid: z.string().uuid().nullable().optional(),
-            versionUuid: z.string().uuid().nullable().optional(),
-            slug: z.string().min(1).max(255).nullable().optional(),
-            spaceSlug: z.string().min(1).max(1024).nullable().optional(),
-        }),
+        ...toolDefinition,
         execute: async ({
             queryUuid,
             artifactUuid,
             versionUuid,
             slug,
             spaceSlug,
-        }) => {
+        }): Promise<ToolExportChartAsCodeOutput> => {
             try {
                 if (
                     (queryUuid && (artifactUuid || versionUuid)) ||
@@ -39,19 +36,23 @@ export const getExportChartAsCode = (
                     );
                 }
                 if (!slug || !spaceSlug) {
+                    const missingDestination: Array<'slug' | 'spaceSlug'> = [];
+                    if (!slug) missingDestination.push('slug');
+                    if (!spaceSlug) missingDestination.push('spaceSlug');
+                    const structuredContent = {
+                        ...(artifacts && !queryUuid && !artifactUuid
+                            ? { artifacts: await artifacts.list() }
+                            : {}),
+                        missingDestination,
+                    };
                     return {
                         result: JSON.stringify({
-                            ...(artifacts && !queryUuid && !artifactUuid
-                                ? { artifacts: await artifacts.list() }
-                                : {}),
-                            missingDestination: [
-                                ...(!slug ? ['slug'] : []),
-                                ...(!spaceSlug ? ['spaceSlug'] : []),
-                            ],
+                            ...structuredContent,
                             instruction:
                                 'Ask the user for the missing destination values. Do not infer them, search content, or write YAML yourself. Then call exportChartAsCode again.',
                         }),
-                        metadata: { status: 'success' as const },
+                        metadata: { status: 'success' },
+                        structuredContent,
                     };
                 }
                 if (!queryUuid && !artifactUuid) {
@@ -59,13 +60,17 @@ export const getExportChartAsCode = (
                         throw new ParameterError(
                             'Existing-chart export is unavailable in this context.',
                         );
+                    const structuredContent = {
+                        artifacts: await artifacts.list(),
+                    };
                     return {
                         result: JSON.stringify({
-                            artifacts: await artifacts.list(),
+                            ...structuredContent,
                             instruction:
                                 'Select the chart requested by the user and export its exact artifactUuid/versionUuid. Ask if the intended chart is ambiguous.',
                         }),
-                        metadata: { status: 'success' as const },
+                        metadata: { status: 'success' },
+                        structuredContent,
                     };
                 }
                 let prepared;
@@ -92,13 +97,16 @@ export const getExportChartAsCode = (
                     agentContext.responseBlocks.register(result);
                 return {
                     result,
-                    metadata: { status: 'success' as const, deliveryToken },
+                    metadata: { status: 'success', deliveryToken },
+                    structuredContent: {
+                        exportReady: true,
+                        deliveryToken,
+                        insertsValidatedYamlAtToken: true,
+                        contentSaved: false,
+                    },
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(error, 'Could not export chart.'),
-                    metadata: { status: 'error' as const },
-                };
+                return toolErrorOutput(error, 'Could not export chart.');
             }
         },
         toModelOutput: ({ output }) =>

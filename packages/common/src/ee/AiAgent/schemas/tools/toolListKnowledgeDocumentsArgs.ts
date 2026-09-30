@@ -55,6 +55,14 @@ export const toolListKnowledgeDocumentsStructuredContentSchema = z.object({
                 .number()
                 .int()
                 .describe('Size of the full document content in bytes.'),
+            summary: z.object({
+                relevance: z.enum(['high', 'medium', 'low', 'none']),
+                description: z.string(),
+                definedTerms: z.array(z.string()),
+                relatedExploreNames: z.array(z.string()),
+                useWhen: z.string(),
+                warning: z.string().nullable(),
+            }),
         }),
     ),
 });

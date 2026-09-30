@@ -2323,6 +2323,7 @@ export class McpService extends BaseService {
                     title: mcpListExploresTool.title,
                     description: mcpListExploresTool.description,
                     inputSchema: mcpListExploresTool.inputSchema.shape,
+                    outputSchema: mcpListExploresTool.outputSchema.shape,
                     annotations: mcpListExploresTool.annotations,
                 },
                 async (args, extra) => {
@@ -2354,13 +2355,22 @@ export class McpService extends BaseService {
                             },
                         );
 
-                        return await this.buildScopedResponse(
+                        if (Symbol.asyncIterator in result) {
+                            throw new UnexpectedServerError(
+                                'listExplores returned a stream',
+                            );
+                        }
+                        const response = await this.buildScopedResponse(
                             ctx,
-                            await McpService.streamToolResult(result),
-                            undefined,
+                            result.result,
+                            result.structuredContent,
                             projectUuid,
                             args.agentUuid,
                         );
+                        return {
+                            ...response,
+                            isError: result.metadata.status === 'error',
+                        };
                     } catch (error) {
                         this.logger.error(
                             '[McpService] Error in LIST_EXPLORES tool',
@@ -2449,17 +2459,27 @@ export class McpService extends BaseService {
                                 : {}),
                         };
 
-                        return await this.buildScopedResponse(
+                        const response = await this.buildScopedResponse(
                             ctx,
                             formatToolJsonOutput(structuredContent),
                             structuredContent,
                             projectUuid,
                             args.agentUuid,
                         );
+                        const scope = response.content[1]?.text;
+                        return {
+                            ...response,
+                            structuredContent: {
+                                ...structuredContent,
+                                ...(scope ? { scope } : {}),
+                            },
+                        };
                     } catch (error) {
-                        return mcpGrepFieldsTool.result.error(
-                            `Error grepping fields: ${getErrorMessage(error)}`,
-                        );
+                        const message = `Error grepping fields: ${getErrorMessage(error)}`;
+                        return {
+                            ...mcpGrepFieldsTool.result.error(message),
+                            structuredContent: { error: message },
+                        };
                     }
                 },
             );

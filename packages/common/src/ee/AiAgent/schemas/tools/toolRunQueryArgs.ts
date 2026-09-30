@@ -640,13 +640,22 @@ export type ToolRunQueryAppliedParameters = z.infer<
 
 const executedQueryLimitSchema = z
     .object({
-        requested: z.number().nullable(),
+        requested: z
+            .number()
+            .nullable()
+            .optional()
+            .describe('The requested limit, only when stated in the text.'),
         effective: z
             .number()
             .describe(
-                'The limit applied after resolving null and capping to `max`. A rowCount equal to this means the limit was reached and more rows may exist.',
+                'The applied row limit. A rowCount equal to this means the limit was reached and more rows may exist.',
             ),
-        max: z.number().describe("This tool's maximum row limit."),
+        max: z
+            .number()
+            .optional()
+            .describe(
+                "This tool's maximum row limit, only when stated in the text.",
+            ),
     })
     .describe('The row limit behind rowCount.');
 
@@ -654,11 +663,11 @@ const shownResultsSchema = z
     .object({
         columns: z
             .array(z.string())
-            .describe('Ordered field ids matching the keys of each row.'),
+            .describe('Ordered display labels used in the CSV header.'),
         rows: z
-            .array(z.record(z.string(), z.unknown()))
+            .array(z.array(z.unknown()))
             .describe(
-                'The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.',
+                'The cell values written to the CSV, in column order. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.',
             ),
     })
     .nullable()
@@ -670,10 +679,12 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
     'outcome',
     [
         z.object({
-            outcome: z
-                .literal('chartOnly')
+            outcome: z.literal('success').describe('The tool succeeded.'),
+            chartVersionUuid: z
+                .string()
+                .nullable()
                 .describe(
-                    "Data access is disabled, so the query was not run; the query definition was recorded as a new version of the thread's chart artifact (created on first use). Nothing is saved to the project.",
+                    'The chart version UUID cited in the text; null when none was cited.',
                 ),
         }),
         z.object({
@@ -686,13 +697,12 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
                 .describe(
                     'null when the explore references no parameters or the query was a merge.',
                 ),
+            review: z.string().nullable(),
         }),
         z.object({
             outcome: z
                 .literal('results')
-                .describe(
-                    "The query ran and returned rows, and they were recorded as a new version of the thread's chart artifact (the artifact is created on first use).",
-                ),
+                .describe('The query ran and returned rows.'),
             queryUuid: z
                 .string()
                 .nullable()
@@ -711,6 +721,32 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
                     'null when the explore references no parameters or the query was a merge.',
                 ),
             data: shownResultsSchema,
+            chartVersionUuid: z
+                .string()
+                .nullable()
+                .describe(
+                    'The chart version UUID cited in the text; null when none was cited.',
+                ),
+            chartExport: z
+                .object({
+                    artifactUuid: z.string(),
+                    versionUuid: z.string(),
+                })
+                .nullable()
+                .describe(
+                    'The stored chart reference cited for chart-as-code export.',
+                ),
+            chartConfig: chartConfigBuiltinOnlySchema.describe(
+                'The selected chart configuration serialized in the text; null when none was shown.',
+            ),
+            queryScopeUnchanged: z
+                .literal(true)
+                .nullable()
+                .describe(
+                    'The scope-preservation statement emitted with a selected chart configuration; null when none was emitted.',
+                ),
+            review: z.string().nullable(),
+            truncationNote: z.string().nullable(),
         }),
     ],
 );

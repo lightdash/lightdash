@@ -20,9 +20,10 @@ export const toolListProjectsStructuredContentSchema = z.object({
             z.object({
                 name: z.string(),
                 isActive: z
-                    .boolean()
+                    .literal(true)
+                    .optional()
                     .describe(
-                        'True for the project the agent is currently working in.',
+                        'Present only for the project the agent is currently working in.',
                     ),
             }),
         )

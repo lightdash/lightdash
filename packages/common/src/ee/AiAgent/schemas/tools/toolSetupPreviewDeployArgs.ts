@@ -22,11 +22,6 @@ const toolSetupPreviewDeployMetadataSchema = z.discriminatedUnion('status', [
 ]);
 
 export const toolSetupPreviewDeployStructuredContentSchema = z.object({
-    prUrl: z
-        .string()
-        .describe(
-            'URL of the opened pull request. The user already sees it as a "View pull request" button, so do not repeat it in the reply.',
-        ),
     projectName: z
         .string()
         .describe('Lightdash project the preview deploys are based on.'),
@@ -35,6 +30,14 @@ export const toolSetupPreviewDeployStructuredContentSchema = z.object({
         .describe(
             'GitHub repository (owner/name) the pull request was opened against.',
         ),
+    addsPreviewDeployWorkflow: z
+        .literal(true)
+        .describe(
+            'The opened pull request adds the Lightdash preview-deploy GitHub Actions workflow.',
+        ),
+    viewPullRequestButtonShown: z
+        .literal(true)
+        .describe('A "View pull request" button is shown to the user.'),
     secrets: z
         .array(
             z.object({

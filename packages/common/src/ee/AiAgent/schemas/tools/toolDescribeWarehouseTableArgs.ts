@@ -67,6 +67,12 @@ export const toolDescribeWarehouseTableStructuredContentSchema = z.object({
         .describe(
             'Column names and warehouse types; empty when the table was not found or has no cached metadata.',
         ),
+    review: z
+        .string()
+        .nullable()
+        .describe(
+            'Empty-result diagnosis included in the text, or null when columns were found.',
+        ),
 });
 
 export type ToolDescribeWarehouseTableStructuredContent = z.infer<

@@ -418,11 +418,21 @@ describe('getMetadata parameters', () => {
         const compact = executeGetMetadata(args, dependencies, {
             includeFieldLists: false,
         });
-        expect(compact.structuredContent).toEqual(full.structuredContent);
+        expect(compact.structuredContent).toEqual({
+            ...full.structuredContent,
+            explores: full.structuredContent.explores.map((metadata) =>
+                Object.fromEntries(
+                    Object.entries(metadata).filter(
+                        ([key]) =>
+                            key !== 'baseDimensions' && key !== 'baseMetrics',
+                    ),
+                ),
+            ),
+        });
         expect(compact.result).toContain('Use net revenue after refunds.');
         expect(compact.result).toContain('orders.metric');
         expect(compact.result).toContain('default: "revenue"');
-        expect(compact.result).toContain('options: revenue, active_users');
+        expect(compact.result).toContain('options: ["revenue","active_users"]');
         expect(compact.result).not.toContain('base dimensions');
         expect(compact.result).not.toContain('base metrics');
         expect(full.result).toContain('base dimensions');
@@ -436,7 +446,7 @@ describe('getMetadata parameters', () => {
         expect(result.result).toContain('⚠ parameters');
         expect(result.result).toContain('orders.metric');
         expect(result.result).toContain('default: "revenue"');
-        expect(result.result).toContain('options: revenue, active_users');
+        expect(result.result).toContain('options: ["revenue","active_users"]');
     });
 
     it('omits the parameters block when nothing references one', async () => {
@@ -545,7 +555,27 @@ describe('fast source details', () => {
         expect(fast.result).toContain('orders.deleted_at IS NULL');
         expect(legacy.result).not.toContain('sqlOn');
         expect(legacy.result).not.toContain('orders.deleted_at IS NULL');
-        expect(fast.structuredContent).toEqual(legacy.structuredContent);
+        expect(fast.structuredContent).toEqual({
+            ...legacy.structuredContent,
+            explores: legacy.structuredContent.explores.map((metadata) => ({
+                ...metadata,
+                joins: [
+                    {
+                        table: 'users',
+                        type: null,
+                        relationship: null,
+                        always: true,
+                        sqlOn: '${orders.user_id} = ${users.id}',
+                    },
+                ],
+                tableFilters: [
+                    {
+                        table: 'orders',
+                        sqlWhere: 'orders.deleted_at IS NULL',
+                    },
+                ],
+            })),
+        });
         expect(
             executeGetMetadata(args, {
                 ...dependencies,
@@ -603,7 +633,6 @@ describe('getMetadata structured output', () => {
                     fieldType: 'string',
                     label: 'Status',
                     filterType: 'string',
-                    isFromJoinedTable: false,
                     joinedTableName: null,
                     caseSensitiveFilters: true,
                     defaultTimeDimension: null,

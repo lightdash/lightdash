@@ -16,9 +16,7 @@ export const toolGenerateUuidsArgsSchema = z.object({
 });
 
 export const toolGenerateUuidsStructuredContentSchema = z.object({
-    uuids: z
-        .array(z.string())
-        .describe('The freshly generated UUIDs, one per requested count.'),
+    uuids: z.array(z.string()).describe('The freshly generated UUIDs.'),
 });
 
 export const toolGenerateUuidsOutputSchema = structuredToolOutputSchema({

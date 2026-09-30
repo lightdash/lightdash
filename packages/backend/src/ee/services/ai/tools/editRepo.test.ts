@@ -65,7 +65,7 @@ describe('getEditRepo success output', () => {
         );
 
         expect(output.result).toBe(
-            `Opened a pull request against repository acme/analytics. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which repository it targeted.\n\nAgent summary:\n${runResult.output}`,
+            `Opened a pull request against repository acme/analytics. Do NOT include the pull request URL or number in your reply — just summarise the change and which repository it targeted.\n\nAgent summary:\n${runResult.output}`,
         );
         expect(output.metadata).toEqual({
             status: 'success',

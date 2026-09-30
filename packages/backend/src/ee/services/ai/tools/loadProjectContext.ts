@@ -7,7 +7,10 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
-import { renderMemoryBlock } from '../utils/memoryBlock';
+import {
+    AI_AGENT_MEMORY_BLOCK_MAX_CHARS,
+    AI_AGENT_MEMORY_BLOCK_MAX_ROWS,
+} from '../utils/memoryBlock';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -46,25 +49,82 @@ const isMemoryEntry = (
     entry: ProjectContextSearchEntry,
 ): entry is MemoryEntry => entry.source === 'memory';
 
+const escapeXmlText = (value: string): string =>
+    value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
+const escapeXmlAttribute = (value: string): string =>
+    escapeXmlText(value).replaceAll('"', '&quot;');
+
+const memoryTruncationNote = (count: number): string | null =>
+    count > 0
+        ? `(${count} more memories — search via loadProjectContext)`
+        : null;
+
+const wrapMemories = (rendered: string[], truncationNote: string | null) =>
+    [
+        '<ld-memories>',
+        ...rendered,
+        ...(truncationNote === null ? [] : [truncationNote]),
+        '</ld-memories>',
+    ].join('\n');
+
 const renderMemories = (
     entries: ProjectContextSearchEntry[],
     getContent: (entry: MemoryEntry) => string,
-): string | null =>
-    renderMemoryBlock(
-        entries.filter(isMemoryEntry).map((entry) => ({
-            slug: entry.id,
-            content: getContent(entry),
-            scope: entry.memoryScope,
-            objects: entry.objects,
-            ageDays: entry.memoryAgeDays,
-        })),
-    );
+): {
+    block: string | null;
+    entries: ProjectContextSearchEntry[];
+    truncationNote: string | null;
+} => {
+    const memories = entries.filter(isMemoryEntry);
+    if (memories.length === 0) {
+        return { block: null, entries, truncationNote: null };
+    }
 
-export const renderProjectContextEntries = (
-    entries: ProjectContextSearchEntry[],
-): string => {
+    // Mirror the shared renderer locally to retain its bounded selection.
+    const rendered: string[] = [];
+    for (const entry of memories.slice(0, AI_AGENT_MEMORY_BLOCK_MAX_ROWS)) {
+        const objects = entry.objects
+            .map(formatAiProjectContextObjectRef)
+            .join(', ');
+        const row = `<ld-memory id="${escapeXmlAttribute(entry.id)}" scope="${escapeXmlAttribute(entry.memoryScope)}" age_days="${entry.memoryAgeDays}" objects="${escapeXmlAttribute(objects)}">${escapeXmlText(getContent(entry))}</ld-memory>`;
+        const candidate = [...rendered, row];
+        if (
+            wrapMemories(
+                candidate,
+                memoryTruncationNote(memories.length - candidate.length),
+            ).length > AI_AGENT_MEMORY_BLOCK_MAX_CHARS
+        ) {
+            break;
+        }
+        rendered.push(row);
+    }
+
+    let memoryIndex = 0;
+    const truncationNote = memoryTruncationNote(
+        memories.length - rendered.length,
+    );
+    return {
+        block: wrapMemories(rendered, truncationNote),
+        entries: entries.filter((entry) => {
+            if (!isMemoryEntry(entry)) return true;
+            memoryIndex += 1;
+            return memoryIndex <= rendered.length;
+        }),
+        truncationNote,
+    };
+};
+
+const renderProjectContext = (entries: ProjectContextSearchEntry[]) => {
     if (entries.length === 0) {
-        return 'No project context is configured for this project.';
+        return {
+            result: 'No project context is configured for this project.',
+            entries,
+            truncationNote: null,
+        };
     }
     const context = entries
         .filter(
@@ -88,10 +148,18 @@ export const renderProjectContextEntries = (
             return `${prefix} content: ${entry.content}`;
         })
         .join('\n');
-    const memoryBlock = renderMemories(entries, (entry) => entry.content);
+    const memories = renderMemories(entries, (entry) => entry.content);
 
-    return [context, memoryBlock].filter(Boolean).join('\n');
+    return {
+        result: [context, memories.block].filter(Boolean).join('\n'),
+        entries: memories.entries,
+        truncationNote: memories.truncationNote,
+    };
 };
+
+export const renderProjectContextEntries = (
+    entries: ProjectContextSearchEntry[],
+): string => renderProjectContext(entries).result;
 
 const toLoadedEntry = (
     entry: ProjectContextSearchEntry,
@@ -107,7 +175,7 @@ const toLoadedEntry = (
           }
         : {
               id: entry.id,
-              source: 'context',
+              ...(entry.source ? { source: entry.source } : {}),
               kind: entry.kind,
               terms: entry.terms,
               objects: entry.objects,
@@ -117,7 +185,7 @@ const toLoadedEntry = (
 // When patterns match nothing, list the available entries (id/kind/terms) so
 // the agent can re-grep with broader keywords or load everything — cheaper than
 // silently dumping the whole context.
-const renderNoMatch = (all: ProjectContextSearchEntry[]): string => {
+const renderNoMatch = (all: ProjectContextSearchEntry[]) => {
     const context = all
         .filter((entry) => entry.source !== 'memory')
         .map((entry) => {
@@ -129,14 +197,18 @@ const renderNoMatch = (all: ProjectContextSearchEntry[]): string => {
             return `- id: ${entry.id};${source} kind: ${entry.kind};${terms}`;
         })
         .join('\n');
-    const memoryBlock = renderMemories(all, (entry) =>
+    const memories = renderMemories(all, (entry) =>
         entry.terms.length > 0
             ? `Available search terms: ${entry.terms.join(', ')}`
             : 'No search terms.',
     );
-    const inventory = [context, memoryBlock].filter(Boolean).join('\n');
+    const inventory = [context, memories.block].filter(Boolean).join('\n');
 
-    return `No context entry matched your patterns. ${all.length} entries exist — re-grep with broader keywords, or call again without patterns to load all:\n${inventory}`;
+    return {
+        result: `No context entry matched your patterns. ${all.length} entries exist — re-grep with broader keywords, or call again without patterns to load all:\n${inventory}`,
+        entries: memories.entries,
+        truncationNote: memories.truncationNote,
+    };
 };
 
 const toAvailableEntry = (
@@ -153,7 +225,7 @@ const toAvailableEntry = (
           }
         : {
               id: entry.id,
-              source: 'context',
+              ...(entry.source ? { source: entry.source } : {}),
               kind: entry.kind,
               terms: entry.terms,
           };
@@ -180,8 +252,9 @@ export const getLoadProjectContext = ({
                 // Patterns given but nothing matched: surface the available
                 // entries instead of an empty result.
                 if (patterns?.length && selected.length === 0) {
+                    const rendered = renderNoMatch(entries);
                     return {
-                        result: renderNoMatch(entries),
+                        result: rendered.result,
                         metadata: {
                             status: 'success',
                             entryIds: [],
@@ -190,7 +263,8 @@ export const getLoadProjectContext = ({
                         structuredContent: {
                             outcome: 'no_match',
                             totalEntries: entries.length,
-                            available: entries.map(toAvailableEntry),
+                            available: rendered.entries.map(toAvailableEntry),
+                            truncationNote: rendered.truncationNote,
                         },
                     };
                 }
@@ -229,8 +303,9 @@ export const getLoadProjectContext = ({
                     } ids=${entryIds.join(',')}`,
                 );
 
+                const rendered = renderProjectContext(selected);
                 return {
-                    result: renderProjectContextEntries(selected),
+                    result: rendered.result,
                     metadata: {
                         status: 'success',
                         entryIds,
@@ -238,7 +313,8 @@ export const getLoadProjectContext = ({
                     },
                     structuredContent: {
                         outcome: 'loaded',
-                        entries: selected.map(toLoadedEntry),
+                        entries: rendered.entries.map(toLoadedEntry),
+                        truncationNote: rendered.truncationNote,
                     },
                 };
             } catch (error) {

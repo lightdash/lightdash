@@ -1,6 +1,7 @@
 import {
     generateDataAppToolDefinition,
     getErrorMessage,
+    type ToolGenerateDataAppStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { GenerateDataAppFn } from '../types/aiAgentDependencies';
@@ -36,11 +37,16 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                     version,
                     name,
                 };
+                const estimatedDuration = 'a few minutes';
+                const structuredContent = {
+                    status: 'pending',
+                    estimatedDuration,
+                } satisfies ToolGenerateDataAppStructuredContent;
 
                 return {
-                    result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
+                    result: `Started the data app build. Tell the user it has started and will take ${estimatedDuration}, then end your turn.`,
                     metadata: pendingBuild,
-                    structuredContent: pendingBuild,
+                    structuredContent,
                 };
             } catch (error) {
                 const { result, structuredContent } = toolErrorOutput(

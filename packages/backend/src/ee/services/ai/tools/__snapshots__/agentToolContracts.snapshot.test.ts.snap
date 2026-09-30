@@ -1036,11 +1036,23 @@ Parameters:
                   "description": "Table name as resolved in the warehouse, e.g. "database.schema.table"; the schema part is "(default schema)" when none was given or resolved.",
                   "type": "string",
                 },
+                "review": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Empty-result diagnosis included in the text, or null when columns were found.",
+                },
               },
               "required": [
                 "qualifiedName",
                 "columnCount",
                 "columns",
+                "review",
               ],
               "type": "object",
             },
@@ -2153,7 +2165,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
               "additionalProperties": false,
               "properties": {
                 "aiAugmentationAttached": {
-                  "description": "Whether an AI-written message is generated on each send.",
+                  "description": "Whether an AI-written message is generated on each send; omitted when no AI augmentation was requested.",
                   "type": "boolean",
                 },
                 "cron": {
@@ -2248,7 +2260,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "timezone",
                 "targets",
                 "enabled",
-                "aiAugmentationAttached",
                 "href",
                 "warnings",
               ],
@@ -2728,98 +2739,33 @@ Usage tips:
                 "searchResults": {
                   "description": "One entry per search query, in the order given.",
                   "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "content": {
-                        "description": "Matches for this query, verified content first.",
-                        "items": {
-                          "oneOf": [
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "contentType": {
-                                  "const": "document",
-                                  "type": "string",
-                                },
-                                "description": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Description truncated to the tool limit, or null when empty.",
-                                },
-                                "href": {
-                                  "type": "string",
-                                },
-                                "name": {
-                                  "type": "string",
-                                },
-                                "slug": {
-                                  "type": "string",
-                                },
-                                "uuid": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "contentType",
-                                "uuid",
-                                "name",
-                                "slug",
-                                "href",
-                                "description",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "appCount": {
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer",
-                                },
-                                "chartCount": {
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer",
-                                },
-                                "childSpaceCount": {
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer",
-                                },
-                                "contentType": {
-                                  "const": "space",
-                                  "type": "string",
-                                },
-                                "dashboardCount": {
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer",
-                                },
-                                "directAccess": {
-                                  "description": "Whether the user has direct access to this space.",
-                                  "type": "boolean",
-                                },
-                                "name": {
-                                  "type": "string",
-                                },
-                                "searchRank": {
-                                  "type": "number",
-                                },
-                                "slug": {
-                                  "type": "string",
-                                },
-                                "space": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "content": {
+                            "description": "Displayed matches in relevance order, with verified-first order as the fallback.",
+                            "items": {
+                              "oneOf": [
+                                {
                                   "additionalProperties": false,
                                   "properties": {
-                                    "breadcrumb": {
-                                      "description": "Space path from the root, space names joined by " / ".",
+                                    "contentType": {
+                                      "const": "document",
+                                      "type": "string",
+                                    },
+                                    "description": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Description truncated to the smaller of the tool limit and 200 characters, or null when empty.",
+                                    },
+                                    "href": {
                                       "type": "string",
                                     },
                                     "name": {
@@ -2833,77 +2779,56 @@ Usage tips:
                                     },
                                   },
                                   "required": [
+                                    "contentType",
                                     "uuid",
                                     "name",
                                     "slug",
-                                    "breadcrumb",
+                                    "href",
+                                    "description",
                                   ],
                                   "type": "object",
                                 },
-                                "uuid": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "contentType",
-                                "uuid",
-                                "name",
-                                "slug",
-                                "searchRank",
-                                "chartCount",
-                                "dashboardCount",
-                                "childSpaceCount",
-                                "appCount",
-                                "directAccess",
-                                "space",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "contentType": {
-                                  "const": "data_app",
-                                  "type": "string",
-                                },
-                                "createdBy": {
-                                  "anyOf": [
-                                    {
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "appCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "chartCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "childSpaceCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "contentType": {
+                                      "const": "space",
                                       "type": "string",
                                     },
-                                    {
-                                      "type": "null",
+                                    "dashboardCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
                                     },
-                                  ],
-                                  "description": "Full name of the user, or null when unknown.",
-                                },
-                                "description": {
-                                  "anyOf": [
-                                    {
+                                    "directAccess": {
+                                      "description": "Whether the user has direct access to this space.",
+                                      "type": "boolean",
+                                    },
+                                    "name": {
                                       "type": "string",
                                     },
-                                    {
-                                      "type": "null",
+                                    "searchRank": {
+                                      "type": "number",
                                     },
-                                  ],
-                                  "description": "Description truncated to the tool limit, or null when empty.",
-                                },
-                                "href": {
-                                  "description": "Canonical viewer URL of the Data App.",
-                                  "type": "string",
-                                },
-                                "name": {
-                                  "type": "string",
-                                },
-                                "searchRank": {
-                                  "type": "number",
-                                },
-                                "slug": {
-                                  "type": "string",
-                                },
-                                "space": {
-                                  "anyOf": [
-                                    {
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "space": {
                                       "additionalProperties": false,
                                       "properties": {
                                         "breadcrumb": {
@@ -2928,205 +2853,263 @@ Usage tips:
                                       ],
                                       "type": "object",
                                     },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                },
-                                "spaceUuid": {
-                                  "anyOf": [
-                                    {
+                                    "uuid": {
                                       "type": "string",
                                     },
-                                    {
-                                      "type": "null",
-                                    },
+                                  },
+                                  "required": [
+                                    "contentType",
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "searchRank",
+                                    "chartCount",
+                                    "dashboardCount",
+                                    "childSpaceCount",
+                                    "appCount",
+                                    "directAccess",
+                                    "space",
                                   ],
-                                  "description": "Null for personal apps that live outside any space.",
+                                  "type": "object",
                                 },
-                                "uuid": {
-                                  "type": "string",
-                                },
-                                "viewsCount": {
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer",
-                                },
-                              },
-                              "required": [
-                                "contentType",
-                                "uuid",
-                                "name",
-                                "slug",
-                                "searchRank",
-                                "spaceUuid",
-                                "viewsCount",
-                                "href",
-                                "space",
-                                "description",
-                                "createdBy",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "charts": {
+                                {
                                   "additionalProperties": false,
                                   "properties": {
-                                    "count": {
-                                      "description": "Total number of charts on the dashboard.",
+                                    "contentType": {
+                                      "const": "data_app",
+                                      "type": "string",
+                                    },
+                                    "description": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Description truncated to the smaller of the tool limit and 200 characters, or null when empty.",
+                                    },
+                                    "href": {
+                                      "description": "Canonical viewer URL of the Data App.",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "space": {
+                                      "anyOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "breadcrumb": {
+                                              "description": "Space path from the root, space names joined by " / ".",
+                                              "type": "string",
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                            },
+                                            "slug": {
+                                              "type": "string",
+                                            },
+                                            "uuid": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "uuid",
+                                            "name",
+                                            "slug",
+                                            "breadcrumb",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                    },
+                                    "spaceUuid": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Null for personal apps that live outside any space.",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "contentType",
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "spaceUuid",
+                                    "href",
+                                    "space",
+                                    "description",
+                                  ],
+                                  "type": "object",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "charts": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "count": {
+                                          "description": "Total number of charts on the dashboard.",
+                                          "maximum": 9007199254740991,
+                                          "minimum": -9007199254740991,
+                                          "type": "integer",
+                                        },
+                                      },
+                                      "required": [
+                                        "count",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "contentType": {
+                                      "const": "dashboard",
+                                      "type": "string",
+                                    },
+                                    "description": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Description truncated to the smaller of the tool limit and 200 characters, or null when empty.",
+                                    },
+                                    "href": {
+                                      "description": "Canonical URL of the dashboard.",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "space": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "breadcrumb": {
+                                          "description": "Space path from the root, space names joined by " / ".",
+                                          "type": "string",
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "slug": {
+                                          "type": "string",
+                                        },
+                                        "uuid": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "uuid",
+                                        "name",
+                                        "slug",
+                                        "breadcrumb",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "spaceUuid": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                    "validationErrorCount": {
+                                      "description": "Number of validation errors; dashboards with errors are deprioritized.",
                                       "maximum": 9007199254740991,
                                       "minimum": -9007199254740991,
                                       "type": "integer",
                                     },
-                                    "preview": {
-                                      "description": "First few charts, verified first; use readContent for the full list.",
-                                      "items": {
-                                        "additionalProperties": false,
-                                        "properties": {
-                                          "chartType": {
-                                            "type": "string",
+                                    "verification": {
+                                      "anyOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "verifiedAt": {
+                                              "description": "Relative verification time shown in the text.",
+                                              "type": "string",
+                                            },
+                                            "verifiedBy": {
+                                              "type": "string",
+                                            },
                                           },
-                                          "description": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                              },
-                                              {
-                                                "type": "null",
-                                              },
-                                            ],
-                                            "description": "Description truncated to the tool limit, or null when empty.",
-                                          },
-                                          "name": {
-                                            "type": "string",
-                                          },
-                                          "uuid": {
-                                            "type": "string",
-                                          },
-                                          "verification": {
-                                            "anyOf": [
-                                              {
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                  "verifiedAt": {
-                                                    "description": "ISO 8601 verification timestamp.",
-                                                    "type": "string",
-                                                  },
-                                                  "verifiedBy": {
-                                                    "description": "Full name of the admin who verified the content.",
-                                                    "type": "string",
-                                                  },
-                                                },
-                                                "required": [
-                                                  "verifiedBy",
-                                                  "verifiedAt",
-                                                ],
-                                                "type": "object",
-                                              },
-                                              {
-                                                "type": "null",
-                                              },
-                                            ],
-                                            "description": "Admin verification, or null when the content is unverified.",
-                                          },
+                                          "required": [
+                                            "verifiedBy",
+                                            "verifiedAt",
+                                          ],
+                                          "type": "object",
                                         },
-                                        "required": [
-                                          "uuid",
-                                          "name",
-                                          "chartType",
-                                          "description",
-                                          "verification",
-                                        ],
-                                        "type": "object",
-                                      },
-                                      "type": "array",
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
                                     },
                                   },
                                   "required": [
-                                    "count",
-                                    "preview",
+                                    "contentType",
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "spaceUuid",
+                                    "href",
+                                    "space",
+                                    "description",
+                                    "verification",
+                                    "charts",
+                                    "validationErrorCount",
                                   ],
                                   "type": "object",
                                 },
-                                "contentType": {
-                                  "const": "dashboard",
-                                  "type": "string",
-                                },
-                                "createdBy": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Full name of the user, or null when unknown.",
-                                },
-                                "description": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Description truncated to the tool limit, or null when empty.",
-                                },
-                                "firstViewedAt": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "ISO 8601 timestamp, or null when unknown.",
-                                },
-                                "href": {
-                                  "description": "Canonical URL of the dashboard.",
-                                  "type": "string",
-                                },
-                                "lastModified": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "ISO 8601 timestamp, or null when unknown.",
-                                },
-                                "lastUpdatedBy": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Full name of the user, or null when unknown.",
-                                },
-                                "name": {
-                                  "type": "string",
-                                },
-                                "searchRank": {
-                                  "type": "number",
-                                },
-                                "slug": {
-                                  "type": "string",
-                                },
-                                "space": {
+                                {
                                   "additionalProperties": false,
                                   "properties": {
-                                    "breadcrumb": {
-                                      "description": "Space path from the root, space names joined by " / ".",
+                                    "chartSource": {
+                                      "description": ""saved" for explore charts, "sql" for SQL Runner charts.",
+                                      "enum": [
+                                        "saved",
+                                        "sql",
+                                      ],
+                                      "type": "string",
+                                    },
+                                    "chartType": {
+                                      "type": "string",
+                                    },
+                                    "contentType": {
+                                      "const": "chart",
+                                      "type": "string",
+                                    },
+                                    "description": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Description truncated to the smaller of the tool limit and 200 characters, or null when empty.",
+                                    },
+                                    "href": {
+                                      "description": "Canonical URL of the chart.",
                                       "type": "string",
                                     },
                                     "name": {
@@ -3135,289 +3118,824 @@ Usage tips:
                                     "slug": {
                                       "type": "string",
                                     },
-                                    "uuid": {
-                                      "type": "string",
-                                    },
-                                  },
-                                  "required": [
-                                    "uuid",
-                                    "name",
-                                    "slug",
-                                    "breadcrumb",
-                                  ],
-                                  "type": "object",
-                                },
-                                "spaceUuid": {
-                                  "type": "string",
-                                },
-                                "uuid": {
-                                  "type": "string",
-                                },
-                                "validationErrorCount": {
-                                  "description": "Number of validation errors; dashboards with errors are deprioritized.",
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer",
-                                },
-                                "verification": {
-                                  "anyOf": [
-                                    {
+                                    "space": {
                                       "additionalProperties": false,
                                       "properties": {
-                                        "verifiedAt": {
-                                          "description": "ISO 8601 verification timestamp.",
+                                        "breadcrumb": {
+                                          "description": "Space path from the root, space names joined by " / ".",
                                           "type": "string",
                                         },
-                                        "verifiedBy": {
-                                          "description": "Full name of the admin who verified the content.",
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "slug": {
+                                          "type": "string",
+                                        },
+                                        "uuid": {
                                           "type": "string",
                                         },
                                       },
                                       "required": [
-                                        "verifiedBy",
-                                        "verifiedAt",
+                                        "uuid",
+                                        "name",
+                                        "slug",
+                                        "breadcrumb",
                                       ],
                                       "type": "object",
                                     },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Admin verification, or null when the content is unverified.",
-                                },
-                                "viewsCount": {
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer",
-                                },
-                              },
-                              "required": [
-                                "contentType",
-                                "uuid",
-                                "name",
-                                "slug",
-                                "searchRank",
-                                "spaceUuid",
-                                "viewsCount",
-                                "href",
-                                "space",
-                                "description",
-                                "verification",
-                                "firstViewedAt",
-                                "lastModified",
-                                "createdBy",
-                                "lastUpdatedBy",
-                                "charts",
-                                "validationErrorCount",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "chartSource": {
-                                  "description": ""saved" for explore charts, "sql" for SQL Runner charts.",
-                                  "enum": [
-                                    "saved",
-                                    "sql",
-                                  ],
-                                  "type": "string",
-                                },
-                                "chartType": {
-                                  "type": "string",
-                                },
-                                "contentType": {
-                                  "const": "chart",
-                                  "type": "string",
-                                },
-                                "createdBy": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Full name of the user, or null when unknown.",
-                                },
-                                "description": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Description truncated to the tool limit, or null when empty.",
-                                },
-                                "firstViewedAt": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "ISO 8601 timestamp, or null when unknown.",
-                                },
-                                "href": {
-                                  "description": "Canonical URL of the chart.",
-                                  "type": "string",
-                                },
-                                "lastModified": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "ISO 8601 timestamp, or null when unknown.",
-                                },
-                                "lastUpdatedBy": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Full name of the user, or null when unknown.",
-                                },
-                                "name": {
-                                  "type": "string",
-                                },
-                                "searchRank": {
-                                  "type": "number",
-                                },
-                                "slug": {
-                                  "type": "string",
-                                },
-                                "space": {
-                                  "additionalProperties": false,
-                                  "properties": {
-                                    "breadcrumb": {
-                                      "description": "Space path from the root, space names joined by " / ".",
-                                      "type": "string",
-                                    },
-                                    "name": {
-                                      "type": "string",
-                                    },
-                                    "slug": {
+                                    "spaceUuid": {
                                       "type": "string",
                                     },
                                     "uuid": {
                                       "type": "string",
                                     },
+                                    "verification": {
+                                      "anyOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "verifiedAt": {
+                                              "description": "Relative verification time shown in the text.",
+                                              "type": "string",
+                                            },
+                                            "verifiedBy": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "verifiedBy",
+                                            "verifiedAt",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                    },
                                   },
                                   "required": [
+                                    "contentType",
                                     "uuid",
                                     "name",
                                     "slug",
-                                    "breadcrumb",
+                                    "chartType",
+                                    "chartSource",
+                                    "spaceUuid",
+                                    "href",
+                                    "space",
+                                    "description",
+                                    "verification",
                                   ],
                                   "type": "object",
                                 },
-                                "spaceUuid": {
-                                  "type": "string",
-                                },
-                                "uuid": {
-                                  "type": "string",
-                                },
-                                "verification": {
-                                  "anyOf": [
-                                    {
-                                      "additionalProperties": false,
-                                      "properties": {
-                                        "verifiedAt": {
-                                          "description": "ISO 8601 verification timestamp.",
-                                          "type": "string",
-                                        },
-                                        "verifiedBy": {
-                                          "description": "Full name of the admin who verified the content.",
-                                          "type": "string",
-                                        },
-                                      },
-                                      "required": [
-                                        "verifiedBy",
-                                        "verifiedAt",
-                                      ],
-                                      "type": "object",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Admin verification, or null when the content is unverified.",
-                                },
-                                "viewsCount": {
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer",
-                                },
-                              },
-                              "required": [
-                                "contentType",
-                                "uuid",
-                                "name",
-                                "slug",
-                                "searchRank",
-                                "chartType",
-                                "chartSource",
-                                "spaceUuid",
-                                "viewsCount",
-                                "href",
-                                "space",
-                                "description",
-                                "verification",
-                                "firstViewedAt",
-                                "lastModified",
-                                "createdBy",
-                                "lastUpdatedBy",
                               ],
-                              "type": "object",
                             },
-                          ],
-                        },
-                        "type": "array",
-                      },
-                      "count": {
-                        "description": "Number of matches for this query.",
-                        "maximum": 9007199254740991,
-                        "minimum": -9007199254740991,
-                        "type": "integer",
-                      },
-                      "note": {
-                        "anyOf": [
-                          {
+                            "maxItems": 8,
+                            "type": "array",
+                          },
+                          "count": {
+                            "description": "Number of matches for this query.",
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "note": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Guidance when a verifiedOnly search matched nothing; null otherwise.",
+                          },
+                          "searchQuery": {
                             "type": "string",
                           },
-                          {
-                            "type": "null",
+                          "shownCount": {
+                            "description": "Number of matches shown in the text.",
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
                           },
+                          "truncationNote": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Exact omission note shown in the text, or null when none was emitted.",
+                          },
+                        },
+                        "required": [
+                          "searchQuery",
+                          "count",
+                          "note",
+                          "content",
+                          "truncationNote",
+                          "shownCount",
                         ],
-                        "description": "Guidance when a verifiedOnly search matched nothing; null otherwise.",
+                        "type": "object",
                       },
-                      "searchQuery": {
-                        "type": "string",
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "content": {
+                            "description": "Matches for this query, verified first unless relevance ranking overrides the order.",
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "contentType": {
+                                      "const": "document",
+                                      "type": "string",
+                                    },
+                                    "description": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Description truncated to the tool limit, or null when empty.",
+                                    },
+                                    "href": {
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "contentType",
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "href",
+                                    "description",
+                                  ],
+                                  "type": "object",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "appCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "chartCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "childSpaceCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "contentType": {
+                                      "const": "space",
+                                      "type": "string",
+                                    },
+                                    "dashboardCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "directAccess": {
+                                      "description": "Whether the user has direct access to this space.",
+                                      "type": "boolean",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "searchRank": {
+                                      "type": "number",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "space": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "breadcrumb": {
+                                          "description": "Space path from the root, space names joined by " / ".",
+                                          "type": "string",
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "slug": {
+                                          "type": "string",
+                                        },
+                                        "uuid": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "uuid",
+                                        "name",
+                                        "slug",
+                                        "breadcrumb",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "contentType",
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "searchRank",
+                                    "chartCount",
+                                    "dashboardCount",
+                                    "childSpaceCount",
+                                    "appCount",
+                                    "directAccess",
+                                    "space",
+                                  ],
+                                  "type": "object",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "contentType": {
+                                      "const": "data_app",
+                                      "type": "string",
+                                    },
+                                    "createdBy": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Full name of the user, or null when unknown.",
+                                    },
+                                    "description": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Description truncated to the tool limit, or null when empty.",
+                                    },
+                                    "href": {
+                                      "description": "Canonical viewer URL of the Data App.",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "searchRank": {
+                                      "type": "number",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "space": {
+                                      "anyOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "breadcrumb": {
+                                              "description": "Space path from the root, space names joined by " / ".",
+                                              "type": "string",
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                            },
+                                            "slug": {
+                                              "type": "string",
+                                            },
+                                            "uuid": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "uuid",
+                                            "name",
+                                            "slug",
+                                            "breadcrumb",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                    },
+                                    "spaceUuid": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Null for personal apps that live outside any space.",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                    "viewsCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                  },
+                                  "required": [
+                                    "contentType",
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "searchRank",
+                                    "spaceUuid",
+                                    "viewsCount",
+                                    "href",
+                                    "space",
+                                    "description",
+                                    "createdBy",
+                                  ],
+                                  "type": "object",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "charts": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "count": {
+                                          "description": "Total number of charts on the dashboard.",
+                                          "maximum": 9007199254740991,
+                                          "minimum": -9007199254740991,
+                                          "type": "integer",
+                                        },
+                                        "preview": {
+                                          "description": "First few charts, verified first; use readContent for the full list.",
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "chartType": {
+                                                "type": "string",
+                                              },
+                                              "description": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                  },
+                                                  {
+                                                    "type": "null",
+                                                  },
+                                                ],
+                                                "description": "Description truncated to the tool limit, or null when empty.",
+                                              },
+                                              "name": {
+                                                "type": "string",
+                                              },
+                                              "uuid": {
+                                                "type": "string",
+                                              },
+                                              "verification": {
+                                                "anyOf": [
+                                                  {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                      "verifiedAt": {
+                                                        "description": "Relative verification time shown in the text.",
+                                                        "type": "string",
+                                                      },
+                                                      "verifiedBy": {
+                                                        "type": "string",
+                                                      },
+                                                    },
+                                                    "required": [
+                                                      "verifiedBy",
+                                                      "verifiedAt",
+                                                    ],
+                                                    "type": "object",
+                                                  },
+                                                  {
+                                                    "type": "null",
+                                                  },
+                                                ],
+                                              },
+                                            },
+                                            "required": [
+                                              "uuid",
+                                              "name",
+                                              "chartType",
+                                              "description",
+                                              "verification",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                      },
+                                      "required": [
+                                        "count",
+                                        "preview",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "contentType": {
+                                      "const": "dashboard",
+                                      "type": "string",
+                                    },
+                                    "createdBy": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Full name of the user, or null when unknown.",
+                                    },
+                                    "description": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Description truncated to the tool limit, or null when empty.",
+                                    },
+                                    "firstViewedAt": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Relative time shown in the text, or null when unknown.",
+                                    },
+                                    "href": {
+                                      "description": "Canonical URL of the dashboard.",
+                                      "type": "string",
+                                    },
+                                    "lastModified": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Relative time shown in the text, or null when unknown.",
+                                    },
+                                    "lastUpdatedBy": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Full name of the user, or null when unknown.",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "searchRank": {
+                                      "type": "number",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "space": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "breadcrumb": {
+                                          "description": "Space path from the root, space names joined by " / ".",
+                                          "type": "string",
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "slug": {
+                                          "type": "string",
+                                        },
+                                        "uuid": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "uuid",
+                                        "name",
+                                        "slug",
+                                        "breadcrumb",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "spaceUuid": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                    "validationErrorCount": {
+                                      "description": "Validation error count, present only when positive in full results.",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "verification": {
+                                      "anyOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "verifiedAt": {
+                                              "description": "Relative verification time shown in the text.",
+                                              "type": "string",
+                                            },
+                                            "verifiedBy": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "verifiedBy",
+                                            "verifiedAt",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                    },
+                                    "viewsCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                  },
+                                  "required": [
+                                    "contentType",
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "searchRank",
+                                    "spaceUuid",
+                                    "viewsCount",
+                                    "href",
+                                    "space",
+                                    "description",
+                                    "verification",
+                                    "firstViewedAt",
+                                    "lastModified",
+                                    "createdBy",
+                                    "lastUpdatedBy",
+                                    "charts",
+                                  ],
+                                  "type": "object",
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "chartSource": {
+                                      "description": ""saved" for explore charts, "sql" for SQL Runner charts.",
+                                      "enum": [
+                                        "saved",
+                                        "sql",
+                                      ],
+                                      "type": "string",
+                                    },
+                                    "chartType": {
+                                      "type": "string",
+                                    },
+                                    "contentType": {
+                                      "const": "chart",
+                                      "type": "string",
+                                    },
+                                    "createdBy": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Full name of the user, or null when unknown.",
+                                    },
+                                    "description": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Description truncated to the tool limit, or null when empty.",
+                                    },
+                                    "firstViewedAt": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Relative time shown in the text, or null when unknown.",
+                                    },
+                                    "href": {
+                                      "description": "Canonical URL of the chart.",
+                                      "type": "string",
+                                    },
+                                    "lastModified": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Relative time shown in the text, or null when unknown.",
+                                    },
+                                    "lastUpdatedBy": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "description": "Full name of the user, or null when unknown.",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "searchRank": {
+                                      "type": "number",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "space": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "breadcrumb": {
+                                          "description": "Space path from the root, space names joined by " / ".",
+                                          "type": "string",
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "slug": {
+                                          "type": "string",
+                                        },
+                                        "uuid": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "uuid",
+                                        "name",
+                                        "slug",
+                                        "breadcrumb",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "spaceUuid": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                    "verification": {
+                                      "anyOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "verifiedAt": {
+                                              "description": "Relative verification time shown in the text.",
+                                              "type": "string",
+                                            },
+                                            "verifiedBy": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "verifiedBy",
+                                            "verifiedAt",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                    },
+                                    "viewsCount": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                  },
+                                  "required": [
+                                    "contentType",
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "searchRank",
+                                    "chartType",
+                                    "chartSource",
+                                    "spaceUuid",
+                                    "viewsCount",
+                                    "href",
+                                    "space",
+                                    "description",
+                                    "verification",
+                                    "firstViewedAt",
+                                    "lastModified",
+                                    "createdBy",
+                                    "lastUpdatedBy",
+                                  ],
+                                  "type": "object",
+                                },
+                              ],
+                            },
+                            "type": "array",
+                          },
+                          "count": {
+                            "description": "Number of matches for this query.",
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "note": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Guidance when a verifiedOnly search matched nothing; null otherwise.",
+                          },
+                          "searchQuery": {
+                            "type": "string",
+                          },
+                          "truncationNote": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Exact omission note shown in the text, or null when none was emitted.",
+                          },
+                        },
+                        "required": [
+                          "searchQuery",
+                          "count",
+                          "note",
+                          "content",
+                          "truncationNote",
+                        ],
+                        "type": "object",
                       },
-                      "verifiedOnly": {
-                        "type": "boolean",
-                      },
-                    },
-                    "required": [
-                      "searchQuery",
-                      "verifiedOnly",
-                      "count",
-                      "note",
-                      "content",
                     ],
-                    "type": "object",
                   },
                   "type": "array",
                 },
@@ -5439,14 +5957,116 @@ All branches of an IF must return the same type.",
                   },
                   "type": "array",
                 },
+                "layout": {
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "narrowPreviewBehavior": {
+                              "const": "stackInReadingOrder",
+                              "type": "string",
+                            },
+                            "positionOrder": {
+                              "const": "originalVisualizationOrder",
+                              "type": "string",
+                            },
+                            "positions": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "h": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "type": "integer",
+                                  },
+                                  "w": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "type": "integer",
+                                  },
+                                  "x": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer",
+                                  },
+                                  "y": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer",
+                                  },
+                                },
+                                "required": [
+                                  "x",
+                                  "y",
+                                  "w",
+                                  "h",
+                                ],
+                                "type": "object",
+                              },
+                              "maxItems": 15,
+                              "minItems": 1,
+                              "type": "array",
+                            },
+                            "status": {
+                              "const": "selected",
+                              "type": "string",
+                            },
+                            "template": {
+                              "enum": [
+                                "balanced",
+                                "overview",
+                                "analysis",
+                                "comparison",
+                                "stacked",
+                              ],
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "template",
+                            "positions",
+                            "status",
+                            "positionOrder",
+                            "narrowPreviewBehavior",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "customArrangementApplied": {
+                              "const": false,
+                              "type": "boolean",
+                            },
+                            "status": {
+                              "const": "default",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "status",
+                            "customArrangementApplied",
+                          ],
+                          "type": "object",
+                        },
+                      ],
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Layout details reported in the text, or null when omitted.",
+                },
                 "visualizationCount": {
-                  "description": "How many visualizations the dashboard was created with.",
+                  "description": "How many visualizations the dashboard was created with; present when the text reports the count or lists tile positions.",
                   "type": "number",
                 },
               },
               "required": [
-                "visualizationCount",
                 "excludedVisualizations",
+                "layout",
               ],
               "type": "object",
             },
@@ -5746,7 +6366,7 @@ All branches of an IF must return the same type.",
               "additionalProperties": false,
               "properties": {
                 "uuids": {
-                  "description": "The freshly generated UUIDs, one per requested count.",
+                  "description": "The freshly generated UUIDs.",
                   "items": {
                     "type": "string",
                   },
@@ -5964,7 +6584,7 @@ Usage tips:
                             "additionalProperties": false,
                             "properties": {
                               "verifiedAt": {
-                                "description": "When the chart was verified, as an ISO 8601 date.",
+                                "description": "When the chart was verified, as relative time.",
                                 "type": "string",
                               },
                               "verifiedBy": {
@@ -6940,6 +7560,57 @@ Parameters:
                         "minimum": -9007199254740991,
                         "type": "integer",
                       },
+                      "summary": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "definedTerms": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "description": {
+                            "type": "string",
+                          },
+                          "relatedExploreNames": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "relevance": {
+                            "enum": [
+                              "high",
+                              "medium",
+                              "low",
+                              "none",
+                            ],
+                            "type": "string",
+                          },
+                          "useWhen": {
+                            "type": "string",
+                          },
+                          "warning": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                        },
+                        "required": [
+                          "relevance",
+                          "description",
+                          "definedTerms",
+                          "relatedExploreNames",
+                          "useWhen",
+                          "warning",
+                        ],
+                        "type": "object",
+                      },
                       "uuid": {
                         "description": "Pass to getKnowledgeDocumentContent to read the full document.",
                         "type": "string",
@@ -6949,6 +7620,7 @@ Parameters:
                       "uuid",
                       "name",
                       "sizeBytes",
+                      "summary",
                     ],
                     "type": "object",
                   },
@@ -7096,7 +7768,8 @@ Parameters:
                     "additionalProperties": false,
                     "properties": {
                       "isActive": {
-                        "description": "True for the project the agent is currently working in.",
+                        "const": true,
+                        "description": "Present only for the project the agent is currently working in.",
                         "type": "boolean",
                       },
                       "name": {
@@ -7105,7 +7778,6 @@ Parameters:
                     },
                     "required": [
                       "name",
-                      "isActive",
                     ],
                     "type": "object",
                   },
@@ -7280,81 +7952,129 @@ Parameters:
               "type": "string",
             },
             "structuredContent": {
-              "additionalProperties": false,
-              "properties": {
-                "filters": {
+              "anyOf": [
+                {
                   "additionalProperties": false,
-                  "description": "Filters applied to the catalog; null when not given.",
                   "properties": {
-                    "schema": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                        },
-                        {
-                          "type": "null",
-                        },
-                      ],
+                    "matchCount": {
+                      "description": "Number of tables matched.",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer",
                     },
-                    "search": {
-                      "anyOf": [
-                        {
-                          "type": "string",
+                    "tables": {
+                      "description": "Matched tables in text output order: catalog order when ranking is skipped, lexical fallback or relevance order otherwise; empty when none matched.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "database": {
+                            "type": "string",
+                          },
+                          "qualifiedName": {
+                            "description": ""database.schema.table", ready to use in SQL.",
+                            "type": "string",
+                          },
+                          "schema": {
+                            "type": "string",
+                          },
+                          "table": {
+                            "type": "string",
+                          },
                         },
-                        {
-                          "type": "null",
-                        },
-                      ],
+                        "required": [
+                          "database",
+                          "schema",
+                          "table",
+                          "qualifiedName",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
                     },
                   },
                   "required": [
-                    "schema",
-                    "search",
+                    "matchCount",
+                    "tables",
                   ],
                   "type": "object",
                 },
-                "matchCount": {
-                  "description": "Number of tables matched; 0 when nothing matched.",
-                  "maximum": 9007199254740991,
-                  "minimum": -9007199254740991,
-                  "type": "integer",
-                },
-                "tables": {
-                  "description": "Matched tables, in catalog order; empty when none matched.",
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "database": {
-                        "type": "string",
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "filters": {
+                      "additionalProperties": false,
+                      "description": "Filters applied to the catalog; null when not given.",
+                      "properties": {
+                        "schema": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "search": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
                       },
-                      "qualifiedName": {
-                        "description": ""database.schema.table", ready to use in SQL.",
-                        "type": "string",
-                      },
-                      "schema": {
-                        "type": "string",
-                      },
-                      "table": {
-                        "type": "string",
-                      },
+                      "required": [
+                        "schema",
+                        "search",
+                      ],
+                      "type": "object",
                     },
-                    "required": [
-                      "database",
-                      "schema",
-                      "table",
-                      "qualifiedName",
-                    ],
-                    "type": "object",
+                    "matchCount": {
+                      "const": 0,
+                      "description": "No tables matched.",
+                      "type": "number",
+                    },
+                    "tables": {
+                      "description": "Matched tables in text output order: catalog order when ranking is skipped, lexical fallback or relevance order otherwise; empty when none matched.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "database": {
+                            "type": "string",
+                          },
+                          "qualifiedName": {
+                            "description": ""database.schema.table", ready to use in SQL.",
+                            "type": "string",
+                          },
+                          "schema": {
+                            "type": "string",
+                          },
+                          "table": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "database",
+                          "schema",
+                          "table",
+                          "qualifiedName",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
                   },
-                  "type": "array",
+                  "required": [
+                    "matchCount",
+                    "tables",
+                    "filters",
+                  ],
+                  "type": "object",
                 },
-              },
-              "required": [
-                "matchCount",
-                "filters",
-                "tables",
               ],
-              "type": "object",
             },
           },
           "required": [
@@ -8131,44 +8851,25 @@ Parameters:
                 {
                   "additionalProperties": false,
                   "properties": {
-                    "appUuid": {
-                      "description": "Uuid of the data app.",
+                    "estimatedDuration": {
+                      "description": "Qualitative estimate of how long the build will take.",
                       "type": "string",
-                    },
-                    "name": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                        },
-                        {
-                          "type": "null",
-                        },
-                      ],
                     },
                     "status": {
                       "const": "pending",
                       "description": "The build has started and is still running; its outcome replaces this result on a later turn.",
                       "type": "string",
                     },
-                    "version": {
-                      "description": "App version this build produces; 1 for a new app.",
-                      "type": "number",
-                    },
                   },
                   "required": [
                     "status",
-                    "appUuid",
-                    "version",
+                    "estimatedDuration",
                   ],
                   "type": "object",
                 },
                 {
                   "additionalProperties": false,
                   "properties": {
-                    "appUuid": {
-                      "description": "Uuid of the data app.",
-                      "type": "string",
-                    },
                     "href": {
                       "description": "URL of the app in the builder.",
                       "type": "string",
@@ -8200,7 +8901,6 @@ Parameters:
                   },
                   "required": [
                     "status",
-                    "appUuid",
                     "version",
                     "name",
                     "slug",
@@ -8405,8 +9105,9 @@ Parameters:
             {
               "additionalProperties": false,
               "properties": {
-                "appUuid": {
-                  "description": "UUID of the data app being changed.",
+                "estimatedDuration": {
+                  "const": "a few minutes",
+                  "description": "Expected build duration, as stated in the text.",
                   "type": "string",
                 },
                 "status": {
@@ -8414,15 +9115,10 @@ Parameters:
                   "description": "The build has started and runs in the background; its outcome lands on this result later.",
                   "type": "string",
                 },
-                "version": {
-                  "description": "Version number of the data app that this build creates.",
-                  "type": "number",
-                },
               },
               "required": [
                 "status",
-                "appUuid",
-                "version",
+                "estimatedDuration",
               ],
               "type": "object",
             },
@@ -9425,7 +10121,7 @@ Parameters:
               "additionalProperties": false,
               "properties": {
                 "content": {
-                  "description": "The entry sentence written to the project context.",
+                  "description": "The project-context entry sentence written in the pull request.",
                   "type": "string",
                 },
                 "op": {
@@ -9444,11 +10140,32 @@ Parameters:
                   ],
                   "type": "string",
                 },
+                "pullRequestButton": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "const": "View pull request",
+                      "description": "The button label.",
+                      "type": "string",
+                    },
+                    "shown": {
+                      "const": true,
+                      "description": "The button is shown to the user.",
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "shown",
+                    "label",
+                  ],
+                  "type": "object",
+                },
               },
               "required": [
                 "prAction",
                 "op",
                 "content",
+                "pullRequestButton",
               ],
               "type": "object",
             },
@@ -9804,9 +10521,10 @@ Parameters:
             {
               "additionalProperties": false,
               "properties": {
-                "prUrl": {
-                  "description": "URL of the opened pull request. The user already sees it as a "View pull request" button, so do not repeat it in the reply.",
-                  "type": "string",
+                "addsPreviewDeployWorkflow": {
+                  "const": true,
+                  "description": "The opened pull request adds the Lightdash preview-deploy GitHub Actions workflow.",
+                  "type": "boolean",
                 },
                 "projectName": {
                   "description": "Lightdash project the preview deploys are based on.",
@@ -9850,11 +10568,17 @@ Parameters:
                   },
                   "type": "array",
                 },
+                "viewPullRequestButtonShown": {
+                  "const": true,
+                  "description": "A "View pull request" button is shown to the user.",
+                  "type": "boolean",
+                },
               },
               "required": [
-                "prUrl",
                 "projectName",
                 "repository",
+                "addsPreviewDeployWorkflow",
+                "viewPullRequestButtonShown",
                 "secrets",
               ],
               "type": "object",
@@ -10106,6 +10830,8 @@ Parameters:
                         "type": "string",
                       },
                       "private": {
+                        "const": true,
+                        "description": "Present only when the text labels the repository as private.",
                         "type": "boolean",
                       },
                       "repo": {
@@ -10116,7 +10842,6 @@ Parameters:
                       "owner",
                       "repo",
                       "defaultBranch",
-                      "private",
                     ],
                     "type": "object",
                   },
@@ -10209,6 +10934,7 @@ Parameters:
       "properties": {
         "repoTarget": {
           "description": "Restrict the list to a single repository, as "owner/repo" (e.g. "acme/web-app"). Pass null to list the pull requests this conversation has opened across all repositories.",
+          "minLength": 1,
           "type": [
             "string",
             "null",
@@ -10271,13 +10997,14 @@ Parameters:
                 "repoTarget": {
                   "anyOf": [
                     {
+                      "minLength": 1,
                       "type": "string",
                     },
                     {
                       "type": "null",
                     },
                   ],
-                  "description": "The "owner/repo" the list was restricted to, or null when it spans every repository.",
+                  "description": "Repository restriction reported for an empty result, or null when no restriction was applied; omitted when pull requests are listed.",
                 },
                 "workstreams": {
                   "description": "Pull requests this conversation has opened; empty when none match.",
@@ -10321,7 +11048,6 @@ Parameters:
                 },
               },
               "required": [
-                "repoTarget",
                 "workstreams",
               ],
               "type": "object",
@@ -10463,18 +11189,13 @@ Parameters:
             "structuredContent": {
               "additionalProperties": false,
               "properties": {
-                "prUrl": {
-                  "description": "URL of the pull request that was closed.",
-                  "type": "string",
-                },
                 "state": {
                   "const": "closed",
-                  "description": "State of the pull request on the provider after the call.",
+                  "description": "State reported by the tool when the close request completes without an error.",
                   "type": "string",
                 },
               },
               "required": [
-                "prUrl",
                 "state",
               ],
               "type": "object",
@@ -10625,7 +11346,7 @@ Parameters:
                   "type": "string",
                 },
                 "totalChars": {
-                  "description": "Length of the full diff in characters, before any cut.",
+                  "description": "Length of the full diff in characters, before any cut; zero for whitespace-only diffs normalized to empty.",
                   "maximum": 9007199254740991,
                   "minimum": -9007199254740991,
                   "type": "integer",
@@ -11208,14 +11929,14 @@ Input modes:
                             },
                             "filters": {
                               "additionalProperties": {},
-                              "description": "The saved chart filters, as stored.",
+                              "description": "The executed chart filters, including dashboard overrides.",
                               "propertyNames": {
                                 "type": "string",
                               },
                               "type": "object",
                             },
                             "limit": {
-                              "description": "Row limit saved on the chart.",
+                              "description": "Effective row limit used to execute the chart.",
                               "type": "number",
                             },
                             "metrics": {
@@ -11237,6 +11958,45 @@ Input modes:
                                   },
                                   "fieldId": {
                                     "type": "string",
+                                  },
+                                  "nullsFirst": {
+                                    "type": "boolean",
+                                  },
+                                  "pivotValues": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "reference": {
+                                          "type": "string",
+                                        },
+                                        "value": {
+                                          "anyOf": [
+                                            {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                },
+                                                {
+                                                  "type": "number",
+                                                },
+                                                {
+                                                  "type": "boolean",
+                                                },
+                                              ],
+                                            },
+                                            {
+                                              "type": "null",
+                                            },
+                                          ],
+                                        },
+                                      },
+                                      "required": [
+                                        "reference",
+                                        "value",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
                                   },
                                 },
                                 "required": [
@@ -11277,28 +12037,26 @@ Input modes:
                       "description": "The saved chart that was run; null when an unsaved metricQuery was run.",
                     },
                     "columns": {
-                      "description": "Ordered columns: \`fieldId\` keys each row, \`label\` is the CSV header shown to the model.",
+                      "description": "CSV header labels in the order shown to the model.",
                       "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "fieldId": {
-                            "type": "string",
-                          },
-                          "label": {
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "fieldId",
-                          "label",
-                        ],
-                        "type": "object",
+                        "type": "string",
                       },
                       "type": "array",
                     },
                     "outcome": {
                       "const": "rows",
                       "type": "string",
+                    },
+                    "review": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Exact query review appended to the text, if any.",
                     },
                     "rowCount": {
                       "description": "Total rows the query returned.",
@@ -11307,13 +12065,10 @@ Input modes:
                       "type": "integer",
                     },
                     "rows": {
-                      "description": "Result rows keyed by field id.",
+                      "description": "Shown rows of CSV input cell values in column order.",
                       "items": {
-                        "additionalProperties": {},
-                        "propertyNames": {
-                          "type": "string",
-                        },
-                        "type": "object",
+                        "items": {},
+                        "type": "array",
                       },
                       "type": "array",
                     },
@@ -11323,6 +12078,17 @@ Input modes:
                       "minimum": 0,
                       "type": "integer",
                     },
+                    "truncationNote": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Exact context truncation and retention note, if any.",
+                    },
                   },
                   "required": [
                     "outcome",
@@ -11331,6 +12097,8 @@ Input modes:
                     "shownRowCount",
                     "columns",
                     "rows",
+                    "review",
+                    "truncationNote",
                   ],
                   "type": "object",
                 },
@@ -11342,9 +12110,21 @@ Input modes:
                       "description": "The query ran but returned no rows.",
                       "type": "string",
                     },
+                    "review": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Exact empty-result review returned in the text, if any.",
+                    },
                   },
                   "required": [
                     "outcome",
+                    "review",
                   ],
                   "type": "object",
                 },
@@ -13245,14 +14025,26 @@ Use them whenever the question needs math the metric query alone can't express: 
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "chartVersionUuid": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The chart version UUID cited in the text; null when none was cited.",
+                    },
                     "outcome": {
-                      "const": "chartOnly",
-                      "description": "Data access is disabled, so the query was not run; the query definition was recorded as a new version of the thread's chart artifact (created on first use). Nothing is saved to the project.",
+                      "const": "success",
+                      "description": "The tool succeeded.",
                       "type": "string",
                     },
                   },
                   "required": [
                     "outcome",
+                    "chartVersionUuid",
                   ],
                   "type": "object",
                 },
@@ -13349,6 +14141,16 @@ Use them whenever the question needs math the metric query alone can't express: 
                       ],
                       "description": "null when the explore references no parameters or the query was a merge.",
                     },
+                    "review": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
                     "rowCount": {
                       "const": 0,
                       "type": "number",
@@ -13358,32 +14160,217 @@ Use them whenever the question needs math the metric query alone can't express: 
                     "outcome",
                     "rowCount",
                     "parameters",
+                    "review",
                   ],
                   "type": "object",
                 },
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "chartConfig": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "defaultVizType": {
+                              "description": "The default visualization type to render",
+                              "enum": [
+                                "table",
+                                "bar",
+                                "horizontal",
+                                "line",
+                                "scatter",
+                                "pie",
+                                "funnel",
+                              ],
+                              "type": "string",
+                            },
+                            "groupBy": {
+                              "anyOf": [
+                                {
+                                  "items": {
+                                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
+                            },
+                            "lineType": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "line",
+                                    "area",
+                                  ],
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
+                            },
+                            "secondaryYAxisLabel": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "default": null,
+                              "description": "A helpful label for the secondary y-axis",
+                            },
+                            "secondaryYAxisMetric": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "default": null,
+                              "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+                            },
+                            "stackBars": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
+                            },
+                            "xAxisDimension": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
+                            },
+                            "xAxisLabel": {
+                              "description": "A helpful label to explain the x-axis",
+                              "type": "string",
+                            },
+                            "xAxisType": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "category",
+                                    "time",
+                                  ],
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
+                            },
+                            "yAxisLabel": {
+                              "description": "A helpful label to explain the y-axis",
+                              "type": "string",
+                            },
+                            "yAxisMetrics": {
+                              "anyOf": [
+                                {
+                                  "items": {
+                                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
+                            },
+                          },
+                          "required": [
+                            "defaultVizType",
+                            "xAxisDimension",
+                            "yAxisMetrics",
+                            "groupBy",
+                            "xAxisType",
+                            "stackBars",
+                            "lineType",
+                            "xAxisLabel",
+                            "yAxisLabel",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The selected chart configuration serialized in the text; null when none was shown.",
+                    },
+                    "chartExport": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "artifactUuid": {
+                              "type": "string",
+                            },
+                            "versionUuid": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "artifactUuid",
+                            "versionUuid",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The stored chart reference cited for chart-as-code export.",
+                    },
+                    "chartVersionUuid": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The chart version UUID cited in the text; null when none was cited.",
+                    },
                     "data": {
                       "anyOf": [
                         {
                           "additionalProperties": false,
                           "properties": {
                             "columns": {
-                              "description": "Ordered field ids matching the keys of each row.",
+                              "description": "Ordered display labels used in the CSV header.",
                               "items": {
                                 "type": "string",
                               },
                               "type": "array",
                             },
                             "rows": {
-                              "description": "The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.",
+                              "description": "The cell values written to the CSV, in column order. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.",
                               "items": {
-                                "additionalProperties": {},
-                                "propertyNames": {
-                                  "type": "string",
-                                },
-                                "type": "object",
+                                "items": {},
+                                "type": "array",
                               },
                               "type": "array",
                             },
@@ -13405,11 +14392,11 @@ Use them whenever the question needs math the metric query alone can't express: 
                       "description": "The row limit behind rowCount.",
                       "properties": {
                         "effective": {
-                          "description": "The limit applied after resolving null and capping to \`max\`. A rowCount equal to this means the limit was reached and more rows may exist.",
+                          "description": "The applied row limit. A rowCount equal to this means the limit was reached and more rows may exist.",
                           "type": "number",
                         },
                         "max": {
-                          "description": "This tool's maximum row limit.",
+                          "description": "This tool's maximum row limit, only when stated in the text.",
                           "type": "number",
                         },
                         "requested": {
@@ -13421,18 +14408,17 @@ Use them whenever the question needs math the metric query alone can't express: 
                               "type": "null",
                             },
                           ],
+                          "description": "The requested limit, only when stated in the text.",
                         },
                       },
                       "required": [
-                        "requested",
                         "effective",
-                        "max",
                       ],
                       "type": "object",
                     },
                     "outcome": {
                       "const": "results",
-                      "description": "The query ran and returned rows, and they were recorded as a new version of the thread's chart artifact (the artifact is created on first use).",
+                      "description": "The query ran and returned rows.",
                       "type": "string",
                     },
                     "parameters": {
@@ -13520,6 +14506,18 @@ Use them whenever the question needs math the metric query alone can't express: 
                       ],
                       "description": "null when the explore references no parameters or the query was a merge.",
                     },
+                    "queryScopeUnchanged": {
+                      "anyOf": [
+                        {
+                          "const": true,
+                          "type": "boolean",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The scope-preservation statement emitted with a selected chart configuration; null when none was emitted.",
+                    },
                     "queryUuid": {
                       "anyOf": [
                         {
@@ -13531,11 +14529,31 @@ Use them whenever the question needs math the metric query alone can't express: 
                       ],
                       "description": "The uuid of this execution, when the run exposes it for citation; null otherwise.",
                     },
+                    "review": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
                     "rowCount": {
                       "description": "Total rows the query returned.",
                       "maximum": 9007199254740991,
                       "minimum": 0,
                       "type": "integer",
+                    },
+                    "truncationNote": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
                     },
                   },
                   "required": [
@@ -13545,6 +14563,12 @@ Use them whenever the question needs math the metric query alone can't express: 
                     "limit",
                     "parameters",
                     "data",
+                    "chartVersionUuid",
+                    "chartExport",
+                    "chartConfig",
+                    "queryScopeUnchanged",
+                    "review",
+                    "truncationNote",
                   ],
                   "type": "object",
                 },
@@ -13819,37 +14843,32 @@ custom metrics are applied automatically.
                       "type": "object",
                     },
                     "columns": {
+                      "description": "CSV header labels in column order",
                       "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "fieldId": {
-                            "type": "string",
-                          },
-                          "label": {
-                            "description": "Column header shown in the CSV",
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "fieldId",
-                          "label",
-                        ],
-                        "type": "object",
+                        "type": "string",
                       },
                       "type": "array",
+                    },
+                    "review": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Exact reviewer text appended to \`result\`, or null when none was emitted",
                     },
                     "rowCount": {
                       "description": "Rows the query returned in total",
                       "type": "number",
                     },
                     "rows": {
-                      "description": "Row cells keyed by column fieldId",
+                      "description": "Shown row cells in CSV column order, using the same values as the CSV input",
                       "items": {
-                        "additionalProperties": {},
-                        "propertyNames": {
-                          "type": "string",
-                        },
-                        "type": "object",
+                        "items": {},
+                        "type": "array",
                       },
                       "type": "array",
                     },
@@ -13865,6 +14884,17 @@ custom metrics are applied automatically.
                       "description": "Whether \`rows\` holds only the first shownRowCount rows",
                       "type": "boolean",
                     },
+                    "truncationNote": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Exact context-truncation and retention note included in \`result\`, or null when none was emitted",
+                    },
                   },
                   "required": [
                     "status",
@@ -13874,6 +14904,8 @@ custom metrics are applied automatically.
                     "truncated",
                     "columns",
                     "rows",
+                    "review",
+                    "truncationNote",
                   ],
                   "type": "object",
                 },
@@ -13881,8 +14913,19 @@ custom metrics are applied automatically.
                   "additionalProperties": false,
                   "properties": {
                     "note": {
-                      "description": "Retry guidance; the same text as \`result\`",
+                      "description": "Empty-result guidance or diagnosis; the same text as \`result\`",
                       "type": "string",
+                    },
+                    "review": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Exact reviewer diagnosis used as \`result\`, including any prior review, or null when none was emitted",
                     },
                     "status": {
                       "const": "no_results",
@@ -13892,6 +14935,7 @@ custom metrics are applied automatically.
                   "required": [
                     "status",
                     "note",
+                    "review",
                   ],
                   "type": "object",
                 },
@@ -13935,7 +14979,7 @@ custom metrics are applied automatically.
                       "type": "object",
                     },
                     "note": {
-                      "description": "Why no rows are returned; the same text as \`result\`",
+                      "description": "Why no rows are returned; follows the chart header in \`result\`",
                       "type": "string",
                     },
                     "status": {
@@ -14114,6 +15158,17 @@ Do not invent SQL Runner links.",
                   },
                   "type": "array",
                 },
+                "review": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Exact empty-result diagnosis appended to the text, or null when no diagnosis was emitted.",
+                },
                 "rowCount": {
                   "description": "Total number of rows returned. May be less than the requested limit.",
                   "maximum": 9007199254740991,
@@ -14149,6 +15204,7 @@ Do not invent SQL Runner links.",
                 "columns",
                 "rows",
                 "truncated",
+                "review",
               ],
               "type": "object",
             },
@@ -14705,6 +15761,17 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                   ],
                   "description": "Rows the model was shown; null when data access is disabled or the terminal result is empty.",
                 },
+                "review": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Exact reviewer output appended to the text (the query review, or the empty-result diagnosis when no rows came back); null when none is appended.",
+                },
                 "rowCount": {
                   "description": "Total rows in the terminal result, before any preview cap.",
                   "maximum": 9007199254740991,
@@ -14753,6 +15820,81 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                   "description": "queryUuid of the terminal node result.",
                   "type": "string",
                 },
+                "truncationNote": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Exact preview-limit note appended to the text; null when none is emitted.",
+                },
+                "visualization": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "isDefault": {
+                          "type": "boolean",
+                        },
+                        "kind": {
+                          "enum": [
+                            "table",
+                            "bar",
+                            "line",
+                            "pie",
+                            "big_number",
+                          ],
+                          "type": "string",
+                        },
+                        "splitBy": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "x": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "y": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "kind",
+                        "isDefault",
+                        "x",
+                        "y",
+                        "splitBy",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Visualization kind, default flag and column references stated in the text; null when no visualization note is shown.",
+                },
               },
               "required": [
                 "terminalNodeId",
@@ -14760,6 +15902,9 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                 "rowCount",
                 "submissions",
                 "columns",
+                "visualization",
+                "review",
+                "truncationNote",
                 "preview",
               ],
               "type": "object",
@@ -15807,6 +16952,44 @@ Usage Tips:
             "structuredContent": {
               "additionalProperties": false,
               "properties": {
+                "cached": {
+                  "description": "Whether the returned search object reports cached results.",
+                  "type": "boolean",
+                },
+                "matchingValue": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "type": "string",
+                        },
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "boolean",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "query",
+                        "value",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "The requested query and its selected matching value when the text reports a match. Null when no match is reported.",
+                },
                 "note": {
                   "anyOf": [
                     {
@@ -15818,15 +17001,43 @@ Usage Tips:
                   ],
                   "description": "Guidance about the returned values, e.g. that they come from curated field metadata or that value suggestions are disabled for the field. Null when there is none.",
                 },
+                "refreshedAt": {
+                  "description": "Refresh timestamp as serialized in the returned search object.",
+                  "type": "string",
+                },
                 "results": {
-                  "description": "Unique field values matching the query, at most 100. Empty when nothing matched.",
+                  "description": "Unique candidate field values, at most 100. Boolean fallback returns both true and false regardless of the query. Empty results do not prove a filter literal is absent or invalid.",
                   "items": {},
                   "type": "array",
+                },
+                "resultsWithLabels": {
+                  "description": "Values and their labels, when included in the search object.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                      },
+                      "value": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "value",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "search": {
+                  "description": "Search text, when included in the returned search object.",
+                  "type": "string",
                 },
               },
               "required": [
                 "results",
                 "note",
+                "matchingValue",
               ],
               "type": "object",
             },
@@ -16006,6 +17217,44 @@ Usage Tips:
           "structuredContent": {
             "additionalProperties": false,
             "properties": {
+              "cached": {
+                "description": "Whether the returned search object reports cached results.",
+                "type": "boolean",
+              },
+              "matchingValue": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "query": {
+                        "type": "string",
+                      },
+                      "value": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "number",
+                          },
+                          {
+                            "type": "boolean",
+                          },
+                        ],
+                      },
+                    },
+                    "required": [
+                      "query",
+                      "value",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "description": "The requested query and its selected matching value when the text reports a match. Null when no match is reported.",
+              },
               "note": {
                 "anyOf": [
                   {
@@ -16017,15 +17266,43 @@ Usage Tips:
                 ],
                 "description": "Guidance about the returned values, e.g. that they come from curated field metadata or that value suggestions are disabled for the field. Null when there is none.",
               },
+              "refreshedAt": {
+                "description": "Refresh timestamp as serialized in the returned search object.",
+                "type": "string",
+              },
               "results": {
-                "description": "Unique field values matching the query, at most 100. Empty when nothing matched.",
+                "description": "Unique candidate field values, at most 100. Boolean fallback returns both true and false regardless of the query. Empty results do not prove a filter literal is absent or invalid.",
                 "items": {},
                 "type": "array",
+              },
+              "resultsWithLabels": {
+                "description": "Values and their labels, when included in the search object.",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                    },
+                    "value": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "value",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "search": {
+                "description": "Search text, when included in the returned search object.",
+                "type": "string",
               },
             },
             "required": [
               "results",
               "note",
+              "matchingValue",
             ],
             "type": "object",
           },
@@ -16986,14 +18263,26 @@ Use them whenever the question needs math the metric query alone can't express: 
               {
                 "additionalProperties": false,
                 "properties": {
+                  "chartVersionUuid": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The chart version UUID cited in the text; null when none was cited.",
+                  },
                   "outcome": {
-                    "const": "chartOnly",
-                    "description": "Data access is disabled, so the query was not run; the query definition was recorded as a new version of the thread's chart artifact (created on first use). Nothing is saved to the project.",
+                    "const": "success",
+                    "description": "The tool succeeded.",
                     "type": "string",
                   },
                 },
                 "required": [
                   "outcome",
+                  "chartVersionUuid",
                 ],
                 "type": "object",
               },
@@ -17090,6 +18379,16 @@ Use them whenever the question needs math the metric query alone can't express: 
                     ],
                     "description": "null when the explore references no parameters or the query was a merge.",
                   },
+                  "review": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
                   "rowCount": {
                     "const": 0,
                     "type": "number",
@@ -17099,32 +18398,217 @@ Use them whenever the question needs math the metric query alone can't express: 
                   "outcome",
                   "rowCount",
                   "parameters",
+                  "review",
                 ],
                 "type": "object",
               },
               {
                 "additionalProperties": false,
                 "properties": {
+                  "chartConfig": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "defaultVizType": {
+                            "description": "The default visualization type to render",
+                            "enum": [
+                              "table",
+                              "bar",
+                              "horizontal",
+                              "line",
+                              "scatter",
+                              "pie",
+                              "funnel",
+                            ],
+                            "type": "string",
+                          },
+                          "groupBy": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
+                          },
+                          "lineType": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "line",
+                                  "area",
+                                ],
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
+                          },
+                          "secondaryYAxisLabel": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "default": null,
+                            "description": "A helpful label for the secondary y-axis",
+                          },
+                          "secondaryYAxisMetric": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "default": null,
+                            "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+                          },
+                          "stackBars": {
+                            "anyOf": [
+                              {
+                                "type": "boolean",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
+                          },
+                          "xAxisDimension": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
+                          },
+                          "xAxisLabel": {
+                            "description": "A helpful label to explain the x-axis",
+                            "type": "string",
+                          },
+                          "xAxisType": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "category",
+                                  "time",
+                                ],
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
+                          },
+                          "yAxisLabel": {
+                            "description": "A helpful label to explain the y-axis",
+                            "type": "string",
+                          },
+                          "yAxisMetrics": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
+                          },
+                        },
+                        "required": [
+                          "defaultVizType",
+                          "xAxisDimension",
+                          "yAxisMetrics",
+                          "groupBy",
+                          "xAxisType",
+                          "stackBars",
+                          "lineType",
+                          "xAxisLabel",
+                          "yAxisLabel",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The selected chart configuration serialized in the text; null when none was shown.",
+                  },
+                  "chartExport": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "artifactUuid": {
+                            "type": "string",
+                          },
+                          "versionUuid": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "artifactUuid",
+                          "versionUuid",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The stored chart reference cited for chart-as-code export.",
+                  },
+                  "chartVersionUuid": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The chart version UUID cited in the text; null when none was cited.",
+                  },
                   "data": {
                     "anyOf": [
                       {
                         "additionalProperties": false,
                         "properties": {
                           "columns": {
-                            "description": "Ordered field ids matching the keys of each row.",
+                            "description": "Ordered display labels used in the CSV header.",
                             "items": {
                               "type": "string",
                             },
                             "type": "array",
                           },
                           "rows": {
-                            "description": "The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.",
+                            "description": "The cell values written to the CSV, in column order. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.",
                             "items": {
-                              "additionalProperties": {},
-                              "propertyNames": {
-                                "type": "string",
-                              },
-                              "type": "object",
+                              "items": {},
+                              "type": "array",
                             },
                             "type": "array",
                           },
@@ -17146,11 +18630,11 @@ Use them whenever the question needs math the metric query alone can't express: 
                     "description": "The row limit behind rowCount.",
                     "properties": {
                       "effective": {
-                        "description": "The limit applied after resolving null and capping to \`max\`. A rowCount equal to this means the limit was reached and more rows may exist.",
+                        "description": "The applied row limit. A rowCount equal to this means the limit was reached and more rows may exist.",
                         "type": "number",
                       },
                       "max": {
-                        "description": "This tool's maximum row limit.",
+                        "description": "This tool's maximum row limit, only when stated in the text.",
                         "type": "number",
                       },
                       "requested": {
@@ -17162,18 +18646,17 @@ Use them whenever the question needs math the metric query alone can't express: 
                             "type": "null",
                           },
                         ],
+                        "description": "The requested limit, only when stated in the text.",
                       },
                     },
                     "required": [
-                      "requested",
                       "effective",
-                      "max",
                     ],
                     "type": "object",
                   },
                   "outcome": {
                     "const": "results",
-                    "description": "The query ran and returned rows, and they were recorded as a new version of the thread's chart artifact (the artifact is created on first use).",
+                    "description": "The query ran and returned rows.",
                     "type": "string",
                   },
                   "parameters": {
@@ -17261,6 +18744,18 @@ Use them whenever the question needs math the metric query alone can't express: 
                     ],
                     "description": "null when the explore references no parameters or the query was a merge.",
                   },
+                  "queryScopeUnchanged": {
+                    "anyOf": [
+                      {
+                        "const": true,
+                        "type": "boolean",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The scope-preservation statement emitted with a selected chart configuration; null when none was emitted.",
+                  },
                   "queryUuid": {
                     "anyOf": [
                       {
@@ -17272,11 +18767,31 @@ Use them whenever the question needs math the metric query alone can't express: 
                     ],
                     "description": "The uuid of this execution, when the run exposes it for citation; null otherwise.",
                   },
+                  "review": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
                   "rowCount": {
                     "description": "Total rows the query returned.",
                     "maximum": 9007199254740991,
                     "minimum": 0,
                     "type": "integer",
+                  },
+                  "truncationNote": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
                   },
                 },
                 "required": [
@@ -17286,6 +18801,12 @@ Use them whenever the question needs math the metric query alone can't express: 
                   "limit",
                   "parameters",
                   "data",
+                  "chartVersionUuid",
+                  "chartExport",
+                  "chartConfig",
+                  "queryScopeUnchanged",
+                  "review",
+                  "truncationNote",
                 ],
                 "type": "object",
               },
@@ -17392,6 +18913,148 @@ exports[`AI agent tool contracts > matches the opt-in agent toolbox loader contr
     "type": "object",
   },
   "name": "loadAgentTools",
+  "outputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "anyOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "metadata": {
+            "allOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "success",
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "success",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "result": {
+            "type": "string",
+          },
+          "structuredContent": {
+            "additionalProperties": false,
+            "properties": {
+              "deferredInstructions": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "description": "The exact deferred instructions appended to the text, or null when none were appended.",
+              },
+              "toolsLoaded": {
+                "const": true,
+                "description": "The remaining available agent tools are now loaded.",
+                "type": "boolean",
+              },
+            },
+            "required": [
+              "toolsLoaded",
+              "deferredInstructions",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "result",
+          "metadata",
+          "structuredContent",
+        ],
+        "type": "object",
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "metadata": {
+            "allOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "success",
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "result": {
+            "type": "string",
+          },
+          "structuredContent": {
+            "additionalProperties": false,
+            "properties": {
+              "error": {
+                "description": "Why the tool call failed; the same message as \`result\`.",
+                "type": "string",
+              },
+            },
+            "required": [
+              "error",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "result",
+          "metadata",
+          "structuredContent",
+        ],
+        "type": "object",
+      },
+    ],
+  },
 }
 `;
 
@@ -17403,69 +19066,312 @@ exports[`AI agent tool contracts > matches the opt-in chart-as-code export contr
     "additionalProperties": false,
     "properties": {
       "artifactUuid": {
-        "anyOf": [
-          {
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-            "type": "string",
-          },
-          {
-            "type": "null",
-          },
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+        "type": [
+          "string",
+          "null",
         ],
       },
       "queryUuid": {
-        "anyOf": [
-          {
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-            "type": "string",
-          },
-          {
-            "type": "null",
-          },
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+        "type": [
+          "string",
+          "null",
         ],
       },
       "slug": {
-        "anyOf": [
-          {
-            "maxLength": 255,
-            "minLength": 1,
-            "type": "string",
-          },
-          {
-            "type": "null",
-          },
+        "maxLength": 255,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null",
         ],
       },
       "spaceSlug": {
-        "anyOf": [
-          {
-            "maxLength": 1024,
-            "minLength": 1,
-            "type": "string",
-          },
-          {
-            "type": "null",
-          },
+        "maxLength": 1024,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null",
         ],
       },
       "versionUuid": {
-        "anyOf": [
-          {
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-            "type": "string",
-          },
-          {
-            "type": "null",
-          },
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+        "type": [
+          "string",
+          "null",
         ],
       },
     },
     "type": "object",
   },
   "name": "exportChartAsCode",
+  "outputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "anyOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "metadata": {
+            "allOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "deliveryToken": {
+                    "type": "string",
+                  },
+                  "status": {
+                    "enum": [
+                      "success",
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "success",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "result": {
+            "type": "string",
+          },
+          "structuredContent": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "artifacts": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "artifactUuid": {
+                          "type": "string",
+                        },
+                        "description": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "title": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "versionUuid": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "artifactUuid",
+                        "versionUuid",
+                        "title",
+                        "description",
+                      ],
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "missingDestination": {
+                    "items": {
+                      "enum": [
+                        "slug",
+                        "spaceSlug",
+                      ],
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                },
+                "required": [
+                  "missingDestination",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "artifacts": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "artifactUuid": {
+                          "type": "string",
+                        },
+                        "description": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "title": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "versionUuid": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "artifactUuid",
+                        "versionUuid",
+                        "title",
+                        "description",
+                      ],
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                },
+                "required": [
+                  "artifacts",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "contentSaved": {
+                    "const": false,
+                    "type": "boolean",
+                  },
+                  "deliveryToken": {
+                    "type": "string",
+                  },
+                  "exportReady": {
+                    "const": true,
+                    "type": "boolean",
+                  },
+                  "insertsValidatedYamlAtToken": {
+                    "const": true,
+                    "type": "boolean",
+                  },
+                },
+                "required": [
+                  "exportReady",
+                  "deliveryToken",
+                  "insertsValidatedYamlAtToken",
+                  "contentSaved",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+        },
+        "required": [
+          "result",
+          "metadata",
+          "structuredContent",
+        ],
+        "type": "object",
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "metadata": {
+            "allOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "deliveryToken": {
+                    "type": "string",
+                  },
+                  "status": {
+                    "enum": [
+                      "success",
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "result": {
+            "type": "string",
+          },
+          "structuredContent": {
+            "additionalProperties": false,
+            "properties": {
+              "error": {
+                "description": "Why the tool call failed; the same message as \`result\`.",
+                "type": "string",
+              },
+            },
+            "required": [
+              "error",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "result",
+          "metadata",
+          "structuredContent",
+        ],
+        "type": "object",
+      },
+    ],
+  },
 }
 `;
 

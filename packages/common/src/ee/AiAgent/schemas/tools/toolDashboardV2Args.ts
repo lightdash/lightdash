@@ -134,7 +134,10 @@ export type ToolDashboardV2ArgsTransformed = z.infer<
 export const toolDashboardV2StructuredContentSchema = z.object({
     visualizationCount: z
         .number()
-        .describe('How many visualizations the dashboard was created with.'),
+        .optional()
+        .describe(
+            'How many visualizations the dashboard was created with; present when the text reports the count or lists tile positions.',
+        ),
     excludedVisualizations: z
         .array(
             z.object({
@@ -147,6 +150,20 @@ export const toolDashboardV2StructuredContentSchema = z.object({
         .describe(
             'Visualizations left out of the dashboard because they failed validation; empty when every visualization was included.',
         ),
+    layout: z
+        .discriminatedUnion('status', [
+            toolDashboardV2ArgsSchemaPersisted.shape.layout.unwrap().extend({
+                status: z.literal('selected'),
+                positionOrder: z.literal('originalVisualizationOrder'),
+                narrowPreviewBehavior: z.literal('stackInReadingOrder'),
+            }),
+            z.object({
+                status: z.literal('default'),
+                customArrangementApplied: z.literal(false),
+            }),
+        ])
+        .nullable()
+        .describe('Layout details reported in the text, or null when omitted.'),
 });
 
 export type ToolDashboardV2StructuredContent = z.infer<

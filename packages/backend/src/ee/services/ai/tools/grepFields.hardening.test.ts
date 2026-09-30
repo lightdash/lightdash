@@ -328,9 +328,7 @@ describe('grepFields output envelope', () => {
         if ('error' in parsed.structuredContent) {
             throw new Error('expected success structuredContent');
         }
-        const { patterns, fuzzyMatches, exploreName } =
-            parsed.structuredContent;
-        expect(exploreName).toBeNull();
+        const { patterns, fuzzyMatches } = parsed.structuredContent;
         expect(patterns.map((p) => [p.pattern, p.status])).toEqual([
             ['status', 'matches'],
             ['nomatchxyz', 'no_matches'],
@@ -366,8 +364,8 @@ describe('grepFields output envelope', () => {
         const parsed = toolGrepFieldsOutputSchema.parse(output);
         expect(output.result).toContain('Explore "typo" not found');
         expect(parsed.structuredContent).toEqual({
-            description: output.result,
-            exploreName: 'typo',
+            preloadedMetadata: null,
+            review: output.result,
             patterns: [],
             fuzzyMatches: [],
         });

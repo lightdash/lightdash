@@ -58,17 +58,12 @@ export type ToolListWarehouseTablesArgs = z.infer<
     typeof toolListWarehouseTablesArgsSchema
 >;
 
-export const toolListWarehouseTablesStructuredContentSchema = z.object({
+const matchedWarehouseTablesSchema = z.object({
     matchCount: z
         .number()
         .int()
-        .describe('Number of tables matched; 0 when nothing matched.'),
-    filters: z
-        .object({
-            schema: z.string().nullable(),
-            search: z.string().nullable(),
-        })
-        .describe('Filters applied to the catalog; null when not given.'),
+        .positive()
+        .describe('Number of tables matched.'),
     tables: z
         .array(
             z.object({
@@ -80,8 +75,23 @@ export const toolListWarehouseTablesStructuredContentSchema = z.object({
                     .describe('"database.schema.table", ready to use in SQL.'),
             }),
         )
-        .describe('Matched tables, in catalog order; empty when none matched.'),
+        .describe(
+            'Matched tables in text output order: catalog order when ranking is skipped, lexical fallback or relevance order otherwise; empty when none matched.',
+        ),
 });
+
+export const toolListWarehouseTablesStructuredContentSchema = z.union([
+    matchedWarehouseTablesSchema,
+    matchedWarehouseTablesSchema.extend({
+        matchCount: z.literal(0).describe('No tables matched.'),
+        filters: z
+            .object({
+                schema: z.string().nullable(),
+                search: z.string().nullable(),
+            })
+            .describe('Filters applied to the catalog; null when not given.'),
+    }),
+]);
 
 export type ToolListWarehouseTablesStructuredContent = z.infer<
     typeof toolListWarehouseTablesStructuredContentSchema

@@ -20,9 +20,9 @@ import type {
     UpdateProgressFn,
     ValidateContentFn,
 } from '../types/aiAgentDependencies';
-import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { getContextTruncationNote } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
+import { stringifyAgentCsv } from '../utils/stringifyAgentCsv';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -74,10 +74,7 @@ const describeSavedChartSpec = (
 ): RowsOutcome['chart'] => ({
     ...describeSavedChartStructure(chartUuid, name, metricQuery),
     filters: metricQuery.filters,
-    sorts: metricQuery.sorts.map(({ fieldId, descending }) => ({
-        fieldId,
-        descending,
-    })),
+    sorts: metricQuery.sorts,
     limit: metricQuery.limit,
     tableCalculations: (metricQuery.tableCalculations ?? []).map(
         (calculation) => calculation.name,
@@ -94,24 +91,27 @@ const describeSavedChartSpec = (
 const buildShownTable = (
     queryResults: { rows: Record<string, unknown>[]; fields: ItemsMap },
     maxContextRows: number,
-): Omit<RowsOutcome, 'outcome' | 'chart'> => {
+): Omit<RowsOutcome, 'outcome' | 'chart' | 'review' | 'truncationNote'> => {
     const fieldIds = queryResults.rows[0]
         ? Object.keys(queryResults.rows[0])
         : [];
-    const rows = queryResults.rows.slice(0, maxContextRows);
+    const rows = queryResults.rows
+        .slice(0, maxContextRows)
+        .map((row) => fieldIds.map((fieldId) => row[fieldId]));
     return {
         rowCount: queryResults.rows.length,
         shownRowCount: rows.length,
         columns: fieldIds.map((fieldId) => {
             const item = queryResults.fields[fieldId];
-            return {
-                fieldId,
-                label: item ? getItemLabelWithoutTableName(item) : fieldId,
-            };
+            return item ? getItemLabelWithoutTableName(item) : fieldId;
         }),
         rows,
     };
 };
+
+const convertShownTableToCsv = (
+    table: Pick<RowsOutcome, 'columns' | 'rows'>,
+): string => stringifyAgentCsv(table.rows, table.columns);
 
 export const getRunContentQuery = ({
     reviewQuery,
@@ -195,38 +195,42 @@ export const getRunContentQuery = ({
                             }))) ?? '';
 
                     if (queryResults.rows.length === 0) {
+                        const emptyReview = reviewQuery
+                            ? await reviewQuery(
+                                  {
+                                      kind: 'semantic',
+                                      query: queryResults.execution.metricQuery,
+                                      parameters:
+                                          queryResults.execution
+                                              .usedParametersValues,
+                                      timezone:
+                                          queryResults.execution
+                                              .resolvedTimezone,
+                                  },
+                                  { emptyResult: true, review },
+                              )
+                            : null;
                         return {
-                            result: reviewQuery
-                                ? await reviewQuery(
-                                      {
-                                          kind: 'semantic',
-                                          query: queryResults.execution
-                                              .metricQuery,
-                                          parameters:
-                                              queryResults.execution
-                                                  .usedParametersValues,
-                                          timezone:
-                                              queryResults.execution
-                                                  .resolvedTimezone,
-                                      },
-                                      { emptyResult: true, review },
-                                  )
-                                : NO_RESULTS_RETRY_PROMPT,
+                            result: emptyReview ?? NO_RESULTS_RETRY_PROMPT,
                             metadata: {
                                 status: 'success' as const,
                                 queryCacheHit:
                                     queryResults.cacheMetadata?.cacheHit ===
                                     true,
                             },
-                            structuredContent: { outcome: 'noResults' },
+                            structuredContent: {
+                                outcome: 'noResults',
+                                review: emptyReview || null,
+                            },
                         };
                     }
 
-                    const csv = convertQueryResultsToCsv(
-                        queryResults,
-                        maxContextRows,
-                    );
                     const table = buildShownTable(queryResults, maxContextRows);
+                    const csv = convertShownTableToCsv(table);
+                    const truncationNote = getContextTruncationNote({
+                        rowCount: queryResults.rows.length,
+                        maxContextRows,
+                    });
                     return {
                         result: `${buildSavedChartHeader(
                             uuid,
@@ -235,10 +239,7 @@ export const getRunContentQuery = ({
                             {
                                 includeFullSpec: true,
                             },
-                        )}${getContextTruncationNote({
-                            rowCount: queryResults.rows.length,
-                            maxContextRows,
-                        })}${serializeData(csv, 'csv')}${review}`,
+                        )}${truncationNote}${serializeData(csv, 'csv')}${review}`,
                         metadata: {
                             status: 'success' as const,
                             queryCacheHit:
@@ -252,6 +253,8 @@ export const getRunContentQuery = ({
                                 queryResults.execution.metricQuery,
                             ),
                             ...table,
+                            review: review || null,
+                            truncationNote: truncationNote || null,
                         },
                     };
                 }
@@ -324,35 +327,40 @@ export const getRunContentQuery = ({
                 ]);
 
                 if (queryResults.rows.length === 0) {
+                    const emptyReview = reviewQuery
+                        ? await reviewQuery(
+                              {
+                                  kind: 'semantic',
+                                  query: metricQuery,
+                                  parameters: source.parameters
+                                      ? (source.parameters as ParametersValuesMap)
+                                      : undefined,
+                              },
+                              { emptyResult: true, review },
+                          )
+                        : null;
                     return {
-                        result: reviewQuery
-                            ? await reviewQuery(
-                                  {
-                                      kind: 'semantic',
-                                      query: metricQuery,
-                                      parameters: source.parameters
-                                          ? (source.parameters as ParametersValuesMap)
-                                          : undefined,
-                                  },
-                                  { emptyResult: true, review },
-                              )
-                            : NO_RESULTS_RETRY_PROMPT,
+                        result: emptyReview ?? NO_RESULTS_RETRY_PROMPT,
                         metadata: {
                             status: 'success' as const,
                             queryCacheHit:
                                 queryResults.cacheMetadata?.cacheHit === true,
                         },
-                        structuredContent: { outcome: 'noResults' },
+                        structuredContent: {
+                            outcome: 'noResults',
+                            review: emptyReview || null,
+                        },
                     };
                 }
 
                 const table = buildShownTable(queryResults, maxContextRows);
+                const truncationNote = getContextTruncationNote({
+                    rowCount: queryResults.rows.length,
+                    maxContextRows,
+                });
                 return {
-                    result: `${getContextTruncationNote({
-                        rowCount: queryResults.rows.length,
-                        maxContextRows,
-                    })}${serializeData(
-                        convertQueryResultsToCsv(queryResults, maxContextRows),
+                    result: `${truncationNote}${serializeData(
+                        convertShownTableToCsv(table),
                         'csv',
                     )}${review}`,
                     metadata: {
@@ -364,6 +372,8 @@ export const getRunContentQuery = ({
                         outcome: 'rows',
                         chart: null,
                         ...table,
+                        review: review || null,
+                        truncationNote: truncationNote || null,
                     },
                 };
             } catch (error) {

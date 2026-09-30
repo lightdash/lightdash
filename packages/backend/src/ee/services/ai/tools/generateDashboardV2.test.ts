@@ -265,8 +265,8 @@ describe('getGenerateDashboardV2 structured output', () => {
             result: 'Success',
             metadata: { status: 'success' },
             structuredContent: {
-                visualizationCount: 2,
                 excludedVisualizations: [],
+                layout: null,
             },
         });
         expect(toolDashboardV2OutputSchema.safeParse(output).success).toBe(
@@ -313,6 +313,7 @@ describe('getGenerateDashboardV2 structured output', () => {
                     ),
                 },
             ],
+            layout: null,
         });
         if (!('excludedVisualizations' in output.structuredContent)) {
             throw new Error('Expected success structured content');

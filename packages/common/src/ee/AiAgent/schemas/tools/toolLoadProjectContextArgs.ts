@@ -26,6 +26,7 @@ const contextEntryInventorySchema = z.object({
     id: z.string(),
     source: z
         .literal('context')
+        .optional()
         .describe('Curated project context; authoritative over assumptions.'),
     kind: z.enum(projectContextEntryKinds),
     terms: z
@@ -72,25 +73,30 @@ export const toolLoadProjectContextStructuredContentSchema =
                     'Entries were loaded; empty when no project context is configured.',
                 ),
             entries: z.array(
-                z.discriminatedUnion('source', [
-                    loadedContextEntrySchema,
-                    loadedMemoryEntrySchema,
-                ]),
+                z.union([loadedContextEntrySchema, loadedMemoryEntrySchema]),
             ),
+            truncationNote: z
+                .string()
+                .nullable()
+                .describe('Exact memory truncation note appended to the text.'),
         }),
         z.object({
             outcome: z
                 .literal('no_match')
                 .describe(
-                    'Patterns matched nothing; `available` lists every entry (without content) to re-grep against.',
+                    'Patterns matched nothing; `available` lists the rendered inventory (without content) to re-grep against; memories may be truncated.',
                 ),
             totalEntries: z.number(),
             available: z.array(
-                z.discriminatedUnion('source', [
+                z.union([
                     contextEntryInventorySchema,
                     memoryEntryInventorySchema,
                 ]),
             ),
+            truncationNote: z
+                .string()
+                .nullable()
+                .describe('Exact memory truncation note appended to the text.'),
         }),
     ]);
 

@@ -109,13 +109,42 @@ export const toolSearchFieldValuesStructuredContentSchema = z.object({
     results: z
         .array(z.unknown())
         .describe(
-            'Unique field values matching the query, at most 100. Empty when nothing matched.',
+            'Unique candidate field values, at most 100. Boolean fallback returns both true and false regardless of the query. Empty results do not prove a filter literal is absent or invalid.',
         ),
     note: z
         .string()
         .nullable()
         .describe(
             'Guidance about the returned values, e.g. that they come from curated field metadata or that value suggestions are disabled for the field. Null when there is none.',
+        ),
+    matchingValue: z
+        .object({
+            query: z.string(),
+            value: z.union([z.string(), z.number(), z.boolean()]),
+        })
+        .nullable()
+        .describe(
+            'The requested query and its selected matching value when the text reports a match. Null when no match is reported.',
+        ),
+    search: z
+        .string()
+        .optional()
+        .describe('Search text, when included in the returned search object.'),
+    cached: z
+        .boolean()
+        .optional()
+        .describe('Whether the returned search object reports cached results.'),
+    refreshedAt: z
+        .string()
+        .optional()
+        .describe(
+            'Refresh timestamp as serialized in the returned search object.',
+        ),
+    resultsWithLabels: z
+        .array(z.object({ value: z.string(), label: z.string().optional() }))
+        .optional()
+        .describe(
+            'Values and their labels, when included in the search object.',
         ),
 });
 

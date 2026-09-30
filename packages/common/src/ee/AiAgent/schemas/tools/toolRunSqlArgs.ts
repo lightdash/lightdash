@@ -82,6 +82,12 @@ export const toolRunSqlStructuredContentSchema = z.object({
         .describe(
             'True when `rows` holds only the first rows of a larger result; `rowCount` is the full count.',
         ),
+    review: z
+        .string()
+        .nullable()
+        .describe(
+            'Exact empty-result diagnosis appended to the text, or null when no diagnosis was emitted.',
+        ),
 });
 
 export const toolRunSqlOutputSchema = structuredToolOutputSchema({

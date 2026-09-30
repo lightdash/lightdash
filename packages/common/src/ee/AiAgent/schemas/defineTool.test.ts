@@ -362,6 +362,7 @@ describe('defineTool', () => {
             'grep_fields',
             'iterate_data_app',
             'list_data_app_themes',
+            'list_explores',
             'list_skills',
             'read_skill',
             'read_skill_resource',

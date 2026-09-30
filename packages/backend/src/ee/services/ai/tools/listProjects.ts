@@ -42,10 +42,13 @@ export const getListProjects = ({ listProjects }: Dependencies) =>
             try {
                 const projects = await listProjects();
                 const structuredContent = {
-                    projects: projects.map(({ name, isActive }) => ({
-                        name,
-                        isActive,
-                    })),
+                    projects: projects.map(
+                        ({
+                            name,
+                            isActive,
+                        }): ToolListProjectsStructuredContent['projects'][number] =>
+                            isActive ? { name, isActive: true } : { name },
+                    ),
                 };
 
                 return {

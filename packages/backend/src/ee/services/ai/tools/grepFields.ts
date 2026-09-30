@@ -122,20 +122,19 @@ const renderAnnotation = (
     );
 };
 
-const renderFtsFallback = (fields: FtsFieldMatch[], ranked = false): string => {
+const renderFtsFallback = (
+    fields: GrepFieldsResult['fuzzyMatches'],
+    ranked = false,
+    discardedMatches = false,
+): string => {
     const lines = fields
         .map((f) => {
-            const verified = f.verifiedChartUsage ? ' ✓verified' : '';
-            const desc = f.description
-                ? ` — ${renderAnnotation(f.description, {
-                      full: false,
-                      previewChars: FTS_ANNOTATION_PREVIEW_CHARS,
-                  })}`
-                : '';
-            return `  ${f.tableName}_${f.name}  [${f.fieldType}]${verified} ${f.label}${desc}`;
+            const verified = f.verified ? ' ✓verified' : '';
+            const desc = f.description ? ` — ${f.description}` : '';
+            return `  ${f.fieldId}  [${f.fieldType}]${verified} ${f.label}${desc}`;
         })
         .join('\n');
-    return `No exact grep matches. Closest catalog matches (${ranked ? 'fuzzy search' : 'fuzzy search, verified fields first'}):\n${lines}`;
+    return `${discardedMatches ? 'No informative field matches.' : 'No exact grep matches.'} Closest catalog matches (${ranked ? 'fuzzy search' : 'fuzzy search, verified fields first'}):\n${lines}`;
 };
 
 // Per-pattern cap so a batch of broad patterns can't flood the context.
@@ -220,8 +219,8 @@ type ResultsByExplore =
 
 const groupOrderedHitsByExplore = (
     orderedHits: FieldEntry[],
-    matches: MatchFn,
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>,
+    state: RenderState,
     exploreRanks?: Map<string, number>,
 ): ResultsByExplore => {
     const byExplore = new Map<string, FieldEntry[]>();
@@ -241,24 +240,42 @@ const groupOrderedHitsByExplore = (
     return groups.map(([exploreName, fields]) => ({
         exploreName,
         exploreLabel: fields[0]?.exploreLabel ?? exploreName,
-        requiredFilters: requiredFiltersByExplore.get(exploreName) ?? [],
-        fields: fields.map((field) => ({
-            exploreName: field.exploreName,
-            exploreLabel: field.exploreLabel,
-            fieldId: getFieldIdFromEntry(field),
-            path: field.path,
-            kind: field.kind,
-            fieldType: field.type,
-            label: field.label,
-            description: field.description || null,
-            hint: field.aiHint || null,
-            defaultTimeDimension: field.defaultTimeDimension,
-            defaultTimeDimensionGranularity:
-                field.defaultTimeDimensionGranularity,
-            requiredParameters: field.requiredParameters,
-            usageInVerifiedCharts: field.verifiedUsage,
-            matchLocality: matchLocality(field, matches),
-        })),
+        requiredFilters: (requiredFiltersByExplore.get(exploreName) ?? []).map(
+            (filter) => ({
+                fieldId: filter.fieldId,
+                operator: filter.operator,
+                required: filter.required,
+                ...(filter.values && filter.values.length > 0
+                    ? { values: filter.values }
+                    : {}),
+            }),
+        ),
+        fields: fields.map((field) => {
+            const full =
+                state.upgradedPaths.has(field.path) &&
+                !state.renderedFullPaths.has(field.path);
+            if (full) state.renderedFullPaths.add(field.path);
+            return {
+                exploreName: field.exploreName,
+                exploreLabel: field.exploreLabel,
+                fieldId: getFieldIdFromEntry(field),
+                path: field.path,
+                kind: field.kind,
+                fieldType: field.type,
+                label: field.label,
+                description: field.description
+                    ? renderAnnotation(field.description, { full })
+                    : null,
+                hint: field.aiHint
+                    ? renderAnnotation(field.aiHint, { full })
+                    : null,
+                defaultTimeDimension: field.defaultTimeDimension,
+                defaultTimeDimensionGranularity:
+                    field.defaultTimeDimensionGranularity,
+                requiredParameters: field.requiredParameters,
+                verified: field.verifiedUsage > 0,
+            };
+        }),
     }));
 };
 
@@ -267,24 +284,16 @@ const groupOrderedHitsByExplore = (
 const renderGroupedHits = (
     resultsByExplore: ResultsByExplore,
     requiredFiltersSummaryByExplore: Map<string, string>,
-    state: RenderState,
 ): string =>
     resultsByExplore
         .map(({ exploreName, exploreLabel, fields }) => {
             const lines = fields
                 .map((field) => {
-                    const verified =
-                        field.usageInVerifiedCharts > 0 ? ' ✓verified' : '';
-                    const full =
-                        state.upgradedPaths.has(field.path) &&
-                        !state.renderedFullPaths.has(field.path);
-                    if (full) state.renderedFullPaths.add(field.path);
+                    const verified = field.verified ? ' ✓verified' : '';
                     const desc = field.description
-                        ? ` — ${renderAnnotation(field.description, { full })}`
+                        ? ` — ${field.description}`
                         : '';
-                    const hint = field.hint
-                        ? ` (hint: ${renderAnnotation(field.hint, { full })})`
-                        : '';
+                    const hint = field.hint ? ` (hint: ${field.hint})` : '';
                     const defaultTimeDimension = field.defaultTimeDimension
                         ? ` default_time_dimension: ${field.defaultTimeDimension} default_time_dimension_granularity: ${field.defaultTimeDimensionGranularity}`
                         : '';
@@ -345,7 +354,6 @@ const renderPattern = (
     isSignal: boolean;
     structuredContent: GrepFieldsResult['patterns'][number];
 } => {
-    const matchedAllFields = scopeSize > 0 && hits.length === scopeSize;
     if (isNoSignalPattern(hits.length, scopeSize)) {
         const note = `Matched all ${hits.length} fields in scope, so it carries no signal. Use more specific terms.`;
         return {
@@ -356,7 +364,7 @@ const renderPattern = (
                 status: 'no_signal',
                 matchCount: hits.length,
                 scopeSize,
-                matchedAllFields,
+                matchedAllFields: true,
                 note,
                 resultsByExplore: [],
                 metricAmbiguityNote: null,
@@ -382,8 +390,6 @@ const renderPattern = (
                 pattern,
                 status: 'no_matches',
                 matchCount: 0,
-                scopeSize,
-                matchedAllFields,
                 note,
                 resultsByExplore: [],
                 metricAmbiguityNote: null,
@@ -396,8 +402,8 @@ const renderPattern = (
     // it, so a future ordering/capping change can't make the two disagree.
     const resultsByExplore = groupOrderedHitsByExplore(
         getOrderedHits(hits, matches, fieldRanks),
-        matches,
         requiredFiltersByExplore,
+        state,
         exploreRanks,
     );
     const capped =
@@ -407,7 +413,6 @@ const renderPattern = (
     const body = renderGroupedHits(
         resultsByExplore,
         requiredFiltersSummaryByExplore,
-        state,
     );
     const ambiguityNote = buildMetricAmbiguityNote(hits);
     const extras = [ambiguityNote, explorePointersText]
@@ -424,8 +429,6 @@ const renderPattern = (
             pattern,
             status: 'matches',
             matchCount: hits.length,
-            scopeSize,
-            matchedAllFields,
             note,
             resultsByExplore,
             metricAmbiguityNote: ambiguityNote,
@@ -436,16 +439,23 @@ const renderPattern = (
 
 const buildStructuredFuzzyMatches = (
     fields: FtsFieldMatch[],
+    includeAnnotations: boolean,
 ): GrepFieldsResult['fuzzyMatches'] =>
     fields.map((field) => ({
-        exploreName: field.tableName,
         fieldId: `${field.tableName}_${field.name}`,
         label: field.label,
         fieldType: field.fieldType,
-        description: field.description ?? null,
-        searchRank: field.searchRank ?? null,
-        usageInCharts: field.chartUsage ?? 0,
-        usageInVerifiedCharts: field.verifiedChartUsage ?? 0,
+        ...(includeAnnotations
+            ? {
+                  description: field.description
+                      ? renderAnnotation(field.description, {
+                            full: false,
+                            previewChars: FTS_ANNOTATION_PREVIEW_CHARS,
+                        })
+                      : null,
+                  verified: Boolean(field.verifiedChartUsage),
+              }
+            : {}),
     }));
 
 // Flatten the catalog into the greppable index and required-filter maps once, so
@@ -510,8 +520,8 @@ const runGrepFields = async (
             result: message,
             metadata: { status: 'success', patternStats: [] },
             structuredContent: {
-                description: message,
-                exploreName,
+                preloadedMetadata: null,
+                review: message,
                 patterns: [],
                 fuzzyMatches: [],
             },
@@ -689,8 +699,7 @@ const runGrepFields = async (
         );
     }
 
-    const blocksText = [
-        blocks.map((block) => block.text).join('\n\n'),
+    const preloadedMetadata =
         ranked && ranking?.projectParameterDefinitions
             ? prepareCatalogMetadata(
                   ranked.fields,
@@ -699,9 +708,18 @@ const runGrepFields = async (
                   ranked.fieldRanks,
                   ranked.exploreRanks,
               )
-            : null,
-        ranked?.ambiguous ? CATALOG_AMBIGUITY_GUIDANCE : null,
-        ranked?.timeAmbiguous ? CATALOG_TIME_AMBIGUITY_GUIDANCE : null,
+            : null;
+    const review =
+        [
+            ranked?.ambiguous ? CATALOG_AMBIGUITY_GUIDANCE : null,
+            ranked?.timeAmbiguous ? CATALOG_TIME_AMBIGUITY_GUIDANCE : null,
+        ]
+            .filter(Boolean)
+            .join('\n\n') || null;
+    const blocksText = [
+        blocks.map((block) => block.text).join('\n\n'),
+        preloadedMetadata,
+        review,
     ]
         .filter(Boolean)
         .join('\n\n');
@@ -722,12 +740,13 @@ const runGrepFields = async (
                     !greppedFieldIds.has(`${field.tableName}_${field.name}`),
             )
             .slice(0, 8);
+        const fuzzyMatches = buildStructuredFuzzyMatches(novelFtsFields, false);
         const crossCheck =
-            novelFtsFields.length > 0
-                ? `\n\nCatalog fuzzy search also matches (not in the grep results above):\n${novelFtsFields
+            fuzzyMatches.length > 0
+                ? `\n\nCatalog fuzzy search also matches (not in the grep results above):\n${fuzzyMatches
                       .map(
                           (field) =>
-                              `  ${field.tableName}_${field.name}  [${field.fieldType}] ${field.label}`,
+                              `  ${field.fieldId}  [${field.fieldType}] ${field.label}`,
                       )
                       .join('\n')}`
                 : '';
@@ -736,30 +755,37 @@ const runGrepFields = async (
             result: `${blocksText}${crossCheck}`,
             metadata: { status: 'success', patternStats },
             structuredContent: {
-                description:
-                    'Deterministic keyword grep over the scoped explore catalog. `patterns` shows direct matches grouped by explore; `fuzzyMatches` is the catalog-search cross-check for additional near matches not already surfaced by grep.',
-                exploreName,
+                preloadedMetadata,
+                review,
                 patterns: blocks.map((block) => block.structuredContent),
-                fuzzyMatches: buildStructuredFuzzyMatches(novelFtsFields),
+                fuzzyMatches,
             },
         };
     }
 
     const scope = exploreName ? ` in explore "${exploreName}"` : '';
+    const discardedMatches = blocks.some(
+        (block) => block.structuredContent.status === 'no_signal',
+    );
+    const fuzzyMatches = buildStructuredFuzzyMatches(ftsFields, true);
+    const fallback =
+        fuzzyMatches.length > 0
+            ? renderFtsFallback(
+                  fuzzyMatches,
+                  ranked?.fieldsRanked,
+                  discardedMatches,
+              )
+            : `${discardedMatches ? 'No informative field matches for any of the patterns' : 'No fields matched any of the patterns'}${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`;
     // Keep the per-pattern diagnosis (e.g. "matched all N fields") in front of
     // the fallback so the caller knows WHY grep is dry.
     return {
-        result:
-            ftsFields.length > 0
-                ? `${blocksText}\n\n${renderFtsFallback(ftsFields, ranked?.fieldsRanked)}`
-                : `${blocksText}\n\nNo fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`,
+        result: `${blocksText}\n\n${fallback}`,
         metadata: { status: 'success', patternStats },
         structuredContent: {
-            description:
-                'Deterministic keyword grep over the scoped explore catalog. `patterns` shows direct matches grouped by explore; when direct matches are absent, `fuzzyMatches` contains the closest catalog-search suggestions.',
-            exploreName,
+            preloadedMetadata,
+            review: [review, fallback].filter(Boolean).join('\n\n'),
             patterns: blocks.map((block) => block.structuredContent),
-            fuzzyMatches: buildStructuredFuzzyMatches(ftsFields),
+            fuzzyMatches,
         },
     };
 };

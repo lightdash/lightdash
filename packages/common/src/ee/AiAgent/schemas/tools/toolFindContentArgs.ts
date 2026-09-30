@@ -220,17 +220,102 @@ export const findContentChartItemSchema = z.object({
     lastUpdatedBy: findContentUserNameSchema,
 });
 
+const findContentRelativeTimestampSchema = z
+    .string()
+    .nullable()
+    .describe('Relative time shown in the text, or null when unknown.');
+
+const findContentRelativeVerificationSchema = z
+    .object({
+        verifiedBy: z.string(),
+        verifiedAt: z
+            .string()
+            .describe('Relative verification time shown in the text.'),
+    })
+    .nullable();
+
+const findContentFullChartItemSchema = findContentChartItemSchema.extend({
+    verification: findContentRelativeVerificationSchema,
+    firstViewedAt: findContentRelativeTimestampSchema,
+    lastModified: findContentRelativeTimestampSchema,
+});
+
+const findContentFullDashboardItemSchema =
+    findContentDashboardItemSchema.extend({
+        verification: findContentRelativeVerificationSchema,
+        firstViewedAt: findContentRelativeTimestampSchema,
+        lastModified: findContentRelativeTimestampSchema,
+        charts: findContentDashboardItemSchema.shape.charts.extend({
+            preview: z
+                .array(
+                    findContentDashboardChartPreviewSchema.extend({
+                        verification: findContentRelativeVerificationSchema,
+                    }),
+                )
+                .describe(
+                    'First few charts, verified first; use readContent for the full list.',
+                ),
+        }),
+        validationErrorCount:
+            findContentDashboardItemSchema.shape.validationErrorCount
+                .positive()
+                .optional()
+                .describe(
+                    'Validation error count, present only when positive in full results.',
+                ),
+    });
+
 const findContentItemSchema = z.discriminatedUnion('contentType', [
     findContentDocumentItemSchema,
     findContentSpaceItemSchema,
     findContentDataAppItemSchema,
-    findContentDashboardItemSchema,
-    findContentChartItemSchema,
+    findContentFullDashboardItemSchema,
+    findContentFullChartItemSchema,
 ]);
 
-const findContentSearchResultSchema = z.object({
+const compactOmittedFields = {
+    searchRank: true,
+    viewsCount: true,
+    firstViewedAt: true,
+    lastModified: true,
+    createdBy: true,
+    lastUpdatedBy: true,
+} satisfies Record<string, true>;
+
+const findContentCompactDescriptionSchema = z
+    .string()
+    .nullable()
+    .describe(
+        'Description truncated to the smaller of the tool limit and 200 characters, or null when empty.',
+    );
+
+const findContentCompactItemSchema = z.discriminatedUnion('contentType', [
+    findContentDocumentItemSchema.extend({
+        description: findContentCompactDescriptionSchema,
+    }),
+    findContentSpaceItemSchema,
+    findContentDataAppItemSchema
+        .omit({
+            searchRank: true,
+            viewsCount: true,
+            createdBy: true,
+        })
+        .extend({ description: findContentCompactDescriptionSchema }),
+    findContentFullDashboardItemSchema.omit(compactOmittedFields).extend({
+        description: findContentCompactDescriptionSchema,
+        charts: findContentDashboardItemSchema.shape.charts.pick({
+            count: true,
+        }),
+        validationErrorCount:
+            findContentDashboardItemSchema.shape.validationErrorCount,
+    }),
+    findContentFullChartItemSchema
+        .omit(compactOmittedFields)
+        .extend({ description: findContentCompactDescriptionSchema }),
+]);
+
+const findContentFullSearchResultSchema = z.object({
     searchQuery: z.string(),
-    verifiedOnly: z.boolean(),
     count: z.number().int().describe('Number of matches for this query.'),
     note: z
         .string()
@@ -240,12 +325,39 @@ const findContentSearchResultSchema = z.object({
         ),
     content: z
         .array(findContentItemSchema)
-        .describe('Matches for this query, verified content first.'),
+        .describe(
+            'Matches for this query, verified first unless relevance ranking overrides the order.',
+        ),
+    truncationNote: z
+        .string()
+        .nullable()
+        .describe(
+            'Exact omission note shown in the text, or null when none was emitted.',
+        ),
 });
+
+const findContentCompactSearchResultSchema =
+    findContentFullSearchResultSchema.extend({
+        shownCount: z
+            .number()
+            .int()
+            .describe('Number of matches shown in the text.'),
+        content: z
+            .array(findContentCompactItemSchema)
+            .max(8)
+            .describe(
+                'Displayed matches in relevance order, with verified-first order as the fallback.',
+            ),
+    });
 
 export const toolFindContentStructuredContentSchema = z.object({
     searchResults: z
-        .array(findContentSearchResultSchema)
+        .array(
+            z.union([
+                findContentCompactSearchResultSchema,
+                findContentFullSearchResultSchema,
+            ]),
+        )
         .describe('One entry per search query, in the order given.'),
 });
 
@@ -258,5 +370,11 @@ export type ToolFindContentArgs = z.infer<typeof toolFindContentArgsSchema>;
 export type ToolFindContentArgsTransformed = ToolFindContentArgs;
 export type ToolFindContentStructuredContent = z.infer<
     typeof toolFindContentStructuredContentSchema
+>;
+export type ToolFindContentFullSearchResult = z.infer<
+    typeof findContentFullSearchResultSchema
+>;
+export type ToolFindContentCompactSearchResult = z.infer<
+    typeof findContentCompactSearchResultSchema
 >;
 export type ToolFindContentOutput = z.infer<typeof toolFindContentOutputSchema>;

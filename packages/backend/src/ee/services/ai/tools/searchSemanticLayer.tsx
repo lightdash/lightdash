@@ -33,6 +33,7 @@ const buildStructuredContent = ({
 }: Awaited<ReturnType<SearchSemanticLayerFn>> & {
     toolDescriptionMaxChars: number;
 }): ToolSearchSemanticLayerStructuredContent => ({
+    searchScope: 'allAvailableExplores',
     pagination: pagination
         ? {
               page: pagination.page,
@@ -53,9 +54,17 @@ const buildStructuredContent = ({
     })),
 });
 
+const searchScopeDescriptions = {
+    allAvailableExplores: 'ALL available explores in the project',
+} satisfies Record<
+    ToolSearchSemanticLayerStructuredContent['searchScope'],
+    string
+>;
+
 const generateResponse = ({
     fields,
     pagination,
+    searchScope,
 }: ToolSearchSemanticLayerStructuredContent) => (
     <semanticLayerFields
         page={pagination?.page}
@@ -64,7 +73,7 @@ const generateResponse = ({
         totalResults={pagination?.totalResults}
     >
         <note>
-            These fields are drawn from across ALL explores in the project. Use
+            {`These fields are drawn from across ${searchScopeDescriptions[searchScope]}. Use `}
             this inventory to compare definitions and spot duplicate or
             confusingly similar metrics. For a high-level overview, this first
             page plus the totals above is usually enough — only page through the

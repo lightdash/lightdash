@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 
 export const MCP_TOOL_LIST_EXPLORES_DESCRIPTION = ({
     toolName,
@@ -23,10 +26,46 @@ export type McpToolListExploresArgs = z.infer<
     typeof mcpToolListExploresArgsSchema
 >;
 
-export const mcpToolListExploresOutputSchema = z.object({
-    result: z.string(),
-    metadata: baseOutputMetadataSchema,
+export const mcpToolListExploresStructuredContentSchema = z.object({
+    count: z.number().int(),
+    explores: z.array(
+        z.object({
+            name: z.string(),
+            label: z.string().optional(),
+            baseTable: z.string(),
+            tags: z.array(z.string()).optional(),
+            joinedTables: z.object({
+                count: z.number().int(),
+                tables: z.array(z.string()),
+            }),
+            requiredFilters: z
+                .object({
+                    count: z.number().int(),
+                    filters: z.array(
+                        z.object({
+                            fieldId: z.string(),
+                            fieldRef: z.string(),
+                            tableName: z.string(),
+                            operator: z.string(),
+                            values: z.array(z.unknown()),
+                            settings: z.unknown().optional(),
+                            required: z.boolean(),
+                        }),
+                    ),
+                })
+                .optional(),
+        }),
+    ),
 });
+
+export const mcpToolListExploresOutputSchema = structuredToolOutputSchema({
+    metadata: baseOutputMetadataSchema,
+    structuredContent: mcpToolListExploresStructuredContentSchema,
+});
+
+export type McpToolListExploresStructuredContent = z.infer<
+    typeof mcpToolListExploresStructuredContentSchema
+>;
 
 export type McpToolListExploresOutput = z.infer<
     typeof mcpToolListExploresOutputSchema

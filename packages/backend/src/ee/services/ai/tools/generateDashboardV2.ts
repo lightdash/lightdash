@@ -138,15 +138,31 @@ export const getGenerateDashboardV2 = ({
                 });
 
                 let layoutResult: string | undefined;
-                if (decisions) {
-                    layoutResult = layout
-                        ? `Dashboard layout: ${layout.template}. Tile positions, in original visualization order: ${JSON.stringify(layout.positions)}. Narrow previews stack tiles in reading order.`
-                        : 'Dashboard uses the default layout. No requested custom arrangement was applied.';
+                let structuredLayout: ToolDashboardV2StructuredContent['layout'] =
+                    null;
+                if (decisions && layout) {
+                    layoutResult = `Dashboard layout: ${layout.template}. Tile positions, in original visualization order: ${JSON.stringify(layout.positions)}. Narrow previews stack tiles in reading order.`;
+                    structuredLayout = {
+                        ...layout,
+                        status: 'selected',
+                        positionOrder: 'originalVisualizationOrder',
+                        narrowPreviewBehavior: 'stackInReadingOrder',
+                    };
+                } else if (decisions) {
+                    layoutResult =
+                        'Dashboard uses the default layout. No requested custom arrangement was applied.';
+                    structuredLayout = {
+                        status: 'default',
+                        customArrangementApplied: false,
+                    };
                 }
 
                 const structuredContent: ToolDashboardV2StructuredContent = {
-                    visualizationCount: validVisualizations.length,
+                    ...(errors.length > 0 || layout
+                        ? { visualizationCount: validVisualizations.length }
+                        : {}),
                     excludedVisualizations,
+                    layout: structuredLayout,
                 };
 
                 // Return appropriate message based on whether some visualizations failed

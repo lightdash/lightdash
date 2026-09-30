@@ -13,6 +13,7 @@ export const TOOL_LIST_WORKSTREAMS_DESCRIPTION = [
 export const toolListWorkstreamsArgsSchema = z.object({
     repoTarget: z
         .string()
+        .min(1)
         .nullable()
         .describe(
             'Restrict the list to a single repository, as "owner/repo" (e.g. "acme/web-app"). Pass null to list the pull requests this conversation has opened across all repositories.',
@@ -26,9 +27,11 @@ export type ToolListWorkstreamsArgs = z.infer<
 export const toolListWorkstreamsStructuredContentSchema = z.object({
     repoTarget: z
         .string()
+        .min(1)
         .nullable()
+        .optional()
         .describe(
-            'The "owner/repo" the list was restricted to, or null when it spans every repository.',
+            'Repository restriction reported for an empty result, or null when no restriction was applied; omitted when pull requests are listed.',
         ),
     workstreams: z
         .array(

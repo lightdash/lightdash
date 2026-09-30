@@ -3,6 +3,8 @@ import {
     ContentVerificationInfo,
     findContentToolDefinition,
     getFindContentToolDescription,
+    type ToolFindContentCompactSearchResult,
+    type ToolFindContentFullSearchResult,
     type ToolFindContentStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -28,7 +30,7 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { DASHBOARD_CHARTS_PREVIEW_COUNT, truncate } from '../utils/truncation';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
-type SearchResult = ToolFindContentStructuredContent['searchResults'][number];
+type SearchResult = ToolFindContentFullSearchResult;
 type ContentItem = SearchResult['content'][number];
 type ContentItemOf<T extends ContentItem['contentType']> = Extract<
     ContentItem,
@@ -71,13 +73,15 @@ const toVerification = (
     verification
         ? {
               verifiedBy: fullName(verification.verifiedBy),
-              verifiedAt: new Date(verification.verifiedAt).toISOString(),
+              verifiedAt: moment(
+                  new Date(verification.verifiedAt).toISOString(),
+              ).fromNow(),
           }
         : null;
 
 // Search rows carry timestamps as Date objects despite their string type.
 const toTimestamp = (timestamp: string | null): string | null =>
-    timestamp ? new Date(timestamp).toISOString() : null;
+    timestamp ? moment(new Date(timestamp).toISOString()).fromNow() : null;
 
 const toSpaceMetadata = (space: FindContentSpaceMetadata): SpaceMetadata => ({
     uuid: space.uuid,
@@ -174,7 +178,9 @@ const toDashboardItem = (
                 verification: toVerification(chart.verification),
             })),
     },
-    validationErrorCount: dashboard.validationErrors.length,
+    ...(dashboard.validationErrors.length > 0
+        ? { validationErrorCount: dashboard.validationErrors.length }
+        : {}),
 });
 
 const toDataAppItem = (
@@ -240,22 +246,19 @@ const toSearchResult = (
     );
     return {
         searchQuery: args.searchQuery,
-        verifiedOnly: args.verifiedOnly,
         count: content.length,
         note:
             args.verifiedOnly && content.length === 0
                 ? NO_VERIFIED_CONTENT_NOTE
                 : null,
         content,
+        truncationNote: null,
     };
 };
 
 const renderVerified = (verification: Verification) =>
     verification ? (
-        <verified
-            by={verification.verifiedBy}
-            at={moment(verification.verifiedAt).fromNow()}
-        />
+        <verified by={verification.verifiedBy} at={verification.verifiedAt} />
     ) : null;
 
 const renderSpaceMetadata = (space: SpaceMetadata) => (
@@ -301,12 +304,10 @@ const renderChart = (chart: ContentItemOf<'chart'>) => (
         )}
         {renderVerified(chart.verification)}
         {chart.firstViewedAt && (
-            <firstviewedat>
-                {moment(chart.firstViewedAt).fromNow()}
-            </firstviewedat>
+            <firstviewedat>{chart.firstViewedAt}</firstviewedat>
         )}
         {chart.lastModified && (
-            <lastmodified>{moment(chart.lastModified).fromNow()}</lastmodified>
+            <lastmodified>{chart.lastModified}</lastmodified>
         )}
         {chart.createdBy && <createdby>{chart.createdBy}</createdby>}
         {chart.lastUpdatedBy && (
@@ -333,15 +334,11 @@ const renderDashboard = (dashboard: ContentItemOf<'dashboard'>) => (
         {renderVerified(dashboard.verification)}
 
         {dashboard.firstViewedAt && (
-            <firstviewedat>
-                {moment(dashboard.firstViewedAt).fromNow()}
-            </firstviewedat>
+            <firstviewedat>{dashboard.firstViewedAt}</firstviewedat>
         )}
 
         {dashboard.lastModified && (
-            <lastmodified>
-                {moment(dashboard.lastModified).fromNow()}
-            </lastmodified>
+            <lastmodified>{dashboard.lastModified}</lastmodified>
         )}
         {dashboard.createdBy && <createdby>{dashboard.createdBy}</createdby>}
         {dashboard.lastUpdatedBy && (
@@ -358,7 +355,7 @@ const renderDashboard = (dashboard: ContentItemOf<'dashboard'>) => (
                 </chart>
             ))}
         </charts>
-        {dashboard.validationErrorCount > 0 ? (
+        {dashboard.validationErrorCount !== undefined ? (
             <validationerrors count={dashboard.validationErrorCount} />
         ) : null}
     </dashboard>
@@ -417,25 +414,100 @@ const renderSearchResult = (searchResult: SearchResult) => (
 
 const COMPACT_SHOWN_COUNT = 8;
 const COMPACT_DESCRIPTION_MAX_CHARS = 200;
+const COMPACT_TRUNCATION_NOTE =
+    'More matches were omitted. Narrow the search query or spaceSlug if the intended item is missing; this is not an exhaustive inventory.';
 
-const renderCompactSearchResult = (
+const toCompactContentItem = (
+    content: ContentItem,
+    descriptionMaxChars: number,
+): ToolFindContentCompactSearchResult['content'][number] => {
+    const description =
+        content.contentType !== 'space' && content.description
+            ? truncate(
+                  content.description,
+                  Math.min(descriptionMaxChars, COMPACT_DESCRIPTION_MAX_CHARS),
+              )
+            : null;
+    switch (content.contentType) {
+        case 'space':
+            return content;
+        case 'document':
+            return { ...content, description };
+        case 'data_app':
+            return {
+                contentType: content.contentType,
+                uuid: content.uuid,
+                name: content.name,
+                slug: content.slug,
+                spaceUuid: content.spaceUuid,
+                href: content.href,
+                space: content.space,
+                description,
+            };
+        case 'dashboard':
+            return {
+                contentType: content.contentType,
+                uuid: content.uuid,
+                name: content.name,
+                slug: content.slug,
+                spaceUuid: content.spaceUuid,
+                href: content.href,
+                space: content.space,
+                description,
+                verification: content.verification,
+                charts: { count: content.charts.count },
+                validationErrorCount: content.validationErrorCount ?? 0,
+            };
+        case 'chart':
+            return {
+                contentType: content.contentType,
+                uuid: content.uuid,
+                name: content.name,
+                slug: content.slug,
+                chartType: content.chartType,
+                chartSource: content.chartSource,
+                spaceUuid: content.spaceUuid,
+                href: content.href,
+                space: content.space,
+                description,
+                verification: content.verification,
+            };
+        default:
+            return assertUnreachable(content, 'Unknown content type');
+    }
+};
+
+const toCompactSearchResult = (
     searchResult: SearchResult,
     descriptionMaxChars: number,
+): ToolFindContentCompactSearchResult => {
+    const content = searchResult.content
+        .slice(0, COMPACT_SHOWN_COUNT)
+        .map((item) => toCompactContentItem(item, descriptionMaxChars));
+    return {
+        ...searchResult,
+        shownCount: content.length,
+        truncationNote:
+            content.length < searchResult.count
+                ? COMPACT_TRUNCATION_NOTE
+                : null,
+        content,
+    };
+};
+
+const renderCompactSearchResult = (
+    searchResult: ToolFindContentCompactSearchResult,
     detailsToolName: Dependencies['dashboardDetailsToolName'],
 ) => {
-    const shown = searchResult.content.slice(0, COMPACT_SHOWN_COUNT);
+    const shown = searchResult.content;
     return (
         <searchresult
             searchQuery={searchResult.searchQuery}
             totalMatches={searchResult.count}
-            shown={shown.length}
+            shown={searchResult.shownCount}
         >
-            {shown.length === 0 && searchResult.verifiedOnly
-                ? searchResult.note
-                : null}
-            {shown.length < searchResult.count
-                ? 'More matches were omitted. Narrow the search query or spaceSlug if the intended item is missing; this is not an exhaustive inventory.'
-                : null}
+            {shown.length === 0 ? searchResult.note : null}
+            {searchResult.truncationNote}
             {shown.length > 0
                 ? `Search summaries only. Use ${detailsToolName} to inspect a selected dashboard's charts before making claims about their contents.`
                 : null}
@@ -468,15 +540,7 @@ const renderCompactSearchResult = (
                             : null}
                         {content.description ? (
                             <description>
-                                {escapeXmlText(
-                                    truncate(
-                                        content.description,
-                                        Math.min(
-                                            descriptionMaxChars,
-                                            COMPACT_DESCRIPTION_MAX_CHARS,
-                                        ),
-                                    ),
-                                )}
+                                {escapeXmlText(content.description)}
                             </description>
                         ) : null}
                     </match>
@@ -559,29 +623,37 @@ export const getFindContent = ({
                     });
                 }
 
-                const structuredContent: ToolFindContentStructuredContent = {
-                    searchResults: searchQueryResults.map((searchQueryResult) =>
+                const searchResults = searchQueryResults.map(
+                    (searchQueryResult) =>
                         toSearchResult(
                             searchQueryResult,
                             siteUrl,
                             toolDescriptionMaxChars,
                         ),
-                    ),
+                );
+                const compactSearchResults = decisions
+                    ? searchResults.map((searchResult) =>
+                          toCompactSearchResult(
+                              searchResult,
+                              toolDescriptionMaxChars,
+                          ),
+                      )
+                    : null;
+                const structuredContent: ToolFindContentStructuredContent = {
+                    searchResults: compactSearchResults ?? searchResults,
                 };
 
                 return {
                     result: (
                         <searchresults>
-                            {structuredContent.searchResults.map(
-                                (searchResult) =>
-                                    decisions
-                                        ? renderCompactSearchResult(
-                                              searchResult,
-                                              toolDescriptionMaxChars,
-                                              dashboardDetailsToolName,
-                                          )
-                                        : renderSearchResult(searchResult),
-                            )}
+                            {compactSearchResults
+                                ? compactSearchResults.map((searchResult) =>
+                                      renderCompactSearchResult(
+                                          searchResult,
+                                          dashboardDetailsToolName,
+                                      ),
+                                  )
+                                : searchResults.map(renderSearchResult)}
                         </searchresults>
                     ).toString(),
                     metadata: {

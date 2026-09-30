@@ -113,7 +113,9 @@ export const getCreateScheduledDelivery = ({
                     timezone: scheduler.timezone || null,
                     targets: args.targets,
                     enabled: scheduler.enabled,
-                    aiAugmentationAttached,
+                    ...(args.aiAugmentationPrompt !== null
+                        ? { aiAugmentationAttached }
+                        : {}),
                     href,
                     warnings,
                 };

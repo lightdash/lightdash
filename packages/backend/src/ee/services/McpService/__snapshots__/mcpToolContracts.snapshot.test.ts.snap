@@ -191,6 +191,124 @@ Usage Tips:
         "type": "object",
       },
       "name": "list_explores",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "explores": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "baseTable": {
+                  "type": "string",
+                },
+                "joinedTables": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "count": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    "tables": {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "count",
+                    "tables",
+                  ],
+                  "type": "object",
+                },
+                "label": {
+                  "type": "string",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "requiredFilters": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "count": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    "filters": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "fieldRef": {
+                            "type": "string",
+                          },
+                          "operator": {
+                            "type": "string",
+                          },
+                          "required": {
+                            "type": "boolean",
+                          },
+                          "settings": {},
+                          "tableName": {
+                            "type": "string",
+                          },
+                          "values": {
+                            "items": {},
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "fieldId",
+                          "fieldRef",
+                          "tableName",
+                          "operator",
+                          "values",
+                          "required",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "count",
+                    "filters",
+                  ],
+                  "type": "object",
+                },
+                "tags": {
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "name",
+                "baseTable",
+                "joinedTables",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "count",
+          "explores",
+        ],
+        "type": "object",
+      },
       "title": "List explores",
     },
     {
@@ -255,21 +373,6 @@ A field annotated with \`⚠params: <names>\` depends on those Lightdash paramet
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
-          "description": {
-            "description": "How to read \`patterns\` and \`fuzzyMatches\`.",
-            "type": "string",
-          },
-          "exploreName": {
-            "anyOf": [
-              {
-                "type": "string",
-              },
-              {
-                "type": "null",
-              },
-            ],
-            "description": "The explore the grep was scoped to, or null for all.",
-          },
           "fuzzyMatches": {
             "description": "Catalog-search near matches not already surfaced by the grep.",
             "items": {
@@ -285,9 +388,6 @@ A field annotated with \`⚠params: <names>\` depends on those Lightdash paramet
                     },
                   ],
                 },
-                "exploreName": {
-                  "type": "string",
-                },
                 "fieldId": {
                   "type": "string",
                 },
@@ -297,290 +397,481 @@ A field annotated with \`⚠params: <names>\` depends on those Lightdash paramet
                 "label": {
                   "type": "string",
                 },
-                "searchRank": {
-                  "anyOf": [
-                    {
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                  "description": "Full-text search rank; higher is better.",
-                },
-                "usageInCharts": {
-                  "type": "number",
-                },
-                "usageInVerifiedCharts": {
-                  "type": "number",
+                "verified": {
+                  "type": "boolean",
                 },
               },
               "required": [
-                "exploreName",
                 "fieldId",
                 "label",
                 "fieldType",
-                "description",
-                "searchRank",
-                "usageInCharts",
-                "usageInVerifiedCharts",
               ],
               "type": "object",
             },
             "type": "array",
           },
           "patterns": {
-            "description": "One entry per input pattern, in input order.",
+            "description": "One entry per input pattern, in input order; empty when the requested explore is unavailable.",
             "items": {
-              "additionalProperties": false,
-              "properties": {
-                "matchCount": {
-                  "description": "Fields matched before the display cap.",
-                  "type": "number",
-                },
-                "matchedAllFields": {
-                  "type": "boolean",
-                },
-                "matchingExploresByName": {
-                  "description": "Explores whose own name/label/hint matched but had no field matches.",
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "exploreLabel": {
-                        "type": "string",
-                      },
-                      "exploreName": {
-                        "type": "string",
-                      },
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "matchCount": {
+                      "description": "Fields matched before the display cap.",
+                      "type": "number",
                     },
-                    "required": [
-                      "exploreName",
-                      "exploreLabel",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
-                "metricAmbiguityNote": {
-                  "anyOf": [
-                    {
+                    "matchingExploresByName": {
+                      "description": "Explores whose own name/label/hint matched but had no field matches.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "exploreLabel": {
+                            "type": "string",
+                          },
+                          "exploreName": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "exploreName",
+                          "exploreLabel",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "metricAmbiguityNote": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Warning when similarly named metrics could be confused.",
+                    },
+                    "note": {
+                      "description": "The per-pattern summary line.",
                       "type": "string",
                     },
-                    {
-                      "type": "null",
+                    "pattern": {
+                      "type": "string",
                     },
-                  ],
-                  "description": "Warning when similarly named metrics could be confused.",
-                },
-                "note": {
-                  "description": "The per-pattern summary line.",
-                  "type": "string",
-                },
-                "pattern": {
-                  "type": "string",
-                },
-                "resultsByExplore": {
-                  "description": "Matched fields grouped by explore, best matches first.",
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "exploreLabel": {
-                        "type": "string",
-                      },
-                      "exploreName": {
-                        "type": "string",
-                      },
-                      "fields": {
-                        "items": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "defaultTimeDimension": {
-                              "anyOf": [
-                                {
+                    "resultsByExplore": {
+                      "description": "Matched fields grouped by explore, best matches first.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "exploreLabel": {
+                            "type": "string",
+                          },
+                          "exploreName": {
+                            "type": "string",
+                          },
+                          "fields": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "defaultTimeDimension": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Time dimension the metric defaults to, if configured.",
+                                },
+                                "defaultTimeDimensionGranularity": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "exploreLabel": {
                                   "type": "string",
                                 },
-                                {
-                                  "type": "null",
-                                },
-                              ],
-                              "description": "Time dimension the metric defaults to, if configured.",
-                            },
-                            "defaultTimeDimensionGranularity": {
-                              "anyOf": [
-                                {
+                                "exploreName": {
                                   "type": "string",
                                 },
-                                {
-                                  "type": "null",
-                                },
-                              ],
-                            },
-                            "description": {
-                              "anyOf": [
-                                {
+                                "fieldId": {
+                                  "description": "Field id to use in queries.",
                                   "type": "string",
                                 },
-                                {
-                                  "type": "null",
-                                },
-                              ],
-                            },
-                            "exploreLabel": {
-                              "type": "string",
-                            },
-                            "exploreName": {
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": "Field id to use in queries.",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "type": "string",
-                            },
-                            "hint": {
-                              "anyOf": [
-                                {
+                                "fieldType": {
                                   "type": "string",
                                 },
-                                {
-                                  "type": "null",
+                                "hint": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "The field aiHint, if any.",
                                 },
-                              ],
-                              "description": "The field aiHint, if any.",
-                            },
-                            "kind": {
-                              "enum": [
-                                "dimension",
-                                "metric",
-                              ],
-                              "type": "string",
-                            },
-                            "label": {
-                              "type": "string",
-                            },
-                            "matchLocality": {
-                              "description": "Which slice of the field the pattern matched, most specific first.",
-                              "enum": [
-                                "name",
+                                "kind": {
+                                  "enum": [
+                                    "dimension",
+                                    "metric",
+                                  ],
+                                  "type": "string",
+                                },
+                                "label": {
+                                  "type": "string",
+                                },
+                                "path": {
+                                  "description": "\`exploreName/fieldId\`, as printed in \`result\`.",
+                                  "type": "string",
+                                },
+                                "requiredParameters": {
+                                  "description": "Lightdash parameters this field depends on.",
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                "verified": {
+                                  "description": "Whether the field has a verified marker.",
+                                  "type": "boolean",
+                                },
+                              },
+                              "required": [
+                                "exploreName",
+                                "exploreLabel",
+                                "fieldId",
+                                "path",
+                                "kind",
+                                "fieldType",
+                                "label",
                                 "description",
                                 "hint",
-                                "mixed",
+                                "defaultTimeDimension",
+                                "defaultTimeDimensionGranularity",
+                                "requiredParameters",
+                                "verified",
                               ],
-                              "type": "string",
+                              "type": "object",
                             },
-                            "path": {
-                              "description": "\`exploreName/fieldId\`, as printed in \`result\`.",
-                              "type": "string",
-                            },
-                            "requiredParameters": {
-                              "description": "Lightdash parameters this field depends on.",
-                              "items": {
-                                "type": "string",
+                            "type": "array",
+                          },
+                          "requiredFilters": {
+                            "description": "Required or suggested table filters printed for this explore.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "fieldId": {
+                                  "type": "string",
+                                },
+                                "operator": {
+                                  "type": "string",
+                                },
+                                "required": {
+                                  "type": "boolean",
+                                },
+                                "values": {
+                                  "items": {},
+                                  "type": "array",
+                                },
                               },
-                              "type": "array",
+                              "required": [
+                                "fieldId",
+                                "operator",
+                                "required",
+                              ],
+                              "type": "object",
                             },
-                            "usageInVerifiedCharts": {
-                              "description": "How many verified saved charts use this field.",
-                              "type": "number",
-                            },
+                            "type": "array",
                           },
-                          "required": [
-                            "exploreName",
-                            "exploreLabel",
-                            "fieldId",
-                            "path",
-                            "kind",
-                            "fieldType",
-                            "label",
-                            "description",
-                            "hint",
-                            "defaultTimeDimension",
-                            "defaultTimeDimensionGranularity",
-                            "requiredParameters",
-                            "usageInVerifiedCharts",
-                            "matchLocality",
-                          ],
-                          "type": "object",
                         },
-                        "type": "array",
+                        "required": [
+                          "exploreName",
+                          "exploreLabel",
+                          "requiredFilters",
+                          "fields",
+                        ],
+                        "type": "object",
                       },
-                      "requiredFilters": {
-                        "description": "Filters that must be set when querying this explore.",
-                        "items": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldId": {
-                              "type": "string",
-                            },
-                            "fieldRef": {
-                              "type": "string",
-                            },
-                            "operator": {
-                              "type": "string",
-                            },
-                            "required": {
-                              "type": "boolean",
-                            },
-                            "settings": {},
-                            "tableName": {
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {},
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldRef",
-                            "tableName",
-                            "operator",
-                            "required",
-                          ],
-                          "type": "object",
-                        },
-                        "type": "array",
-                      },
+                      "type": "array",
                     },
-                    "required": [
-                      "exploreName",
-                      "exploreLabel",
-                      "requiredFilters",
-                      "fields",
-                    ],
-                    "type": "object",
+                    "status": {
+                      "enum": [
+                        "matches",
+                        "no_matches",
+                      ],
+                      "type": "string",
+                    },
                   },
-                  "type": "array",
-                },
-                "scopeSize": {
-                  "description": "Fields the pattern was run against.",
-                  "type": "number",
-                },
-                "status": {
-                  "description": "\`no_signal\` means the pattern matched every field in scope and was discarded.",
-                  "enum": [
-                    "matches",
-                    "no_matches",
-                    "no_signal",
+                  "required": [
+                    "pattern",
+                    "matchCount",
+                    "note",
+                    "resultsByExplore",
+                    "metricAmbiguityNote",
+                    "matchingExploresByName",
+                    "status",
                   ],
-                  "type": "string",
+                  "type": "object",
                 },
-              },
-              "required": [
-                "pattern",
-                "status",
-                "matchCount",
-                "scopeSize",
-                "matchedAllFields",
-                "note",
-                "resultsByExplore",
-                "metricAmbiguityNote",
-                "matchingExploresByName",
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "matchCount": {
+                      "description": "Fields matched before the display cap.",
+                      "type": "number",
+                    },
+                    "matchedAllFields": {
+                      "const": true,
+                      "type": "boolean",
+                    },
+                    "matchingExploresByName": {
+                      "description": "Explores whose own name/label/hint matched but had no field matches.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "exploreLabel": {
+                            "type": "string",
+                          },
+                          "exploreName": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "exploreName",
+                          "exploreLabel",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "metricAmbiguityNote": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Warning when similarly named metrics could be confused.",
+                    },
+                    "note": {
+                      "description": "The per-pattern summary line.",
+                      "type": "string",
+                    },
+                    "pattern": {
+                      "type": "string",
+                    },
+                    "resultsByExplore": {
+                      "description": "Matched fields grouped by explore, best matches first.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "exploreLabel": {
+                            "type": "string",
+                          },
+                          "exploreName": {
+                            "type": "string",
+                          },
+                          "fields": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "defaultTimeDimension": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Time dimension the metric defaults to, if configured.",
+                                },
+                                "defaultTimeDimensionGranularity": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "exploreLabel": {
+                                  "type": "string",
+                                },
+                                "exploreName": {
+                                  "type": "string",
+                                },
+                                "fieldId": {
+                                  "description": "Field id to use in queries.",
+                                  "type": "string",
+                                },
+                                "fieldType": {
+                                  "type": "string",
+                                },
+                                "hint": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "The field aiHint, if any.",
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "dimension",
+                                    "metric",
+                                  ],
+                                  "type": "string",
+                                },
+                                "label": {
+                                  "type": "string",
+                                },
+                                "path": {
+                                  "description": "\`exploreName/fieldId\`, as printed in \`result\`.",
+                                  "type": "string",
+                                },
+                                "requiredParameters": {
+                                  "description": "Lightdash parameters this field depends on.",
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                "verified": {
+                                  "description": "Whether the field has a verified marker.",
+                                  "type": "boolean",
+                                },
+                              },
+                              "required": [
+                                "exploreName",
+                                "exploreLabel",
+                                "fieldId",
+                                "path",
+                                "kind",
+                                "fieldType",
+                                "label",
+                                "description",
+                                "hint",
+                                "defaultTimeDimension",
+                                "defaultTimeDimensionGranularity",
+                                "requiredParameters",
+                                "verified",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "requiredFilters": {
+                            "description": "Required or suggested table filters printed for this explore.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "fieldId": {
+                                  "type": "string",
+                                },
+                                "operator": {
+                                  "type": "string",
+                                },
+                                "required": {
+                                  "type": "boolean",
+                                },
+                                "values": {
+                                  "items": {},
+                                  "type": "array",
+                                },
+                              },
+                              "required": [
+                                "fieldId",
+                                "operator",
+                                "required",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "exploreName",
+                          "exploreLabel",
+                          "requiredFilters",
+                          "fields",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "scopeSize": {
+                      "description": "Fields the pattern was run against.",
+                      "type": "number",
+                    },
+                    "status": {
+                      "const": "no_signal",
+                      "description": "The pattern matched every field in scope and was discarded.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "pattern",
+                    "matchCount",
+                    "note",
+                    "resultsByExplore",
+                    "metricAmbiguityNote",
+                    "matchingExploresByName",
+                    "status",
+                    "scopeSize",
+                    "matchedAllFields",
+                  ],
+                  "type": "object",
+                },
               ],
-              "type": "object",
             },
             "type": "array",
+          },
+          "preloadedMetadata": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "description": "The exact preloaded catalog metadata appended to the text.",
           },
           "relevantVerifiedAnswers": {
             "items": {
@@ -650,10 +941,25 @@ A field annotated with \`⚠params: <names>\` depends on those Lightdash paramet
             },
             "type": "array",
           },
+          "review": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "description": "The exact ambiguity warnings or empty-result diagnosis in the text.",
+          },
+          "scope": {
+            "description": "The exact scope label appended to the MCP response text.",
+            "type": "string",
+          },
         },
         "required": [
-          "description",
-          "exploreName",
+          "preloadedMetadata",
+          "review",
           "patterns",
           "fuzzyMatches",
         ],
@@ -852,6 +1158,63 @@ Each entry in \`requests\` is one of:
                       },
                       "type": "array",
                     },
+                    "joins": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "always": {
+                            "type": "boolean",
+                          },
+                          "relationship": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "one-to-many",
+                                  "many-to-one",
+                                  "one-to-one",
+                                  "many-to-many",
+                                ],
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "sqlOn": {
+                            "type": "string",
+                          },
+                          "table": {
+                            "type": "string",
+                          },
+                          "type": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "inner",
+                                  "full",
+                                  "left",
+                                  "right",
+                                ],
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                        },
+                        "required": [
+                          "table",
+                          "type",
+                          "relationship",
+                          "always",
+                          "sqlOn",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
                     "label": {
                       "type": "string",
                     },
@@ -860,6 +1223,7 @@ Each entry in \`requests\` is one of:
                         "additionalProperties": false,
                         "properties": {
                           "allowCustomValues": {
+                            "const": true,
                             "type": "boolean",
                           },
                           "default": {
@@ -905,6 +1269,7 @@ Each entry in \`requests\` is one of:
                             "type": "string",
                           },
                           "multiple": {
+                            "const": true,
                             "type": "boolean",
                           },
                           "name": {
@@ -968,8 +1333,6 @@ Each entry in \`requests\` is one of:
                           "description",
                           "type",
                           "default",
-                          "multiple",
-                          "allowCustomValues",
                           "options",
                           "optionsFromDimension",
                         ],
@@ -984,18 +1347,11 @@ Each entry in \`requests\` is one of:
                           "fieldId": {
                             "type": "string",
                           },
-                          "fieldRef": {
-                            "type": "string",
-                          },
                           "operator": {
                             "type": "string",
                           },
                           "required": {
                             "type": "boolean",
-                          },
-                          "settings": {},
-                          "tableName": {
-                            "type": "string",
                           },
                           "values": {
                             "items": {},
@@ -1004,8 +1360,6 @@ Each entry in \`requests\` is one of:
                         },
                         "required": [
                           "fieldId",
-                          "fieldRef",
-                          "tableName",
                           "operator",
                           "required",
                         ],
@@ -1016,6 +1370,25 @@ Each entry in \`requests\` is one of:
                     "status": {
                       "const": "found",
                       "type": "string",
+                    },
+                    "tableFilters": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "sqlWhere": {
+                            "type": "string",
+                          },
+                          "table": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "table",
+                          "sqlWhere",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
                     },
                   },
                   "required": [
@@ -1028,8 +1401,6 @@ Each entry in \`requests\` is one of:
                     "joinedTables",
                     "requiredFilters",
                     "parameters",
-                    "baseDimensions",
-                    "baseMetrics",
                   ],
                   "type": "object",
                 },
@@ -1127,6 +1498,7 @@ Each entry in \`requests\` is one of:
                       ],
                     },
                     "isFromJoinedTable": {
+                      "const": true,
                       "type": "boolean",
                     },
                     "joinedTableName": {
@@ -1168,7 +1540,6 @@ Each entry in \`requests\` is one of:
                     "fieldType",
                     "label",
                     "filterType",
-                    "isFromJoinedTable",
                     "joinedTableName",
                     "caseSensitiveFilters",
                     "defaultTimeDimension",

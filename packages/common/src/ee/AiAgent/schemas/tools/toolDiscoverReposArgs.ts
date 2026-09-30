@@ -21,7 +21,12 @@ export const toolDiscoverReposStructuredContentSchema = z.object({
                 owner: z.string(),
                 repo: z.string(),
                 defaultBranch: z.string(),
-                private: z.boolean(),
+                private: z
+                    .literal(true)
+                    .optional()
+                    .describe(
+                        'Present only when the text labels the repository as private.',
+                    ),
             }),
         )
         .describe(

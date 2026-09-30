@@ -53,7 +53,7 @@ export const getListWorkstreams = ({ listWorkstreams }: Dependencies) =>
 
                 const structuredContent: ToolListWorkstreamsStructuredContent =
                     {
-                        repoTarget,
+                        ...(workstreams.length === 0 ? { repoTarget } : {}),
                         workstreams: workstreams.map(
                             ({ repository, prNumber, prUrl, summary }) => ({
                                 repository,

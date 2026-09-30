@@ -95,7 +95,7 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 const prVerb =
                     pullRequestAction === 'updated' ? 'Updated' : 'Opened';
                 const result = pullRequestAction
-                    ? `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which repository it targeted.\n\nAgent summary:\n${output}`
+                    ? `${prVerb} a pull request against ${target}. Do NOT include the pull request URL or number in your reply — just summarise the change and which repository it targeted.\n\nAgent summary:\n${output}`
                     : `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
 
                 return {

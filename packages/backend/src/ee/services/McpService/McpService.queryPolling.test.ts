@@ -899,7 +899,6 @@ describe('MCP async query polling', () => {
                 }),
             ],
             structuredContent: {
-                exploreName: null,
                 patterns: [
                     expect.objectContaining({
                         pattern: 'orders count',

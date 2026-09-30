@@ -99,6 +99,7 @@ describe('getSearchFieldValues', () => {
         expect(output.structuredContent).toEqual({
             results: ['completed'],
             note: null,
+            matchingValue: null,
         });
         expect(
             toolSearchFieldValuesOutputSchema.safeParse(output).success,
@@ -267,7 +268,11 @@ describe('getSearchFieldValues', () => {
                 '```',
             ].join('\n'),
             metadata: { status: 'success' },
-            structuredContent: { results: ['shipped', 42, true], note },
+            structuredContent: {
+                results: ['shipped', 42, true],
+                note,
+                matchingValue: null,
+            },
         });
         expect(
             toolSearchFieldValuesOutputSchema.safeParse(output).success,
@@ -291,7 +296,7 @@ describe('getSearchFieldValues', () => {
         expect(output).toEqual({
             result: '```json\n[]\n```',
             metadata: { status: 'success' },
-            structuredContent: { results: [], note: null },
+            structuredContent: { results: [], note: null, matchingValue: null },
         });
         expect(
             toolSearchFieldValuesOutputSchema.safeParse(output).success,
@@ -323,7 +328,11 @@ describe('getSearchFieldValues', () => {
             expect(output).toEqual({
                 result: '```json\n[\n  "shipped"\n]\n```',
                 metadata: { status: 'success' },
-                structuredContent: { results: ['shipped'], note: null },
+                structuredContent: {
+                    results: ['shipped'],
+                    note: null,
+                    matchingValue: null,
+                },
             });
             expect(getExplore).not.toHaveBeenCalled();
             expect(searchFieldValues).toHaveBeenCalledWith({

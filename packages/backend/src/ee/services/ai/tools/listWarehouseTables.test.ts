@@ -222,7 +222,6 @@ describe('listWarehouseTables tool', () => {
         expect(output.metadata).toEqual({ status: 'success' });
         expect(output.structuredContent).toEqual({
             matchCount: 4,
-            filters: { schema: null, search: null },
             tables: [
                 {
                     database: 'analytics',
@@ -267,7 +266,6 @@ describe('listWarehouseTables tool', () => {
         );
         expect(output.structuredContent).toEqual({
             matchCount: 1,
-            filters: { schema: 'jaffle', search: 'ORDER' },
             tables: [
                 {
                     database: 'analytics',

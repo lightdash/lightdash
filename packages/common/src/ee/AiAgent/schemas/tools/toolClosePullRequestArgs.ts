@@ -23,10 +23,11 @@ export type ToolClosePullRequestArgs = z.infer<
 >;
 
 export const toolClosePullRequestStructuredContentSchema = z.object({
-    prUrl: z.string().describe('URL of the pull request that was closed.'),
     state: z
         .literal('closed')
-        .describe('State of the pull request on the provider after the call.'),
+        .describe(
+            'State reported by the tool when the close request completes without an error.',
+        ),
 });
 
 export type ToolClosePullRequestStructuredContent = z.infer<

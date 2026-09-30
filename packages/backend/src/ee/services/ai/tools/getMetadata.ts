@@ -83,17 +83,23 @@ const getExploreParameters = (
             explore,
             projectParameterDefinitions,
         ),
-    ).map(([name, definition]) => ({
-        name,
-        label: definition.label,
-        description: definition.description ?? null,
-        type: definition.type ?? 'string',
-        default: definition.default ?? null,
-        multiple: definition.multiple ?? false,
-        allowCustomValues: definition.allow_custom_values ?? false,
-        options: getParameterOptionValues(definition),
-        optionsFromDimension: definition.options_from_dimension ?? null,
-    }));
+    ).map(
+        ([name, definition]): GetMetadataParameter => ({
+            name,
+            label: definition.label,
+            description: definition.description
+                ? collapse(definition.description)
+                : null,
+            type: definition.type ?? 'string',
+            default: definition.default ?? null,
+            ...(definition.multiple ? { multiple: definition.multiple } : {}),
+            ...(definition.allow_custom_values
+                ? { allowCustomValues: definition.allow_custom_values }
+                : {}),
+            options: getParameterOptionValues(definition),
+            optionsFromDimension: definition.options_from_dimension ?? null,
+        }),
+    );
 
 const renderParameter = (parameter: GetMetadataParameter): string => {
     const parts = [
@@ -105,7 +111,7 @@ const renderParameter = (parameter: GetMetadataParameter): string => {
         parts.push(`default: ${JSON.stringify(parameter.default)}`);
     }
     if (parameter.options) {
-        parts.push(`options: ${parameter.options.join(', ')}`);
+        parts.push(`options: ${JSON.stringify(parameter.options)}`);
     }
     if (parameter.optionsFromDimension) {
         parts.push(
@@ -115,17 +121,42 @@ const renderParameter = (parameter: GetMetadataParameter): string => {
     if (parameter.allowCustomValues) {
         parts.push('(custom values allowed)');
     }
-    const description = parameter.description
-        ? ` — ${collapse(parameter.description)}`
-        : '';
+    const description =
+        parameter.description !== null ? ` — ${parameter.description}` : '';
     return parts.join('  ') + description;
 };
+
+const getExploreSourceDetails = (
+    explore: Explore,
+    includeSourceDetails: boolean,
+): Pick<
+    Extract<GetMetadataResult['explores'][number], { status: 'found' }>,
+    'joins' | 'tableFilters'
+> =>
+    includeSourceDetails
+        ? {
+              joins: explore.joinedTables
+                  .filter((join) => !join.hidden || join.always)
+                  .map((join) => ({
+                      table: join.table,
+                      type: join.type ?? null,
+                      relationship: join.relationship ?? null,
+                      always: join.always ?? false,
+                      sqlOn: join.sqlOn,
+                  })),
+              tableFilters: Object.values(explore.tables).flatMap((table) =>
+                  table.sqlWhere
+                      ? [{ table: table.name, sqlWhere: table.sqlWhere }]
+                      : [],
+              ),
+          }
+        : {};
 
 const renderExplore = (
     explore: Explore,
     parameters: GetMetadataParameter[],
     includeFieldLists: boolean,
-    includeSourceDetails: boolean,
+    sourceDetails: ReturnType<typeof getExploreSourceDetails>,
 ): string => {
     const baseTable = explore.tables[explore.baseTable];
     const lines = [`Explore: ${explore.name} (${explore.label})`];
@@ -143,24 +174,11 @@ const renderExplore = (
             )}`,
         );
     }
-    if (includeSourceDetails) {
-        // Preserve whole predicates: a missing condition can change attribution.
-        for (const join of explore.joinedTables.filter(
-            (item) => !item.hidden || item.always,
-        )) {
-            lines.push(
-                `  join ${join.table}: ${JSON.stringify({
-                    type: join.type ?? null,
-                    relationship: join.relationship ?? null,
-                    always: join.always ?? false,
-                    sqlOn: join.sqlOn,
-                })}`,
-            );
-        }
-        for (const table of Object.values(explore.tables)) {
-            if (table.sqlWhere)
-                lines.push(`  table filter ${table.name}: ${table.sqlWhere}`);
-        }
+    for (const { table, ...join } of sourceDetails.joins ?? []) {
+        lines.push(`  join ${table}: ${JSON.stringify(join)}`);
+    }
+    for (const { table, sqlWhere } of sourceDetails.tableFilters ?? []) {
+        lines.push(`  table filter ${table}: ${sqlWhere}`);
     }
     const required = summarizeRequiredFilters(explore);
     if (required) lines.push(`  ${required}`);
@@ -264,6 +282,8 @@ const renderField = (
 const buildExploreStructuredResult = (
     explore: Explore,
     parameters: GetMetadataParameter[],
+    includeFieldLists: boolean,
+    sourceDetails: ReturnType<typeof getExploreSourceDetails>,
 ): GetMetadataResult['explores'][number] => {
     const baseTable = explore.tables[explore.baseTable];
     const hint = flattenAiHints(explore.aiHint);
@@ -283,16 +303,28 @@ const buildExploreStructuredResult = (
         hint: hint ? collapse(hint) : null,
         baseTable: explore.baseTable,
         joinedTables: explore.joinedTables.map((join) => join.table),
-        requiredFilters: getExploreRequiredFilters(explore),
+        ...sourceDetails,
+        requiredFilters: getExploreRequiredFilters(explore).map(
+            ({ fieldId, operator, values, required }) => ({
+                fieldId,
+                operator,
+                ...(values && values.length > 0 ? { values } : {}),
+                required,
+            }),
+        ),
         parameters,
-        baseDimensions: {
-            count: dimensionIds.length,
-            fieldIds: dimensionIds.slice(0, FIELD_LIST_MAX),
-        },
-        baseMetrics: {
-            count: metricIds.length,
-            fieldIds: metricIds.slice(0, FIELD_LIST_MAX),
-        },
+        ...(includeFieldLists
+            ? {
+                  baseDimensions: {
+                      count: dimensionIds.length,
+                      fieldIds: dimensionIds.slice(0, FIELD_LIST_MAX),
+                  },
+                  baseMetrics: {
+                      count: metricIds.length,
+                      fieldIds: metricIds.slice(0, FIELD_LIST_MAX),
+                  },
+              }
+            : {}),
     };
 };
 
@@ -318,7 +350,7 @@ const buildFieldStructuredResult = (
         fieldType: String(field.type),
         label: field.label,
         filterType: getFilterTypeFromItemType(field.type),
-        isFromJoinedTable: isJoined,
+        ...(isJoined ? { isFromJoinedTable: isJoined } : {}),
         joinedTableName: isJoined ? field.table : null,
         caseSensitiveFilters:
             isDimension(field) && field.type === 'string'
@@ -412,16 +444,25 @@ export const executeGetMetadata = (
                         explore,
                         projectParameterDefinitions,
                     );
+                    const sourceDetails = getExploreSourceDetails(
+                        explore,
+                        includeSourceDetails,
+                    );
                     textBlocks.push(
                         renderExplore(
                             explore,
                             parameters,
                             includeFieldLists,
-                            includeSourceDetails,
+                            sourceDetails,
                         ),
                     );
                     explores.push(
-                        buildExploreStructuredResult(explore, parameters),
+                        buildExploreStructuredResult(
+                            explore,
+                            parameters,
+                            includeFieldLists,
+                            sourceDetails,
+                        ),
                     );
                 }
             }

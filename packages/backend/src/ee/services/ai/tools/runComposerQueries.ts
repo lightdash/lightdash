@@ -1,8 +1,10 @@
 import {
     buildComposerArtifactPipeline,
     createToolComposerQueriesArgsSchema,
+    getComposerVizKind,
     getComposerVizPlan,
     isSlackPrompt,
+    isVizTableConfig,
     QuerySourceType,
     runComposerQueriesToolDefinition,
     toolComposerQueryNodeToSourceQuery,
@@ -13,7 +15,6 @@ import {
     type ToolComposerQueriesStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
 import {
     getDefaultVizNote,
@@ -30,6 +31,7 @@ import type {
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
+import { stringifyAgentCsv } from '../utils/stringifyAgentCsv';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -265,6 +267,8 @@ export const getRunComposerQueries = ({
                 // v0 surface is web chat only; keep Slack (if ever assembled
                 // there) to the text result without an artifact.
                 let vizNote: string | null = null;
+                let visualization: ToolComposerQueriesStructuredContent['visualization'] =
+                    null;
                 if (!isSlackPrompt(prompt)) {
                     const earlierPipelines = await listThreadComposerPipelines(
                         prompt.threadUuid,
@@ -292,16 +296,39 @@ export const getRunComposerQueries = ({
                             previousVizConfig:
                                 earlierPipelines.at(-1)?.vizConfig ?? null,
                         })) ?? null;
-                    vizNote = vizConfig
-                        ? getVizConfigNote(vizConfig)
-                        : getDefaultVizNote(
-                              getComposerVizPlan({
-                                  columns: Object.values(terminal.columns),
-                                  rows: terminal.rows,
-                                  node: terminalNode ?? null,
-                                  vizConfig: null,
-                              }),
-                          );
+                    if (vizConfig) {
+                        const fieldConfig = isVizTableConfig(vizConfig)
+                            ? null
+                            : vizConfig.fieldConfig;
+                        visualization = {
+                            kind: getComposerVizKind(vizConfig),
+                            isDefault: false,
+                            x: fieldConfig?.x?.reference || null,
+                            y: fieldConfig?.y[0]?.reference || null,
+                            splitBy:
+                                fieldConfig?.groupBy?.[0]?.reference || null,
+                        };
+                        vizNote = getVizConfigNote(vizConfig);
+                    } else {
+                        const vizPlan = getComposerVizPlan({
+                            columns: Object.values(terminal.columns),
+                            rows: terminal.rows,
+                            node: terminalNode ?? null,
+                            vizConfig: null,
+                        });
+                        const defaultAxes =
+                            vizPlan.defaultKind === 'table'
+                                ? null
+                                : vizPlan.axes[vizPlan.defaultKind];
+                        visualization = {
+                            kind: vizPlan.defaultKind,
+                            isDefault: true,
+                            x: defaultAxes?.x?.reference || null,
+                            y: defaultAxes?.y.reference || null,
+                            splitBy: null,
+                        };
+                        vizNote = getDefaultVizNote(vizPlan);
+                    }
                     await createOrUpdateArtifact({
                         threadUuid: prompt.threadUuid,
                         promptUuid: prompt.promptUuid,
@@ -335,25 +362,26 @@ export const getRunComposerQueries = ({
                 const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
                     .join(', ');
+                const emptyResultReview =
+                    enableDataAccess && reviewQuery && terminal.rowCount === 0
+                        ? await reviewQuery(
+                              {
+                                  kind: 'composer',
+                                  queries,
+                                  terminalNodeId: resolvedTerminalNodeId,
+                              },
+                              { emptyResult: true, review },
+                          )
+                        : null;
+                const appendedReview =
+                    terminal.rowCount === 0
+                        ? emptyResultReview
+                        : review || null;
                 const resultSummary = [
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows (queryUuid ${terminal.queryUuid}).`,
                     `Submitted nodes (any queryUuid below can be reused by a later submission via the map form of "references", without re-running that query):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
-                    ...(review && terminal.rowCount !== 0 ? [review] : []),
-                    ...(enableDataAccess &&
-                    reviewQuery &&
-                    terminal.rowCount === 0
-                        ? [
-                              await reviewQuery(
-                                  {
-                                      kind: 'composer',
-                                      queries,
-                                      terminalNodeId: resolvedTerminalNodeId,
-                                  },
-                                  { emptyResult: true, review },
-                              ),
-                          ]
-                        : []),
+                    ...(appendedReview !== null ? [appendedReview] : []),
                 ].join('\n');
                 const summary = {
                     terminalNodeId: resolvedTerminalNodeId,
@@ -367,6 +395,8 @@ export const getRunComposerQueries = ({
                         }),
                     ),
                     columns,
+                    visualization,
+                    review: appendedReview,
                 };
 
                 const vizLine = vizNote ? `\n${vizNote}` : '';
@@ -374,7 +404,11 @@ export const getRunComposerQueries = ({
                     return {
                         result: `${resultSummary}${vizLine}`,
                         metadata: { status: 'success' },
-                        structuredContent: { ...summary, preview: null },
+                        structuredContent: {
+                            ...summary,
+                            preview: null,
+                            truncationNote: null,
+                        },
                     };
                 }
 
@@ -389,17 +423,19 @@ export const getRunComposerQueries = ({
                             {},
                         ),
                     );
-                const previewCsv = stringify(previewRows, {
-                    header: true,
-                    columns: columnReferences,
-                });
+                const previewCsv = stringifyAgentCsv(
+                    previewRows.map((row) =>
+                        columnReferences.map((column) => row[column]),
+                    ),
+                    columnReferences,
+                );
                 const truncated = terminal.rowCount > PREVIEW_ROW_LIMIT;
-                const truncatedNote = truncated
+                const truncationNote = truncated
                     ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
-                    : '';
+                    : null;
 
                 return {
-                    result: `${resultSummary}${truncatedNote}\n${serializeData(
+                    result: `${resultSummary}${truncationNote ?? ''}\n${serializeData(
                         previewCsv,
                         'csv',
                     )}${vizLine}`,
@@ -407,6 +443,7 @@ export const getRunComposerQueries = ({
                     structuredContent: {
                         ...summary,
                         preview: { rows: previewRows, truncated },
+                        truncationNote,
                     },
                 };
             } catch (e) {

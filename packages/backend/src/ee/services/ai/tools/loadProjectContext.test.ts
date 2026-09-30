@@ -113,10 +113,10 @@ describe('loadProjectContext tool', () => {
         );
         expect(res.structuredContent).toEqual({
             outcome: 'loaded',
+            truncationNote: null,
             entries: [
                 {
                     id: 'arr-def',
-                    source: 'context',
                     kind: 'context',
                     terms: ['arr', 'revenue'],
                     objects: [],
@@ -166,6 +166,7 @@ describe('loadProjectContext tool', () => {
         expect(res.structuredContent).toEqual({
             outcome: 'loaded',
             entries: [],
+            truncationNote: null,
         });
         expect(toolLoadProjectContextOutputSchema.safeParse(res).success).toBe(
             true,
@@ -183,28 +184,25 @@ describe('loadProjectContext tool', () => {
         expect(res.structuredContent).toEqual({
             outcome: 'no_match',
             totalEntries: 4,
+            truncationNote: null,
             available: [
                 {
                     id: 'arr-def',
-                    source: 'context',
                     kind: 'context',
                     terms: ['arr', 'revenue'],
                 },
                 {
                     id: 'sao-def',
-                    source: 'context',
                     kind: 'context',
                     terms: ['sao'],
                 },
                 {
                     id: 'unrelated',
-                    source: 'context',
                     kind: 'context',
                     terms: [],
                 },
                 {
                     id: 'legacy-ref',
-                    source: 'context',
                     kind: 'context',
                     terms: [],
                 },
@@ -232,6 +230,7 @@ describe('loadProjectContext tool', () => {
         expect(onEntriesLoaded).toHaveBeenCalledWith([memoryEntry]);
         expect(res.structuredContent).toEqual({
             outcome: 'loaded',
+            truncationNote: null,
             entries: [
                 {
                     id: 'completed-order-revenue',
@@ -267,6 +266,7 @@ describe('loadProjectContext tool', () => {
         expect(res.structuredContent).toEqual({
             outcome: 'no_match',
             totalEntries: 2,
+            truncationNote: null,
             available: [
                 {
                     id: 'arr-def',

@@ -116,27 +116,26 @@ export const toolRunMetricQueryArgsSchemaTransformed =
 
 export const toolRunMetricQueryStructuredContentSchema = z.object({
     columns: z
-        .array(
-            z.object({
-                fieldId: z.string().describe('Field id keying each row.'),
-                label: z
-                    .string()
-                    .describe('Column header as shown in the CSV result.'),
-            }),
-        )
+        .array(z.string())
         .describe(
-            'Ordered columns of the CSV result. Empty when the query returned no rows.',
+            'Column header labels in CSV order. Empty when the query returned no rows.',
         ),
     rows: z
-        .array(z.record(z.string(), z.unknown()))
+        .array(z.array(z.unknown()))
         .describe(
-            'Result rows keyed by field id, holding the same raw values as the CSV result.',
+            'Result rows as arrays of cells in column order, holding the same values written to the CSV result.',
         ),
     rowCount: z
         .number()
         .int()
         .nonnegative()
         .describe('Number of rows returned; 0 means no results.'),
+    review: z
+        .string()
+        .nullable()
+        .describe(
+            'Exact data-bearing query review or empty-result diagnosis shown in the text; null when only generic guidance or no review was emitted.',
+        ),
 });
 
 export const toolRunMetricQueryOutputSchema = structuredToolOutputSchema({

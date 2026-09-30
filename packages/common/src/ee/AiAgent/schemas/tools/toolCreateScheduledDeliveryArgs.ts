@@ -146,7 +146,10 @@ export const toolCreateScheduledDeliveryStructuredContentSchema = z.object({
         .describe('true = live and firing; false = created paused.'),
     aiAugmentationAttached: z
         .boolean()
-        .describe('Whether an AI-written message is generated on each send.'),
+        .optional()
+        .describe(
+            'Whether an AI-written message is generated on each send; omitted when no AI augmentation was requested.',
+        ),
     href: z
         .string()
         .describe(

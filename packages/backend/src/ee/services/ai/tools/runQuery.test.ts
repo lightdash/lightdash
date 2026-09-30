@@ -2604,7 +2604,8 @@ describe('getRunQuery Slack links only', () => {
             artifactVersionUuid: 'version-uuid',
         });
         expect(output.structuredContent).toEqual({
-            outcome: 'chartOnly',
+            outcome: 'success',
+            chartVersionUuid: 'version-uuid',
         });
         expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
     });
@@ -3209,9 +3210,18 @@ describe('getRunQuery structured content', () => {
             outcome: 'results',
             queryUuid: null,
             rowCount: 3,
-            limit: { requested: null, effective: 500, max: 500 },
+            limit: { effective: 500 },
             parameters: null,
-            data: { columns: ['a_dim1', 'a_met1'], rows },
+            data: {
+                columns: ['a_dim1', 'a_met1'],
+                rows: rows.map((row) => [row.a_dim1, row.a_met1]),
+            },
+            chartVersionUuid: null,
+            chartExport: null,
+            chartConfig: null,
+            queryScopeUnchanged: null,
+            review: null,
+            truncationNote: null,
         });
     });
 
@@ -3225,7 +3235,9 @@ describe('getRunQuery structured content', () => {
         expect(output.result).not.toContain('three');
         expect(output.structuredContent).toMatchObject({
             rowCount: 3,
-            data: { rows: rows.slice(0, 2) },
+            data: {
+                rows: rows.slice(0, 2).map((row) => [row.a_dim1, row.a_met1]),
+            },
         });
     });
 

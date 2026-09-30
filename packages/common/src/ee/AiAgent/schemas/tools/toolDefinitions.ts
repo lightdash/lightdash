@@ -41,6 +41,7 @@ import {
 import {
     MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
     mcpToolListExploresArgsSchema,
+    mcpToolListExploresStructuredContentSchema,
 } from './mcpToolListExploresArgs';
 import {
     TOOL_ANALYZE_FIELD_IMPACT_DESCRIPTION,
@@ -123,6 +124,11 @@ import {
     toolExploreRepoArgsSchema,
     toolExploreRepoOutputSchema,
 } from './toolExploreRepoArgs';
+import {
+    TOOL_EXPORT_CHART_AS_CODE_DESCRIPTION,
+    toolExportChartAsCodeArgsSchema,
+    toolExportChartAsCodeOutputSchema,
+} from './toolExportChartAsCodeArgs';
 import {
     TOOL_FIND_CHARTS_DESCRIPTION,
     toolFindChartsArgsSchema,
@@ -250,6 +256,11 @@ import {
     toolListWorkstreamsArgsSchema,
     toolListWorkstreamsOutputSchema,
 } from './toolListWorkstreamsArgs';
+import {
+    TOOL_LOAD_AGENT_TOOLS_DESCRIPTION,
+    toolLoadAgentToolsArgsSchema,
+    toolLoadAgentToolsOutputSchema,
+} from './toolLoadAgentToolsArgs';
 import {
     TOOL_LOAD_MCP_TOOLS_DESCRIPTION,
     toolLoadMcpToolsArgsSchema,
@@ -1063,6 +1074,20 @@ export const getProjectInfoToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolGetProjectInfoOutputSchema },
 });
 
+export const loadAgentToolsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'loadAgentTools',
+    typeof toolLoadAgentToolsArgsSchema,
+    typeof toolLoadAgentToolsArgsSchema,
+    typeof toolLoadAgentToolsOutputSchema
+> = defineTool({
+    name: 'loadAgentTools',
+    title: 'Load agent tools',
+    description: TOOL_LOAD_AGENT_TOOLS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolLoadAgentToolsArgsSchema,
+    agent: { outputSchema: toolLoadAgentToolsOutputSchema },
+});
+
 export const loadSkillToolDefinition: ToolDefinitionWithoutMcpOutput<
     'loadSkill',
     typeof toolLoadSkillArgsSchema,
@@ -1317,6 +1342,20 @@ export const setupPreviewDeployToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolSetupPreviewDeployOutputSchema },
 });
 
+export const exportChartAsCodeToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'exportChartAsCode',
+    typeof toolExportChartAsCodeArgsSchema,
+    typeof toolExportChartAsCodeArgsSchema,
+    typeof toolExportChartAsCodeOutputSchema
+> = defineTool({
+    name: 'exportChartAsCode',
+    title: 'Export chart as code',
+    description: TOOL_EXPORT_CHART_AS_CODE_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolExportChartAsCodeArgsSchema,
+    agent: { outputSchema: toolExportChartAsCodeOutputSchema },
+});
+
 export const runSavedChartToolDefinition: ToolDefinitionWithoutMcpOutput<
     'runSavedChart',
     typeof toolRunSavedChartArgsSchema,
@@ -1564,18 +1603,22 @@ export const getLightdashVersionToolDefinition: ToolDefinitionWithoutMcpOutput<
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const listExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const listExploresToolDefinition: ToolDefinitionWithMcpOutput<
     'listExplores',
     typeof mcpToolListExploresArgsSchema,
     typeof mcpToolListExploresArgsSchema,
-    undefined
+    undefined,
+    typeof mcpToolListExploresStructuredContentSchema
 > = defineTool({
     name: 'listExplores',
     title: 'List explores',
     description: MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
     availability: ['mcp'],
     inputSchema: mcpToolListExploresArgsSchema,
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpToolListExploresStructuredContentSchema,
+    },
 });
 
 export const listSkillsToolDefinition: ToolDefinitionWithMcpOutput<

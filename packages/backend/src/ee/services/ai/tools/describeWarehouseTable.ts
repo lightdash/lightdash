@@ -48,6 +48,11 @@ export const getDescribeWarehouseTable = ({
                     )
                     .join('.');
 
+                const review =
+                    columns.length === 0
+                        ? 'The table may not exist or may be empty of metadata.'
+                        : null;
+
                 const structuredContent: ToolDescribeWarehouseTableStructuredContent =
                     {
                         qualifiedName,
@@ -56,11 +61,12 @@ export const getDescribeWarehouseTable = ({
                             name,
                             type,
                         })),
+                        review,
                     };
 
                 if (structuredContent.columnCount === 0) {
                     return {
-                        result: `No columns found for \`${qualifiedName}\`. The table may not exist or may be empty of metadata. Confirm the name via listWarehouseTables or ask the user.`,
+                        result: `No columns found for \`${qualifiedName}\`. ${review} Confirm the name via listWarehouseTables or ask the user.`,
                         metadata: { status: 'not_found' },
                         structuredContent,
                     };

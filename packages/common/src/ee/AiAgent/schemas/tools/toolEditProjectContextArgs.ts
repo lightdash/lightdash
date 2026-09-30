@@ -58,7 +58,13 @@ export const toolEditProjectContextStructuredContentSchema = z.object({
         ),
     content: z
         .string()
-        .describe('The entry sentence written to the project context.'),
+        .describe(
+            'The project-context entry sentence written in the pull request.',
+        ),
+    pullRequestButton: z.object({
+        shown: z.literal(true).describe('The button is shown to the user.'),
+        label: z.literal('View pull request').describe('The button label.'),
+    }),
 });
 
 const toolEditProjectContextOutputMetadataSchema = z.discriminatedUnion(

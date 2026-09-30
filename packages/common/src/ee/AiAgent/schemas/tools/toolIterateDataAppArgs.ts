@@ -84,10 +84,9 @@ export const toolIterateDataAppStructuredContentSchema = z.object({
         .describe(
             'The build has started and runs in the background; its outcome lands on this result later.',
         ),
-    appUuid: z.string().describe('UUID of the data app being changed.'),
-    version: z
-        .number()
-        .describe('Version number of the data app that this build creates.'),
+    estimatedDuration: z
+        .literal('a few minutes')
+        .describe('Expected build duration, as stated in the text.'),
 });
 
 // The iterate tool shares the create tool's outcome contract: same pending,

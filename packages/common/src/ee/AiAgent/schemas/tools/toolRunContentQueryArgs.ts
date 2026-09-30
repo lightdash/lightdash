@@ -68,9 +68,27 @@ const savedChartStructureSchema = z.object({
 const savedChartSpecSchema = savedChartStructureSchema.extend({
     filters: z
         .record(z.string(), z.unknown())
-        .describe('The saved chart filters, as stored.'),
-    sorts: z.array(z.object({ fieldId: z.string(), descending: z.boolean() })),
-    limit: z.number().describe('Row limit saved on the chart.'),
+        .describe('The executed chart filters, including dashboard overrides.'),
+    sorts: z.array(
+        z.object({
+            fieldId: z.string(),
+            descending: z.boolean(),
+            nullsFirst: z.boolean().optional(),
+            pivotValues: z
+                .array(
+                    z.object({
+                        reference: z.string(),
+                        value: z
+                            .union([z.string(), z.number(), z.boolean()])
+                            .nullable(),
+                    }),
+                )
+                .optional(),
+        }),
+    ),
+    limit: z
+        .number()
+        .describe('Effective row limit used to execute the chart.'),
     tableCalculations: z.array(z.string()).describe('Table calculation names.'),
     customMetrics: z.array(z.string()).describe('Custom metric field ids.'),
     customDimensions: z
@@ -101,18 +119,34 @@ export const toolRunContentQueryStructuredContentSchema = z.discriminatedUnion(
                     'Rows included in `rows`; fewer than rowCount when the result was truncated to keep the conversation small.',
                 ),
             columns: z
-                .array(z.object({ fieldId: z.string(), label: z.string() }))
-                .describe(
-                    'Ordered columns: `fieldId` keys each row, `label` is the CSV header shown to the model.',
-                ),
+                .array(z.string())
+                .describe('CSV header labels in the order shown to the model.'),
             rows: z
-                .array(z.record(z.string(), z.unknown()))
-                .describe('Result rows keyed by field id.'),
+                .array(z.array(z.unknown()))
+                .describe(
+                    'Shown rows of CSV input cell values in column order.',
+                ),
+            review: z
+                .string()
+                .nullable()
+                .describe('Exact query review appended to the text, if any.'),
+            truncationNote: z
+                .string()
+                .nullable()
+                .describe(
+                    'Exact context truncation and retention note, if any.',
+                ),
         }),
         z.object({
             outcome: z
                 .literal('noResults')
                 .describe('The query ran but returned no rows.'),
+            review: z
+                .string()
+                .nullable()
+                .describe(
+                    'Exact empty-result review returned in the text, if any.',
+                ),
         }),
         z.object({
             outcome: z

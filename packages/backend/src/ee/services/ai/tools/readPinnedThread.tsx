@@ -9,7 +9,7 @@ import type {
     ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     readPinnedThread: ReadPinnedThreadFn;
@@ -66,7 +66,7 @@ export const getReadPinnedThread = ({ readPinnedThread }: Dependencies) =>
                                     index={message.index}
                                     createdAt={message.createdAt}
                                 >
-                                    {message.message}
+                                    {escapeXmlText(message.message)}
                                 </message>
                             ))}
                         </conversation>

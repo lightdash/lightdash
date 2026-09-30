@@ -421,6 +421,30 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
     columns: z
         .array(composerQueryColumnSchema)
         .describe('Terminal result columns, in order.'),
+    visualization: z
+        .object({
+            kind: z.enum(['table', 'bar', 'line', 'pie', 'big_number']),
+            isDefault: z.boolean(),
+            x: z.string().nullable(),
+            y: z.string().nullable(),
+            splitBy: z.string().nullable(),
+        })
+        .nullable()
+        .describe(
+            'Visualization kind, default flag and column references stated in the text; null when no visualization note is shown.',
+        ),
+    review: z
+        .string()
+        .nullable()
+        .describe(
+            'Exact reviewer output appended to the text (the query review, or the empty-result diagnosis when no rows came back); null when none is appended.',
+        ),
+    truncationNote: z
+        .string()
+        .nullable()
+        .describe(
+            'Exact preview-limit note appended to the text; null when none is emitted.',
+        ),
     preview: z
         .object({
             rows: z

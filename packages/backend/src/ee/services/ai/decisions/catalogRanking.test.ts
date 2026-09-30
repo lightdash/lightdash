@@ -153,7 +153,12 @@ describe('catalog discovery ranking', () => {
         expect(fast.result).toContain('Preloaded catalog metadata');
         expect(fast.result).toContain(`Explore: ${validExplore.name}`);
         expect(legacy.result).not.toContain('Preloaded catalog metadata');
-        expect(fast.structuredContent).toEqual(legacy.structuredContent);
+        expect(fast.structuredContent).toEqual({
+            ...legacy.structuredContent,
+            preloadedMetadata: expect.stringContaining(
+                'Preloaded catalog metadata',
+            ),
+        });
     });
 
     it('checks time ambiguity in the same bounded ranking call', async () => {

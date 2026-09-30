@@ -5,10 +5,7 @@ import {
     structuredToolOutputSchema,
 } from '../outputMetadata';
 import { toolNameFor } from './discoveryToolNames';
-import {
-    findExploresRelevantVerifiedAnswerSchema,
-    findExploresRequiredFilterSchema,
-} from './toolFindExploresArgs';
+import { findExploresRelevantVerifiedAnswerSchema } from './toolFindExploresArgs';
 
 export const GREP_FIELDS_DESCRIPTION = ({
     runtime,
@@ -79,22 +76,24 @@ const grepFieldsPatternFieldSchema = z.object({
     requiredParameters: z
         .array(z.string())
         .describe('Lightdash parameters this field depends on.'),
-    usageInVerifiedCharts: z
-        .number()
-        .describe('How many verified saved charts use this field.'),
-    matchLocality: z
-        .enum(['name', 'description', 'hint', 'mixed'])
-        .describe(
-            'Which slice of the field the pattern matched, most specific first.',
-        ),
+    verified: z.boolean().describe('Whether the field has a verified marker.'),
 });
 
 const grepFieldsPatternExploreSchema = z.object({
     exploreName: z.string(),
     exploreLabel: z.string(),
     requiredFilters: z
-        .array(findExploresRequiredFilterSchema)
-        .describe('Filters that must be set when querying this explore.'),
+        .array(
+            z.object({
+                fieldId: z.string(),
+                operator: z.string(),
+                values: z.array(z.unknown()).optional(),
+                required: z.boolean(),
+            }),
+        )
+        .describe(
+            'Required or suggested table filters printed for this explore.',
+        ),
     fields: z.array(grepFieldsPatternFieldSchema),
 });
 
@@ -103,16 +102,9 @@ const grepFieldsExploreNameMatchSchema = z.object({
     exploreLabel: z.string(),
 });
 
-const grepFieldsPatternResultSchema = z.object({
+const grepFieldsPatternResultBaseSchema = z.object({
     pattern: z.string(),
-    status: z
-        .enum(['matches', 'no_matches', 'no_signal'])
-        .describe(
-            '`no_signal` means the pattern matched every field in scope and was discarded.',
-        ),
     matchCount: z.number().describe('Fields matched before the display cap.'),
-    scopeSize: z.number().describe('Fields the pattern was run against.'),
-    matchedAllFields: z.boolean(),
     note: z.string().describe('The per-pattern summary line.'),
     resultsByExplore: z
         .array(grepFieldsPatternExploreSchema)
@@ -128,31 +120,45 @@ const grepFieldsPatternResultSchema = z.object({
         ),
 });
 
+const grepFieldsPatternResultSchema = z.union([
+    grepFieldsPatternResultBaseSchema.extend({
+        status: z.enum(['matches', 'no_matches']),
+    }),
+    grepFieldsPatternResultBaseSchema.extend({
+        status: z
+            .literal('no_signal')
+            .describe(
+                'The pattern matched every field in scope and was discarded.',
+            ),
+        scopeSize: z.number().describe('Fields the pattern was run against.'),
+        matchedAllFields: z.literal(true),
+    }),
+]);
+
 const grepFieldsFuzzyMatchSchema = z.object({
-    exploreName: z.string(),
     fieldId: z.string(),
     label: z.string(),
     fieldType: z.string(),
-    description: z.string().nullable(),
-    searchRank: z
-        .number()
-        .nullable()
-        .describe('Full-text search rank; higher is better.'),
-    usageInCharts: z.number(),
-    usageInVerifiedCharts: z.number(),
+    description: z.string().nullable().optional(),
+    verified: z.boolean().optional(),
 });
 
 export const toolGrepFieldsStructuredContentSchema = z.object({
-    description: z
-        .string()
-        .describe('How to read `patterns` and `fuzzyMatches`.'),
-    exploreName: z
+    preloadedMetadata: z
         .string()
         .nullable()
-        .describe('The explore the grep was scoped to, or null for all.'),
+        .describe('The exact preloaded catalog metadata appended to the text.'),
+    review: z
+        .string()
+        .nullable()
+        .describe(
+            'The exact ambiguity warnings or empty-result diagnosis in the text.',
+        ),
     patterns: z
         .array(grepFieldsPatternResultSchema)
-        .describe('One entry per input pattern, in input order.'),
+        .describe(
+            'One entry per input pattern, in input order; empty when the requested explore is unavailable.',
+        ),
     fuzzyMatches: z
         .array(grepFieldsFuzzyMatchSchema)
         .describe(
@@ -163,7 +169,15 @@ export const toolGrepFieldsStructuredContentSchema = z.object({
         .optional(),
 });
 
-export const grepFieldsResultSchema = toolGrepFieldsStructuredContentSchema;
+export const grepFieldsResultSchema =
+    toolGrepFieldsStructuredContentSchema.extend({
+        scope: z
+            .string()
+            .optional()
+            .describe(
+                'The exact scope label appended to the MCP response text.',
+            ),
+    });
 
 export const toolGrepFieldsOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema.extend({

@@ -67,6 +67,11 @@ export const searchSemanticLayerRankingMetadataSchema = z.object({
 });
 
 export const toolSearchSemanticLayerStructuredContentSchema = z.object({
+    searchScope: z
+        .literal('allAvailableExplores')
+        .describe(
+            'Search spans all available explores in the project, subject to user attributes and agent tags.',
+        ),
     pagination: z
         .object({
             page: z.number(),

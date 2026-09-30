@@ -3,11 +3,13 @@ import {
     searchFieldValuesToolDefinition,
     toolSearchFieldValuesArgsSchemaTransformed,
     toolSearchFieldValuesExpressionArgsSchema,
+    toolSearchFieldValuesStructuredContentSchema,
     type ToolSearchFieldValuesArgs,
     type ToolSearchFieldValuesExpressionArgs,
     type ToolSearchFieldValuesStructuredContent,
 } from '@lightdash/common';
 import { tool, type Schema } from 'ai';
+import { z } from 'zod';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { resolveFieldValue } from '../decisions/fieldValues';
 import type {
@@ -41,14 +43,25 @@ type SearchFieldValuesExecuteResult =
     | ExecuteStructuredToolResult<ToolSearchFieldValuesStructuredContent>
     | ExecuteToolErrorResult;
 
-// The search returns either bare values or values with a note; the text keeps
-// that raw shape while the structured form is normalised.
+const searchResultStructuredContentSchema =
+    toolSearchFieldValuesStructuredContentSchema.extend({
+        refreshedAt: z.preprocess(
+            (value) => (value instanceof Date ? value.toJSON() : value),
+            z.string().optional(),
+        ),
+    });
+
 const toStructuredContent = (
     results: Awaited<ReturnType<SearchFieldValuesFn>>,
+    matchingValue: ToolSearchFieldValuesStructuredContent['matchingValue'],
 ): ToolSearchFieldValuesStructuredContent =>
     Array.isArray(results)
-        ? { results, note: null }
-        : { results: results.results, note: results.note };
+        ? { results, note: null, matchingValue }
+        : searchResultStructuredContentSchema.parse({
+              ...results,
+              note: results.note ?? null,
+              matchingValue,
+          });
 
 export const getSearchFieldValues = ({
     searchFieldValues,
@@ -134,7 +147,12 @@ export const getSearchFieldValues = ({
                     metadata: {
                         status: 'success' as const,
                     },
-                    structuredContent: toStructuredContent(results),
+                    structuredContent: toStructuredContent(
+                        results,
+                        resolved === null
+                            ? null
+                            : { query: args.query, value: resolved },
+                    ),
                 };
             } catch (e) {
                 return toolErrorOutput(e, 'Error searching field values.');

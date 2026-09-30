@@ -25,13 +25,13 @@ const toDashboardChart = (
 ): DashboardChart => ({
     uuid: chart.uuid,
     name: chart.name,
-    description: chart.description ?? null,
+    description: chart.description || null,
     chartType: chart.chartType,
     viewsCount: chart.viewsCount,
     verification: chart.verification
         ? {
               verifiedBy: `${chart.verification.verifiedBy.firstName} ${chart.verification.verifiedBy.lastName}`,
-              verifiedAt: moment(chart.verification.verifiedAt).toISOString(),
+              verifiedAt: moment(chart.verification.verifiedAt).fromNow(),
           }
         : null,
 });
@@ -47,7 +47,7 @@ const renderChart = (chart: DashboardChart) => (
         {chart.verification && (
             <verified
                 by={chart.verification.verifiedBy}
-                at={moment(chart.verification.verifiedAt).fromNow()}
+                at={chart.verification.verifiedAt}
             />
         )}
     </chart>

@@ -68,7 +68,7 @@ describe('getListKnowledgeDocuments', () => {
             '<description>Definitions for business metrics &amp; KPIs.</description>',
         );
         expect(output.result).toContain(
-            '<defines>Net revenue, Active user</defines>',
+            '<defines>"Net revenue", "Active user"</defines>',
         );
         expect(output.result).toContain(
             '<applies_to_explores>orders, users</applies_to_explores>',

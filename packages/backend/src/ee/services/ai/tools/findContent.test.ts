@@ -7,6 +7,7 @@ import {
     type ToolFindContentOutput,
     type ToolGetDashboardChartsOutput,
 } from '@lightdash/common';
+import moment from 'moment';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import type {
     FindContentChartResult,
@@ -662,9 +663,9 @@ describe('getFindContent', () => {
                 searchResults: [
                     {
                         searchQuery: 'test query',
-                        verifiedOnly: false,
                         count: 1,
                         note: null,
+                        truncationNote: null,
                         content: [
                             {
                                 contentType: 'dashboard',
@@ -684,10 +685,16 @@ describe('getFindContent', () => {
                                 description: 'A test dashboard',
                                 verification: {
                                     verifiedBy: 'Alex Doe',
-                                    verifiedAt: '2026-04-01T00:00:00.000Z',
+                                    verifiedAt: moment(
+                                        '2026-04-01T00:00:00Z',
+                                    ).fromNow(),
                                 },
-                                firstViewedAt: '2024-01-01T00:00:00.000Z',
-                                lastModified: '2024-06-15T00:00:00.000Z',
+                                firstViewedAt: moment(
+                                    '2024-01-01T00:00:00Z',
+                                ).fromNow(),
+                                lastModified: moment(
+                                    '2024-06-15T00:00:00Z',
+                                ).fromNow(),
                                 createdBy: 'Test User',
                                 lastUpdatedBy: null,
                                 charts: {
@@ -796,7 +803,7 @@ describe('getFindContent', () => {
             );
         });
 
-        it('serializes chart timestamps read from the database as ISO strings', async () => {
+        it('serializes chart timestamps read from the database as relative strings', async () => {
             const tool = toolOf([makeMockChartResult()]);
             const output = await executeFindContent(tool, {
                 searchQueries: [{ label: 'revenue' }],
@@ -830,8 +837,8 @@ describe('getFindContent', () => {
                     },
                     description: 'Monthly revenue',
                     verification: null,
-                    firstViewedAt: '2024-01-01T00:00:00.000Z',
-                    lastModified: '2024-06-15T00:00:00.000Z',
+                    firstViewedAt: moment('2024-01-01T00:00:00Z').fromNow(),
+                    lastModified: moment('2024-06-15T00:00:00Z').fromNow(),
                     createdBy: 'Test User',
                     lastUpdatedBy: null,
                 },
@@ -858,8 +865,8 @@ describe('getFindContent', () => {
                 searchResults: [
                     {
                         searchQuery: 'revenue',
-                        verifiedOnly: true,
                         count: 0,
+                        truncationNote: null,
                         note: expect.stringContaining(
                             'No verified content matched this query',
                         ),
@@ -1117,7 +1124,7 @@ describe('getGetDashboardCharts', () => {
                 uuid: 'verified-b',
                 verification: {
                     verifiedBy: 'Dana Lin',
-                    verifiedAt: '2026-04-01T00:00:00.000Z',
+                    verifiedAt: moment('2026-04-01T00:00:00Z').fromNow(),
                 },
             },
             { uuid: 'unverified-a', verification: null },

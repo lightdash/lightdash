@@ -86,23 +86,40 @@ export const toolRunSavedChartStructuredContentSchema = z.discriminatedUnion(
                 .describe(
                     'Whether `rows` holds only the first shownRowCount rows',
                 ),
-            columns: z.array(
-                z.object({
-                    fieldId: z.string(),
-                    label: z
-                        .string()
-                        .describe('Column header shown in the CSV'),
-                }),
-            ),
+            columns: z
+                .array(z.string())
+                .describe('CSV header labels in column order'),
             rows: z
-                .array(z.record(z.string(), z.unknown()))
-                .describe('Row cells keyed by column fieldId'),
+                .array(z.array(z.unknown()))
+                .describe(
+                    'Shown row cells in CSV column order, using the same values as the CSV input',
+                ),
+            review: z
+                .string()
+                .nullable()
+                .describe(
+                    'Exact reviewer text appended to `result`, or null when none was emitted',
+                ),
+            truncationNote: z
+                .string()
+                .nullable()
+                .describe(
+                    'Exact context-truncation and retention note included in `result`, or null when none was emitted',
+                ),
         }),
         z.object({
             status: z.literal('no_results'),
             note: z
                 .string()
-                .describe('Retry guidance; the same text as `result`'),
+                .describe(
+                    'Empty-result guidance or diagnosis; the same text as `result`',
+                ),
+            review: z
+                .string()
+                .nullable()
+                .describe(
+                    'Exact reviewer diagnosis used as `result`, including any prior review, or null when none was emitted',
+                ),
         }),
         z.object({
             status: z.literal('data_access_disabled'),
@@ -110,7 +127,7 @@ export const toolRunSavedChartStructuredContentSchema = z.discriminatedUnion(
             note: z
                 .string()
                 .describe(
-                    'Why no rows are returned; the same text as `result`',
+                    'Why no rows are returned; follows the chart header in `result`',
                 ),
         }),
     ],

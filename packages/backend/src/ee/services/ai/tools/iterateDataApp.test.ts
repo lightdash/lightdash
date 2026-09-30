@@ -68,8 +68,7 @@ describe('getIterateDataApp', () => {
         expect(output.result).toContain('Started the data app build');
         expect(output.structuredContent).toEqual({
             status: 'pending',
-            appUuid: 'app-1',
-            version: 3,
+            estimatedDuration: 'a few minutes',
         });
     });
 

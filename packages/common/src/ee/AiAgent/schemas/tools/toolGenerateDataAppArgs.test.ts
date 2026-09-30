@@ -46,7 +46,7 @@ describe('getGenerateDataAppBuildOutcome', () => {
                 status: 'ready',
             })?.result,
         ).toBe(
-            'The data app "Revenue app" is ready. The user can view it from this thread.',
+            'The data app "Revenue app" is ready (version 1). The user can view it from this thread at https://ld.example.com/projects/proj-1/apps/app-1. Its slug is revenue-app.',
         );
     });
 
@@ -97,7 +97,6 @@ describe('getGenerateDataAppBuildOutcome', () => {
 
         expect(outcome?.structuredContent).toEqual({
             status: 'success',
-            appUuid: 'app-1',
             version: 2,
             name: 'Revenue app',
             slug: 'revenue-app',

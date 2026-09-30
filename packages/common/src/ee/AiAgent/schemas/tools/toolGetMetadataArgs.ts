@@ -88,8 +88,8 @@ const getMetadataParameterSchema = z.object({
     description: z.string().nullable(),
     type: z.enum(['string', 'number', 'date']),
     default: parameterValueSchema.nullable(),
-    multiple: z.boolean(),
-    allowCustomValues: z.boolean(),
+    multiple: z.literal(true).optional(),
+    allowCustomValues: z.literal(true).optional(),
     options: z.array(z.union([z.string(), z.number()])).nullable(),
     optionsFromDimension: z
         .object({ model: z.string(), dimension: z.string() })
@@ -106,16 +106,41 @@ const getMetadataExploreFoundSchema = z.object({
     hint: z.string().nullable(),
     baseTable: z.string(),
     joinedTables: z.array(z.string()),
-    requiredFilters: z.array(findExploresRequiredFilterSchema),
+    joins: z
+        .array(
+            z.object({
+                table: z.string(),
+                type: z.enum(['inner', 'full', 'left', 'right']).nullable(),
+                relationship: z
+                    .enum([
+                        'one-to-many',
+                        'many-to-one',
+                        'one-to-one',
+                        'many-to-many',
+                    ])
+                    .nullable(),
+                always: z.boolean(),
+                sqlOn: z.string(),
+            }),
+        )
+        .optional(),
+    tableFilters: z
+        .array(z.object({ table: z.string(), sqlWhere: z.string() }))
+        .optional(),
+    requiredFilters: z.array(
+        findExploresRequiredFilterSchema.omit({
+            fieldRef: true,
+            tableName: true,
+            settings: true,
+        }),
+    ),
     parameters: z.array(getMetadataParameterSchema),
-    baseDimensions: z.object({
-        count: z.number(),
-        fieldIds: z.array(z.string()),
-    }),
-    baseMetrics: z.object({
-        count: z.number(),
-        fieldIds: z.array(z.string()),
-    }),
+    baseDimensions: z
+        .object({ count: z.number(), fieldIds: z.array(z.string()) })
+        .optional(),
+    baseMetrics: z
+        .object({ count: z.number(), fieldIds: z.array(z.string()) })
+        .optional(),
 });
 
 const getMetadataExploreNotFoundSchema = z.object({
@@ -132,7 +157,7 @@ const getMetadataFieldFoundSchema = z.object({
     fieldType: z.string(),
     label: z.string(),
     filterType: z.string(),
-    isFromJoinedTable: z.boolean(),
+    isFromJoinedTable: z.literal(true).optional(),
     joinedTableName: z.string().nullable(),
     caseSensitiveFilters: z.boolean().nullable(),
     defaultTimeDimension: z.string().nullable(),

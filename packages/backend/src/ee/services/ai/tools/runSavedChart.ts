@@ -10,7 +10,6 @@ import {
     type ToolRunSavedChartStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { type QueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
@@ -22,6 +21,7 @@ import type {
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { getContextTruncationNote } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
+import { stringifyAgentCsv } from '../utils/stringifyAgentCsv';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -154,10 +154,7 @@ const buildShownTable = (
         : [];
     const columns = fieldIds.map((fieldId) => {
         const item = queryResults.fields[fieldId];
-        return {
-            fieldId,
-            label: item ? getItemLabelWithoutTableName(item) : fieldId,
-        };
+        return item ? getItemLabelWithoutTableName(item) : fieldId;
     });
     const cells = queryResults.rows
         .slice(0, maxContextRows)
@@ -172,15 +169,8 @@ const buildShownTable = (
 
     return {
         columns,
-        rows: cells.map((rowCells) =>
-            Object.fromEntries(
-                fieldIds.map((fieldId, index) => [fieldId, rowCells[index]]),
-            ),
-        ),
-        csv: stringify(cells, {
-            header: true,
-            columns: columns.map((column) => column.label),
-        }),
+        rows: cells,
+        csv: stringifyAgentCsv(cells, columns),
     };
 };
 
@@ -258,17 +248,19 @@ export const getRunSavedChart = ({
                 ]);
 
                 if (queryResults.rows.length === 0) {
+                    const emptyReview = reviewQuery
+                        ? await reviewQuery(
+                              {
+                                  kind: 'semantic',
+                                  query: aiMetricQuery,
+                                  parameters: savedChart.parameters,
+                              },
+                              { emptyResult: true, review },
+                          )
+                        : null;
+                    const result = emptyReview ?? NO_RESULTS_RETRY_PROMPT;
                     return {
-                        result: reviewQuery
-                            ? await reviewQuery(
-                                  {
-                                      kind: 'semantic',
-                                      query: aiMetricQuery,
-                                      parameters: savedChart.parameters,
-                                  },
-                                  { emptyResult: true, review },
-                              )
-                            : NO_RESULTS_RETRY_PROMPT,
+                        result,
                         metadata: {
                             status: 'success',
                             queryCacheHit:
@@ -276,7 +268,8 @@ export const getRunSavedChart = ({
                         },
                         structuredContent: {
                             status: 'no_results',
-                            note: NO_RESULTS_RETRY_PROMPT,
+                            note: result,
+                            review: emptyReview || null,
                         },
                     };
                 }
@@ -285,6 +278,11 @@ export const getRunSavedChart = ({
                     queryResults,
                     maxContextRows,
                 );
+                const truncationNote =
+                    getContextTruncationNote({
+                        rowCount: queryResults.rows.length,
+                        maxContextRows,
+                    }) || null;
                 return {
                     result: `${buildSavedChartHeader(
                         chartUuid,
@@ -293,10 +291,7 @@ export const getRunSavedChart = ({
                         {
                             includeFullSpec: true,
                         },
-                    )}${getContextTruncationNote({
-                        rowCount: queryResults.rows.length,
-                        maxContextRows,
-                    })}${serializeData(csv, 'csv')}${review}`,
+                    )}${truncationNote ?? ''}${serializeData(csv, 'csv')}${review}`,
                     metadata: {
                         status: 'success',
                         queryCacheHit:
@@ -314,6 +309,8 @@ export const getRunSavedChart = ({
                         truncated: rows.length < queryResults.rows.length,
                         columns,
                         rows,
+                        review: review || null,
+                        truncationNote,
                     },
                 };
             } catch (e) {

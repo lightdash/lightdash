@@ -26,6 +26,14 @@ const toDocumentEntry = (doc: AiAgentDocumentSummary): DocumentEntry => ({
     uuid: doc.uuid,
     name: doc.name,
     sizeBytes: doc.contentSizeBytes,
+    summary: {
+        relevance: doc.summary.relevance,
+        description: doc.summary.description,
+        definedTerms: doc.summary.definedTerms,
+        relatedExploreNames: doc.summary.relatedExploreNames,
+        useWhen: doc.summary.useWhen,
+        warning: doc.summary.warning,
+    },
 });
 
 const renderDocument = (doc: AiAgentDocumentSummary) => (
@@ -35,7 +43,12 @@ const renderDocument = (doc: AiAgentDocumentSummary) => (
         relevance={doc.summary.relevance}
     >
         <name>{escapeXmlText(doc.name)}</name>
-        {renderKnowledgeDocumentSummary(doc.summary)}
+        {renderKnowledgeDocumentSummary({
+            ...doc.summary,
+            definedTerms: doc.summary.definedTerms.map((term) =>
+                JSON.stringify(term),
+            ),
+        })}
     </document>
 );
 

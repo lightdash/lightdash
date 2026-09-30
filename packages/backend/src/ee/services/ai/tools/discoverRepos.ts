@@ -44,14 +44,14 @@ export const getDiscoverRepos = ({ discoverRepos }: Dependencies) =>
             | ExecuteToolErrorResult
         > => {
             try {
-                const repos = (await discoverRepos()).map(
-                    ({ owner, repo, defaultBranch, private: isPrivate }) => ({
-                        owner,
-                        repo,
-                        defaultBranch,
-                        private: isPrivate,
-                    }),
-                );
+                const repos = (await discoverRepos()).map<
+                    ToolDiscoverReposStructuredContent['repos'][number]
+                >(({ owner, repo, defaultBranch, private: isPrivate }) => ({
+                    owner,
+                    repo,
+                    defaultBranch,
+                    ...(isPrivate ? { private: true } : {}),
+                }));
 
                 return {
                     result: renderRepos(repos),

@@ -39,7 +39,6 @@ export const toolResolveUrlStructuredContentSchema = z.discriminatedUnion(
     'isShareLink',
     [
         z.object({
-            url: z.string().describe('The URL that was resolved, as provided.'),
             isShareLink: z.literal(true),
             resolvedUrl: z
                 .string()

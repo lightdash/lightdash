@@ -132,7 +132,6 @@ export const toolGenerateDataAppArgsSchema = z.object({
         .describe(DATA_APP_THEME_SLUG_DESCRIPTION),
 });
 
-const appUuidSchema = z.string().describe('Uuid of the data app.');
 const versionSchema = z
     .number()
     .describe('App version this build produces; 1 for a new app.');
@@ -143,18 +142,15 @@ const pendingBuildSchema = z.object({
         .describe(
             'The build has started and is still running; its outcome replaces this result on a later turn.',
         ),
-    appUuid: appUuidSchema,
-    version: versionSchema,
-    // Nullish: iterate results and results persisted before generate
-    // took a name lack it.
-    name: z.string().nullish(),
+    estimatedDuration: z
+        .string()
+        .describe('Qualitative estimate of how long the build will take.'),
 });
 
 const readyBuildSchema = z.object({
     status: z
         .literal('success')
         .describe('The build finished; the app version is ready.'),
-    appUuid: appUuidSchema,
     version: versionSchema,
     name: z.string().describe('Name of the data app.'),
     slug: z
@@ -275,20 +271,26 @@ export const getGenerateDataAppBuildOutcome = ({
         const href = `${siteUrl}${getDataAppBuilderPath(projectUuid, appUuid)}`;
         const readyPhrase =
             version === 1
-                ? `The data app "${name}" is ready.`
+                ? `The data app "${name}" is ready (version 1).`
                 : `Version ${version} of the data app "${name}" is ready.`;
-        const readyBuild = {
-            status: 'success' as const,
-            appUuid,
-            version,
-            name,
-            slug,
-            href,
-        };
+        const slugPhrase = slug ? ` Its slug is ${slug}.` : '';
         return {
-            result: `${readyPhrase} The user can view it from this thread.`,
-            metadata: readyBuild,
-            structuredContent: readyBuild,
+            result: `${readyPhrase} The user can view it from this thread at ${href}.${slugPhrase}`,
+            metadata: {
+                status: 'success',
+                appUuid,
+                version,
+                name,
+                slug,
+                href,
+            },
+            structuredContent: {
+                status: 'success',
+                version,
+                name,
+                slug,
+                href,
+            },
         };
     }
     const cancelled = error === APP_VERSION_CANCELLED_BY_USER;

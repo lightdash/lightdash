@@ -37,11 +37,12 @@ const renderResult = ({
     prAction,
     op,
     content,
+    pullRequestButton,
 }: ToolEditProjectContextStructuredContent) => {
     const verb = prAction === 'updated' ? 'Updated' : 'Opened';
     return `${verb} a pull request that ${
         op === 'update' ? 'updates' : 'adds'
-    } a project context entry. A "View pull request" button is shown to the user, so do NOT include the pull request URL in your reply — summarise the entry you wrote ("${content}") and that it now applies to this project's context.`;
+    } a project context entry. A "${pullRequestButton.label}" button is shown to the user, so do NOT include the pull request URL in your reply — summarise the entry you wrote ("${content}") in the pull request.`;
 };
 
 const toolDefinition = editProjectContextToolDefinition.for('agent');
@@ -68,7 +69,15 @@ export const getEditProjectContext = ({ editProjectContext }: Dependencies) =>
                 });
 
                 const structuredContent: ToolEditProjectContextStructuredContent =
-                    { prAction, op, content };
+                    {
+                        prAction,
+                        op,
+                        content,
+                        pullRequestButton: {
+                            shown: true,
+                            label: 'View pull request',
+                        },
+                    };
                 return {
                     result: renderResult(structuredContent),
                     metadata: {
