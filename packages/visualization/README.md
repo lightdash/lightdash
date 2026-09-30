@@ -131,3 +131,19 @@ pnpm -F visualization typecheck
 In development the frontend resolves the package from `src` through a Vite
 alias, and `pnpm dev` runs a `visualization-watch` build for the backend and
 the SDK bundle.
+
+### Browser tests
+
+`browser/` draws every chart type through `renderChart` into real ECharts
+instances in Chromium, and Playwright asserts on what the browser produces:
+series marks, axis labels, legends, the tooltip HTML, the big number and
+table models, and the dark theme's colours. The report carries a gallery of
+every type in both themes.
+
+```
+pnpm -F visualization exec playwright install chromium   # once
+pnpm -F visualization test:browser
+```
+
+The unit tests check the options the engine builds; the browser tests check
+that a browser draws them.

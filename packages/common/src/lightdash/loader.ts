@@ -1,4 +1,4 @@
-import Ajv from 'ajv';
+import Ajv, { type ValidateFunction } from 'ajv';
 import fs from 'fs/promises';
 import * as yaml from 'js-yaml';
 import path from 'path';
@@ -9,8 +9,20 @@ import {
     type LightdashModelWithSource,
 } from '../types/lightdashModel';
 
-const ajv = new Ajv({ allErrors: true, strict: false });
-const validateModel = ajv.compile<LightdashModel>(modelSchema);
+// Lazy compilation keeps importing common safe under browser CSP: Ajv
+// generates code with `new Function`, which a strict policy refuses.
+type ModelValidator = { ajv: Ajv; validate: ValidateFunction<LightdashModel> };
+let modelValidator: ModelValidator | undefined;
+const getModelValidator = (): ModelValidator => {
+    if (!modelValidator) {
+        const ajv = new Ajv({ allErrors: true, strict: false });
+        modelValidator = {
+            ajv,
+            validate: ajv.compile<LightdashModel>(modelSchema),
+        };
+    }
+    return modelValidator;
+};
 const modelTypes = new Set(['model', 'model/v1beta', 'model/v1']);
 
 async function readYaml(filePath: string): Promise<unknown> {
@@ -27,9 +39,10 @@ export async function loadLightdashModel(
     filePath: string,
 ): Promise<LightdashModel> {
     const parsed = await readYaml(filePath);
-    if (!validateModel(parsed)) {
+    const { ajv, validate } = getModelValidator();
+    if (!validate(parsed)) {
         throw new ParseError(
-            `Invalid Lightdash model in ${filePath}: ${ajv.errorsText(validateModel.errors)}`,
+            `Invalid Lightdash model in ${filePath}: ${ajv.errorsText(validate.errors)}`,
         );
     }
     return parsed;
