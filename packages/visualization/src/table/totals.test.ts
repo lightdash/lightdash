@@ -11,7 +11,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { canHaveWarehouseTotal } from './canHaveWarehouseTotal';
+import { canHaveWarehouseTotal } from './totals';
 
 const numberDimension: Dimension = {
     fieldType: FieldType.DIMENSION,

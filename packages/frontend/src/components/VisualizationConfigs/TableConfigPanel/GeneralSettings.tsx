@@ -1,7 +1,7 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
+import { isPivotRowValue } from '@lightdash/visualization';
 import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { isPivotRowValue } from '../../../hooks/tableVisualization/pivotRows';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';

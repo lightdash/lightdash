@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-    findMatchingSubtotal,
-    getSubtotalValueFromGroup,
-} from './getDataAndColumns';
+import { findMatchingSubtotal, getSubtotalValueFromGroup } from './subtotals';
 
 const cell = (raw: unknown) => ({ value: { raw, formatted: String(raw) } });
 const headerValue = (raw: unknown) => ({ raw, formatted: String(raw) });
