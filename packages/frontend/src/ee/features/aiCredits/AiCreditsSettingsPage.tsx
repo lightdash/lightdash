@@ -3,7 +3,6 @@ import {
     type AiCreditUsageSummary,
 } from '@lightdash/common';
 import {
-    Badge,
     Box,
     Group,
     Paper,
@@ -26,7 +25,6 @@ import { getAiCreditChannelLabel, getAiCreditFeatureLabel } from './labels';
 const creditFormat = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
 });
-const countFormat = new Intl.NumberFormat(undefined);
 
 dayjs.extend(utc);
 
@@ -148,26 +146,6 @@ const BreakdownCard: FC<{
     );
 };
 
-const OwnKeyUsage: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
-    if (usage.selfManaged.calls === 0) return null;
-    return (
-        <Paper p="md">
-            <Group justify="space-between" mb="xs">
-                <Title order={5}>Your own API key</Title>
-                <Badge>Not charged</Badge>
-            </Group>
-            <Text fz="sm">
-                {creditFormat.format(usage.selfManaged.credits)} credits
-                equivalent · {countFormat.format(usage.selfManaged.calls)} calls
-            </Text>
-            <Text fz="xs" c="dimmed" mt={4}>
-                Calls made with your organization&apos;s own provider key are
-                tracked for comparison and never count against your allowance.
-            </Text>
-        </Paper>
-    );
-};
-
 export const AiCreditsSettingsPage: FC = () => {
     const {
         data: usage,
@@ -204,7 +182,6 @@ export const AiCreditsSettingsPage: FC = () => {
                             getLabel={getAiCreditChannelLabel}
                         />
                     </SimpleGrid>
-                    <OwnKeyUsage usage={usage} />
                 </Stack>
             )}
         </SettingsPage>
