@@ -1086,6 +1086,54 @@ export const getDataAnswerFastResponse = (
     return metadata.fastResponse.trim() || null;
 };
 
+const DOCUMENT_SAVE_TOOLS = new Set(['createContent', 'editContent']);
+
+/** Ends a document write-up once the document saved without warnings. */
+export const getDocumentWriteFastResponse = (
+    steps: ReadonlyArray<FastChartStep>,
+): string | null => {
+    const documentCallIds = new Set(
+        steps
+            .flatMap((step) => step.toolCalls)
+            .filter(
+                ({ toolName, input }) =>
+                    DOCUMENT_SAVE_TOOLS.has(toolName) &&
+                    !!input &&
+                    typeof input === 'object' &&
+                    'type' in input &&
+                    input.type === 'document',
+            )
+            .map(({ toolCallId }) => toolCallId),
+    );
+    const output = steps
+        .flatMap((step) => step.toolResults)
+        .findLast(({ toolCallId }) => documentCallIds.has(toolCallId))?.output;
+    if (
+        !output ||
+        isErrorToolResult(output) ||
+        typeof output !== 'object' ||
+        !('metadata' in output)
+    )
+        return null;
+    const { metadata } = output;
+    if (
+        !metadata ||
+        typeof metadata !== 'object' ||
+        !('status' in metadata) ||
+        metadata.status !== 'success' ||
+        !('href' in metadata) ||
+        typeof metadata.href !== 'string' ||
+        !('name' in metadata) ||
+        typeof metadata.name !== 'string' ||
+        !('warnings' in metadata) ||
+        !Array.isArray(metadata.warnings) ||
+        metadata.warnings.length > 0
+    )
+        return null;
+    const name = metadata.name.replace(/[[\]\\]/g, '\\$&').trim();
+    return `Saved [${name || 'the document'}](${metadata.href}).`;
+};
+
 const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
@@ -1098,6 +1146,8 @@ const getTurnFastResponse = (
     if (turnIntent === 'chart_export') return getChartExportFastResponse(steps);
     if (turnIntent === 'data_app_create' || turnIntent === 'data_app_iterate')
         return getDataAppBuildFastResponse(steps);
+    if (turnIntent === 'document_write')
+        return getDocumentWriteFastResponse(steps);
     return null;
 };
 

@@ -265,6 +265,41 @@ describe('context preloading', () => {
         expect(context?.turnIntent).toBe('other');
     });
 
+    it('offers document writing only when documents can be saved', async () => {
+        const { args, dependencies, request } = setup();
+        args.availableSkills = [];
+        args.knowledgeDocuments = [];
+        args.messageHistory = [
+            { role: 'user', content: 'Write this up as a document.' },
+        ];
+        const criteria: Record<string, unknown>[] = [];
+        request.mockImplementation(async (_, init) => {
+            const body = JSON.parse(init?.body as string);
+            criteria.push(body.questions.turnIntent.criteria);
+            return Response.json({
+                model: 'test',
+                answers: { turnIntent: choice('document_write') },
+            });
+        });
+        const runtime = {
+            loadAgentTools: getLoadAgentTools(),
+            createContent: {},
+        } as unknown as ToolSet;
+
+        args.enableDocuments = true;
+        const context = await prepareRelevantContext(
+            args,
+            dependencies,
+            runtime,
+        );
+        args.enableDocuments = false;
+        await prepareRelevantContext(args, dependencies, runtime);
+
+        expect(context?.turnIntent).toBe('document_write');
+        expect(criteria[0]).toHaveProperty('document_write');
+        expect(criteria[1]).not.toHaveProperty('document_write');
+    });
+
     it('classifies a chart conversion follow-up as its own route', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];
