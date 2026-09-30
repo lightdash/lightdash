@@ -186,6 +186,16 @@ export const getPlaygroundDataDirectory = (): string =>
             path.join(__dirname, '../../../assets/playground'),
     );
 
+export const getCurrentPlaygroundBundleVersion = (
+    dataDirectory: string,
+): string => {
+    const bundle = readEmbeddedBundle(dataDirectory, PLAYGROUND_DATASET);
+    if (!bundle) {
+        throw new Error(`No playground bundle found in ${dataDirectory}`);
+    }
+    return bundle.version;
+};
+
 export const getServablePlaygroundBundleVersions = (
     dataDirectory: string,
 ): string[] => {

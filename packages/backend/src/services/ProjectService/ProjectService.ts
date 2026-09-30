@@ -1013,11 +1013,19 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'create',
-                subject('InviteLink', { organizationUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    type: ProjectType.DEFAULT,
+                }),
             )
         ) {
             throw new ForbiddenError(
-                'User does not have permission to create invite links',
+                "You don't have permission to create projects in this organization. Please contact your organization admin.",
+                {
+                    requiredPermission: 'create:project',
+                    projectType: ProjectType.DEFAULT,
+                    organizationUuid,
+                },
             );
         }
         return this.provisionPlaygroundProject({
