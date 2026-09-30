@@ -8,7 +8,7 @@ import {
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from './MantineIcon';
 
-type CalloutVariant = 'danger' | 'warning' | 'info' | 'success';
+type CalloutVariant = 'danger' | 'warning' | 'info' | 'success' | 'neutral';
 
 const CALLOUT_CONFIG: Record<
     CalloutVariant,
@@ -32,6 +32,10 @@ const CALLOUT_CONFIG: Record<
     success: {
         color: 'green',
         icon: IconCheck,
+    },
+    neutral: {
+        color: 'gray',
+        icon: IconInfoCircle,
     },
 };
 
@@ -72,6 +76,7 @@ const Callout: FC<CalloutProps> = ({
 
     return (
         <Alert
+            variant={variant === 'neutral' ? 'default' : undefined}
             color={config.color}
             icon={!hideIcon && resolvedIcon}
             title={title}

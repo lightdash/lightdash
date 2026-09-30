@@ -1,4 +1,9 @@
-import { type Document, DirectAccessResourceType } from '@lightdash/common';
+import {
+    type Document,
+    DirectAccessResourceType,
+    PromotionAction,
+    type PromotionChanges,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import DocumentActions from './DocumentActions';
@@ -21,6 +26,12 @@ const mocks = vi.hoisted(() => ({
     duplicateModal: vi.fn(),
     isFavorite: false,
     toggleFavorite: vi.fn(),
+    exportPdf: vi.fn(),
+    canPromote: false,
+    upstreamProjectUuid: undefined as string | undefined,
+    promotionDiff: undefined as PromotionChanges | undefined,
+    requestDiff: vi.fn(),
+    promote: vi.fn(),
 }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
@@ -44,6 +55,12 @@ vi.mock('../../hooks/favorites/useFavorites', () => ({
 vi.mock('../../hooks/favorites/useFavoriteMutation', () => ({
     useFavoriteMutation: () => ({
         mutate: mocks.toggleFavorite,
+        isLoading: false,
+    }),
+}));
+vi.mock('./useExportDocumentPdf', () => ({
+    useExportDocumentPdf: () => ({
+        mutate: mocks.exportPdf,
         isLoading: false,
     }),
 }));
@@ -74,6 +91,23 @@ vi.mock('../../components/common/CopyActionIcon', () => ({
     },
 }));
 vi.mock('react-router', () => ({ useNavigate: () => mocks.navigate }));
+vi.mock('./useCanEditDocument', () => ({
+    useCanEditDocument: () => mocks.canPromote,
+}));
+vi.mock('../../hooks/useProject', () => ({
+    useProject: () => ({
+        data: { upstreamProjectUuid: mocks.upstreamProjectUuid },
+    }),
+}));
+vi.mock('../promotion/hooks/usePromoteDocument', () => ({
+    usePromoteDocumentDiffMutation: () => ({
+        mutate: mocks.requestDiff,
+        data: mocks.promotionDiff,
+        isLoading: false,
+        reset: vi.fn(),
+    }),
+    usePromoteDocumentMutation: () => ({ mutate: mocks.promote }),
+}));
 vi.mock('./useCanDeleteDocument', () => ({
     useCanDeleteDocument: () => mocks.canDelete,
 }));
@@ -142,6 +176,12 @@ describe('Document actions', () => {
         mocks.duplicateModal.mockReset();
         mocks.isFavorite = false;
         mocks.toggleFavorite.mockReset();
+        mocks.exportPdf.mockReset();
+        mocks.canPromote = false;
+        mocks.upstreamProjectUuid = undefined;
+        mocks.promotionDiff = undefined;
+        mocks.requestDiff.mockReset();
+        mocks.promote.mockReset();
     });
     const renderActions = () =>
         render(
@@ -187,6 +227,21 @@ describe('Document actions', () => {
         expect(
             screen.queryByRole('menuitem', { name: 'Pin to homepage' }),
         ).not.toBeInTheDocument();
+    });
+    it('exports this Document as a PDF', async () => {
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Export PDF' }),
+        );
+        expect(mocks.exportPdf).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                documentUuid: 'document',
+                projectUuid: 'project',
+            }),
+        );
     });
     it('prevents toggling while a pin mutation is pending', async () => {
         mocks.pinLoading = true;
@@ -370,4 +425,60 @@ describe('Document actions', () => {
             expect(mocks.modal).not.toHaveBeenCalled();
         },
     );
+
+    it('hides promotion from members who cannot edit the Document', async () => {
+        mocks.upstreamProjectUuid = 'upstream';
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        await screen.findByRole('menuitem', { name: 'View as code' });
+        expect(
+            screen.queryByRole('menuitem', { name: 'Promote document' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('disables promotion when the project has no upstream project', async () => {
+        mocks.canPromote = true;
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        expect(
+            await screen.findByRole('menuitem', { name: 'Promote document' }),
+        ).toBeDisabled();
+    });
+
+    it('reviews the promotion diff before promoting the Document', async () => {
+        mocks.canPromote = true;
+        mocks.upstreamProjectUuid = 'upstream';
+        const view = renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Promote document' }),
+        );
+        expect(mocks.requestDiff).toHaveBeenCalledWith('document');
+
+        mocks.promotionDiff = {
+            spaces: [],
+            dashboards: [],
+            charts: [],
+            documents: [
+                {
+                    action: PromotionAction.UPDATE,
+                    data: { uuid: 'upstream-document', name: 'Weekly report' },
+                },
+            ],
+        };
+        view.rerender(
+            <MantineProvider>
+                <DocumentActions document={document} />
+            </MantineProvider>,
+        );
+        fireEvent.click(await screen.findByRole('button', { name: 'Promote' }));
+
+        expect(mocks.promote).toHaveBeenCalledWith('document');
+    });
 });

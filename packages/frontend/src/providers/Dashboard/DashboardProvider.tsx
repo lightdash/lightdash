@@ -9,7 +9,7 @@ import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
     getItemId,
-    getMissingRequiredParameters,
+    getMissingRequiredDashboardParameters,
     getUnmetFilterRequirements,
     isDashboardChartTileType,
     isFilterLockedOnTab,
@@ -654,20 +654,32 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [],
     );
 
+    const [tileChartSavedParameters, setTileChartSavedParametersState] =
+        useState<Record<string, ParametersValuesMap>>({});
+
+    const setTileChartSavedParameters = useCallback(
+        (tileUuid: string, values: ParametersValuesMap) => {
+            setTileChartSavedParametersState((prev) =>
+                isEqual(prev[tileUuid], values)
+                    ? prev
+                    : { ...prev, [tileUuid]: values },
+            );
+        },
+        [],
+    );
+
     // Remove parameter references for tiles that are no longer in the dashboard
     useEffect(() => {
         if (dashboardTiles) {
-            setTileParameterReferences((old) => {
-                if (!dashboardTiles) return {};
-                const tileIds = new Set(
-                    dashboardTiles.map((tile) => tile.uuid),
-                );
-                return Object.fromEntries(
+            const tileIds = new Set(dashboardTiles.map((tile) => tile.uuid));
+            const keepCurrentTiles = <T,>(old: Record<string, T>) =>
+                Object.fromEntries(
                     Object.entries(old).filter(([tileId]) =>
                         tileIds.has(tileId),
                     ),
                 );
-            });
+            setTileParameterReferences(keepCurrentTiles);
+            setTileChartSavedParametersState(keepCurrentTiles);
         }
     }, [dashboardTiles]);
 
@@ -716,6 +728,23 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             return acc;
         }, {} as ParametersValuesMap);
     }, [parameters]);
+
+    const savedParameterValues: ParametersValuesMap = useMemo(
+        () =>
+            Object.fromEntries(
+                Object.entries(savedParameters).map(([key, parameter]) => [
+                    key,
+                    parameter.value,
+                ]),
+            ),
+        [savedParameters],
+    );
+
+    // Tile queries run with the saved values under the current ones, so labels must too
+    const appliedParameterValues = useMemo(
+        () => ({ ...savedParameterValues, ...parameterValues }),
+        [savedParameterValues, parameterValues],
+    );
 
     // Keep runtime parameter overrides in shared dashboard URLs. Saved defaults
     // are omitted so unchanged dashboards keep clean, stable URLs.
@@ -777,9 +806,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [projectParameters, addParameterDefinitions]);
 
-    const missingRequiredParameters = useMemo(() => {
-        if (!dashboardParameterReferences.size) return [];
-
+    const dashboardParameterStatus = useMemo(() => {
         // Map by key presence (a param is "set" even with an empty value), not the
         // empty-stripping `parameterValues`, so dashboard semantics are unchanged.
         const dashboardParameterValues: ParametersValuesMap =
@@ -790,16 +817,31 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 ]),
             );
 
-        return getMissingRequiredParameters(
-            Array.from(dashboardParameterReferences),
-            dashboardParameterValues,
-            translatedParameterDefinitions,
-        );
+        return {
+            tiles: Object.entries(tileParameterReferences).map(
+                ([tileUuid, parameterReferences]) => ({
+                    parameterReferences,
+                    chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
+                }),
+            ),
+            dashboardValues: {
+                ...savedParameterValues,
+                ...dashboardParameterValues,
+            },
+            definitions: translatedParameterDefinitions,
+        };
     }, [
-        dashboardParameterReferences,
+        tileParameterReferences,
+        tileChartSavedParameters,
+        savedParameterValues,
         parameters,
         translatedParameterDefinitions,
     ]);
+
+    const missingRequiredParameters = useMemo(
+        () => getMissingRequiredDashboardParameters(dashboardParameterStatus),
+        [dashboardParameterStatus],
+    );
 
     const [tilesWithDateZoomApplied, setTilesWithDateZoomApplied] =
         useState<Set<string>>();
@@ -1921,6 +1963,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         parametersHaveChanged,
         dashboardParameters: parameters,
         parameterValues,
+        appliedParameterValues,
         selectedParametersCount,
         setParameter,
         parameterDefinitions: translatedParameterDefinitions,
@@ -1928,6 +1971,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboardParameterReferences,
         addParameterReferences,
         tileParameterReferences,
+        setTileChartSavedParameters,
         missingRequiredParameters,
         pinnedParameters,
         setPinnedParameters,

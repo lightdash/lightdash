@@ -23,6 +23,7 @@ import {
     expandSelectedTabs,
     ExportContentPayload,
     ExportCsvDashboardPayload,
+    ExportDocumentPdfPayload,
     FieldReferenceError,
     FieldType,
     ForbiddenError,
@@ -4400,9 +4401,12 @@ export default class SchedulerTask {
                     );
                 }
 
-                // Get the dashboard parameters to override the saved chart parameters
-                const dashboardParameters =
-                    getDashboardParametersValuesMap(dashboard);
+                const dashboardParameters: ParametersValuesMap = {
+                    ...getDashboardParametersValuesMap(dashboard),
+                    ...(isDashboardScheduler(scheduler)
+                        ? scheduler.parameters
+                        : {}),
+                };
 
                 // We want to process all charts in sequence, so we don't load all chart results in memory
                 await chartTiles
@@ -6320,6 +6324,48 @@ export default class SchedulerTask {
                     payload.format,
                     `Format ${payload.format} is not supported for export`,
                 );
+            },
+        );
+    }
+
+    protected async exportDocumentPdf(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ExportDocumentPdfPayload,
+    ) {
+        await this.logWrapper<string | number>(
+            {
+                task: SCHEDULER_TASKS.EXPORT_DOCUMENT_PDF,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                if (!this.fileStorageClient.isEnabled()) {
+                    throw new MissingConfigError(
+                        'Cloud storage is not enabled',
+                    );
+                }
+                const { pdfFile, numFailures } =
+                    await this.unfurlService.exportDocumentPdf({
+                        projectUuid: payload.projectUuid,
+                        documentUuid: payload.documentUuid,
+                        versionUuid: payload.versionUuid,
+                        documentName: payload.documentName,
+                        authUserUuid: payload.userUuid,
+                        organizationUuid: payload.organizationUuid,
+                        context: ScreenshotContext.EXPORT_DOCUMENT,
+                        contextId: jobId,
+                    });
+                return {
+                    url: pdfFile.source,
+                    fileType: SchedulerFormat.PDF,
+                    numFailures,
+                };
             },
         );
     }

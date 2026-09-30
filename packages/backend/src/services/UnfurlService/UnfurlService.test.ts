@@ -5,6 +5,7 @@ import {
     LightdashRequestMethodHeader,
     NotFoundError,
     RequestMethod,
+    SCREENSHOT_FAILED_STATUS,
     SCREENSHOT_SELECTORS,
     UnexpectedServerError,
     type DeliveryCaptureManifest,
@@ -28,6 +29,7 @@ import type { SpacePermissionService } from '../SpaceService/SpacePermissionServ
 import {
     expandViewportToDashboardGrid,
     MAX_PRE_READY_VIEWPORT_HEIGHT,
+    ScreenshotContext,
     UnfurlService,
 } from './UnfurlService';
 
@@ -403,6 +405,124 @@ describe('UnfurlService', () => {
             ).rejects.toThrow(/Screenshot timeout/);
             expect(page.screenshot).not.toHaveBeenCalled();
             expect(page.close).toHaveBeenCalled();
+        });
+    });
+
+    describe('exportDocumentPdf', () => {
+        const EXPORT_ARGS = {
+            projectUuid: 'project-uuid',
+            documentUuid: 'document-uuid',
+            versionUuid: 'version-uuid',
+            documentName: 'Weekly review',
+            authUserUuid: 'user-uuid',
+            organizationUuid: 'org-uuid',
+            context: ScreenshotContext.EXPORT_DOCUMENT,
+        };
+
+        const setup = (indicator: Record<string, string>) => {
+            const locator = {
+                first: vi.fn(),
+                elementHandle: vi.fn().mockRejectedValue(new Error('none')),
+                waitFor: vi.fn().mockResolvedValue(undefined),
+                boundingBox: vi.fn().mockResolvedValue({
+                    x: 0,
+                    y: 0,
+                    width: 800,
+                    height: 800,
+                }),
+                evaluateAll: vi.fn().mockResolvedValue([]),
+                getAttribute: vi.fn(
+                    async (name: string) => indicator[name] ?? null,
+                ),
+            };
+            locator.first.mockReturnValue(locator);
+            const page = {
+                addInitScript: vi.fn().mockResolvedValue(undefined),
+                context: vi.fn().mockReturnValue({
+                    addCookies: vi.fn().mockResolvedValue(undefined),
+                    route: vi.fn().mockResolvedValue(undefined),
+                    routeWebSocket: vi.fn().mockResolvedValue(undefined),
+                }),
+                on: vi.fn(),
+                goto: vi.fn().mockResolvedValue(undefined),
+                waitForSelector: vi.fn().mockResolvedValue(undefined),
+                evaluate: vi.fn().mockResolvedValue(undefined),
+                locator: vi.fn().mockReturnValue(locator),
+                viewportSize: vi
+                    .fn()
+                    .mockReturnValue({ width: 800, height: 1024 }),
+                setViewportSize: vi.fn().mockResolvedValue(undefined),
+                screenshot: vi.fn().mockResolvedValue(Buffer.from('png')),
+                pdf: vi.fn().mockResolvedValue(Buffer.from('pdf-bytes')),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+            const browser = {
+                newPage: vi.fn().mockResolvedValue(page),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+            playwrightMocks.connectOverCDP.mockResolvedValue(browser);
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            mockFileStorageClient.uploadPdf.mockResolvedValue({
+                fileName: 'weekly.pdf',
+                url: 'https://s3.example.com/weekly.pdf',
+            });
+            const service = createService({
+                headlessBrowser: {
+                    host: 'headless-browser',
+                    browserEndpoint: 'ws://headless-browser:3000',
+                    maxScreenshotRetries: 1,
+                },
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.spyOn(service as any, 'getUserCookie').mockResolvedValue(
+                'connect.sid=session-value; Path=/; HttpOnly',
+            );
+            return { service, browser, page };
+        };
+
+        it('prints the exact version as the user to paginated A4 and counts failed charts', async () => {
+            const { service, browser, page } = setup({
+                'data-status': 'completed-with-errors',
+                'data-tiles-errored': '2',
+            });
+
+            await expect(
+                service.exportDocumentPdf(EXPORT_ARGS),
+            ).resolves.toEqual({
+                pdfFile: {
+                    source: 'https://s3.example.com/weekly.pdf',
+                    fileName: 'weekly.pdf',
+                },
+                numFailures: 2,
+            });
+            expect(page.goto).toHaveBeenCalledWith(
+                'http://headless-browser:8080/minimal/projects/project-uuid/documents/document-uuid?versionUuid=version-uuid',
+                expect.anything(),
+            );
+            expect(browser.newPage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    viewport: { width: 800, height: 1024 },
+                }),
+            );
+            expect(page.pdf).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ format: 'A4', scale: 0.85 }),
+            );
+            expect(mockFileStorageClient.uploadPdf).toHaveBeenCalledWith(
+                Buffer.from('pdf-bytes'),
+                expect.stringMatching(/^document-pdf_/),
+            );
+        });
+
+        it('fails instead of printing a Document the page could not load', async () => {
+            const { service, page } = setup({
+                'data-status': SCREENSHOT_FAILED_STATUS,
+            });
+
+            await expect(
+                service.exportDocumentPdf(EXPORT_ARGS),
+            ).rejects.toThrow(/could not be loaded/);
+            expect(page.pdf).not.toHaveBeenCalled();
+            expect(mockFileStorageClient.uploadPdf).not.toHaveBeenCalled();
         });
     });
 

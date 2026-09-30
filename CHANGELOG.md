@@ -1,3 +1,93 @@
+# [2.395.0](https://github.com/lightdash/lightdash/compare/2.394.0...2.395.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* **ai:** restore Slack SQL approval and resume flow ([#30256](https://github.com/lightdash/lightdash/issues/30256)) ([fee3608](https://github.com/lightdash/lightdash/commit/fee3608351767dc8ae127d9ec5a9fbf6e6007468))
+
+
+### Features
+
+* **documents:** promote Documents from preview to production ([#30263](https://github.com/lightdash/lightdash/issues/30263)) ([d94a2d7](https://github.com/lightdash/lightdash/commit/d94a2d70b47c3f6c6c083dbf46a27a5779018ff1))
+
+# [2.394.0](https://github.com/lightdash/lightdash/compare/2.393.0...2.394.0) (2026-09-30)
+
+
+### Features
+
+* **explorer:** default new charts to a table visualization ([#30260](https://github.com/lightdash/lightdash/issues/30260)) ([bcdeb5b](https://github.com/lightdash/lightdash/commit/bcdeb5baf461b00c7430931dac4bc18e575d6e21))
+
+# [2.393.0](https://github.com/lightdash/lightdash/compare/2.392.0...2.393.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* label tile parameters with the values the tile runs with ([#30274](https://github.com/lightdash/lightdash/issues/30274)) ([ee99f25](https://github.com/lightdash/lightdash/commit/ee99f25fdbd083ade8eb7fab8e97a71b4c42ac12))
+* show saved dashboard parameters on embedded dashboards ([#30278](https://github.com/lightdash/lightdash/issues/30278)) ([2b78450](https://github.com/lightdash/lightdash/commit/2b784505b86e0bc178c878548a79169cc3b8f614))
+
+
+### Features
+
+* **ai:** prepare document write-ups in one model call ([#30277](https://github.com/lightdash/lightdash/issues/30277)) ([fecec88](https://github.com/lightdash/lightdash/commit/fecec885cf844c40d9467a3182ab4b63112e4c0a)), closes [#30276](https://github.com/lightdash/lightdash/issues/30276) [#30275](https://github.com/lightdash/lightdash/issues/30275) [#30276](https://github.com/lightdash/lightdash/issues/30276)
+* **documents:** export Documents as paginated PDFs ([#30267](https://github.com/lightdash/lightdash/issues/30267)) ([d6f4ee6](https://github.com/lightdash/lightdash/commit/d6f4ee6c1b1fe927ee7e56794ab1eb277dfb13ea))
+
+# [2.392.0](https://github.com/lightdash/lightdash/compare/2.391.0...2.392.0) (2026-09-30)
+
+
+### Features
+
+* **ai:** write documents without extended thinking ([#30276](https://github.com/lightdash/lightdash/issues/30276)) ([e6a49dd](https://github.com/lightdash/lightdash/commit/e6a49dd13b502ffcdf904dfe355a92f9d7fd6dee)), closes [#30275](https://github.com/lightdash/lightdash/issues/30275)
+
+# [2.391.0](https://github.com/lightdash/lightdash/compare/2.390.0...2.391.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* apply scheduler parameters to Google Sheets dashboard syncs ([#30241](https://github.com/lightdash/lightdash/issues/30241)) ([a1dc1f2](https://github.com/lightdash/lightdash/commit/a1dc1f2db4d7e89c18024079eb64168dfd905218))
+
+
+### Features
+
+* **ai:** end document write-ups once the document saves ([#30275](https://github.com/lightdash/lightdash/issues/30275)) ([ab0f41a](https://github.com/lightdash/lightdash/commit/ab0f41a8467741169a38b156232a0384f38758e2))
+* **ai:** show an organization's AI credit usage in settings ([#30248](https://github.com/lightdash/lightdash/issues/30248)) ([2130a38](https://github.com/lightdash/lightdash/commit/2130a3851938d85928ab6a9e3681dfc944fe4ff3))
+* show where dashboard tile parameter values come from ([#30239](https://github.com/lightdash/lightdash/issues/30239)) ([4dfad66](https://github.com/lightdash/lightdash/commit/4dfad6600694318ba20cf10b7a6ff00da9bd6729))
+* use chart-saved parameter values on dashboard tiles ([#30238](https://github.com/lightdash/lightdash/issues/30238)) ([d97519a](https://github.com/lightdash/lightdash/commit/d97519a0721e91ea5285183eee87c58850d52c10))
+
+# [2.390.0](https://github.com/lightdash/lightdash/compare/2.389.5...2.390.0) (2026-09-30)
+
+
+### Features
+
+* **documents:** upload and download Documents with the CLI ([#30261](https://github.com/lightdash/lightdash/issues/30261)) ([c53a95e](https://github.com/lightdash/lightdash/commit/c53a95e716a9810db69909523484ff2759a1cb01))
+
+## [2.389.5](https://github.com/lightdash/lightdash/compare/2.389.4...2.389.5) (2026-09-30)
+
+
+### Bug Fixes
+
+* widen parameter dropdowns and truncate long options ([#30271](https://github.com/lightdash/lightdash/issues/30271)) ([43f094d](https://github.com/lightdash/lightdash/commit/43f094dcb0d5fc9e05a86ceb757969b46fdb4af5))
+
+## [2.389.4](https://github.com/lightdash/lightdash/compare/2.389.3...2.389.4) (2026-09-30)
+
+
+### Bug Fixes
+
+* **embed:** hide Save changes when exploring a chart the embed cannot update ([#30251](https://github.com/lightdash/lightdash/issues/30251)) ([b73f2e1](https://github.com/lightdash/lightdash/commit/b73f2e11b619e9c13c5891772dc3b0700f7512d2))
+
+## [2.389.3](https://github.com/lightdash/lightdash/compare/2.389.2...2.389.3) (2026-09-30)
+
+
+### Bug Fixes
+
+* **projects:** replace the clipped "Select all" button with a header checkbox ([#30259](https://github.com/lightdash/lightdash/issues/30259)) ([0c71f04](https://github.com/lightdash/lightdash/commit/0c71f0425a46d6d58ec67c6a172641310fdd9080)), closes [#30197](https://github.com/lightdash/lightdash/issues/30197)
+
+## [2.389.2](https://github.com/lightdash/lightdash/compare/2.389.1...2.389.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* **learn:** regenerate agent walkthrough text from updated docs ([#30262](https://github.com/lightdash/lightdash/issues/30262)) ([2aa98ba](https://github.com/lightdash/lightdash/commit/2aa98ba4f9bd7611cbc89161ab26275c25619fe1))
+
 ## [2.389.1](https://github.com/lightdash/lightdash/compare/2.389.0...2.389.1) (2026-09-30)
 
 

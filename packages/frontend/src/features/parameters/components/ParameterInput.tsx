@@ -14,6 +14,7 @@ import {
     Group,
     MultiSelect,
     Select,
+    Text,
     type ComboboxItem,
     type ComboboxItemGroup,
 } from '@mantine/core';
@@ -375,25 +376,40 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                     </Box>
                 );
             }
-            if (option.value === '__create__') {
+            if (
+                option.value === '__create__' &&
+                parameter.allow_custom_values
+            ) {
                 // Extract the query from the label (e.g., 'Add "query"' -> 'query')
                 const query = option.label.match(/^Add "(.+)"$/)?.[1] || '';
                 return (
-                    <div className={styles.createItem}>
-                        <Group gap="xxs" c="blue" fz="sm">
+                    <Box className={styles.createItem} miw={0} w="100%">
+                        <Group gap="xxs" c="blue" fz="sm" wrap="nowrap">
                             <MantineIcon
                                 icon={IconPlus}
                                 color="blue"
                                 size="sm"
+                                className={styles.createIcon}
                             />
-                            Add "{query}"
+                            <Text truncate size="inherit" title={option.label}>
+                                Add "{query}"
+                            </Text>
                         </Group>
-                    </div>
+                    </Box>
                 );
             }
-            return <div>{option.label}</div>;
+            return (
+                <Text truncate size="inherit" title={option.label}>
+                    {option.label}
+                </Text>
+            );
         },
-        [shouldFetch, refreshedAt, searchedMaxResults],
+        [
+            shouldFetch,
+            refreshedAt,
+            searchedMaxResults,
+            parameter.allow_custom_values,
+        ],
     );
 
     const handleChange = useCallback(
@@ -514,12 +530,15 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 error={isError}
                 hidePickedOptions
                 maxDropdownHeight={200}
-                scrollAreaProps={{ type: 'always' }}
-                renderOption={
-                    shouldFetch || parameter.allow_custom_values
-                        ? renderOption
-                        : undefined
-                }
+                scrollAreaProps={{
+                    type: 'always',
+                    scrollbars: 'y',
+                    classNames: {
+                        root: styles.optionsScrollArea,
+                        content: styles.optionsContent,
+                    },
+                }}
+                renderOption={renderOption}
                 comboboxProps={{
                     withinPortal: false,
                     zIndex: 10000,
@@ -553,12 +572,15 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             disabled={disabled}
             error={isError}
             maxDropdownHeight={200}
-            scrollAreaProps={{ type: 'always' }}
-            renderOption={
-                shouldFetch || parameter.allow_custom_values
-                    ? renderOption
-                    : undefined
-            }
+            scrollAreaProps={{
+                type: 'always',
+                scrollbars: 'y',
+                classNames: {
+                    root: styles.optionsScrollArea,
+                    content: styles.optionsContent,
+                },
+            }}
+            renderOption={renderOption}
             comboboxProps={{
                 withinPortal: false,
                 zIndex: 10000,

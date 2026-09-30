@@ -2,6 +2,7 @@ import { ChartType } from '@lightdash/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     downloadImageUrl,
+    hasDashboardTileParameterOverrides,
     isSavedDataAppVizDashboardImageExportAvailable,
 } from './chartDownloadUtils';
 
@@ -76,6 +77,68 @@ describe('isSavedDataAppVizDashboardImageExportAvailable', () => {
             isSavedDataAppVizDashboardImageExportAvailable({
                 ...cleanDashboard,
                 ...override,
+            }),
+        ).toBe(false);
+    });
+});
+
+describe('hasDashboardTileParameterOverrides', () => {
+    it('is false when the tile ran with its chart-saved value', () => {
+        expect(
+            hasDashboardTileParameterOverrides({
+                usedParameterValues: { status: 'Cancelled' },
+                dashboardValues: {},
+                chartSavedValues: { status: 'Cancelled' },
+            }),
+        ).toBe(false);
+    });
+
+    it('is true when a dashboard value differs from the chart-saved value', () => {
+        expect(
+            hasDashboardTileParameterOverrides({
+                usedParameterValues: { status: 'Completed' },
+                dashboardValues: { status: 'Completed' },
+                chartSavedValues: { status: 'Cancelled' },
+            }),
+        ).toBe(true);
+    });
+
+    it('is false when the dashboard value matches the chart-saved value', () => {
+        expect(
+            hasDashboardTileParameterOverrides({
+                usedParameterValues: { status: 'Cancelled' },
+                dashboardValues: { status: 'Cancelled' },
+                chartSavedValues: { status: 'Cancelled' },
+            }),
+        ).toBe(false);
+    });
+
+    it('is true when a definition default replaced the chart-saved value', () => {
+        expect(
+            hasDashboardTileParameterOverrides({
+                usedParameterValues: { currency: 'USD' },
+                dashboardValues: {},
+                chartSavedValues: { currency: 'EUR' },
+            }),
+        ).toBe(true);
+    });
+
+    it('is false when the chart saved nothing and the tile used a default', () => {
+        expect(
+            hasDashboardTileParameterOverrides({
+                usedParameterValues: { currency: 'USD' },
+                dashboardValues: {},
+                chartSavedValues: {},
+            }),
+        ).toBe(false);
+    });
+
+    it('ignores dashboard values the tile does not use', () => {
+        expect(
+            hasDashboardTileParameterOverrides({
+                usedParameterValues: {},
+                dashboardValues: { status: 'Completed' },
+                chartSavedValues: {},
             }),
         ).toBe(false);
     });

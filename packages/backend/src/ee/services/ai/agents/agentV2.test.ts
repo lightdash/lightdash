@@ -7,6 +7,7 @@ import {
     type ModelMessage,
     type ToolSet,
 } from 'ai';
+import { MockLanguageModelV4 } from 'ai/test';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
@@ -43,6 +44,7 @@ import {
     getDataAnswerFastResponse,
     getDataAppBuildFastResponse,
     getDeepResearchBudgetInstruction,
+    getDocumentWriteFastResponse,
     getFastDataAnswerPreparedContext,
     getPromptMcpServers,
     getRecentQueryFieldIds,
@@ -590,6 +592,176 @@ describe('empty finishes and interrupts', () => {
         Object.assign(dependencies, { isPromptInterrupted });
         return { updatePrompt, dependencies };
     };
+
+    it.each([false, true])(
+        'generate: pauses or answers Slack SQL queries with thread auto-approval %s',
+        async (autoApproved) => {
+            const { generateText: generateWithSdk } =
+                await vi.importActual<typeof import('ai')>('ai');
+            vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+            const { updatePrompt, dependencies } =
+                buildInterruptibleDependencies(false);
+            const runSqlJob = vi.fn().mockResolvedValue({
+                rows: [{ answer: 1 }],
+                columns: ['answer'],
+                rowCount: 1,
+            });
+            Object.assign(dependencies, {
+                getPrompt: async () => ({
+                    promptUuid: 'prompt-1',
+                    threadUuid: 'thread-1',
+                    slackUserId: 'slack-user',
+                }),
+                isThreadSqlAutoApproved: async () => autoApproved,
+                recordSqlApproval: async () => true,
+                updateProgress: vi.fn().mockResolvedValue(undefined),
+                runSqlJob,
+                consumePromptSteers: async () => [],
+            });
+            const args = buildAgentArgs();
+            args.useSlackStreamCard = true;
+            args.slackChannelId = 'slack-channel';
+            let calls = 0;
+            args.model = new MockLanguageModelV4({
+                doGenerate: async () => {
+                    calls += 1;
+                    return {
+                        content:
+                            calls === 1
+                                ? [
+                                      {
+                                          type: 'tool-call' as const,
+                                          toolCallId: 'sql-call',
+                                          toolName: 'runSql',
+                                          input: '{"sql":"SELECT 1","limit":10}',
+                                      },
+                                  ]
+                                : [
+                                      {
+                                          type: 'text' as const,
+                                          text: 'The answer is 1.',
+                                      },
+                                  ],
+                        finishReason: {
+                            unified: calls === 1 ? 'tool-calls' : 'stop',
+                            raw: undefined,
+                        },
+                        usage: {
+                            inputTokens: {
+                                total: 1,
+                                noCache: 1,
+                                cacheRead: 0,
+                                cacheWrite: 0,
+                            },
+                            outputTokens: { total: 1, text: 1, reasoning: 0 },
+                        },
+                        warnings: [],
+                    };
+                },
+            });
+
+            await expect(
+                generateAgentResponse({
+                    args,
+                    dependencies,
+                    mcpToolSetup: mcpToolSetup(),
+                }),
+            ).resolves.toBe(autoApproved ? 'The answer is 1.' : '');
+            expect(runSqlJob).toHaveBeenCalledTimes(autoApproved ? 1 : 0);
+            expect(updatePrompt).not.toHaveBeenCalledWith(
+                expect.objectContaining({ errorMessage: expect.any(String) }),
+            );
+        },
+    );
+
+    it('generate: replays a persisted rejected SQL approval without executing it again', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { dependencies } = buildInterruptibleDependencies(false);
+        const runSqlJob = vi.fn();
+        const storeToolResults = vi.fn().mockResolvedValue(undefined);
+        Object.assign(dependencies, {
+            consumePromptSteers: async () => [],
+            runSqlJob,
+            storeToolResults,
+        });
+        const args = buildAgentArgs();
+        args.messageHistory = [
+            { role: 'user', content: 'Run the query' },
+            {
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'tool-call',
+                        toolCallId: 'sql-call',
+                        toolName: 'runSql',
+                        input: { sql: 'SELECT 1', limit: 10 },
+                    },
+                    {
+                        type: 'tool-approval-request',
+                        approvalId: 'sql-approval:sql-call',
+                        toolCallId: 'sql-call',
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-approval-response',
+                        approvalId: 'sql-approval:sql-call',
+                        approved: false,
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId: 'sql-call',
+                        toolName: 'runSql',
+                        output: {
+                            type: 'json',
+                            value: 'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.',
+                        },
+                    },
+                ],
+            },
+        ];
+        args.model = new MockLanguageModelV4({
+            doGenerate: async () => ({
+                content: [
+                    {
+                        type: 'text' as const,
+                        text: 'I will not run that query.',
+                    },
+                ],
+                finishReason: { unified: 'stop', raw: undefined },
+                usage: {
+                    inputTokens: {
+                        total: 1,
+                        noCache: 1,
+                        cacheRead: 0,
+                        cacheWrite: 0,
+                    },
+                    outputTokens: { total: 1, text: 1, reasoning: 0 },
+                },
+                warnings: [],
+            }),
+        });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('I will not run that query.');
+        expect(runSqlJob).not.toHaveBeenCalled();
+        expect(storeToolResults).not.toHaveBeenCalled();
+    });
 
     it('generate: persists an empty response instead of an error when the prompt was interrupted', async () => {
         const { updatePrompt, dependencies } =
@@ -1215,6 +1387,52 @@ describe('buildPrepareStep worker isolation', () => {
         ).resolves.toMatchObject({
             activeTools: expect.arrayContaining(['runQuery', 'grepFields']),
         });
+    });
+
+    it('plans every step of a document write-up without thinking', async () => {
+        const writeModel = {} as AiAgentArgs['model'];
+        const providerOptions = {
+            anthropic: { thinking: { type: 'disabled' as const } },
+        };
+        const build = (intent: 'document_write' | 'data_answer') => {
+            const args = buildAgentArgs();
+            args.documentWriteModel = {
+                model: writeModel,
+                providerOptions,
+            };
+            const tools = {
+                loadAgentTools: getLoadAgentTools(),
+                createContent: {} as never,
+                runQuery: {} as never,
+            };
+            const gate = createIntentToolGate(tools, intent);
+            return buildPrepareStep({
+                args,
+                dependencies: {
+                    ...buildAgentDependencies(vi.fn()),
+                    consumePromptSteers: vi.fn().mockResolvedValue([]),
+                },
+                tools: gate.tools,
+                mcpToolNames: [],
+                intentToolGate: gate,
+                logger: vi.fn(),
+                invalidToolCallIds: new Set(),
+            });
+        };
+
+        const prepareStep = build('document_write');
+        const steps = await Promise.all(
+            [0, 3].map((stepNumber) =>
+                prepareStep({ stepNumber, messages: [] }),
+            ),
+        );
+        steps.forEach((step) => {
+            expect(step).toMatchObject({ providerOptions });
+            expect(step).toHaveProperty('model', writeModel);
+        });
+        await expect(
+            build('data_answer')({ stepNumber: 0, messages: [] }),
+        ).resolves.not.toHaveProperty('model');
     });
 
     it.each(['success', 'error', 'pending', null])(
@@ -2525,6 +2743,48 @@ describe('buildAgentMessages', () => {
         expect(
             getDataAppBuildFastResponse(
                 step({ result: 'failed', metadata: { status: 'error' } }),
+            ),
+        ).toBeNull();
+    });
+
+    it('finishes a document write-up once the document saves cleanly', () => {
+        const save = (
+            output: unknown,
+            input: unknown = { type: 'document' },
+            toolName = 'createContent',
+        ) => [
+            {
+                toolCalls: [{ toolCallId: 'save-1', toolName, input }],
+                toolResults: [{ toolCallId: 'save-1', toolName, output }],
+            },
+        ];
+        const saved = (warnings: string[] = []) => ({
+            result: '<document />',
+            metadata: {
+                status: 'success',
+                name: 'Revenue [Q3]',
+                href: '/projects/p/documents/revenue',
+                warnings,
+            },
+        });
+
+        expect(getDocumentWriteFastResponse(save(saved()))).toBe(
+            'Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).',
+        );
+        expect(
+            getDocumentWriteFastResponse(
+                save(saved(), { type: 'document' }, 'editContent'),
+            ),
+        ).toBe('Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).');
+        expect(
+            getDocumentWriteFastResponse(save(saved(['Chart 2 failed']))),
+        ).toBeNull();
+        expect(
+            getDocumentWriteFastResponse(save(saved(), { type: 'chart' })),
+        ).toBeNull();
+        expect(
+            getDocumentWriteFastResponse(
+                save({ result: 'failed', metadata: { status: 'error' } }),
             ),
         ).toBeNull();
     });

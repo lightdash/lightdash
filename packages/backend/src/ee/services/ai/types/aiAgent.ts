@@ -225,6 +225,11 @@ export type AiAgentArgs = AnyAiModel & {
         providerOptions?: AnyAiModel['providerOptions'];
         keyManagement: AiKeyManagement;
     };
+    /** The agent model with thinking disabled, used for steps of a document write-up turn. */
+    documentWriteModel?: {
+        model: AnyAiModel['model'];
+        providerOptions?: AnyAiModel['providerOptions'];
+    };
     // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
     // Stamped by the model builder and carried through for usage analytics.
     keyManagement: AiKeyManagement;

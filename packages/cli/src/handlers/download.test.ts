@@ -1569,6 +1569,14 @@ describe('downloadHandler failures', () => {
             if (url.includes('/code/externalConnections')) {
                 throw unavailableError;
             }
+            if (url.includes('/code/documents')) {
+                throw new LightdashError({
+                    message: 'Documents are not enabled',
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    data: {},
+                });
+            }
             if (url.includes('/ee/projects/project-uuid/apps')) {
                 throw unavailableError;
             }
@@ -1600,6 +1608,7 @@ describe('downloadHandler failures', () => {
                         googleSheetsNum: 0,
                         virtualViewsNum: 0,
                         externalConnectionsNum: 0,
+                        documentsNum: 0,
                         appsNum: 0,
                     }),
                 }),

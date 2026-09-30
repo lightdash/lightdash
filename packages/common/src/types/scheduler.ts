@@ -749,6 +749,7 @@ export enum LightdashPage {
     SQL_CHART = 'sql_chart',
     APP = 'app',
     AI_ARTIFACT = 'ai_artifact',
+    DOCUMENT = 'document',
 }
 
 // Info-only delivery notice — never a failure, must not affect run status.
@@ -989,6 +990,13 @@ export type ExportContentRequest = {
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
     parameters?: ParametersValuesMap;
+};
+
+/** Renders one saved version of a Document to PDF as the requesting user. */
+export type ExportDocumentPdfPayload = TraceTaskBase & {
+    documentUuid: string;
+    versionUuid: string;
+    documentName: string;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {

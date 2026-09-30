@@ -1,5 +1,6 @@
 import type { ApiExecuteAsyncMetricQueryResults } from './api';
 import type { ApiSuccess } from './api/success';
+import type { ContentAsCodeUpsertAction } from './contentAsCode/base';
 import type { ChartAsCode } from './contentAsCode/charts';
 import type { SavedMergeQuery } from './mergeQuery';
 import type { SpaceAccess, SpaceMemberRole } from './space';
@@ -75,6 +76,15 @@ export type DocumentAsCode = Pick<
 
 export type ApiDocumentResponse = ApiSuccess<Document>;
 export type ApiDocumentAsCodeResponse = ApiSuccess<DocumentAsCode>;
+export type DocumentAsCodeList = {
+    documents: DocumentAsCode[];
+    missingSlugs: string[];
+    nextOffset: number | null;
+};
+export type ApiDocumentAsCodeListResponse = ApiSuccess<DocumentAsCodeList>;
+export type ApiDocumentAsCodeUpsertResponse = ApiSuccess<{
+    action: ContentAsCodeUpsertAction;
+}>;
 export type DocumentList = {
     items: DocumentSummary[];
     nextOffset: number | null;

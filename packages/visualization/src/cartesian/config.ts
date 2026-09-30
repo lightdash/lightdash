@@ -668,6 +668,7 @@ export const buildCartesianSeries = ({
     itemsMap,
     columnLimit,
     referenceLines,
+    cartesianType,
 }: {
     layout: CompleteCartesianChartLayout;
     existingSeries: Series[] | undefined;
@@ -677,12 +678,19 @@ export const buildCartesianSeries = ({
     itemsMap: ItemsMap | undefined;
     columnLimit: number | undefined;
     referenceLines: ReferenceLineField[];
+    /** The type the user just picked, for a chart with no series yet. */
+    cartesianType?: CartesianTypeOptions;
 }): Series[] => {
+    // With no series to inherit from, honour the type just picked: setType
+    // only rewrites existing series, so it is a no-op here.
     const defaultCartesianType =
-        existingSeries?.[0]?.type || CartesianSeriesType.BAR;
+        existingSeries?.[0]?.type ||
+        cartesianType?.type ||
+        CartesianSeriesType.BAR;
     const defaultAreaStyle =
         defaultCartesianType === CartesianSeriesType.LINE
-            ? existingSeries?.[0]?.areaStyle
+            ? (existingSeries?.[0]?.areaStyle ??
+              (cartesianType?.hasAreaStyle ? {} : undefined))
             : undefined;
     const defaultSmooth = existingSeries?.[0]?.smooth;
     const defaultLabel = existingSeries?.[0]?.label;

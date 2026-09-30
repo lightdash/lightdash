@@ -44,6 +44,7 @@ import type {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
+    ApiAiCreditUsageResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
@@ -218,7 +219,12 @@ import {
 } from './dashboard';
 import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
 import { type DbtExposure } from './dbt';
-import type { Document, DocumentList, DocumentVersionList } from './document';
+import type {
+    Document,
+    DocumentAsCodeList,
+    DocumentList,
+    DocumentVersionList,
+} from './document';
 import { type EmailStatusExpiring } from './email';
 import {
     type Explore,
@@ -1341,6 +1347,7 @@ type ApiResults =
     | ApiWarehouseDatabaseListing['results']
     | Document
     | DocumentList
+    | DocumentAsCodeList
     | DocumentVersionList
     | ContentReviewRequest
     | ContentReviewRequestDetail
@@ -1633,6 +1640,7 @@ type ApiResults =
     | ApiAppendInstructionResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiAiOrganizationRuntimeSettingsResponse['results']
+    | ApiAiCreditUsageResponse['results']
     | ApiDataAppDetectResponse['results']
     | ApiDataAppAnalysisLookupResponse['results']
     | ApiDataAppAnalysisResponse['results']

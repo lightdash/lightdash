@@ -10,7 +10,7 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { type UseQueryResult } from '@tanstack/react-query';
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import LightdashVisualization from '../../components/LightdashVisualization';
@@ -20,6 +20,7 @@ import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPa
 import { useInfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { DocumentRenderTargetContext } from '../chartTypes/documentRenderTarget/context';
+import { useDocumentExportStatus } from './documentExportStatus';
 import ReportChartFrame from './presentation/ReportChartFrame';
 
 type Props = {
@@ -60,6 +61,27 @@ const DocumentChartVisualization = ({
     const isResourceLimitError = isWarehouseResourceLimitError(
         error?.error.message ?? '',
     );
+    const exportStatus = useDocumentExportStatus();
+    const exportCellIndex = exportStatus ? renderTarget?.cellIndex : undefined;
+    const screenshotCallbacks = useMemo(
+        () =>
+            exportStatus && exportCellIndex !== undefined
+                ? {
+                      onScreenshotReady: () =>
+                          exportStatus.markReady(exportCellIndex),
+                      onScreenshotError: () =>
+                          exportStatus.markErrored(exportCellIndex),
+                  }
+                : {},
+        [exportStatus, exportCellIndex],
+    );
+    const hasError = !!error;
+    useEffect(() => {
+        if (hasError) {
+            screenshotCallbacks.onScreenshotError?.();
+        }
+    }, [hasError, screenshotCallbacks]);
+    const isExporting = exportStatus !== null;
     if (error) {
         return (
             <ReportChartFrame
@@ -74,7 +96,7 @@ const DocumentChartVisualization = ({
                             : 'The live data for this chart could not be loaded.'
                     }
                     onRetry={
-                        isResourceLimitError
+                        isResourceLimitError || isExporting
                             ? undefined
                             : () => {
                                   void query.refetch();
@@ -93,7 +115,7 @@ const DocumentChartVisualization = ({
             ariaLabel={chart.name}
             title={showTitle ? chart.name : undefined}
             description={showTitle ? undefined : chart.description}
-            actions={actions}
+            actions={isExporting ? undefined : actions}
             // Tables hug their rows; other charts need a fixed canvas to draw in
             fit={
                 !isLoading && chart.chartConfig.type === ChartType.TABLE
@@ -139,6 +161,7 @@ const DocumentChartVisualization = ({
                             <Box h="100%" ref={measureRef}>
                                 <LightdashVisualization
                                     enableContextMenu={false}
+                                    {...screenshotCallbacks}
                                 />
                             </Box>
                         </DocumentRenderTargetContext.Provider>

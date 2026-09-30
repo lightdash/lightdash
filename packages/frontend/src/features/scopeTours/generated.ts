@@ -3390,7 +3390,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="manage:AiAgent"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/ai-agents/:agentUuid',
                 title: 'Set up AI agents',
-                body: 'Setting up AI agents is simple - you can begin using them right away on any project in your Lightdash instance.',
+                body: 'Set up an agent around a clear job, give it access to the right data and context, then test it with real questions before sharing it more widely.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
@@ -3465,7 +3465,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:AiAgent"][data-tour-look="3"]',
                 title: 'Instructions shape every answer',
-                body: 'Provide context to guide your agent’s reasoning and ensure responses match your expectations.',
+                body: 'Add the role, priorities, analysis defaults, constraints, and communication style that should apply to every conversation with this agent.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,

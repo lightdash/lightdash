@@ -85,6 +85,9 @@ export const useDashboardChartReadyQuery = (
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
+    const setTileChartSavedParameters = useDashboardContext(
+        (c) => c.setTileChartSavedParameters,
+    );
     const markTileLoaded = useDashboardTileStatusContext(
         (c) => c.markTileLoaded,
     );
@@ -132,6 +135,18 @@ export const useDashboardChartReadyQuery = (
         projectUuid,
         includeUnpublishedDraft,
     });
+
+    const chartSavedParameters = chartQuery.data?.parameters;
+    useEffect(() => {
+        if (chartQuery.data) {
+            setTileChartSavedParameters(tileUuid, chartSavedParameters ?? {});
+        }
+    }, [
+        chartQuery.data,
+        chartSavedParameters,
+        setTileChartSavedParameters,
+        tileUuid,
+    ]);
 
     const { data: explore, error: exploreError } = useExplore(
         chartQuery.data?.metricQuery?.exploreName,

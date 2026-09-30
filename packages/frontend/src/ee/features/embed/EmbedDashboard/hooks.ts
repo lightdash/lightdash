@@ -1,5 +1,7 @@
 import type { ApiError, EmbedDashboard } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import { postEmbedDashboard } from './api';
 
 export const useEmbedDashboard = (
@@ -17,4 +19,16 @@ export const useEmbedDashboard = (
         // Inherits the app-wide retry policy: transient NetworkErrors retry
         // with backoff; real API errors (e.g. expired JWT) surface at once.
     });
+};
+
+// Embedded tiles run with the dashboard's saved parameters, so the controls need them too
+export const useEmbedSavedParameters = (
+    dashboard: Pick<EmbedDashboard, 'parameters'> | undefined,
+) => {
+    const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
+    useEffect(() => {
+        if (dashboard) {
+            setSavedParameters(dashboard.parameters ?? {});
+        }
+    }, [dashboard, setSavedParameters]);
 };

@@ -22,6 +22,7 @@ import { finalizeTimeAxisOptions } from '@lightdash/visualization/editor';
 import { type ReferenceLineField } from '../../components/common/ReferenceLine';
 import useCartesianChartConfig, {
     applyReferenceLines,
+    type CartesianTypeOptions,
 } from './useCartesianChartConfig';
 import {
     buildInfiniteQueryResults,
@@ -1909,5 +1910,38 @@ describe('PROD-11290 series regeneration through useCartesianChartConfig', () =>
             expect(serie.type).toBe(CartesianSeriesType.BAR);
             expect(serie.yAxisIndex).toBe(0);
         });
+    });
+});
+
+describe('picking a cartesian type before any series exists', () => {
+    // setChartType restores EMPTY_CARTESIAN_CHART_CONFIG when the session has
+    // never been cartesian, so there is no series to inherit a type from
+    const getParams = (
+        cartesianType: CartesianTypeOptions,
+    ): Parameters<typeof useCartesianChartConfig>[0] =>
+        ({
+            ...useCartesianChartConfigParamsMock,
+            itemsMap: undefined,
+            stacking: undefined,
+            colorPalette: [],
+            cartesianType,
+        }) as unknown as Parameters<typeof useCartesianChartConfig>[0];
+
+    test('generates series of the requested type rather than falling back to bar', () => {
+        // Params are hoisted so cartesianType keeps a stable identity; a fresh
+        // object per render would re-fire the effect that applies it forever
+        const params = getParams({
+            type: CartesianSeriesType.LINE,
+            flipAxes: false,
+            hasAreaStyle: false,
+        });
+        const { result } = renderHook(() => useCartesianChartConfig(params));
+
+        const series = result.current.validConfig!.eChartsConfig.series!;
+
+        expect(series.length).toBeGreaterThan(0);
+        series.forEach((serie) =>
+            expect(serie.type).toBe(CartesianSeriesType.LINE),
+        );
     });
 });

@@ -1,9 +1,11 @@
 import {
     ContentAsCodeType,
+    parseDocumentAsCode,
     parseHomepageAsCode,
     parseVersionedContentAsCodeDocument,
     type AgentAsCode,
     type AlertAsCode,
+    type DocumentAsCode,
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
     type HomepageAsCode,
@@ -172,3 +174,22 @@ export const GOOGLE_SHEETS_CODE_RESOURCE =
         folderName: 'google-sheets',
         label: 'Google Sheets sync',
     });
+
+export const DOCUMENT_CODE_RESOURCE: CodeResourceDefinition<DocumentAsCode> = {
+    kind: 'document',
+    displayLabel: 'document',
+    identityLabel: 'slug',
+    scope: 'project',
+    folderName: 'documents',
+    acceptedExtensions: ['.yml', '.yaml'],
+    fileName: {
+        strategy: 'identity',
+        fallbackPrefix: 'document',
+        extension: '.yml',
+    },
+    dependencies: [ContentAsCodeType.SPACE],
+    identity: ({ slug }) => slug,
+    displayName: ({ name }) => name,
+    parse: (input) => parseDocumentAsCode(input),
+    sort: (left, right) => left.slug.localeCompare(right.slug),
+};

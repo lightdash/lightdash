@@ -36,6 +36,7 @@ import {
     type EmailNotificationPayload,
     type ExportContentPayload,
     type ExportCsvDashboardPayload,
+    type ExportDocumentPdfPayload,
     type GoogleChatBatchNotificationPayload,
     type GoogleChatNotificationPayload,
     type GsheetsNotificationPayload,
@@ -253,6 +254,7 @@ export const SCHEDULER_TASKS = {
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
     EXPORT_CONTENT: 'exportContent',
+    EXPORT_DOCUMENT_PDF: 'exportDocumentPdf',
     RENAME_RESOURCES: 'renameResources',
     MATERIALIZE_PRE_AGGREGATE: 'materializePreAggregate',
     CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
@@ -303,6 +305,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.EXPORT_CONTENT]: ExportContentPayload;
+    [SCHEDULER_TASKS.EXPORT_DOCUMENT_PDF]: ExportDocumentPdfPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: SlackPromptJobPayload;
     [SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;

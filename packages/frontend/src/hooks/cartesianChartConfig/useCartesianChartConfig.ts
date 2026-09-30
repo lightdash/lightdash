@@ -767,6 +767,7 @@ const useCartesianChartConfig = ({
                 series: buildCartesianSeries({
                     layout: dirtyLayout,
                     existingSeries: prev?.series,
+                    cartesianType,
                     isStacked,
                     pivotKeys,
                     resultsData,
@@ -786,6 +787,7 @@ const useCartesianChartConfig = ({
         itemsMap,
         seriesHiddenStatesKey, // Re-run when series hidden states change
         columnLimit,
+        cartesianType,
     ]);
 
     const dirtyChartType = useMemo(

@@ -34,12 +34,21 @@ const mockProjects = (projects: OrganizationProject[]) =>
         .reply(200, { status: 'ok', results: projects });
 
 // Sortable column headers are buttons too, so pick the one in the toolbar.
-const getToolbarButton = (name: string) => {
+const getToolbarButton = (name: string | RegExp) => {
     const button = screen
         .getAllByRole('button', { name })
         .find((element) => !element.closest('thead'));
     if (!button) throw new Error(`No toolbar button named "${name}"`);
     return button;
+};
+
+const getSelectAllCheckbox = () =>
+    screen.getByRole('checkbox', { name: 'Select all projects' });
+
+const getRowCheckbox = (projectName: string) => {
+    const row = screen.getByText(projectName).closest('tr');
+    if (!row) throw new Error(`No table row for "${projectName}"`);
+    return within(row).getByRole('checkbox');
 };
 
 const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) =>
@@ -87,10 +96,10 @@ describe('ProjectManagementPanel bulk delete', () => {
         await screen.findByText('bob preview');
 
         await user.click(screen.getByRole('radio', { name: 'Preview' }));
-        await user.click(screen.getByRole('button', { name: 'Select all' }));
+        await user.click(getSelectAllCheckbox());
         expect(screen.getByText('3 selected')).toBeInTheDocument();
 
-        await user.click(getToolbarButton('Created by'));
+        await user.click(getToolbarButton(/^Created by/));
         await user.click(
             await screen.findByRole('checkbox', { name: 'Bob Brown' }),
         );
@@ -164,7 +173,7 @@ describe('ProjectManagementPanel bulk delete', () => {
         await screen.findByText('alice preview 1');
 
         await user.click(screen.getByRole('radio', { name: 'Preview' }));
-        await user.click(screen.getByRole('button', { name: 'Select all' }));
+        await user.click(getSelectAllCheckbox());
 
         expect(screen.getByText('2 selected')).toBeInTheDocument();
         const rowCheckboxes = screen
@@ -172,5 +181,80 @@ describe('ProjectManagementPanel bulk delete', () => {
             .filter((checkbox) => checkbox.hasAttribute('disabled'));
         expect(rowCheckboxes).toHaveLength(1);
         expect(rowCheckboxes[0]).not.toBeChecked();
+    });
+
+    it('shows none, some, or all selected in the header checkbox and toggles with it', async () => {
+        const user = userEvent.setup();
+        mockProjects([
+            project({ projectUuid: 'alice-1', name: 'alice preview 1' }),
+            project({ projectUuid: 'alice-2', name: 'alice preview 2' }),
+            project({
+                projectUuid: 'bob-1',
+                name: 'bob preview',
+                createdByUserUuid: BOB,
+                createdByUserName: 'Bob Brown',
+            }),
+        ]);
+
+        renderPanel();
+        await screen.findByText('bob preview');
+        await user.click(screen.getByRole('radio', { name: 'Preview' }));
+
+        expect(getSelectAllCheckbox()).not.toBeChecked();
+        expect(getSelectAllCheckbox()).not.toBePartiallyChecked();
+
+        await user.click(getRowCheckbox('alice preview 1'));
+        expect(getSelectAllCheckbox()).toBePartiallyChecked();
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+        await user.click(getSelectAllCheckbox());
+        expect(getSelectAllCheckbox()).toBeChecked();
+        expect(getSelectAllCheckbox()).not.toBePartiallyChecked();
+        expect(screen.getByText('3 selected')).toBeInTheDocument();
+
+        await user.click(getSelectAllCheckbox());
+        expect(getSelectAllCheckbox()).not.toBeChecked();
+        expect(getRowCheckbox('alice preview 1')).not.toBeChecked();
+        expect(screen.queryByText(/selected$/)).not.toBeInTheDocument();
+    });
+
+    it('only toggles the rows in view with the header checkbox', async () => {
+        const user = userEvent.setup();
+        mockProjects([
+            project({ projectUuid: 'alice-1', name: 'alice preview 1' }),
+            project({ projectUuid: 'alice-2', name: 'alice preview 2' }),
+            project({
+                projectUuid: 'bob-1',
+                name: 'bob preview',
+                createdByUserUuid: BOB,
+                createdByUserName: 'Bob Brown',
+            }),
+        ]);
+
+        renderPanel();
+        await screen.findByText('bob preview');
+        await user.click(screen.getByRole('radio', { name: 'Preview' }));
+        await user.click(getSelectAllCheckbox());
+        expect(screen.getByText('3 selected')).toBeInTheDocument();
+
+        await user.click(getToolbarButton(/^Created by/));
+        await user.click(
+            await screen.findByRole('checkbox', { name: 'Bob Brown' }),
+        );
+        expect(getSelectAllCheckbox()).toBeChecked();
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+        // Clicking the header closes the filter popover, so reopen it after.
+        await user.click(getSelectAllCheckbox());
+        expect(getSelectAllCheckbox()).not.toBeChecked();
+        expect(screen.queryByText(/selected$/)).not.toBeInTheDocument();
+
+        await user.click(getToolbarButton(/^Created by/));
+        await user.click(
+            await screen.findByRole('checkbox', { name: 'Bob Brown' }),
+        );
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
+        expect(getSelectAllCheckbox()).toBePartiallyChecked();
+        expect(getRowCheckbox('bob preview')).not.toBeChecked();
     });
 });

@@ -10400,8 +10400,35 @@
                 "required": ["name", "uuid"],
                 "type": "object"
             },
+            "PromotedDocument": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
             "PromotionChanges": {
                 "properties": {
+                    "documents": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedDocument"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "dataApps": {
                         "items": {
                             "properties": {
@@ -10973,6 +11000,322 @@
                 "required": ["connection"],
                 "type": "object",
                 "description": "Deliberately a flat wrapper, NOT `ExternalConnectionAsCode & { secret }`:\nTSOA validates intersection bodies in remove-extras mode, which empties\nRecord<string, string> fields (customHeaders). Same workaround as\nApiTestExternalConnectionConfigRequest."
+            },
+            "Pick_DocumentSummary.name-or-slug-or-description_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "name", "slug"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ChartAsCodeConfig_DataAppVizChartConfigAsCode_": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/BigNumberConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CartesianChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomVisConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FunnelChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TableChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TreemapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GaugeChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SankeyChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DataAppVizChartConfigAsCode"
+                    }
+                ],
+                "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
+            },
+            "Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
+                    },
+                    "tableName": {
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
+                    },
+                    "metricQuery": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Omit_MetricQuery.filters_"
+                            },
+                            {
+                                "properties": {
+                                    "filters": {
+                                        "$ref": "#/components/schemas/FiltersInput"
+                                    }
+                                },
+                                "required": ["filters"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartAsCodeConfig_DataAppVizChartConfigAsCode_"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "description": "Pivot table configuration"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object",
+                        "description": "Table configuration. Defaults to empty column order if omitted."
+                    }
+                },
+                "required": ["name", "tableName", "metricQuery", "chartConfig"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SemanticChartAsCode": {
+                "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
+            },
+            "MergeChartAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticChartAsCode"
+                    },
+                    {
+                        "properties": {
+                            "merge": {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        },
+                        "required": ["merge"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DocumentChartContent": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "chart": {
+                                "$ref": "#/components/schemas/SemanticChartAsCode"
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["semantic"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chart", "source"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "chart": {
+                                "$ref": "#/components/schemas/MergeChartAsCode"
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["merge"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chart", "source"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DocumentCell": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "content": {
+                                "properties": {
+                                    "markdown": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["markdown"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["markdown"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["content", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "content": {
+                                "$ref": "#/components/schemas/DocumentChartContent"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["content", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DocumentContent": {
+                "properties": {
+                    "cells": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentCell"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["cells"],
+                "type": "object"
+            },
+            "DocumentAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_DocumentSummary.name-or-slug-or-description_"
+                    },
+                    {
+                        "properties": {
+                            "content": {
+                                "$ref": "#/components/schemas/DocumentContent"
+                            },
+                            "schemaVersion": {
+                                "type": "number",
+                                "enum": [1],
+                                "nullable": false
+                            },
+                            "spaceSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content", "schemaVersion", "spaceSlug"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DocumentAsCodeList": {
+                "properties": {
+                    "nextOffset": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "missingSlugs": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "documents": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentAsCode"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["nextOffset", "missingSlugs", "documents"],
+                "type": "object"
+            },
+            "ApiSuccess_DocumentAsCodeList_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DocumentAsCodeList"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentAsCodeListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DocumentAsCodeList_"
+            },
+            "ApiSuccess__action-ContentAsCodeUpsertAction__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "$ref": "#/components/schemas/ContentAsCodeUpsertAction"
+                            }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentAsCodeUpsertResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__action-ContentAsCodeUpsertAction__"
             },
             "ServiceAccountScope": {
                 "enum": [
@@ -50692,6 +51035,7 @@
                     "generateDailyJobs",
                     "exportCsvDashboard",
                     "exportContent",
+                    "exportDocumentPdf",
                     "renameResources",
                     "materializePreAggregate",
                     "cleanQueryHistory",
@@ -62745,219 +63089,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ChartAsCodeConfig_DataAppVizChartConfigAsCode_": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/BigNumberConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CartesianChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CustomVisConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/PieChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/FunnelChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/TableChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/TreemapChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/GaugeChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/MapChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SankeyChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DataAppVizChartConfigAsCode"
-                    }
-                ],
-                "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
-            },
-            "Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
-                "properties": {
-                    "description": {
-                        "type": "string",
-                        "description": "Optional description of what this chart displays"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
-                    "tableName": {
-                        "type": "string",
-                        "description": "The explore/table name this chart queries from"
-                    },
-                    "metricQuery": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Omit_MetricQuery.filters_"
-                            },
-                            {
-                                "properties": {
-                                    "filters": {
-                                        "$ref": "#/components/schemas/FiltersInput"
-                                    }
-                                },
-                                "required": ["filters"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartAsCodeConfig_DataAppVizChartConfigAsCode_"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "rows": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object",
-                        "description": "Pivot table configuration"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for the chart query"
-                    },
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object",
-                        "description": "Table configuration. Defaults to empty column order if omitted."
-                    }
-                },
-                "required": ["name", "tableName", "metricQuery", "chartConfig"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SemanticChartAsCode": {
-                "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
-            },
-            "MergeChartAsCode": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticChartAsCode"
-                    },
-                    {
-                        "properties": {
-                            "merge": {
-                                "$ref": "#/components/schemas/SavedMergeQuery"
-                            }
-                        },
-                        "required": ["merge"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "DocumentChartContent": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/SemanticChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["semantic"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/MergeChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["merge"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "DocumentCell": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "content": {
-                                "properties": {
-                                    "markdown": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["markdown"],
-                                "type": "object"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["markdown"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["content", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "content": {
-                                "$ref": "#/components/schemas/DocumentChartContent"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["chart"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["content", "type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "DocumentContent": {
-                "properties": {
-                    "cells": {
-                        "items": {
-                            "$ref": "#/components/schemas/DocumentCell"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["cells"],
-                "type": "object"
-            },
             "DocumentVersion": {
                 "properties": {
                     "createdAt": {
@@ -63103,6 +63234,9 @@
                     }
                 ]
             },
+            "ApiPromoteDocumentResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_Document_"
+            },
             "UpdateDocumentMetadataRequest": {
                 "properties": {
                     "description": {
@@ -63237,46 +63371,6 @@
             },
             "ApiDocumentListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DocumentList_"
-            },
-            "Pick_DocumentSummary.name-or-slug-or-description_": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    }
-                },
-                "required": ["description", "name", "slug"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DocumentAsCode": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_DocumentSummary.name-or-slug-or-description_"
-                    },
-                    {
-                        "properties": {
-                            "content": {
-                                "$ref": "#/components/schemas/DocumentContent"
-                            },
-                            "schemaVersion": {
-                                "type": "number",
-                                "enum": [1],
-                                "nullable": false
-                            },
-                            "spaceSlug": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["content", "schemaVersion", "spaceSlug"],
-                        "type": "object"
-                    }
-                ]
             },
             "ApiSuccess_DocumentAsCode_": {
                 "properties": {
@@ -68398,7 +68492,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.389.1",
+        "version": "2.395.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -71755,6 +71849,126 @@
                                         "type": "object"
                                     }
                                 ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/documents": {
+            "get": {
+                "operationId": "getCodeDocuments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the Documents you can view, in code representation",
+                "summary": "List Documents as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "slugs",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/documents/{slug}": {
+            "post": {
+                "operationId": "upsertCodeDocument",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or update a Document, matched by slug, from code representation",
+                "summary": "Upsert Document as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DocumentAsCode"
                             }
                         }
                     }
@@ -105878,6 +106092,153 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/exports/pdf": {
+            "post": {
+                "operationId": "ExportDocumentPdf",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiJobScheduledResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Export the Document as a paginated PDF, rendered with your access.\nPoll `GET /api/v1/schedulers/job/{jobId}/status`; the completed job's\ndetails hold the file `url` and `numFailures` (charts that failed to load).",
+                "summary": "Export document as PDF",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/promoteDiff": {
+            "get": {
+                "operationId": "GetDocumentPromotionDiff",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromotionChangesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview promoting a Document to its upstream project: the spaces, custom\nchart types and Document it would create or update.",
+                "summary": "Get Document promotion diff",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/promote": {
+            "post": {
+                "operationId": "PromoteDocument",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromoteDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Promote a Document to its upstream project.",
+                "summary": "Promote Document",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}": {

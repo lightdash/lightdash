@@ -77,7 +77,11 @@ const buildService = ({
             name: 'Agent',
             organizationUuid: ORGANIZATION_UUID,
             projectUuid: PROJECT_UUID,
+            adminOnly: false,
+            groupAccess: [],
+            userAccess: [],
         }),
+        getThread: vi.fn().mockResolvedValue({ user: approverUser }),
         setThreadSqlAutoApproved: vi.fn().mockResolvedValue(undefined),
         recordSqlApproval: vi.fn().mockResolvedValue(recorded),
         findSlackPrompt: vi.fn().mockResolvedValue({
@@ -107,6 +111,9 @@ const buildService = ({
         userModel,
         slackAuthenticationModel,
         schedulerClient,
+        featureFlagService: {
+            get: vi.fn().mockResolvedValue({ enabled: true }),
+        },
         lightdashConfig: {
             siteUrl: 'https://app.example.com',
             ai: { copilot: {} },
@@ -126,6 +133,7 @@ const buildService = ({
     }
 
     return {
+        service,
         handler,
         aiAgentModel,
         openIdIdentityModel,
@@ -157,6 +165,116 @@ const clickButton = async (
     });
     return { ack, respond };
 };
+
+describe('AiAgentService.decideSqlApproval for Slack queries', () => {
+    it.each(['web prompt', 'composer query'] as const)(
+        'does not enqueue another run for a blocking %s approval',
+        async (kind) => {
+            const { service, aiAgentModel, schedulerClient } = buildService({
+                approvalContext: {
+                    promptUuid: PROMPT_UUID,
+                    threadUuid: THREAD_UUID,
+                    agentUuid: AGENT_UUID,
+                    toolName:
+                        kind === 'composer query'
+                            ? 'runComposerQueries'
+                            : 'runSql',
+                    hasResult: false,
+                },
+            });
+            if (kind === 'web prompt') {
+                aiAgentModel.findSlackPrompt.mockResolvedValue(undefined);
+            }
+
+            await service.decideSqlApproval(approverUser, {
+                agentUuid: AGENT_UUID,
+                threadUuid: THREAD_UUID,
+                toolCallId: TOOL_CALL_ID,
+                decision: 'approved',
+            });
+
+            expect(schedulerClient.slackAiPrompt).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['approved', 'rejected'] as const)(
+        'resumes a Slack query once when it is %s from the web app',
+        async (decision) => {
+            const { service, aiAgentModel, schedulerClient } = buildService({});
+            aiAgentModel.recordSqlApproval
+                .mockResolvedValueOnce(true)
+                .mockResolvedValue(false);
+            const input = {
+                agentUuid: AGENT_UUID,
+                threadUuid: THREAD_UUID,
+                toolCallId: TOOL_CALL_ID,
+                decision,
+            };
+
+            await expect(
+                service.decideSqlApproval(approverUser, input),
+            ).resolves.toEqual({ decision });
+
+            expect(
+                schedulerClient.slackAiPrompt,
+            ).toHaveBeenCalledExactlyOnceWith({
+                slackPromptUuid: PROMPT_UUID,
+                userUuid: PROMPT_ISSUER_UUID,
+                projectUuid: PROJECT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+            });
+        },
+    );
+
+    it('retries resuming an unresolved Slack query after enqueueing fails', async () => {
+        const { service, aiAgentModel, schedulerClient } = buildService({});
+        aiAgentModel.recordSqlApproval
+            .mockResolvedValueOnce(true)
+            .mockResolvedValue(false);
+        schedulerClient.slackAiPrompt
+            .mockRejectedValueOnce(new Error('Queue unavailable'))
+            .mockResolvedValueOnce(undefined);
+        const input = {
+            agentUuid: AGENT_UUID,
+            threadUuid: THREAD_UUID,
+            toolCallId: TOOL_CALL_ID,
+            decision: 'approved' as const,
+        };
+
+        await expect(
+            service.decideSqlApproval(approverUser, input),
+        ).rejects.toThrow('Queue unavailable');
+        await expect(
+            service.decideSqlApproval(approverUser, input),
+        ).resolves.toEqual({ decision: 'approved' });
+
+        expect(schedulerClient.slackAiPrompt).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects duplicate decisions without enqueueing once the resume stored a result', async () => {
+        const { service, aiAgentModel, schedulerClient } = buildService({
+            approvalContext: {
+                promptUuid: PROMPT_UUID,
+                threadUuid: THREAD_UUID,
+                agentUuid: AGENT_UUID,
+                toolName: 'runSql',
+                hasResult: true,
+            },
+        });
+
+        await expect(
+            service.decideSqlApproval(approverUser, {
+                agentUuid: AGENT_UUID,
+                threadUuid: THREAD_UUID,
+                toolCallId: TOOL_CALL_ID,
+                decision: 'rejected',
+            }),
+        ).rejects.toThrow('has already been resolved');
+
+        expect(aiAgentModel.recordSqlApproval).not.toHaveBeenCalled();
+        expect(schedulerClient.slackAiPrompt).not.toHaveBeenCalled();
+    });
+});
 
 describe('AiAgentService.handleSqlApprovalButton', () => {
     it('records the decision against the resolved Lightdash user when they can manage SqlRunner', async () => {

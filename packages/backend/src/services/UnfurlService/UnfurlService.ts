@@ -27,6 +27,7 @@ import {
     QueryHistoryStatus,
     RequestMethod,
     resolveExportTabs,
+    SCREENSHOT_FAILED_STATUS,
     SCREENSHOT_SELECTORS,
     ScreenshotError,
     SessionStorageKeys,
@@ -226,6 +227,15 @@ const appViewport = {
 
 const APP_SCREENSHOT_MIN_HEIGHT = 600;
 
+// A4 less margins is 680px wide; at 0.85 scale the page lays out at the 800px
+// viewport, so charts print at the size they rendered.
+const DOCUMENT_PDF_MARGIN = '15mm';
+const DOCUMENT_PDF_SCALE = 0.85;
+const documentViewport = {
+    width: 800,
+    height: 1024,
+};
+
 // How long we wait for `MinimalApp` to mount the ready indicator.
 
 const bigNumberViewport = {
@@ -246,6 +256,7 @@ export enum ScreenshotContext {
     EXPORT_DASHBOARD = 'export_dashboard',
     EXPORT_CHART = 'export_chart',
     EXPORT_AI_ARTIFACT = 'export_ai_artifact',
+    EXPORT_DOCUMENT = 'export_document',
 }
 
 // Default values
@@ -308,8 +319,9 @@ export const expandViewportToDashboardGrid = async (
     page: Pick<Page, 'locator' | 'setViewportSize' | 'viewportSize'>,
     width: number,
     timeoutMs: number,
+    selector: string = SCREENSHOT_SELECTORS.DASHBOARD_GRID,
 ): Promise<number | undefined> => {
-    const grid = page.locator(SCREENSHOT_SELECTORS.DASHBOARD_GRID).first();
+    const grid = page.locator(selector).first();
     await grid.waitFor({ state: 'attached', timeout: timeoutMs });
     const box = await grid.boundingBox({ timeout: timeoutMs });
     if (!box) return undefined;
@@ -626,6 +638,11 @@ export class UnfurlService extends BaseService {
                 // exportAiAgentArtifact, not unfurls.
                 throw new ParameterError(
                     `AI artifact pages cannot be unfurled: ${parsedUrl.url}`,
+                );
+            case LightdashPage.DOCUMENT:
+                // Never produced by parseUrl; see exportDocumentPdf
+                throw new ParameterError(
+                    `Document pages cannot be unfurled: ${parsedUrl.url}`,
                 );
             case undefined:
                 throw new Error(`Unrecognized page for URL ${parsedUrl.url}`);
@@ -1322,6 +1339,80 @@ export class UnfurlService extends BaseService {
     }
 
     /**
+     * Prints a saved Document version to A4 PDF as the user, so their access and
+     * user attributes apply; charts that fail print an error and count in `numFailures`.
+     */
+    async exportDocumentPdf({
+        projectUuid,
+        documentUuid,
+        versionUuid,
+        documentName,
+        authUserUuid,
+        organizationUuid,
+        context,
+        contextId,
+    }: {
+        projectUuid: string;
+        documentUuid: string;
+        versionUuid: string;
+        documentName: string;
+        authUserUuid: string;
+        organizationUuid: string;
+        context: ScreenshotContext;
+        contextId?: unknown;
+    }): Promise<{
+        pdfFile: { source: string; fileName: string };
+        numFailures: number;
+    }> {
+        const minimalPage = new URL(
+            `/minimal/projects/${projectUuid}/documents/${documentUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        );
+        minimalPage.searchParams.set('versionUuid', versionUuid);
+
+        this.logger.info(`Exporting document to PDF`, {
+            userUuid: authUserUuid,
+            organizationUuid,
+            projectUuid,
+            documentUuid,
+            versionUuid,
+        });
+
+        const cookie = await this.getUserCookie(authUserUuid);
+        const imageId = `document-pdf_${snakeCaseName(documentName)}_${useNanoid()}`;
+        const result = await this.saveScreenshot({
+            authUserUuid,
+            imageId,
+            cookie,
+            url: minimalPage.href,
+            lightdashPage: LightdashPage.DOCUMENT,
+            organizationUuid,
+            resourceUuid: documentUuid,
+            resourceName: documentName,
+            context,
+            contextId,
+            selectedTabs: null,
+            outputFormat: 'pdf',
+            pdfPagination: 'a4',
+        });
+        if (!result?.pdfBuffer) {
+            throw new UnexpectedServerError('Unable to export document PDF');
+        }
+
+        const pdfFile = await this.uploadPdf(
+            imageId,
+            result.pdfBuffer,
+            documentName,
+        );
+        this.logger.info(`Document exported to PDF successfully`, {
+            userUuid: authUserUuid,
+            documentUuid,
+            versionUuid,
+        });
+        return { pdfFile, numFailures: result.erroredCount ?? 0 };
+    }
+
+    /**
      * Reads the always-mounted #lightdash-screenshot-progress element and
      * logs which tile UUIDs are still unaccounted for, so that on
      * #lightdash-ready-indicator timeouts we can identify the specific
@@ -1577,10 +1668,19 @@ export class UnfurlService extends BaseService {
         // 'crop' (default): single-page PDF clipped to content.
         // 'cssPaged': multi-page PDF, uniform page height, print page breaks
         // between EXPORT_TAB_PAGE_CLASS containers (one per tab).
-        pdfPagination?: 'crop' | 'cssPaged';
+        // 'a4': A4 portrait pages, content flowing across them.
+        pdfPagination?: 'crop' | 'cssPaged' | 'a4';
         signal?: AbortSignal;
         requireSuccessfulRender?: boolean;
-    }): Promise<{ imageBuffer?: Buffer; pdfBuffer?: Buffer } | undefined> {
+    }): Promise<
+        | {
+              imageBuffer?: Buffer;
+              pdfBuffer?: Buffer;
+              /** Charts that rendered an error instead of their data. */
+              erroredCount?: number;
+          }
+        | undefined
+    > {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
                 sqlChartTileUuids,
@@ -1648,6 +1748,8 @@ export class UnfurlService extends BaseService {
                             width: aiArtifactViewport.width,
                             height: aiArtifactViewport.height,
                         };
+                    } else if (lightdashPage === LightdashPage.DOCUMENT) {
+                        initialViewport = documentViewport;
                     } else {
                         initialViewport = {
                             ...viewport,
@@ -2180,13 +2282,19 @@ export class UnfurlService extends BaseService {
                             APP_ANIMATION_BUFFER_MS,
                         );
                     } else {
-                        if (lightdashPage === LightdashPage.DASHBOARD) {
+                        if (
+                            lightdashPage === LightdashPage.DASHBOARD ||
+                            lightdashPage === LightdashPage.DOCUMENT
+                        ) {
                             try {
                                 const expandedHeight =
                                     await expandViewportToDashboardGrid(
                                         page,
-                                        gridWidth ?? viewport.width,
+                                        initialViewport.width,
                                         this.screenshotTimeoutMs,
+                                        lightdashPage === LightdashPage.DOCUMENT
+                                            ? SCREENSHOT_SELECTORS.DOCUMENT_EXPORT
+                                            : SCREENSHOT_SELECTORS.DASHBOARD_GRID,
                                     );
                                 if (expandedHeight) {
                                     this.logger.info(
@@ -2246,6 +2354,26 @@ export class UnfurlService extends BaseService {
                     ) {
                         throw new UnexpectedServerError(
                             'Artifact visualization did not render successfully',
+                        );
+                    }
+                    let erroredCount: number | undefined;
+                    if (lightdashPage === LightdashPage.DOCUMENT) {
+                        const indicator = page.locator(
+                            SCREENSHOT_SELECTORS.READY_INDICATOR,
+                        );
+                        // Never deliver a Document's load error as its PDF
+                        if (
+                            (await indicator.getAttribute('data-status')) ===
+                            SCREENSHOT_FAILED_STATUS
+                        ) {
+                            throw new UnexpectedServerError(
+                                'The document could not be loaded for export',
+                            );
+                        }
+                        erroredCount = Number(
+                            (await indicator.getAttribute(
+                                'data-tiles-errored',
+                            )) ?? 0,
                         );
                     }
                     signal?.throwIfAborted();
@@ -2412,11 +2540,16 @@ export class UnfurlService extends BaseService {
                         if ((await page.locator(finalSelector).count()) === 0) {
                             finalSelector = '.react-grid-layout';
                         }
+                    } else if (lightdashPage === LightdashPage.DOCUMENT) {
+                        finalSelector = SCREENSHOT_SELECTORS.DOCUMENT_EXPORT;
                     }
 
-                    // AI artifacts keep their fixed frame: no content
-                    // measurement, no viewport resize.
-                    if (lightdashPage !== LightdashPage.AI_ARTIFACT) {
+                    // AI artifacts keep their fixed frame; Documents print
+                    // to pages, so their viewport height doesn't matter.
+                    if (
+                        lightdashPage !== LightdashPage.AI_ARTIFACT &&
+                        lightdashPage !== LightdashPage.DOCUMENT
+                    ) {
                         const fullPage = await page.locator(finalSelector);
                         const fullPageSize = await fullPage?.boundingBox({
                             timeout: this.screenshotTimeoutMs,
@@ -2439,6 +2572,24 @@ export class UnfurlService extends BaseService {
 
                     // Helper: generate PDF from the current page state
                     const generatePdf = async () => {
+                        if (pdfPagination === 'a4') {
+                            const pdfBytes = await page!.pdf({
+                                format: 'A4',
+                                scale: DOCUMENT_PDF_SCALE,
+                                printBackground: true,
+                                displayHeaderFooter: true,
+                                headerTemplate: '<span></span>',
+                                footerTemplate:
+                                    '<div style="width:100%;padding:0 15mm;font-size:8px;color:#868e96;text-align:right;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>',
+                                margin: {
+                                    top: DOCUMENT_PDF_MARGIN,
+                                    right: DOCUMENT_PDF_MARGIN,
+                                    bottom: DOCUMENT_PDF_MARGIN,
+                                    left: DOCUMENT_PDF_MARGIN,
+                                },
+                            });
+                            return Buffer.from(pdfBytes);
+                        }
                         const pdfWidth = gridWidth ?? viewport.width;
                         // One native multi-page PDF. Uniform page height =
                         // tallest tab container; print CSS breaks each tab onto
@@ -2554,7 +2705,7 @@ export class UnfurlService extends BaseService {
                             });
                         }
                         const pdfBuffer = await generatePdf();
-                        return { pdfBuffer };
+                        return { pdfBuffer, erroredCount };
                     }
 
                     // Take screenshot

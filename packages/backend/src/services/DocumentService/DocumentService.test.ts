@@ -7,6 +7,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     parseDocumentContent,
+    SCHEDULER_TASKS,
     SpaceMemberRole,
     type Document,
     type MemberAbility,
@@ -137,6 +138,9 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     const analyticsModel = {
         addDocumentViewEvent: vi.fn().mockResolvedValue(undefined),
     };
+    const schedulerClient = {
+        scheduleTask: vi.fn().mockResolvedValue({ jobId: 'export-job' }),
+    };
     const service = new DocumentService({
         analytics,
         analyticsModel,
@@ -146,10 +150,12 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
         spaceModel,
         projectModel,
         featureFlagModel,
+        schedulerClient,
         spacePermissionService,
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     return {
         service,
+        schedulerClient,
         analytics,
         analyticsModel,
         spaceModel,
@@ -169,6 +175,52 @@ const historicalVersion: Document['version'] = {
     createdByUserUuid: null,
     createdAt: new Date('2026-09-01'),
 };
+
+describe('DocumentService PDF export', () => {
+    test('queues the current version, rendered as the requesting user', async () => {
+        const { service, schedulerClient, analyticsModel } = setup();
+        await expect(
+            service.scheduleExportPdf(makeAccount(), projectUuid, documentUuid),
+        ).resolves.toEqual({ jobId: 'export-job' });
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledExactlyOnceWith(
+            SCHEDULER_TASKS.EXPORT_DOCUMENT_PDF,
+            {
+                organizationUuid,
+                projectUuid,
+                userUuid,
+                documentUuid,
+                versionUuid: document.version.versionUuid,
+                documentName: document.name,
+            },
+        );
+        // Exporting is not a person opening the Document
+        expect(analyticsModel.addDocumentViewEvent).not.toHaveBeenCalled();
+    });
+
+    test('refuses a Document the user cannot view, without queueing', async () => {
+        const { service, schedulerClient, spacePermissionService } = setup();
+        spacePermissionService.resolveAccess.mockResolvedValue(
+            makeContext([], false),
+        );
+        await expect(
+            service.scheduleExportPdf(
+                makeAccount(OrganizationMemberRole.MEMBER),
+                projectUuid,
+                documentUuid,
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(schedulerClient.scheduleTask).not.toHaveBeenCalled();
+    });
+
+    test('refuses when Documents are disabled, without queueing', async () => {
+        const { service, schedulerClient, featureFlagModel } = setup();
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await expect(
+            service.scheduleExportPdf(makeAccount(), projectUuid, documentUuid),
+        ).rejects.toThrow(ForbiddenError);
+        expect(schedulerClient.scheduleTask).not.toHaveBeenCalled();
+    });
+});
 
 describe('DocumentService views', () => {
     test('opening a Document counts the view and tracks it once', async () => {

@@ -9,12 +9,18 @@ import {
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
     getDataAppVizChartConfigErrors,
+    getLtreePathFromContentAsCodePath,
     NotFoundError,
     ParameterError,
+    parseDocumentAsCode,
     parseDocumentContent,
+    PromotionAction,
+    SCHEDULER_TASKS,
+    type ContentAsCodeUpsertAction,
     type CreateDocumentRequest,
     type Document,
     type DocumentAsCode,
+    type DocumentAsCodeList,
     type DocumentCell,
     type DocumentChartContent,
     type DocumentContent,
@@ -48,6 +54,7 @@ import type {
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
+import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { resolveDataAppVizBinding } from '../CoderService/dataAppVizBinding';
 import { normalizeFilterIds } from '../CoderService/filterIds';
@@ -79,6 +86,7 @@ type DocumentServiceArguments = {
     directAccessService: DirectAccessService;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
+    schedulerClient: Pick<SchedulerClient, 'scheduleTask'>;
     spaceModel: SpaceModel;
     spacePermissionService: SpacePermissionService;
     projectService: ProjectService;
@@ -86,6 +94,8 @@ type DocumentServiceArguments = {
 
 const MAX_CONCURRENT_CHART_VALIDATIONS = 4;
 const MAX_CONCURRENT_PROJECT_ACCESS_CHECKS = 4;
+const MAX_CONCURRENT_AS_CODE_READS = 4;
+const DOCUMENT_AS_CODE_PAGE_SIZE = 50;
 
 export class DocumentService extends BaseService {
     constructor(private readonly dependencies: DocumentServiceArguments) {
@@ -1065,6 +1075,30 @@ export class DocumentService extends BaseService {
         return document;
     }
 
+    /** Queues a PDF of the Document's current version, rendered as this user. */
+    async scheduleExportPdf(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+    ): Promise<{ jobId: string }> {
+        const document = await this.getByIdOrSlug(
+            account,
+            projectUuid,
+            documentUuidOrSlug,
+        );
+        return this.dependencies.schedulerClient.scheduleTask(
+            SCHEDULER_TASKS.EXPORT_DOCUMENT_PDF,
+            {
+                organizationUuid: document.organizationUuid,
+                projectUuid: document.projectUuid,
+                userUuid: account.user.userUuid,
+                documentUuid: document.documentUuid,
+                versionUuid: document.version.versionUuid,
+                documentName: document.name,
+            },
+        );
+    }
+
     /** Version history, newest first; readable by anyone who can view the Document. */
     async listVersions(
         account: RegisteredAccount,
@@ -1162,13 +1196,239 @@ export class DocumentService extends BaseService {
         projectUuid: UUID,
         documentUuidOrSlug: UuidOrSlug,
     ): Promise<DocumentAsCode> {
-        const document = await this.getByIdOrSlug(
-            account,
-            projectUuid,
-            documentUuidOrSlug,
+        return this.toAsCode(
+            await this.getByIdOrSlug(account, projectUuid, documentUuidOrSlug),
         );
-        const [space] = await this.dependencies.spaceModel.find({
+    }
+
+    /**
+     * Viewable Documents as code, a page at a time; requested slugs are
+     * returned in one page, with the ones not found or not viewable listed.
+     */
+    async listAsCode(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        { slugs, offset = 0 }: { slugs?: string[]; offset?: number } = {},
+    ): Promise<DocumentAsCodeList> {
+        await this.assertContentAsCodeAccess(account, projectUuid, 'view');
+        const limit = pLimit(MAX_CONCURRENT_AS_CODE_READS);
+        if (slugs !== undefined && slugs.length > 0) {
+            const found = await Promise.all(
+                [...new Set(slugs)].map((slug) =>
+                    limit(async () => {
+                        try {
+                            return await this.getAsCode(
+                                account,
+                                projectUuid,
+                                slug,
+                            );
+                        } catch (error) {
+                            if (error instanceof NotFoundError) {
+                                return slug;
+                            }
+                            throw error;
+                        }
+                    }),
+                ),
+            );
+            return {
+                documents: found.filter(
+                    (item): item is DocumentAsCode => typeof item !== 'string',
+                ),
+                missingSlugs: found.filter(
+                    (item): item is string => typeof item === 'string',
+                ),
+                nextOffset: null,
+            };
+        }
+        const page = await this.list(account, projectUuid, {
+            limit: DOCUMENT_AS_CODE_PAGE_SIZE,
+            offset,
+        });
+        return {
+            documents: await Promise.all(
+                page.items.map(({ documentUuid }) =>
+                    limit(async () =>
+                        this.toAsCode(
+                            await this.dependencies.documentModel.get(
+                                projectUuid,
+                                documentUuid,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            missingSlugs: [],
+            nextOffset: page.nextOffset,
+        };
+    }
+
+    /**
+     * Create or update a Document from code, matched by slug. Unchanged
+     * Documents are left alone; a changed one gets a new version based on the
+     * version just read, so a concurrent edit fails with a conflict instead
+     * of being overwritten.
+     */
+    async upsertAsCode(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        slug: string,
+        input: unknown,
+    ): Promise<ContentAsCodeUpsertAction> {
+        const desired = parseDocumentAsCode(input);
+        if (desired.slug !== slug) {
+            throw new ParameterError('Document path and body slugs must match');
+        }
+        DocumentService.validateMetadata(desired);
+        await this.assertContentAsCodeAccess(account, projectUuid, 'create');
+        const space = await this.findSpaceByAsCodeSlug(
             projectUuid,
+            desired.spaceSlug,
+        );
+        const existing = await this.findBySlug(account, projectUuid, slug);
+        if (existing === undefined) {
+            await this.create(account, projectUuid, {
+                name: desired.name,
+                slug,
+                description: desired.description,
+                spaceUuid: space.uuid,
+                schemaVersion: desired.schemaVersion,
+                content: desired.content,
+            });
+            return PromotionAction.CREATE;
+        }
+
+        const current = await this.toAsCode(existing);
+        if (isEqual(current, desired)) {
+            return PromotionAction.NO_CHANGES;
+        }
+        await this.assertCanUpdate(account, existing);
+        const isMove = space.uuid !== existing.spaceUuid;
+        // Checked before any write so a denied move can't leave a partial update.
+        if (isMove) {
+            await this.assertCanMoveInto(account, existing, space.uuid);
+        }
+        if (!isEqual(current.content, desired.content)) {
+            await this.updateContent(
+                account,
+                projectUuid,
+                existing.documentUuid,
+                {
+                    baseVersionUuid: existing.version.versionUuid,
+                    content: desired.content,
+                },
+            );
+        }
+        if (
+            current.name !== desired.name ||
+            current.description !== desired.description
+        ) {
+            await this.updateMetadata(
+                account,
+                projectUuid,
+                existing.documentUuid,
+                {
+                    name: desired.name,
+                    description: desired.description,
+                },
+            );
+        }
+        if (isMove) {
+            await this.moveToSpace(account, {
+                projectUuid,
+                itemUuid: existing.documentUuid,
+                targetSpaceUuid: space.uuid,
+            });
+        }
+        return PromotionAction.UPDATE;
+    }
+
+    private async assertContentAsCodeAccess(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        action: 'view' | 'create',
+    ): Promise<void> {
+        const project = await this.assertProjectAccess(account, projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                action,
+                subject('ContentAsCode', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                action === 'view'
+                    ? 'You are not allowed to download Documents as code'
+                    : 'You are not allowed to upload Documents as code',
+            );
+        }
+    }
+
+    private async assertCanMoveInto(
+        account: RegisteredAccount,
+        document: Document,
+        targetSpaceUuid: UUID,
+    ): Promise<void> {
+        const context =
+            await this.dependencies.spacePermissionService.resolveAccess(
+                account.user.userUuid,
+                { type: 'space', spaceUuid: targetSpaceUuid },
+            );
+        if (
+            context.projectUuid !== document.projectUuid ||
+            this.createAuditedAbility(account).cannot(
+                'create',
+                subject('Document', context),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to move this Document into that Space',
+            );
+        }
+    }
+
+    private async findSpaceByAsCodeSlug(projectUuid: UUID, spaceSlug: string) {
+        const spaces = await this.dependencies.spaceModel.find({
+            projectUuid,
+            path: getLtreePathFromContentAsCodePath(spaceSlug),
+        });
+        if (spaces.length > 1) {
+            throw new ParameterError(
+                `Space "${spaceSlug}" matches more than one space`,
+            );
+        }
+        const [space] = spaces;
+        if (space === undefined) {
+            throw new NotFoundError(
+                `Space "${spaceSlug}" not found. Upload the space before its Documents`,
+            );
+        }
+        return space;
+    }
+
+    private async findBySlug(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        slug: string,
+    ): Promise<Document | undefined> {
+        try {
+            return await this.getBySlug(account, projectUuid, slug);
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                return undefined;
+            }
+            throw error;
+        }
+    }
+
+    private async toAsCode(document: Document): Promise<DocumentAsCode> {
+        const [space] = await this.dependencies.spaceModel.find({
+            projectUuid: document.projectUuid,
             spaceUuids: [document.spaceUuid],
         });
         if (!space) {
@@ -1181,7 +1441,7 @@ export class DocumentService extends BaseService {
             spaceSlug: getContentAsCodePathFromLtreePath(space.path),
             schemaVersion: document.version.schemaVersion,
             content: await this.withDataAppVizSlugs(
-                projectUuid,
+                document.projectUuid,
                 document.version.content,
                 { portable: true },
             ),

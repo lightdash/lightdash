@@ -660,6 +660,37 @@ describe('MCP Document runtime', () => {
         expect(documentService.create).not.toHaveBeenCalled();
     });
 
+    test('create resolves a Space by the name the user gave', async () => {
+        const { runtime, spaceModel, documentService } = setup([spaceUuid]);
+        spaceModel.find.mockResolvedValueOnce([]);
+        await runtime.createDocumentContent({
+            ...content,
+            spaceSlug: ' reports ',
+        });
+        spaceModel.find.mockResolvedValueOnce([]);
+        await runtime.createDocumentContent({
+            ...content,
+            spaceSlug: 'Reports',
+        });
+        expect(documentService.create).toHaveBeenCalledTimes(2);
+        expect(documentService.create.mock.calls[1][2]).toMatchObject({
+            spaceUuid,
+        });
+    });
+
+    test('create lists accessible Spaces instead of guessing on a miss', async () => {
+        const { runtime, documentService } = setup([spaceUuid]);
+        await expect(
+            runtime.createDocumentContent({
+                ...content,
+                spaceSlug: 'Quarterly Reports',
+            }),
+        ).rejects.toThrow(
+            'Space "Quarterly Reports" was not found. Closest Spaces; confirm one with the user before using it:\n- Reports (spaceSlug: reports)',
+        );
+        expect(documentService.create).not.toHaveBeenCalled();
+    });
+
     test('content edits forward ID-free content, version and Space scope', async () => {
         const { runtime, documentService } = setup([spaceUuid]);
         const replacement = {
