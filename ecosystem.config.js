@@ -19,6 +19,7 @@
  *   - <instanceId>-scheduler: Background job processor (default port 8081)
  *   - <instanceId>-frontend: Vite dev server (default port 3000)
  *   - <instanceId>-common-watch: TypeScript watcher for common package
+ *   - <instanceId>-visualization-watch: TypeScript watcher for the visualization package
  *   - <instanceId>-warehouses-watch: TypeScript watcher for warehouses package
  *   - <instanceId>-maple: Maple local-mode tracing server (default port 4320)
  *
@@ -231,6 +232,22 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput --incremental tsconfig.build.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/common'),
+            env: watcherEnv,
+            watch: false,
+            autorestart: false,
+            ...watcherMemoryCapConfig,
+            kill_timeout: 3000,
+            merge_logs: true,
+            time: true,
+        },
+
+        // Visualization Package TypeScript Watcher
+        {
+            name: `${instanceId}-visualization-watch`,
+            script: '../../node_modules/.bin/tsc',
+            args: '--build --watch --preserveWatchOutput --incremental tsconfig.build.json',
+            interpreter: 'none',
+            cwd: path.join(__dirname, 'packages/visualization'),
             env: watcherEnv,
             watch: false,
             autorestart: false,

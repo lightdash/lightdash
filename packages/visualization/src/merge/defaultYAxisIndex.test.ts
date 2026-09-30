@@ -5,7 +5,7 @@ import {
     type ItemsMap,
     type MergeFieldOrigins,
 } from '@lightdash/common';
-import { getMergeDefaultYAxisIndexByField } from './getMergeDefaultYAxisIndex';
+import { getMergeDefaultYAxisIndexByField } from './defaultYAxisIndex';
 
 const metric = (
     name: string,

@@ -1,30 +1,18 @@
-import { px, useMantineTheme } from '@mantine/core';
+import {
+    getLegendDoubleClickTooltip,
+    LEGEND_INTERACTION_HINT,
+    type LegendDoubleClickTooltip,
+} from '@lightdash/visualization';
+import { useMemo } from 'react';
+import { useVisualizationTheme } from '../useVisualizationTheme';
 
-export const LEGEND_INTERACTION_HINT =
-    'Click to toggle visibility. Double click to isolate';
+export { LEGEND_INTERACTION_HINT, type LegendDoubleClickTooltip };
 
 export const useLegendDoubleClickTooltip = () => {
-    const theme = useMantineTheme();
+    const theme = useVisualizationTheme();
 
-    return {
-        tooltip: {
-            show: true,
-            backgroundColor: theme.colors.background[0],
-            borderColor: theme.colors.ldGray[3],
-            borderWidth: 0,
-            borderRadius: 4,
-            textStyle: {
-                color: theme.colors.ldGray[7],
-                fontSize: 12,
-                fontWeight: 400,
-            },
-            padding: [4, Number(px(theme.spacing.xs))],
-            extraCssText: `box-shadow: ${theme.shadows.subtle};`,
-            formatter: () => LEGEND_INTERACTION_HINT,
-        },
-    };
+    return useMemo(
+        () => ({ tooltip: getLegendDoubleClickTooltip(theme) }),
+        [theme],
+    );
 };
-
-export type LegendDoubleClickTooltip = ReturnType<
-    typeof useLegendDoubleClickTooltip
->['tooltip'];

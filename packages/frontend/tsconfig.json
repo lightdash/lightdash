@@ -34,6 +34,9 @@
             "path": "../formula"
         },
         {
+            "path": "../visualization/tsconfig.types.json"
+        },
+        {
             "path": "./tsconfig.node.json"
         }
     ]

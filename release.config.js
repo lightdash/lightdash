@@ -103,6 +103,7 @@ module.exports = {
                     'packages/backend/package.json',
                     'packages/cli/package.json',
                     'packages/common/package.json',
+                    'packages/visualization/package.json',
                     'packages/e2e/package.json',
                     'packages/frontend/package.json',
                     'packages/warehouses/package.json',

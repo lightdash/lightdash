@@ -8,7 +8,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
-import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
+import { getCartesianConditionalFormattingColor } from './conditionalFormatting';
 
 const itemsMap: ItemsMap = {
     metric_value: {

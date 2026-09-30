@@ -1,0 +1,27 @@
+{
+    "extends": "./../../tsconfig.json",
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "es2020",
+        "lib": ["ESNext", "DOM"],
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "outDir": "dist/types",
+        "rootDir": "src",
+        "composite": true,
+        "tsBuildInfoFile": "dist/types/.tsbuildinfo",
+        "importHelpers": true,
+        "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "types": ["node", "vitest/globals"]
+    },
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../common/tsconfig.types.json"
+        }
+    ]
+}

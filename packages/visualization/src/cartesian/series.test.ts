@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { moveSeriesGroup, type SeriesGroup } from './utils';
+import { moveSeriesGroup, type SeriesGroup } from './series';
 
 const group = (name: string): SeriesGroup =>
     ({ index: 0, value: [{ name }] }) as unknown as SeriesGroup;

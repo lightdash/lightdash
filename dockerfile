@@ -209,6 +209,7 @@ COPY tsconfig.json .
 COPY .oxlintrc.base.json .
 COPY .pnpmfile.cjs .
 COPY packages/common/package.json ./packages/common/
+COPY packages/visualization/package.json ./packages/visualization/
 COPY packages/formula/package.json ./packages/formula/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
@@ -240,6 +241,15 @@ COPY packages/common/src/ ./packages/common/src/
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     turbo build --filter=@lightdash/common
+
+# Build visualization package
+FROM prod-builder AS build-visualization
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY packages/visualization/tsconfig*.json ./packages/visualization/
+COPY packages/visualization/src/ ./packages/visualization/src/
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
+    turbo build --filter=@lightdash/visualization
 
 # Build formula package
 FROM prod-builder AS build-formula
@@ -294,6 +304,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # Build frontend package
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-visualization /usr/app/packages/visualization/ ./packages/visualization/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY packages/frontend ./packages/frontend
 
@@ -331,6 +342,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 FROM prod-builder AS build-final
 COPY release-safety.json ./release-safety.json
 COPY --from=build-common /usr/app/packages/common/dist/ ./packages/common/dist/
+COPY --from=build-visualization /usr/app/packages/visualization/dist/ ./packages/visualization/dist/
 COPY --from=build-formula /usr/app/packages/formula/dist/ ./packages/formula/dist/
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/warehouses/dist/
 COPY --from=build-backend /usr/app/packages/backend/dist/ ./packages/backend/dist/

@@ -12,11 +12,12 @@ import {
     type MergeFieldOrigins,
     type MetricQuery,
     type ParametersValuesMap,
-    type PivotValue,
     type Series,
     type StackType,
     type TableCalculationMetadata,
 } from '@lightdash/common';
+import { createSeriesColorResolver } from '@lightdash/visualization';
+import { useMantineTheme } from '@mantine/core';
 import type { Map as LeafletMap } from 'leaflet';
 import isEqual from 'lodash/isEqual';
 import {
@@ -30,14 +31,7 @@ import {
 } from 'react';
 import { resolveMergeColumnOrder } from '../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
-import { useChartColorConfig } from '../../hooks/useChartColorConfig/useChartColorConfig';
-import {
-    calculateFallbackSeriesColors,
-    calculateSeriesLikeIdentifier,
-    getDimensionValueColor,
-    isGroupedSeries,
-} from '../../hooks/useChartColorConfig/utils';
+import { useChartColorMappings } from '../../hooks/useChartColorConfig/useChartColorConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -180,8 +174,8 @@ const VisualizationProvider: FC<
         [onChartTypeChange],
     );
 
-    const { calculateKeyColorAssignment, calculateSeriesColorAssignment } =
-        useChartColorConfig({ colorPalette });
+    const { colorMappings } = useChartColorMappings();
+    const theme = useMantineTheme();
 
     // cartesian config related
     const [stacking, setStacking] = useState<boolean | StackType>();
@@ -207,26 +201,6 @@ const VisualizationProvider: FC<
         return columnOrder.length > 0 ? columnOrder : metricQueryFields;
     }, [resultsData?.metricQuery, columnOrder]);
 
-    /**
-     * Build a local set of fallback colors, used when dealing with ungrouped series.
-     *
-     * On dashboards, these must be passed in computedSeries prop
-     * On charts, these are computed from the chartConfig
-     * Colors are pre-calculated per-series, and re-calculated when series change.
-     */
-    const fallbackColors = useMemo<Record<string, string>>(() => {
-        if (!chartConfig?.config || chartConfig.type !== ChartType.CARTESIAN) {
-            return {};
-        }
-
-        const allSeries =
-            computedSeries && computedSeries.length > 0
-                ? computedSeries
-                : chartConfig.config.eChartsConfig.series;
-
-        return calculateFallbackSeriesColors(allSeries ?? [], colorPalette);
-    }, [chartConfig, colorPalette, computedSeries]);
-
     const handleChartConfigChange = useCallback(
         (newChartConfig: ChartConfig) => {
             if (!onChartConfigChange) return;
@@ -242,26 +216,6 @@ const VisualizationProvider: FC<
         setLastValidResultsData(resultsData);
     }, [resultsData]);
 
-    /**
-     * Gets a shared color for a given group name.
-     * Used in pie charts
-     */
-    const getGroupColor = useCallback(
-        (groupPrefix: string, identifier: string) => {
-            if (itemsMap) {
-                const fixedColor = getDimensionValueColor(
-                    itemsMap,
-                    groupPrefix,
-                    identifier,
-                );
-                if (fixedColor) return fixedColor;
-            }
-
-            return calculateKeyColorAssignment(groupPrefix, identifier);
-        },
-        [calculateKeyColorAssignment, itemsMap],
-    );
-
     const { data: calculateSeriesColorFlag } = useServerFeatureFlag(
         FeatureFlags.CalculateSeriesColor,
     );
@@ -269,57 +223,31 @@ const VisualizationProvider: FC<
         calculateSeriesColorFlag?.enabled ?? false;
 
     /**
-     * Gets a shared color for a given series.
+     * Shared colors for series and group values, resolved by
+     * `@lightdash/visualization`. On dashboards the fallback colors must be
+     * passed in the computedSeries prop; on charts they are computed from the
+     * chartConfig. Colors are pre-calculated per-series, and re-calculated
+     * when series change.
      */
-    const getSeriesColor = useCallback(
-        (seriesLike: SeriesLike) => {
-            if (seriesLike.color) return seriesLike.color;
-
-            // Check if color is stored in metadata
-            const serieId = calculateSeriesLikeIdentifier(seriesLike).join('.');
-            const metadata =
-                chartConfig.type === ChartType.CARTESIAN
-                    ? chartConfig.config?.metadata
-                    : undefined;
-            if (metadata && metadata?.[serieId]?.color) {
-                return metadata?.[serieId].color;
-            }
-
-            /** Check if color is set in the dimension metadata */
-
-            let pivot: PivotValue | undefined;
-            if ('pivotReference' in seriesLike && seriesLike.pivotReference) {
-                pivot = seriesLike.pivotReference.pivotValues?.[0];
-            } else if (seriesLike.encode && 'yRef' in seriesLike.encode) {
-                pivot = seriesLike.encode.yRef?.pivotValues?.[0];
-            }
-            if (itemsMap && pivot) {
-                const { field, value } = pivot;
-                const fixedColor = getDimensionValueColor(
-                    itemsMap,
-                    field,
-                    value,
-                );
-                if (fixedColor) return fixedColor;
-            }
-
-            /**
-             * If this series is grouped, figure out a shared color assignment from the series;
-             * otherwise, pick a series color from the palette based on its order.
-             */
-            return isGroupedSeries(seriesLike) && isCalculateSeriesColorEnabled
-                ? calculateSeriesColorAssignment(seriesLike)
-                : fallbackColors[
-                      // Note: we don't use getSeriesId since we may not be dealing with a Series type here
-                      calculateSeriesLikeIdentifier(seriesLike).join('|')
-                  ];
-        },
-
+    const nullColor = theme.colors.ldGray[6];
+    const { getSeriesColor, getGroupColor } = useMemo(
+        () =>
+            createSeriesColorResolver({
+                colorPalette,
+                colorMappings,
+                nullColor,
+                chartConfig,
+                itemsMap,
+                computedSeries,
+                calculateSeriesColor: isCalculateSeriesColorEnabled,
+            }),
         [
-            calculateSeriesColorAssignment,
-            fallbackColors,
+            colorPalette,
+            colorMappings,
+            nullColor,
             chartConfig,
             itemsMap,
+            computedSeries,
             isCalculateSeriesColorEnabled,
         ],
     );

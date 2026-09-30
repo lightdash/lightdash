@@ -20,10 +20,11 @@ import {
 import dayjs from 'dayjs';
 import timezonePlugin from 'dayjs/plugin/timezone';
 import utcPlugin from 'dayjs/plugin/utc';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import {
     applyConditionalFormattingToStackedSeries,
     applyLegendPlacementToGrid,
+    composeLegendConfig,
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
@@ -35,27 +36,24 @@ import {
     getLongestLabelsForAxis,
     getMinAndMaxValues,
     getNiceTickBound,
+    getOutsideLegendLabelWidth,
     getPinnedDayTickFormatter,
     getStackTotalSeries,
     getTimeAxisPinnedTickValues,
-    composeLegendConfig,
-    getOutsideLegendLabelWidth,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
     relocateMarkLinesToVisibleSeries,
     resolveCartesianGranularityLabels,
     selectContinuousDateRange,
     transformStack100ByValueAxis,
-} from './useEchartsCartesianConfig';
+} from './echartsOption';
 import {
     LEGEND_INTERACTION_HINT,
     type LegendDoubleClickTooltip,
-} from './useLegendDoubleClickTooltip';
+} from './legendTooltip';
 
 dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
-
-vi.mock('./../../providers/TrackingProvider');
 
 describe('getCartesianLabelLayout', () => {
     const rect = (width: number, height: number) => ({

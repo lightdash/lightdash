@@ -32,6 +32,7 @@
         "@dnd-kit/utilities": "3.2.2",
         "@hello-pangea/dnd": "16.5.0",
         "@lightdash/common": "workspace:*",
+        "@lightdash/visualization": "workspace:*",
         "@lightdash/formula": "workspace:*",
         "@mantine/code-highlight": "9.6.0",
         "@mantine/core": "9.6.0",
