@@ -83,6 +83,7 @@ import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin
 import { McpActivitySettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpActivitySettingsPage';
 import { McpConnectSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpConnectSettingsPage';
 import { McpGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpGeneralSettingsPage';
+import { AiCreditsSettingsPage } from '../ee/features/aiCredits/AiCreditsSettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
@@ -183,6 +184,8 @@ const Settings: FC = () => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
+        canAccessAiCredits,
+        isAiCreditsLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
@@ -423,6 +426,12 @@ const Settings: FC = () => {
                         activeProjectUuid={project?.projectUuid}
                     />
                 ),
+            });
+        }
+        if (canAccessAiCredits) {
+            allowedRoutes.push({
+                path: '/aiCredits',
+                element: <AiCreditsSettingsPage />,
             });
         }
         if (isProLimitsEnabled && user?.ability.can('manage', 'Organization')) {
@@ -848,6 +857,7 @@ const Settings: FC = () => {
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        canAccessAiCredits,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isAiCopilotEnabledOrTrial,
@@ -998,6 +1008,10 @@ const Settings: FC = () => {
             matchPath('/generalSettings/lightdashAnalytics', location.pathname),
         );
 
+    const isAwaitingAiCreditsRoute =
+        isAiCreditsLoading &&
+        Boolean(matchPath('/generalSettings/aiCredits', location.pathname));
+
     if (
         isHealthLoading ||
         isUserLoading ||
@@ -1007,7 +1021,8 @@ const Settings: FC = () => {
         isProjectSettingsAccessLoading ||
         isAwaitingAiSettingsRoute ||
         isAwaitingDataAppsRoute ||
-        isAwaitingAnalyticsRoute
+        isAwaitingAnalyticsRoute ||
+        isAwaitingAiCreditsRoute
     ) {
         return <PageSpinner />;
     }

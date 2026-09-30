@@ -1,4 +1,5 @@
 import {
+    AI_USAGE_CHANNELS,
     assertUnreachable,
     type AiDeepResearchPhase,
     type AiThreadCreatedFrom,
@@ -73,16 +74,7 @@ const aiKeyManagementSchema = z.enum(['lightdash-managed', 'self-managed']);
  */
 export type AiKeyManagement = z.infer<typeof aiKeyManagementSchema>;
 
-const aiUsageChannelSchema = z.enum([
-    'web',
-    'slack',
-    'embed',
-    'api',
-    'mcp',
-    'evals',
-    'scheduler',
-    'data_app',
-]);
+const aiUsageChannelSchema = z.enum(AI_USAGE_CHANNELS);
 
 /**
  * Where the call's thread was created, never the request that continues it.

@@ -69,6 +69,9 @@ export type SettingsContext = {
     canAccessAnalyticsSettings: boolean;
     isAnalyticsProjectFlagLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
+    // Org admin, ai-credits flag on, and a contract in force.
+    canAccessAiCredits: boolean;
+    isAiCreditsLoading: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
     isEmailWhitelabelEnabled: boolean;
     isScimTokenManagementEnabled: FeatureFlag | undefined;
