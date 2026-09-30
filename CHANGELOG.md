@@ -1,3 +1,10 @@
+# [2.385.0](https://github.com/lightdash/lightdash/compare/2.384.0...2.385.0) (2026-09-30)
+
+
+### Features
+
+* **documents:** count Document views like charts and dashboards ([#30235](https://github.com/lightdash/lightdash/issues/30235)) ([29c5fc2](https://github.com/lightdash/lightdash/commit/29c5fc290470b2cade350f7e732c7b7d76f1af79)), closes [#30234](https://github.com/lightdash/lightdash/issues/30234)
+
 # [2.384.0](https://github.com/lightdash/lightdash/compare/2.383.2...2.384.0) (2026-09-30)
 
 
