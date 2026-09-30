@@ -92,7 +92,6 @@ import {
     type TooltipComponentOption,
 } from 'echarts';
 import groupBy from 'lodash/groupBy';
-import maxBy from 'lodash/maxBy';
 import toNumber from 'lodash/toNumber';
 import uniq from 'lodash/uniq';
 import { type SeriesLike } from '../colors/series';
@@ -1516,13 +1515,24 @@ export const getEchartsSeriesFromPivotedData = (
 // callers with no DOM to measure in.
 const HEADLESS_LABEL_CHAR_WIDTH = 7;
 
-const calculateWidthText = (text: string | undefined): number => {
-    if (!text) return 0;
+// One 2D context for every measurement; null once we know the DOM has no
+// canvas (jsdom), which falls back to measuring a span.
+let measureContext: CanvasRenderingContext2D | null | undefined;
+let measureFont = '';
+let measureLetterSpacing = '';
 
-    if (typeof document === 'undefined') {
-        return Math.ceil(text.length * HEADLESS_LABEL_CHAR_WIDTH);
+const getMeasureContext = (): CanvasRenderingContext2D | null => {
+    if (measureContext === undefined) {
+        try {
+            measureContext = document.createElement('canvas').getContext('2d');
+        } catch {
+            measureContext = null;
+        }
     }
+    return measureContext;
+};
 
+const measureWithSpan = (text: string): number => {
     const span = document.createElement('span');
     document.body.appendChild(span);
 
@@ -1540,8 +1550,35 @@ const calculateWidthText = (text: string | undefined): number => {
     return width;
 };
 
-const findLongest = (strings: string[]): string | undefined =>
-    strings.length > 0 ? maxBy(strings, 'length') : undefined;
+const calculateWidthText = (text: string | undefined): number => {
+    if (!text) return 0;
+
+    if (typeof document === 'undefined') {
+        return Math.ceil(text.length * HEADLESS_LABEL_CHAR_WIDTH);
+    }
+
+    const context = getMeasureContext();
+    if (!context) return measureWithSpan(text);
+
+    // Measure like the span this replaced: 'sans-serif' is not a valid font
+    // shorthand, so that span only took the 12px size and inherited the rest
+    // from the body. Rounding matches clientWidth; widths agree within 1px.
+    const bodyStyle = getComputedStyle(document.body);
+    const font = `${bodyStyle.fontStyle} ${bodyStyle.fontWeight} 12px ${bodyStyle.fontFamily}`;
+    if (font !== measureFont) {
+        context.font = font;
+        measureFont = font;
+    }
+    if (bodyStyle.letterSpacing !== measureLetterSpacing) {
+        // 'normal' is not a canvas length; it means no extra spacing
+        context.letterSpacing =
+            bodyStyle.letterSpacing === 'normal'
+                ? '0px'
+                : bodyStyle.letterSpacing;
+        measureLetterSpacing = bodyStyle.letterSpacing;
+    }
+    return Math.round(context.measureText(text).width);
+};
 
 const getLongestLabel = ({
     rows = [],
@@ -1552,29 +1589,38 @@ const getLongestLabel = ({
 }): string | undefined => {
     if (!axisId || rows.length === 0) return undefined;
 
-    const directValues = rows
-        .map((row) => row[axisId]?.value.formatted)
-        .filter((v): v is string => v !== undefined);
-
-    if (directValues.length > 0) return findLongest(directValues);
+    // Single pass; the first of equally long labels wins, like maxBy
+    let longestDirect: string | undefined;
+    for (const row of rows) {
+        const formatted = row[axisId]?.value.formatted;
+        if (
+            formatted !== undefined &&
+            (longestDirect === undefined ||
+                formatted.length > longestDirect.length)
+        ) {
+            longestDirect = formatted;
+        }
+    }
+    if (longestDirect !== undefined) return longestDirect;
 
     // If no direct match, check if this is a hashed field reference with pivot values
     // In that case, we need to find all row keys that could be pivot variants of this field
     const baseField = axisId.split('.')[0];
 
-    const allValues: string[] = [];
-    rows.forEach((row) => {
-        Object.keys(row).forEach((key) => {
-            if (key.startsWith(baseField)) {
-                const formatted = row[key]?.value.formatted;
-                if (formatted) {
-                    allValues.push(formatted);
-                }
+    let longest: string | undefined;
+    for (const row of rows) {
+        for (const key of Object.keys(row)) {
+            if (!key.startsWith(baseField)) continue;
+            const formatted = row[key]?.value.formatted;
+            if (
+                formatted &&
+                (longest === undefined || formatted.length > longest.length)
+            ) {
+                longest = formatted;
             }
-        });
-    });
-
-    return findLongest(allValues);
+        }
+    }
+    return longest;
 };
 
 // Heckbert "nice number": the tick interval ECharts would choose for a range
@@ -2876,12 +2922,12 @@ const calculateStackTotal = (
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
         const legendName = s.name || s.dimensions?.[1]?.displayName;
-        let selected = true;
-        for (const key in selectedLegendNames) {
-            if (legendName === key) {
-                selected = selectedLegendNames[key];
-            }
-        }
+        const selected =
+            selectedLegendNames &&
+            typeof legendName === 'string' &&
+            Object.hasOwn(selectedLegendNames, legendName)
+                ? selectedLegendNames[legendName]
+                : true;
         const numberValue = hash && selected ? toNumber(row[hash]) : 0;
         return Number.isNaN(numberValue) ? acc : acc + numberValue;
     }, 0);
