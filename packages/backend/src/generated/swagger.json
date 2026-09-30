@@ -10400,8 +10400,35 @@
                 "required": ["name", "uuid"],
                 "type": "object"
             },
+            "PromotedDocument": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
             "PromotionChanges": {
                 "properties": {
+                    "documents": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedDocument"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "dataApps": {
                         "items": {
                             "properties": {
@@ -63207,6 +63234,9 @@
                     }
                 ]
             },
+            "ApiPromoteDocumentResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_Document_"
+            },
             "UpdateDocumentMetadataRequest": {
                 "properties": {
                     "description": {
@@ -68462,7 +68492,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.394.0",
+        "version": "2.395.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -106108,6 +106138,104 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/promoteDiff": {
+            "get": {
+                "operationId": "GetDocumentPromotionDiff",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromotionChangesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview promoting a Document to its upstream project: the spaces, custom\nchart types and Document it would create or update.",
+                "summary": "Get Document promotion diff",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/promote": {
+            "post": {
+                "operationId": "PromoteDocument",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromoteDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Promote a Document to its upstream project.",
+                "summary": "Promote Document",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

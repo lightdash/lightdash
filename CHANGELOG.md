@@ -1,3 +1,15 @@
+# [2.395.0](https://github.com/lightdash/lightdash/compare/2.394.0...2.395.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* **ai:** restore Slack SQL approval and resume flow ([#30256](https://github.com/lightdash/lightdash/issues/30256)) ([fee3608](https://github.com/lightdash/lightdash/commit/fee3608351767dc8ae127d9ec5a9fbf6e6007468))
+
+
+### Features
+
+* **documents:** promote Documents from preview to production ([#30263](https://github.com/lightdash/lightdash/issues/30263)) ([d94a2d7](https://github.com/lightdash/lightdash/commit/d94a2d70b47c3f6c6c083dbf46a27a5779018ff1))
+
 # [2.394.0](https://github.com/lightdash/lightdash/compare/2.393.0...2.394.0) (2026-09-30)
 
 
