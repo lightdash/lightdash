@@ -1,3 +1,10 @@
+## [2.383.1](https://github.com/lightdash/lightdash/compare/2.383.0...2.383.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **learn:** keep library filters after a walkthrough (CS-343) ([#30218](https://github.com/lightdash/lightdash/issues/30218)) ([ae6eeca](https://github.com/lightdash/lightdash/commit/ae6eecafa88a55b151982a2287f4e6f52789ef2e))
+
 # [2.383.0](https://github.com/lightdash/lightdash/compare/2.382.0...2.383.0) (2026-09-30)
 
 
