@@ -1,5 +1,6 @@
 import { type ParameterDefinitions } from '../types/parameters';
 import {
+    canUseChartSavedParameterValue,
     DashboardTileParameterSource,
     getDashboardTileParameterOverrides,
     getDashboardTileParameterSource,
@@ -449,5 +450,57 @@ describe('dashboard parameter status', () => {
         expect(getMissingRequiredDashboardParameters(inputs)).toEqual([
             'status',
         ]);
+    });
+});
+
+describe('canUseChartSavedParameterValue', () => {
+    it('allows the chart value without a dashboard value or default', () => {
+        expect(
+            canUseChartSavedParameterValue({
+                key: 'status',
+                dashboardValues: {},
+                definitions: statusWithoutDefault,
+            }),
+        ).toBe(true);
+    });
+
+    it('allows the chart value for a key with no definition', () => {
+        expect(
+            canUseChartSavedParameterValue({
+                key: 'status',
+                dashboardValues: {},
+                definitions: {},
+            }),
+        ).toBe(true);
+    });
+
+    it('rejects the chart value when the dashboard has a value', () => {
+        expect(
+            canUseChartSavedParameterValue({
+                key: 'status',
+                dashboardValues: { status: 'Shipped' },
+                definitions: statusWithoutDefault,
+            }),
+        ).toBe(false);
+    });
+
+    it('rejects the chart value when the definition has a default', () => {
+        expect(
+            canUseChartSavedParameterValue({
+                key: 'status',
+                dashboardValues: {},
+                definitions: statusWithDefault,
+            }),
+        ).toBe(false);
+    });
+
+    it('only looks at the given key', () => {
+        expect(
+            canUseChartSavedParameterValue({
+                key: 'region',
+                dashboardValues: { status: 'Shipped' },
+                definitions: statusWithDefault,
+            }),
+        ).toBe(true);
     });
 });
