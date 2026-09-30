@@ -27,6 +27,7 @@ import {
     type CapturedQuery,
     type CompileProjectPayload,
     type CreateSchedulerAndTargets,
+    type DashboardParameters,
     type DeliveryCaptureManifest,
     type EmailNotificationPayload,
     type ExportContentPayload,
@@ -35,6 +36,7 @@ import {
     type LearnSandboxCommandPayload,
     type MetricQuery,
     type NotificationPayloadBase,
+    type ParametersValuesMap,
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
@@ -1314,11 +1316,15 @@ describe('uploadGsheets — pivot routing', () => {
         hasPivotConfig,
         pivotDetails,
         schedulerFilters,
+        schedulerParameters,
+        dashboardParameters,
     }: {
         source: 'saved-chart' | 'dashboard';
         hasPivotConfig: boolean;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         schedulerFilters?: Filters;
+        schedulerParameters?: ParametersValuesMap;
+        dashboardParameters?: DashboardParameters;
     }) => {
         const appendToSheet = vi.fn().mockResolvedValue(undefined);
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
@@ -1329,6 +1335,14 @@ describe('uploadGsheets — pivot routing', () => {
             pivotDetails,
             displayTimezone: null,
         });
+        const executeDashboardChartQueryAndGetResults = vi
+            .fn()
+            .mockResolvedValue({
+                rows: pivotDetails ? pivotedRows : flatRows,
+                fields: itemMap,
+                pivotDetails,
+                displayTimezone: null,
+            });
         const chart = makeChart(hasPivotConfig);
         const dashboardUuid = source === 'dashboard' ? 'dashboard-1' : null;
         const scheduler = {
@@ -1344,6 +1358,7 @@ describe('uploadGsheets — pivot routing', () => {
             options: { gdriveId: 'sheet-1' },
             thresholds: undefined,
             filters: schedulerFilters,
+            parameters: schedulerParameters,
         };
         const task = makeTaskWithDeps({
             googleDriveClient: asDep<'googleDriveClient'>({
@@ -1375,14 +1390,7 @@ describe('uploadGsheets — pivot routing', () => {
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
                 executeSavedChartQueryAndGetResults,
-                executeDashboardChartQueryAndGetResults: vi
-                    .fn()
-                    .mockResolvedValue({
-                        rows: pivotDetails ? pivotedRows : flatRows,
-                        fields: itemMap,
-                        pivotDetails,
-                        displayTimezone: null,
-                    }),
+                executeDashboardChartQueryAndGetResults,
             }),
             dashboardService: asDep<'dashboardService'>({
                 getByIdOrSlug: vi.fn().mockResolvedValue({
@@ -1404,6 +1412,7 @@ describe('uploadGsheets — pivot routing', () => {
                         },
                     ],
                     displayTimezone: null,
+                    parameters: dashboardParameters,
                 }),
             }),
             analytics: asDep<'analytics'>({ track: vi.fn() }),
@@ -1441,6 +1450,7 @@ describe('uploadGsheets — pivot routing', () => {
             appendCsvToSheet,
             logSchedulerJob,
             executeSavedChartQueryAndGetResults,
+            executeDashboardChartQueryAndGetResults,
             run,
         };
     };
@@ -1518,6 +1528,39 @@ describe('uploadGsheets — pivot routing', () => {
 
         expect(result.executeSavedChartQueryAndGetResults).toHaveBeenCalledWith(
             expect.objectContaining({ chartUuid: 'chart-1', schedulerFilters }),
+            expect.anything(),
+        );
+    });
+
+    it('runs a dashboard sync with the delivery parameter overrides', async () => {
+        const result = setup({
+            source: 'dashboard',
+            hasPivotConfig: false,
+            pivotDetails: null,
+            dashboardParameters: {
+                'orders.status': {
+                    parameterName: 'orders.status',
+                    value: 'placed',
+                },
+                'orders.region': {
+                    parameterName: 'orders.region',
+                    value: 'EU',
+                },
+            },
+            schedulerParameters: { 'orders.status': 'shipped' },
+        });
+
+        await result.run();
+
+        expect(
+            result.executeDashboardChartQueryAndGetResults,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                parameters: {
+                    'orders.status': 'shipped',
+                    'orders.region': 'EU',
+                },
+            }),
             expect.anything(),
         );
     });
