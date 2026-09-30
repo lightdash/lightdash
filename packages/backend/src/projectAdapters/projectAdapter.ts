@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { getInstallationToken } from '../clients/github/Github';
 import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
@@ -23,6 +22,7 @@ import {
     ManifestInput,
 } from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
+import { getGithubToken } from './githubAuthorization';
 import { NativeGitProjectAdapter } from './nativeGitProjectAdapter';
 
 export const projectAdapterFromConfig = async (
@@ -96,11 +96,7 @@ export const projectAdapterFromConfig = async (
                 // TODO add selector to dbt cloud
             });
         case DbtProjectType.GITHUB:
-            const githubToken =
-                config.installation_id &&
-                config.authorization_method === 'installation_id'
-                    ? await getInstallationToken(config.installation_id)
-                    : config.personal_access_token;
+            const githubToken = await getGithubToken(config);
             if (githubToken === undefined) {
                 throw new ParameterError(
                     `Missing github token for authorization method: ${
