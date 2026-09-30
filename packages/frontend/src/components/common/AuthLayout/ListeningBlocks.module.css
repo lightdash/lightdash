@@ -1,0 +1,185 @@
+.cluster {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: calc(8 * var(--auth-block-size));
+    height: calc(7 * var(--auth-block-size));
+    pointer-events: none;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(8, var(--auth-block-size));
+    grid-auto-rows: var(--auth-block-size);
+}
+
+.empty {
+    visibility: hidden;
+}
+
+.cell {
+    position: relative;
+    background-color: #0b0b12;
+    box-shadow: inset 0 0 0 1px rgba(229, 231, 235, 0.06);
+}
+
+.fill {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+}
+
+.stage0 .fill {
+    opacity: 1;
+    animation: pixelIn 0.3s steps(3, jump-none) 0.3s both;
+}
+
+[data-stage='focus'] .stage1 .fill,
+[data-stage='typing'] .stage1 .fill,
+[data-stage='valid'] .stage1 .fill,
+[data-stage='submitting'] .stage1 .fill,
+[data-stage='valid'] .stage2 .fill,
+[data-stage='submitting'] .stage2 .fill {
+    opacity: 1;
+    animation: pixelIn 0.18s steps(3, jump-none) both;
+    animation-delay: var(--wave-delay);
+}
+
+.delay0 {
+    --wave-delay: 0ms;
+}
+
+.delay1 {
+    --wave-delay: 40ms;
+}
+
+.delay2 {
+    --wave-delay: 80ms;
+}
+
+.delay3 {
+    --wave-delay: 120ms;
+}
+
+.delay4 {
+    --wave-delay: 160ms;
+}
+
+.delay5 {
+    --wave-delay: 200ms;
+}
+
+.delay6 {
+    --wave-delay: 240ms;
+}
+
+.delay7 {
+    --wave-delay: 280ms;
+}
+
+.delay8 {
+    --wave-delay: 320ms;
+}
+
+.delay9 {
+    --wave-delay: 360ms;
+}
+
+.delay10 {
+    --wave-delay: 400ms;
+}
+
+.delay11 {
+    --wave-delay: 440ms;
+}
+
+.delay12 {
+    --wave-delay: 480ms;
+}
+
+.delay13 {
+    --wave-delay: 520ms;
+}
+
+.cell[data-lit='true'] .fill {
+    opacity: 1;
+    animation: pixelIn 0.12s steps(2, jump-none) both;
+}
+
+[data-stage='valid'] .stage2 .fill {
+    animation-delay: 0ms;
+}
+
+[data-stage='valid'] .grid {
+    animation: glint 0.42s steps(6, jump-none) 0.15s both;
+}
+
+[data-stage='submitting'] .fill {
+    animation: pulse 0.5s steps(2, jump-none) 2;
+}
+
+.shade100 {
+    background-image: linear-gradient(135deg, #d1ccff, #d9b3ff);
+}
+
+.shade300 {
+    background-image: linear-gradient(135deg, #a499ff, #b267fe);
+}
+
+.shade500 {
+    background-image: linear-gradient(135deg, #5e4cff, #8001fe);
+}
+
+.shade700 {
+    background-image: linear-gradient(135deg, #1200b2, #4c0198);
+}
+
+.shade900 {
+    background-image: linear-gradient(135deg, #08004d, #26004c);
+}
+
+.striped::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.55) 0 1px,
+        transparent 1px rem(8px)
+    );
+    mix-blend-mode: soft-light;
+}
+
+@keyframes pixelIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes glint {
+    0% {
+        filter: brightness(1);
+    }
+    30% {
+        filter: brightness(1.2);
+    }
+    100% {
+        filter: brightness(1);
+    }
+}
+
+@keyframes pulse {
+    50% {
+        filter: brightness(1.2);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cluster,
+    .cluster * {
+        animation: none !important;
+    }
+}

@@ -13,7 +13,7 @@
 }
 
 .brandPanel {
-    --auth-block-size: clamp(rem(44px), 7.2vh, rem(64px));
+    --auth-block-size: clamp(rem(44px), 8vh, rem(88px));
     --auth-guide-line: rgba(229, 231, 235, 0.2);
 
     position: relative;

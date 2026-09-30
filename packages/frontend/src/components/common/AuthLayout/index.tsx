@@ -1,14 +1,25 @@
 import { Box, Card, Stack, Text, Title } from '@mantine/core';
-import { type FC, type PropsWithChildren, type ReactNode } from 'react';
+import {
+    useRef,
+    type FC,
+    type FocusEvent,
+    type FormEvent,
+    type PropsWithChildren,
+    type ReactNode,
+} from 'react';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import classes from './AuthLayout.module.css';
-import BrandPrompt from './BrandPrompt';
 import LightdashWordmark from './LightdashWordmark';
-import PixelChart from './PixelChart';
-import PixelStars from './PixelStars';
+import ListeningBlocks from './ListeningBlocks';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+const isEmailInput = (target: EventTarget): target is HTMLInputElement =>
+    target instanceof HTMLInputElement &&
+    (target.type === 'email' || target.name === 'email');
 
 type Props = {
     /** Document title, matching what each page passed to `Page` before. */
@@ -36,6 +47,31 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     children,
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
+    const brandPanelRef = useRef<HTMLDivElement>(null);
+
+    const handleFormFocus = (event: FocusEvent<HTMLDivElement>) => {
+        const panel = brandPanelRef.current;
+        if (!panel || !(event.target instanceof HTMLInputElement)) return;
+        if (panel.dataset.stage === 'valid') return;
+        panel.dataset.stage = 'focus';
+    };
+
+    const handleFormInput = (event: FormEvent<HTMLDivElement>) => {
+        const panel = brandPanelRef.current;
+        if (!panel || !isEmailInput(event.target)) return;
+        panel.dataset.stage = EMAIL_PATTERN.test(event.target.value)
+            ? 'valid'
+            : 'typing';
+        const { length } = event.target.value;
+        panel.querySelectorAll<HTMLElement>('[data-order]').forEach((cell) => {
+            cell.dataset.lit = String(Number(cell.dataset.order) < length);
+        });
+    };
+
+    const handleFormSubmit = () => {
+        const panel = brandPanelRef.current;
+        if (panel) panel.dataset.stage = 'submitting';
+    };
 
     if (isInitialLoading) {
         return <PageSpinner />;
@@ -75,8 +111,11 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
             <DocumentTitle title={pageTitle} />
 
             <Box className={classes.root}>
-                <Box className={classes.brandPanel}>
-                    <PixelStars />
+                <Box
+                    ref={brandPanelRef}
+                    className={classes.brandPanel}
+                    data-stage="idle"
+                >
                     <LightdashWordmark className={classes.brandWordmark} />
 
                     <Stack gap="lg" className={classes.brandIntro}>
@@ -92,13 +131,17 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                             lets AI build, refactor, and ship analytics in
                             minutes.
                         </Text>
-                        <BrandPrompt />
                     </Stack>
 
-                    <PixelChart />
+                    <ListeningBlocks />
                 </Box>
 
-                <Box className={classes.formPanel}>
+                <Box
+                    className={classes.formPanel}
+                    onFocusCapture={handleFormFocus}
+                    onInputCapture={handleFormInput}
+                    onSubmitCapture={handleFormSubmit}
+                >
                     <Stack id={cardId} className={classes.formContent} gap="xl">
                         <LightdashWordmark className={classes.formWordmark} />
                         {title && (
