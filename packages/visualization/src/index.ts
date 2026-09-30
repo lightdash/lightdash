@@ -23,3 +23,27 @@ export * from './cartesian/legendTooltip';
 export * from './cartesian/timezoneShift';
 export * from './cartesian/conditionalFormatting';
 export * from './cartesian/echartsOption';
+
+// Pie
+export * from './pie';
+
+// Funnel
+export * from './funnel';
+
+// Treemap
+export * from './treemap';
+
+// Gauge
+export * from './gauge';
+
+// Sankey
+export * from './sankey';
+
+// Custom (Vega)
+export * from './custom';
+
+// Big number
+export * from './bigNumber';
+
+// Table
+export * from './table';

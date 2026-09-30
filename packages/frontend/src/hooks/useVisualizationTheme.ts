@@ -1,5 +1,5 @@
 import { type VisualizationTheme } from '@lightdash/visualization';
-import { px, useMantineTheme } from '@mantine/core';
+import { px, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
 
 /**
@@ -8,9 +8,11 @@ import { useMemo } from 'react';
  */
 export const useVisualizationTheme = (): VisualizationTheme => {
     const theme = useMantineTheme();
+    const colorScheme = useComputedColorScheme('light');
 
     return useMemo(
         () => ({
+            colorScheme,
             background: theme.colors.background[0],
             foreground: theme.colors.foreground[0],
             gray: theme.colors.ldGray,
@@ -20,6 +22,6 @@ export const useVisualizationTheme = (): VisualizationTheme => {
             spacingXs: Number(px(theme.spacing.xs)),
             shadowSubtle: theme.shadows.subtle,
         }),
-        [theme],
+        [theme, colorScheme],
     );
 };

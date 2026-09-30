@@ -7,6 +7,7 @@
  * no stylesheet, so CSS variables would not resolve.
  */
 export type VisualizationTheme = {
+    colorScheme: 'light' | 'dark';
     /** Page background: tooltips, label halos, mark line label backgrounds. */
     background: string;
     /** Default ink color. */
@@ -39,6 +40,7 @@ const MANTINE_BLUE = [
 ] as const;
 
 export const LIGHT_VISUALIZATION_THEME: VisualizationTheme = {
+    colorScheme: 'light',
     background: '#ffffff',
     foreground: '#18181b',
     gray: [
@@ -72,6 +74,7 @@ export const LIGHT_VISUALIZATION_THEME: VisualizationTheme = {
 };
 
 export const DARK_VISUALIZATION_THEME: VisualizationTheme = {
+    colorScheme: 'dark',
     background: '#141417',
     foreground: '#ececee',
     gray: [
