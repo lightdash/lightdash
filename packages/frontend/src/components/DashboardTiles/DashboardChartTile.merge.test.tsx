@@ -465,6 +465,7 @@ describe('DashboardChartTile with a merged chart', () => {
 describe('DashboardChartTile custom image export', () => {
     beforeEach(() => {
         exportMocks.parameters = {};
+        exportMocks.appliedParameters = {};
     });
 
     const customChartQuery = (
@@ -501,6 +502,7 @@ describe('DashboardChartTile custom image export', () => {
         'offers export when dashboard parameters preserve the saved chart: %j',
         async (parameters) => {
             exportMocks.parameters = parameters;
+            exportMocks.appliedParameters = parameters;
             renderTile(customChartQuery());
             fireEvent.click(await screen.findByTestId('tile-icon-more'));
             expect(
@@ -511,7 +513,18 @@ describe('DashboardChartTile custom image export', () => {
 
     it('does not export saved data when a dashboard parameter changes the chart', async () => {
         exportMocks.parameters = { region: ['US'] };
+        exportMocks.appliedParameters = { region: ['US'] };
         renderTile(customChartQuery());
+        fireEvent.click(await screen.findByTestId('tile-icon-more'));
+        await screen.findByRole('menu');
+        expect(
+            screen.queryByRole('menuitem', { name: 'Export image' }),
+        ).toBeNull();
+    });
+
+    it('does not export a chart without saved values when an applied dashboard value remains after clearing', async () => {
+        exportMocks.appliedParameters = { region: ['EU'] };
+        renderTile(customChartQuery({ parameters: {} }));
         fireEvent.click(await screen.findByTestId('tile-icon-more'));
         await screen.findByRole('menu');
         expect(
