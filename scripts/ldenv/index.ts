@@ -71,7 +71,7 @@ ldenv claim [--worktree PATH]
 ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
 ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing] [--backend bundle|tsx]
 ldenv wait [--timeout S] [--verified]
-ldenv screenshot [route] [--out PATH] [--signed-out] [--full-page] [--width N --height N]
+ldenv screenshot [route] [--out PATH] [--signed-out] [--full-page] [--width N --height N] [--scale N]
 ldenv down [--dry-run] | stop | start [--no-wait] [--backend bundle|tsx] | status [--json] | gc [--dry-run] | doctor
 Backend defaults to bundle for new instances; use --backend tsx or LDENV_BACKEND=tsx for fallback.`;
 function option(args: string[], name: string, fallback: string): string {

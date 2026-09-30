@@ -102,6 +102,10 @@ type Page = {
         argument: null,
         options: Record<string, unknown>,
     ) => Promise<unknown>;
+    waitForLoadState: (
+        state: string,
+        options: Record<string, unknown>,
+    ) => Promise<unknown>;
 };
 type Browser = {
     newContext: (options?: Record<string, unknown>) => Promise<{
@@ -177,6 +181,7 @@ async function screenshot(root: string): Promise<void> {
         fullPage: boolean;
         width: number;
         height: number;
+        scale: number;
     }>(process.env.LDENV_SCREENSHOT_OPTIONS!);
     const browser = await chromium.launch({
         headless: true,
@@ -189,6 +194,7 @@ async function screenshot(root: string): Promise<void> {
     try {
         const context = await browser.newContext({
             viewport: { width: options.width, height: options.height },
+            deviceScaleFactor: options.scale,
         });
         try {
             if (!options.signedOut) {
@@ -212,12 +218,34 @@ async function screenshot(root: string): Promise<void> {
                 waitUntil: 'domcontentloaded',
                 timeout: 30000,
             });
-            if (options.signedOut)
-                await page.waitForSelector('input[type="email"]:visible', {
-                    state: 'visible',
-                    timeout: 30000,
-                });
-            else
+            if (options.signedOut) {
+                await page
+                    .waitForLoadState('networkidle', { timeout: 5000 })
+                    .catch(() => undefined);
+                await page.waitForFunction(
+                    () => {
+                        const root =
+                            document.querySelector<HTMLElement>('#root');
+                        const loading = document.querySelectorAll(
+                            '[role="progressbar"], .mantine-Loader-root, [data-testid="page-spinner"]',
+                        );
+                        return (
+                            (root?.innerText.trim().length ?? 0) > 40 &&
+                            Array.from(loading).every((element) => {
+                                const box = element.getBoundingClientRect();
+                                return (
+                                    box.width === 0 ||
+                                    box.height === 0 ||
+                                    getComputedStyle(element).visibility ===
+                                        'hidden'
+                                );
+                            })
+                        );
+                    },
+                    null,
+                    { timeout: 30000 },
+                );
+            } else
                 await page.waitForFunction(
                     () => {
                         const main = document.querySelector('main');

@@ -137,6 +137,7 @@ For an existing worktree, use the fork path:
 ~/.ldenv/bin/ldenv wait --verified --timeout 120
 ~/.ldenv/bin/ldenv screenshot /
 ~/.ldenv/bin/ldenv screenshot /login --signed-out --out /tmp/login.png
+~/.ldenv/bin/ldenv screenshot /register --signed-out --scale 2
 ~/.ldenv/bin/ldenv status --json
 ```
 
@@ -155,8 +156,10 @@ the frontend URL, API URL and seeded login email. Exit codes are 0 for ready,
 Vite module warm-up, warm routes and paint checks too.
 `screenshot` signs in as the seeded dev user through the API by default, launches
 a headless browser for one capture, and prints the PNG path. The default route
-is `/`; use `--signed-out` for the login page. `--full-page`, `--width N`,
-`--height N`, `--out PATH` and `--worktree PATH` are supported.
+is `/`; use `--signed-out` for pages that need no session, such as `/login` or
+`/register`. A signed-out capture waits for the app root to render text with no
+visible loader. `--full-page`, `--width N`, `--height N`, `--scale N` (device
+scale factor 1-3, default 1), `--out PATH` and `--worktree PATH` are supported.
 `up` probes owned API/frontend processes and health before reusing a saved READY
 record. It restarts an instance whose processes are gone. Claims skip dead spares
 and request replacement through the pool refill.

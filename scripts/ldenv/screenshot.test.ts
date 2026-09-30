@@ -11,6 +11,7 @@ test('screenshot options keep route and image settings separate', () => {
         fullPage: false,
         width: 1440,
         height: 900,
+        scale: 1,
     });
     assert.deepEqual(
         screenshotOptions([
@@ -20,6 +21,8 @@ test('screenshot options keep route and image settings separate', () => {
             '1024',
             '--height',
             '768',
+            '--scale',
+            '2',
             '--full-page',
             '--signed-out',
             '--out',
@@ -32,6 +35,7 @@ test('screenshot options keep route and image settings separate', () => {
             fullPage: true,
             width: 1024,
             height: 768,
+            scale: 2,
         },
     );
     assert.throws(() =>
@@ -39,4 +43,7 @@ test('screenshot options keep route and image settings separate', () => {
     );
     assert.throws(() => screenshotOptions(['screenshot', '//example.com']));
     assert.throws(() => screenshotOptions(['screenshot', '--width', '10']));
+    assert.throws(() => screenshotOptions(['screenshot', '--scale', '4']));
+    assert.throws(() => screenshotOptions(['screenshot', '--scale', '1.5']));
+    assert.throws(() => screenshotOptions(['screenshot', '--scale']));
 });
