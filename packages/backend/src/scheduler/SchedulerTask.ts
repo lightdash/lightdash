@@ -3,6 +3,7 @@ import {
     appendUuidQueryParam,
     applyChartFilterOverrides,
     applyDimensionOverrides,
+    applyDashboardParameterOverrides,
     assertUnreachable,
     BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
@@ -827,6 +828,7 @@ export default class SchedulerTask {
             dashboardFilters?: ExportContentPayload['dashboardFilters'];
             dateZoomGranularity?: ExportContentPayload['dateZoomGranularity'];
             parameters?: ExportContentPayload['parameters'];
+            clearedParameters?: ExportContentPayload['clearedParameters'];
         },
         // Captured once per job by captureAppDeliveryQueries — never rendered here,
         // so the per-channel fan-out can't trigger a second app render.
@@ -889,6 +891,8 @@ export default class SchedulerTask {
             (isDashboardScheduler(scheduler) || isChartScheduler(scheduler))
                 ? scheduler.parameters
                 : undefined);
+        const sendNowSchedulerClearedParameters =
+            exportOptions?.clearedParameters;
 
         const selectedTabs = isDashboardScheduler(scheduler)
             ? (scheduler.selectedTabs ?? null)
@@ -984,6 +988,7 @@ export default class SchedulerTask {
                         sendNowSchedulerFilters,
                         sendNowSchedulerChartFilters,
                         sendNowSchedulerParameters,
+                        sendNowSchedulerClearedParameters,
                     });
                     if (unfurlImage.imageUrl === undefined) {
                         throw new Error('Unable to unfurl image');
@@ -1011,6 +1016,7 @@ export default class SchedulerTask {
                                     exportOptions?.dashboardFilters,
                                 sendNowSchedulerFilters,
                                 sendNowSchedulerParameters,
+                                sendNowSchedulerClearedParameters,
                             });
                         pdfFile = perTabResult.pdfFile;
                         pdfPageCount = perTabResult.pdfPageCount;
@@ -1077,6 +1083,7 @@ export default class SchedulerTask {
                                     exportOptions?.dashboardFilters,
                                 sendNowSchedulerFilters,
                                 sendNowSchedulerParameters,
+                                sendNowSchedulerClearedParameters,
                             });
                         pdfFile = perTabResult.pdfFile;
                         pdfPageCount = perTabResult.pdfPageCount;
@@ -1100,6 +1107,7 @@ export default class SchedulerTask {
                             sendNowSchedulerFilters,
                             sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
+                            sendNowSchedulerClearedParameters,
                         });
                         if (!unfurlPdf.pdfFile) {
                             throw new UnexpectedServerError(
@@ -1650,10 +1658,13 @@ export default class SchedulerTask {
                         // applied on the dashboard, which replace the saved
                         // defaults the same way exported filters do.
                         const finalParameters: ParametersValuesMap =
-                            exportOptions?.parameters ?? {
-                                ...convertedDashboardParameters,
-                                ...schedulerParameters,
-                            };
+                            exportOptions?.parameters ??
+                            applyDashboardParameterOverrides({
+                                savedValues: convertedDashboardParameters,
+                                overrides: schedulerParameters,
+                                clearedParameters:
+                                    exportOptions?.clearedParameters,
+                            });
 
                         // Sheets are added to the workbook in promise order, so
                         // sort tiles by dashboard layout (tab order, then
@@ -1735,6 +1746,8 @@ export default class SchedulerTask {
                                         dashboardSorts: [],
                                         dateZoom,
                                         parameters: finalParameters,
+                                        clearedParameters:
+                                            exportOptions?.clearedParameters,
                                         limit: chartLimit,
                                         pivotResults: shouldPivotResults,
                                     },
@@ -1806,6 +1819,8 @@ export default class SchedulerTask {
                                         dashboardFilters,
                                         dashboardSorts: [],
                                         parameters: finalParameters,
+                                        clearedParameters:
+                                            exportOptions?.clearedParameters,
                                         limit:
                                             sqlLimit === null
                                                 ? MAX_SAFE_INTEGER
@@ -6229,6 +6244,7 @@ export default class SchedulerTask {
                         dashboardFilters: payload.dashboardFilters,
                         dateZoomGranularity: payload.dateZoomGranularity,
                         parameters: payload.parameters,
+                        clearedParameters: payload.clearedParameters,
                     },
                     undefined,
                     overrideAccount,

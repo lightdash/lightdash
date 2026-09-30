@@ -32,6 +32,7 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
         (c) => c.dateZoomGranularity,
     );
     const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const clearedParameters = useDashboardContext((c) => c.clearedParameters);
 
     if (!dashboard.canExportDashboardCsv) {
         return null;
@@ -65,6 +66,7 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
             dashboardFilters,
             dateZoomGranularity,
             parameters: parameterValues,
+            clearedParameters,
             selectedTabs: null,
         });
     };

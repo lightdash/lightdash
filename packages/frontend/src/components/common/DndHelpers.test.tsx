@@ -5,6 +5,34 @@ import userEvent from '@testing-library/user-event';
 import { DraggableItem } from './DndHelpers';
 
 describe('DraggableItem', () => {
+    it('can keep dragging on a dedicated handle without wrapping picker controls', () => {
+        render(
+            <MantineProvider env="test">
+                <DndContext>
+                    <DraggableItem id="status">
+                        {(handle) => (
+                            <>
+                                <button
+                                    {...handle.attributes}
+                                    {...handle.listeners}
+                                    ref={handle.setActivatorNodeRef}
+                                >
+                                    Reorder status
+                                </button>
+                                <button>Choose status</button>
+                            </>
+                        )}
+                    </DraggableItem>
+                </DndContext>
+            </MantineProvider>,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Reorder status' }),
+        ).toHaveAttribute('aria-roledescription', 'draggable');
+        expect(
+            screen.getByRole('button', { name: 'Choose status' }).parentElement,
+        ).not.toHaveAttribute('role', 'button');
+    });
     it('keeps viewer controls keyboard-accessible when dragging is disabled', async () => {
         const user = userEvent.setup();
         const onClick = vi.fn();

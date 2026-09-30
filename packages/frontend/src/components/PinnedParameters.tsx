@@ -1,19 +1,37 @@
 import { DndContext, DragOverlay, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
+    formatDate,
+    interpolateUiString,
+    parseDate,
     resolveParameterDefault,
+    TimeFrames,
     type LightdashProjectParameter,
     type ParameterValue,
 } from '@lightdash/common';
-import { Box, Button, CloseButton, Group, Popover, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    CloseButton,
+    Group,
+    Popover,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useUiStrings } from '../ee/providers/Embed/useUiStrings';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';
 import { useDndSensors } from '../hooks/useDndSensors';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
-import { DraggableItem, DroppableArea } from './common/DndHelpers';
+import {
+    DraggableItem,
+    DroppableArea,
+    type DragHandle,
+} from './common/DndHelpers';
 import MantineIcon from './common/MantineIcon';
+import styles from './PinnedParameters.module.css';
 
 interface PinnedParameterProps {
     parameterKey: string;
@@ -24,6 +42,7 @@ interface PinnedParameterProps {
     isEditMode: boolean;
     isDraggable?: boolean;
     projectUuid?: string;
+    dragHandle?: DragHandle;
 }
 
 const PinnedParameter: FC<PinnedParameterProps> = ({
@@ -35,19 +54,37 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
     isEditMode,
     isDraggable = false,
     projectUuid,
+    dragHandle,
 }) => {
     const parameterValues = useDashboardContext((c) => c.parameterValues);
 
     const getUiString = useUiStrings();
+    const displayLabel = parameter.label || parameterKey;
+    const hasValue =
+        value !== null &&
+        value !== undefined &&
+        value !== '' &&
+        (!Array.isArray(value) || value.length > 0);
 
     const displayValue = useMemo(() => {
-        const anyValue = getUiString('filters.placeholders.anyValue');
-        if (!value) return resolveParameterDefault(parameter) || anyValue;
-        if (Array.isArray(value)) {
-            return value.length > 0 ? value.join(', ') : anyValue;
+        const resolvedDefault = resolveParameterDefault(parameter);
+        const display = hasValue ? value : resolvedDefault;
+        if (display === undefined || display === null) {
+            return getUiString('parameters.chartValues');
         }
-        return value.toString();
-    }, [value, parameter, getUiString]);
+        let formatted = Array.isArray(display)
+            ? display.join(', ')
+            : String(display);
+        if (parameter.type === 'date' && typeof display === 'string') {
+            const date = parseDate(display, TimeFrames.DAY);
+            if (date) formatted = formatDate(date, TimeFrames.DAY, false);
+        }
+        return hasValue
+            ? formatted
+            : interpolateUiString(getUiString('parameters.defaultValue'), {
+                  value: formatted,
+              });
+    }, [value, parameter, hasValue, getUiString]);
 
     const handleChange = useCallback(
         (key: string, newValue: ParameterValue | null) => {
@@ -62,50 +99,65 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
 
     return (
         <Popover position="bottom-start" withArrow offset={1} arrowOffset={14}>
-            <Popover.Target>
-                <Button
-                    size="xs"
-                    variant="default"
-                    styles={{
-                        inner: {
-                            color: 'foreground',
-                        },
-                        label: {
-                            maxWidth: '300px',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                        },
-                    }}
-                    leftSection={
-                        isDraggable && (
-                            <MantineIcon
-                                icon={IconGripVertical}
-                                cursor="grab"
-                                size="sm"
-                            />
-                        )
-                    }
-                    rightSection={
-                        isEditMode ? (
-                            <CloseButton
-                                size="sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUnpin();
-                                }}
-                            />
-                        ) : undefined
-                    }
-                >
-                    <Text truncate>
-                        <Text span>{parameter.label || parameterKey}:</Text>{' '}
-                        <Text fw={600} span>
-                            {displayValue}
+            <Group gap={4} wrap="nowrap">
+                {isDraggable && dragHandle && (
+                    <Tooltip
+                        label={interpolateUiString(
+                            getUiString('parameters.reorderNamed'),
+                            { name: displayLabel },
+                        )}
+                    >
+                        <ActionIcon
+                            ref={dragHandle.setActivatorNodeRef}
+                            {...dragHandle.attributes}
+                            {...dragHandle.listeners}
+                            aria-label={interpolateUiString(
+                                getUiString('parameters.reorderNamed'),
+                                { name: displayLabel },
+                            )}
+                            variant="subtle"
+                            size="sm"
+                        >
+                            <MantineIcon icon={IconGripVertical} size="sm" />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+                <Popover.Target>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        classNames={{ label: styles.label }}
+                    >
+                        <Text truncate>
+                            <Text span>{parameter.label || parameterKey}:</Text>{' '}
+                            <Text
+                                fw={hasValue ? 600 : 400}
+                                c={hasValue ? undefined : 'dimmed'}
+                                span
+                            >
+                                {displayValue}
+                            </Text>
                         </Text>
-                    </Text>
-                </Button>
-            </Popover.Target>
+                    </Button>
+                </Popover.Target>
+                {isEditMode && (
+                    <Tooltip
+                        label={interpolateUiString(
+                            getUiString('parameters.unpinNamed'),
+                            { name: displayLabel },
+                        )}
+                    >
+                        <CloseButton
+                            size="sm"
+                            aria-label={interpolateUiString(
+                                getUiString('parameters.unpinNamed'),
+                                { name: displayLabel },
+                            )}
+                            onClick={handleUnpin}
+                        />
+                    </Tooltip>
+                )}
+            </Group>
 
             <Popover.Dropdown>
                 <Box p={0} miw={280}>
@@ -126,6 +178,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                         size="xs"
                         projectUuid={projectUuid || ''}
                         parameterValues={parameterValues}
+                        getUiString={getUiString}
                     />
                 </Box>
             </Popover.Dropdown>
@@ -204,16 +257,19 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
                         orderedKeys={pinnedParameterKeys}
                     >
                         <DraggableItem id={key} disabled={!isEditMode}>
-                            <PinnedParameter
-                                parameterKey={key}
-                                parameter={parameter}
-                                value={parameterValues[key] ?? null}
-                                onChange={handleParameterChange}
-                                onUnpin={handleUnpin}
-                                isEditMode={isEditMode}
-                                isDraggable={isEditMode}
-                                projectUuid={dashboard?.projectUuid}
-                            />
+                            {(dragHandle) => (
+                                <PinnedParameter
+                                    parameterKey={key}
+                                    parameter={parameter}
+                                    value={parameterValues[key] ?? null}
+                                    onChange={handleParameterChange}
+                                    onUnpin={handleUnpin}
+                                    isEditMode={isEditMode}
+                                    isDraggable={isEditMode}
+                                    projectUuid={dashboard?.projectUuid}
+                                    dragHandle={dragHandle}
+                                />
+                            )}
                         </DraggableItem>
                     </DroppableArea>
                 ))}

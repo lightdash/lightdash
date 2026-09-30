@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
+    applyDashboardParameterOverrides,
     AndFilterGroup,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
@@ -1222,12 +1223,14 @@ export class EmbedService extends BaseService {
         chart,
         dashboardUuid,
         acceptedUserParameters,
+        clearedParameters,
     }: {
         projectUuid: string;
         explore: Explore;
         chart: SavedChartDAO;
         dashboardUuid: string | null;
         acceptedUserParameters: ParametersValuesMap;
+        clearedParameters?: string[];
     }): Promise<ParametersValuesMap> {
         if (!dashboardUuid) {
             return this.projectService.combineParameters(
@@ -1239,15 +1242,18 @@ export class EmbedService extends BaseService {
         }
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
-            { projectUuid },
+            {
+                projectUuid,
+            },
         );
         return this.projectService.resolveDashboardTileParameters({
             projectUuid,
             explore,
-            dashboardValues: {
-                ...getDashboardParametersValuesMap(dashboard),
-                ...acceptedUserParameters,
-            },
+            dashboardValues: applyDashboardParameterOverrides({
+                savedValues: getDashboardParametersValuesMap(dashboard),
+                overrides: acceptedUserParameters,
+                clearedParameters,
+            }),
             chartSavedValues: chart.parameters ?? {},
             isTargeted: true,
             preloadedProjectParameters: null,
@@ -1351,6 +1357,7 @@ export class EmbedService extends BaseService {
         invalidateCache,
         dashboardSorts,
         parameters,
+        clearedParameters,
         pivotResults,
         limit,
         timezone,
@@ -1367,6 +1374,7 @@ export class EmbedService extends BaseService {
         | 'invalidateCache'
         | 'dateZoom'
         | 'parameters'
+        | 'clearedParameters'
         | 'limit'
     >): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         const { dashboardUuid } = account.access.content;
@@ -1463,6 +1471,11 @@ export class EmbedService extends BaseService {
             limit,
             context: QueryExecutionContext.EMBED,
             parameters: acceptedUserParameters,
+            clearedParameters: isParameterInteractivityEnabled(
+                account.access.parameters,
+            )
+                ? clearedParameters
+                : undefined,
             pivotResults,
             sessionTimezone: isTimezoneSupportEnabled
                 ? (timezone ?? null)
@@ -1566,6 +1579,7 @@ export class EmbedService extends BaseService {
         dashboardSorts,
         invalidateCache,
         parameters,
+        clearedParameters,
         limit,
     }: {
         account: AnonymousAccount;
@@ -1575,6 +1589,7 @@ export class EmbedService extends BaseService {
         dashboardSorts: SortField[];
         invalidateCache?: boolean;
         parameters?: ParametersValuesMap;
+        clearedParameters?: string[];
         limit?: number;
     }): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
         const { user } = await this.embedModel.get(projectUuid);
@@ -1635,6 +1650,11 @@ export class EmbedService extends BaseService {
             limit,
             context: QueryExecutionContext.EMBED,
             parameters: acceptedUserParameters,
+            clearedParameters: isParameterInteractivityEnabled(
+                account.access.parameters,
+            )
+                ? clearedParameters
+                : undefined,
         });
     }
 
@@ -1648,6 +1668,7 @@ export class EmbedService extends BaseService {
         dashboardSorts?: SortField[],
         userParameters?: ParametersValuesMap,
         checkPermissions: boolean = true,
+        clearedParameters?: string[],
     ) {
         const { dashboardUuids, allowAllDashboards, user } = account.embed;
 
@@ -1738,10 +1759,15 @@ export class EmbedService extends BaseService {
             await this.projectService.resolveDashboardTileParameters({
                 projectUuid,
                 explore,
-                dashboardValues: {
-                    ...getDashboardParametersValuesMap(dashboard),
-                    ...acceptedUserParameters,
-                },
+                dashboardValues: applyDashboardParameterOverrides({
+                    savedValues: getDashboardParametersValuesMap(dashboard),
+                    overrides: acceptedUserParameters,
+                    clearedParameters: isParameterInteractivityEnabled(
+                        account.access.parameters,
+                    )
+                        ? clearedParameters
+                        : undefined,
+                }),
                 chartSavedValues: chart.parameters ?? {},
                 isTargeted: true,
                 preloadedProjectParameters: null,
@@ -2252,6 +2278,7 @@ export class EmbedService extends BaseService {
         dashboardFilters?: DashboardFilters,
         userParameters?: ParametersValuesMap,
         invalidateCache?: boolean,
+        clearedParameters?: string[],
     ) {
         const { dashboardUuid, chart, explore, metricQuery } =
             await this._prepareSavedChartForCalculation(
@@ -2276,6 +2303,11 @@ export class EmbedService extends BaseService {
             chart,
             dashboardUuid: dashboardUuid ?? null,
             acceptedUserParameters,
+            clearedParameters: isParameterInteractivityEnabled(
+                account.access.parameters,
+            )
+                ? clearedParameters
+                : undefined,
         });
 
         try {
@@ -2329,6 +2361,7 @@ export class EmbedService extends BaseService {
         pivotDimensions?: string[],
         invalidateCache?: boolean,
         dateZoom?: DateZoom,
+        clearedParameters?: string[],
     ) {
         const { dashboardUuid, chart, explore, metricQuery } =
             await this._prepareSavedChartForCalculation(
@@ -2356,6 +2389,11 @@ export class EmbedService extends BaseService {
             chart,
             dashboardUuid: dashboardUuid ?? null,
             acceptedUserParameters,
+            clearedParameters: isParameterInteractivityEnabled(
+                account.access.parameters,
+            )
+                ? clearedParameters
+                : undefined,
         });
 
         return this._calculateSubtotalsForEmbed(
@@ -2633,6 +2671,7 @@ export class EmbedService extends BaseService {
         fieldId: requestedFieldId,
         timezone: sessionTimezoneParam,
         parameters,
+        clearedParameters,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
@@ -2645,6 +2684,7 @@ export class EmbedService extends BaseService {
         fieldId?: string;
         timezone?: string;
         parameters?: ParametersValuesMap;
+        clearedParameters?: string[];
     }): Promise<FieldValueSearchResult> {
         const { dashboardUuids, allowAllDashboards, user } = account.embed;
         const { dashboardUuid } = account.access.content;
@@ -2816,7 +2856,16 @@ export class EmbedService extends BaseService {
             projectUuid,
             explore,
             acceptedUserParameters,
-            dashboard ? getDashboardParametersValuesMap(dashboard) : {},
+            applyDashboardParameterOverrides({
+                savedValues: dashboard
+                    ? getDashboardParametersValuesMap(dashboard)
+                    : {},
+                clearedParameters: isParameterInteractivityEnabled(
+                    account.access.parameters,
+                )
+                    ? clearedParameters
+                    : undefined,
+            }),
         );
 
         const useTimezoneAwareDateTrunc =

@@ -1,5 +1,6 @@
 import {
     DEFAULT_UI_STRINGS,
+    interpolateUiString,
     formatDate,
     parseDate,
     resolveParameterDefault,
@@ -8,6 +9,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
     type UiStringResolver,
+    type UiStringKey,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -20,7 +22,8 @@ import {
 } from '@mantine/core';
 import { useId } from '@mantine/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, useRef, type FC } from 'react';
+import { type DragHandle } from '../../../components/common/DndHelpers';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './Parameter.module.css';
 import { ParameterInput } from './ParameterInput';
@@ -38,7 +41,9 @@ type Props = {
     projectUuid?: string;
     isRequired?: boolean;
     isEditMode?: boolean;
+    isDashboard?: boolean;
     isDraggable?: boolean;
+    dragHandle?: DragHandle;
     triggerClassName?: string;
     dropdownClassName?: string;
     shadowedReservedNames?: string[];
@@ -56,16 +61,29 @@ const Parameter: FC<Props> = ({
     onParameterChange,
     projectUuid,
     isRequired = false,
+    isEditMode = false,
+    isDashboard = false,
     isDraggable = false,
+    dragHandle,
     triggerClassName,
     dropdownClassName,
     shadowedReservedNames = [],
     getUiString,
 }) => {
     const popoverId = useId();
+    const triggerRef = useRef<HTMLButtonElement>(null);
     const isPopoverOpen = openPopoverId === popoverId;
 
     const displayLabel = parameter.label || paramKey;
+    const uiString = (key: UiStringKey) =>
+        getUiString ? getUiString(key) : DEFAULT_UI_STRINGS[key];
+    const clearLabel = interpolateUiString(uiString('parameters.clearNamed'), {
+        name: displayLabel,
+    });
+    const reorderLabel = interpolateUiString(
+        uiString('parameters.reorderNamed'),
+        { name: displayLabel },
+    );
     const isLabel = getUiString
         ? getUiString('parameters.is')
         : DEFAULT_UI_STRINGS['parameters.is'];
@@ -88,7 +106,7 @@ const Parameter: FC<Props> = ({
                 }
                 return String(defaultVal);
             }
-            return 'any value';
+            return '';
         }
 
         if (parameter.type === 'date' && typeof value === 'string') {
@@ -103,8 +121,24 @@ const Parameter: FC<Props> = ({
         return String(value);
     }, [value, parameter]);
 
-    const hasValue = value !== null && value !== undefined && value !== '';
-    const hasUnsetRequiredParameter = isRequired && !hasValue;
+    const hasValue =
+        value !== null &&
+        value !== undefined &&
+        value !== '' &&
+        (!Array.isArray(value) || value.length > 0);
+    const hasDefault = resolveParameterDefault(parameter) !== undefined;
+    const hasUnsetRequiredParameter = isRequired && !hasValue && !hasDefault;
+    const valueLabel = hasValue
+        ? `${isLabel} ${displayValue}`
+        : hasDefault
+          ? interpolateUiString(uiString('parameters.defaultValue'), {
+                value: displayValue,
+            })
+          : uiString(
+                hasUnsetRequiredParameter || !isDashboard
+                    ? 'parameters.selectValue'
+                    : 'parameters.chartValues',
+            );
     const hasShadowedReservedName = shadowedReservedNames.includes(paramKey);
 
     const handleClose = useCallback(() => {
@@ -114,6 +148,7 @@ const Parameter: FC<Props> = ({
     const handleClear = (e: React.MouseEvent) => {
         e.stopPropagation();
         onParameterChange(paramKey, null);
+        triggerRef.current?.focus();
     };
 
     const handleToggle = useCallback(() => {
@@ -125,109 +160,125 @@ const Parameter: FC<Props> = ({
     }, [isPopoverOpen, handleClose, onPopoverOpen, popoverId]);
 
     return (
-        <Popover
-            position="bottom-start"
-            width={400}
-            opened={isPopoverOpen}
-            onClose={handleClose}
-            onDismiss={handleClose}
-            transitionProps={{ transition: 'pop-top-left' }}
-            withArrow
-            offset={1}
-            arrowOffset={14}
-            classNames={{ dropdown: dropdownClassName }}
-        >
-            <Popover.Target>
-                <Tooltip
-                    label={parameter.description}
-                    disabled={!parameter.description || isPopoverOpen}
-                    position="top"
-                    maw={350}
-                >
-                    <Button
-                        pos="relative"
-                        size="xs"
-                        variant={
-                            hasUnsetRequiredParameter ? 'outline' : 'default'
-                        }
-                        classNames={{
-                            label: styles.label,
-                            root: triggerClassName,
-                        }}
-                        className={
-                            hasUnsetRequiredParameter
-                                ? styles.unsetRequired
-                                : ''
-                        }
-                        leftSection={
-                            isDraggable && (
-                                <MantineIcon
-                                    icon={IconGripVertical}
-                                    cursor="grab"
-                                    size="sm"
-                                />
-                            )
-                        }
-                        rightSection={
-                            <Group gap={4} wrap="nowrap">
-                                {hasShadowedReservedName && (
-                                    <ShadowedReservedNameWarning
-                                        paramKey={paramKey}
-                                    />
-                                )}
-                                {hasValue && (
-                                    <ActionIcon
-                                        aria-label={
-                                            getUiString
-                                                ? getUiString(
-                                                      'parameters.clear',
-                                                  )
-                                                : DEFAULT_UI_STRINGS[
-                                                      'parameters.clear'
-                                                  ]
-                                        }
-                                        onClick={handleClear}
-                                        size="xs"
-                                        radius="xl"
-                                    >
-                                        <MantineIcon size="sm" icon={IconX} />
-                                    </ActionIcon>
-                                )}
-                            </Group>
-                        }
-                        onClick={handleToggle}
+        <Group gap="xxs" wrap="nowrap">
+            {isDraggable && dragHandle && (
+                <Tooltip label={reorderLabel}>
+                    <ActionIcon
+                        ref={dragHandle.setActivatorNodeRef}
+                        {...dragHandle.attributes}
+                        {...dragHandle.listeners}
+                        aria-label={reorderLabel}
+                        size="sm"
                     >
-                        <Box
-                            style={{
-                                maxWidth: '100%',
-                                overflow: 'hidden',
-                            }}
-                        >
-                            <Text fz="xs" truncate>
-                                <Text span fw={600}>
-                                    {displayLabel}
-                                </Text>
-                                <Text span c="gray.6">
-                                    {` ${isLabel} `}
-                                </Text>
-                                <Text span>{displayValue}</Text>
-                            </Text>
-                        </Box>
-                    </Button>
+                        <MantineIcon icon={IconGripVertical} size="sm" />
+                    </ActionIcon>
                 </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown p="sm" maw="calc(100vw - 32px)">
-                <ParameterInput
-                    paramKey={paramKey}
-                    parameter={parameter}
-                    value={value}
-                    onParameterChange={onParameterChange}
-                    size="sm"
-                    projectUuid={projectUuid}
-                    parameterValues={parameterValues}
-                />
-            </Popover.Dropdown>
-        </Popover>
+            )}
+            <Popover
+                position="bottom-start"
+                width={400}
+                opened={isPopoverOpen}
+                onClose={handleClose}
+                onDismiss={handleClose}
+                transitionProps={{ transition: 'pop-top-left' }}
+                withArrow
+                offset={1}
+                arrowOffset={14}
+                classNames={{ dropdown: dropdownClassName }}
+            >
+                <Popover.Target>
+                    <Tooltip
+                        label={parameter.description}
+                        disabled={!parameter.description || isPopoverOpen}
+                        position="top"
+                        maw={350}
+                    >
+                        <Button
+                            ref={triggerRef}
+                            pos="relative"
+                            size="xs"
+                            variant={
+                                hasUnsetRequiredParameter
+                                    ? 'outline'
+                                    : 'default'
+                            }
+                            classNames={{
+                                label: styles.label,
+                                root: triggerClassName,
+                            }}
+                            className={
+                                hasUnsetRequiredParameter
+                                    ? styles.unsetRequired
+                                    : ''
+                            }
+                            onClick={handleToggle}
+                        >
+                            <Box className={styles.value}>
+                                <Text fz="xs" truncate>
+                                    <Text span fw={600}>
+                                        {displayLabel}
+                                    </Text>
+                                    <Text
+                                        span
+                                        c={hasValue ? undefined : 'dimmed'}
+                                    >
+                                        {` ${valueLabel}`}
+                                    </Text>
+                                </Text>
+                            </Box>
+                        </Button>
+                    </Tooltip>
+                </Popover.Target>
+                <Popover.Dropdown p="sm" maw="calc(100vw - 32px)">
+                    <ParameterInput
+                        getUiString={getUiString}
+                        paramKey={paramKey}
+                        parameter={parameter}
+                        value={value}
+                        onParameterChange={onParameterChange}
+                        size="sm"
+                        projectUuid={projectUuid}
+                        parameterValues={parameterValues}
+                        isError={hasUnsetRequiredParameter}
+                        clearLabel={clearLabel}
+                    />
+                    {!hasValue && isDashboard && (
+                        <Text fz="xs" c="dimmed" mt="xs">
+                            {uiString(
+                                hasUnsetRequiredParameter
+                                    ? 'parameters.requiredHint'
+                                    : hasDefault
+                                      ? 'parameters.defaultHint'
+                                      : 'parameters.chartHint',
+                            )}
+                        </Text>
+                    )}
+                    {isDashboard && (
+                        <Text fz="xs" c="dimmed" mt="xs">
+                            {uiString(
+                                isEditMode
+                                    ? 'parameters.editHint'
+                                    : 'parameters.viewHint',
+                            )}
+                        </Text>
+                    )}
+                </Popover.Dropdown>
+            </Popover>
+            {hasShadowedReservedName && (
+                <ShadowedReservedNameWarning paramKey={paramKey} />
+            )}
+            {hasValue && (
+                <Tooltip label={clearLabel}>
+                    <ActionIcon
+                        aria-label={clearLabel}
+                        onClick={handleClear}
+                        size="sm"
+                    >
+                        <MantineIcon size="sm" icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </Group>
     );
 };
 

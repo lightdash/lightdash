@@ -193,6 +193,7 @@ export const getDashboardSqlChartPivotChartData = async ({
     dashboardSorts,
     context,
     parameters,
+    clearedParameters,
 }: {
     projectUuid: string;
     dashboardUuid: string;
@@ -203,6 +204,7 @@ export const getDashboardSqlChartPivotChartData = async ({
     dashboardSorts: SortField[]; // TODO: check if dashboardSorts is needed, seems to be unused
     context?: QueryExecutionContext;
     parameters?: ParametersValuesMap;
+    clearedParameters?: string[];
 }): Promise<
     PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
 > => {
@@ -215,6 +217,7 @@ export const getDashboardSqlChartPivotChartData = async ({
         dashboardSorts,
         limit,
         parameters,
+        clearedParameters,
     });
 
     const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
@@ -236,6 +239,7 @@ export const getEmbedDashboardSqlChartPivotChartData = async ({
     dashboardFilters,
     dashboardSorts,
     parameters,
+    clearedParameters,
     invalidateCache,
 }: {
     projectUuid: string;
@@ -244,6 +248,7 @@ export const getEmbedDashboardSqlChartPivotChartData = async ({
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
     parameters?: ParametersValuesMap;
+    clearedParameters?: string[];
     invalidateCache?: boolean;
 }): Promise<
     PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
@@ -256,6 +261,7 @@ export const getEmbedDashboardSqlChartPivotChartData = async ({
             dashboardSorts,
             limit,
             parameters,
+            clearedParameters,
             invalidateCache,
         },
     );

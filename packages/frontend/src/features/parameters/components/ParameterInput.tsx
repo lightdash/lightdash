@@ -1,13 +1,16 @@
 import {
+    DEFAULT_UI_STRINGS,
     DimensionType,
     FieldType,
     getItemId,
     isLightdashParameterOption,
+    interpolateUiString,
     resolveParameterDefault,
     type FilterableItem,
     type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
+    type UiStringResolver,
 } from '@lightdash/common';
 import {
     Box,
@@ -46,6 +49,8 @@ type ParameterInputProps = {
     parameterValues?: ParametersValuesMap;
     disabled?: boolean;
     isError?: boolean;
+    clearLabel?: string;
+    getUiString?: UiStringResolver;
 };
 
 const parameterDimensionMap: Record<string, DimensionType> = {
@@ -70,8 +75,17 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     parameterValues,
     disabled,
     isError,
+    clearLabel,
+    getUiString,
 }) => {
     const multiSelectRef = useRef<HTMLInputElement>(null);
+    const resolvedClearLabel =
+        clearLabel ??
+        interpolateUiString(
+            getUiString?.('parameters.clearNamed') ??
+                DEFAULT_UI_STRINGS['parameters.clearNamed'],
+            { name: parameter.label || paramKey },
+        );
 
     const [search, setSearch] = useState('');
     const [forceRefresh, setForceRefresh] = useState<boolean>(false);
@@ -147,24 +161,33 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         return map;
     }, [results, shouldFetch]);
 
-    const placeholder = useMemo(() => {
+    const defaultValues = useMemo(() => {
         const resolvedDefault = resolveParameterDefault(parameter);
-        const defaultValues = resolvedDefault
-            ? Array.isArray(resolvedDefault)
-                ? resolvedDefault
-                : [resolvedDefault]
-            : undefined;
-        return defaultValues
-            ? `${
-                  parameter.multiple
-                      ? defaultValues.join(', ')
-                      : defaultValues[0]
-              } (default)`
-            : 'Choose value...';
+        return resolvedDefault === undefined || resolvedDefault === ''
+            ? []
+            : Array.isArray(resolvedDefault)
+              ? resolvedDefault
+              : [resolvedDefault];
     }, [parameter]);
 
+    const placeholder = useMemo(() => {
+        return defaultValues.length > 0
+            ? interpolateUiString(
+                  getUiString?.('parameters.defaultValue') ??
+                      DEFAULT_UI_STRINGS['parameters.defaultValue'],
+                  {
+                      value: parameter.multiple
+                          ? defaultValues.join(', ')
+                          : String(defaultValues[0]),
+                  },
+              )
+            : (getUiString?.('parameters.selectValue') ??
+                  DEFAULT_UI_STRINGS['parameters.selectValue']);
+    }, [defaultValues, parameter.multiple, getUiString]);
+
     const currentStringValues = useMemo((): string[] => {
-        if (parameter.type !== 'string' || value == null) return [];
+        if ((parameter.type && parameter.type !== 'string') || value == null)
+            return [];
         return (Array.isArray(value) ? value : [value]).map(String);
     }, [value, parameter.type]);
 
@@ -493,6 +516,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     if (parameter.type === 'date' && !parameter.multiple) {
         return (
             <ParameterDateInput
+                getUiString={getUiString}
                 paramKey={paramKey}
                 parameter={parameter}
                 currentValue={currentDateValues[0] ?? null}
@@ -508,6 +532,12 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     if (parameter.multiple) {
         return (
             <MultiSelect
+                aria-label={parameter.label || paramKey}
+                clearButtonProps={{
+                    'aria-label': resolvedClearLabel,
+                    'aria-hidden': false,
+                    tabIndex: 0,
+                }}
                 ref={multiSelectRef}
                 data={selectData}
                 value={currentValues.map(String)}
@@ -551,6 +581,12 @@ export const ParameterInput: FC<ParameterInputProps> = ({
 
     return (
         <Select
+            aria-label={parameter.label || paramKey}
+            clearButtonProps={{
+                'aria-label': resolvedClearLabel,
+                'aria-hidden': false,
+                tabIndex: 0,
+            }}
             ref={multiSelectRef}
             data={selectData}
             value={currentValues.length > 0 ? String(currentValues[0]) : null}

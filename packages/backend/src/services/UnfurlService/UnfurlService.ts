@@ -735,6 +735,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters,
         sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
+        sendNowSchedulerClearedParameters,
     }: {
         url: string;
         lightdashPage?: LightdashPage;
@@ -751,6 +752,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
+        sendNowSchedulerClearedParameters?: string[];
     }): Promise<{
         imageUrl?: string;
         pdfFile?: { source: string; fileName: string };
@@ -780,6 +782,7 @@ export class UnfurlService extends BaseService {
             sendNowSchedulerFilters,
             sendNowSchedulerChartFilters,
             sendNowSchedulerParameters,
+            sendNowSchedulerClearedParameters,
         };
 
         const result = await this.saveScreenshot({
@@ -878,6 +881,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerDashboardFilters,
         sendNowSchedulerFilters,
         sendNowSchedulerParameters,
+        sendNowSchedulerClearedParameters,
     }: {
         minimalUrl: string;
         dashboardUuid: string;
@@ -890,6 +894,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerDashboardFilters?: DashboardFilters;
         sendNowSchedulerFilters?: DashboardFilterRule[];
         sendNowSchedulerParameters?: ParametersValuesMap;
+        sendNowSchedulerClearedParameters?: string[];
     }): Promise<{
         pdfFile: { source: string; fileName: string };
         pdfPageCount: number;
@@ -973,6 +978,7 @@ export class UnfurlService extends BaseService {
                     sendNowSchedulerDashboardFilters,
                     sendNowSchedulerFilters,
                     sendNowSchedulerParameters,
+                    sendNowSchedulerClearedParameters,
                     outputFormat: 'pdf',
                     withPdf: false,
                     pdfPagination: isUntabbed ? 'crop' : 'cssPaged',
@@ -1635,6 +1641,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters,
         sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
+        sendNowSchedulerClearedParameters,
         outputFormat = 'image',
         withPdf = false,
         pdfPagination = 'crop',
@@ -1663,6 +1670,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
+        sendNowSchedulerClearedParameters?: string[];
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
         // 'crop' (default): single-page PDF clipped to content.
@@ -1892,6 +1900,8 @@ export class UnfurlService extends BaseService {
                                 sendNowSchedulerDashboardFilters,
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS]:
                                 sendNowSchedulerParameters,
+                            [SessionStorageKeys.SEND_NOW_SCHEDULER_CLEARED_PARAMETERS]:
+                                sendNowSchedulerClearedParameters,
                         },
                     );
 
@@ -2857,6 +2867,7 @@ export class UnfurlService extends BaseService {
                             sendNowSchedulerFilters,
                             sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
+                            sendNowSchedulerClearedParameters,
                             outputFormat,
                             withPdf,
                             pdfPagination,

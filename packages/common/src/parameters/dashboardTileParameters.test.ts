@@ -1,5 +1,6 @@
 import { type ParameterDefinitions } from '../types/parameters';
 import {
+    applyDashboardParameterOverrides,
     canUseChartSavedParameterValue,
     DashboardTileParameterSource,
     getDashboardTileParameterOverrides,
@@ -30,6 +31,55 @@ const statusWithDefault: ParameterDefinitions = {
 const statusWithoutDefault: ParameterDefinitions = {
     status: { label: 'Status' },
 };
+
+describe('applyDashboardParameterOverrides', () => {
+    it('preserves saved values for absent and partial overrides', () => {
+        const savedValues = { status: 'saved', region: 'EU' };
+        expect(applyDashboardParameterOverrides({ savedValues })).toEqual(
+            savedValues,
+        );
+        expect(
+            applyDashboardParameterOverrides({
+                savedValues,
+                overrides: { region: 'US' },
+            }),
+        ).toEqual({ status: 'saved', region: 'US' });
+    });
+
+    it('clears only saved dashboard values and lets explicit overrides win', () => {
+        expect(
+            applyDashboardParameterOverrides({
+                savedValues: { status: 'saved', region: 'EU' },
+                clearedParameters: ['status', 'region'],
+                overrides: { region: 'US' },
+            }),
+        ).toEqual({ region: 'US' });
+    });
+
+    it.each([
+        ['all', 'all'],
+        [undefined, 'chart'],
+    ])(
+        'clearing falls through to definition or chart values (%s)',
+        (defaultValue, expected) => {
+            expect(
+                resolveDashboardTileParameters({
+                    fallbackSources: fallbackSources({
+                        exploreDefinitions: {
+                            status: { label: 'Status', default: defaultValue },
+                        },
+                    }),
+                    dashboardValues: applyDashboardParameterOverrides({
+                        savedValues: { status: 'saved' },
+                        clearedParameters: ['status'],
+                    }),
+                    chartSavedValues: { status: 'chart' },
+                    isTargeted: true,
+                }),
+            ).toEqual({ status: expected });
+        },
+    );
+});
 
 describe('resolveFallbackParameterValues', () => {
     it('layers project defaults < explore defaults < virtual view saved values', () => {

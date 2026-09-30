@@ -2,12 +2,23 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { Box, useMantineTheme } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 
+export type DragHandle = Pick<
+    ReturnType<typeof useDraggable>,
+    'attributes' | 'listeners' | 'setActivatorNodeRef'
+>;
+
 export const DraggableItem: FC<{
     id: string;
-    children: ReactNode;
+    children: ReactNode | ((handle: DragHandle) => ReactNode);
     disabled?: boolean;
 }> = ({ id, children, disabled }) => {
-    const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        setActivatorNodeRef,
+        transform,
+    } = useDraggable({
         id,
         disabled,
     });
@@ -25,10 +36,12 @@ export const DraggableItem: FC<{
         <Box
             ref={setNodeRef}
             style={style}
-            {...(disabled ? {} : listeners)}
-            {...(disabled ? {} : attributes)}
+            {...(disabled || typeof children === 'function' ? {} : listeners)}
+            {...(disabled || typeof children === 'function' ? {} : attributes)}
         >
-            {children}
+            {typeof children === 'function'
+                ? children({ attributes, listeners, setActivatorNodeRef })
+                : children}
         </Box>
     );
 };

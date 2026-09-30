@@ -50,6 +50,7 @@ const EmbedDashboardParameters: FC<Props> = ({ parameters }) => {
             wrap="wrap"
         >
             <Parameters
+                isDashboard
                 isEditMode={false}
                 parameterValues={parameterValues}
                 onParameterChange={handleParameterChange}

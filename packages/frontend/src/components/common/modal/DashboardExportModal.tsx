@@ -64,6 +64,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         (c) => c.dateZoomGranularity,
     );
     const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const clearedParameters = useDashboardContext((c) => c.clearedParameters);
 
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
@@ -104,9 +105,9 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         (width: string) => {
             return `${width}-${selectedTabs.join('-')}-${JSON.stringify(
                 dashboardFilters,
-            )}-${JSON.stringify(parameterValues)}`;
+            )}-${JSON.stringify(parameterValues)}-${JSON.stringify(clearedParameters)}`;
         },
-        [selectedTabs, dashboardFilters, parameterValues],
+        [selectedTabs, dashboardFilters, parameterValues, clearedParameters],
     );
 
     const currentPreview = previewChoice
@@ -142,6 +143,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             dashboardFilters,
             dateZoomGranularity,
             parameters: parameterValues,
+            clearedParameters,
             customViewportWidth:
                 exportType === SchedulerFormat.IMAGE && previewChoice
                     ? parseInt(previewChoice)
@@ -160,6 +162,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         isDataExport,
         onClose,
         parameterValues,
+        clearedParameters,
         previewChoice,
     ]);
 
@@ -185,6 +188,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             dashboardFilters,
             dateZoomGranularity,
             parameters: parameterValues,
+            clearedParameters,
             selectedTabs: exportSelectedTabs,
         });
 
@@ -203,6 +207,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportSelectedTabs,
         getPreviewKey,
         parameterValues,
+        clearedParameters,
         previewChoice,
     ]);
 

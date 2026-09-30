@@ -1,7 +1,12 @@
 import {
+    DEFAULT_UI_STRINGS,
+    formatDate,
+    interpolateUiString,
     resolveParameterDefault,
+    TimeFrames,
     type LightdashProjectParameter,
     type ParameterValue,
+    type UiStringResolver,
 } from '@lightdash/common';
 import { type FC } from 'react';
 import CalendarPickerInput from '../../../components/common/DatePickers/CalendarPickerInput';
@@ -18,6 +23,7 @@ type Props = {
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     disabled?: boolean;
     isError?: boolean;
+    getUiString?: UiStringResolver;
 };
 
 // Reasonable date range constraints
@@ -32,6 +38,7 @@ const ParameterDateInput: FC<Props> = ({
     size,
     disabled,
     isError,
+    getUiString,
 }) => {
     const currentDate = parseParameterDateValue(currentValue);
     const resolvedDefault = resolveParameterDefault(parameter);
@@ -39,10 +46,30 @@ const ParameterDateInput: FC<Props> = ({
         typeof resolvedDefault === 'string'
             ? parseParameterDateValue(resolvedDefault)
             : null;
+    const displayLabel = parameter.label || paramKey;
+    const placeholder = defaultValue
+        ? interpolateUiString(
+              getUiString?.('parameters.defaultValue') ??
+                  DEFAULT_UI_STRINGS['parameters.defaultValue'],
+              { value: formatDate(defaultValue, TimeFrames.DAY, false) },
+          )
+        : (getUiString?.('parameters.selectValue') ??
+          DEFAULT_UI_STRINGS['parameters.selectValue']);
 
     return (
         <CalendarPickerInput
-            value={currentDate || defaultValue}
+            value={currentDate}
+            placeholder={placeholder}
+            aria-label={displayLabel}
+            clearButtonProps={{
+                'aria-hidden': false,
+                tabIndex: 0,
+                'aria-label': interpolateUiString(
+                    getUiString?.('parameters.clearNamed') ??
+                        DEFAULT_UI_STRINGS['parameters.clearNamed'],
+                    { name: displayLabel },
+                ),
+            }}
             onChange={(date) =>
                 onParameterChange(paramKey, serializeParameterDateValue(date))
             }

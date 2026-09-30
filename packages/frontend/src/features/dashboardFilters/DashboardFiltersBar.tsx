@@ -170,6 +170,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     )}
 
                                     <Parameters
+                                        isDashboard
                                         isEditMode={isEditMode}
                                         parameterValues={parameterValues}
                                         onParameterChange={onParameterChange}

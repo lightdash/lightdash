@@ -21,6 +21,50 @@ const getOptionLabels = (container: HTMLElement) =>
 
 describe('ParameterInput', () => {
     it.each([false, true])(
+        'names the clear control without a caller override (multiple=%s)',
+        (multiple) => {
+            const { getByRole } = renderWithProviders(
+                <ParameterInput
+                    paramKey="status"
+                    parameter={{
+                        label: 'Status',
+                        options: ['Cancelled'],
+                        multiple,
+                    }}
+                    value={multiple ? ['Cancelled'] : 'Cancelled'}
+                    onParameterChange={vi.fn()}
+                />,
+            );
+            expect(
+                getByRole('button', { name: 'Clear parameter: Status' }),
+            ).toHaveAttribute('tabindex', '0');
+        },
+    );
+    it('keeps an inherited default out of authored choices and leaves the selection empty', async () => {
+        const { container, getByRole } = renderParameter({
+            label: 'Channel',
+            default: 'all',
+            options: ['Cancelled', 'Expired'],
+        });
+        const input = getByRole('combobox', { name: 'Channel' });
+        expect(input).toHaveValue('');
+        await userEvent.click(input);
+        expect(getOptionLabels(container)).toEqual(['Cancelled', 'Expired']);
+    });
+
+    it('shows a zero default as a placeholder, not a selection', () => {
+        const { getByRole } = renderParameter({
+            label: 'Channel',
+            type: 'number',
+            default: 0,
+        });
+        expect(getByRole('combobox', { name: 'Channel' })).toHaveAttribute(
+            'placeholder',
+            'Default: 0',
+        );
+        expect(getByRole('combobox', { name: 'Channel' })).toHaveValue('');
+    });
+    it.each([false, true])(
         'shows the scrollbar without hovering or scrolling (multiple=%s)',
         async (multiple) => {
             const { container, getByRole } = renderParameter({

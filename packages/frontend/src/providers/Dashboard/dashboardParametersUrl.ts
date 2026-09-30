@@ -44,12 +44,33 @@ export const toDashboardParameters = (
         ]),
     );
 
+export const parseClearedDashboardParametersUrl = (
+    value: string | null,
+): string[] => {
+    if (value === null) return [];
+    const parsed: unknown = JSON.parse(value);
+    if (
+        !Array.isArray(parsed) ||
+        !parsed.every((key) => typeof key === 'string')
+    ) {
+        throw new Error('Invalid cleared dashboard parameters URL value');
+    }
+    return [...new Set(parsed)];
+};
+
 export const reconcileDashboardParameters = (
     currentParameters: DashboardParameters,
     savedParameters: DashboardParameters,
     isEditMode: boolean,
-): DashboardParameters =>
-    isEditMode ? savedParameters : { ...savedParameters, ...currentParameters };
+    clearedParameters: string[] = [],
+): DashboardParameters => ({
+    ...Object.fromEntries(
+        Object.entries(savedParameters).filter(
+            ([key]) => !clearedParameters.includes(key),
+        ),
+    ),
+    ...(isEditMode ? {} : currentParameters),
+});
 
 export const getDashboardParameterOverrides = (
     values: ParametersValuesMap,

@@ -18,6 +18,7 @@ import Parameter from './Parameter';
 
 type Props = {
     isEditMode: boolean;
+    isDashboard?: boolean;
     parameterValues: ParametersValuesMap;
     onParameterChange: (key: string, value: ParameterValue | null) => void;
     onClearAll: () => void;
@@ -39,6 +40,7 @@ type Props = {
 
 export const Parameters: FC<Props> = ({
     isEditMode,
+    isDashboard = false,
     parameterValues,
     onParameterChange,
     parameters,
@@ -135,26 +137,32 @@ export const Parameters: FC<Props> = ({
                             id={paramKey}
                             disabled={!isEditMode || !!openPopoverId}
                         >
-                            <Parameter
-                                paramKey={paramKey}
-                                parameter={parameter}
-                                value={parameterValues[paramKey] ?? null}
-                                parameterValues={parameterValues}
-                                triggerClassName={triggerClassName}
-                                dropdownClassName={dropdownClassName}
-                                openPopoverId={openPopoverId}
-                                onPopoverOpen={handlePopoverOpen}
-                                onPopoverClose={handlePopoverClose}
-                                onParameterChange={onParameterChange}
-                                projectUuid={projectUuid}
-                                isRequired={missingRequiredParameters.includes(
-                                    paramKey,
-                                )}
-                                isEditMode={isEditMode}
-                                isDraggable={isEditMode}
-                                shadowedReservedNames={shadowedReservedNames}
-                                getUiString={getUiString}
-                            />
+                            {(dragHandle) => (
+                                <Parameter
+                                    dragHandle={dragHandle}
+                                    paramKey={paramKey}
+                                    parameter={parameter}
+                                    value={parameterValues[paramKey] ?? null}
+                                    parameterValues={parameterValues}
+                                    triggerClassName={triggerClassName}
+                                    dropdownClassName={dropdownClassName}
+                                    openPopoverId={openPopoverId}
+                                    onPopoverOpen={handlePopoverOpen}
+                                    onPopoverClose={handlePopoverClose}
+                                    onParameterChange={onParameterChange}
+                                    projectUuid={projectUuid}
+                                    isRequired={missingRequiredParameters.includes(
+                                        paramKey,
+                                    )}
+                                    isEditMode={isEditMode}
+                                    isDashboard={isDashboard}
+                                    isDraggable={isEditMode}
+                                    shadowedReservedNames={
+                                        shadowedReservedNames
+                                    }
+                                    getUiString={getUiString}
+                                />
+                            )}
                         </DraggableItem>
                     </DroppableArea>
                 );

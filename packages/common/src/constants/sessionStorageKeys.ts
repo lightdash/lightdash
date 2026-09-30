@@ -3,4 +3,5 @@ export enum SessionStorageKeys {
     SEND_NOW_SCHEDULER_FILTERS = 'sendNowSchedulerFilters',
     SEND_NOW_SCHEDULER_CHART_FILTERS = 'sendNowSchedulerChartFilters',
     SEND_NOW_SCHEDULER_PARAMETERS = 'sendNowSchedulerParameters',
+    SEND_NOW_SCHEDULER_CLEARED_PARAMETERS = 'sendNowSchedulerClearedParameters',
 }

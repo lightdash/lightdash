@@ -507,6 +507,7 @@ export class QueryController extends BaseController {
                 parameters: body.parameters,
                 pivotResults: body.pivotResults,
                 includeUnpublishedDraft: body.includeUnpublishedDraft,
+                clearedParameters: body.clearedParameters,
             });
 
         return {
@@ -697,6 +698,7 @@ export class QueryController extends BaseController {
                 ...(isExecuteAsyncDashboardSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
+                clearedParameters: body.clearedParameters,
             });
 
         return {

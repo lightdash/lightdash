@@ -10,6 +10,7 @@ import {
     ApiPreAggregateStatsResults,
     applyChartFilterOverridesToMetricQuery,
     applyDashboardFiltersForTile,
+    applyDashboardParameterOverrides,
     assertIsAccountWithOrg,
     assertRegisteredAccount,
     assertUnreachable,
@@ -6985,6 +6986,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         limit,
         parameters,
+        clearedParameters,
         pivotResults,
         userAttributeOverrides,
     }: Pick<
@@ -6998,6 +7000,7 @@ export class AsyncQueryService extends ProjectService {
         | 'invalidateCache'
         | 'limit'
         | 'parameters'
+        | 'clearedParameters'
         | 'pivotResults'
         | 'userAttributeOverrides'
     > & {
@@ -7040,12 +7043,13 @@ export class AsyncQueryService extends ProjectService {
         const tileParameters = await this.getDashboardTileParameterOverrides({
             projectUuid,
             explores: Object.values(exploreBySourceId),
-            dashboardValues: {
-                ...convertDashboardParametersToValuesMap(
+            dashboardValues: applyDashboardParameterOverrides({
+                savedValues: convertDashboardParametersToValuesMap(
                     rawDashboardParameters,
                 ),
-                ...parameters,
-            },
+                overrides: parameters,
+                clearedParameters,
+            }),
             chartSavedValues: savedChart.parameters ?? {},
             isTargeted: true,
         });
@@ -7099,6 +7103,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         limit,
         parameters,
+        clearedParameters,
         pivotResults,
         includeUnpublishedDraft,
         sessionTimezone,
@@ -7202,6 +7207,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
                 limit,
                 parameters,
+                clearedParameters,
                 pivotResults,
                 userAttributeOverrides,
             });
@@ -7318,12 +7324,13 @@ export class AsyncQueryService extends ProjectService {
         const combinedParameters = await this.resolveDashboardTileParameters({
             projectUuid,
             explore,
-            dashboardValues: {
-                ...convertDashboardParametersToValuesMap(
+            dashboardValues: applyDashboardParameterOverrides({
+                savedValues: convertDashboardParametersToValuesMap(
                     rawDashboardParameters,
                 ),
-                ...parameters,
-            },
+                overrides: parameters,
+                clearedParameters,
+            }),
             chartSavedValues: savedChart.parameters ?? {},
             isTargeted: true,
             preloadedProjectParameters: projectParameters,
@@ -10566,9 +10573,12 @@ export class AsyncQueryService extends ProjectService {
             this.projectParametersModel.find(projectUuid),
         ]);
 
-        const dashboardParameters = convertDashboardParametersToValuesMap(
-            rawDashboardParameters,
-        );
+        const dashboardParameters = applyDashboardParameterOverrides({
+            savedValues: convertDashboardParametersToValuesMap(
+                rawDashboardParameters,
+            ),
+            clearedParameters: args.clearedParameters,
+        });
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
