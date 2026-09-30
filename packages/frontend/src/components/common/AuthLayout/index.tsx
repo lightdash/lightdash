@@ -4,9 +4,9 @@ import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import classes from './AuthLayout.module.css';
-import BrandShowcase from './BrandShowcase';
+import BrandPrompt from './BrandPrompt';
 import LightdashWordmark from './LightdashWordmark';
-import PixelBlocks from './PixelBlocks';
+import PixelChart from './PixelChart';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
 
 type Props = {
@@ -90,13 +90,10 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                             lets AI build, refactor, and ship analytics in
                             minutes.
                         </Text>
+                        <BrandPrompt />
                     </Stack>
 
-                    <Box className={classes.brandScene}>
-                        <BrandShowcase />
-                    </Box>
-
-                    <PixelBlocks />
+                    <PixelChart />
                 </Box>
 
                 <Box className={classes.formPanel}>

@@ -1,0 +1,58 @@
+.prompt {
+    align-self: flex-start;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border: 1px solid rgba(94, 76, 255, 0.6);
+    border-radius: var(--mantine-radius-xl);
+    background-color: #0b0a14;
+    animation: appear 0.3s steps(3, jump-none) 0.4s both;
+}
+
+.text {
+    color: var(--mantine-color-white);
+    white-space: nowrap;
+    animation: type 1s steps(28, jump-none) 0.7s both;
+}
+
+.caret {
+    width: 2px;
+    height: 1em;
+    margin-left: -6px;
+    background-color: #a499ff;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes appear {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes type {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .prompt,
+    .text,
+    .caret {
+        animation: none;
+    }
+
+    .caret {
+        display: none;
+    }
+}

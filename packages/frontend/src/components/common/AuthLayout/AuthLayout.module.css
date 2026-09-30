@@ -13,7 +13,7 @@
 }
 
 .brandPanel {
-    --auth-block-size: rem(64px);
+    --auth-block-size: clamp(rem(44px), 7.2vh, rem(64px));
     --auth-guide-line: rgba(229, 231, 235, 0.2);
 
     position: relative;
@@ -68,12 +68,6 @@
     position: relative;
     padding-inline: var(--mantine-spacing-md);
     animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.brandScene {
-    position: relative;
-    margin-top: var(--mantine-spacing-3xl);
-    padding-inline: var(--mantine-spacing-md);
 }
 
 .headline {
