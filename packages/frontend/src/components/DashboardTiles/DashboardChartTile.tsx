@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     type ApiChartAndResults,
     type ApiError,
+    assertUnreachable,
     CartesianSeriesType,
     ChartType,
     createDashboardFilterRuleFromField,
@@ -9,6 +10,7 @@ import {
     type Dashboard,
     type DashboardChartTile as IDashboardChartTile,
     type DashboardFilterRule,
+    DashboardTileParameterSource,
     DashboardTileTypes,
     type EChartsSeries,
     type Field,
@@ -16,6 +18,7 @@ import {
     getChartKind,
     getConditionalFormattingsFromChartConfig,
     getCustomLabelsFromTableConfig,
+    getDashboardTileParameterSource,
     getDimensions,
     getFields,
     getHiddenTableFields,
@@ -31,11 +34,13 @@ import {
     isFilterableField,
     isTableChartConfig,
     type ItemsMap,
+    type ParametersValuesMap,
     type PivotReference,
     type QueryExecutionContext,
     type ResultValue,
     type SavedChart,
     type Series,
+    type UiStringResolver,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -63,7 +68,6 @@ import {
     IconTelescope,
     IconVariable,
 } from '@tabler/icons-react';
-import isEqual from 'lodash/isEqual';
 import React, {
     memo,
     useCallback,
@@ -167,6 +171,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
     CHART_TYPES_WITHOUT_IMAGE_EXPORT,
+    hasDashboardTileParameterOverrides,
     isSavedDataAppVizDashboardImageExportAvailable,
 } from '../common/ChartDownload/chartDownloadUtils';
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
@@ -195,17 +200,33 @@ import TileExecutionInfo from './TileExecutionInfo';
 import TileTimezoneInfo from './TileTimezoneInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
+const getParameterSourceLabel = (
+    source: DashboardTileParameterSource,
+    getUiString: UiStringResolver,
+): string => {
+    switch (source) {
+        case DashboardTileParameterSource.CHART:
+            return getUiString('parameters.source.chart');
+        case DashboardTileParameterSource.DASHBOARD:
+            return getUiString('parameters.source.dashboard');
+        case DashboardTileParameterSource.DEFAULT:
+            return getUiString('parameters.source.default');
+        default:
+            return assertUnreachable(source, 'Unknown parameter source');
+    }
+};
+
 interface ExportGoogleSheetProps {
     savedChart: SavedChart;
+    parameters: ParametersValuesMap;
     disabled?: boolean;
 }
 
 const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
     savedChart,
+    parameters,
     disabled,
 }) => {
-    const parameters = useDashboardContext((c) => c.parameterValues);
-
     const getGsheetLink = async () => {
         return uploadGsheet({
             projectUuid: savedChart.projectUuid,
@@ -796,11 +817,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 hasDashboardFilters: !Object.values(
                     appliedDashboardFilters,
                 ).every((filters) => filters.length === 0),
-                hasParameterOverrides: Object.entries(dashboardParameters).some(
-                    ([key, value]) =>
-                        key in (usedParametersValues ?? {}) &&
-                        !isEqual(value, chart.parameters?.[key]),
-                ),
+                hasParameterOverrides: hasDashboardTileParameterOverrides({
+                    usedParameterValues: usedParametersValues ?? {},
+                    dashboardValues: dashboardParameters,
+                    chartSavedValues: chart.parameters ?? {},
+                }),
                 hasUnpublishedChanges: !!chart.hasUnpublishedChanges,
                 hasDateZoom: dashboardChartReadyQuery.dateZoom !== undefined,
                 hasDashboardColorPalette,
@@ -1568,23 +1589,53 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             >
                                                 {Object.entries(
                                                     usedParametersValues,
-                                                ).map(([key, value]) => (
-                                                    <Text
-                                                        key={key}
-                                                        size="xs"
-                                                        c="dimmed"
-                                                    >
-                                                        <Text span fw={600}>
-                                                            {parameterDefinitions[
-                                                                key
-                                                            ]?.label || key}
-                                                            :
-                                                        </Text>{' '}
-                                                        {Array.isArray(value)
-                                                            ? value.join(', ')
-                                                            : value}
-                                                    </Text>
-                                                ))}
+                                                ).map(([key, value]) => {
+                                                    const sourceLabel =
+                                                        getParameterSourceLabel(
+                                                            getDashboardTileParameterSource(
+                                                                {
+                                                                    key,
+                                                                    definitions:
+                                                                        parameterDefinitions,
+                                                                    dashboardValues:
+                                                                        dashboardParameters,
+                                                                    chartSavedValues:
+                                                                        chart.parameters ??
+                                                                        {},
+                                                                    isTargeted: true,
+                                                                },
+                                                            ),
+                                                            getUiString,
+                                                        );
+                                                    return (
+                                                        <Text
+                                                            key={key}
+                                                            size="xs"
+                                                            c="dimmed"
+                                                        >
+                                                            <Text span fw={600}>
+                                                                {parameterDefinitions[
+                                                                    key
+                                                                ]?.label || key}
+                                                                :
+                                                            </Text>{' '}
+                                                            {Array.isArray(
+                                                                value,
+                                                            )
+                                                                ? value.join(
+                                                                      ', ',
+                                                                  )
+                                                                : value}{' '}
+                                                            <Text
+                                                                span
+                                                                inherit
+                                                                fs="italic"
+                                                            >
+                                                                {`(${sourceLabel})`}
+                                                            </Text>
+                                                        </Text>
+                                                    );
+                                                })}
                                             </Stack>
                                         </Popover.Dropdown>
 
@@ -1808,6 +1859,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                 <ExportGoogleSheet
                                                     savedChart={
                                                         chartWithDashboardFilters
+                                                    }
+                                                    parameters={
+                                                        usedParametersValues ??
+                                                        {}
                                                     }
                                                     disabled={isEditMode}
                                                 />

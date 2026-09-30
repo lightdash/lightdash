@@ -102,6 +102,9 @@
     "uiOverrides": {
         "parameters.is": "არის",
         "parameters.clear": "პარამეტრის გასუფთავება",
+        "parameters.source.chart": "დიაგრამიდან",
+        "parameters.source.dashboard": "დაფიდან",
+        "parameters.source.default": "ნაგულისხმევი",
         "tileMenu.exploreFromHere": "გამოიკვლიეთ აქედან",
         "tileMenu.downloadData": "მონაცემების ჩამოტვირთვა",
         "tileMenu.exportImage": "სურათის ექსპორტი",

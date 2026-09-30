@@ -38,6 +38,23 @@ import { GenericDashboardChartTile } from './DashboardChartTile';
 const exportMocks = vi.hoisted(() => ({
     parameters: {} as Record<string, string | string[]>,
 }));
+const gsheetMocks = vi.hoisted(() => ({ uploadGsheet: vi.fn() }));
+vi.mock('../../hooks/gdrive/useGdrive', async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    uploadGsheet: gsheetMocks.uploadGsheet,
+}));
+vi.mock('../../features/export', async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    ExportToGoogleSheet: ({
+        getGsheetLink,
+    }: {
+        getGsheetLink: () => Promise<unknown>;
+    }) => (
+        <button type="button" onClick={() => void getGsheetLink()}>
+            Export Google Sheets
+        </button>
+    ),
+}));
 vi.mock('../../providers/Ability/useAbilityContext', () => ({
     useAbilityContext: () => ({ can: () => true }),
 }));
@@ -575,5 +592,83 @@ describe('DashboardChartTile embedded "Explore from here"', () => {
         const explored = await exploreFromMinimalTile(dashboardChartReadyQuery);
 
         expect(explored).toBe(chart);
+    });
+});
+
+describe('DashboardChartTile Google Sheets export', () => {
+    beforeEach(() => {
+        exportMocks.parameters = {};
+        gsheetMocks.uploadGsheet.mockReset();
+    });
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('exports with the parameter values the tile ran with', async () => {
+        renderTile({
+            ...dashboardChartReadyQuery,
+            chart: { ...chart, merge: undefined, parameters: { region: 'EU' } },
+            executeQueryResponse: {
+                ...dashboardChartReadyQuery.executeQueryResponse,
+                metricQuery: primaryMetricQuery,
+                usedParametersValues: { region: 'EU' },
+                parameterReferences: ['region'],
+                appliedDashboardFiltersBySourceId: undefined,
+            },
+        });
+        fireEvent.click(await screen.findByTestId('tile-icon-more'));
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Export Google Sheets' }),
+        );
+
+        await waitFor(() => {
+            expect(gsheetMocks.uploadGsheet).toHaveBeenCalledTimes(1);
+        });
+        expect(gsheetMocks.uploadGsheet.mock.calls[0][0].parameters).toEqual({
+            region: 'EU',
+        });
+    });
+});
+
+describe('DashboardChartTile parameters popover', () => {
+    beforeEach(() => {
+        exportMocks.parameters = {};
+    });
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('says where each parameter value came from', async () => {
+        exportMocks.parameters = { status: 'Shipped' };
+        renderTile({
+            ...dashboardChartReadyQuery,
+            chart: {
+                ...chart,
+                merge: undefined,
+                parameters: { region: 'EU', status: 'Cancelled' },
+            },
+            executeQueryResponse: {
+                ...dashboardChartReadyQuery.executeQueryResponse,
+                metricQuery: primaryMetricQuery,
+                usedParametersValues: {
+                    region: 'EU',
+                    status: 'Shipped',
+                    currency: 'USD',
+                },
+                parameterReferences: ['region', 'status', 'currency'],
+                appliedDashboardFiltersBySourceId: undefined,
+            },
+        });
+        fireEvent.click(await screen.findByLabelText('Chart parameters'));
+
+        expect(
+            (await screen.findByText('(from chart)')).parentElement,
+        ).toHaveTextContent('region: EU (from chart)');
+        expect(
+            screen.getByText('(from dashboard)').parentElement,
+        ).toHaveTextContent('status: Shipped (from dashboard)');
+        expect(screen.getByText('(default)').parentElement).toHaveTextContent(
+            'currency: USD (default)',
+        );
     });
 });

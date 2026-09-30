@@ -8,6 +8,7 @@ import {
 import { Box, Button, CloseButton, Group, Popover, Text } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useUiStrings } from '../ee/providers/Embed/useUiStrings';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';
 import { useDndSensors } from '../hooks/useDndSensors';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -37,13 +38,16 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
 }) => {
     const parameterValues = useDashboardContext((c) => c.parameterValues);
 
+    const getUiString = useUiStrings();
+
     const displayValue = useMemo(() => {
-        if (!value) return resolveParameterDefault(parameter) || 'No value';
+        const anyValue = getUiString('filters.placeholders.anyValue');
+        if (!value) return resolveParameterDefault(parameter) || anyValue;
         if (Array.isArray(value)) {
-            return value.length > 0 ? value.join(', ') : 'No value';
+            return value.length > 0 ? value.join(', ') : anyValue;
         }
         return value.toString();
-    }, [value, parameter]);
+    }, [value, parameter, getUiString]);
 
     const handleChange = useCallback(
         (key: string, newValue: ParameterValue | null) => {
