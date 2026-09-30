@@ -1,0 +1,97 @@
+.grid {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat(7, var(--auth-block-size));
+    grid-auto-rows: var(--auth-block-size);
+    pointer-events: none;
+}
+
+.empty {
+    visibility: hidden;
+}
+
+.block {
+    position: relative;
+    animation: pop 0.3s steps(3, end) both;
+}
+
+.striped::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.55) 0 1px,
+        transparent 1px rem(8px)
+    );
+    mix-blend-mode: soft-light;
+}
+
+.shadeDim {
+    background-color: #16161c;
+}
+
+.shade100 {
+    background-image: linear-gradient(135deg, #d1ccff, #d9b3ff);
+}
+
+.shade300 {
+    background-image: linear-gradient(135deg, #a499ff, #b267fe);
+}
+
+.shade500 {
+    background-image: linear-gradient(135deg, #5e4cff, #8001fe);
+}
+
+.shade700 {
+    background-image: linear-gradient(135deg, #1200b2, #4c0198);
+}
+
+.shade900 {
+    background-image: linear-gradient(135deg, #08004d, #26004c);
+}
+
+.delay0 {
+    animation-delay: 0.2s;
+}
+
+.delay1 {
+    animation-delay: 0.3s;
+}
+
+.delay2 {
+    animation-delay: 0.4s;
+}
+
+.delay3 {
+    animation-delay: 0.5s;
+}
+
+.delay4 {
+    animation-delay: 0.6s;
+}
+
+.delay5 {
+    animation-delay: 0.7s;
+}
+
+.delay6 {
+    animation-delay: 0.8s;
+}
+
+@keyframes pop {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .block {
+        animation: none;
+    }
+}

@@ -1,20 +1,12 @@
-import { Box, Card, Group, Stack, Text, Title } from '@mantine/core';
-import { IconCheck } from '@tabler/icons-react';
+import { Box, Card, Stack, Text, Title } from '@mantine/core';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
-import MantineIcon from '../MantineIcon';
 import classes from './AuthLayout.module.css';
-import BrandShowcase from './BrandShowcase';
 import LightdashWordmark from './LightdashWordmark';
+import PixelBlocks from './PixelBlocks';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
-
-const BRAND_HIGHLIGHTS = [
-    'Agents build and refactor your dashboards',
-    'Governed by your semantic layer',
-    'Open source · unlimited seats · no lock-in',
-];
 
 type Props = {
     /** Document title, matching what each page passed to `Page` before. */
@@ -82,44 +74,24 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
             <Box className={classes.root}>
                 <Box className={classes.brandPanel}>
-                    <Box className={classes.backdropGrid} aria-hidden />
-                    <Box className={classes.glowPrimary} aria-hidden />
-                    <Box className={classes.glowSecondary} aria-hidden />
-
                     <LightdashWordmark className={classes.brandWordmark} />
 
-                    <Stack gap="3xl" className={classes.brandContent}>
-                        <Stack gap="lg" className={classes.brandIntro}>
-                            <Title
-                                order={1}
-                                fz="display"
-                                className={classes.headline}
-                            >
-                                Analytics at the speed of code.
-                            </Title>
-                            <Text fz="lg" className={classes.subcopy}>
-                                The only open-source, AI-native BI platform that
-                                lets AI build, refactor, and ship analytics in
-                                minutes. Loved by developers.
-                            </Text>
-                        </Stack>
-
-                        <BrandShowcase />
+                    <Stack gap="lg" className={classes.brandIntro}>
+                        <Title
+                            order={1}
+                            fz="display"
+                            className={classes.headline}
+                        >
+                            Analytics at the speed of code.
+                        </Title>
+                        <Text fz="lg" className={classes.subcopy}>
+                            The only open-source, AI-native BI platform that
+                            lets AI build, refactor, and ship analytics in
+                            minutes.
+                        </Text>
                     </Stack>
 
-                    <Stack gap="xs" className={classes.brandHighlights}>
-                        {BRAND_HIGHLIGHTS.map((highlight) => (
-                            <Group key={highlight} gap="xs" wrap="nowrap">
-                                <MantineIcon
-                                    icon={IconCheck}
-                                    color="ldBrandViolet.3"
-                                />
-                                <Text fz="sm" className={classes.highlight}>
-                                    {highlight}
-                                </Text>
-                            </Group>
-                        ))}
-                    </Stack>
+                    <PixelBlocks />
                 </Box>
 
                 <Box className={classes.formPanel}>

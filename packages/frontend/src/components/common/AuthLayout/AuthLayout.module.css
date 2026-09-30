@@ -4,15 +4,40 @@
 }
 
 .brandPanel {
+    --auth-block-size: rem(64px);
+    --auth-guide-line: rgba(229, 231, 235, 0.2);
+
     position: relative;
     overflow: hidden;
     flex: 0 0 44%;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
-    gap: var(--mantine-spacing-4xl);
-    padding: var(--mantine-spacing-4xl);
-    background-color: var(--mantine-color-ldBrandGray-8);
+    padding: var(--auth-block-size);
+    padding-top: calc(var(--auth-block-size) + var(--mantine-spacing-4xl));
+    background-color: #000000;
+}
+
+.brandPanel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(var(--auth-guide-line), var(--auth-guide-line)),
+        linear-gradient(var(--auth-guide-line), var(--auth-guide-line)),
+        linear-gradient(var(--auth-guide-line), var(--auth-guide-line)),
+        linear-gradient(var(--auth-guide-line), var(--auth-guide-line));
+    background-repeat: no-repeat;
+    background-size:
+        1px 100%,
+        1px 100%,
+        100% 1px,
+        100% 1px;
+    background-position:
+        var(--auth-block-size) 0,
+        calc(100% - var(--auth-block-size)) 0,
+        0 var(--auth-block-size),
+        0 calc(100% - var(--auth-block-size));
+    pointer-events: none;
 }
 
 @media (max-width: $mantine-breakpoint-md) {
@@ -22,101 +47,35 @@
 }
 
 .brandWordmark {
-    position: relative;
-    flex-shrink: 0;
-    align-self: flex-start;
+    position: absolute;
+    top: calc((var(--auth-block-size) - rem(20px)) / 2);
+    left: calc(var(--auth-block-size) + var(--mantine-spacing-md));
     width: auto;
-    height: rem(28px);
+    height: rem(20px);
     color: var(--mantine-color-white);
+}
+
+.brandIntro {
+    position: relative;
+    padding-inline: var(--mantine-spacing-md);
+    animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .headline {
-    max-width: rem(560px);
+    max-width: rem(520px);
     color: var(--mantine-color-white);
+    letter-spacing: -0.02em;
 }
 
 .subcopy {
-    max-width: rem(520px);
-    color: rgba(255, 255, 255, 0.62);
-}
-
-.highlight {
-    color: var(--mantine-color-white);
-}
-
-.brandContent {
-    position: relative;
-    margin-block: auto;
-}
-
-.backdropGrid {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(
-        rgba(255, 255, 255, 0.07) 1px,
-        transparent 1px
-    );
-    background-size: rem(24px) rem(24px);
-    mask-image: radial-gradient(ellipse at 70% 60%, black 0%, transparent 70%);
-    pointer-events: none;
-}
-
-.glowPrimary,
-.glowSecondary {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-}
-
-.glowPrimary {
-    top: -20%;
-    right: -25%;
-    width: rem(640px);
-    height: rem(640px);
-    background: radial-gradient(
-        circle,
-        rgba(94, 76, 255, 0.28) 0%,
-        transparent 65%
-    );
-    animation: drift 18s ease-in-out infinite alternate;
-}
-
-.glowSecondary {
-    bottom: -30%;
-    left: -20%;
-    width: rem(560px);
-    height: rem(560px);
-    background: radial-gradient(
-        circle,
-        rgba(154, 143, 255, 0.16) 0%,
-        transparent 65%
-    );
-    animation: drift 24s ease-in-out -6s infinite alternate-reverse;
-}
-
-.brandIntro,
-.brandHighlights {
-    position: relative;
-    animation: fadeUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.brandHighlights {
-    animation-delay: 5.4s;
-}
-
-@keyframes drift {
-    from {
-        transform: translate3d(0, 0, 0);
-    }
-    to {
-        transform: translate3d(-8%, 10%, 0);
-    }
+    max-width: rem(440px);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 @keyframes fadeUp {
     from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(8px);
     }
     to {
         opacity: 1;
@@ -125,10 +84,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .glowPrimary,
-    .glowSecondary,
-    .brandIntro,
-    .brandHighlights {
+    .brandIntro {
         animation: none;
     }
 }
