@@ -67,6 +67,19 @@ export const resolveFallbackParameterValues = ({
     ...withoutUndefinedValues(virtualViewSavedValues),
 });
 
+// A chart's saved value applies only when the dashboard has no value and the definition no default
+export const canUseChartSavedParameterValue = ({
+    key,
+    dashboardValues,
+    definitions,
+}: {
+    key: string;
+    dashboardValues: ParametersValuesMap;
+    definitions: ParameterDefinitions;
+}): boolean =>
+    dashboardValues[key] === undefined &&
+    definitions[key]?.default === undefined;
+
 // Targeted: dashboard value, else chart-saved only when the definition has no default.
 // Untargeted: chart-saved values only.
 export const getDashboardTileParameterOverrides = ({
@@ -90,8 +103,12 @@ export const getDashboardTileParameterOverrides = ({
         }
         const chartSavedValue = chartSavedValues[key];
         if (
-            definitions[key]?.default !== undefined ||
-            chartSavedValue === undefined
+            chartSavedValue === undefined ||
+            !canUseChartSavedParameterValue({
+                key,
+                dashboardValues,
+                definitions,
+            })
         ) {
             return acc;
         }
@@ -156,8 +173,11 @@ const getKeysResolvedPerTile = ({
         new Set(parameterReferences).forEach((key) => {
             if (
                 isReservedParameterName(key) ||
-                key in dashboardValues ||
-                definitions[key]?.default !== undefined
+                !canUseChartSavedParameterValue({
+                    key,
+                    dashboardValues,
+                    definitions,
+                })
             ) {
                 return;
             }
