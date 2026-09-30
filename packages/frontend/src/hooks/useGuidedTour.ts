@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { isScopeTourRunning } from '../features/scopeTours/isScopeTourRunning';
 
 type UseGuidedTourOptions = {
     /**
@@ -45,7 +46,11 @@ export const useGuidedTour = ({
     autoStartOnFirstVisit = true,
 }: UseGuidedTourOptions): UseGuidedTourResult => {
     const [isOpen, setIsOpen] = useState(
-        () => autoStartOnFirstVisit && !hasSeen(storageKey),
+        // A Learn walkthrough owns the screen while it runs.
+        () =>
+            autoStartOnFirstVisit &&
+            !hasSeen(storageKey) &&
+            !isScopeTourRunning(),
     );
 
     const startTour = useCallback(() => setIsOpen(true), []);
