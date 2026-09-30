@@ -193,6 +193,9 @@ export class CommercialSchedulerClient extends SchedulerClient {
             {
                 runAt: now, // now
                 maxAttempts: 1,
+                // Approval retries may request the same resume more than once.
+                jobKey: `slack-ai-prompt:${payload.slackPromptUuid}`,
+                jobKeyMode: 'preserve_run_at',
             },
         );
         return { jobId };

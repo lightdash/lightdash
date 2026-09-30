@@ -3043,18 +3043,22 @@ export const generateAgentResponse = async ({
             `Generation complete. Result text length: ${responseText.length}, finishReason: ${result.finishReason}`,
         );
 
-        // Invariant: a finished prompt must persist either a response or an
-        // error message. Empty (or whitespace-only) text under the step cap
-        // would otherwise be stored as a blank response with no explanation
-        // for the user. Structured deep-research phases are exempt: their
-        // deliverable is a forced submission tool call, so ending on it with
-        // no trailing text is a success, not an empty response. Interrupted
-        // prompts are exempt too: the user stopped the generation, so an
-        // empty response is expected and must not surface as an error.
+        // SQL approval pauses, structured research submissions and interrupted
+        // prompts can legitimately end without response text.
         const isStructuredResearchPhase =
             args.execution.mode === 'deep_research' &&
             args.execution.research !== undefined;
-        if (!responseText.trim() && !isStructuredResearchPhase) {
+        const isAwaitingSqlApproval = result.finalStep.content?.some(
+            (part) =>
+                part.type === 'tool-approval-request' &&
+                part.toolCall.toolName === 'runSql' &&
+                !part.isAutomatic,
+        );
+        if (
+            !responseText.trim() &&
+            !isStructuredResearchPhase &&
+            !isAwaitingSqlApproval
+        ) {
             const interrupted = await dependencies.isPromptInterrupted(
                 args.promptUuid,
             );

@@ -95,6 +95,11 @@ const nonSuccessOutput = (
     structuredContent: { error: result },
 });
 
+export const RUN_SQL_REJECTED_OUTPUT = nonSuccessOutput(
+    'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.',
+    'rejected',
+);
+
 export const validateSelectOnly = (sql: string) => {
     const stripped = stripCommentsAndStrings(sql);
     if (!STARTS_WITH_SELECT_OR_WITH.test(stripped)) {
@@ -285,12 +290,7 @@ export const getRunSql = ({
                         : await waitForSqlApproval(toolCallId);
                 if (decision === 'rejected') {
                     await renderState({ kind: 'rejected', sql });
-                    return await persistResumeResult(
-                        nonSuccessOutput(
-                            'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.',
-                            'rejected',
-                        ),
-                    );
+                    return await persistResumeResult(RUN_SQL_REJECTED_OUTPUT);
                 }
                 if (decision === 'timeout') {
                     sqlApprovalTimedOut = true;
