@@ -7606,6 +7606,124 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('dashboard tile parameters', () => {
+        const statusExplore = (withDefault: boolean) =>
+            ({
+                name: 'orders',
+                baseTable: 'orders',
+                tables: {
+                    orders: {
+                        name: 'orders',
+                        parameters: {
+                            status: withDefault
+                                ? { label: 'Status', default: 'all' }
+                                : { label: 'Status' },
+                        },
+                    },
+                },
+            }) as unknown as Explore;
+        const cancelledChart = { 'orders.status': 'Cancelled' };
+        const expiredChart = { 'orders.status': 'Expired' };
+
+        const resolveTile = (
+            explore: Explore,
+            chartSavedValues: Record<string, string>,
+            dashboardValues: Record<string, string> = {},
+        ) =>
+            service.resolveDashboardTileParameters({
+                projectUuid,
+                explore,
+                dashboardValues,
+                chartSavedValues,
+                isTargeted: true,
+                preloadedProjectParameters: [],
+            });
+
+        test('tiles resolve the definition default over their saved values', async () => {
+            const explore = statusExplore(true);
+            await expect(resolveTile(explore, cancelledChart)).resolves.toEqual(
+                { 'orders.status': 'all' },
+            );
+            await expect(resolveTile(explore, expiredChart)).resolves.toEqual({
+                'orders.status': 'all',
+            });
+        });
+
+        test('tiles keep their own saved values without a definition default', async () => {
+            const explore = statusExplore(false);
+            await expect(resolveTile(explore, cancelledChart)).resolves.toEqual(
+                { 'orders.status': 'Cancelled' },
+            );
+            await expect(resolveTile(explore, expiredChart)).resolves.toEqual({
+                'orders.status': 'Expired',
+            });
+        });
+
+        test('standalone charts keep their saved values over the definition default', async () => {
+            await expect(
+                service.combineParameters(
+                    projectUuid,
+                    statusExplore(true),
+                    {},
+                    cancelledChart,
+                    [],
+                ),
+            ).resolves.toEqual({ 'orders.status': 'Cancelled' });
+        });
+
+        test('an explicit dashboard value overrides every tile', async () => {
+            const dashboardValues = { 'orders.status': 'Shipped' };
+            await Promise.all(
+                [true, false].flatMap((withDefault) =>
+                    [cancelledChart, expiredChart].map(async (chart) => {
+                        await expect(
+                            resolveTile(
+                                statusExplore(withDefault),
+                                chart,
+                                dashboardValues,
+                            ),
+                        ).resolves.toEqual({ 'orders.status': 'Shipped' });
+                    }),
+                ),
+            );
+        });
+
+        test('a project default counts as the definition default', async () => {
+            (
+                service as unknown as {
+                    projectParametersModel: { find: import('vitest').Mock };
+                }
+            ).projectParametersModel.find.mockResolvedValueOnce([
+                { name: 'region', config: { label: 'Region', default: 'EU' } },
+            ]);
+            await expect(
+                service.resolveDashboardTileParameters({
+                    projectUuid,
+                    explore: statusExplore(false),
+                    dashboardValues: {},
+                    chartSavedValues: { region: 'US' },
+                    isTargeted: true,
+                    preloadedProjectParameters: null,
+                }),
+            ).resolves.toEqual({ region: 'EU' });
+        });
+
+        test('merge overrides carry only the values above the fallback chain', async () => {
+            await expect(
+                service.getDashboardTileParameterOverrides({
+                    projectUuid,
+                    explores: [statusExplore(true)],
+                    dashboardValues: { tier: 'gold' },
+                    chartSavedValues: {
+                        ...cancelledChart,
+                        year: '2024',
+                    },
+                    isTargeted: true,
+                }),
+            ).resolves.toEqual({ tier: 'gold', year: '2024' });
+        });
+    });
+
     describe('getChartsByExploreName', () => {
         const exploreName = 'orders';
         const spaceUuid = 'uuid';

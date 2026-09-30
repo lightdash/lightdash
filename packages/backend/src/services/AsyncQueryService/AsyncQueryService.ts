@@ -7037,19 +7037,25 @@ export class AsyncQueryService extends ProjectService {
                 dashboardUuid,
                 projectUuid,
             );
+        const tileParameters = await this.getDashboardTileParameterOverrides({
+            projectUuid,
+            explores: Object.values(exploreBySourceId),
+            dashboardValues: {
+                ...convertDashboardParametersToValuesMap(
+                    rawDashboardParameters,
+                ),
+                ...parameters,
+            },
+            chartSavedValues: savedChart.parameters ?? {},
+            isTargeted: true,
+        });
         const outcome = await this.executeAsyncMergeQuery({
             account,
             projectUuid,
             mergeQuery,
             context,
             invalidateCache,
-            parameters: {
-                ...savedChart.parameters,
-                ...convertDashboardParametersToValuesMap(
-                    rawDashboardParameters,
-                ),
-                ...parameters,
-            },
+            parameters: tileParameters,
             userAttributeOverrides,
             mode: AsyncQueryService.getSavedMergeExecutionMode(limit),
             chart: AsyncQueryService.getSavedMergeChart(
@@ -7309,18 +7315,19 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
         );
 
-        const dashboardParameters = convertDashboardParametersToValuesMap(
-            rawDashboardParameters,
-        );
-
-        // Combine default parameter values, dashboard parameters, and request parameters first
-        const combinedParameters = await this.combineParameters(
+        const combinedParameters = await this.resolveDashboardTileParameters({
             projectUuid,
             explore,
-            parameters,
-            dashboardParameters,
-            projectParameters,
-        );
+            dashboardValues: {
+                ...convertDashboardParametersToValuesMap(
+                    rawDashboardParameters,
+                ),
+                ...parameters,
+            },
+            chartSavedValues: savedChart.parameters ?? {},
+            isTargeted: true,
+            preloadedProjectParameters: projectParameters,
+        });
 
         const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
             tileUuid,

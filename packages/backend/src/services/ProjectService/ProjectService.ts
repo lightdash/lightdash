@@ -100,8 +100,10 @@ import {
     getCustomSqlFieldKey,
     getDashboardFilterableFieldKey,
     getDashboardFilterRulesForTables,
+    getDashboardTileParameterOverrides,
     getDbtEnvironmentVariableKeyError,
     getDimensions,
+    getEffectiveParameterDefinitions,
     getErrorMessage,
     getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
@@ -209,10 +211,11 @@ import {
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     RequestMethod,
+    resolveDashboardTileParameters,
     resolveDbtVersion,
     ResolvedProjectColorPalette,
+    resolveFallbackParameterValues,
     resolveMergeSorts,
-    resolveParameterDefault,
     resolveQueryTimezone,
     ResultRow,
     ResultsCacheProjectSettings,
@@ -266,6 +269,7 @@ import {
     type ApiCreateProjectResults,
     type ChartUsageIn,
     type CreateDatabricksCredentials,
+    type DashboardTileParameterInputs,
     type DataTimezonePreviewRequest,
     type MergeCompiledLeg,
     type MergeItemEntry,
@@ -273,6 +277,7 @@ import {
     type Metric,
     type OrganizationProject,
     type ParameterDefinitions,
+    type ParameterFallbackSources,
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
@@ -15082,12 +15087,81 @@ export class ProjectService extends BaseService {
         };
     }
 
+    private async getParameterDefinitionSources(
+        projectUuid: string,
+        explores: Explore[],
+        preloadedProjectParameters?: DbProjectParameter[],
+    ): Promise<
+        Pick<
+            ParameterFallbackSources,
+            'projectDefinitions' | 'exploreDefinitions'
+        >
+    > {
+        const parameterConfigs =
+            preloadedProjectParameters ??
+            (await this.projectParametersModel.find(projectUuid));
+        return {
+            projectDefinitions: Object.fromEntries(
+                parameterConfigs.map((p) => [p.name, p.config]),
+            ),
+            exploreDefinitions: explores.reduce<ParameterDefinitions>(
+                (acc, explore) => ({
+                    ...acc,
+                    ...getAvailableParametersFromTables(
+                        Object.values(explore.tables),
+                    ),
+                }),
+                {},
+            ),
+        };
+    }
+
+    private async getParameterFallbackSources(
+        projectUuid: string,
+        explores: Explore[],
+        preloadedProjectParameters?: DbProjectParameter[],
+    ): Promise<ParameterFallbackSources> {
+        const { projectDefinitions, exploreDefinitions } =
+            await this.getParameterDefinitionSources(
+                projectUuid,
+                explores,
+                preloadedProjectParameters,
+            );
+
+        // A `today` default is taken in the project's query timezone, so "today" means
+        // the same day the project's date dimensions report. Only look the zone up when
+        // a definition actually needs it.
+        const hasTodayDefault = [
+            ...Object.values(projectDefinitions),
+            ...Object.values(exploreDefinitions),
+        ].some(isTodayParameterDefault);
+        const now = new Date();
+        const timezone = hasTodayDefault
+            ? await this.getQueryTimezoneForProject(projectUuid)
+            : null;
+
+        return {
+            projectDefinitions,
+            exploreDefinitions,
+            virtualViewSavedValues: explores.reduce<ParametersValuesMap>(
+                (acc, explore) => ({
+                    ...acc,
+                    ...explore.savedParameterValues,
+                }),
+                {},
+            ),
+            now,
+            timezone,
+        };
+    }
+
     /**
      * Combines parameter values from multiple sources in order of priority:
      * 1. Request parameters (highest priority)
      * 2. Saved chart/dashboard parameters
-     * 3. Default explore parameters values
-     * 4. Default project parameters values(lowest priority)
+     * 3. Virtual view saved parameter values
+     * 4. Default explore parameters values
+     * 5. Default project parameters values (lowest priority)
      */
     public async combineParameters(
         projectUuid: string,
@@ -15096,57 +15170,65 @@ export class ProjectService extends BaseService {
         savedParameters?: ParametersValuesMap,
         preloadedProjectParameters?: DbProjectParameter[],
     ): Promise<ParametersValuesMap> {
-        // Get default values for parameters
-        const projectDefaultParameterValues: ParametersValuesMap = {};
-
-        // Fetch all parameters
-        const parameterConfigs =
-            preloadedProjectParameters ??
-            (await this.projectParametersModel.find(projectUuid));
-
-        const exploreParameters = explore
-            ? getAvailableParametersFromTables(Object.values(explore.tables))
-            : {};
-
-        // A `today` default is taken in the project's query timezone, so "today" means
-        // the same day the project's date dimensions report. Only look the zone up when
-        // a definition actually needs it.
-        const hasTodayDefault =
-            parameterConfigs.some((p) => isTodayParameterDefault(p.config)) ||
-            Object.values(exploreParameters).some(isTodayParameterDefault);
-        const now = new Date();
-        const timezone = hasTodayDefault
-            ? await this.getQueryTimezoneForProject(projectUuid)
-            : undefined;
-
-        for (const paramConfig of parameterConfigs) {
-            const defaultValue = resolveParameterDefault(
-                paramConfig.config,
-                now,
-                timezone,
-            );
-            if (defaultValue !== undefined) {
-                projectDefaultParameterValues[paramConfig.name] = defaultValue;
-            }
-        }
-
-        const exploreDefaultParameterValues = Object.fromEntries(
-            Object.entries(exploreParameters)
-                .map(([key, value]) => [
-                    key,
-                    resolveParameterDefault(value, now, timezone),
-                ])
-                .filter(([key, value]) => value !== undefined),
+        const fallbackSources = await this.getParameterFallbackSources(
+            projectUuid,
+            explore ? [explore] : [],
+            preloadedProjectParameters,
         );
-
-        // Combine in order of priority: defaults (project / explore) < virtual view saved values < saved parameters (chart/dashboard) < request
         return {
-            ...projectDefaultParameterValues,
-            ...exploreDefaultParameterValues,
-            ...(explore?.savedParameterValues || {}),
+            ...resolveFallbackParameterValues(fallbackSources),
             ...(savedParameters || {}),
             ...(requestParameters || {}),
         };
+    }
+
+    // Dashboard value, else definition default, else chart-saved value, else fallback chain
+    public async resolveDashboardTileParameters({
+        projectUuid,
+        explore,
+        dashboardValues,
+        chartSavedValues,
+        isTargeted,
+        preloadedProjectParameters,
+    }: DashboardTileParameterInputs & {
+        projectUuid: string;
+        explore: Explore;
+        preloadedProjectParameters: DbProjectParameter[] | null;
+    }): Promise<ParametersValuesMap> {
+        const fallbackSources = await this.getParameterFallbackSources(
+            projectUuid,
+            [explore],
+            preloadedProjectParameters ?? undefined,
+        );
+        return resolveDashboardTileParameters({
+            fallbackSources,
+            dashboardValues,
+            chartSavedValues,
+            isTargeted,
+        });
+    }
+
+    // Tile overrides only, for queries that apply the fallback chain themselves (merge sources)
+    public async getDashboardTileParameterOverrides({
+        projectUuid,
+        explores,
+        dashboardValues,
+        chartSavedValues,
+        isTargeted,
+    }: DashboardTileParameterInputs & {
+        projectUuid: string;
+        explores: Explore[];
+    }): Promise<ParametersValuesMap> {
+        const definitionSources = await this.getParameterDefinitionSources(
+            projectUuid,
+            explores,
+        );
+        return getDashboardTileParameterOverrides({
+            definitions: getEffectiveParameterDefinitions(definitionSources),
+            dashboardValues,
+            chartSavedValues,
+            isTargeted,
+        });
     }
 
     /**

@@ -13,7 +13,9 @@ import {
     type EmbedContent,
     type Explore,
     type MemberAbility,
+    type ParametersValuesMap,
     type PossibleAbilities,
+    type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
@@ -139,6 +141,98 @@ describe('EmbedService', () => {
                 metrics: [],
                 tableCalculations: [],
             });
+        });
+    });
+
+    describe('saved chart parameters', () => {
+        const chart = {
+            uuid: 'chart-uuid',
+            parameters: { status: 'Cancelled' },
+        } as unknown as SavedChartDAO;
+        const buildService = () => {
+            const resolveDashboardTileParameters = vi
+                .fn()
+                .mockResolvedValue({ status: 'resolved' });
+            const combineParameters = vi
+                .fn()
+                .mockResolvedValue({ status: 'combined' });
+            const embedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        parameters: {
+                            status: {
+                                parameterName: 'status',
+                                value: 'Shipped',
+                            },
+                            region: { parameterName: 'region', value: 'EU' },
+                        },
+                    }),
+                },
+                projectService: {
+                    resolveDashboardTileParameters,
+                    combineParameters,
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const combine = (dashboardUuid: string | null) =>
+                (
+                    embedService as unknown as {
+                        _combineSavedChartParameters(args: {
+                            projectUuid: string;
+                            explore: Explore;
+                            chart: SavedChartDAO;
+                            dashboardUuid: string | null;
+                            acceptedUserParameters: ParametersValuesMap;
+                        }): Promise<ParametersValuesMap>;
+                    }
+                )._combineSavedChartParameters({
+                    projectUuid: mockProjectUuid,
+                    explore: validExplore,
+                    chart,
+                    dashboardUuid,
+                    acceptedUserParameters: { region: 'US' },
+                });
+            return {
+                combine,
+                resolveDashboardTileParameters,
+                combineParameters,
+            };
+        };
+
+        test('a dashboard tile resolves its chart values against the dashboard', async () => {
+            const { combine, resolveDashboardTileParameters } = buildService();
+
+            await expect(combine('dashboard-uuid')).resolves.toEqual({
+                status: 'resolved',
+            });
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith({
+                projectUuid: mockProjectUuid,
+                explore: validExplore,
+                dashboardValues: { status: 'Shipped', region: 'US' },
+                chartSavedValues: { status: 'Cancelled' },
+                isTargeted: true,
+                preloadedProjectParameters: null,
+            });
+        });
+
+        test('a chart embed keeps the request values over the fallback chain', async () => {
+            const {
+                combine,
+                combineParameters,
+                resolveDashboardTileParameters,
+            } = buildService();
+
+            await expect(combine(null)).resolves.toEqual({
+                status: 'combined',
+            });
+            expect(combineParameters).toHaveBeenCalledWith(
+                mockProjectUuid,
+                validExplore,
+                { region: 'US' },
+                {},
+            );
+            expect(resolveDashboardTileParameters).not.toHaveBeenCalled();
         });
     });
 
