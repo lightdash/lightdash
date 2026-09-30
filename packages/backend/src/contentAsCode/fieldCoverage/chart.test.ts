@@ -7,6 +7,10 @@ describeContentAsCodeSchemaContract({
     skippedModelFields: [
         'colorPalette',
         'colorPaletteUuid',
+        // Creation time and resolved project metadata belong to the source instance.
+        'createdAt',
+        'projectName',
+        'projectType',
         'dashboardName',
         'dashboardUuid',
         'deletedAt',

@@ -4,8 +4,10 @@ import {
     OrganizationMemberRole,
     PossibleAbilities,
     SchedulerFormat,
+    type SessionUser,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromApiKey } from '../../auth/account/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -194,39 +196,58 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
         projectModel.getConnectionRoute.mockResolvedValue('single');
     });
 
-    test('tracks one successful SQL chart fetch and excludes denied or failed fetches', async () => {
-        const track = vi.spyOn(analyticsMock, 'track');
-        try {
-            await service.getSqlChart(adminUser, projectUuid, savedSqlUuid);
-            expect(track).toHaveBeenCalledTimes(1);
-            expect(track).toHaveBeenCalledWith(
-                expect.objectContaining({
+    test.each([false, true])(
+        'tracks successful fetches and preserves legacy tracking on palette failure (account=%s)',
+        async (fromAccount) => {
+            const fetchChart = (user: SessionUser) =>
+                fromAccount
+                    ? service.getSqlChartFromAccount(
+                          fromApiKey(user, 'test'),
+                          projectUuid,
+                          savedSqlUuid,
+                      )
+                    : service.getSqlChart(user, projectUuid, savedSqlUuid);
+            const track = vi.spyOn(analyticsMock, 'track');
+            try {
+                await fetchChart(adminUser);
+                expect(track).toHaveBeenCalledTimes(1);
+                expect(track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'sql_chart.view',
+                        userId: adminUser.userUuid,
+                    }),
+                    expect.objectContaining({
+                        contentId: savedSqlUuid,
+                        contentName: sqlChart.name,
+                        context: 'backend',
+                        actorType: 'user',
+                    }),
+                );
+                track.mockClear();
+                await expect(fetchChart(viewerUser)).rejects.toThrow(
+                    ForbiddenError,
+                );
+                expect(track).not.toHaveBeenCalled();
+                savedSqlModel.resolveColorPalette.mockRejectedValueOnce(
+                    new Error('palette unavailable'),
+                );
+                await expect(fetchChart(adminUser)).rejects.toThrow(
+                    'palette unavailable',
+                );
+                expect(track).toHaveBeenCalledExactlyOnceWith({
                     event: 'sql_chart.view',
                     userId: adminUser.userUuid,
-                }),
-                expect.objectContaining({
-                    contentId: savedSqlUuid,
-                    contentName: sqlChart.name,
-                    context: 'backend',
-                    actorType: 'user',
-                }),
-            );
-            track.mockClear();
-            await expect(
-                service.getSqlChart(viewerUser, projectUuid, savedSqlUuid),
-            ).rejects.toThrow(ForbiddenError);
-            expect(track).not.toHaveBeenCalled();
-            savedSqlModel.resolveColorPalette.mockRejectedValueOnce(
-                new Error('palette unavailable'),
-            );
-            await expect(
-                service.getSqlChart(adminUser, projectUuid, savedSqlUuid),
-            ).rejects.toThrow('palette unavailable');
-            expect(track).not.toHaveBeenCalled();
-        } finally {
-            track.mockRestore();
-        }
-    });
+                    properties: {
+                        chartId: savedSqlUuid,
+                        projectId: projectUuid,
+                        organizationId: organizationUuid,
+                    },
+                });
+            } finally {
+                track.mockRestore();
+            }
+        },
+    );
 
     test('loads a saved SQL chart through its resource access target', async () => {
         const user = {
