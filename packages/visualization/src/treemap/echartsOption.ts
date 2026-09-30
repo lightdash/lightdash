@@ -14,7 +14,6 @@ import {
 import { type EChartsOption, type TreemapSeriesOption } from 'echarts';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
-import { resolveThemeColors } from '../themeColors';
 import { type VisualizationContextInput } from '../types';
 import { type TreemapNode } from './config';
 
@@ -245,10 +244,7 @@ export const buildTreemapEchartsOption = ({
     if (!treemapSeriesOption.data || treemapSeriesOption.data.length === 0)
         return undefined;
 
-    return {
-        eChartsOption: resolveThemeColors(eChartsOption, theme),
-        treemapSeriesOption: resolveThemeColors(treemapSeriesOption, theme),
-    };
+    return { eChartsOption, treemapSeriesOption };
 };
 
 export type TreemapEchartsOption = NonNullable<

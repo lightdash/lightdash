@@ -67,6 +67,7 @@ import {
     type TableModel,
 } from './table';
 import { LIGHT_VISUALIZATION_THEME, type VisualizationTheme } from './theme';
+import { resolveThemeColors } from './themeColors';
 import {
     buildTreemapEchartsOption,
     resolveTreemapChartConfig,
@@ -391,7 +392,14 @@ export const buildChart = (
         option: EChartsOption | undefined,
     ) =>
         option
-            ? done({ kind: 'echarts', chartType, option })
+            ? done({
+                  kind: 'echarts',
+                  chartType,
+                  // Plain colours, so the option draws the same without
+                  // Lightdash's stylesheet. The web app's hooks call the
+                  // builders directly and keep the CSS variables.
+                  option: resolveThemeColors(option, theme),
+              })
             : empty(chartType);
 
     switch (resolved.chartType) {

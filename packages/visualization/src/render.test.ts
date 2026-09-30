@@ -313,6 +313,24 @@ describe('renderChart', () => {
         expect(option.series).toHaveLength(1);
     });
 
+    test('options carry plain colours, with no CSS variables', () => {
+        for (const chartConfig of [
+            cartesian,
+            {
+                type: ChartType.PIE,
+                config: {
+                    groupFieldIds: ['orders_status'],
+                    metricId: 'orders_revenue',
+                },
+            } as ChartConfig,
+        ]) {
+            const option = echartsOf(
+                render(chartConfig, { theme: DARK_VISUALIZATION_THEME }),
+            );
+            expect(JSON.stringify(option)).not.toContain('var(--');
+        }
+    });
+
     test('the dark theme colors the option', () => {
         const light = JSON.stringify(
             echartsOf(render(cartesian, { theme: LIGHT_VISUALIZATION_THEME })),

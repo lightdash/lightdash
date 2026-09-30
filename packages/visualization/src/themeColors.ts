@@ -9,8 +9,14 @@ import { type VisualizationTheme } from './theme';
  * stylesheet cannot, and draws black or the light fallback in dark mode.
  *
  * `resolveThemeColors` swaps each variable for the theme's own value, so an
- * option draws the same everywhere. In the web app the theme is read from
- * the same Mantine theme the variables come from, so nothing changes there.
+ * option draws the same everywhere. `renderChart` applies it; the web app's
+ * hooks do not, and keep the variables: its image exports draw the SVG
+ * without the stylesheet and rely on the light fallbacks.
+ *
+ * Only the names whose value the theme carries in both schemes are mapped.
+ * Any other name (`gray`, which Lightdash keeps light in dark mode; `black`,
+ * which it customises) takes its fallback, as a browser without the
+ * stylesheet would.
  */
 
 const VARIABLE =
@@ -25,7 +31,6 @@ const colorOf = (
         step === undefined ? undefined : ramp[step];
     switch (name) {
         case 'ldGray':
-        case 'gray':
             return at(theme.neutral);
         case 'ldDark':
             return at(theme.contrast);
@@ -39,8 +44,6 @@ const colorOf = (
             return theme.foreground;
         case 'white':
             return '#ffffff';
-        case 'black':
-            return '#000000';
         default:
             return undefined;
     }

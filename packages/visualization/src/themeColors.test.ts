@@ -19,7 +19,8 @@ describe('resolveThemeColors', () => {
                 backgroundColor: DARK_VISUALIZATION_THEME.background,
                 extraCssText: `color: ${DARK_VISUALIZATION_THEME.foreground}; border: 1px solid #ffffff;`,
             },
-            title: { color: DARK_VISUALIZATION_THEME.neutral[6] },
+            // Lightdash keeps gray light in dark mode: the fallback is right.
+            title: { color: '#868e96' },
         });
     });
 

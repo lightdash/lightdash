@@ -21,7 +21,6 @@ import round from 'lodash/round';
 import { getLegendDoubleClickTooltip } from '../cartesian/legendTooltip';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
-import { resolveThemeColors } from '../themeColors';
 import { type VisualizationContextInput } from '../types';
 import { type FunnelSeriesDataPoint } from './config';
 
@@ -297,5 +296,5 @@ export const buildFunnelEchartsOption = ({
     if (!itemsMap) return undefined;
     if (!eChartsOptions) return undefined;
 
-    return resolveThemeColors(eChartsOptions, theme);
+    return eChartsOptions;
 };

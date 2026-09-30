@@ -11,7 +11,6 @@ import {
 import { type EChartsOption, type SankeySeriesOption } from 'echarts';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
-import { resolveThemeColors } from '../themeColors';
 import { type VisualizationContextInput } from '../types';
 import { type SankeySeriesDataPoint } from './transform';
 
@@ -117,50 +116,45 @@ export const buildSankeyEchartsOption = ({
         }
     }
 
-    return resolveThemeColors(
-        {
-            textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(theme.chartFont),
-            },
-            tooltip: {
-                ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
-                trigger: 'item' as const,
-                formatter: (params: any) => {
-                    if (params.dataType === 'edge') {
-                        const formattedValue = formatItemValue(
-                            metricField,
-                            params.value,
-                            false,
-                            parameters,
-                            resolvedTimezone,
-                        );
-                        const source = displayName(params.data.source);
-                        const target = displayName(params.data.target);
-                        const colorIndicator = formatColorIndicator(
-                            typeof params.color === 'string'
-                                ? params.color
-                                : '',
-                        );
-                        const valuePill = formatTooltipValue(formattedValue);
-                        return formatTooltipRow(
-                            colorIndicator,
-                            `${source} → ${target}`,
-                            valuePill,
-                        );
-                    }
+    return {
+        textStyle: {
+            fontFamily: sanitizeEchartsFontFamily(theme.chartFont),
+        },
+        tooltip: {
+            ...getTooltipStyle({ appendToBody: tooltipAppendToBody }),
+            trigger: 'item' as const,
+            formatter: (params: any) => {
+                if (params.dataType === 'edge') {
+                    const formattedValue = formatItemValue(
+                        metricField,
+                        params.value,
+                        false,
+                        parameters,
+                        resolvedTimezone,
+                    );
+                    const source = displayName(params.data.source);
+                    const target = displayName(params.data.target);
                     const colorIndicator = formatColorIndicator(
                         typeof params.color === 'string' ? params.color : '',
                     );
+                    const valuePill = formatTooltipValue(formattedValue);
                     return formatTooltipRow(
                         colorIndicator,
-                        displayName(params.name),
-                        '',
+                        `${source} → ${target}`,
+                        valuePill,
                     );
-                },
+                }
+                const colorIndicator = formatColorIndicator(
+                    typeof params.color === 'string' ? params.color : '',
+                );
+                return formatTooltipRow(
+                    colorIndicator,
+                    displayName(params.name),
+                    '',
+                );
             },
-            series: [sankeySeriesOption],
-            animation,
         },
-        theme,
-    );
+        series: [sankeySeriesOption],
+        animation,
+    };
 };
