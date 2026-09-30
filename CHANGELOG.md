@@ -1,3 +1,10 @@
+## [2.399.4](https://github.com/lightdash/lightdash/compare/2.399.3...2.399.4) (2026-09-30)
+
+
+### Bug Fixes
+
+* **playground:** gate ensure on project creation and skip redundant cache writes ([#30312](https://github.com/lightdash/lightdash/issues/30312)) ([029c2d4](https://github.com/lightdash/lightdash/commit/029c2d4d4307cb798d3475ded47df704e92cb465))
+
 ## [2.399.3](https://github.com/lightdash/lightdash/compare/2.399.2...2.399.3) (2026-09-30)
 
 
