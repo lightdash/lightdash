@@ -1,3 +1,10 @@
+# [2.390.0](https://github.com/lightdash/lightdash/compare/2.389.5...2.390.0) (2026-09-30)
+
+
+### Features
+
+* **documents:** upload and download Documents with the CLI ([#30261](https://github.com/lightdash/lightdash/issues/30261)) ([c53a95e](https://github.com/lightdash/lightdash/commit/c53a95e716a9810db69909523484ff2759a1cb01))
+
 ## [2.389.5](https://github.com/lightdash/lightdash/compare/2.389.4...2.389.5) (2026-09-30)
 
 
