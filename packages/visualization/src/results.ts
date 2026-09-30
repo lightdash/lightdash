@@ -1,11 +1,11 @@
 import {
     formatRows,
-    type ItemsMap,
     type ParametersValuesMap,
     type PivotValuesColumn,
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
+import { toItemsMap, type ChartFields } from './chartData';
 
 export type ToResultRowsOptions = {
     /**
@@ -31,16 +31,17 @@ export type ToResultRowsOptions = {
  * The visualization engine never runs a query: any source that can produce
  * rows keyed by field id, plus the fields' definitions, can feed it. The
  * fields' `format` matters: numbers are formatted from it, never taken from
- * a pre-formatted string.
+ * a pre-formatted string. The fields are those of `ChartData`: Lightdash
+ * items, or definitions with just a type, a label and a format.
  */
 export const toResultRows = (
     rows: RawResultRow[],
-    fields: ItemsMap,
+    fields: ChartFields,
     { timezone, parameters, pivotValuesColumns }: ToResultRowsOptions = {},
 ): ResultRow[] =>
     formatRows(
         rows,
-        fields,
+        toItemsMap(fields),
         pivotValuesColumns
             ? Object.fromEntries(
                   pivotValuesColumns.map((column) => [

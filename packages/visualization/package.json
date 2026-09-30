@@ -8,61 +8,87 @@
         "url": "https://github.com/lightdash/lightdash.git"
     },
     "files": [
-        "dist/**/*"
+        "dist/esm/**/*.js",
+        "dist/esm/**/*.d.ts",
+        "dist/cjs/**/*.js",
+        "dist/cjs/**/*.d.ts"
     ],
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
-    "types": "dist/esm/index.d.ts",
+    "types": "dist/cjs/index.d.ts",
     "sideEffects": false,
+    "engines": {
+        "node": ">=20"
+    },
     "exports": {
         ".": {
-            "types": "./dist/esm/index.d.ts",
-            "module": "./dist/esm/index.js",
-            "require": "./dist/cjs/index.js",
-            "import": "./dist/esm/index.js",
-            "default": "./dist/cjs/index.js"
+            "module": {
+                "types": "./dist/esm/index.d.ts",
+                "default": "./dist/esm/index.js"
+            },
+            "import": {
+                "types": "./dist/cjs/index.d.ts",
+                "default": "./dist/cjs/index.js"
+            },
+            "require": {
+                "types": "./dist/cjs/index.d.ts",
+                "default": "./dist/cjs/index.js"
+            },
+            "default": {
+                "types": "./dist/cjs/index.d.ts",
+                "default": "./dist/cjs/index.js"
+            }
         },
         "./editor": {
-            "types": "./dist/esm/editor.d.ts",
-            "module": "./dist/esm/editor.js",
-            "require": "./dist/cjs/editor.js",
-            "import": "./dist/esm/editor.js",
-            "default": "./dist/cjs/editor.js"
+            "module": {
+                "types": "./dist/esm/editor.d.ts",
+                "default": "./dist/esm/editor.js"
+            },
+            "import": {
+                "types": "./dist/cjs/editor.d.ts",
+                "default": "./dist/cjs/editor.js"
+            },
+            "require": {
+                "types": "./dist/cjs/editor.d.ts",
+                "default": "./dist/cjs/editor.js"
+            },
+            "default": {
+                "types": "./dist/cjs/editor.d.ts",
+                "default": "./dist/cjs/editor.js"
+            }
         },
-        "./src": "./src/index.ts",
-        "./src/*": [
-            "./src/*.ts",
-            "./src/*"
-        ],
         "./package.json": "./package.json"
     },
     "scripts": {
         "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
         "build": "tsc --build ./tsconfig.build.json",
-        "postbuild": "node ./scripts/markEsmOutput.mjs",
         "typecheck": "tsc --project tsconfig.json --noEmit --composite false",
         "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./src",
         "fix-lint": "pnpm run linter ./src --fix",
-        "format": "oxfmt ./src ./browser/specs ./browser/harness.ts ./browser/vite.config.ts ./browser/playwright.config.ts --check",
-        "fix-format": "oxfmt ./src ./browser/specs ./browser/harness.ts ./browser/vite.config.ts ./browser/playwright.config.ts",
+        "format": "oxfmt ./src ./browser/specs ./browser/harness.ts ./browser/vite.config.ts ./browser/playwright.config.ts ./scripts --check",
+        "fix-format": "oxfmt ./src ./browser/specs ./browser/harness.ts ./browser/vite.config.ts ./browser/playwright.config.ts ./scripts",
         "test": "vitest run --config vitest.config.ts",
         "test:dev": "vitest watch --config vitest.config.ts --changed",
         "test:browser": "playwright test --config browser/playwright.config.ts",
-        "release": "pnpm publish --no-git-checks --access public"
+        "release": "pnpm publish --no-git-checks --access public",
+        "test:pack": "node ./scripts/smoke-pack.mjs"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
         "dayjs": "1.11.10",
-        "echarts": "5.6.0",
         "lodash": "4.18.1",
         "tslib": "2.8.1"
+    },
+    "peerDependencies": {
+        "echarts": ">=5.6.0 <6"
     },
     "devDependencies": {
         "@playwright/test": "1.63.0",
         "@types/lodash": "4.14.202",
         "@types/node": "24.13.2",
+        "echarts": "5.6.0",
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
         "typescript": "7.0.2",

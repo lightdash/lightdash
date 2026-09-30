@@ -122,4 +122,19 @@ describe('toResultRows', () => {
         const rows = toResultRows([{ unknown: 42 }], itemsMap);
         expect(rows[0].unknown.value).toEqual({ raw: 42, formatted: '42' });
     });
+
+    test('formats by a minimal field definition', () => {
+        const rows = toResultRows([{ revenue: 1200.5 }], {
+            revenue: {
+                fieldType: FieldType.METRIC,
+                type: MetricType.SUM,
+                label: 'Revenue',
+                format: 'usd',
+            },
+        });
+        expect(rows[0].revenue.value).toEqual({
+            raw: 1200.5,
+            formatted: '$1,200.50',
+        });
+    });
 });

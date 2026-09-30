@@ -1,8 +1,7 @@
+import { getGaugeSizes } from '@lightdash/visualization/editor';
 import { IconGauge } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import clamp from 'lodash/clamp';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
-import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -27,57 +26,6 @@ type SimpleGaugeProps = Omit<EChartsReactProps, 'option'> & {
     onScreenshotError?: () => void;
 };
 
-const BOX_MIN_WIDTH = 150;
-const BOX_MAX_WIDTH = 1000;
-
-const BOX_MIN_HEIGHT = DEFAULT_ROW_HEIGHT;
-const BOX_MAX_HEIGHT = 1000;
-
-const LINE_SIZE_MIN = 15;
-const LINE_SIZE_MAX = 150;
-
-const DETAILS_SIZE_MIN = 10;
-const DETAILS_SIZE_MAX = 160;
-
-const TITLE_SIZE_MIN = 5;
-const TITLE_SIZE_MAX = 50;
-
-const calculateFontSize = (
-    fontSizeMin: number,
-    fontSizeMax: number,
-    boundWidth: number,
-    boundHeight: number,
-) => {
-    const widthScale =
-        (boundWidth - BOX_MIN_WIDTH) / (BOX_MAX_WIDTH - BOX_MIN_WIDTH);
-    const heightScale =
-        (boundHeight - BOX_MIN_HEIGHT) / (BOX_MAX_HEIGHT - BOX_MIN_HEIGHT);
-
-    const scalingFactor = Math.min(widthScale, heightScale);
-
-    // assert : 0 <= scalingFactor <= 1
-    const fontSize = Math.floor(
-        fontSizeMin + (fontSizeMax - fontSizeMin) * scalingFactor,
-    );
-
-    return fontSize;
-};
-
-const calculateRadius = (boundWidth: number, boundHeight: number) => {
-    const aspectRatio = boundWidth / boundHeight;
-    const baseRadius = 90;
-
-    if (aspectRatio === 1) {
-        return baseRadius;
-    }
-
-    if (aspectRatio > 1) {
-        return baseRadius * Math.min(aspectRatio, 1.5);
-    }
-
-    return baseRadius;
-};
-
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimpleGauge: FC<SimpleGaugeProps> = memo(
@@ -88,43 +36,10 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo(
 
         const hasSignaledScreenshotReady = useRef(false);
 
-        const sizes = useMemo(() => {
-            const boundWidth = clamp(
-                chartWidth || 0,
-                BOX_MIN_WIDTH,
-                BOX_MAX_WIDTH,
-            );
-
-            const availableHeightForFontSizeCalculation = chartHeight ?? 0;
-
-            const boundHeight = clamp(
-                availableHeightForFontSizeCalculation,
-                BOX_MIN_HEIGHT,
-                BOX_MAX_HEIGHT,
-            );
-
-            return {
-                tileFontSize: calculateFontSize(
-                    TITLE_SIZE_MIN,
-                    TITLE_SIZE_MAX,
-                    boundWidth,
-                    boundHeight,
-                ),
-                detailsFontSize: calculateFontSize(
-                    DETAILS_SIZE_MIN,
-                    DETAILS_SIZE_MAX,
-                    boundWidth,
-                    boundHeight,
-                ),
-                lineSize: calculateFontSize(
-                    LINE_SIZE_MIN,
-                    LINE_SIZE_MAX,
-                    boundWidth,
-                    boundHeight,
-                ),
-                radius: calculateRadius(boundWidth, boundHeight),
-            };
-        }, [chartWidth, chartHeight]);
+        const sizes = useMemo(
+            () => getGaugeSizes({ width: chartWidth, height: chartHeight }),
+            [chartWidth, chartHeight],
+        );
 
         const gaugeOptions = useEchartsGaugeConfig({
             isInDashboard: props.isInDashboard,

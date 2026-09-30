@@ -9,12 +9,31 @@ No React, no Mantine, no DOM. The Lightdash frontend renders every chart
 through this package, so a headless caller (a data app, a server-side render, a
 desktop app) draws exactly what the web app draws.
 
+## Installing
+
+```
+npm install @lightdash/visualization @lightdash/common echarts
+```
+
+`@lightdash/common` must be the same version as `@lightdash/visualization`:
+both are released together from the Lightdash monorepo, and the engine reads
+the saved chart and field types from it. `echarts` (5.6 or later 5.x) is a
+peer dependency for its option types; the engine never imports it at run time,
+so a caller that only builds tables or big numbers does not load it.
+
+Node 20 or later. Both `import` and `require` work from plain Node: they load
+the CommonJS build, which ESM callers can import by name. Bundlers that honour
+the `module` field or condition (Vite, webpack, Rollup, esbuild) get the ES
+module build instead. The types resolve under `node16`, `nodenext` and
+`bundler` module resolution.
+
 ## Using it
 
 A chart and its data go in; what to draw comes out.
 
 ```ts
 import { renderChart, toResultRows } from '@lightdash/visualization';
+import * as echarts from 'echarts';
 
 const rendered = renderChart(
     savedChart, // chartConfig, pivotConfig, tableConfig: a SavedChart as it is
@@ -86,7 +105,11 @@ pnpm -F visualization build      # dist/esm, dist/cjs, dist/types
 pnpm -F visualization test
 pnpm -F visualization lint
 pnpm -F visualization typecheck
+pnpm -F visualization test:pack   # after build: pack, install outside the repo, import from Node and tsc
 ```
+
+The unit tests also typecheck every `ts` sample in this README against the
+source.
 
 In development the frontend resolves the package from `src` through a Vite
 alias, and `pnpm dev` runs a `visualization-watch` build for the backend and
