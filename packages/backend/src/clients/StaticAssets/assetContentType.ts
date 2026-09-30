@@ -1,4 +1,4 @@
-import express from 'express';
+import mime from 'mime-types';
 
 /**
  * Resolves Content-Type from serve-static's mime db — the same resolver
@@ -10,10 +10,9 @@ import express from 'express';
 export const getAssetContentType = (
     relativePath: string,
 ): string | undefined => {
-    const contentType = express.static.mime.lookup(relativePath);
-    if (contentType === 'application/octet-stream') {
+    const contentType = mime.lookup(relativePath);
+    if (!contentType || contentType === 'application/octet-stream') {
         return undefined;
     }
-    const charset = express.static.mime.charsets.lookup(contentType, '');
-    return charset ? `${contentType}; charset=${charset}` : contentType;
+    return mime.contentType(contentType) || contentType;
 };

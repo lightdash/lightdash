@@ -75,7 +75,7 @@ organizationRouter.get(
     },
 );
 
-organizationRouter.delete(
+organizationRouter.delete<{ projectUuid: string }>(
     '/projects/:projectUuid',
     allowApiKeyAuthentication,
     isAuthenticated,

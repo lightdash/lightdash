@@ -87,7 +87,10 @@ describe('Embed Auth Middleware', () => {
             'authenticates against the path project when query params include a different project UUID: $query',
             async ({ query }) => {
                 const victimProjectUuid = 'victim-project-uuid';
-                mockRequest.path = `/api/v1/embed/${victimProjectUuid}/dashboard`;
+                mockRequest = {
+                    ...mockRequest,
+                    path: `/api/v1/embed/${victimProjectUuid}/dashboard`,
+                };
                 mockRequest.query = query;
                 mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
 
@@ -111,7 +114,7 @@ describe('Embed Auth Middleware', () => {
 
     describe('Fallback to regular auth scenarios', () => {
         it('should call next() when no project UUID in path', async () => {
-            mockRequest.path = '/api/v1/some-other-path';
+            mockRequest = { ...mockRequest, path: '/api/v1/some-other-path' };
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -251,7 +254,7 @@ describe('Embed Auth Middleware', () => {
         ])(
             'should extract project UUID from embed path: $path',
             async ({ path, projectUuid }) => {
-                mockRequest.path = path;
+                mockRequest = { ...mockRequest, path };
                 mockRequest.query = { embedToken: mockEmbedToken };
 
                 await jwtAuthMiddleware(
@@ -270,7 +273,7 @@ describe('Embed Auth Middleware', () => {
         ])(
             'should extract project UUID from query params when the path has no project UUID: $query',
             async ({ query }) => {
-                mockRequest.path = '/api/v2/content';
+                mockRequest = { ...mockRequest, path: '/api/v2/content' };
                 mockRequest.query = query;
                 mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
 
@@ -293,7 +296,7 @@ describe('Embed Auth Middleware', () => {
         );
 
         it('should handle paths without embed segment', async () => {
-            mockRequest.path = '/api/v1/some-other-path';
+            mockRequest = { ...mockRequest, path: '/api/v1/some-other-path' };
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -306,7 +309,7 @@ describe('Embed Auth Middleware', () => {
         });
 
         it('should handle paths where embed is the last segment', async () => {
-            mockRequest.path = '/api/v1/embed';
+            mockRequest = { ...mockRequest, path: '/api/v1/embed' };
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,

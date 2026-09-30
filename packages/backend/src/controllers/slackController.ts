@@ -193,7 +193,9 @@ export class SlackController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Get('/image/:nanoId')
     @OperationId('getSlackImage')
-    async getImage(@Request() req: express.Request): Promise<Readable> {
+    async getImage(
+        @Request() req: express.Request<{ nanoId: string }>,
+    ): Promise<Readable> {
         const { nanoId } = req.params;
         const { path: filePath } = await req.services
             .getDownloadFileService()

@@ -10,7 +10,7 @@ jobsRouter.get('/', isAuthenticated, async (req, res, next) => {
     next('Not implemented');
 });
 
-jobsRouter.get(
+jobsRouter.get<{ jobUuid: string }>(
     '/:jobUuid',
     allowApiKeyAuthentication,
     isAuthenticated,

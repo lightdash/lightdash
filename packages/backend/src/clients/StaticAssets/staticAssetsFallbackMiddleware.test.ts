@@ -177,7 +177,7 @@ describe('createStaticAssetsFallbackHandler', () => {
         );
         expect(res.setHeader).toHaveBeenCalledWith(
             'Content-Type',
-            'application/javascript; charset=UTF-8',
+            'text/javascript; charset=utf-8',
         );
         expect(res.setHeader).toHaveBeenCalledWith('Content-Length', 123);
         expect(res.writtenBody()).toBe('chunk contents');

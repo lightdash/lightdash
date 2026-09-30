@@ -52,7 +52,10 @@ export function extractMcpProjectUuid(
 ): string | undefined {
     const routeProjectUuid = req.params.projectUuid;
     if (routeProjectUuid !== undefined) {
-        if (!isValidUuid(routeProjectUuid)) {
+        if (
+            typeof routeProjectUuid !== 'string' ||
+            !isValidUuid(routeProjectUuid)
+        ) {
             throw new ParameterError('Invalid project UUID in MCP URL');
         }
         return routeProjectUuid;

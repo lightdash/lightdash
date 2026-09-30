@@ -8,7 +8,7 @@ import {
 
 export const savedChartRouter: Router = express.Router();
 
-savedChartRouter.get(
+savedChartRouter.get<{ savedQueryUuidOrSlug: string }>(
     '/:savedQueryUuidOrSlug',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -35,7 +35,7 @@ savedChartRouter.get(
     },
 );
 
-savedChartRouter.get(
+savedChartRouter.get<{ savedQueryUuid: string }>(
     '/:savedQueryUuid/views',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -56,7 +56,7 @@ savedChartRouter.get(
     },
 );
 
-savedChartRouter.get(
+savedChartRouter.get<{ savedQueryUuid: string }>(
     '/:savedQueryUuid/availableFilters',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -76,7 +76,7 @@ savedChartRouter.get(
             .catch(next),
 );
 
-savedChartRouter.delete(
+savedChartRouter.delete<{ savedQueryUuid: string }>(
     '/:savedQueryUuid',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -95,7 +95,7 @@ savedChartRouter.delete(
     },
 );
 
-savedChartRouter.patch(
+savedChartRouter.patch<{ savedQueryUuid: string }>(
     '/:savedQueryUuid',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -118,7 +118,7 @@ savedChartRouter.patch(
     },
 );
 
-savedChartRouter.patch(
+savedChartRouter.patch<{ savedQueryUuid: string }>(
     '/:savedQueryUuid/pinning',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -140,7 +140,7 @@ savedChartRouter.patch(
     },
 );
 
-savedChartRouter.post(
+savedChartRouter.post<{ savedQueryUuid: string }>(
     '/:savedQueryUuid/version',
     allowApiKeyAuthentication,
     isAuthenticated,

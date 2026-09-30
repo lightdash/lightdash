@@ -24,6 +24,12 @@ import {
 
 const oauthRouter: Router = express.Router({ mergeParams: true });
 
+oauthRouter.use((req, _res, next) => {
+    // Preserve the empty body used by Express 4 so OAuth input validation runs.
+    req.body ??= {};
+    next();
+});
+
 // Get OAuth service from request
 function getOAuthService(req: express.Request): OAuthService {
     return req.services.getOauthService();
@@ -182,7 +188,7 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                 {
                     name: 'response_type',
                     value: (req.query.response_type ||
-                        req.body.response_type ||
+                        req.body?.response_type ||
                         'code') as string,
                 },
                 {
@@ -248,16 +254,17 @@ oauthRouter.post('/authorize', async (req, res) => {
         );
     }
 
-    // Normalize scope parameter directly on the request object
+    // Normalize scopes before passing them to the OAuth server.
     if (req.body.scope && Array.isArray(req.body.scope)) {
         req.body.scope = req.body.scope.join(' ');
     }
-    if (req.query.scope && Array.isArray(req.query.scope)) {
-        req.query.scope = req.query.scope.join(' ');
-    }
-
     const oauthService = getOAuthService(req);
+    const { query } = req;
     const oauthReq = new OAuth2Server.Request(req);
+    if (Array.isArray(query.scope)) {
+        oauthReq.query ??= {};
+        oauthReq.query.scope = query.scope.join(' ');
+    }
     const oauthRes = new OAuth2Server.Response(res);
     try {
         const authorizationCode = await oauthService.authorize(
@@ -510,7 +517,7 @@ oauthRouter.post(
     },
 );
 
-oauthRouter.patch(
+oauthRouter.patch<{ clientId: string }>(
     '/clients/:clientId',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -532,7 +539,7 @@ oauthRouter.patch(
     },
 );
 
-oauthRouter.delete(
+oauthRouter.delete<{ clientId: string }>(
     '/clients/:clientId',
     allowApiKeyAuthentication,
     isAuthenticated,

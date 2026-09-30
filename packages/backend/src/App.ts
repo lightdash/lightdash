@@ -658,9 +658,9 @@ export default class App {
                 embedFrameAncestors;
         });
 
-        expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
+        expressApp.use('/embed/{*splat}', helmet(helmetConfigForEmbeds));
 
-        expressApp.use('/api/v1/file/*', (_req, res, next) => {
+        expressApp.use('/api/v1/file/{*splat}', (_req, res, next) => {
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
             next();
         });
@@ -730,12 +730,10 @@ export default class App {
         expressApp.use(expressWinstonMiddleware); // log request + response
 
         expressApp.get('/', (req, res) => {
-            res.sendFile(
-                path.join(__dirname, '../../frontend/build', 'index.html'),
-                {
-                    headers: { 'Cache-Control': 'no-cache, private' },
-                },
-            );
+            res.sendFile('index.html', {
+                root: path.join(__dirname, '../../frontend/build'),
+                headers: { 'Cache-Control': 'no-cache, private' },
+            });
         });
 
         /**
@@ -845,7 +843,7 @@ export default class App {
         );
 
         expressApp.get(
-            '/assets/*',
+            /^\/assets\/(.*)$/i,
             createStaticAssetsFallbackHandler(
                 new StaticAssetsS3Client({
                     lightdashConfig: this.lightdashConfig,
@@ -855,7 +853,7 @@ export default class App {
 
         // Return 404 for missing assets (don't fall through index.html)
         // This ensures chunks are not serving the index.html file.
-        expressApp.use('/assets/*', (req, res) => {
+        expressApp.use('/assets/{*splat}', (req, res) => {
             res.status(404).send('Not found');
         });
 
@@ -919,7 +917,7 @@ export default class App {
         );
 
         // handling api 404s before frontend catch all
-        expressApp.use('/api/*', (req, res) => {
+        expressApp.use('/api/{*splat}', (req, res) => {
             const apiErrorResponse = {
                 status: 'error',
                 error: {
@@ -934,17 +932,18 @@ export default class App {
 
         // no-cache - browsers revalidate on every request but can cache
         // private - no cdn caching
-        expressApp.get('*', (req, res) => {
-            res.sendFile(
-                path.join(__dirname, '../../frontend/build', 'index.html'),
-                {
-                    headers: { 'Cache-Control': 'no-cache, private' },
-                },
-            );
+        expressApp.get('/{*splat}', (req, res) => {
+            res.sendFile('index.html', {
+                root: path.join(__dirname, '../../frontend/build'),
+                headers: { 'Cache-Control': 'no-cache, private' },
+            });
         });
 
         // Start the server
-        const server = expressApp.listen(this.port, () => {
+        const server = expressApp.listen(this.port, (error) => {
+            if (error) {
+                throw error;
+            }
             if (this.environment === 'production') {
                 Logger.info(
                     `\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |  \n \\ | / \\ | / \\ | / \\ | / \\ | / \\ | / \\ | /\n  \\|/   \\|/   \\|/   \\|/   \\|/   \\|/   \\|/\n------------------------------------------\nLaunch lightdash at http://localhost:${this.port}\n------------------------------------------\n  /|\\   /|\\   /|\\   /|\\   /|\\   /|\\   /|\\\n / | \\ / | \\ / | \\ / | \\ / | \\ / | \\ / | \\\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |`,

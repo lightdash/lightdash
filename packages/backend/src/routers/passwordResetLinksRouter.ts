@@ -3,7 +3,7 @@ import { unauthorisedInDemo } from '../controllers/authentication';
 
 export const passwordResetLinksRouter: Router = express.Router();
 
-passwordResetLinksRouter.get(
+passwordResetLinksRouter.get<{ code: string }>(
     '/:code',
     unauthorisedInDemo,
     async (req, res, next) =>

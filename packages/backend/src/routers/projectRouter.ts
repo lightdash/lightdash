@@ -18,7 +18,7 @@ const fs = require('fs');
 
 export const projectRouter: Router = express.Router({ mergeParams: true });
 
-projectRouter.patch(
+projectRouter.patch<{ projectUuid: string }>(
     '/',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -42,7 +42,7 @@ projectRouter.patch(
     },
 );
 
-projectRouter.put(
+projectRouter.put<{ projectUuid: string }>(
     '/warehouse-credentials',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -64,7 +64,7 @@ projectRouter.put(
     },
 );
 
-projectRouter.get(
+projectRouter.get<{ projectUuid: string; query: string }>(
     '/search/:query',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -94,7 +94,7 @@ projectRouter.get(
     },
 );
 
-projectRouter.get(
+projectRouter.get<{ nanoId: string; projectUuid: string }>(
     '/csv/:nanoId',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -128,7 +128,7 @@ projectRouter.get(
     },
 );
 
-projectRouter.post(
+projectRouter.post<{ fieldId: string; projectUuid: string }>(
     '/field/:fieldId/search',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -158,7 +158,7 @@ projectRouter.post(
     },
 );
 
-projectRouter.post(
+projectRouter.post<{ projectUuid: string }>(
     '/saved',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -199,7 +199,7 @@ projectRouter.post(
     },
 );
 
-projectRouter.patch(
+projectRouter.patch<{ projectUuid: string }>(
     '/saved',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -222,7 +222,7 @@ projectRouter.patch(
     },
 );
 
-projectRouter.get(
+projectRouter.get<{ projectUuid: string }>(
     '/most-popular-and-recently-updated',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -243,7 +243,7 @@ projectRouter.get(
     },
 );
 
-projectRouter.get(
+projectRouter.get<{ projectUuid: string }>(
     '/verified-content-homepage',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -264,7 +264,7 @@ projectRouter.get(
     },
 );
 
-projectRouter.patch(
+projectRouter.patch<{ spaceUuid: string }>(
     '/spaces/:spaceUuid/pinning',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -283,7 +283,7 @@ projectRouter.patch(
     },
 );
 
-projectRouter.get(
+projectRouter.get<{ projectUuid: string }>(
     '/catalog',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -305,7 +305,7 @@ projectRouter.get(
     },
 );
 
-projectRouter.get(
+projectRouter.get<{ projectUuid: string }>(
     '/tablesConfiguration',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -327,7 +327,7 @@ projectRouter.get(
     },
 );
 
-projectRouter.patch(
+projectRouter.patch<{ projectUuid: string }>(
     '/tablesConfiguration',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -351,7 +351,7 @@ projectRouter.patch(
     },
 );
 
-projectRouter.get(
+projectRouter.get<{ projectUuid: string }>(
     '/hasSavedCharts',
     allowApiKeyAuthentication,
     isAuthenticated,

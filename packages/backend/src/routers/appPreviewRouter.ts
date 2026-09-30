@@ -275,7 +275,7 @@ export const createAppPreviewRouter = (
     const requireToken: express.RequestHandler = (req, res, next) => {
         const { appUuid, version, token } = req.params;
 
-        if (!isValidUuid(appUuid)) {
+        if (typeof appUuid !== 'string' || !isValidUuid(appUuid)) {
             res.status(400).json({
                 status: 'error',
                 error: { message: 'Invalid UUID format' },
@@ -403,13 +403,18 @@ export const createAppPreviewRouter = (
 
     // Serve static assets (JS, CSS, fonts, images). The token segment in
     // the path authenticates the request.
-    router.get(
+    router.get<{
+        appUuid: string;
+        filename: string;
+        token: string;
+        version: string;
+    }>(
         '/:appUuid/versions/:version/t/:token/assets/:filename',
         requireToken,
         async (req, res) => {
             const { filename } = req.params;
 
-            if (!isSafeFilename(filename)) {
+            if (typeof filename !== 'string' || !isSafeFilename(filename)) {
                 res.status(400).json({
                     status: 'error',
                     error: { message: 'Invalid filename' },

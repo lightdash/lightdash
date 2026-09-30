@@ -1617,8 +1617,8 @@ export class SlackClient {
                     ...slackOptions,
                     installationStore,
                     logLevel,
-                    app: expressApp,
                 });
+                expressApp.use(slackReceiver.app);
 
                 app = new App({
                     ...slackOptions,

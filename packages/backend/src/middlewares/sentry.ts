@@ -12,10 +12,10 @@ export const sentrySetProjectUuidTagMiddleware: RequestHandler = (
     res,
     next,
 ) => {
-    if (req.params?.projectUuid) {
+    if (typeof req.params?.projectUuid === 'string') {
         setTag('project.uuid', req.params.projectUuid);
     }
-    if (req.params?.dashboardUuid) {
+    if (typeof req.params?.dashboardUuid === 'string') {
         setTag('dashboard.uuid', req.params.dashboardUuid);
     }
 

@@ -8,7 +8,7 @@ import {
 
 export const dashboardRouter: Router = express.Router({ mergeParams: true });
 
-dashboardRouter.get(
+dashboardRouter.get<{ dashboardUuidOrSlug: string }>(
     '/:dashboardUuidOrSlug',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -34,7 +34,7 @@ dashboardRouter.get(
     },
 );
 
-dashboardRouter.get(
+dashboardRouter.get<{ dashboardUuidOrSlug: string }>(
     '/:dashboardUuidOrSlug/view-stats',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -57,7 +57,7 @@ dashboardRouter.get(
     },
 );
 
-dashboardRouter.get(
+dashboardRouter.get<{ dashboardUuid: string }>(
     '/:dashboardUuid/views',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -75,7 +75,7 @@ dashboardRouter.get(
     },
 );
 
-dashboardRouter.patch(
+dashboardRouter.patch<{ dashboardUuidOrSlug: string }>(
     '/:dashboardUuidOrSlug',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -98,7 +98,7 @@ dashboardRouter.patch(
     },
 );
 
-dashboardRouter.patch(
+dashboardRouter.patch<{ dashboardUuid: string }>(
     '/:dashboardUuid/pinning',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -117,7 +117,7 @@ dashboardRouter.patch(
     },
 );
 
-dashboardRouter.delete(
+dashboardRouter.delete<{ dashboardUuid: string }>(
     '/:dashboardUuid',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -157,7 +157,7 @@ dashboardRouter.post(
     },
 );
 
-dashboardRouter.post(
+dashboardRouter.post<{ dashboardUuid: string }>(
     '/:dashboardUuid/export',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -183,7 +183,7 @@ dashboardRouter.post(
     },
 );
 
-dashboardRouter.post(
+dashboardRouter.post<{ dashboardUuid: string }>(
     '/:dashboardUuid/exportCsv',
     allowApiKeyAuthentication,
     isAuthenticated,
