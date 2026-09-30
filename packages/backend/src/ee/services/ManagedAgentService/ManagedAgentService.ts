@@ -39,7 +39,7 @@ import {
     type UpdateManagedAgentSettings,
     type ValidationResponse,
 } from '@lightdash/common';
-import type { KnownBlock } from '@slack/bolt';
+import type { KnownBlock } from '@slack/web-api';
 import type { ToolSet } from 'ai';
 import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';

@@ -27,7 +27,6 @@ import { InstallProvider } from '@slack/oauth';
 import {
     Block,
     ChatPostMessageArguments,
-    ChatUpdateArguments,
     FilesCompleteUploadExternalResponse,
     KnownBlock,
     WebAPICallResult,
@@ -182,7 +181,7 @@ export type PostSlackFile = {
     organizationUuid: string;
     channelId: string;
     threadTs?: string;
-    file: FilesUploadV2Arguments['file'];
+    file: Extract<FilesUploadV2Arguments, { file: unknown }>['file'];
     title: string;
     comment?: string;
     filename: string;
@@ -962,9 +961,11 @@ export class SlackClient {
     async postMessage(
         message: {
             organizationUuid: string;
+            blocks?: SlackBlock[];
         } & ChatPostMessageArguments,
     ) {
-        const { organizationUuid, channel, ...slackMessageArgs } = message;
+        const { organizationUuid, ...slackMessageArgs } = message;
+        const { channel } = slackMessageArgs;
         const webClient = await this.getWebClient(organizationUuid);
 
         const installation =
@@ -984,63 +985,66 @@ export class SlackClient {
             channel,
         );
 
-        return webClient.chat
-            .postMessage({
-                ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
-                channel: resolvedChannel,
-                ...slackMessageArgs,
-            })
-            .catch(async (e) => {
-                if (getSlackErrorCode(e) === 'invalid_blocks') {
-                    const { blocks } = slackMessageArgs;
-                    const rejectedIndices = getSlackInvalidBlockIndices(e);
-                    Logger.error(
-                        `Slack invalid_blocks error for channel ${channel}`,
-                        {
-                            blockTypes: blocks?.map((block) => block.type),
-                            rejectedIndices,
-                        },
+        const postMessageArgs: ChatPostMessageArguments = {
+            ...slackMessageArgs,
+            channel: resolvedChannel,
+        };
+        if (
+            appProfilePhotoUrl &&
+            postMessageArgs.as_user !== true &&
+            !postMessageArgs.icon_emoji &&
+            !postMessageArgs.icon_url
+        ) {
+            postMessageArgs.icon_url = appProfilePhotoUrl;
+        }
+
+        return webClient.chat.postMessage(postMessageArgs).catch(async (e) => {
+            if (getSlackErrorCode(e) === 'invalid_blocks') {
+                const { blocks } = slackMessageArgs;
+                const rejectedIndices = getSlackInvalidBlockIndices(e);
+                Logger.error(
+                    `Slack invalid_blocks error for channel ${channel}`,
+                    {
+                        blockTypes: blocks?.map((block) => block.type),
+                        rejectedIndices,
+                    },
+                );
+                // Slack points at the rejected blocks in the error
+                // metadata. When every rejected block is an image (e.g.
+                // Slack can't fetch the image URL), retry once with
+                // those blocks swapped for a notice so the message still
+                // delivers. Any other rejected block means the message
+                // itself is malformed — retrying wouldn't help.
+                const onlyImagesRejected =
+                    blocks !== undefined &&
+                    rejectedIndices.length > 0 &&
+                    rejectedIndices.every(
+                        (index) => blocks[index]?.type === 'image',
                     );
-                    // Slack points at the rejected blocks in the error
-                    // metadata. When every rejected block is an image (e.g.
-                    // Slack can't fetch the image URL), retry once with
-                    // those blocks swapped for a notice so the message still
-                    // delivers. Any other rejected block means the message
-                    // itself is malformed — retrying wouldn't help.
-                    const onlyImagesRejected =
-                        blocks !== undefined &&
-                        rejectedIndices.length > 0 &&
-                        rejectedIndices.every(
-                            (index) => blocks[index]?.type === 'image',
-                        );
-                    if (onlyImagesRejected) {
-                        Logger.info(
-                            `Retrying Slack message without rejected image blocks for channel ${channel}`,
-                        );
-                        return webClient.chat
-                            .postMessage({
-                                ...(appProfilePhotoUrl
-                                    ? { icon_url: appProfilePhotoUrl }
-                                    : {}),
-                                channel: resolvedChannel,
-                                ...slackMessageArgs,
-                                blocks: replaceImageBlocksWithNotice(
-                                    blocks,
-                                    rejectedIndices,
-                                ),
-                            })
-                            .catch((retryError) => {
-                                slackErrorHandler(
-                                    retryError,
-                                    'Unable to post message on Slack without image blocks',
-                                );
-                                throw retryError;
-                            });
-                    }
+                if (onlyImagesRejected) {
+                    Logger.info(
+                        `Retrying Slack message without rejected image blocks for channel ${channel}`,
+                    );
+                    return webClient.chat
+                        .postMessage({
+                            ...postMessageArgs,
+                            blocks: replaceImageBlocksWithNotice(
+                                blocks,
+                                rejectedIndices,
+                            ),
+                        })
+                        .catch((retryError) => {
+                            slackErrorHandler(
+                                retryError,
+                                'Unable to post message on Slack without image blocks',
+                            );
+                            throw retryError;
+                        });
                 }
-                slackErrorHandler(e, 'Unable to post message on Slack');
-                throw e;
-            });
+            }
+            slackErrorHandler(e, 'Unable to post message on Slack');
+            throw e;
+        });
     }
 
     async updateAppCustomSettings(
@@ -1132,7 +1136,7 @@ export class SlackClient {
     }: {
         organizationUuid: string;
         text: string;
-        blocks?: ChatUpdateArguments['blocks'];
+        blocks?: SlackBlock[];
         channelId: string;
         messageTs: string;
     }) {
@@ -1373,21 +1377,23 @@ export class SlackClient {
             }
         }
 
-        const result = await webClient.files.uploadV2({
+        const uploadArgs = {
             channel_id: channelId,
-            thread_ts: args.threadTs,
             file: args.file,
             title: args.title,
             initial_comment: args.comment,
             filename: args.filename,
-            filetype: args.fileType || 'png',
-        });
+        };
+        const result = await webClient.files.uploadV2(
+            args.threadTs
+                ? { ...uploadArgs, thread_ts: args.threadTs }
+                : uploadArgs,
+        );
 
         if (!result.ok) {
-            Logger.error(`Failed to upload file to slack`, result.error);
-            throw new Error(`Failed to upload file to slack: ${result.error}`);
+            throw new SlackFileUploadError('Failed to upload file to Slack');
         } else {
-            Logger.debug(`Uploaded file to slack`, result.file);
+            Logger.debug(`Uploaded file to slack`);
         }
     }
 
@@ -1617,8 +1623,8 @@ export class SlackClient {
                     ...slackOptions,
                     installationStore,
                     logLevel,
+                    app: expressApp,
                 });
-                expressApp.use(slackReceiver.app);
 
                 app = new App({
                     ...slackOptions,

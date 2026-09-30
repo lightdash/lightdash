@@ -20,7 +20,7 @@ import {
     type DataAppVizField,
     type Explore,
 } from '@lightdash/common';
-import { Block, KnownBlock } from '@slack/bolt';
+import { Block, KnownBlock } from '@slack/web-api';
 import { partition } from 'lodash';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { stripMemoryCitations } from './memoryCitation';

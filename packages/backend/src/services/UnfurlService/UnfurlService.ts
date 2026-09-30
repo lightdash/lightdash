@@ -47,11 +47,10 @@ import {
 import * as Sentry from '@sentry/node';
 import {
     AllMiddlewareArgs,
-    LinkSharedEvent,
     SlackEventMiddlewareArgs,
+    StringIndexed,
 } from '@slack/bolt';
-import { StringIndexed } from '@slack/bolt/dist/types/helpers';
-import { WebClient } from '@slack/web-api';
+import { LinkSharedEvent, WebClient } from '@slack/web-api';
 import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';

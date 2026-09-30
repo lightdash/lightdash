@@ -15,7 +15,7 @@ import {
     LinkUnfurls,
     SectionBlock,
     SectionBlockAccessory,
-} from '@slack/bolt';
+} from '@slack/web-api';
 import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 

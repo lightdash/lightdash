@@ -1,5 +1,8 @@
-import { AllMiddlewareArgs, SlackEventMiddlewareArgs } from '@slack/bolt';
-import { StringIndexed } from '@slack/bolt/dist/types/helpers';
+import {
+    AllMiddlewareArgs,
+    SlackEventMiddlewareArgs,
+    StringIndexed,
+} from '@slack/bolt';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { BaseService } from '../BaseService';
 import { UnfurlService } from '../UnfurlService/UnfurlService';

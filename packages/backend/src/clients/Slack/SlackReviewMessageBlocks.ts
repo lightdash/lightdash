@@ -1,4 +1,4 @@
-import { type KnownBlock } from '@slack/bolt';
+import { type KnownBlock } from '@slack/web-api';
 import { safeUrl, sanitizeText, truncateText } from './SlackMessageBlocks';
 
 const SECTION_TEXT_LIMIT = 3000;

@@ -192,12 +192,16 @@ import * as Sentry from '@sentry/node';
 import {
     AllMiddlewareArgs,
     App,
-    ModalView,
     SayFn,
     SlackEventMiddlewareArgs,
 } from '@slack/bolt';
-import { Block, KnownBlock, WebClient } from '@slack/web-api';
-import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
+import {
+    Block,
+    ConversationsHistoryResponse,
+    KnownBlock,
+    ModalView,
+    WebClient,
+} from '@slack/web-api';
 import {
     APICallError,
     AssistantModelMessage,
@@ -561,6 +565,10 @@ import {
     type AiUsageViewerAttribution,
 } from './usageAttribution';
 import { getWritebackConnectionSupport } from './writebackConnection';
+
+type MessageElement = NonNullable<
+    ConversationsHistoryResponse['messages']
+>[number];
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>

@@ -12,7 +12,7 @@ import {
     SlackAppCustomSettings,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { ExpressReceiver } from '@slack/bolt';
+import { InstallProvider } from '@slack/oauth';
 import {
     Body,
     Delete,
@@ -375,8 +375,13 @@ export class SlackController extends BaseController {
                 .getSlackIntegrationService()
                 .getSlackInstallOptions(toSessionUser(req.account));
 
-            const slackReceiver = new ExpressReceiver(slackOptions);
-            await slackReceiver.installer?.handleInstallPath(
+            const installProvider = new InstallProvider({
+                clientId: slackOptions.clientId,
+                clientSecret: slackOptions.clientSecret,
+                stateSecret: slackOptions.stateSecret,
+                ...slackOptions.installerOptions,
+            });
+            await installProvider.handleInstallPath(
                 req,
                 req.res!,
                 {},

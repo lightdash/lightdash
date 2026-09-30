@@ -4,7 +4,7 @@ import {
     type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
-import { KnownBlock } from '@slack/bolt';
+import { KnownBlock } from '@slack/web-api';
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
