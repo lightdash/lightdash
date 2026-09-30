@@ -1,7 +1,10 @@
 import { Ability } from '@casl/ability';
 import {
     ChartType,
+    CustomDimensionType,
+    DimensionType,
     FilterOperator,
+    MetricType,
     NotFoundError,
     OrganizationMemberRole,
     RenameType,
@@ -144,6 +147,8 @@ describe('bulk model rename discovery', () => {
         uuid: string,
         tableName: string,
         metric: string,
+        filters: SavedChartDAO['metricQuery']['filters'] = {},
+        additionalMetrics: SavedChartDAO['metricQuery']['additionalMetrics'] = [],
     ): SavedChartDAO => ({
         ...chart,
         uuid,
@@ -153,34 +158,97 @@ describe('bulk model rename discovery', () => {
             ...chart.metricQuery,
             exploreName: tableName,
             metrics: [metric],
-            filters: {},
+            filters,
+            additionalMetrics,
         },
         chartConfig: { type: ChartType.TABLE },
         tableConfig: { columnOrder: [metric] },
         pivotConfig: undefined,
     });
+    const sqlDimensionChart = makeChart(
+        'sql-dimension-owner',
+        'customers',
+        'orders_archive_amount',
+    );
+    sqlDimensionChart.metricQuery.customDimensions = [
+        {
+            id: 'archive-dimension',
+            name: 'Archive dimension',
+            table: 'orders_archive',
+            type: CustomDimensionType.SQL,
+            sql: '${orders_archive.amount}',
+            dimensionType: DimensionType.NUMBER,
+        },
+    ];
     const charts = [
+        sqlDimensionChart,
         makeChart('base-with-joined-only-fields', from, 'customers_count'),
         makeChart('joined-reference', 'payments', 'orders_amount'),
         makeChart('stale-reference-on-destination', to, 'orders_amount'),
-        makeChart('already-renamed', to, 'orders_restricted_amount'),
+        makeChart('already-renamed', to, 'orders_restricted_amount', {
+            metrics: {
+                id: 'metric-filters',
+                and: [
+                    {
+                        id: 'metric-filter',
+                        target: { fieldId: 'orders_restricted_amount' },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [10],
+                    },
+                ],
+            },
+            dimensions: {
+                id: 'dimension-filters',
+                and: [
+                    {
+                        id: 'dimension-filter',
+                        target: { fieldId: 'orders_restricted_status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                    },
+                ],
+            },
+        }),
         makeChart('unrelated', 'customers', 'customers_count'),
-        {
-            ...makeChart(
-                'substring-model',
-                'archived_orders',
-                'archived_orders_amount',
+        ...['orders_archive', from].map((tableName) =>
+            makeChart(
+                `${tableName}-custom-metric`,
+                'customers',
+                `${tableName}_amount_sum`,
+                {},
+                [
+                    {
+                        table: tableName,
+                        name: 'amount_sum',
+                        type: MetricType.SUM,
+                        sql: '${TABLE}.amount',
+                    },
+                ],
             ),
-            chartConfig: {
-                type: ChartType.CUSTOM,
-                config: {
-                    spec: {
-                        mark: 'bar',
-                        encoding: { x: { field: 'archived_orders_amount' } },
+        ),
+        makeChart(
+            'prefixed-base-joined-reference',
+            'orders_archive',
+            'orders_amount',
+        ),
+        ...['archived_orders', 'orders_archive'].map(
+            (tableName): SavedChartDAO => ({
+                ...makeChart(
+                    `${tableName}-chart`,
+                    tableName,
+                    `${tableName}_amount`,
+                ),
+                chartConfig: {
+                    type: ChartType.CUSTOM,
+                    config: {
+                        spec: {
+                            mark: 'bar',
+                            encoding: { x: { field: `${tableName}_amount` } },
+                        },
                     },
                 },
-            },
-        } satisfies SavedChartDAO,
+            }),
+        ),
     ];
 
     const dashboard: DashboardDAO = {
@@ -231,6 +299,63 @@ describe('bulk model rename discovery', () => {
             },
         ],
     };
+    const unchangedAlerts: SchedulerAndTargets[] = [
+        {
+            ...alert,
+            schedulerUuid: 'name-only-alert',
+            name: 'orders_weekly',
+            thresholds: [
+                {
+                    fieldId: 'customers_count',
+                    operator: ThresholdOperator.GREATER_THAN,
+                    value: 10,
+                },
+            ],
+        },
+        {
+            ...alert,
+            schedulerUuid: 'already-renamed-alert',
+            thresholds: [
+                {
+                    ...alert.thresholds![0],
+                    fieldId: 'orders_restricted_amount',
+                },
+            ],
+        },
+        {
+            ...alert,
+            schedulerUuid: 'prefixed-model-alert',
+            savedChartUuid: 'orders_archive-chart',
+            thresholds: [
+                {
+                    ...alert.thresholds![0],
+                    fieldId: 'orders_archive_amount',
+                },
+            ],
+        },
+        {
+            ...alert,
+            schedulerUuid: 'prefixed-custom-metric-alert',
+            savedChartUuid: 'orders_archive-custom-metric',
+            thresholds: [
+                {
+                    ...alert.thresholds![0],
+                    fieldId: 'orders_archive_amount_sum',
+                },
+            ],
+        },
+        {
+            ...alert,
+            schedulerUuid: 'sql-dimension-owner-alert',
+            savedChartUuid: sqlDimensionChart.uuid,
+            thresholds: [
+                {
+                    ...alert.thresholds![0],
+                    fieldId: 'orders_archive_amount',
+                },
+            ],
+        },
+    ];
     const dashboardScheduler: SchedulerAndTargets = {
         ...alert,
         schedulerUuid: 'dashboard-scheduler',
@@ -245,6 +370,13 @@ describe('bulk model rename discovery', () => {
     };
 
     const setup = (cachedNames: string[]) => {
+        let persistedCharts = charts;
+        let persistedDashboard = dashboard;
+        let persistedSchedulers = [
+            alert,
+            ...unchangedAlerts,
+            dashboardScheduler,
+        ];
         const bulkProjectModel = {
             getSummary: vi.fn(async () => ({
                 organizationUuid: chart.organizationUuid,
@@ -273,7 +405,7 @@ describe('bulk model rename discovery', () => {
         const bulkSavedChartModel = {
             find: vi.fn(
                 async (filters: Parameters<SavedChartModel['find']>[0]) =>
-                    charts.filter(
+                    persistedCharts.filter(
                         (c) =>
                             c.projectUuid === filters.projectUuid &&
                             (!filters.exploreNames ||
@@ -281,21 +413,39 @@ describe('bulk model rename discovery', () => {
                     ),
             ),
             get: vi.fn(
-                async (uuid: string) => charts.find((c) => c.uuid === uuid)!,
+                async (uuid: string) =>
+                    persistedCharts.find((c) => c.uuid === uuid)!,
             ),
-            createVersion: vi.fn(),
+            createVersion: vi.fn(
+                async (uuid: string, updated: SavedChartDAO) => {
+                    persistedCharts = persistedCharts.map((c) =>
+                        c.uuid === uuid ? updated : c,
+                    );
+                    return updated;
+                },
+            ),
         };
         const bulkDashboardModel = {
-            find: vi.fn(async () => [dashboard]),
-            getByIdOrSlug: vi.fn(async () => dashboard),
-            addVersion: vi.fn(),
+            find: vi.fn(async () => [persistedDashboard]),
+            getByIdOrSlug: vi.fn(async () => persistedDashboard),
+            addVersion: vi.fn(async (_uuid: string, updated: DashboardDAO) => {
+                persistedDashboard = updated;
+                return updated;
+            }),
         };
         const bulkSchedulerModel = {
             getChartSchedulers: vi.fn(async (uuid: string) =>
-                uuid === alert.savedChartUuid ? [alert] : [],
+                persistedSchedulers.filter((s) => s.savedChartUuid === uuid),
             ),
-            getDashboardSchedulers: vi.fn(async () => [dashboardScheduler]),
-            updateScheduler: vi.fn(),
+            getDashboardSchedulers: vi.fn(async (uuid: string) =>
+                persistedSchedulers.filter((s) => s.dashboardUuid === uuid),
+            ),
+            updateScheduler: vi.fn(async (updated: SchedulerAndTargets) => {
+                persistedSchedulers = persistedSchedulers.map((s) =>
+                    s.schedulerUuid === updated.schedulerUuid ? updated : s,
+                );
+                return updated;
+            }),
         };
         return {
             bulkProjectModel,
@@ -316,6 +466,50 @@ describe('bulk model rename discovery', () => {
             }),
         };
     };
+
+    test('repeating a completed model rename reports no changes and performs no writes', async () => {
+        const {
+            bulkService,
+            bulkSavedChartModel,
+            bulkDashboardModel,
+            bulkSchedulerModel,
+        } = setup([]);
+        await bulkService.runScheduledRenameResources({
+            ...payload,
+            dryRun: false,
+        });
+        vi.clearAllMocks();
+
+        const noChanges = {
+            charts: [],
+            dashboards: [],
+            alerts: [],
+            dashboardSchedulers: [],
+        };
+        expect(
+            await bulkService.previewRenameResources({
+                ...payload,
+                user: {
+                    ...user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: 'update' },
+                    ]),
+                },
+            }),
+        ).toEqual(noChanges);
+        expect(await bulkService.runScheduledRenameResources(payload)).toEqual(
+            noChanges,
+        );
+        expect(
+            await bulkService.runScheduledRenameResources({
+                ...payload,
+                dryRun: false,
+            }),
+        ).toEqual(noChanges);
+        expect(bulkSavedChartModel.createVersion).not.toHaveBeenCalled();
+        expect(bulkDashboardModel.addVersion).not.toHaveBeenCalled();
+        expect(bulkSchedulerModel.updateScheduler).not.toHaveBeenCalled();
+    });
 
     test('keeps field renames scoped to their explore and cached joins', async () => {
         const { bulkService } = setup([from, to, 'payments']);
@@ -364,6 +558,14 @@ describe('bulk model rename discovery', () => {
                         uuid: 'stale-reference-on-destination',
                         name: 'stale-reference-on-destination',
                     },
+                    {
+                        uuid: 'orders-custom-metric',
+                        name: 'orders-custom-metric',
+                    },
+                    {
+                        uuid: 'prefixed-base-joined-reference',
+                        name: 'prefixed-base-joined-reference',
+                    },
                 ],
                 dashboards: [{ uuid: dashboard.uuid, name: dashboard.name }],
                 alerts: [{ uuid: 'alert', name: alert.name }],
@@ -409,6 +611,18 @@ describe('bulk model rename discovery', () => {
                     ([uuid]) => uuid,
                 ),
             ).toEqual(expected.charts.map(({ uuid }) => uuid));
+            expect(bulkSavedChartModel.createVersion).toHaveBeenCalledWith(
+                'orders-custom-metric',
+                expect.objectContaining({
+                    metricQuery: expect.objectContaining({
+                        metrics: ['orders_restricted_amount_sum'],
+                        additionalMetrics: [
+                            expect.objectContaining({ table: to }),
+                        ],
+                    }),
+                }),
+                undefined,
+            );
             expect(
                 bulkDashboardModel.addVersion,
             ).toHaveBeenCalledExactlyOnceWith(

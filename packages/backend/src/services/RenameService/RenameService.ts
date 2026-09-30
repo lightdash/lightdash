@@ -970,6 +970,7 @@ export class RenameService extends BaseService {
             );
 
             const charts = await Promise.all(chartPromises);
+            const chartsByUuid = new Map(charts.map((c) => [c.uuid, c]));
             const chartChanges = charts.reduce<SavedChartDAO[]>((acc, c) => {
                 const { updatedChart, hasChanges } = renameSavedChart({
                     type,
@@ -1032,6 +1033,10 @@ export class RenameService extends BaseService {
                         type,
                         d,
                         nameChanges,
+                        false,
+                        d.savedChartUuid
+                            ? (chartsByUuid.get(d.savedChartUuid) ?? null)
+                            : null,
                     );
 
                     if (hasChanges) {

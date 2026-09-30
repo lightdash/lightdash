@@ -47,7 +47,8 @@ export const createRenameFactory = ({
     isPrefix,
     fromFieldName,
     toFieldName,
-}: NameChanges & { isPrefix: boolean }) => {
+    protectedModelNames = [],
+}: NameChanges & { isPrefix: boolean; protectedModelNames?: string[] }) => {
     let replaceId: (str: string) => string;
     let replaceReference: (str: string) => string;
     let replaceString: (str: string) => string;
@@ -60,10 +61,18 @@ export const createRenameFactory = ({
     // they skip already-renamed values, keeping model renames idempotent.
     const newNameExtendsOld = isPrefix && to.startsWith(`${from}_`);
     if (isPrefix) {
+        const protectedPrefixes = [
+            ...(newNameExtendsOld ? [`${to}_`] : []),
+            ...protectedModelNames
+                .filter((modelName) => modelName.startsWith(`${from}_`))
+                .map((modelName) => `${modelName}_`),
+        ];
+        const isProtectedId = (str: string) =>
+            protectedPrefixes.some((prefix) => str.startsWith(prefix));
         replaceId = (str: string) =>
-            newNameExtendsOld && str.startsWith(`${to}_`)
-                ? str // already renamed
-                : str.replace(new RegExp(`^${from}_`, 'g'), `${to}_`); // table prefix (eg: payment_)
+            isProtectedId(str)
+                ? str
+                : str.replace(new RegExp(`^${from}_`, 'g'), `${to}_`);
         replaceReference = (str: string) =>
             str.replace(
                 new RegExp(`\\$\\{${fromReference}\\.`, 'g'),
@@ -71,14 +80,9 @@ export const createRenameFactory = ({
             ); // SQL normally uses "." on references
         replaceString = (str: string) =>
             str.replace(
-                newNameExtendsOld
-                    ? // skip occurrences already followed by the new suffix (already renamed)
-                      new RegExp(
-                          `\\b${from}_(?!${to.slice(from.length + 1)}_)`,
-                          'g',
-                      )
-                    : new RegExp(`\\b${from}_`, 'g'),
-                `${to}_`,
+                new RegExp(`\\b${from}_`, 'g'),
+                (match, offset: number) =>
+                    isProtectedId(str.slice(offset)) ? match : `${to}_`,
             );
         replaceDotFieldId = (str: string) =>
             str.replace(new RegExp(`^${from}\\.`, 'g'), `${to}.`);
@@ -580,6 +584,7 @@ export const renameFilters = (
     filters: Filters,
     replaceModelPrefix: (str: string) => string,
 ): Filters => ({
+    ...filters,
     dimensions: filters.dimensions
         ? (renameFilterGroups(
               filters.dimensions,
@@ -631,6 +636,8 @@ const renameDashboardFilters = (
     filters: DashboardFilters,
     methods: ReturnType<typeof createRenameFactory>,
 ): DashboardFilters => ({
+    // Keep key order stable so unchanged filters serialize identically.
+    ...filters,
     dimensions: renameDashboardFilterRules(filters.dimensions, methods),
     metrics: renameDashboardFilterRules(filters.metrics, methods),
     tableCalculations: renameDashboardFilterRules(
@@ -790,6 +797,15 @@ const buildModelNameChecker = (searchTerms: string[]) => (model: Object) => {
     return searchTerms.some((term) => term && stringified.includes(term));
 };
 
+const getChartModelNames = (chart: SavedChartDAO): string[] => [
+    chart.tableName,
+    ...(chart.metricQuery.additionalMetrics?.map((metric) => metric.table) ??
+        []),
+    ...(chart.metricQuery.customDimensions?.map(
+        (dimension) => dimension.table,
+    ) ?? []),
+];
+
 export const renameSavedChart = ({
     type,
     chart,
@@ -824,6 +840,7 @@ export const renameSavedChart = ({
     const renameMethods = createRenameFactory({
         ...nameChanges,
         isPrefix,
+        protectedModelNames: getChartModelNames(chart),
     });
     const { replaceList } = renameMethods;
 
@@ -880,8 +897,6 @@ export const renameDashboard = (
 ): { updatedDashboard: DashboardDAO; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
-    let hasChanges = false;
-
     const searchTerms = isPrefix
         ? [
               addSuffixIfPrefix(nameChanges.from, true), // "model_" for fieldId matches
@@ -903,7 +918,6 @@ export const renameDashboard = (
     const updatedDashboard = { ...dashboard };
 
     if (containsModelName(dashboard.filters)) {
-        hasChanges = true;
         updatedDashboard.filters = renameDashboardFilters(
             dashboard.filters,
             renameMethods,
@@ -919,6 +933,8 @@ export const renameDashboard = (
             nameChanges,
         );
 
+    const hasChanges =
+        JSON.stringify(dashboard) !== JSON.stringify(updatedDashboard);
     return { updatedDashboard, hasChanges };
 };
 
@@ -927,6 +943,7 @@ export const renameAlert = (
     alert: SchedulerAndTargets,
     nameChanges: NameChanges,
     validate: boolean = false,
+    chart: SavedChartDAO | null = null,
 ): { updatedAlert: SchedulerAndTargets; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
@@ -941,11 +958,10 @@ export const renameAlert = (
     const { replaceId } = createRenameFactory({
         ...nameChanges,
         isPrefix,
+        protectedModelNames: chart ? getChartModelNames(chart) : [],
     });
-    let hasChanges = false;
     const updatedAlert = { ...alert };
     if (containsModelName(alert)) {
-        hasChanges = true;
         updatedAlert.thresholds = alert.thresholds.map((t) => ({
             ...t,
             fieldId: replaceId(t.fieldId),
@@ -955,6 +971,7 @@ export const renameAlert = (
     if (validate)
         validateRename(alert, updatedAlert, alert.name, 'alert', nameChanges);
 
+    const hasChanges = JSON.stringify(alert) !== JSON.stringify(updatedAlert);
     return { updatedAlert, hasChanges };
 };
 
@@ -981,11 +998,8 @@ export const renameDashboardScheduler = (
         ...nameChanges,
         isPrefix,
     });
-    let hasChanges = false;
     const updatedDashboardScheduler = { ...dashboardScheduler };
     if (containsModelName(dashboardScheduler)) {
-        hasChanges = true;
-
         const updateTarget = (target: DashboardFieldTarget) => {
             /* sample target filter:
                 "target": {
@@ -1030,5 +1044,8 @@ export const renameDashboardScheduler = (
             nameChanges,
         );
 
+    const hasChanges =
+        JSON.stringify(dashboardScheduler) !==
+        JSON.stringify(updatedDashboardScheduler);
     return { updatedDashboardScheduler, hasChanges };
 };
