@@ -55,6 +55,7 @@ import {
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     TablesConfiguration,
+    UnexpectedDatabaseError,
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
@@ -137,6 +138,7 @@ import {
     CachedWarehouseTableName,
     DbCachedWarehouse,
     DbProject,
+    PlaygroundBundleVersionsTableName,
     ProjectTableName,
     type DbCachedExplore,
     type DbCachedExploreStaging,
@@ -2797,6 +2799,7 @@ export class ProjectModel {
         explores: (Explore | ExploreError)[],
         complete = false,
         dbtModelNames?: string[],
+        playgroundBundleVersion?: string,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -2964,6 +2967,16 @@ export class ProjectModel {
                                   .merge(['table_names', 'explore'])
                                   .returning('cached_explore_uuid'));
                         individualCachedExplores.push(...saved);
+                    }
+
+                    if (playgroundBundleVersion !== undefined) {
+                        await trx(ProjectTableName)
+                            .where('project_uuid', projectUuid)
+                            .update({
+                                playground_bundle_version:
+                                    playgroundBundleVersion,
+                            });
+                        warehouseCredentialsCache?.del(projectUuid);
                     }
 
                     Logger.info(
@@ -4572,6 +4585,79 @@ export class ProjectModel {
         return this.getWarehouseCredentialsForProject(projectUuid);
     }
 
+    /** The column is the only source; a version copied into stored credentials is ignored. */
+    private static withPlaygroundBundleVersion(
+        credentials: CreateWarehouseCredentials,
+        playgroundBundleVersion: string | null,
+    ): CreateWarehouseCredentials {
+        if (
+            credentials.type !== WarehouseTypes.DUCKDB ||
+            credentials.connectionType !== DuckdbConnectionType.EMBEDDED
+        ) {
+            return credentials;
+        }
+        const { bundleVersion, ...rest } = credentials;
+        return playgroundBundleVersion === null
+            ? rest
+            : { ...rest, bundleVersion: playgroundBundleVersion };
+    }
+
+    async getPlaygroundBundleVersion(
+        projectUuid: string,
+    ): Promise<string | null> {
+        const row = await this.database(ProjectTableName)
+            .select('playground_bundle_version')
+            .where('project_uuid', projectUuid)
+            .first();
+        if (!row) {
+            throw new NotFoundError(`Project ${projectUuid} not found`);
+        }
+        return row.playground_bundle_version;
+    }
+
+    /** Projects whose cached explores come from the playground bundle, excluding learner copies. */
+    async getPlaygroundBundleProjectsNotOnVersion(
+        version: string,
+    ): Promise<
+        { projectUuid: string; playgroundBundleVersion: string | null }[]
+    > {
+        const rows = await this.database(ProjectTableName)
+            .select('project_uuid', 'playground_bundle_version')
+            .where((query) =>
+                query
+                    .where('provisioning_source', 'playground')
+                    .orWhere('project_type', ProjectType.TRAINING),
+            )
+            .andWhere((query) =>
+                query
+                    .whereNull('playground_bundle_version')
+                    .orWhereNot('playground_bundle_version', version),
+            )
+            .orderBy('project_id');
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            playgroundBundleVersion: row.playground_bundle_version,
+        }));
+    }
+
+    /** Records when any server first saw a bundle version and returns that time. */
+    async recordPlaygroundBundleVersionSeen(version: string): Promise<Date> {
+        await this.database(PlaygroundBundleVersionsTableName)
+            .insert({ version })
+            .onConflict('version')
+            .ignore();
+        const row = await this.database(PlaygroundBundleVersionsTableName)
+            .select('first_seen_at')
+            .where('version', version)
+            .first();
+        if (!row) {
+            throw new UnexpectedDatabaseError(
+                `Playground bundle version ${version} was not recorded`,
+            );
+        }
+        return row.first_seen_at;
+    }
+
     async getWarehouseCredentialsForProject(
         projectUuid: string,
     ): Promise<CreateWarehouseCredentials> {
@@ -4601,11 +4687,13 @@ export class ProjectModel {
                     encrypted_credentials: Buffer;
                     organization_warehouse_credentials_uuid: string;
                     organization_uuid: string;
+                    playground_bundle_version: string | null;
                 }[]
             >([
                 'encrypted_credentials',
                 'organization_warehouse_credentials_uuid',
                 'organizations.organization_uuid',
+                'projects.playground_bundle_version',
             ])
             .where('project_uuid', projectUuid);
         if (row === undefined) {
@@ -4626,10 +4714,13 @@ export class ProjectModel {
         }
 
         try {
-            const credentials = normalizeWarehouseCredentials(
-                JSON.parse(
-                    this.encryptionUtil.decrypt(row.encrypted_credentials),
-                ) as CreateWarehouseCredentials,
+            const credentials = ProjectModel.withPlaygroundBundleVersion(
+                normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(row.encrypted_credentials),
+                    ) as CreateWarehouseCredentials,
+                ),
+                row.playground_bundle_version,
             );
             warehouseCredentialsCache?.set(projectUuid, credentials);
             return credentials;

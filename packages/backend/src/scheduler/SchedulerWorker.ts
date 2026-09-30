@@ -773,6 +773,14 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
+            {
+                task: SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES,
+                pattern: '*/10 * * * *',
+                options: {
+                    backfillPeriod: 0,
+                    maxAttempts: 1,
+                },
+            },
             // worker-process pg liveness is driven by a setInterval (see startPgPing);
             // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
@@ -1925,6 +1933,13 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                     throw error;
                 }
+            },
+            [SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES]: async () => {
+                const result =
+                    await this.projectService.reconcilePlaygroundBundles();
+                Logger.info(
+                    `Playground bundle ${result.version}: moved ${result.adopted} projects, ${result.waiting} waiting, ${result.failed} failed`,
+                );
             },
             [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: async () => {
                 Logger.info('Starting expired preview projects cleanup job');

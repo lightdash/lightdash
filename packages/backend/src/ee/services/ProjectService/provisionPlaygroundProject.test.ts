@@ -7,12 +7,25 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import { readEmbeddedBundle } from '@lightdash/warehouses';
 import path from 'path';
 import {
     provisionPlaygroundProject,
     type ProvisionPlaygroundProjectArguments,
 } from './provisionPlaygroundProject';
 
+const playgroundDataDirectory = path.resolve(
+    __dirname,
+    '../../../../assets/playground',
+);
+const currentVersion = readEmbeddedBundle(
+    playgroundDataDirectory,
+    'jaffle_shop',
+)!.version;
+const retainedVersion = readEmbeddedBundle(
+    path.join(playgroundDataDirectory, 'previous'),
+    'jaffle_shop',
+)!.version;
 const organizationUuid = '00000000-0000-0000-0000-000000000001';
 const projectUuid = '00000000-0000-0000-0000-000000000002';
 const now = new Date('2026-07-20T00:00:00Z');
@@ -64,6 +77,12 @@ const buildArguments = () => {
     );
     const deleteProject = vi.fn(async () => undefined);
     const saveExploresToCache = vi.fn(async () => ({ cachedExploreUuids: [] }));
+    const getPlaygroundBundleVersion = vi.fn<
+        ProvisionPlaygroundProjectArguments['projectModel']['getPlaygroundBundleVersion']
+    >(async () => currentVersion);
+    const recordPlaygroundBundleVersionSeen = vi.fn<
+        ProvisionPlaygroundProjectArguments['projectModel']['recordPlaygroundBundleVersionSeen']
+    >(async () => now);
     const validatePlaygroundDatabase = vi.fn(async () => undefined);
     const canViewProject = vi.fn(() => true);
     const indexCatalog = vi.fn(async () => ({
@@ -110,6 +129,8 @@ const buildArguments = () => {
                 getAllByOrganizationUuid,
                 delete: deleteProject,
                 saveExploresToCache,
+                getPlaygroundBundleVersion,
+                recordPlaygroundBundleVersionSeen,
             },
             onboardingModel,
             projectService: { createWithoutCompile },
@@ -118,16 +139,16 @@ const buildArguments = () => {
             analytics: { track },
             canViewProject,
             hasActiveAgentOnboardingRun,
-            playgroundDataDirectory: path.resolve(
-                __dirname,
-                '../../../../assets/playground',
-            ),
+            playgroundDataDirectory,
             validatePlaygroundDatabase,
+            now,
         } satisfies ProvisionPlaygroundProjectArguments,
         get,
         getAllByOrganizationUuid,
         deleteProject,
         saveExploresToCache,
+        getPlaygroundBundleVersion,
+        recordPlaygroundBundleVersionSeen,
         validatePlaygroundDatabase,
         canViewProject,
         indexCatalog,
@@ -179,6 +200,8 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             expect.any(Array),
             true,
+            undefined,
+            currentVersion,
         );
         expect(mocks.seedPlaygroundContent).toHaveBeenCalledWith({
             projectUuid,
@@ -203,6 +226,59 @@ describe('provisionPlaygroundProject', () => {
         });
     });
 
+    it.each([
+        {
+            case: 'keeps a project on a still-served version during the adoption delay',
+            projectVersion: retainedVersion,
+            firstSeenMinutesAgo: 10,
+            adopts: false,
+        },
+        {
+            case: 'moves a project on a still-served version after the adoption delay',
+            projectVersion: retainedVersion,
+            firstSeenMinutesAgo: 31,
+            adopts: true,
+        },
+        {
+            case: 'moves a project on a version this server cannot serve at once',
+            projectVersion: 'unknown-version',
+            firstSeenMinutesAgo: 0,
+            adopts: true,
+        },
+        {
+            case: 'moves an unversioned project only after the adoption delay',
+            projectVersion: null,
+            firstSeenMinutesAgo: 10,
+            adopts: false,
+        },
+    ])('$case', async ({ projectVersion, firstSeenMinutesAgo, adopts }) => {
+        const mocks = buildArguments();
+        mocks.getAllByOrganizationUuid.mockResolvedValue([
+            project('playground'),
+        ]);
+        mocks.getPlaygroundContentSeedVersion.mockResolvedValue(1);
+        mocks.getPlaygroundBundleVersion.mockResolvedValue(projectVersion);
+        mocks.recordPlaygroundBundleVersionSeen.mockResolvedValue(
+            new Date(now.getTime() - firstSeenMinutesAgo * 60 * 1000),
+        );
+        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
+            projectUuid,
+            created: false,
+        });
+
+        if (adopts) {
+            expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
+                projectUuid,
+                expect.any(Array),
+                true,
+                undefined,
+                currentVersion,
+            );
+        } else {
+            expect(mocks.saveExploresToCache).not.toHaveBeenCalled();
+        }
+    });
+
     it('does not reseed an existing playground after content was seeded', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
@@ -219,6 +295,8 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             expect.any(Array),
             true,
+            undefined,
+            currentVersion,
         );
         expect(mocks.seedPlaygroundContent).not.toHaveBeenCalled();
         expect(mocks.setPlaygroundContentSeedVersion).not.toHaveBeenCalled();
@@ -330,6 +408,8 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             expect.any(Array),
             true,
+            undefined,
+            currentVersion,
         );
         expect(mocks.indexCatalog).toHaveBeenCalledWith(
             projectUuid,
@@ -361,12 +441,12 @@ describe('provisionPlaygroundProject', () => {
                 catalogIndexErrorType: null,
             },
         });
-        expect(mocks.validatePlaygroundDatabase).toHaveBeenCalledWith(
-            path.resolve(
-                __dirname,
-                '../../../../assets/playground/jaffle_shop.duckdb',
-            ),
-        );
+        expect(mocks.validatePlaygroundDatabase).toHaveBeenCalledWith({
+            bundleVersion: currentVersion,
+            expectedTables: expect.arrayContaining([
+                '"jaffle_shop"."jaffle"."orders"',
+            ]),
+        });
     });
 
     it('resolves the bundled data directory independently of the backend cwd', async () => {

@@ -450,6 +450,10 @@ import {
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
+import {
+    reconcilePlaygroundBundles,
+    type ReconcilePlaygroundBundlesResult,
+} from './playgroundBundle';
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
@@ -890,6 +894,11 @@ export class ProjectService extends BaseService {
      * project, seeded, with the caller as its assigned admin. Idempotent.
      * Org admins only; 404 when the org has Learn switched off.
      */
+    /** Run by the scheduler; moves sample-data projects to this server's playground bundle. */
+    async reconcilePlaygroundBundles(): Promise<ReconcilePlaygroundBundlesResult> {
+        return reconcilePlaygroundBundles({ projectModel: this.projectModel });
+    }
+
     async enableLearn(user: SessionUser): Promise<EnableLearnResults> {
         await this.assertLearnEnabled(user);
         if (!this.provisionTrainingProject) {

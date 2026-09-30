@@ -19,15 +19,17 @@ import {
     type TrainingProjectSkippedReason,
 } from '../../analytics/LightdashAnalytics';
 import { type PlaygroundContent } from '../../ee/services/ProjectService/playgroundContentTypes';
-import {
-    loadPlaygroundBundle,
-    validatePlaygroundDatabaseBundle,
-} from '../../ee/services/ProjectService/provisionPlaygroundProject';
 import Logger from '../../logging/logger';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type CatalogService } from '../CatalogService/CatalogService';
+import {
+    loadPlaygroundBundle,
+    PLAYGROUND_DATASET,
+    validatePlaygroundDatabaseBundle,
+    type PlaygroundDatabaseCheck,
+} from './playgroundBundle';
 import { type ProjectService } from './ProjectService';
 
 /** The seeded root space of a training project; public so every role sees it. */
@@ -59,7 +61,9 @@ export type ProvisionTrainingProjectArguments = {
     ) => Promise<void>;
     analytics: Pick<LightdashAnalytics, 'track'>;
     trainingDataDirectory?: string;
-    validateTrainingDatabase?: (databasePath: string) => Promise<void>;
+    validateTrainingDatabase?: (
+        check: PlaygroundDatabaseCheck,
+    ) => Promise<void>;
 };
 
 const getErrorType = (error: unknown): string =>
@@ -158,10 +162,11 @@ export const provisionTrainingProject = async ({
                         process.env.PLAYGROUND_DATA_DIR ??
                         path.join(__dirname, '../../../assets/playground'),
                 );
-                const { explores, content } = await loadPlaygroundBundle(
-                    dataDirectory,
-                    validateTrainingDatabase,
-                );
+                const { explores, content, version } =
+                    await loadPlaygroundBundle(
+                        dataDirectory,
+                        validateTrainingDatabase,
+                    );
 
                 const creation = await projectService.createWithoutCompile(
                     user,
@@ -173,7 +178,7 @@ export const provisionTrainingProject = async ({
                         warehouseConnection: {
                             type: WarehouseTypes.DUCKDB,
                             connectionType: DuckdbConnectionType.EMBEDDED,
-                            dataset: 'jaffle_shop',
+                            dataset: PLAYGROUND_DATASET,
                         },
                     },
                     RequestMethod.BACKEND,
@@ -190,6 +195,8 @@ export const provisionTrainingProject = async ({
                         projectUuid,
                         explores,
                         true,
+                        undefined,
+                        version,
                     );
                     await projectModel.createProjectAccess(
                         projectUuid,
