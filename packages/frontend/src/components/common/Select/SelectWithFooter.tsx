@@ -13,7 +13,7 @@ import {
     type ScrollAreaProps,
     type SelectProps,
 } from '@mantine/core';
-import { useUncontrolled } from '@mantine/hooks';
+import { useCallbackRef, useUncontrolled } from '@mantine/hooks';
 import { useEffect, useMemo, type FC, type ReactNode } from 'react';
 
 type Props = Omit<
@@ -120,9 +120,11 @@ export const SelectWithFooter: FC<Props> = ({
             }),
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
+    // useUncontrolled returns a new setter each render; a stable ref keeps this effect from resetting typed search
+    const syncSearch = useCallbackRef(setSearch);
     useEffect(() => {
-        setSearch(selectedOption?.label ?? '');
-    }, [selectedOption?.label, selectedOption?.value, setSearch]);
+        syncSearch(selectedOption?.label ?? '');
+    }, [selectedOption?.label, selectedOption?.value, syncSearch]);
     // defaultOptionsFilter widens to Primitive; the input data is string-only.
     const filteredData: ComboboxParsedItem[] = searchable
         ? (defaultOptionsFilter({

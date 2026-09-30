@@ -1,5 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { SelectWithFooter } from './SelectWithFooter';
@@ -43,5 +44,39 @@ describe('SelectWithFooter', () => {
 
         fireEvent.click(screen.getByText('Load more'));
         expect(onFooterClick).toHaveBeenCalledOnce();
+    });
+
+    it('filters options as the user types', async () => {
+        const Harness = () => {
+            const [value, setValue] = useState<string | null>(
+                'lightdash/lightdash',
+            );
+            return (
+                <SelectWithFooter
+                    label="Repository"
+                    value={value}
+                    onChange={setValue}
+                    searchable
+                    data={[
+                        'lightdash/lightdash',
+                        'lightdash/analytics',
+                        'acme/dbt',
+                    ]}
+                    footer={null}
+                />
+            );
+        };
+        const user = userEvent.setup();
+        renderWithProviders(<Harness />);
+
+        const input = screen.getByRole('textbox', { name: 'Repository' });
+        await user.click(input);
+        await user.clear(input);
+        await user.type(input, 'acme');
+
+        expect(input).toHaveValue('acme');
+        expect(
+            screen.getAllByRole('option').map((option) => option.textContent),
+        ).toEqual(['acme/dbt']);
     });
 });
