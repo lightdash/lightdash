@@ -1,3 +1,10 @@
+# [2.392.0](https://github.com/lightdash/lightdash/compare/2.391.0...2.392.0) (2026-09-30)
+
+
+### Features
+
+* **ai:** write documents without extended thinking ([#30276](https://github.com/lightdash/lightdash/issues/30276)) ([e6a49dd](https://github.com/lightdash/lightdash/commit/e6a49dd13b502ffcdf904dfe355a92f9d7fd6dee)), closes [#30275](https://github.com/lightdash/lightdash/issues/30275)
+
 # [2.391.0](https://github.com/lightdash/lightdash/compare/2.390.0...2.391.0) (2026-09-30)
 
 
