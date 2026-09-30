@@ -4551,7 +4551,7 @@ export default class SchedulerTask {
                     deliveryUrl,
                 );
 
-                // Convert rows to string[][] for Google Sheets
+                // Preserve numeric and boolean cell types for Sheets' RAW writes.
                 const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
                 const headerRow = columnNames;
                 const dataRows = rows.map((row) =>
@@ -4559,6 +4559,12 @@ export default class SchedulerTask {
                         const value = row[col];
                         if (value === null || value === undefined) return '';
                         if (value instanceof Date) return value.toISOString();
+                        if (
+                            typeof value === 'number' ||
+                            typeof value === 'boolean'
+                        ) {
+                            return value;
+                        }
                         return String(value);
                     }),
                 );
