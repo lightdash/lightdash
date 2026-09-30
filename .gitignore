@@ -160,8 +160,9 @@ AGENTS.md
 .superpowers/
 docs/superpowers/
 
-# Playground bundle builder venv
+# Playground bundle builder venv and staging
 scripts/playground-bundle/.venv/
+packages/backend/assets/playground/.staging-*/
 
 # Local pnpm store
 .pnpm-store/
