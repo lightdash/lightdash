@@ -16,7 +16,12 @@ export const getAnthropicModel = (
         LightdashConfig['ai']['copilot']['providers']['anthropic']
     >,
     preset: ModelPreset<'anthropic'>,
-    options?: { enableReasoning?: boolean; reasoningEffort?: ReasoningEffort },
+    options?: {
+        enableReasoning?: boolean;
+        reasoningEffort?: ReasoningEffort;
+        /** Sends thinking disabled, so a per-step override turns off thinking the model would otherwise choose. */
+        disableThinking?: boolean;
+    },
 ): AiModel<typeof PROVIDER> => {
     const anthropic = config.baseUrl
         ? createAnthropic({
@@ -97,6 +102,10 @@ export const getAnthropicModel = (
                                           : 2048,
                               },
                           })),
+                ...(!reasoningEnabled &&
+                    options?.disableThinking && {
+                        thinking: { type: 'disabled' as const },
+                    }),
             },
         },
     };
