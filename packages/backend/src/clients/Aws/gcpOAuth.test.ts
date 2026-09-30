@@ -1,11 +1,14 @@
 import {
     CopyObjectCommand,
     DeleteObjectsCommand,
+    GetObjectCommand,
+    HeadObjectCommand,
     PutObjectCommand,
     S3Client,
 } from '@aws-sdk/client-s3';
 import { HttpResponse, type HttpRequest } from '@smithy/protocol-http';
 import { createHash } from 'node:crypto';
+import { Readable } from 'node:stream';
 import { applyGcpOAuth } from './gcpOAuth';
 import { buildS3ClientConfig } from './S3BaseClient';
 
@@ -28,7 +31,10 @@ vi.mock('google-auth-library', () => ({
 }));
 
 /** Records the request that the SDK would send, and sends nothing. */
-const createCapturingRequestHandler = () => {
+const createCapturingRequestHandler = (
+    responseHeaders: Record<string, string> = {},
+    body?: Readable,
+) => {
     const requests: HttpRequest[] = [];
     return {
         requests,
@@ -38,7 +44,8 @@ const createCapturingRequestHandler = () => {
                 return {
                     response: new HttpResponse({
                         statusCode: 200,
-                        headers: { etag: '"an-etag"' },
+                        body,
+                        headers: { etag: '"an-etag"', ...responseHeaders },
                     }),
                 };
             },
@@ -300,4 +307,96 @@ describe('gcp_oauth request authentication', () => {
 
         expect(gcpMocks.getAccessToken).toHaveBeenCalledTimes(2);
     });
+});
+
+describe('gcp_oauth response metadata', () => {
+    it.each([HeadObjectCommand, GetObjectCommand])(
+        'exposes GCS user metadata through $name',
+        async (Command) => {
+            const { handler } = createCapturingRequestHandler(
+                {
+                    'x-goog-meta-source-hash': 'unchanged-source-fingerprint',
+                    'X-Goog-Meta-Origin': 'usage-summary',
+                    'x-goog-generation': '123',
+                    'content-length': '42',
+                },
+                Readable.from('content'),
+            );
+            const client = new S3Client({
+                ...buildS3ClientConfig({
+                    region: 'auto',
+                    endpoint: 'https://storage.googleapis.com',
+                    authMode: 'gcp_oauth',
+                }),
+                requestHandler: handler,
+            });
+            applyGcpOAuth(client);
+            try {
+                const result = await client.send(
+                    new Command({
+                        Bucket: 'a-bucket',
+                        Key: 'activity.parquet',
+                    }),
+                );
+                expect(result.Metadata).toEqual({
+                    'source-hash': 'unchanged-source-fingerprint',
+                    origin: 'usage-summary',
+                });
+                expect(result.ETag).toBe('"an-etag"');
+                expect(result.ContentLength).toBe(42);
+            } finally {
+                client.destroy();
+            }
+        },
+    );
+});
+
+describe('metadata compatibility', () => {
+    it.each<{
+        authMode: 'gcp_oauth' | 'default';
+        headers: Record<string, string>;
+        expected: Record<string, string>;
+    }>([
+        { authMode: 'gcp_oauth' as const, headers: {}, expected: {} },
+        {
+            authMode: 'gcp_oauth' as const,
+            headers: {
+                'x-amz-meta-source-hash': 's3-value',
+                'x-goog-meta-source-hash': 'gcs-value',
+            },
+            expected: { 'source-hash': 's3-value' },
+        },
+        {
+            authMode: 'default' as const,
+            headers: {
+                'x-amz-meta-origin': 's3-value',
+                'x-goog-meta-source-hash': 'gcs-value',
+            },
+            expected: { origin: 's3-value' },
+        },
+    ])(
+        'preserves existing metadata behavior for $authMode: $expected',
+        async ({ authMode, headers, expected }) => {
+            const { handler } = createCapturingRequestHandler(headers);
+            const client = new S3Client({
+                ...buildS3ClientConfig({
+                    region: 'us-east-1',
+                    endpoint: 'https://storage.example.com',
+                    accessKey: 'test',
+                    secretKey: 'test',
+                    authMode,
+                }),
+                requestHandler: handler,
+            });
+            if (authMode === 'gcp_oauth') applyGcpOAuth(client);
+            try {
+                const result = await client.send(
+                    new HeadObjectCommand({ Bucket: 'a-bucket', Key: 'a-key' }),
+                );
+                expect(result.Metadata).toEqual(expected);
+            } finally {
+                client.destroy();
+            }
+        },
+    );
 });
