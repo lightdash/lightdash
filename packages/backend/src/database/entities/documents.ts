@@ -17,6 +17,8 @@ export type DbDocument = {
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
     deleted_with_space: boolean;
+    document_views_count: number;
+    document_first_viewed_at: Date | null;
 };
 
 export type DocumentsTable = Knex.CompositeTableType<
@@ -41,6 +43,8 @@ export type DocumentsTable = Knex.CompositeTableType<
             | 'deleted_at'
             | 'deleted_by_user_uuid'
             | 'deleted_with_space'
+            | 'document_views_count'
+            | 'document_first_viewed_at'
         >
     >
 >;

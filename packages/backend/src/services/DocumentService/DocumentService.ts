@@ -39,6 +39,7 @@ import type {
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
+import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { AppModel } from '../../models/AppModel';
 import type {
     DocumentContentUpdate,
@@ -66,6 +67,7 @@ const API_CHANGE: DocumentChangeContext = { source: 'api' };
 type DocumentServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    analyticsModel: Pick<AnalyticsModel, 'addDocumentViewEvent'>;
     appModel: Pick<
         AppModel,
         | 'findAppsBySlugs'
@@ -1026,6 +1028,41 @@ export class DocumentService extends BaseService {
         return isUuid(documentUuidOrSlug)
             ? this.get(account, projectUuid, documentUuidOrSlug)
             : this.getBySlug(account, projectUuid, documentUuidOrSlug);
+    }
+
+    /**
+     * A person opening the Document: counts the view and tracks it. Other
+     * reads (AI agents, MCP, permission checks, queries) use getByIdOrSlug.
+     */
+    async view(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+    ): Promise<Document> {
+        const document = await this.getByIdOrSlug(
+            account,
+            projectUuid,
+            documentUuidOrSlug,
+        );
+        void this.dependencies.analyticsModel
+            .addDocumentViewEvent(document.documentUuid)
+            .catch((error) => {
+                this.logger.warn('Document view count failed', {
+                    documentUuid: document.documentUuid,
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                });
+            });
+        this.dependencies.analytics.track({
+            event: 'document.view',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: document.projectUuid,
+                documentId: document.documentUuid,
+            },
+        });
+        return document;
     }
 
     /** Version history, newest first; readable by anyone who can view the Document. */

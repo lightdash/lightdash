@@ -134,8 +134,12 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
         find: vi.fn().mockResolvedValue([{ path: 'reports.weekly_review' }]),
     };
     const analytics = { track: vi.fn() };
+    const analyticsModel = {
+        addDocumentViewEvent: vi.fn().mockResolvedValue(undefined),
+    };
     const service = new DocumentService({
         analytics,
+        analyticsModel,
         lightdashConfig: { softDelete: { enabled: softDelete } },
         directAccessService,
         documentModel,
@@ -147,6 +151,7 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     return {
         service,
         analytics,
+        analyticsModel,
         spaceModel,
         directAccessService,
         documentModel,
@@ -164,6 +169,64 @@ const historicalVersion: Document['version'] = {
     createdByUserUuid: null,
     createdAt: new Date('2026-09-01'),
 };
+
+describe('DocumentService views', () => {
+    test('opening a Document counts the view and tracks it once', async () => {
+        const { service, analytics, analyticsModel } = setup();
+        const viewed = await service.view(
+            makeAccount(),
+            projectUuid,
+            documentUuid,
+        );
+        expect(viewed.documentUuid).toBe(documentUuid);
+        expect(
+            analyticsModel.addDocumentViewEvent,
+        ).toHaveBeenCalledExactlyOnceWith(documentUuid);
+        expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'document.view',
+            userId: userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: projectUuid,
+                documentId: documentUuid,
+            },
+        });
+    });
+
+    test('other reads do not count as views', async () => {
+        const { service, analytics, analyticsModel } = setup();
+        await service.getByIdOrSlug(makeAccount(), projectUuid, documentUuid);
+        expect(analyticsModel.addDocumentViewEvent).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+
+    test('a failed view count does not fail opening the Document', async () => {
+        const { service, analyticsModel } = setup();
+        analyticsModel.addDocumentViewEvent.mockRejectedValue(
+            new Error('database unavailable'),
+        );
+        await expect(
+            service.view(makeAccount(), projectUuid, documentUuid),
+        ).resolves.toMatchObject({ documentUuid });
+    });
+
+    test('a Document the user cannot view is neither counted nor tracked', async () => {
+        const { service, analytics, analyticsModel, spacePermissionService } =
+            setup();
+        spacePermissionService.resolveAccess.mockResolvedValue(
+            makeContext([], false),
+        );
+        await expect(
+            service.view(
+                makeAccount(OrganizationMemberRole.MEMBER),
+                projectUuid,
+                documentUuid,
+            ),
+        ).rejects.toThrow();
+        expect(analyticsModel.addDocumentViewEvent).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+});
 
 describe('DocumentService', () => {
     describe('version history', () => {
