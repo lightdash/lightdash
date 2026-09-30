@@ -3109,6 +3109,26 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
     };
 };
 
+/** One row per JEV turn decision, including turns JEV answered without the agent. */
+export type AiAgentTurnDecisionEvent = BaseTrack & {
+    event: 'ai_agent.turn_decision';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string | null;
+        promptId: string;
+        threadId: string;
+        operation: 'chart-intent' | 'model-routing';
+        outcome: string;
+        applied: boolean;
+        fallbackReason: string | null;
+        latencyMs: number;
+        serviceMs: number | null;
+        jevModel: string;
+    };
+};
+
 export type AiAgentPromptFeedbackEvent = BaseTrack & {
     event: 'ai_agent_prompt.feedback';
     userId: string | undefined;
@@ -3153,6 +3173,9 @@ export type AiAgentResponseStreamed = BaseTrack & {
         queryReuseHits: number;
         fastDecisionsEnabled: boolean;
         fastToolModelEnabled: boolean;
+        decisionInputTokens: number | null;
+        decisionOutputTokens: number | null;
+        decisionServiceMs: number | null;
         turnIntent: string | null;
         surface: 'slack' | 'web_app';
         executionMode: 'standard' | 'deep_research';
@@ -4310,6 +4333,7 @@ type TypedEvent =
     | AiAgentSkillDeletedEvent
     | AiAgentSkillBindingsUpdatedEvent
     | AiAgentPromptCreatedEvent
+    | AiAgentTurnDecisionEvent
     | AiAgentPromptFeedbackEvent
     | AiAgentEvalCreatedEvent
     | AiAgentEvalRunEvent
