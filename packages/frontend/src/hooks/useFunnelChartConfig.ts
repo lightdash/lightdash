@@ -1,20 +1,26 @@
 import {
-    FunnelChartDataInput,
-    FunnelChartLabelPosition,
-    FunnelChartLegendPosition,
-    getItemLabelWithoutTableName,
-    isField,
-    isMetric,
-    isTableCalculation,
     type FunnelChart,
+    type FunnelChartDataInput,
+    type FunnelChartLegendPosition,
     type ItemsMap,
     type Metric,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
+import {
+    buildValidFunnelConfig,
+    DEFAULT_FUNNEL_DATA_INPUT,
+    DEFAULT_FUNNEL_LABELS,
+    DEFAULT_FUNNEL_LEGEND_POSITION,
+    DEFAULT_FUNNEL_SHOW_LEGEND,
+    getFunnelChartData,
+    getFunnelColorDefaults,
+    getFunnelSelectedField,
+    resolveFunnelFieldId,
+    type FunnelSeriesDataPoint,
+} from '@lightdash/visualization';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { type FunnelSeriesDataPoint } from './echarts/useEchartsFunnelConfig';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 type FunnelChartConfig = {
@@ -56,6 +62,12 @@ export type FunnelChartConfigFn = (
     tableCalculationsMetadata?: TableCalculationMetadata[],
 ) => FunnelChartConfig;
 
+/**
+ * The explorer's editable funnel config. Every derivation (the selected
+ * field, the steps and max value, the default colors, the valid config)
+ * runs through `@lightdash/visualization`; this hook only holds the editor
+ * state and its mutators.
+ */
 const useFunnelChartConfig: FunnelChartConfigFn = (
     resultsData,
     funnelChartConfig,
@@ -67,15 +79,11 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     const [fieldId, setFieldId] = useState(funnelChartConfig?.fieldId ?? null);
 
     const [dataInput, setDataInput] = useState(
-        funnelChartConfig?.dataInput ?? FunnelChartDataInput.ROW,
+        funnelChartConfig?.dataInput ?? DEFAULT_FUNNEL_DATA_INPUT,
     );
 
     const [labels, setLabels] = useState<FunnelChart['labels']>(
-        funnelChartConfig?.labels ?? {
-            position: FunnelChartLabelPosition.INSIDE,
-            showValue: true,
-            showPercentage: false,
-        },
+        funnelChartConfig?.labels ?? DEFAULT_FUNNEL_LABELS,
     );
 
     const [labelOverrides, setLabelOverrides] = useState(
@@ -89,12 +97,11 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     );
 
     const [showLegend, setShowLegend] = useState(
-        funnelChartConfig?.showLegend ?? true,
+        funnelChartConfig?.showLegend ?? DEFAULT_FUNNEL_SHOW_LEGEND,
     );
 
     const [legendPosition, setLegendPosition] = useState(
-        funnelChartConfig?.legendPosition ??
-            FunnelChartLegendPosition.HORIZONTAL,
+        funnelChartConfig?.legendPosition ?? DEFAULT_FUNNEL_LEGEND_POSITION,
     );
 
     const allNumericFieldIds = useMemo(
@@ -102,142 +109,50 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         [numericFields],
     );
 
-    const selectedField = useMemo(() => {
-        if (!itemsMap || !fieldId || !(fieldId in itemsMap)) return undefined;
-        const item = itemsMap[fieldId];
-
-        if ((isField(item) && isMetric(item)) || isTableCalculation(item))
-            return item;
-
-        return undefined;
-    }, [itemsMap, fieldId]);
+    const selectedField = useMemo(
+        () => getFunnelSelectedField(itemsMap, fieldId),
+        [itemsMap, fieldId],
+    );
 
     const isLoading = !resultsData;
 
     useEffect(() => {
-        if (isLoading || allNumericFieldIds.length === 0) return;
-        if (fieldId && allNumericFieldIds.includes(fieldId)) return;
+        if (isLoading) return;
 
-        /**
-         * When table calculations update, their name changes, so we need to update the selected fields
-         * If the selected field is a table calculation with the old name in the metadata, set it to the new name
-         */
-        if (tableCalculationsMetadata) {
-            const metricTcIndex = tableCalculationsMetadata.findIndex(
-                (tc) => tc.oldName === fieldId,
-            );
-
-            if (metricTcIndex !== -1) {
-                setFieldId(tableCalculationsMetadata[metricTcIndex].name);
-                return;
-            }
-        }
-
-        setFieldId(allNumericFieldIds[0] ?? null);
+        const nextFieldId = resolveFunnelFieldId({
+            fieldId,
+            allNumericFieldIds,
+            tableCalculationsMetadata,
+        });
+        if (nextFieldId !== fieldId) setFieldId(nextFieldId);
     }, [allNumericFieldIds, fieldId, isLoading, tableCalculationsMetadata]);
 
     // Max value is the largest step value, used to calculate the percentage
     // each step represents
-    const {
-        data,
-        maxValue = 0,
-    }: {
-        data: FunnelSeriesDataPoint[];
-        maxValue: number;
-    } = useMemo(() => {
-        if (
-            !resultsData ||
-            !fieldId ||
-            !selectedField ||
-            resultsData.rows.length === 0
-        ) {
-            return { data: [], maxValue: 0 };
-        }
-
-        let dataMaxValue = 0;
-
-        if (dataInput === FunnelChartDataInput.COLUMN) {
-            const fieldIndex = Object.keys(resultsData.rows[0]).findIndex(
-                (field) => {
-                    return field === fieldId;
-                },
-            );
-
-            if (fieldIndex === -1) {
-                return { data: [], maxValue: 0 };
-            }
-
-            return {
-                data: resultsData.rows.map<FunnelSeriesDataPoint>((row) => {
-                    const rowValues = Object.values(row).map(
-                        (col) => col.value,
-                    );
-
-                    const dataValue = Number(rowValues[fieldIndex].raw);
-                    if (dataValue > dataMaxValue) {
-                        dataMaxValue = dataValue;
-                    }
-                    const rowId = rowValues[0].formatted;
-                    return {
-                        id: rowId,
-                        name: rowValues[0].formatted,
-                        value: dataValue,
-                        meta: {
-                            value: rowValues[fieldIndex],
-                            rows: [row],
-                        },
-                    };
-                }),
-                maxValue: dataMaxValue,
-            };
-        } else {
-            return {
-                data: allNumericFieldIds.reduce<FunnelSeriesDataPoint[]>(
-                    (acc, id) => {
-                        if (resultsData.rows[0][id]) {
-                            const dataValue = Number(
-                                resultsData.rows[0][id].value.raw,
-                            );
-                            if (dataValue > dataMaxValue) {
-                                dataMaxValue = dataValue;
-                            }
-                            const item = itemsMap?.[id];
-                            const fieldName = item
-                                ? getItemLabelWithoutTableName(item)
-                                : id;
-                            acc.push({
-                                id,
-                                name: fieldName,
-                                value: dataValue,
-                                meta: {
-                                    value: resultsData.rows[0][id].value,
-                                    rows: resultsData.rows,
-                                },
-                            });
-                        }
-                        return acc;
-                    },
-                    [],
-                ),
-                maxValue: dataMaxValue,
-            };
-        }
-    }, [
-        allNumericFieldIds,
-        dataInput,
-        fieldId,
-        resultsData,
-        selectedField,
-        itemsMap,
-    ]);
-
-    const colorDefaults = useMemo(() => {
-        return Object.fromEntries(
-            data.map((item, index) => {
-                return [item.id, colorPalette[index % colorPalette.length]];
+    const { data, maxValue = 0 } = useMemo(
+        () =>
+            getFunnelChartData({
+                resultsData,
+                fieldId,
+                selectedField,
+                dataInput,
+                allNumericFieldIds,
+                itemsMap,
             }),
-        );
-    }, [data, colorPalette]);
+        [
+            allNumericFieldIds,
+            dataInput,
+            fieldId,
+            resultsData,
+            selectedField,
+            itemsMap,
+        ],
+    );
+
+    const colorDefaults = useMemo(
+        () => getFunnelColorDefaults(data, colorPalette),
+        [data, colorPalette],
+    );
 
     const onLabelsChange = (labelsProps: FunnelChart['labels']) => {
         setLabels((prevLabels) => ({ ...prevLabels, ...labelsProps }));
@@ -263,15 +178,16 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     );
 
     const validConfig: FunnelChart = useMemo(
-        () => ({
-            dataInput,
-            fieldId: fieldId ?? undefined,
-            labels,
-            labelOverrides: debouncedLabelOverrides,
-            colorOverrides,
-            showLegend,
-            legendPosition,
-        }),
+        () =>
+            buildValidFunnelConfig({
+                dataInput,
+                fieldId,
+                labels,
+                labelOverrides: debouncedLabelOverrides,
+                colorOverrides,
+                showLegend,
+                legendPosition,
+            }),
         [
             colorOverrides,
             dataInput,
