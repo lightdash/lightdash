@@ -15,6 +15,7 @@ import {
     ProjectDbtSourcesTableName,
 } from '../database/entities/projectDbtSources';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import { normalizeStoredDbtConnection } from './ProjectModel/normalizeStoredDbtConnection';
 
 const PG_UNIQUE_VIOLATION = '23505';
 
@@ -65,9 +66,11 @@ export class ProjectDbtSourcesModel {
         }
         try {
             return {
-                dbtConnection: JSON.parse(
-                    this.encryptionUtil.decrypt(encrypted),
-                ) as DbtProjectConfig,
+                dbtConnection: normalizeStoredDbtConnection(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(encrypted),
+                    ) as DbtProjectConfig,
+                ),
                 hasCredentialError: false,
             };
         } catch (e) {

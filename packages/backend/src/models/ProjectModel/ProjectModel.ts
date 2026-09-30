@@ -214,6 +214,7 @@ import {
     type CredentialReadTarget,
     type ResolvedCredentialRead,
 } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
+import { normalizeStoredDbtConnection } from './normalizeStoredDbtConnection';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
@@ -1820,9 +1821,11 @@ export class ProjectModel {
                 }
                 let dbtSensitiveCredentials: DbtProjectConfig;
                 try {
-                    dbtSensitiveCredentials = JSON.parse(
-                        this.encryptionUtil.decrypt(project.dbt_connection),
-                    ) as DbtProjectConfig;
+                    dbtSensitiveCredentials = normalizeStoredDbtConnection(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(project.dbt_connection),
+                        ) as DbtProjectConfig,
+                    );
                 } catch (e) {
                     throw new UnexpectedServerError(
                         'Failed to load dbt credentials',
