@@ -13,6 +13,11 @@ export const ASSIGNMENT_IDX_KEY = '$___idx';
  */
 export type ColorMappings = Map<string, Map<string, number>>;
 
+/**
+ * An empty set of color mappings. Create one per page (or per render, for a
+ * single chart) and pass the same one to every chart that should keep the
+ * same color for the same group value.
+ */
 export const createColorMappings = (): ColorMappings => new Map();
 
 export type ColorAssignmentOptions = {
