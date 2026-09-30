@@ -21,18 +21,11 @@
     }
 }
 
-.brandMark {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: rem(40px);
-    height: rem(40px);
-    border-radius: var(--mantine-radius-md);
-    background-color: var(--mantine-color-ldBrandGray-7);
-    color: var(--mantine-color-white);
-}
-
-.brandName {
+.brandWordmark {
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: auto;
+    height: rem(28px);
     color: var(--mantine-color-white);
 }
 
@@ -95,13 +88,17 @@
     max-width: rem(420px);
 }
 
-.formBrandMark {
+.formWordmark {
     display: none;
+    align-self: flex-start;
+    width: auto;
+    height: rem(24px);
+    color: var(--mantine-color-text);
 }
 
 @media (max-width: $mantine-breakpoint-md) {
-    .formBrandMark {
-        display: flex;
+    .formWordmark {
+        display: block;
     }
 }
 

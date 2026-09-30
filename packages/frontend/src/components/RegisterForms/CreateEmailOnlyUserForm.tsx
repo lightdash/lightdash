@@ -30,9 +30,15 @@ const CreateEmailOnlyUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
         <form name="register" onSubmit={form.onSubmit(onSubmit)}>
             <Stack gap="md">
                 <TextInput
-                    label="Email address"
+                    label="Work email"
                     name="email"
-                    placeholder="Your email address"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="maya@acme.com"
                     required
                     {...form.getInputProps('email')}
                     disabled={isLoading}
@@ -44,12 +50,12 @@ const CreateEmailOnlyUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
                     disabled={isLoading}
                     data-cy="signup-button"
                 >
-                    Sign up
+                    Continue
                 </Button>
-                <Text mx="auto" c="ldGray.7" ta="center" fz="sm" fw={500}>
-                    Already Registered?{' '}
-                    <Anchor component={Link} to="/login" fz="sm" fw={500}>
-                        Sign in
+                <Text mx="auto" mt="md" fz="sm">
+                    Already have an account?{' '}
+                    <Anchor component={Link} to="/login" fz="sm">
+                        Log in
                     </Anchor>
                 </Text>
             </Stack>

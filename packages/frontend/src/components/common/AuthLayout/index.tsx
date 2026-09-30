@@ -6,7 +6,7 @@ import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import MantineIcon from '../MantineIcon';
 import classes from './AuthLayout.module.css';
-import LightdashMark from './LightdashMark';
+import LightdashWordmark from './LightdashWordmark';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
 
 const BRAND_HIGHLIGHTS = [
@@ -84,14 +84,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />
 
-                    <Group gap="sm" wrap="nowrap">
-                        <Box className={classes.brandMark}>
-                            <LightdashMark />
-                        </Box>
-                        <Text fz="xl" fw={600} className={classes.brandName}>
-                            Lightdash
-                        </Text>
-                    </Group>
+                    <LightdashWordmark className={classes.brandWordmark} />
 
                     <Stack gap="4xl" className={classes.brandContent}>
                         <Stack gap="lg">
@@ -127,18 +120,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
                 <Box className={classes.formPanel}>
                     <Stack id={cardId} className={classes.formContent} gap="xl">
-                        <Group
-                            gap="sm"
-                            wrap="nowrap"
-                            className={classes.formBrandMark}
-                        >
-                            <Box className={classes.brandMark}>
-                                <LightdashMark />
-                            </Box>
-                            <Text fz="xl" fw={600}>
-                                Lightdash
-                            </Text>
-                        </Group>
+                        <LightdashWordmark className={classes.formWordmark} />
                         {title && (
                             <Stack gap="xs">
                                 <Title order={2}>{title}</Title>

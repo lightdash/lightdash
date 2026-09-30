@@ -4,6 +4,7 @@ import {
     type ApiError,
     type CreateEmailOnlyUserArgs,
     type CreateUserArgs,
+    type HealthState,
     type LightdashUser,
 } from '@lightdash/common';
 import { Anchor, Divider, Stack, Text } from '@mantine/core';
@@ -32,6 +33,60 @@ const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
         body: JSON.stringify(data),
         sensitive: true,
     });
+
+const isAnySsoEnabled = (auth: HealthState['auth'] | undefined) =>
+    !!auth &&
+    (auth.google.enabled ||
+        auth.okta.enabled ||
+        auth.oneLogin.enabled ||
+        auth.azuread.enabled ||
+        auth.oidc.enabled);
+
+const RegisterTermsFooter: FC<{ isNewLayout: boolean }> = ({ isNewLayout }) =>
+    isNewLayout ? (
+        <Text c="dimmed" ta="center" fz="xs">
+            By continuing, you agree to our{' '}
+            <Anchor
+                href="https://www.lightdash.com/terms-of-service"
+                target="_blank"
+                inherit
+            >
+                Terms of Service
+            </Anchor>{' '}
+            and{' '}
+            <Anchor
+                href="https://www.lightdash.com/privacy-policy"
+                target="_blank"
+                inherit
+            >
+                Privacy Policy
+            </Anchor>
+            .
+        </Text>
+    ) : (
+        <Text c="dimmed" ta="center" fz="sm" fw={500}>
+            By creating an account, you agree to
+            <br />
+            our{' '}
+            <Anchor
+                href="https://www.lightdash.com/privacy-policy"
+                target="_blank"
+                fz="sm"
+                fw={500}
+            >
+                Privacy Policy
+            </Anchor>{' '}
+            and our{' '}
+            <Anchor
+                href="https://www.lightdash.com/terms-of-service"
+                target="_blank"
+                fz="sm"
+                fw={500}
+            >
+                Terms of Service.
+            </Anchor>
+        </Text>
+    );
 
 const Register: FC = () => {
     const location = useLocation();
@@ -86,19 +141,13 @@ const Register: FC = () => {
         (emailOnlySignupFlag.data?.enabled ?? false) &&
         !!health.data?.hasEmailClient;
 
-    const ssoAvailable =
-        health.data?.auth.google.enabled ||
-        health.data?.auth.okta.enabled ||
-        health.data?.auth.oneLogin.enabled ||
-        health.data?.auth.azuread.enabled ||
-        health.data?.auth.oidc.enabled;
-    const ssoLogins = ssoAvailable && (
+    const ssoLogins = isAnySsoEnabled(health.data?.auth) && (
         <Stack>
             {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
                 <ThirdPartySignInButton
                     key={providerName}
                     providerName={providerName}
-                    intent="signup"
+                    intent={isNewLayout ? 'continue' : 'signup'}
                     redirect={redirectUrl}
                 />
             ))}
@@ -140,7 +189,7 @@ const Register: FC = () => {
             {ssoLogins}
             {ssoLogins && passwordLogin && (
                 <Divider
-                    my="md"
+                    my={isNewLayout ? undefined : 'md'}
                     labelPosition="center"
                     label={
                         <Text c="ldGray.5" size="sm" fw={500}>
@@ -158,30 +207,7 @@ const Register: FC = () => {
             title="Create an account"
             subtitle="Start building analytics in minutes."
             legacyTitle="Sign up"
-            footer={
-                <Text c="dimmed" ta="center" fz="sm" fw={500}>
-                    By creating an account, you agree to
-                    <br />
-                    our{' '}
-                    <Anchor
-                        href="https://www.lightdash.com/privacy-policy"
-                        target="_blank"
-                        fz="sm"
-                        fw={500}
-                    >
-                        Privacy Policy
-                    </Anchor>{' '}
-                    and our{' '}
-                    <Anchor
-                        href="https://www.lightdash.com/terms-of-service"
-                        target="_blank"
-                        fz="sm"
-                        fw={500}
-                    >
-                        Terms of Service.
-                    </Anchor>
-                </Text>
-            }
+            footer={<RegisterTermsFooter isNewLayout={isNewLayout} />}
         >
             {logins}
         </AuthLayout>
