@@ -30,7 +30,11 @@ describe('ParameterInput', () => {
             const { getByRole } = renderWithProviders(
                 <ParameterInput
                     paramKey="status"
-                    parameter={{ ...parameter, options: [parameter.value] }}
+                    parameter={{
+                        ...parameter,
+                        label: 'Status',
+                        options: [String(parameter.value)],
+                    }}
                     value={parameter.value}
                     onParameterChange={onParameterChange}
                 />,
@@ -48,8 +52,12 @@ describe('ParameterInput', () => {
 
     it('does not duplicate an existing labelled default option', async () => {
         const { container, getByRole } = renderParameter({
+            label: 'Status',
             default: 'all',
-            options: [{ label: 'All statuses', value: 'all' }, 'Cancelled'],
+            options: [
+                { label: 'All statuses', value: 'all' },
+                { label: 'Cancelled', value: 'Cancelled' },
+            ],
         });
         await userEvent.click(getByRole('combobox'));
         expect(getOptionLabels(container)).toEqual([
@@ -60,6 +68,7 @@ describe('ParameterInput', () => {
 
     it('includes missing multi-value defaults once', async () => {
         const { container, getByRole } = renderParameter({
+            label: 'Status',
             multiple: true,
             default: ['all', 'all', 'Cancelled'],
             options: ['Cancelled'],
