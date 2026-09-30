@@ -9,12 +9,31 @@ No React, no Mantine, no DOM. The Lightdash frontend renders every chart
 through this package, so a headless caller (a data app, a server-side render, a
 desktop app) draws exactly what the web app draws.
 
+## Installing
+
+```
+npm install @lightdash/visualization @lightdash/common echarts
+```
+
+`@lightdash/common` must be the same version as `@lightdash/visualization`:
+both are released together from the Lightdash monorepo, and the engine reads
+the saved chart and field types from it. `echarts` (5.6 or later 5.x) is a
+peer dependency for its option types; the engine never imports it at run time,
+so a caller that only builds tables or big numbers does not load it.
+
+Node 20 or later. Both `import` and `require` work from plain Node: they load
+the CommonJS build, which ESM callers can import by name. Bundlers that honour
+the `module` field or condition (Vite, webpack, Rollup, esbuild) get the ES
+module build instead. The types resolve under `node16`, `nodenext` and
+`bundler` module resolution.
+
 ## Using it
 
 One call renders any saved chart:
 
 ```ts
 import { renderChart, toResultRows } from '@lightdash/visualization';
+import * as echarts from 'echarts';
 
 const rendered = renderChart({
     chartConfig: savedChart.chartConfig,
@@ -44,6 +63,7 @@ The two steps behind it are available per chart type when a caller wants to
 keep the resolved config, for instance to edit it:
 
 ```ts
+import { ChartType } from '@lightdash/common';
 import {
     buildCartesianEchartsOption,
     createColorMappings,
@@ -51,38 +71,45 @@ import {
     LIGHT_VISUALIZATION_THEME,
     resolveCartesianChartConfig,
 } from '@lightdash/visualization';
+import * as echarts from 'echarts';
 
-// 1. Resolve the saved config against the results, as the explorer does
-//    when it mounts a chart: default fields, one series per y field and
-//    pivot value, reference lines placed, stale settings cleared.
-const validCartesianConfig = resolveCartesianChartConfig({
-    chartConfig: savedChart.chartConfig.config,
-    resultsData: { rows, fields: itemsMap, metricQuery, pivotDetails },
-    itemsMap,
-    pivotKeys: savedChart.pivotConfig?.columns,
-    columnOrder: savedChart.tableConfig.columnOrder,
-});
+if (savedChart.chartConfig.type === ChartType.CARTESIAN) {
+    const resultsData = { rows, fields: itemsMap, metricQuery, pivotDetails };
 
-// 2. Colors: the org palette, plus shared mappings so the same group value
-//    gets the same color across the charts of one page.
-const { getSeriesColor, getGroupColor } = createSeriesColorResolver({
-    colorPalette,
-    colorMappings: createColorMappings(),
-    nullColor: LIGHT_VISUALIZATION_THEME.gray[6],
-    chartConfig: { type: ChartType.CARTESIAN, config: validCartesianConfig },
-    itemsMap,
-});
+    // 1. Resolve the saved config against the results, as the explorer does
+    //    when it mounts a chart: default fields, one series per y field and
+    //    pivot value, reference lines placed, stale settings cleared.
+    const validCartesianConfig = resolveCartesianChartConfig({
+        chartConfig: savedChart.chartConfig.config,
+        resultsData,
+        itemsMap,
+        pivotKeys: savedChart.pivotConfig?.columns,
+        columnOrder: savedChart.tableConfig.columnOrder,
+    });
 
-// 3. The ECharts option.
-const option = buildCartesianEchartsOption({
-    validCartesianConfig,
-    pivotDimensions: savedChart.pivotConfig?.columns,
-    resultsData: { rows, fields: itemsMap, metricQuery, pivotDetails },
-    itemsMap,
-    getSeriesColor,
-    colorPalette,
-    theme: LIGHT_VISUALIZATION_THEME,
-});
+    // 2. Colors: the org palette, plus shared mappings so the same group
+    //    value gets the same color across the charts of one page.
+    const { getSeriesColor } = createSeriesColorResolver({
+        colorPalette,
+        colorMappings: createColorMappings(),
+        nullColor: LIGHT_VISUALIZATION_THEME.neutral[6],
+        chartConfig: { type: ChartType.CARTESIAN, config: validCartesianConfig },
+        itemsMap,
+    });
+
+    // 3. The ECharts option: undefined until the config has an x field
+    //    and at least one series.
+    const option = buildCartesianEchartsOption({
+        validCartesianConfig,
+        pivotDimensions: savedChart.pivotConfig?.columns,
+        resultsData,
+        itemsMap,
+        getSeriesColor,
+        colorPalette,
+        theme: LIGHT_VISUALIZATION_THEME,
+    });
+    if (option) echarts.init(el).setOption(option);
+}
 ```
 
 The engine never runs a query. Rows can come from the query API, the query
@@ -126,7 +153,11 @@ pnpm -F visualization build      # dist/esm, dist/cjs, dist/types
 pnpm -F visualization test
 pnpm -F visualization lint
 pnpm -F visualization typecheck
+pnpm -F visualization test:pack   # after build: pack, install outside the repo, import from Node and tsc
 ```
+
+The unit tests also typecheck every `ts` sample in this README against the
+source.
 
 In development the frontend resolves the package from `src` through a Vite
 alias, and `pnpm dev` runs a `visualization-watch` build for the backend and
