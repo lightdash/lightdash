@@ -1,3 +1,10 @@
+## [2.399.2](https://github.com/lightdash/lightdash/compare/2.399.1...2.399.2) (2026-09-30)
+
+
+### Performance Improvements
+
+* remember missing warehouse tables and columns between compiles ([#30310](https://github.com/lightdash/lightdash/issues/30310)) ([e818b2d](https://github.com/lightdash/lightdash/commit/e818b2df3fc65b8c678d6c1c9421453fec1948b3))
+
 ## [2.399.1](https://github.com/lightdash/lightdash/compare/2.399.0...2.399.1) (2026-09-30)
 
 
