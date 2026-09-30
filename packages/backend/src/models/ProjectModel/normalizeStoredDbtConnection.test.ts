@@ -26,6 +26,17 @@ describe('normalizeStoredDbtConnection', () => {
         });
     });
 
+    test('treats a stored null authorization_method as missing', () => {
+        const result = normalizeStoredDbtConnection({
+            ...legacyGithub,
+            authorization_method: null,
+            personal_access_token: 'ghp_saved',
+        } as unknown as DbtGithubProjectConfig);
+        expect(result).toMatchObject({
+            authorization_method: 'personal_access_token',
+        });
+    });
+
     test('infers installation_id when only an installation id is stored', () => {
         const result = normalizeStoredDbtConnection({
             ...legacyGithub,

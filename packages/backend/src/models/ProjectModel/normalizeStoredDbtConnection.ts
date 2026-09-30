@@ -14,10 +14,9 @@ import { DbtProjectConfig, DbtProjectType } from '@lightdash/common';
 export const normalizeStoredDbtConnection = (
     config: DbtProjectConfig,
 ): DbtProjectConfig => {
-    if (
-        config.type !== DbtProjectType.GITHUB ||
-        config.authorization_method !== undefined
-    ) {
+    // Treat null and '' like a missing key: an unset method must never read
+    // as OAuth downstream while the adapter uses the PAT.
+    if (config.type !== DbtProjectType.GITHUB || config.authorization_method) {
         return config;
     }
     return {
