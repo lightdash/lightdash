@@ -179,6 +179,7 @@ export type AiDeepResearchExecutionContextSnapshot = {
     repository: {
         projectContextEnabled: boolean | null;
         aiWritebackEnabled: boolean | null;
+        /** Historical snapshot field; new snapshots always write null. */
         codingAgentEnabled: boolean | null;
         previewDeploySetupEnabled: boolean | null;
         repoDiscoveryEnabled: boolean | null;

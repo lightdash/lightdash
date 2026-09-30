@@ -65,7 +65,6 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     listDataAppThemes: 'list_data_app_themes',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
-    editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',
     discoverRepos: 'discover_repos',

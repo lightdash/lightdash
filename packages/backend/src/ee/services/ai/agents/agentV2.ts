@@ -82,7 +82,6 @@ import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
-import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getExportChartAsCode } from '../tools/exportChartAsCode';
 import { getFindContent } from '../tools/findContent';
@@ -798,7 +797,7 @@ export const buildDeepResearchExecutionContextSnapshot = (
     repository: {
         projectContextEnabled: args.projectContextEnabled,
         aiWritebackEnabled: args.enableAiWriteback,
-        codingAgentEnabled: args.enableCodingAgent,
+        codingAgentEnabled: null,
         previewDeploySetupEnabled: args.enablePreviewDeploySetup,
         repoDiscoveryEnabled: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
@@ -1818,12 +1817,6 @@ export const getAgentTools = (
           })
         : null;
 
-    const editRepo = args.enableCodingAgent
-        ? getEditRepo({
-              editRepo: dependencies.editRepo,
-          })
-        : null;
-
     const syncDbtProject = args.enableAiWriteback
         ? getSyncDbtProject({
               syncDbtProject: dependencies.syncDbtProject,
@@ -1849,32 +1842,27 @@ export const getAgentTools = (
           })
         : null;
 
-    // Workstream tools are shared by the general coding agent (editRepo) and the
-    // dbt-writeback agent (editDbtProject) — both can now drive several PRs per
-    // thread, so both need to enumerate and close them.
-    const listWorkstreams =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getListWorkstreams({
-                  listWorkstreams: dependencies.listWorkstreams,
-              })
-            : null;
+    // PR workstream tools remain available for dbt writeback.
+    const listWorkstreams = args.enableAiWriteback
+        ? getListWorkstreams({
+              listWorkstreams: dependencies.listWorkstreams,
+          })
+        : null;
 
-    const closePullRequest =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getClosePullRequest({
-                  closePullRequest: dependencies.closePullRequest,
-              })
-            : null;
+    const closePullRequest = args.enableAiWriteback
+        ? getClosePullRequest({
+              closePullRequest: dependencies.closePullRequest,
+          })
+        : null;
 
     // Read-only companion to the workstream tools: lets the agent inspect a
     // pull request's actual diff before deciding how to split or consolidate
     // changes across pull requests. Same gate as list/close.
-    const getPullRequestDiff =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getGetPullRequestDiff({
-                  getPullRequestDiff: dependencies.getPullRequestDiff,
-              })
-            : null;
+    const getPullRequestDiff = args.enableAiWriteback
+        ? getGetPullRequestDiff({
+              getPullRequestDiff: dependencies.getPullRequestDiff,
+          })
+        : null;
 
     const searchFieldValues = getSearchFieldValues({
         decisions: args.decisions,
@@ -2014,7 +2002,6 @@ export const getAgentTools = (
         ...(listDataAppThemes ? { listDataAppThemes } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
-        ...(editRepo ? { editRepo } : {}),
         ...(syncDbtProject ? { syncDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
@@ -2377,7 +2364,6 @@ export const getAgentMessages = (
         enableFilterExpressions: args.enableFilterExpressions,
         enableAiWriteback: args.enableAiWriteback,
         writebackAttribution: args.writebackAttribution,
-        enableCodingAgent: args.enableCodingAgent,
         siteUrl: args.siteUrl,
         enableRepoDiscovery: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,

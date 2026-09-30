@@ -53,20 +53,6 @@ export class WritebackThreadPrClosedError extends ParameterError {
 }
 
 /**
- * Thrown by the general coding agent's pre-clone size guard when a target repo
- * exceeds `codingAgentMaxRepoSizeMb`. Fails closed before any sandbox/clone with
- * an actionable message (never a `deadline_exceeded` from a giant clone). The
- * `editRepo` tool catches it (via `instanceof`) and tags `repo_too_large`.
- */
-export class RepoTooLargeError extends ParameterError {
-    constructor(repo: string, sizeMb: number, limitMb: number) {
-        super(
-            `The repository ${repo} is too large to edit (${sizeMb} MB, limit is ${limitMb} MB). Tell the user the coding agent can't clone repositories above this size.`,
-        );
-    }
-}
-
-/**
  * Thrown by the pre-side-effect checkpoint in runCodingAgent when the run row
  * went terminal (cancelled via tasks/cancel, or swept to error) while the
  * agent was working. A deliberate abort, not a failure: callers log it at

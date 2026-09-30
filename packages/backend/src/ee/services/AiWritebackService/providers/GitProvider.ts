@@ -35,13 +35,7 @@ export type AdoptPullRequestArgs = {
     installation: GitInstallation;
 };
 
-/**
- * Close a recorded pull/merge request. The owner/repo/number come from the
- * stored `pull_requests` row (the "workstream"), NOT the project's dbt
- * connection — the general coding agent opens PRs in arbitrary writable repos,
- * so the target is whatever repo that workstream actually lives in. `prUrl` is
- * carried through for GitLab, which derives the host from it.
- */
+/** Close a recorded workstream PR using its stored repository and provider. */
 export type ClosePullRequestArgs = {
     prUrl: string;
     owner: string;

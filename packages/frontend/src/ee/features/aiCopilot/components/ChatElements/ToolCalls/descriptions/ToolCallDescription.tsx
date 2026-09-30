@@ -388,7 +388,6 @@ export const ToolCallDescription: FC<{
         case 'listDataAppThemes':
         case 'editDbtProject':
         case 'editProjectContext':
-        case 'editRepo':
         case 'updateUserName':
         case 'syncDbtProject':
         case 'setupPreviewDeploy':

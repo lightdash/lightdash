@@ -40,6 +40,10 @@
         "documents-custom-chart-cells": {
             "reason": "Document chart cells in the documents-flag API now accept custom chart types: the data_app_viz config's fieldMapping also accepts ordered string arrays, and an optional dataAppVizVersion pins the chart type version. The change only widens requests: every previously accepted request is still accepted, and custom chart cells were rejected at runtime before, so no client sends the old shape. API diff tools report it as removed anyOf subschemas because the nested chart config changed. No action is needed from operators or API clients.",
             "requiredStop": false
+        },
+        "unreleased-ai-coding-agent-removed": {
+            "reason": "The unreleased general-purpose coding agent is removed, including FeatureFlags.CodingAgent, editRepo tool contracts and chat rendering, and the repository picker writable hint. Experimental consumers referencing these exports or persisted editRepo calls must stop using them; dbt writeback, repository browsing, onboarding and data apps remain supported.",
+            "requiredStop": false
         }
     }
 }

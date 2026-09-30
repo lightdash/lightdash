@@ -440,7 +440,6 @@ import {
     DiscoverReposFn,
     EditDbtProjectFn,
     EditProjectContextFn,
-    EditRepoFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
     GetPromptFn,
@@ -11735,70 +11734,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             return { aiWritebackRunUuid };
         };
 
-        // General-purpose coding agent: edit any writable repo and open a PR,
-        // with no dbt compile / preview step (verification lives in the PR's
-        // CI). Mirrors editDbtProject's progress streaming + Slack reaction but
-        // returns the base writeback result directly.
-        const editRepo: EditRepoFn = async (args) => {
-            const editRepoProgressCallback = (message: string) => {
-                void updateProgress(
-                    message,
-                    `editRepo:${message}`,
-                    args.progressId
-                        ? `${args.progressId}:${message}`
-                        : undefined,
-                    'complete',
-                ).catch((err) => {
-                    Logger.debug(
-                        `Failed to update progress for coding agent (${message}):`,
-                        err,
-                    );
-                });
-            };
-
-            if (!args.prompt) {
-                throw new ParameterError(
-                    'A prompt is required for the coding agent',
-                );
-            }
-
-            const result = await wrapSentryTransaction(
-                'AiAgent.editRepo',
-                {},
-                () =>
-                    this.aiWritebackService.runEditRepo({
-                        user,
-                        projectUuid,
-                        repoTarget: args.repoTarget,
-                        prompt: args.prompt!,
-                        prUrl: args.prUrl,
-                        startNewPullRequest: args.startNewPullRequest ?? false,
-                        aiThreadUuid: prompt.threadUuid,
-                        promptUuid: prompt.promptUuid,
-                        source: isSlackPrompt(prompt) ? 'slack' : 'web',
-                        onProgress: editRepoProgressCallback,
-                    }),
-            );
-
-            if (result.prUrl && isSlackPrompt(prompt)) {
-                void this.slackClient
-                    .addReaction({
-                        organizationUuid,
-                        channel: prompt.slackChannelId,
-                        timestamp: prompt.promptSlackTs,
-                        name: 'white_check_mark',
-                    })
-                    .catch((err) => {
-                        Logger.debug(
-                            'Failed to add :white_check_mark: reaction to coding-agent mention:',
-                            err,
-                        );
-                    });
-            }
-
-            return result;
-        };
-
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
         // filesystem (a MountingRepoFileSystem): the dbt project mounted
         // subPath-scoped at /dbt, plus authorized repositories mounted whole at
@@ -12213,7 +12148,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
-            editRepo,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -13691,28 +13625,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             aiWritebackEnabled = false;
         }
 
-        // General coding agent (editRepo): gated by the CodingAgent flag,
-        // independent of AiWriteback, with the same Slack trusted-identity guard.
-        // It still requires a GitHub/GitLab connection on the project (the host
-        // follows the project's connection), but the agent can target ANY repo
-        // that installation can write — the per-repo write authz (manage:SourceCode
-        // + denylist + user∩installation) is enforced in AiWritebackService.
-        let { enabled: codingAgentEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.CodingAgent,
-            },
-        );
-        if (codingAgentEnabled && !hasTrustedPromptUserIdentity) {
-            this.logger.info(
-                `Disabling editRepo for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
-            );
-            codingAgentEnabled = false;
-        }
-        if (codingAgentEnabled && !writebackConnectionSupport.editRepo) {
-            codingAgentEnabled = false;
-        }
-
         // Advisory signal of which GitHub identity a writeback PR would be
         // attributed to, so the prompt can tell the user and nudge unlinked
         // users to link their personal GitHub. GitHub-only (GitLab uses a
@@ -13748,7 +13660,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         const projectContextEnabled =
             aiWritebackEnabled &&
-            writebackConnectionSupport.editRepo &&
+            writebackConnectionSupport.supportsProjectContextAndPreview &&
             (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                 user,
             ));
@@ -13766,7 +13678,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled &&
-            writebackConnectionSupport.editRepo &&
+            writebackConnectionSupport.supportsProjectContextAndPreview &&
             aiPreviewDeploySetupFlag;
 
         // exploreRepo/discoverRepos read repo source and the view:SourceCode
@@ -13885,7 +13797,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             searchFieldValues,
             editDbtProject,
             editProjectContext,
-            editRepo,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -14149,7 +14060,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,
-            enableCodingAgent: codingAgentEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
             enableMergeQueries: mergeQueriesEnabled,
@@ -14336,7 +14246,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             searchFieldValues,
             editDbtProject,
             editProjectContext,
-            editRepo,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -15793,7 +15702,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 case 'getPullRequestDiff':
                 case 'listWorkstreams':
                     return 'Inspecting the project files...';
-                case 'editRepo':
                 case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':

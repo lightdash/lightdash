@@ -742,15 +742,6 @@ jobs:
               packages/warehouses
               skills
             install_root_deps: false
-          - display_name: coding agent E2B template
-            directory: sandboxes/ai-coding-agent
-            name: lightdash-ai-coding-agent
-            name_env: E2B_CODING_AGENT_TEMPLATE_NAME
-            tag_env: E2B_CODING_AGENT_TEMPLATE_TAG
-            extra_tags_env: E2B_CODING_AGENT_TEMPLATE_EXTRA_TAGS
-            source_tag_env: E2B_CODING_AGENT_TEMPLATE_SOURCE_TAG
-            additional_watch_paths: ''
-            install_root_deps: false
           - display_name: agent onboarding E2B template
             directory: sandboxes/agent-onboarding
             name: lightdash-agent-onboarding

@@ -15,7 +15,6 @@ import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
-import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getExportChartAsCode } from './exportChartAsCode';
 import { getFindContent } from './findContent';
@@ -140,9 +139,6 @@ const makeAgentTools = (
         }),
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
-        }),
-        editRepo: getEditRepo({
-            editRepo: noop,
         }),
         setupPreviewDeploy: getSetupPreviewDeploy({
             setupPreviewDeploy: noop,

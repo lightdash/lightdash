@@ -37,12 +37,7 @@ export class AiWritebackThreadModel {
         this.database = dependencies.database;
     }
 
-    /**
-     * The thread's most-recent workstream row, regardless of repo. Used by the
-     * dbt-writeback path (one workstream per thread) to read the source the
-     * thread is bound to before resolving which dbt source to target. The
-     * general agent routes by (repo)/(PR) instead — see findActiveWorkstreamByRepo.
-     */
+    /** Read the most-recent workstream to resolve the thread's bound dbt source. */
     async findByAiThreadUuid(
         aiThreadUuid: string,
     ): Promise<AiWritebackThreadWithPrUrl | null> {

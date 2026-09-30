@@ -405,7 +405,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     aiWriteback: {
         legacyAnthropicApiKey: null,
-        codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
         enabled: true,
@@ -531,8 +530,6 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
         e2bAgentOnboardingTemplateTag: 'test',
-        e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
-        e2bCodingAgentTemplateTag: '',
         otel: {
             enabled: false,
             endpoint: '',
