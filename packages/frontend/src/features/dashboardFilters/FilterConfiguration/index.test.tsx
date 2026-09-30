@@ -607,4 +607,65 @@ describe('FilterConfiguration', () => {
             expect.objectContaining({ tileTargets: {} }),
         );
     });
+
+    it('turns all tiles off and back on from the All tiles menu', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        const activeRule: DashboardFilterRule = {
+            ...anyValueRule,
+            values: ['Adam'],
+            disabled: false,
+        };
+        const chartTile = {
+            uuid: 'chart-tile-1',
+            type: DashboardTileTypes.SAVED_CHART,
+            x: 0,
+            y: 0,
+            h: 1,
+            w: 1,
+            tabUuid: null,
+            properties: {
+                savedChartUuid: 'chart-1',
+                title: 'Customers chart',
+            },
+        } as unknown as DashboardTile;
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[chartTile]}
+                tabs={[]}
+                availableTileFilters={{ 'chart-tile-1': [mockField] }}
+                field={mockField}
+                defaultFilterRule={activeRule}
+                originalFilterRule={activeRule}
+                onSave={onSave}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'Tiles' }));
+        const tileSwitch = screen.getByRole('switch', {
+            name: 'Customers chart',
+        });
+
+        await user.click(screen.getByRole('button', { name: 'All tiles' }));
+        await user.click(
+            await screen.findByRole('menuitem', { name: /Turn off all tiles/ }),
+        );
+        expect(tileSwitch).not.toBeChecked();
+
+        await user.click(screen.getByRole('button', { name: 'All tiles' }));
+        await user.click(
+            await screen.findByRole('menuitem', {
+                name: /Turn on all matching tiles/,
+            }),
+        );
+        expect(tileSwitch).toBeChecked();
+
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        expect(onSave).toHaveBeenLastCalledWith(
+            expect.objectContaining({ tileTargets: {} }),
+        );
+    });
 });

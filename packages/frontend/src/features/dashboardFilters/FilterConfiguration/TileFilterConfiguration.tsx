@@ -22,6 +22,7 @@ import {
     Button,
     Collapse,
     Group,
+    Menu,
     Select,
     Stack,
     Switch,
@@ -654,6 +655,21 @@ const TileFilterConfiguration: FC<Props> = ({
     };
 
     const overrideCount = tileTargetList.filter((v) => v.isOverride).length;
+    const turnOnChanges = Object.fromEntries(
+        tileTargetList
+            .filter((v) => !v.isFiltered && v.isDefaultFiltered)
+            .map((v) => [v.tileUuid, v.defaultTarget]),
+    );
+    const turnOffChanges = Object.fromEntries(
+        tileTargetList
+            .filter((v) => v.isFiltered)
+            .map((v) => [v.tileUuid, false as const]),
+    );
+    const revertChanges = Object.fromEntries(
+        tileTargetList
+            .filter((v) => v.isOverride)
+            .map((v) => [v.tileUuid, v.defaultTarget]),
+    );
 
     return (
         <Stack gap="sm" className={classes.tileScrollArea}>
@@ -674,22 +690,78 @@ const TileFilterConfiguration: FC<Props> = ({
                                   )
                         }`}
                 </Text>
-                <Button
-                    size="compact-xs"
-                    variant="subtle"
-                    disabled={overrideCount === 0}
-                    onClick={() =>
-                        onBulkChange(
-                            Object.fromEntries(
-                                tileTargetList
-                                    .filter((v) => v.isOverride)
-                                    .map((v) => [v.tileUuid, v.defaultTarget]),
-                            ),
-                        )
-                    }
+                <Menu
+                    position="bottom-end"
+                    onOpen={popoverProps?.onOpen}
+                    onClose={popoverProps?.onClose}
                 >
-                    {getUiString('filters.config.revertAllTiles')}
-                </Button>
+                    <Menu.Target>
+                        <Button
+                            size="compact-xs"
+                            variant="default"
+                            rightSection={
+                                <MantineIcon icon={IconChevronDown} />
+                            }
+                        >
+                            {getUiString('filters.config.allTilesMenu')}
+                        </Button>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            disabled={Object.keys(turnOnChanges).length === 0}
+                            onClick={() => onBulkChange(turnOnChanges)}
+                        >
+                            <Text fz="xs">
+                                {getUiString(
+                                    'filters.config.turnOnMatchingTiles',
+                                )}
+                            </Text>
+                            {field && (
+                                <Text fz="xs" c="dimmed">
+                                    {interpolateUiString(
+                                        getUiString(
+                                            'filters.config.turnOnMatchingTilesHint',
+                                        ),
+                                        { field: field.label },
+                                    )}
+                                </Text>
+                            )}
+                        </Menu.Item>
+                        <Menu.Item
+                            disabled={Object.keys(turnOffChanges).length === 0}
+                            onClick={() => onBulkChange(turnOffChanges)}
+                        >
+                            <Text fz="xs">
+                                {getUiString('filters.config.turnOffAllTiles')}
+                            </Text>
+                        </Menu.Item>
+                        <Menu.Divider />
+                        <Menu.Item
+                            disabled={overrideCount === 0}
+                            onClick={() => onBulkChange(revertChanges)}
+                        >
+                            <Text fz="xs">
+                                {getUiString(
+                                    'filters.config.revertAllTilesToDefault',
+                                )}
+                            </Text>
+                            {overrideCount > 0 && (
+                                <Text fz="xs" c="dimmed">
+                                    {overrideCount === 1
+                                        ? getUiString(
+                                              'filters.config.revertAllTilesHint.singular',
+                                          )
+                                        : interpolateUiString(
+                                              getUiString(
+                                                  'filters.config.revertAllTilesHint.plural',
+                                              ),
+                                              { n: overrideCount },
+                                          )}
+                                </Text>
+                            )}
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
             </Group>
             <Box className={classes.tileHeader}>
                 <Text fz="xs" fw={600} c="dimmed">
