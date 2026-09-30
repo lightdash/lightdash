@@ -1,18 +1,52 @@
+@font-face {
+    font-family: 'Britti Sans';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('https://framerusercontent.com/assets/53b0cytkvSXx6L4kjxKUH3MpVk.woff2')
+        format('woff2');
+}
+
 .root {
     display: flex;
     min-height: 100dvh;
 }
 
 .brandPanel {
+    --auth-block-size: clamp(rem(44px), 8vh, rem(88px));
+    --auth-guide-line: rgba(229, 231, 235, 0.2);
+
     position: relative;
     overflow: hidden;
     flex: 0 0 44%;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
-    gap: var(--mantine-spacing-4xl);
-    padding: var(--mantine-spacing-4xl);
-    background-color: var(--mantine-color-ldBrandGray-8);
+    padding: var(--auth-block-size);
+    padding-top: calc(var(--auth-block-size) + var(--mantine-spacing-4xl));
+    background-color: #000000;
+}
+
+.brandPanel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(var(--auth-guide-line), var(--auth-guide-line)),
+        linear-gradient(var(--auth-guide-line), var(--auth-guide-line)),
+        linear-gradient(var(--auth-guide-line), var(--auth-guide-line)),
+        linear-gradient(var(--auth-guide-line), var(--auth-guide-line));
+    background-repeat: no-repeat;
+    background-size:
+        1px 100%,
+        1px 100%,
+        100% 1px,
+        100% 1px;
+    background-position:
+        var(--auth-block-size) 0,
+        calc(100% - var(--auth-block-size)) 0,
+        0 var(--auth-block-size),
+        0 calc(100% - var(--auth-block-size));
+    pointer-events: none;
 }
 
 @media (max-width: $mantine-breakpoint-md) {
@@ -21,63 +55,54 @@
     }
 }
 
-.brandMark {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: rem(40px);
-    height: rem(40px);
-    border-radius: var(--mantine-radius-md);
-    background-color: var(--mantine-color-ldBrandGray-7);
+.brandWordmark {
+    position: absolute;
+    top: calc((var(--auth-block-size) - rem(20px)) / 2);
+    left: calc(var(--auth-block-size) + var(--mantine-spacing-md));
+    width: auto;
+    height: rem(20px);
     color: var(--mantine-color-white);
 }
 
-.brandName {
-    color: var(--mantine-color-white);
+.brandIntro {
+    position: relative;
+    padding-inline: var(--mantine-spacing-md);
+    animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .headline {
-    max-width: rem(560px);
+    max-width: rem(520px);
     color: var(--mantine-color-white);
+    font-family: 'Britti Sans', var(--mantine-font-family-headings);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+}
+
+.formTitle {
+    font-family: 'Britti Sans', var(--mantine-font-family-headings);
+    font-weight: 500;
 }
 
 .subcopy {
-    max-width: rem(520px);
-    color: rgba(255, 255, 255, 0.62);
+    max-width: rem(440px);
+    color: rgba(255, 255, 255, 0.6);
 }
 
-.highlight {
-    color: var(--mantine-color-white);
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.brandContent {
-    margin-block: auto;
-}
-
-.decorationTop {
-    position: absolute;
-    top: rem(-40px);
-    right: rem(-30px);
-    width: rem(180px);
-    height: rem(180px);
-    border-radius: rem(36px);
-    background-color: var(--mantine-color-ldBrandViolet-6);
-    opacity: 0.09;
-    transform: rotate(18deg);
-    pointer-events: none;
-}
-
-.decorationBottom {
-    position: absolute;
-    bottom: rem(-35px);
-    left: rem(-25px);
-    width: rem(140px);
-    height: rem(140px);
-    border-radius: rem(28px);
-    background-color: var(--mantine-color-ldBrandViolet-4);
-    opacity: 0.07;
-    transform: rotate(-12deg);
-    pointer-events: none;
+@media (prefers-reduced-motion: reduce) {
+    .brandIntro {
+        animation: none;
+    }
 }
 
 .formPanel {
@@ -95,13 +120,17 @@
     max-width: rem(420px);
 }
 
-.formBrandMark {
+.formWordmark {
     display: none;
+    align-self: flex-start;
+    width: auto;
+    height: rem(24px);
+    color: var(--mantine-color-text);
 }
 
 @media (max-width: $mantine-breakpoint-md) {
-    .formBrandMark {
-        display: flex;
+    .formWordmark {
+        display: block;
     }
 }
 

@@ -1,19 +1,25 @@
-import { Box, Card, Group, Stack, Text, Title } from '@mantine/core';
-import { IconCheck } from '@tabler/icons-react';
-import { type FC, type PropsWithChildren, type ReactNode } from 'react';
+import { Box, Card, Stack, Text, Title } from '@mantine/core';
+import {
+    useRef,
+    type FC,
+    type FocusEvent,
+    type FormEvent,
+    type PropsWithChildren,
+    type ReactNode,
+} from 'react';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
-import MantineIcon from '../MantineIcon';
 import classes from './AuthLayout.module.css';
-import LightdashMark from './LightdashMark';
+import LightdashWordmark from './LightdashWordmark';
+import ListeningBlocks from './ListeningBlocks';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
 
-const BRAND_HIGHLIGHTS = [
-    'Agents build and refactor your dashboards',
-    'Governed by your semantic layer — no hallucinations',
-    'Open source · unlimited seats · no lock-in',
-];
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+const isEmailInput = (target: EventTarget): target is HTMLInputElement =>
+    target instanceof HTMLInputElement &&
+    (target.type === 'email' || target.name === 'email');
 
 type Props = {
     /** Document title, matching what each page passed to `Page` before. */
@@ -41,6 +47,31 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     children,
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
+    const brandPanelRef = useRef<HTMLDivElement>(null);
+
+    const handleFormFocus = (event: FocusEvent<HTMLDivElement>) => {
+        const panel = brandPanelRef.current;
+        if (!panel || !(event.target instanceof HTMLInputElement)) return;
+        if (panel.dataset.stage === 'valid') return;
+        panel.dataset.stage = 'focus';
+    };
+
+    const handleFormInput = (event: FormEvent<HTMLDivElement>) => {
+        const panel = brandPanelRef.current;
+        if (!panel || !isEmailInput(event.target)) return;
+        panel.dataset.stage = EMAIL_PATTERN.test(event.target.value)
+            ? 'valid'
+            : 'typing';
+        const { length } = event.target.value;
+        panel.querySelectorAll<HTMLElement>('[data-order]').forEach((cell) => {
+            cell.dataset.lit = String(Number(cell.dataset.order) < length);
+        });
+    };
+
+    const handleFormSubmit = () => {
+        const panel = brandPanelRef.current;
+        if (panel) panel.dataset.stage = 'submitting';
+    };
 
     if (isInitialLoading) {
         return <PageSpinner />;
@@ -80,68 +111,44 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
             <DocumentTitle title={pageTitle} />
 
             <Box className={classes.root}>
-                <Box className={classes.brandPanel}>
-                    <Box className={classes.decorationTop} aria-hidden />
-                    <Box className={classes.decorationBottom} aria-hidden />
+                <Box
+                    ref={brandPanelRef}
+                    className={classes.brandPanel}
+                    data-stage="idle"
+                >
+                    <LightdashWordmark className={classes.brandWordmark} />
 
-                    <Group gap="sm" wrap="nowrap">
-                        <Box className={classes.brandMark}>
-                            <LightdashMark />
-                        </Box>
-                        <Text fz="xl" fw={600} className={classes.brandName}>
-                            Lightdash
+                    <Stack gap="lg" className={classes.brandIntro}>
+                        <Title
+                            order={1}
+                            fz="display"
+                            className={classes.headline}
+                        >
+                            Analytics at the speed of code.
+                        </Title>
+                        <Text fz="lg" className={classes.subcopy}>
+                            The only open-source, AI-native BI platform that
+                            lets AI build, refactor, and ship analytics in
+                            minutes.
                         </Text>
-                    </Group>
-
-                    <Stack gap="4xl" className={classes.brandContent}>
-                        <Stack gap="lg">
-                            <Title
-                                order={1}
-                                fz="display"
-                                className={classes.headline}
-                            >
-                                Analytics at the speed of code.
-                            </Title>
-                            <Text fz="lg" className={classes.subcopy}>
-                                The only open-source, AI-native BI platform that
-                                lets AI build, refactor, and ship analytics in
-                                minutes. Loved by developers.
-                            </Text>
-                        </Stack>
-
-                        <Stack gap="md">
-                            {BRAND_HIGHLIGHTS.map((highlight) => (
-                                <Group key={highlight} gap="sm" wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconCheck}
-                                        color="ldBrandViolet.3"
-                                    />
-                                    <Text className={classes.highlight}>
-                                        {highlight}
-                                    </Text>
-                                </Group>
-                            ))}
-                        </Stack>
                     </Stack>
+
+                    <ListeningBlocks />
                 </Box>
 
-                <Box className={classes.formPanel}>
+                <Box
+                    className={classes.formPanel}
+                    onFocusCapture={handleFormFocus}
+                    onInputCapture={handleFormInput}
+                    onSubmitCapture={handleFormSubmit}
+                >
                     <Stack id={cardId} className={classes.formContent} gap="xl">
-                        <Group
-                            gap="sm"
-                            wrap="nowrap"
-                            className={classes.formBrandMark}
-                        >
-                            <Box className={classes.brandMark}>
-                                <LightdashMark />
-                            </Box>
-                            <Text fz="xl" fw={600}>
-                                Lightdash
-                            </Text>
-                        </Group>
+                        <LightdashWordmark className={classes.formWordmark} />
                         {title && (
                             <Stack gap="xs">
-                                <Title order={2}>{title}</Title>
+                                <Title order={2} className={classes.formTitle}>
+                                    {title}
+                                </Title>
                                 {subtitle && (
                                     <Text className={classes.formSubtitle}>
                                         {subtitle}

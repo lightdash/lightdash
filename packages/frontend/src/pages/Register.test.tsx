@@ -37,9 +37,7 @@ describe('Register', () => {
     it('renders the email-only signup form with an email client', async () => {
         renderRegister(true);
 
-        expect(
-            await screen.findByLabelText(/Email address/),
-        ).toBeInTheDocument();
+        expect(await screen.findByLabelText(/Work email/)).toBeInTheDocument();
         expect(screen.queryByLabelText(/First name/)).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/Last name/)).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/Password/)).not.toBeInTheDocument();
