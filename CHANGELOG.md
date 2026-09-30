@@ -1,3 +1,10 @@
+## [2.396.1](https://github.com/lightdash/lightdash/compare/2.396.0...2.396.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* make parameter defaults explicitly selectable ([#30298](https://github.com/lightdash/lightdash/issues/30298)) ([80f9240](https://github.com/lightdash/lightdash/commit/80f924029336bff856eb82d8f42704164f2d0d03))
+
 # [2.396.0](https://github.com/lightdash/lightdash/compare/2.395.1...2.396.0) (2026-09-30)
 
 
