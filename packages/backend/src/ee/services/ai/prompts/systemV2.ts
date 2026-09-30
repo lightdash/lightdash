@@ -24,7 +24,6 @@ import {
     STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
 import { getAiWritebackSection } from './systemV2AiWriteback';
-import { getCodingAgentSection } from './systemV2CodingAgent';
 import {
     getContentToolsSection,
     getDocumentToolsSection,
@@ -145,7 +144,6 @@ export const getSystemPromptV2 = (args: {
     enableFilterExpressions?: boolean;
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
-    enableCodingAgent?: boolean;
     siteUrl?: string;
     enableRepoDiscovery?: boolean;
     repoFsRoot?: string | null;
@@ -184,7 +182,6 @@ export const getSystemPromptV2 = (args: {
         enableFilterExpressions = false,
         enableAiWriteback = false,
         writebackAttribution = null,
-        enableCodingAgent = false,
         siteUrl = '',
         enableRepoDiscovery = false,
         repoFsRoot = null,
@@ -355,10 +352,6 @@ export const getSystemPromptV2 = (args: {
                       enableContentTools,
                   )
                 : '',
-        )
-        .replace(
-            '{{coding_agent_section}}',
-            enableCodingAgent ? getCodingAgentSection() : '',
         )
         .replace(
             '{{repo_fs_section}}',

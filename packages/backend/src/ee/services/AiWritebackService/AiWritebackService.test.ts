@@ -25,27 +25,21 @@ import {
     getOrRefreshToken,
     getRepoDefaultBranch,
     getRepoMetadata,
-    getScopedRepoCloneToken,
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
-    revokeInstallationToken,
 } from '../../../clients/github/Github';
 import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
-    auditReasonForError,
-    computeWritableRepoKeys,
     mergeSourceCodeRepoAccess,
-    parseOwnerRepo,
     workstreamLockKey,
 } from './AiWritebackService';
 import {
     ALLOWED_TOOLS,
     COMPILE_WRAPPER_PATH,
-    GENERAL_ALLOWED_TOOLS,
-    GENERAL_DISALLOWED_TOOLS,
     MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
+    NATIVE_DISALLOWED_TOOLS,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_DESCRIPTION_PATH,
@@ -53,9 +47,7 @@ import {
     PR_TITLE_OPEN,
     PR_TITLE_PATH,
 } from './constants';
-import { DeniedPathError } from './deniedPaths';
 import {
-    RepoTooLargeError,
     WritebackAccessError,
     WritebackCredentialCleanupError,
     WritebackGitNotConnectedError,
@@ -107,10 +99,8 @@ vi.mock('../../../clients/github/Github', () => ({
         .fn()
         .mockResolvedValue({ defaultBranch: 'main', sizeKb: 1024 }),
     getRepoTree: vi.fn(),
-    getScopedRepoCloneToken: vi.fn().mockResolvedValue('scoped-clone-token'),
     listReposAccessibleToInstallation: vi.fn(),
     listReposAccessibleToUser: vi.fn(),
-    revokeInstallationToken: vi.fn().mockResolvedValue(undefined),
     updatePullRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -2794,7 +2784,7 @@ describe('AiWritebackService.startTracking', () => {
             user: { userUuid: 'u1' },
             projectUuid: 'p1',
             turn: turnContext(),
-            workstream: 'general',
+            workstream: 'dbt-writeback',
             aiThreadUuid: undefined,
             promptUuid: undefined,
         });
@@ -2824,7 +2814,7 @@ describe('AiWritebackService.startTracking', () => {
             user: { userUuid: 'u1' },
             projectUuid: 'p1',
             turn: turnContext(),
-            workstream: 'general',
+            workstream: 'dbt-writeback',
             aiThreadUuid: undefined,
             promptUuid: undefined,
         });
@@ -2918,137 +2908,6 @@ describe('mergeSourceCodeRepoAccess', () => {
     });
 });
 
-describe('parseOwnerRepo', () => {
-    it('parses a valid owner/repo', () => {
-        expect(parseOwnerRepo('acme/web-app')).toEqual({
-            owner: 'acme',
-            repo: 'web-app',
-        });
-    });
-
-    it('trims whitespace and a trailing .git', () => {
-        expect(parseOwnerRepo('  acme/web-app.git ')).toEqual({
-            owner: 'acme',
-            repo: 'web-app',
-        });
-    });
-
-    it.each([undefined, '', 'noslash', 'a/b/c', 'owner/', '/repo'])(
-        'throws ParameterError on malformed input %p',
-        (input) => {
-            expect(() => parseOwnerRepo(input as string)).toThrow();
-        },
-    );
-});
-
-describe('computeWritableRepoKeys', () => {
-    const r = (owner: string, repo: string) => ({ owner, repo });
-
-    it('without user intersection, only the project repository is writable', () => {
-        const keys = computeWritableRepoKeys(
-            [r('acme', 'a'), r('acme', 'b')],
-            [],
-            false,
-            ['acme/a'],
-        );
-        expect([...keys]).toEqual(['acme/a']);
-    });
-
-    it('with user intersection, allows the project repo and repos in both sets', () => {
-        const keys = computeWritableRepoKeys(
-            [r('acme', 'a'), r('acme', 'b'), r('acme', 'c')],
-            [r('acme', 'b'), r('acme', 'c'), r('me', 'x')],
-            true,
-            ['acme/a'],
-        );
-        expect([...keys].sort()).toEqual(['acme/a', 'acme/b', 'acme/c']);
-    });
-
-    it('never marks the denylisted lightdash/lightdash writable', () => {
-        const keys = computeWritableRepoKeys(
-            [r('lightdash', 'lightdash'), r('acme', 'a')],
-            [],
-            false,
-            ['acme/a'],
-        );
-        expect(keys.has('lightdash/lightdash')).toBe(false);
-        expect(keys.has('acme/a')).toBe(true);
-    });
-
-    it('denylist is case-insensitive', () => {
-        const keys = computeWritableRepoKeys(
-            [r('Lightdash', 'Lightdash')],
-            [],
-            false,
-            ['Lightdash/Lightdash'],
-        );
-        expect(keys.size).toBe(0);
-    });
-
-    it('intersects case-insensitively (installation vs user listings can differ in case)', () => {
-        const keys = computeWritableRepoKeys(
-            [r('Acme', 'Web-App')],
-            [r('acme', 'web-app')],
-            true,
-            [],
-        );
-        // The slug differs only by case across the two listings — it must still
-        // intersect (L1), and the output keeps the installation's casing.
-        expect([...keys]).toEqual(['Acme/Web-App']);
-    });
-});
-
-describe('auditReasonForError', () => {
-    it('maps each terminal coding-agent error to a stable reason', () => {
-        expect(auditReasonForError(new DeniedPathError(['.env']))).toBe(
-            'denied_path',
-        );
-        expect(
-            auditReasonForError(new RepoTooLargeError('a/b', 900, 500)),
-        ).toBe('repo_too_large');
-        expect(
-            auditReasonForError(
-                new WritebackGitNotConnectedError(PullRequestProvider.GITHUB),
-            ),
-        ).toBe('not_installed');
-        expect(
-            auditReasonForError(new WritebackThreadPrClosedError('merged')),
-        ).toBe('pr_not_open');
-    });
-
-    it.each([
-        'denied_repo',
-        'user_intersection',
-        'installation',
-        'no_org',
-    ] as const)(
-        'uses the typed %s reason independently of message copy',
-        (reason) => {
-            const error = new WritebackAccessError(
-                reason,
-                'An arbitrary translated explanation',
-            );
-            expect(error).toBeInstanceOf(ForbiddenError);
-            expect(auditReasonForError(error)).toBe(reason);
-        },
-    );
-
-    it('does not infer an access reason from keywords inside an ordinary forbidden message', () => {
-        expect(
-            auditReasonForError(
-                new ForbiddenError(
-                    'Organization installation cannot be edited by your linked GitHub account',
-                ),
-            ),
-        ).toBe('permission');
-        expect(auditReasonForError(new ForbiddenError())).toBe('permission');
-    });
-
-    it('falls back to unknown for unrecognised errors', () => {
-        expect(auditReasonForError(new Error('boom'))).toBe('unknown');
-    });
-});
-
 describe('ALLOWED_TOOLS', () => {
     const tools = ALLOWED_TOOLS.split(',');
 
@@ -3065,39 +2924,8 @@ describe('ALLOWED_TOOLS', () => {
     });
 });
 
-describe('GENERAL_ALLOWED_TOOLS', () => {
-    const tools = GENERAL_ALLOWED_TOOLS.split(',');
-
-    // Inv#2: the general coding agent has NO shell. "No in-sandbox build" is
-    // enforceable (not convention) only while zero Bash entries are granted.
-    it('grants zero Bash entries (no shell for the general agent)', () => {
-        expect(tools.some((t) => t.startsWith('Bash('))).toBe(false);
-        expect(tools).not.toContain('Bash');
-    });
-
-    it('does not grant a blanket WebFetch/WebSearch escape hatch', () => {
-        expect(tools.some((t) => t.startsWith('WebFetch'))).toBe(false);
-        expect(tools.some((t) => t.startsWith('WebSearch'))).toBe(false);
-    });
-
-    // L2: path-scoped allows must use Claude Code absolute (`//`) paths too, so
-    // the allowlist matches the real /home/user/repo checkout rather than a
-    // project-relative path (which would silently grant nothing / the wrong dir).
-    it('scopes repo file tools to the absolute (//) repo path', () => {
-        const repoFileTools = tools.filter((t) =>
-            /^(Read|Glob|Grep|Edit|Write)\(.*home\/user\/repo/.test(t),
-        );
-        expect(repoFileTools.length).toBeGreaterThan(0);
-        repoFileTools.forEach((t) => {
-            expect(t).toMatch(
-                /^(Read|Glob|Grep|Edit|Write)\(\/\/home\/user\/repo\//,
-            );
-        });
-    });
-});
-
-describe('GENERAL_DISALLOWED_TOOLS', () => {
-    const rules = GENERAL_DISALLOWED_TOOLS.split(',');
+describe('NATIVE_DISALLOWED_TOOLS', () => {
+    const rules = NATIVE_DISALLOWED_TOOLS.split(',');
 
     it('denies Grep on every path it denies Read on (no read/grep parity gap)', () => {
         const readGlobs = rules
@@ -3136,150 +2964,6 @@ describe('GENERAL_DISALLOWED_TOOLS', () => {
     });
 });
 
-describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () => {
-    const userWithManage = (): SessionUser => {
-        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-        can('manage', 'SourceCode', { organizationUuid: ORG });
-        return {
-            userUuid: 'u1',
-            organizationUuid: ORG,
-            organizationName: 'Acme',
-            organizationCreatedAt: new Date(),
-            role: 'admin',
-            ability: build(),
-        } as AnyType;
-    };
-
-    const githubProject = (): AnyType => ({
-        organizationUuid: ORG,
-        projectUuid: 'p1',
-        name: 'Analytics',
-        dbtConnection: {
-            type: DbtProjectType.GITHUB,
-            authorization_method: 'installation_id',
-            repository: 'acme/analytics',
-            branch: 'main',
-            project_sub_path: '/',
-        },
-        warehouseConnection: { type: WarehouseTypes.POSTGRES },
-    });
-
-    beforeEach(() => vi.clearAllMocks());
-
-    it('rejects an installation repository unrelated to the invoking project when the user is not linked', async () => {
-        const service = buildService();
-        vi.spyOn(
-            (service as AnyType).githubProvider,
-            'resolveInstallation',
-        ).mockResolvedValue({
-            provider: PullRequestProvider.GITHUB,
-            installationId: 'inst-1',
-            token: 'install-token',
-            userToken: null,
-            commitAuthor: { name: 'n', email: 'e' },
-            coAuthorTrailer: '',
-        } as AnyType);
-        (
-            listReposAccessibleToInstallation as import('vitest').Mock
-        ).mockResolvedValue([
-            { owner: 'acme', repo: 'analytics' },
-            { owner: 'acme', repo: 'secret-infrastructure' },
-        ]);
-
-        await expect(
-            service.resolveWritableRepoTarget({
-                user: userWithManage(),
-                project: githubProject(),
-                repoTarget: 'acme/secret-infrastructure',
-            }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(getRepoMetadata).not.toHaveBeenCalled();
-    });
-
-    it('fails closed (does NOT widen to installation scope) when the user repo listing fails', async () => {
-        const { service } = (() => {
-            const svc = buildService({
-                githubAppService: {
-                    getValidUserToken: vi.fn().mockResolvedValue('user-token'),
-                } as AnyType,
-            });
-            vi.spyOn(
-                (svc as AnyType).githubProvider,
-                'resolveInstallation',
-            ).mockResolvedValue({
-                provider: PullRequestProvider.GITHUB,
-                installationId: 'inst-1',
-                token: 'install-token',
-                userToken: null,
-                commitAuthor: { name: 'n', email: 'e' },
-                coAuthorTrailer: '',
-            } as AnyType);
-            return { service: svc };
-        })();
-
-        // The installation can reach the target...
-        (
-            listReposAccessibleToInstallation as import('vitest').Mock
-        ).mockResolvedValue([{ owner: 'acme', repo: 'analytics' }]);
-        // ...but listing the user's own repos fails transiently.
-        (listReposAccessibleToUser as import('vitest').Mock).mockRejectedValue(
-            new Error('GitHub 503'),
-        );
-
-        await expect(
-            service.resolveWritableRepoTarget({
-                user: userWithManage(),
-                project: githubProject(),
-                repoTarget: 'acme/analytics',
-            }),
-        ).rejects.toMatchObject({
-            reason: 'user_intersection',
-            message: expect.stringMatching(
-                /Could not verify your GitHub access/,
-            ),
-        });
-    });
-
-    it('fails closed at the size guard (R9) before any clone when the repo is over the limit', async () => {
-        const svc = buildService({
-            lightdashConfig: {
-                gitlab: {},
-                aiWriteback: { codingAgentMaxRepoSizeMb: 100 },
-            } as AnyType,
-            githubAppService: {
-                getValidUserToken: vi.fn().mockResolvedValue(undefined),
-            } as AnyType,
-        });
-        vi.spyOn(
-            (svc as AnyType).githubProvider,
-            'resolveInstallation',
-        ).mockResolvedValue({
-            provider: PullRequestProvider.GITHUB,
-            installationId: 'inst-1',
-            token: 'install-token',
-            userToken: null,
-            commitAuthor: { name: 'n', email: 'e' },
-            coAuthorTrailer: '',
-        } as AnyType);
-        (
-            listReposAccessibleToInstallation as import('vitest').Mock
-        ).mockResolvedValue([{ owner: 'acme', repo: 'analytics' }]);
-        // 250 MB checkout against a 100 MB limit → reject before cloning.
-        (getRepoMetadata as import('vitest').Mock).mockResolvedValue({
-            defaultBranch: 'main',
-            sizeKb: 250 * 1024,
-        });
-
-        await expect(
-            svc.resolveWritableRepoTarget({
-                user: userWithManage(),
-                project: githubProject(),
-                repoTarget: 'acme/analytics',
-            }),
-        ).rejects.toThrow(RepoTooLargeError);
-    });
-});
-
 describe('AiWritebackService.dbtWritebackConfig', () => {
     it.each([PullRequestProvider.GITHUB, PullRequestProvider.BITBUCKET])(
         'uses native instructions without shell or profiles for %s projects',
@@ -3313,7 +2997,7 @@ describe('AiWritebackService.dbtWritebackConfig', () => {
                 'lightdash.project_context.yml',
             );
             expect(setup.allowedTools).not.toMatch(/Bash\(|ld-profiles/);
-            expect(setup.disallowedTools).toContain(GENERAL_DISALLOWED_TOOLS);
+            expect(setup.disallowedTools).toContain(NATIVE_DISALLOWED_TOOLS);
             if (provider === PullRequestProvider.BITBUCKET) {
                 for (const tool of ['Read', 'Grep', 'Edit', 'Write']) {
                     expect(setup.disallowedTools).toContain(
@@ -3346,155 +3030,6 @@ describe('AiWritebackService.dbtWritebackConfig', () => {
             });
 
         expect(setup.repoContext).toBe(repoContext);
-    });
-});
-
-describe('AiWritebackService.generalCodingAgentConfig (general-agent invariants, H3)', () => {
-    const buildGeneralService = () =>
-        buildService({
-            lightdashConfig: {
-                gitlab: {},
-                appRuntime: {
-                    e2bCodingAgentTemplateName: 'coding-tpl',
-                    e2bCodingAgentTemplateTag: '',
-                },
-            } as AnyType,
-        });
-
-    const config = (): AnyType =>
-        (buildGeneralService() as AnyType).generalCodingAgentConfig();
-
-    beforeEach(() => vi.clearAllMocks());
-
-    it('runs in general mode behind the CodingAgent flag with no compile hooks', async () => {
-        const cfg = config();
-        expect(cfg.mode).toBe('general');
-        expect(cfg.featureFlag).toBe(FeatureFlags.CodingAgent);
-        // No in-sandbox build: prep/teardown are no-ops (Inv#2 relies on this).
-        await expect(cfg.beforeAgentRun()).resolves.toBeUndefined();
-        await expect(cfg.afterAgentRun()).resolves.toBeUndefined();
-    });
-
-    it('passes the no-Bash allowlist AND the secret/CI denylist to the agent', async () => {
-        const sandbox = {
-            commands: {
-                run: vi
-                    .fn()
-                    .mockResolvedValue({ stdout: 'models/a.sql\nREADME.md' }),
-            },
-        };
-        const setup = await config().buildAgentSetup({
-            sandbox,
-            repository: 'acme/web-app',
-        });
-        expect(setup.allowedTools).toBe(GENERAL_ALLOWED_TOOLS);
-        expect(setup.disallowedTools).toBe(GENERAL_DISALLOWED_TOOLS);
-        expect(setup.repoContext).toEqual({
-            kind: 'full',
-            listing: 'models/a.sql\nREADME.md',
-        });
-    });
-
-    it('mints a scoped contents:read clone token and revokes it after clone (R2)', async () => {
-        const minted = await config().resolveCloneToken({
-            gitConnection: {
-                provider: PullRequestProvider.GITHUB,
-                owner: 'acme',
-                repo: 'web-app',
-            },
-            installation: {
-                provider: PullRequestProvider.GITHUB,
-                installationId: 'inst-1',
-            },
-        });
-
-        expect(getScopedRepoCloneToken).toHaveBeenCalledWith({
-            installationId: 'inst-1',
-            repo: 'web-app',
-        });
-        expect(minted.token).toBe('scoped-clone-token');
-        // The token is revoked once the checkout exists — not left live (R2).
-        expect(revokeInstallationToken).not.toHaveBeenCalled();
-        await minted.onAfterClone();
-        expect(revokeInstallationToken).toHaveBeenCalledWith(
-            'scoped-clone-token',
-        );
-    });
-
-    it('does not mint a scoped token for non-GitHub installs (GitLab falls back to scrub-only)', async () => {
-        const minted = await config().resolveCloneToken({
-            gitConnection: { provider: PullRequestProvider.GITLAB },
-            installation: { provider: PullRequestProvider.GITLAB },
-        });
-        expect(minted).toBeNull();
-        expect(getScopedRepoCloneToken).not.toHaveBeenCalled();
-    });
-});
-
-describe('AiWritebackService.runEditRepo (write audit, decision #2)', () => {
-    const args = (): AnyType => ({
-        user: { userUuid: 'u1', organizationUuid: ORG } as AnyType,
-        projectUuid: 'p1',
-        repoTarget: 'acme/web-app',
-        prompt: 'edit it',
-        source: 'web',
-    });
-
-    // runEditRepo builds the general config eagerly (reads appRuntime), so the
-    // service needs it even though runCodingAgent itself is stubbed.
-    const auditService = () =>
-        buildService({
-            lightdashConfig: {
-                gitlab: {},
-                appRuntime: {
-                    e2bCodingAgentTemplateName: 'coding-tpl',
-                    e2bCodingAgentTemplateTag: '',
-                },
-            } as AnyType,
-        });
-
-    beforeEach(() => vi.clearAllMocks());
-
-    it('emits an allowed audit line on success', async () => {
-        const service = auditService();
-        vi.spyOn(service as AnyType, 'runCodingAgent').mockResolvedValue({
-            repository: 'acme/web-app',
-        });
-        const info = vi.spyOn((service as AnyType).logger, 'info');
-
-        await service.runEditRepo(args());
-
-        expect(info).toHaveBeenCalledWith(
-            'coding_agent_write',
-            expect.objectContaining({
-                event: 'coding_agent_write',
-                projectUuid: 'p1',
-                targetRepo: 'acme/web-app',
-                allowed: true,
-                reason: null,
-            }),
-        );
-    });
-
-    it('emits a denied audit line with the classified reason on failure', async () => {
-        const service = auditService();
-        vi.spyOn(service as AnyType, 'runCodingAgent').mockRejectedValue(
-            new RepoTooLargeError('acme/web-app', 500, 100),
-        );
-        const info = vi.spyOn((service as AnyType).logger, 'info');
-
-        await expect(service.runEditRepo(args())).rejects.toThrow(
-            RepoTooLargeError,
-        );
-
-        expect(info).toHaveBeenCalledWith(
-            'coding_agent_write',
-            expect.objectContaining({
-                event: 'coding_agent_write',
-                allowed: false,
-                reason: 'repo_too_large',
-            }),
-        );
     });
 });
 
@@ -4502,12 +4037,6 @@ describe('AiWritebackService regional boundary', () => {
 
     it('refuses to enqueue writeback for a Bedrock organization', async () => {
         await expect(bedrockService().enqueueWriteback(args)).rejects.toThrow(
-            'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
-        );
-    });
-
-    it('refuses repository editing for a Bedrock organization', async () => {
-        await expect(bedrockService().runEditRepo(args)).rejects.toThrow(
             'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
         );
     });

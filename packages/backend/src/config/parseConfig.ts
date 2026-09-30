@@ -1868,14 +1868,6 @@ export type LightdashConfig = {
          * instances still setting the writeback-specific key keep working.
          */
         legacyAnthropicApiKey: string | null;
-        /**
-         * Pre-clone size ceiling (MB) for the general coding agent. A repo whose
-         * GitHub-reported size exceeds this is rejected with an actionable error
-         * before any sandbox/clone (fail closed, never deadline_exceeded). With
-         * --depth 1 --filter=blob:none the API size over-counts the real fetch,
-         * so the guard is conservative by design.
-         */
-        codingAgentMaxRepoSizeMb: number;
     };
 
     initialSetup?: {
@@ -2239,16 +2231,6 @@ export type AppRuntimeConfig = {
     /** E2B template used by managed project onboarding. */
     e2bAgentOnboardingTemplateName: string;
     e2bAgentOnboardingTemplateTag: string;
-    /**
-     * Lean template name+tag for the general-purpose coding agent (`editRepo`):
-     * git + Claude CLI + the generic skill only — no dbt venvs, no compile
-     * wrapper, no profiles. Defaults to the `lightdash-ai-coding-agent` image at
-     * the running version's tag, published per release by the post-release
-     * workflow; override the name/tag to pin, roll back, or point at another
-     * image for local dev.
-     */
-    e2bCodingAgentTemplateName: string;
-    e2bCodingAgentTemplateTag: string;
     /**
      * Claude Code OpenTelemetry tracing for data-app builds. When enabled, the
      * `claude` CLI in the sandbox exports OTLP traces (a span per LLM request /
@@ -2737,16 +2719,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         e2bAgentOnboardingTemplateTag:
             process.env.E2B_AGENT_ONBOARDING_TEMPLATE_TAG ??
             (VERSION as string),
-        // The lean coding-agent image (sandboxes/ai-coding-agent), published per
-        // release by the post-release workflow at the running version's tag —
-        // same pattern as the other templates. Operators can override the
-        // name/tag (e.g. to pin, roll back, or point at the writeback image for
-        // local dev before the lean image is built).
-        e2bCodingAgentTemplateName:
-            process.env.E2B_CODING_AGENT_TEMPLATE_NAME ||
-            'lightdash-ai-coding-agent',
-        e2bCodingAgentTemplateTag:
-            process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
         otel: parseDataAppOtelConfig(),
         dependencyRegistryHosts: (
             process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
@@ -3938,10 +3910,6 @@ export const parseConfig = (): LightdashConfig => {
         aiWriteback: {
             legacyAnthropicApiKey:
                 process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
-            codingAgentMaxRepoSizeMb: parseInt(
-                process.env.AI_CODING_AGENT_MAX_REPO_SIZE_MB || '500',
-                10,
-            ),
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),

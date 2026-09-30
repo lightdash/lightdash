@@ -127,6 +127,7 @@ export type AiWritebackSource =
     | 'admin_review'
     | 'changeset';
 
+// Retain 'general' only to read historical writeback rows and analytics.
 export type AiWritebackWorkstream = 'dbt-writeback' | 'general';
 
 export const AI_WRITEBACK_STAGES = [

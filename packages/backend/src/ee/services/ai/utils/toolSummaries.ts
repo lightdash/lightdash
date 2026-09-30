@@ -84,8 +84,6 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
             return 'Iterating on a data app';
         case 'listDataAppThemes':
             return 'Checking data app themes';
-        case 'editRepo':
-            return 'Editing repository';
         default:
             return quoted(
                 readString(input, ['query', 'searchQuery', 'name', 'path']),
@@ -155,7 +153,7 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
         }
         return 'Query ran';
     }
-    if (toolName === 'editDbtProject' || toolName === 'editRepo') {
+    if (toolName === 'editDbtProject') {
         const metadata =
             typeof output.metadata === 'object' && output.metadata
                 ? output.metadata
@@ -163,9 +161,7 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
         const action = (metadata as { prAction?: string | null }).prAction;
         if (action === 'updated') return 'Pull request updated';
         if (action === 'opened') return 'Pull request opened';
-        return toolName === 'editRepo'
-            ? 'Coding agent complete'
-            : 'Writeback complete';
+        return 'Writeback complete';
     }
     if (typeof output.rowCount === 'number') {
         return `Returned ${output.rowCount} rows`;

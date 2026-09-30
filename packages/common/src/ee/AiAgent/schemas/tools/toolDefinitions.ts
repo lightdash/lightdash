@@ -114,11 +114,6 @@ import {
     toolEditProjectContextOutputSchema,
 } from './toolEditProjectContextArgs';
 import {
-    TOOL_EDIT_REPO_DESCRIPTION,
-    toolEditRepoArgsSchema,
-    toolEditRepoOutputSchema,
-} from './toolEditRepoArgs';
-import {
     TOOL_EXPLORE_REPO_DESCRIPTION,
     toolExploreRepoArgsSchema,
     toolExploreRepoOutputSchema,
@@ -1205,20 +1200,6 @@ export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditProjectContextOutputSchema },
 });
 
-export const editRepoToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'editRepo',
-    typeof toolEditRepoArgsSchema,
-    typeof toolEditRepoArgsSchema,
-    typeof toolEditRepoOutputSchema
-> = defineTool({
-    name: 'editRepo',
-    title: 'Edit repository',
-    description: TOOL_EDIT_REPO_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolEditRepoArgsSchema,
-    agent: { outputSchema: toolEditRepoOutputSchema },
-});
-
 export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'syncDbtProject',
     typeof toolSyncDbtProjectArgsSchema,
@@ -1876,7 +1857,6 @@ type AgentToolDefinitionsByName = {
     listDataAppThemes: typeof listDataAppThemesToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
-    editRepo: typeof editRepoToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
@@ -1934,7 +1914,6 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listDataAppThemes: listDataAppThemesToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
-    editRepo: editRepoToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
@@ -1999,7 +1978,6 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listDataAppThemesToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
-    editRepoToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,

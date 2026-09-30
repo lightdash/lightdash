@@ -99,7 +99,7 @@ describe('query tool-call repair', () => {
                 toolCall: {
                     type: 'tool-call',
                     toolCallId: 'call-1',
-                    toolName: 'editRepo',
+                    toolName: 'editDbtProject',
                     input: '{}',
                 },
                 tools: {} as never,

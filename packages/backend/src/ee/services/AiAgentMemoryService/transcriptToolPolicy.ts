@@ -109,7 +109,6 @@ export const DISTILL_TOOL_POLICIES = {
     readContent: { result: shape(false) },
     exploreRepo: { result: omitResult('volatile repository content') },
     getPullRequestDiff: { result: omitResult('volatile repository diff') },
-    editRepo: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     generateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     iterateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     listDataAppThemes: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },

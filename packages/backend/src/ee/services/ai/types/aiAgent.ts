@@ -50,7 +50,6 @@ import {
     EditContentFn,
     EditDbtProjectFn,
     EditProjectContextFn,
-    EditRepoFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
     FindContentFn,
@@ -267,10 +266,6 @@ export type AiAgentArgs = AnyAiModel & {
     enableRepoDiscovery: boolean;
     enableMergeQueries: boolean;
     enableFilterExpressions: boolean;
-    // Whether the general-purpose coding agent (`editRepo`) is available — the
-    // CodingAgent flag, the org has a writable Git installation, and (in Slack)
-    // a trusted prompt identity. Independent of enableAiWriteback.
-    enableCodingAgent: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;
@@ -394,7 +389,6 @@ export type AiAgentDependencies = {
     listDataAppThemes: ListDataAppThemesFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
-    editRepo: EditRepoFn;
     syncDbtProject: SyncDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;

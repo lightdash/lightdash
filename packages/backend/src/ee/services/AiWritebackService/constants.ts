@@ -167,30 +167,9 @@ export const NATIVE_ALLOWED_TOOLS = ALLOWED_TOOLS.split(',')
 // Claude Code releases.
 export const CLAUDE_MODEL = 'claude-sonnet-5-5';
 
-// Host-curated Agent Skills directory for the GENERAL coding agent, distinct
-// from the dbt warehouse skills (SKILLS_DIR) and the baked-in Claude skills
-// (CLAUDE_SKILLS_DIR). Shipped near-empty for v1; lives OUTSIDE the cloned repo
-// (CWD) so `git add` can never sweep its contents into a PR. Safe to expose
-// read-only because the general agent has no Bash — skills can't execute.
-export const GENERAL_SKILLS_DIR = '/home/user/.lightdash-coding-skills';
-
-// Sensitive paths the general coding agent may neither READ nor GREP, even
-// though they fall under the `Read(/CWD/**)` / `Grep(/CWD/**)` allows — applied
-// via Claude Code `--disallowedTools`. Covers `.git` (clone remote/creds + git
-// internals) so the agent can't lift a token from `.git/config` and exfiltrate
-// it via the PR (R4), and common secret files so it can't read+leak them (R6).
-// Grep is denied alongside Read because grep returns matching *lines* (the
-// secret values themselves), so a Read-only deny would leave a trivial bypass:
-// grep the secret out and write it into an allowed file. Defense-in-depth: the
-// clone token is already scoped + scrubbed + revoked, and secrets are denied at
-// commit time too.
-//
-// Each glob is `/${CWD}/...` where CWD = `/home/user/repo`, so it renders with a
-// leading `//` — Claude Code's syntax for an ABSOLUTE path (a single `/` is
-// project-root-RELATIVE). Do NOT "simplify" the `//` to `/`: that would retarget
-// these deny rules to a project-relative path and stop blocking the real secret
-// files. The leading-slash parity with the allowlist is asserted by tests.
-const GENERAL_SENSITIVE_PATH_GLOBS = [
+// Native writeback must not read secrets or git internals, including via Grep.
+// Double-slash paths are absolute in Claude Code tool permissions.
+const NATIVE_SENSITIVE_PATH_GLOBS = [
     `/${CWD}/.git/**`,
     `/${CWD}/.env`,
     `/${CWD}/.env.*`,
@@ -209,28 +188,9 @@ const GENERAL_SENSITIVE_PATH_GLOBS = [
     `/${CWD}/**/*.keyfile.json`,
 ];
 
-export const GENERAL_DISALLOWED_TOOLS = GENERAL_SENSITIVE_PATH_GLOBS.flatMap(
+export const NATIVE_DISALLOWED_TOOLS = NATIVE_SENSITIVE_PATH_GLOBS.flatMap(
     (glob) => [`Read(${glob})`, `Grep(${glob})`],
 ).join(',');
-
-// Fine-grained tool permissions for the GENERAL coding agent (editRepo). The
-// security-critical difference from ALLOWED_TOOLS: there are ZERO Bash entries.
-// With no Bash and no per-language toolchain, "no in-sandbox build" is
-// enforceable rather than convention — the agent can only read/edit files in
-// the cloned repo, write PR metadata to /tmp, and invoke read-only Skills.
-export const GENERAL_ALLOWED_TOOLS = [
-    `Read(/${CWD}/**)`,
-    `Glob(/${CWD}/**)`,
-    `Grep(/${CWD}/**)`,
-    `Edit(/${CWD}/**)`,
-    `Write(/${CWD}/**)`,
-    // PR metadata files live directly in /tmp (also passed via --add-dir).
-    `Write(//tmp/**)`,
-    // Invoke host-curated Skills and read their resource files. The dir is
-    // outside CWD so it must also be passed via --add-dir (see addDirs).
-    'Skill',
-    `Read(/${GENERAL_SKILLS_DIR}/**)`,
-].join(',');
 
 // Ceiling on the gather pass itself. The shell pipeline is sub-second on
 // typical repos; this guards against an unusually large checkout taking long

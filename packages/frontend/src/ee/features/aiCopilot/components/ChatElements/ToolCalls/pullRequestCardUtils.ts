@@ -4,9 +4,7 @@ import {
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 
-// Shared helpers/constants for the writeback PR cards (dbt + general coding
-// agent). Kept in a non-component module so both card files can import them
-// without tripping react-refresh's only-export-components rule.
+// Shared helpers for writeback pull request cards.
 
 /**
  * Summarizes supported pull request URLs as workspace/repository; other hosts

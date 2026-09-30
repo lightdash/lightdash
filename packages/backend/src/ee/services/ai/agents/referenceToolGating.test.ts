@@ -26,7 +26,7 @@ const tools = () => ({
     createContent: tool({ inputSchema: z.object({}) }),
     runContentQuery: tool({ inputSchema: z.object({}) }),
     runSql: tool({ inputSchema: z.object({}) }),
-    editRepo: tool({ inputSchema: z.object({}) }),
+    editDbtProject: tool({ inputSchema: z.object({}) }),
 });
 
 describe('intent toolbox', () => {
@@ -39,7 +39,7 @@ describe('intent toolbox', () => {
                     calls += 1;
                     const names = options.tools?.map(({ name }) => name);
                     if (calls === 1) {
-                        expect(names).not.toContain('editRepo');
+                        expect(names).not.toContain('editDbtProject');
                         expect(names).toEqual([
                             'loadAgentTools',
                             'getKnowledgeDocumentContent',
@@ -64,7 +64,7 @@ describe('intent toolbox', () => {
                         };
                     }
                     expect(names).toContain('generateVisualization');
-                    expect(names).toContain('editRepo');
+                    expect(names).toContain('editDbtProject');
                     return {
                         content: [
                             { type: 'text', text: 'Full toolbox restored.' },
@@ -157,7 +157,7 @@ describe('intent toolbox', () => {
         ).not.toContain('createContent');
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
-        ).toEqual(expect.arrayContaining(['editRepo']));
+        ).toEqual(expect.arrayContaining(['editDbtProject']));
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
         ).not.toContain('generateVisualization');
@@ -174,7 +174,7 @@ describe('deferred prompt sections', () => {
             expect.arrayContaining(['runQuery', 'generateVisualization']),
         );
         expect(active).not.toContain('createContent');
-        expect(active).not.toContain('editRepo');
+        expect(active).not.toContain('editDbtProject');
     });
 
     it('keeps the full toolbox when a likely turn type does not narrow it', () => {

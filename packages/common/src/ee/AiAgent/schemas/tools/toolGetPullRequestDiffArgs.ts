@@ -7,7 +7,7 @@ import {
 export const TOOL_GET_PULL_REQUEST_DIFF_DESCRIPTION = [
     'Read the actual code diff (unified patch) of a pull request this conversation opened, or that belongs to this project.',
     'Use this before deciding how to split, consolidate, or continue changes across pull requests — for example to see exactly what a pull request already contains before adding to it, before folding one pull request into another, or when the user asks you to reorganise open pull requests.',
-    'Pass the pull request URL (from listWorkstreams or a previous editRepo / editDbtProject result). The pull request must belong to this project, or be one this conversation opened. Read-only. GitHub only for now.',
+    'Pass the pull request URL (from listWorkstreams or a previous editDbtProject result). The pull request must belong to this project, or be one this conversation opened. Read-only. GitHub only for now.',
 ].join(' ');
 
 export const toolGetPullRequestDiffArgsSchema = z.object({

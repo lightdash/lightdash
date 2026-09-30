@@ -99,7 +99,6 @@ const buildAgentArgs = (
         debugLoggingEnabled: false,
         deepResearchRuns: [],
         enableAiWriteback: false,
-        enableCodingAgent: false,
         enableContentTools: false,
         enableDataAccess: false,
         enableDataAnswerFastResponse: false,
@@ -1605,7 +1604,6 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 ],
                 projectContextEnabled: true,
                 enableAiWriteback: false,
-                enableCodingAgent: false,
                 enablePreviewDeploySetup: false,
                 enableRepoDiscovery: true,
                 execution: {
@@ -1769,10 +1767,7 @@ describe('withEarlyToolProgress', () => {
     });
 });
 
-// Change B: the workstream tools (listWorkstreams, closePullRequest) are shared
-// by the general coding agent (editRepo) and the dbt-writeback agent
-// (editDbtProject). Both can now drive several PRs per thread, so the gate
-// widened from `enableCodingAgent` to `enableCodingAgent || enableAiWriteback`.
+// PR workstream tools are available only when dbt writeback is enabled.
 describe('getAgentTools workstream tool gate', () => {
     // Tool factories only capture their inputs at construction, so a Proxy that
     // hands back a fresh vi.fn() for every dependency access is enough to build
@@ -1788,7 +1783,6 @@ describe('getAgentTools workstream tool gate', () => {
     };
 
     type ToolFlags = {
-        enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
         canCreateDashboards?: boolean;
@@ -1875,7 +1869,6 @@ describe('getAgentTools workstream tool gate', () => {
         async (enabled) => {
             const args = buildArgs({
                 enableDataAccess: true,
-                enableCodingAgent: false,
                 enableAiWriteback: false,
             });
             if (enabled)
@@ -1910,7 +1903,6 @@ describe('getAgentTools workstream tool gate', () => {
         'offers chart export only with fast decisions and data access (data=%s)',
         (enableDataAccess) => {
             const args = buildArgs({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
                 enableDataAccess,
             });
@@ -1942,7 +1934,6 @@ describe('getAgentTools workstream tool gate', () => {
         'gates Document schemas and instructions together (documents=%s, content=%s, data=%s)',
         (enableDocuments, enableContentTools, enableDataAccess) => {
             const args = buildArgs({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
                 enableDocuments,
                 enableContentTools,
@@ -1990,7 +1981,6 @@ describe('getAgentTools workstream tool gate', () => {
         'matches the %s filter prompt to the selected tool contracts',
         (enableFilterExpressions) => {
             const args = buildArgs({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
                 enableDataAccess: true,
                 enableFilterExpressions,
@@ -2030,9 +2020,8 @@ describe('getAgentTools workstream tool gate', () => {
         },
     );
 
-    it('exposes listWorkstreams + closePullRequest when AI writeback is enabled (coding agent off)', () => {
+    it('exposes listWorkstreams + closePullRequest when AI writeback is enabled', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: true,
         });
         expect(names).toContain('listWorkstreams');
@@ -2044,12 +2033,10 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('exposes the data app tools only when the data app gate is satisfied', () => {
         const withGate = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             enableGenerateDataApp: true,
         });
         const withoutGate = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             enableGenerateDataApp: false,
         });
@@ -2064,7 +2051,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('exposes loadProjectContext when AI agent memory is enabled', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             aiAgentMemoryEnabled: true,
         });
@@ -2074,7 +2060,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('uses grepFields and getMetadata as the only field discovery path', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
         });
 
@@ -2085,7 +2070,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('matches dashboard detail guidance to the available content tool', () => {
         const contentTools = buildTools({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             enableContentTools: true,
             enableDataAccess: true,
@@ -2098,7 +2082,6 @@ describe('getAgentTools workstream tool gate', () => {
         );
 
         const legacyTools = buildTools({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             enableContentTools: false,
             enableDataAccess: true,
@@ -2115,7 +2098,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('withholds generateDashboard from users who cannot save one', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             canCreateDashboards: false,
         });
@@ -2130,7 +2112,6 @@ describe('getAgentTools workstream tool gate', () => {
     it('exposes generateDashboard when the user can save one', () => {
         expect(
             toolNames({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
                 canCreateDashboards: true,
             }),
@@ -2140,7 +2121,6 @@ describe('getAgentTools workstream tool gate', () => {
     it('does not expose loadMcpTools when there are no MCP tools', () => {
         expect(
             toolNames({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
             }),
         ).not.toContain('loadMcpTools');
@@ -2149,7 +2129,6 @@ describe('getAgentTools workstream tool gate', () => {
     it('exposes loadMcpTools when live MCP tools are registered', () => {
         const tools = getAgentTools(
             buildArgs({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
             }),
             depsStub(),
@@ -2197,22 +2176,11 @@ describe('getAgentTools workstream tool gate', () => {
         ).toEqual([{ name: 'Linear', toolNames: ['mcp_linear__get_issue'] }]);
     });
 
-    it('still exposes them for the general coding agent (writeback off) — unchanged', () => {
+    it('does not expose general repository editing or workstreams without dbt writeback', () => {
         const names = toolNames({
-            enableCodingAgent: true,
             enableAiWriteback: false,
         });
-        expect(names).toContain('listWorkstreams');
-        expect(names).toContain('closePullRequest');
-        expect(names).toContain('getPullRequestDiff');
-        expect(names).toContain('editRepo');
-    });
-
-    it('omits them when neither coding agent nor writeback is enabled', () => {
-        const names = toolNames({
-            enableCodingAgent: false,
-            enableAiWriteback: false,
-        });
+        expect(names).not.toContain('editRepo');
         expect(names).not.toContain('listWorkstreams');
         expect(names).not.toContain('closePullRequest');
         expect(names).not.toContain('getPullRequestDiff');
@@ -2220,7 +2188,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('withholds runSql when composer queries are enabled — a sql node supersedes it', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             canRunSql: true,
             enableComposerQueries: true,
@@ -2234,7 +2201,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('keeps runSql when composer queries are disabled', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             canRunSql: true,
             enableComposerQueries: false,
@@ -2248,7 +2214,6 @@ describe('getAgentTools workstream tool gate', () => {
         canUseRawSql = true,
     ) => {
         const args = buildArgs({
-            enableCodingAgent: false,
             enableAiWriteback: true,
         });
         args.canRunSql = canUseRawSql;

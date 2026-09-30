@@ -1,7 +1,5 @@
 import type {
     AiWritebackSource,
-    AiWritebackWorkstream,
-    FeatureFlags,
     PullRequestProvider,
     SessionUser,
     SupportedDbtVersions,
@@ -135,12 +133,7 @@ export type CloneTarget = {
 
 export type SetStage = (stage: AiWritebackFailureStage) => void;
 
-/**
- * Per-turn agent invocation parameters produced by a {@link CodingAgentConfig}:
- * the assembled system prompt plus the Claude Code CLI knobs that differ between
- * the dbt-writeback specialization and the general coding agent (tool allowlist,
- * extra `--add-dir` mounts, model).
- */
+/** Per-turn prompt and Claude Code CLI settings for semantic-layer writeback. */
 export type CodingAgentSetup = {
     systemPrompt: string;
     repoContext: RepoContext | null;
@@ -148,7 +141,7 @@ export type CodingAgentSetup = {
     allowedTools: string;
     /**
      * Claude Code `--disallowedTools` string — paths denied even under the
-     * allowlist (general agent: `.git` + secret files). Empty/undefined omits
+     * allowlist (`.git` + secret files). Empty/undefined omits
      * the flag.
      */
     disallowedTools?: string;
@@ -158,40 +151,11 @@ export type CodingAgentSetup = {
     model: string;
 };
 
-/**
- * The injected, mode-specific half of a coding-agent run. The shared core
- * ({@link AiWritebackService.runCodingAgent}) owns sandbox lifecycle, network
- * lockdown, stream parsing, the signed-commit → PR pipeline, timeouts, and
- * analytics; this config supplies only what varies between the dbt-writeback
- * specialization and the general `editRepo` agent. dbt writeback is itself just
- * one config, so "no in-sandbox build / no Bash" for the general agent is a
- * property of its config, not a fork of the core.
- */
+/** Sandbox setup and compile hooks for dbt and native semantic-layer writeback. */
 export type CodingAgentConfig = {
-    /** Tags logs/analytics and selects the few remaining mode branches. */
-    mode: AiWritebackWorkstream;
-    /**
-     * The rollout feature flag this mode is gated behind (CodingAgent for the
-     * general agent). Undefined for dbt writeback, which is always enabled.
-     * Asserted in `prepareTurn` for non admin/changeset sources.
-     */
-    featureFlag?: FeatureFlags;
-    /** E2B template a fresh sandbox is created from (dbt vs lean image). */
+    /** New runs are always semantic-layer writeback. */
+    mode: 'dbt-writeback';
     resolveTemplateRef: () => string;
-    /** Extra options merged into `sandbox.git.clone` (e.g. a blob filter). */
-    cloneExtraOptions: Record<string, unknown>;
-    /**
-     * Mint a short-lived, narrowly-scoped token for the clone instead of using
-     * the org-wide installation token (general agent). Returns the token plus an
-     * `onAfterClone` to revoke it once the checkout exists — the host commits via
-     * the API with the full installation token, so the sandbox never needs a
-     * usable token to outlive the clone (R2/R4). Returns null (or is undefined)
-     * to clone with the installation token, as dbt writeback does.
-     */
-    resolveCloneToken?: (args: {
-        gitConnection: GitConnection;
-        installation: GitInstallation;
-    }) => Promise<{ token: string; onAfterClone: () => Promise<void> } | null>;
     /**
      * Stage any sandbox prerequisites that inform the prompt (repo context,
      * profiles, tree listing) and build the system prompt + CLI knobs for this
@@ -216,24 +180,6 @@ export type CodingAgentConfig = {
      * depend on what the agent did (dbt: read + report the compile timings).
      */
     afterAgentRun: (sandbox: SandboxHandle) => Promise<void>;
-};
-
-/**
- * The git-target half of a {@link TurnContext}, resolved per mode before the
- * shared resume/edit-state logic runs: dbt writeback resolves it from the
- * project's dbt connection; the general agent resolves an arbitrary writable
- * repo via the authz chokepoint.
- */
-export type ResolvedTurnTarget = {
-    organizationUuid: string;
-    projectName: string;
-    /** Resolved once from the target; the service never re-branches the host. */
-    provider: GitProvider;
-    gitConnection: GitConnection;
-    /** Warehouse dialect for the skill file; null for the general agent. */
-    warehouseType: WarehouseTypes | null;
-    /** Resolved dbt version (compile-wrapper PATH); a default for the general agent. */
-    dbtVersion: SupportedDbtVersions;
 };
 
 export type TurnContext = {
@@ -382,12 +328,6 @@ export type GithubIdentity = {
 export type AiWritebackRunArgs = {
     user: SessionUser;
     projectUuid: string;
-    /**
-     * For the general coding agent (`editRepo`): the `owner/repo` to edit,
-     * resolved + authorized via `resolveWritableRepoTarget` (user ∩ installation,
-     * denylist, manage:SourceCode). Ignored by the dbt-writeback path.
-     */
-    repoTarget?: string;
     prompt: string;
     /**
      * Which of the project's dbt sources to target, when it has more than one:
@@ -400,14 +340,12 @@ export type AiWritebackRunArgs = {
     dbtSourceUuid?: string;
     // Target a specific pull request to update: one of the thread's own
     // workstreams (resumed by URL), or an external PR the user pasted that lives
-    // in the project's own repo (validated before adoption). Honoured by both
-    // the general and dbt-writeback paths.
+    // in the project's own repo (validated before adoption).
     prUrl?: string | null;
     /**
      * Open a NEW pull request for this turn even when the thread already has one
      * open against the same repo, instead of continuing the existing one. Lets a
-     * single conversation drive several independent PRs per repo. Honoured by
-     * both the general coding agent and the dbt-writeback path.
+     * single conversation drive several independent PRs per repo.
      */
     startNewPullRequest?: boolean;
     aiThreadUuid?: string;

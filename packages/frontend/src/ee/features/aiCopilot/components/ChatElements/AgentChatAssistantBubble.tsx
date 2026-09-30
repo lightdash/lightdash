@@ -4,11 +4,9 @@ import {
     type AiAgentToolCall,
     type AiMcpServer,
     isToolEditDbtProjectResult,
-    isToolEditRepoResult,
     isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
     type ToolEditDbtProjectOutput,
-    type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
 } from '@lightdash/common';
 import {
@@ -92,7 +90,6 @@ import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
-import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import {
     LiveActivityCard,
     ReasoningHistoryRow,
@@ -540,17 +537,6 @@ const AssistantBubbleContent: FC<{
         };
     })();
 
-    // General coding-agent (editRepo) PR card metadata — resolved the same way
-    // as editDbtProject (persisted result, then live streaming part), but kept
-    // separate since it has no preview / post-merge migration.
-    const editRepoMetadata: ToolEditRepoOutput['metadata'] | null = (() => {
-        const persisted = message.toolResults.find(isToolEditRepoResult);
-        if (persisted) return persisted.metadata;
-        const liveOutput = findLiveToolPart(streamingState?.parts, ['editRepo'])
-            ?.toolResult as ToolEditRepoOutput | undefined;
-        return liveOutput?.metadata ?? null;
-    })();
-
     const dataAppBuild: {
         metadata: ToolGenerateDataAppOutput['metadata'];
         origin: DataAppBuildOrigin;
@@ -982,12 +968,6 @@ const AssistantBubbleContent: FC<{
                     }
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
-                />
-            )}
-            {editRepoMetadata && (
-                <AiEditRepoToolCall
-                    metadata={editRepoMetadata}
-                    projectUuid={projectUuid}
                 />
             )}
             {dataAppBuild && (

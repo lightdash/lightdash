@@ -19,7 +19,6 @@ export * from './toolIterateDataAppArgs';
 export * from './toolListDataAppThemesArgs';
 export * from './toolGetDataAppBuildStatusArgs';
 export * from './toolEditProjectContextArgs';
-export * from './toolEditRepoArgs';
 export * from './toolSyncDbtProjectArgs';
 export * from './toolExploreRepoArgs';
 export * from './toolDiscoverReposArgs';
