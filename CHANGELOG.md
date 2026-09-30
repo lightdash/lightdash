@@ -1,3 +1,10 @@
+## [2.395.1](https://github.com/lightdash/lightdash/compare/2.395.0...2.395.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* align dashboard controls with effective parameters ([#30288](https://github.com/lightdash/lightdash/issues/30288)) ([73659d5](https://github.com/lightdash/lightdash/commit/73659d55cf7b0a311313a6f56beb9651ebb774f3))
+
 # [2.395.0](https://github.com/lightdash/lightdash/compare/2.394.0...2.395.0) (2026-09-30)
 
 
