@@ -1,6 +1,6 @@
-import { type PopoverMiddlewares } from '@mantine/core';
+import { type PopoverProps } from '@mantine/core';
 
-export const FILTER_POPOVER_MIDDLEWARES: PopoverMiddlewares = {
+export const FILTER_POPOVER_MIDDLEWARES: PopoverProps['middlewares'] = {
     flip: true,
     shift: true,
     size: { padding: 8 },
