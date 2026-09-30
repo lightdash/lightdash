@@ -1,38 +1,28 @@
 import {
     ChartType,
-    getItemId,
-    isMetric,
-    isNumericItem,
-    isTableCalculation,
     type GaugeChart,
     type GaugeSection,
     type ItemsMap,
 } from '@lightdash/common';
+import {
+    getAvailableGaugeFieldIds,
+    getEffectiveGaugeSelectedField,
+} from '@lightdash/visualization';
 import { useCallback, useMemo, useState } from 'react';
 
-const getItemPriority = (item: ItemsMap[string]): number => {
-    if (isMetric(item)) {
-        return 1;
-    }
-    if (isTableCalculation(item)) {
-        return 2;
-    }
-    return 3;
-};
-
+/**
+ * The explorer's editable gauge config. The derivations (available fields,
+ * the effective selected field) come from `@lightdash/visualization`; this
+ * hook only holds the editor state and its mutators.
+ */
 const useGaugeChartConfig = (
     initialChartConfig: GaugeChart | undefined,
     itemsMap: ItemsMap | undefined,
 ) => {
-    const availableFieldsIds = useMemo(() => {
-        const numericItems = Object.values(itemsMap || {}).filter(
-            isNumericItem,
-        );
-        const itemsSortedByType = numericItems.sort((a, b) => {
-            return getItemPriority(a) - getItemPriority(b);
-        });
-        return itemsSortedByType.map(getItemId);
-    }, [itemsMap]);
+    const availableFieldsIds = useMemo(
+        () => getAvailableGaugeFieldIds(itemsMap),
+        [itemsMap],
+    );
 
     const [selectedField, setSelectedFieldState] = useState<string | undefined>(
         initialChartConfig?.selectedField,
@@ -59,12 +49,10 @@ const useGaugeChartConfig = (
     >(initialChartConfig?.customPercentageLabel);
 
     // Get the effective selected field - use state value or fallback to first available
-    const effectiveSelectedField = useMemo(() => {
-        if (selectedField) return selectedField;
-        return availableFieldsIds.length > 0
-            ? availableFieldsIds[0]
-            : undefined;
-    }, [selectedField, availableFieldsIds]);
+    const effectiveSelectedField = useMemo(
+        () => getEffectiveGaugeSelectedField(selectedField, availableFieldsIds),
+        [selectedField, availableFieldsIds],
+    );
 
     const setSelectedField = useCallback((field: string | undefined) => {
         setSelectedFieldState(field);
