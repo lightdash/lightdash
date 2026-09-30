@@ -251,11 +251,7 @@ const CreatePreviewModal: FC<Props> = ({
         if (isLoadingProjects || !projects || !user.data) return [];
 
         return projects
-            .filter(
-                (p) =>
-                    p.type === ProjectType.DEFAULT &&
-                    p.provisioningSource !== 'analytics',
-            )
+            .filter((p) => p.type === ProjectType.DEFAULT)
             .map((project) => ({
                 value: project.projectUuid,
                 label: project.name,

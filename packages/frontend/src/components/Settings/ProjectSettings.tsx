@@ -30,7 +30,6 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
-import Callout from '../common/Callout';
 import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
@@ -637,19 +636,7 @@ const ProjectSettings: FC<{
                         ]}
                     />
                 </SettingsPageContainer>
-                {project.provisioningSource === 'analytics' ? (
-                    <ProjectSettingsPage
-                        title="Project settings"
-                        description="Lightdash manages this analytics project's configuration."
-                    >
-                        <Callout
-                            variant="warning"
-                            title="Settings cannot be changed for managed analytics projects."
-                        />
-                    </ProjectSettingsPage>
-                ) : (
-                    routesElements
-                )}
+                {routesElements}
             </Stack>
         </>
     );

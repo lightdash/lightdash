@@ -447,12 +447,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
 
     const canCreatePreviewForProject = useCallback(
         (projectUuid: string) => {
-            if (
-                !user.data ||
-                projects?.find((project) => project.projectUuid === projectUuid)
-                    ?.provisioningSource === 'analytics'
-            )
-                return false;
+            if (!user.data) return false;
             return (
                 orgRoleCanCreatePreviews ||
                 user.data.ability.can(
@@ -465,7 +460,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                 )
             );
         },
-        [user.data, orgRoleCanCreatePreviews, projects],
+        [user.data, orgRoleCanCreatePreviews],
     );
 
     const { baseProjects, previewsByUpstream, baseProjectsByUuid } =

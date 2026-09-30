@@ -5969,55 +5969,28 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
-        it('rejects managed analytics SQL before accessing the warehouse', async () => {
+        it('throws ForbiddenError when the account lacks manage:SqlRunner', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
-            projectModel.getSummary.mockResolvedValueOnce({
-                ...projectSummary,
-                provisioningSource: 'analytics',
-            });
-            const warehouse = vi.spyOn(service, '_getWarehouseClient');
+
+            const viewerAccount = {
+                ...sessionAccount,
+                user: {
+                    ...sessionAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: ['view'] },
+                    ]),
+                },
+            } as unknown as Account;
+
             await expect(
                 service.executeAsyncSqlQuery({
-                    account: sessionAccount,
+                    account: viewerAccount,
                     projectUuid,
                     sql: 'SELECT 1',
                     context: QueryExecutionContext.SQL_RUNNER,
                 }),
-            ).rejects.toThrow(
-                'SQL Runner is unavailable for managed analytics projects',
-            );
-            expect(warehouse).not.toHaveBeenCalled();
+            ).rejects.toThrow(ForbiddenError);
         });
-
-        it.each([undefined, 'analytics'])(
-            'checks SQL permissions before project restrictions (%s)',
-            async (provisioningSource) => {
-                projectModel.getSummary.mockResolvedValueOnce({
-                    ...projectSummary,
-                    provisioningSource,
-                });
-                const service = getMockedAsyncQueryService(lightdashConfigMock);
-
-                const viewerAccount = {
-                    ...sessionAccount,
-                    user: {
-                        ...sessionAccount.user,
-                        ability: new Ability<PossibleAbilities>([
-                            { subject: 'Project', action: ['view'] },
-                        ]),
-                    },
-                } as unknown as Account;
-
-                await expect(
-                    service.executeAsyncSqlQuery({
-                        account: viewerAccount,
-                        projectUuid,
-                        sql: 'SELECT 1',
-                        context: QueryExecutionContext.SQL_RUNNER,
-                    }),
-                ).rejects.toEqual(new ForbiddenError());
-            },
-        );
 
         it('disconnects the SSH tunnel when column discovery fails', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
