@@ -679,6 +679,13 @@ export class SchedulerWorker extends SchedulerTask {
         }
     }
 
+    // Organizations whose usage must outlive the retention window; only licensed instances have contracts.
+    protected async findAiUsageLedgerRetainedOrganizations(): Promise<
+        string[]
+    > {
+        return [];
+    }
+
     protected getCronItems(): CronItem[] {
         return [
             {
@@ -1890,12 +1897,15 @@ export class SchedulerWorker extends SchedulerTask {
             },
             [SCHEDULER_TASKS.CLEAN_AI_USAGE_LEDGER]: async () => {
                 Logger.info('Starting AI usage ledger cleanup job');
+                const retainedOrganizationUuids =
+                    await this.findAiUsageLedgerRetainedOrganizations();
                 const deletedCount =
                     await this.aiUsageLedgerModel.deleteOlderThan(
                         AI_USAGE_LEDGER_RETENTION_DAYS,
+                        retainedOrganizationUuids,
                     );
                 Logger.info(
-                    `AI usage ledger cleanup completed. Records deleted: ${deletedCount}`,
+                    `AI usage ledger cleanup completed. Records deleted: ${deletedCount}. Organizations kept in full: ${retainedOrganizationUuids.length}`,
                 );
             },
             [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {

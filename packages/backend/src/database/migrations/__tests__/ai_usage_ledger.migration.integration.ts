@@ -194,7 +194,7 @@ describe('AI usage ledger on the real PostgreSQL schema', () => {
             [old.properties.eventId],
         );
 
-        const deleted = await model.deleteOlderThan(90);
+        const deleted = await model.deleteOlderThan(90, []);
 
         expect(deleted).toBe(1);
         const remaining = await transaction(TABLE).whereIn('event_id', [
@@ -206,8 +206,24 @@ describe('AI usage ledger on the real PostgreSQL schema', () => {
         ]);
     });
 
+    test('retention keeps every row of a retained organization', async () => {
+        const old = usageEvent();
+        await model.recordEvent(old);
+        await transaction.raw(
+            `UPDATE ${TABLE} SET created_at = now() - interval '200 days' WHERE event_id = ?`,
+            [old.properties.eventId],
+        );
+
+        await model.deleteOlderThan(90, [SEED_ORG_1.organization_uuid]);
+
+        const remaining = await transaction(TABLE).where({
+            event_id: old.properties.eventId,
+        });
+        expect(remaining).toHaveLength(1);
+    });
+
     test('retention refuses a cutoff that would delete everything', async () => {
-        await expect(model.deleteOlderThan(0)).rejects.toThrow(
+        await expect(model.deleteOlderThan(0, [])).rejects.toThrow(
             /Invalid retention days/,
         );
     });

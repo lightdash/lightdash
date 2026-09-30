@@ -417,6 +417,49 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
         });
     });
 
+    describe('ledger retention', () => {
+        const retentionCutoffDays = 90;
+        const longAgo = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000);
+
+        const cleanUpAndCountRemaining = async () => {
+            const retained = await new AiCreditContractModel({
+                database: transaction,
+            }).findOrganizationUuidsResettingEvery(3);
+            await ledger.deleteOlderThan(retentionCutoffDays, retained);
+            const rows = await transaction('ai_usage_ledger').where({
+                organization_uuid: organizationUuid,
+            });
+            return rows.length;
+        };
+
+        test('an organization on a yearly contract keeps usage older than the retention window', async () => {
+            await saveContract(null, { resetIntervalMonths: 12 });
+            await record(usageEvent(organizationUuid), longAgo);
+
+            expect(await cleanUpAndCountRemaining()).toBe(1);
+        });
+
+        test('an organization on a quarterly contract keeps usage older than the retention window', async () => {
+            await saveContract(null, { resetIntervalMonths: 3 });
+            await record(usageEvent(organizationUuid), longAgo);
+
+            expect(await cleanUpAndCountRemaining()).toBe(1);
+        });
+
+        test('an organization on a monthly contract loses usage older than the retention window', async () => {
+            await saveContract(null, { resetIntervalMonths: 1 });
+            await record(usageEvent(organizationUuid), longAgo);
+
+            expect(await cleanUpAndCountRemaining()).toBe(0);
+        });
+
+        test('an organization without a contract loses usage older than the retention window', async () => {
+            await record(usageEvent(organizationUuid), longAgo);
+
+            expect(await cleanUpAndCountRemaining()).toBe(0);
+        });
+    });
+
     describe('holds', () => {
         test('a hold stops being active at its expiry and can be released earlier', async () => {
             const uuid = await insertHold({ expires_at: period.periodEnd });

@@ -159,6 +159,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     contentReviewSettingsModel: ContentReviewSettingsModel;
     userModel: UserModel;
     sendAiCreditAllowanceAlerts: () => Promise<void>;
+    findAiUsageLedgerRetainedOrganizations: () => Promise<string[]>;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -222,6 +223,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     private readonly sendAiCreditAllowanceAlerts: () => Promise<void>;
 
+    private readonly findRetainedOrganizations: () => Promise<string[]>;
+
     private readonly cleanupMetrics: PrometheusMetrics | null;
 
     constructor(args: CommercialSchedulerWorkerArguments) {
@@ -259,7 +262,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.contentReviewSettingsModel = args.contentReviewSettingsModel;
         this.userModel = args.userModel;
         this.sendAiCreditAllowanceAlerts = args.sendAiCreditAllowanceAlerts;
+        this.findRetainedOrganizations =
+            args.findAiUsageLedgerRetainedOrganizations;
         this.cleanupMetrics = args.prometheusMetrics ?? null;
+    }
+
+    protected findAiUsageLedgerRetainedOrganizations(): Promise<string[]> {
+        return this.findRetainedOrganizations();
     }
 
     protected getCronItems() {

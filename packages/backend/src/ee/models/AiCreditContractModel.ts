@@ -43,4 +43,13 @@ export class AiCreditContractModel {
             .first();
         return row ? toContract(row) : undefined;
     }
+
+    async findOrganizationUuidsResettingEvery(
+        minimumMonths: number,
+    ): Promise<string[]> {
+        const rows = await this.database(AiCreditContractsTableName)
+            .where('reset_interval_months', '>=', minimumMonths)
+            .select('organization_uuid');
+        return rows.map((row) => row.organization_uuid);
+    }
 }

@@ -1739,6 +1739,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     notificationsModel: context.models.getNotificationsModel(),
                     analytics: context.analytics,
                 }),
+                // A contract period of three months or more can outlast the ledger's 90-day retention.
+                findAiUsageLedgerRetainedOrganizations: () =>
+                    context.models
+                        .getAiCreditContractModel<AiCreditContractModel>()
+                        .findOrganizationUuidsResettingEvery(3),
                 prometheusMetrics: context.prometheusMetrics,
             }),
         clientProviders: {
