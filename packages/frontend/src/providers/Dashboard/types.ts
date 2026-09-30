@@ -153,6 +153,10 @@ export type DashboardContextType = {
     dashboardParameterReferences: Set<string>;
     addParameterReferences: (tileUuid: string, references: string[]) => void;
     tileParameterReferences: Record<string, string[]>;
+    setTileChartSavedParameters: (
+        tileUuid: string,
+        values: ParametersValuesMap,
+    ) => void;
     parameterDefinitions: ParameterDefinitions;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
     missingRequiredParameters: string[];

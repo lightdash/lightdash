@@ -1,5 +1,6 @@
-import { ChartType } from '@lightdash/common';
+import { ChartType, type ParametersValuesMap } from '@lightdash/common';
 import JsPDF from 'jspdf';
+import isEqual from 'lodash/isEqual';
 
 const FILE_NAME = 'lightdash_chart';
 export const CHART_TYPES_WITHOUT_IMAGE_EXPORT = [
@@ -48,6 +49,29 @@ export const isSavedDataAppVizDashboardImageExportAvailable = ({
     !hasDashboardColorPalette &&
     !isEmbedded &&
     !isMinimal;
+
+/**
+ * Whether a tile ran with parameter values other than the ones saved on its chart.
+ */
+export const hasDashboardTileParameterOverrides = ({
+    usedParameterValues,
+    dashboardValues,
+    chartSavedValues,
+}: {
+    usedParameterValues: ParametersValuesMap;
+    dashboardValues: ParametersValuesMap;
+    chartSavedValues: ParametersValuesMap;
+}): boolean =>
+    Object.entries(usedParameterValues).some(([key, usedValue]) => {
+        if (key in dashboardValues) {
+            return !isEqual(dashboardValues[key], chartSavedValues[key]);
+        }
+        // A definition default takes precedence over the chart-saved value.
+        return (
+            chartSavedValues[key] !== undefined &&
+            !isEqual(usedValue, chartSavedValues[key])
+        );
+    });
 
 export enum DownloadType {
     JPEG = 'JPEG',

@@ -3,6 +3,7 @@ import {
     type ParametersValuesMap,
 } from '../types/parameters';
 import { resolveParameterDefault } from './parameterDefaults';
+import { isReservedParameterName } from './reservedParameters';
 
 // Project defaults < explore defaults < virtual-view saved values
 export type ParameterFallbackSources = {
@@ -110,3 +111,68 @@ export const resolveDashboardTileParameters = ({
         definitions: getEffectiveParameterDefinitions(fallbackSources),
     }),
 });
+
+export enum DashboardTileParameterSource {
+    DASHBOARD = 'dashboard',
+    CHART = 'chart',
+    DEFAULT = 'default',
+}
+
+// Where a tile's value for one parameter comes from; default covers the whole fallback chain.
+export const getDashboardTileParameterSource = ({
+    key,
+    ...inputs
+}: DashboardTileParameterInputs & {
+    key: string;
+    definitions: ParameterDefinitions;
+}): DashboardTileParameterSource => {
+    if (getDashboardTileParameterOverrides(inputs)[key] === undefined) {
+        return DashboardTileParameterSource.DEFAULT;
+    }
+    return inputs.isTargeted && inputs.dashboardValues[key] !== undefined
+        ? DashboardTileParameterSource.DASHBOARD
+        : DashboardTileParameterSource.CHART;
+};
+
+export type DashboardTileParameterState = {
+    parameterReferences: string[];
+    chartSavedValues: ParametersValuesMap;
+};
+
+export type DashboardParameterStatusInputs = {
+    tiles: DashboardTileParameterState[];
+    dashboardValues: ParametersValuesMap;
+    definitions: ParameterDefinitions;
+};
+
+// Referenced keys with no dashboard value and no definition default, paired with
+// whether each referencing tile has a chart-saved value for them.
+const getKeysResolvedPerTile = ({
+    tiles,
+    dashboardValues,
+    definitions,
+}: DashboardParameterStatusInputs): Map<string, boolean[]> =>
+    tiles.reduce((acc, { parameterReferences, chartSavedValues }) => {
+        new Set(parameterReferences).forEach((key) => {
+            if (
+                isReservedParameterName(key) ||
+                key in dashboardValues ||
+                definitions[key]?.default !== undefined
+            ) {
+                return;
+            }
+            acc.set(key, [
+                ...(acc.get(key) ?? []),
+                chartSavedValues[key] !== undefined,
+            ]);
+        });
+        return acc;
+    }, new Map<string, boolean[]>());
+
+// A key is missing when any referencing tile has no dashboard value, default or chart-saved value.
+export const getMissingRequiredDashboardParameters = (
+    inputs: DashboardParameterStatusInputs,
+): string[] =>
+    [...getKeysResolvedPerTile(inputs)]
+        .filter(([, hasChartValues]) => hasChartValues.some((has) => !has))
+        .map(([key]) => key);
