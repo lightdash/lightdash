@@ -6,7 +6,7 @@ import {
 import { tool } from 'ai';
 import type { GetKnowledgeDocumentContentFn } from '../types/aiAgentDependencies';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
@@ -27,7 +27,7 @@ export const executeGetKnowledgeDocumentContent = async (
                     mimeType={document.mimeType}
                 >
                     <name>{document.name}</name>
-                    <content>{document.content}</content>
+                    <content>{escapeXmlText(document.content)}</content>
                 </knowledgedocument>
             ).toString(),
             metadata: {

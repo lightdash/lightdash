@@ -8,7 +8,7 @@ import { tool } from 'ai';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     listExplores: () => Promise<Explore[]>;
@@ -64,7 +64,7 @@ const renderExplore = (explore: ExploreSummary) => (
         {explore.tags && explore.tags.length > 0 && (
             <tags>
                 {explore.tags.map((tag) => (
-                    <tag>{tag}</tag>
+                    <tag>{escapeXmlText(tag)}</tag>
                 ))}
             </tags>
         )}

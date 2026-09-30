@@ -12,7 +12,7 @@ import type {
     ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     listDataAppThemes: ListDataAppThemesFn;
@@ -22,9 +22,9 @@ const toolDefinition = listDataAppThemesToolDefinition.for('agent');
 
 const renderTheme = (theme: DataAppThemeSummary) => (
     <theme slug={theme.slug} isDefault={theme.isDefault}>
-        <name>{theme.name}</name>
+        <name>{escapeXmlText(theme.name)}</name>
         {theme.description === null ? null : (
-            <description>{theme.description}</description>
+            <description>{escapeXmlText(theme.description)}</description>
         )}
     </theme>
 );

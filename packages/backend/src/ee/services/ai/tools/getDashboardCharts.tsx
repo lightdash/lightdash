@@ -8,7 +8,7 @@ import moment from 'moment';
 import type { GetDashboardChartsFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     getDashboardCharts: GetDashboardChartsFn;
@@ -42,8 +42,10 @@ const renderChart = (chart: DashboardChart) => (
         chartType={chart.chartType}
         viewsCount={chart.viewsCount}
     >
-        <name>{chart.name}</name>
-        {chart.description && <description>{chart.description}</description>}
+        <name>{escapeXmlText(chart.name)}</name>
+        {chart.description && (
+            <description>{escapeXmlText(chart.description)}</description>
+        )}
         {chart.verification && (
             <verified
                 by={chart.verification.verifiedBy}
