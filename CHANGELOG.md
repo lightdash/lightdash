@@ -1,3 +1,10 @@
+## [2.399.3](https://github.com/lightdash/lightdash/compare/2.399.2...2.399.3) (2026-09-30)
+
+
+### Bug Fixes
+
+* **playground:** verify and version the sample-data bundle ([#30311](https://github.com/lightdash/lightdash/issues/30311)) ([8655d5f](https://github.com/lightdash/lightdash/commit/8655d5f1cc1024e621b09f36aae9f469c6389b3a))
+
 ## [2.399.2](https://github.com/lightdash/lightdash/compare/2.399.1...2.399.2) (2026-09-30)
 
 

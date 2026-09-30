@@ -37172,6 +37172,7 @@ const models: TsoaRoute.Models = {
                 startOfWeek: { dataType: 'double' },
                 dataTimezone: { dataType: 'string' },
                 requireUserCredentials: { dataType: 'boolean' },
+                bundleVersion: { dataType: 'string' },
                 dataset: { dataType: 'string', required: true },
                 connectionType: {
                     ref: 'DuckdbConnectionType.EMBEDDED',
@@ -52677,6 +52678,7 @@ const models: TsoaRoute.Models = {
                     enums: ['pollEmailWhitelabelVerification'],
                 },
                 { dataType: 'enum', enums: ['cleanWarehouseConnectCodes'] },
+                { dataType: 'enum', enums: ['reconcilePlaygroundBundles'] },
                 { dataType: 'enum', enums: ['backfillDefaultUserSpaces'] },
                 { dataType: 'enum', enums: ['learnSandboxCommand'] },
             ],

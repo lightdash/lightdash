@@ -35604,6 +35604,10 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
+                    "bundleVersion": {
+                        "type": "string",
+                        "description": "Set from the project's stored playground bundle version, never saved with the credentials."
+                    },
                     "dataset": {
                         "type": "string"
                     },
@@ -51052,6 +51056,7 @@
                     "compactUsageEvents",
                     "pollEmailWhitelabelVerification",
                     "cleanWarehouseConnectCodes",
+                    "reconcilePlaygroundBundles",
                     "backfillDefaultUserSpaces",
                     "learnSandboxCommand"
                 ]
@@ -68587,7 +68592,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.399.2",
+        "version": "2.399.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
