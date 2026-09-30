@@ -88,7 +88,7 @@ No special dbt configuration or column naming is required. Any two dimensions an
 
 ### BFS Depth Assignment (Cyclical Flow Support)
 
-ECharts doesn't natively support cyclical Sankey data. The `useSankeyChartConfig` hook implements a BFS-based algorithm to handle cycles:
+ECharts doesn't natively support cyclical Sankey data. `transformSankeyData` in `@lightdash/visualization` (`packages/visualization/src/sankey/transform.ts`) implements a BFS-based algorithm to handle cycles:
 
 1. **Aggregate** raw rows into source-target links with summed values
 2. **Build adjacency list** from aggregated links
@@ -114,8 +114,11 @@ The `maxDepth` value is returned alongside nodes/links for per-depth-level color
 | File                                                                                      | Purpose                           |
 | ----------------------------------------------------------------------------------------- | --------------------------------- |
 | `packages/common/src/types/savedCharts.ts`                                                | `SankeyChart` type, enum values   |
-| `packages/frontend/src/hooks/useSankeyChartConfig.ts`                                     | Config state + BFS data transform |
-| `packages/frontend/src/hooks/echarts/useEchartsSankeyConfig.ts`                           | ECharts option builder            |
+| `packages/visualization/src/sankey/transform.ts`                                          | BFS data transform                |
+| `packages/visualization/src/sankey/config.ts`                                             | Field defaults, config resolver   |
+| `packages/visualization/src/sankey/echartsOption.ts`                                      | ECharts option builder            |
+| `packages/frontend/src/hooks/useSankeyChartConfig.ts`                                     | Config state (editor hook)        |
+| `packages/frontend/src/hooks/echarts/useEchartsSankeyConfig.ts`                           | Thin hook over the builder        |
 | `packages/frontend/src/components/SimpleSankey/index.tsx`                                 | Visualization component           |
 | `packages/frontend/src/components/VisualizationConfigs/SankeyConfig/SankeyConfigTabs.tsx` | Config panel UI                   |
 | `packages/frontend/src/components/LightdashVisualization/VisualizationConfigSankey.tsx`   | Config provider                   |

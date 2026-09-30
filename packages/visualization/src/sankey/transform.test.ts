@@ -1,6 +1,6 @@
 import { type ResultRow } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { transformSankeyData } from './sankeyTransform';
+import { transformSankeyData } from './transform';
 
 const cell = (formatted: string, raw: unknown = formatted) => ({
     value: { raw, formatted },
