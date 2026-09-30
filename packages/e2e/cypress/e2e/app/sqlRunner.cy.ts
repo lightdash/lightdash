@@ -202,7 +202,8 @@ describe('SQL Runner (new)', () => {
 
     it('Should save a big number chart and render it in view mode', () => {
         cy.get('.monaco-editor').should('be.visible');
-        cy.contains('jaffle').click().wait(500);
+        // Filter the virtualized catalog so the target table is rendered.
+        cy.get('input[placeholder="Search tables"]').type('customers');
         cy.contains(/^customers$/).click();
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
@@ -245,7 +246,8 @@ describe('SQL Runner (new)', () => {
 
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
-        cy.contains('jaffle').click().wait(500);
+        // Filter the virtualized catalog so the target table is rendered.
+        cy.get('input[placeholder="Search tables"]').type('customers');
         cy.contains(/^customers$/).click();
         cy.contains(
             '.monaco-editor',
