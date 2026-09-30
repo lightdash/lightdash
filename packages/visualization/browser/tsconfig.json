@@ -1,0 +1,14 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "composite": false,
+        "noEmit": true,
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "types": ["node"],
+        "rootDir": "..",
+        "moduleResolution": "bundler",
+        "module": "ESNext"
+    },
+    "include": ["./**/*.ts", "../src/**/*.ts"],
+    "exclude": ["../src/**/*.test.ts", "./test-results"]
+}

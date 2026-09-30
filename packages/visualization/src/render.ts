@@ -317,12 +317,16 @@ export const renderChart = ({
                 pivotRows: pivotConfig?.rows,
             });
             const columnProperties = table.validConfig.columns ?? {};
+            // Without a metric query the selection is every field the results carry.
+            const selectedItemIds =
+                table.selectedItemIds ??
+                (columnOrder.length > 0 ? columnOrder : Object.keys(itemsMap));
             return {
                 kind: 'table',
                 chartType: ChartType.TABLE,
                 model: buildTableModel({
                     itemsMap,
-                    selectedItemIds: table.selectedItemIds ?? [],
+                    selectedItemIds,
                     isColumnVisible: (id) =>
                         isTableColumnVisible(columnProperties, id),
                     isColumnFrozen: (id) =>

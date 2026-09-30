@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Visualization engine harness</title>
+        <style>
+            body {
+                margin: 0;
+                font-family: Inter, sans-serif;
+            }
+            body[data-theme='dark'] {
+                background: #141417;
+                color: #ececee;
+            }
+            main {
+                display: grid;
+                gap: 24px;
+                padding: 24px;
+            }
+            section {
+                display: grid;
+                gap: 8px;
+            }
+            .chart {
+                width: 640px;
+                height: 360px;
+            }
+            table {
+                border-collapse: collapse;
+            }
+            td,
+            th {
+                border: 1px solid #8888;
+                padding: 4px 8px;
+                text-align: left;
+            }
+            .big-number {
+                font-size: 40px;
+                font-weight: 600;
+            }
+        </style>
+    </head>
+    <body>
+        <main id="cases"></main>
+        <script type="module" src="./harness.ts"></script>
+    </body>
+</html>
