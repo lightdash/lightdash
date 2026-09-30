@@ -1,3 +1,10 @@
+# [2.387.0](https://github.com/lightdash/lightdash/compare/2.386.2...2.387.0) (2026-09-30)
+
+
+### Features
+
+* analytics events for multiple warehouse connections ([#30100](https://github.com/lightdash/lightdash/issues/30100)) ([3bbcceb](https://github.com/lightdash/lightdash/commit/3bbcceb506c7a938c097945fe6ae2f2527107993))
+
 ## [2.386.2](https://github.com/lightdash/lightdash/compare/2.386.1...2.386.2) (2026-09-30)
 
 
