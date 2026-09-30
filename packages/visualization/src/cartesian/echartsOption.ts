@@ -3914,29 +3914,28 @@ const sortRowsByXAxis = (
             validCartesianConfigLegend,
         );
 
-        // Using entries since we cannot use a map here (cannot index with unknown)
-        // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
-        const stackTotalEntries: [unknown, number][] = Object.entries(
-            groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
-        ).reduce<[unknown, number][]>((acc, [key, totals]) => {
-            acc.push([key, totals.reduce((sum, total) => sum + total[2], 0)]);
-            return acc;
-        }, []);
+        // Sum per category. Keys are stringified on both sides so numeric
+        // and boolean categories match their rows.
+        const totalsByCategory = new Map<string, number>();
+        for (const total of stackTotals) {
+            const key = String(total[stackTotalValueIndex]);
+            totalsByCategory.set(
+                key,
+                (totalsByCategory.get(key) ?? 0) + total[2],
+            );
+        }
 
-        // ! good candidate for deduplication, we loop over the result set in many places in this file - should mostly impact very large datasets
-        const sorted = sortedResults.slice().sort((a, b) => {
-            const totalA =
-                stackTotalEntries.find(
-                    (entry) => entry[0] === a[xFieldId],
-                )?.[1] ?? 0;
-
-            const totalB =
-                stackTotalEntries.find(
-                    (entry) => entry[0] === b[xFieldId],
-                )?.[1] ?? 0;
-
-            return totalA - totalB; // Asc/Desc will be taken care of by inverse config
-        });
+        const sorted = sortedResults
+            .map((row) => ({
+                row,
+                total:
+                    totalsByCategory.get(
+                        String((row as Record<string, unknown>)[xFieldId]),
+                    ) ?? 0,
+            }))
+            // Asc/Desc will be taken care of by inverse config
+            .sort((a, b) => a.total - b.total)
+            .map(({ row }) => row);
 
         // Extract sorted category values for ECharts axis data property
         const categoryValues = Array.from(
