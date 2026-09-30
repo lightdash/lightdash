@@ -10,6 +10,7 @@ import { type EChartsOption, type GaugeSeriesOption } from 'echarts';
 import toNumber from 'lodash/toNumber';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
+import { resolveThemeColors } from '../themeColors';
 import { type VisualizationContextInput } from '../types';
 
 const EchartsGaugeType = 'gauge';
@@ -479,5 +480,5 @@ export const buildGaugeEchartsOption = ({
     if (!itemsMap) return undefined;
     if (!eChartsOption) return undefined;
 
-    return eChartsOption;
+    return resolveThemeColors(eChartsOption, theme);
 };

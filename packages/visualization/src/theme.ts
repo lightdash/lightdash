@@ -1,6 +1,13 @@
 /**
  * The handful of theme values the chart builders read.
  *
+ * The ramps are the design system's own scales, kept as scales rather than
+ * collapsed into a few named tokens: Lightdash's chart styles use seven
+ * neutral steps (axis lines, labels, titles, tooltips, borders), and a
+ * smaller set would change what the web app draws. In every ramp, step 0
+ * sits closest to the background and step 9 closest to the text: lightest
+ * in the light theme, darkest in the dark one.
+ *
  * The frontend fills this from its Mantine theme; a headless caller uses
  * `LIGHT_VISUALIZATION_THEME` or `DARK_VISUALIZATION_THEME`. Colors are plain
  * hex values: they end up inside ECharts options that may be rasterised with
@@ -12,9 +19,9 @@ export type VisualizationTheme = {
     background: string;
     /** Default ink color. */
     foreground: string;
-    /** Neutral ramp, 0 lightest to 9 darkest: axis lines, labels, borders (`ldGray` in the frontend theme). */
+    /** Neutral ramp, 0 by the background to 9 by the text: axis lines, labels, borders (`ldGray` in the frontend theme). */
     neutral: readonly string[];
-    /** Contrast ramp, 0 lightest to 9 darkest: gauge badges (`ldDark` in the frontend theme). */
+    /** Contrast ramp: gauge badges (`ldDark` in the frontend theme). */
     contrast: readonly string[];
     /** The app chrome ramp in dark mode (`dark` in the frontend theme): gauge section borders. */
     chrome: readonly string[];

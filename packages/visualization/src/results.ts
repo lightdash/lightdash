@@ -1,36 +1,54 @@
 import {
-    formatItemValue,
+    formatRows,
     type ItemsMap,
+    type ParametersValuesMap,
+    type PivotValuesColumn,
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
 
+export type ToResultRowsOptions = {
+    /**
+     * The display timezone the query ran with (the query API's
+     * `resolvedTimezone`): timestamps format in it, dates stay calendar dates.
+     */
+    timezone?: string | null;
+    /** The query's parameter values, for fields whose format reads them. */
+    parameters?: ParametersValuesMap;
+    /**
+     * The value columns of a pivoted result (`pivotDetails.valuesColumns`):
+     * a pivot column such as `orders_revenue_any_web` formats as its field.
+     */
+    pivotValuesColumns?: PivotValuesColumn[];
+};
+
 /**
  * Turns raw rows (one plain value per field id, as the query API's raw
  * results, the query SDK and CSV exports produce them) into the rows the
- * chart builders read, formatting each value the way the field defines.
+ * chart builders read: each value normalised and formatted exactly as the
+ * query API formats it (`formatRows` in `@lightdash/common`).
  *
  * The visualization engine never runs a query: any source that can produce
- * rows keyed by field id, plus the fields' definitions, can feed it.
+ * rows keyed by field id, plus the fields' definitions, can feed it. The
+ * fields' `format` matters: numbers are formatted from it, never taken from
+ * a pre-formatted string.
  */
 export const toResultRows = (
     rows: RawResultRow[],
-    itemsMap: ItemsMap,
-    /** Formatted values by field id when the source already formatted them. */
-    formatted?: (row: RawResultRow, fieldId: string) => string | undefined,
+    fields: ItemsMap,
+    { timezone, parameters, pivotValuesColumns }: ToResultRowsOptions = {},
 ): ResultRow[] =>
-    rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([fieldId, raw]) => [
-                fieldId,
-                {
-                    value: {
-                        raw,
-                        formatted:
-                            formatted?.(row, fieldId) ??
-                            formatItemValue(itemsMap[fieldId], raw),
-                    },
-                },
-            ]),
-        ),
+    formatRows(
+        rows,
+        fields,
+        pivotValuesColumns
+            ? Object.fromEntries(
+                  pivotValuesColumns.map((column) => [
+                      column.pivotColumnName,
+                      column,
+                  ]),
+              )
+            : undefined,
+        parameters,
+        timezone ?? undefined,
     );

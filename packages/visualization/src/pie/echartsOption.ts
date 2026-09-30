@@ -22,6 +22,7 @@ import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { getLegendDoubleClickTooltip } from '../cartesian/legendTooltip';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
+import { resolveThemeColors } from '../themeColors';
 import { type VisualizationContextInput } from '../types';
 import { type PieChartBuilderConfig } from './config';
 
@@ -298,7 +299,10 @@ export const buildPieEchartsOption = ({
     if (!eChartsOption || !pieSeriesOption) return undefined;
     if (!seriesData || seriesData.length === 0) return undefined;
 
-    return { eChartsOption, pieSeriesOption };
+    return {
+        eChartsOption: resolveThemeColors(eChartsOption, theme),
+        pieSeriesOption: resolveThemeColors(pieSeriesOption, theme),
+    };
 };
 
 export type PieEchartsOption = NonNullable<
