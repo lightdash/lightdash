@@ -4,6 +4,7 @@ import {
     deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
     hasCustomBinDimension,
+    LOADING_CHART_CLASS,
     MERGE_TABLE_NAME,
     type ApiError,
     type DataAppVizContext,
@@ -51,10 +52,12 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
+import { DefaultSkeleton } from '../DashboardTiles/TileBase/LoadingSkeletonOverlay';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import {
+    FIRST_PAINT_REVEAL_FALLBACK_MS,
     RENDER_ACK_FALLBACK_MS,
     SCREENSHOT_READY_FALLBACK_MS,
 } from './constants';
@@ -69,6 +72,7 @@ import { resolveVizUnderlyingDataConfig } from './vizUnderlyingDataConfig';
 import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
 type Props = {
+    isInDashboard?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -89,6 +93,17 @@ const createVizRenderReadinessState = (
     sdkReady: false,
     renderedId: null,
 });
+
+// Match the built-in charts: dashboard tiles load behind the tile skeleton,
+// other surfaces behind the standard loading chart.
+const DataAppVizLoading: FC<{ isInDashboard: boolean }> = ({ isInDashboard }) =>
+    isInDashboard ? (
+        <Box h="100%" w="100%" className={LOADING_CHART_CLASS}>
+            <DefaultSkeleton />
+        </Box>
+    ) : (
+        <LoadingChart />
+    );
 
 const DataAppVizPlaceholder: FC<{
     message: string;
@@ -134,7 +149,10 @@ const getTerminalRequestErrorMessage = (
     return undefined;
 };
 
-const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
+const DataAppVizRenderer: FC<Props> = ({
+    isInDashboard = false,
+    onScreenshotReady,
+}) => {
     const projectUuid = useProjectUuid();
     const {
         visualizationConfig,
@@ -710,6 +728,28 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         [updateRenderReadiness],
     );
 
+    // Keep the loading state up until a freshly loaded bundle paints, so the
+    // blank iframe never shows. Bundles that never report are revealed later.
+    const [paintFallbackKey, setPaintFallbackKey] = useState<string | null>(
+        null,
+    );
+    const isAwaitingFirstPaint =
+        iframeNavigationKey !== null &&
+        paintFallbackKey !== iframeNavigationKey &&
+        renderedId === null &&
+        (!sdkReady || supportsRenderSignal);
+    const isAwaitingIframeLoad =
+        loadedIframeNavigationKey !== iframeNavigationKey;
+    useEffect(() => {
+        if (!isAwaitingFirstPaint || isAwaitingIframeLoad) return;
+        const timer = setTimeout(
+            () => setPaintFallbackKey(iframeNavigationKey),
+            FIRST_PAINT_REVEAL_FALLBACK_MS,
+        );
+        return () => clearTimeout(timer);
+    }, [isAwaitingFirstPaint, isAwaitingIframeLoad, iframeNavigationKey]);
+    const isShowingLoading = isPreviewLoading || isAwaitingFirstPaint;
+
     useEffect(() => {
         if (
             previewUrl &&
@@ -803,7 +843,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         return renderMetadataError ? (
             <DataAppVizPlaceholder message="Custom chart type could not be loaded." />
         ) : (
-            <LoadingChart />
+            <DataAppVizLoading isInDashboard={isInDashboard} />
         );
     }
 
@@ -847,7 +887,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         return previewTokenError ? (
             <DataAppVizPlaceholder message="Custom chart type could not be loaded." />
         ) : (
-            <LoadingChart />
+            <DataAppVizLoading isInDashboard={isInDashboard} />
         );
     }
 
@@ -860,8 +900,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         >
             <Box
                 className={classes.previewFrame}
-                inert={isPreviewLoading}
-                aria-hidden={isPreviewLoading}
+                inert={isShowingLoading}
+                aria-hidden={isShowingLoading}
             >
                 <AppIframePreview
                     key={renderRequest.navigationKey}
@@ -919,9 +959,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     }}
                 />
             )}
-            {isPreviewLoading && (
-                <Box className={classes.loadingOverlay}>
-                    <LoadingChart />
+            {isShowingLoading && (
+                <Box
+                    className={classes.loadingOverlay}
+                    data-in-dashboard={isInDashboard}
+                >
+                    <DataAppVizLoading isInDashboard={isInDashboard} />
                 </Box>
             )}
         </Box>
