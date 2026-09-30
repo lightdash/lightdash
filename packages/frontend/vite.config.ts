@@ -76,6 +76,14 @@ export default defineConfig({
                           __dirname,
                           '../formula/src/index.ts',
                       ),
+                      '@lightdash/visualization/editor': path.resolve(
+                          __dirname,
+                          '../visualization/src/editor.ts',
+                      ),
+                      '@lightdash/visualization': path.resolve(
+                          __dirname,
+                          '../visualization/src/index.ts',
+                      ),
                   }
                 : undefined,
     },
@@ -171,7 +179,10 @@ export default defineConfig({
             ...(FE_HOST ? [FE_HOST] : []),
         ],
         watch: {
-            ignored: ['!**/node_modules/@lightdash/common/**'],
+            ignored: [
+                '!**/node_modules/@lightdash/common/**',
+                '!**/node_modules/@lightdash/visualization/**',
+            ],
         },
         proxy: {
             '/api': {

@@ -1,0 +1,3139 @@
+import {
+    assignSeriesZByOrder,
+    CartesianSeriesType,
+    createConditionalFormattingConfigWithSingleColor,
+    DimensionType,
+    FieldType,
+    FilterOperator,
+    getLegendStyle,
+    REFERENCE_LINE_Z,
+    TimeFrames,
+    transformToPercentageStacking,
+    type CartesianChart,
+    type Dimension,
+    type EChartsSeries,
+    type Field,
+    type ItemsMap,
+    type ResultRow,
+    type Series,
+} from '@lightdash/common';
+import dayjs from 'dayjs';
+import timezonePlugin from 'dayjs/plugin/timezone';
+import utcPlugin from 'dayjs/plugin/utc';
+import { describe, expect, test } from 'vitest';
+import {
+    applyConditionalFormattingToStackedSeries,
+    applyLegendPlacementToGrid,
+    composeLegendConfig,
+    filterSeriesWithNoData,
+    getAxisDefaultMaxValue,
+    getAxisDefaultMinValue,
+    getAxisType,
+    getCartesianLabelLayout,
+    getCartesianLabelPosition,
+    getCategoryDateAxisConfig,
+    getEchartsSeriesFromPivotedData,
+    getLongestLabelsForAxis,
+    getMinAndMaxValues,
+    getNiceTickBound,
+    getOutsideLegendLabelWidth,
+    getPinnedDayTickFormatter,
+    getStackTotalSeries,
+    getTimeAxisPinnedTickValues,
+    mergeLegendSettings,
+    padDatasetForContinuousAxis,
+    relocateMarkLinesToVisibleSeries,
+    resolveCartesianGranularityLabels,
+    selectContinuousDateRange,
+    transformStack100ByValueAxis,
+} from './echartsOption';
+import {
+    LEGEND_INTERACTION_HINT,
+    type LegendDoubleClickTooltip,
+} from './legendTooltip';
+
+dayjs.extend(utcPlugin);
+dayjs.extend(timezonePlugin);
+
+describe('getCartesianLabelLayout', () => {
+    const rect = (width: number, height: number) => ({
+        x: 0,
+        y: 0,
+        width,
+        height,
+    });
+
+    test('shows every top label in grouped bar charts', () => {
+        expect(
+            getCartesianLabelLayout({
+                isGroupedBarChart: true,
+                isStacked: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'top',
+                showOverlappingLabels: false,
+                flipAxes: false,
+            }),
+        ).toEqual({ hideOverlap: false });
+    });
+
+    test.each([
+        {
+            name: 'single bar series',
+            isGroupedBarChart: false,
+            isStacked: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+        },
+        {
+            name: 'stacked bars keeping their configured position',
+            isGroupedBarChart: true,
+            isStacked: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+        },
+        {
+            name: 'grouped bars with inside labels',
+            isGroupedBarChart: true,
+            isStacked: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'inside' as const,
+        },
+        {
+            name: 'line series',
+            isGroupedBarChart: true,
+            isStacked: false,
+            seriesType: CartesianSeriesType.LINE,
+            position: 'top' as const,
+        },
+        {
+            name: 'series without a label position',
+            isGroupedBarChart: true,
+            isStacked: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: undefined,
+        },
+    ])(
+        'hides overlapping labels for $name',
+        ({ isGroupedBarChart, isStacked, seriesType, position }) => {
+            expect(
+                getCartesianLabelLayout({
+                    isGroupedBarChart,
+                    isStacked,
+                    seriesType,
+                    position,
+                    showOverlappingLabels: false,
+                    flipAxes: false,
+                }),
+            ).toEqual({ hideOverlap: true });
+        },
+    );
+
+    test('only fit-checks labels that are anchored inside their segment', () => {
+        expect(
+            getCartesianLabelLayout({
+                isGroupedBarChart: false,
+                isStacked: true,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'bottom',
+                showOverlappingLabels: true,
+                flipAxes: false,
+            }),
+        ).toEqual({ hideOverlap: true });
+    });
+
+    describe('labels anchored inside a stacked bar segment', () => {
+        const layout = (
+            overrides: Partial<
+                Parameters<typeof getCartesianLabelLayout>[0]
+            > = {},
+        ) => {
+            const result = getCartesianLabelLayout({
+                isGroupedBarChart: false,
+                isStacked: true,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'insideTop',
+                showOverlappingLabels: false,
+                flipAxes: false,
+                ...overrides,
+            });
+            expect(typeof result).toBe('function');
+            if (typeof result !== 'function') {
+                throw new Error('expected a labelLayout callback');
+            }
+            return result;
+        };
+
+        // A 12px label needs 12 + MIN_LABEL_SEGMENT_SLACK of segment to fit.
+        const label = rect(12, 12);
+
+        test('keeps labels that fit inside their segment', () => {
+            expect(layout()({ rect: rect(4, 40), labelRect: label })).toEqual({
+                hideOverlap: true,
+            });
+        });
+
+        test('keeps labels in a segment exactly tall enough', () => {
+            expect(layout()({ rect: rect(4, 16), labelRect: label })).toEqual({
+                hideOverlap: true,
+            });
+        });
+
+        test('moves labels off canvas one pixel below the fit threshold', () => {
+            expect(layout()({ rect: rect(40, 15), labelRect: label })).toEqual({
+                x: -1e5,
+                y: -1e5,
+            });
+        });
+
+        test('moves labels off canvas when the segment has no height', () => {
+            expect(layout()({ rect: rect(40, 0), labelRect: label })).toEqual({
+                x: -1e5,
+                y: -1e5,
+            });
+        });
+
+        test('still hides labels that cannot fit when overlapping labels are forced', () => {
+            expect(
+                layout({ showOverlappingLabels: true })({
+                    rect: rect(40, 4),
+                    labelRect: label,
+                }),
+            ).toEqual({ x: -1e5, y: -1e5 });
+        });
+
+        test('stops hiding fitting labels on overlap when they are forced', () => {
+            expect(
+                layout({ showOverlappingLabels: true })({
+                    rect: rect(4, 40),
+                    labelRect: label,
+                }),
+            ).toEqual({ hideOverlap: false });
+        });
+
+        test('measures the width axis on horizontal charts', () => {
+            const horizontal = layout({
+                flipAxes: true,
+                position: 'insideRight',
+            });
+            expect(horizontal({ rect: rect(40, 4), labelRect: label })).toEqual(
+                { hideOverlap: true },
+            );
+            expect(horizontal({ rect: rect(4, 40), labelRect: label })).toEqual(
+                { x: -1e5, y: -1e5 },
+            );
+        });
+    });
+});
+
+describe('getCartesianLabelPosition', () => {
+    test('moves top labels inside segments that are not the end of a stack', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'top',
+                flipAxes: false,
+            }),
+        ).toBe('insideTop');
+    });
+
+    test('moves right labels inside segments of a horizontal stack', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'right',
+                flipAxes: true,
+            }),
+        ).toBe('insideRight');
+    });
+
+    test.each([
+        {
+            name: 'the segment that ends the stack',
+            isStacked: true,
+            isStackEnd: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'unstacked bars',
+            isStacked: false,
+            isStackEnd: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'stacked lines',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.LINE,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'positions that are not painted over by the next segment',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'bottom' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'top labels on a horizontal stack',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: true,
+        },
+        {
+            name: 'right labels on a vertical stack',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'right' as const,
+            flipAxes: false,
+        },
+    ])('keeps the configured position for $name', ({ name, ...args }) => {
+        expect(getCartesianLabelPosition(args)).toBe(args.position);
+    });
+
+    test('leaves an unset position unset', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: undefined,
+                flipAxes: false,
+            }),
+        ).toBeUndefined();
+    });
+});
+
+describe('resolveCartesianGranularityLabels', () => {
+    test('resolves x-axis and y-axis name placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [{ name: 'Revenue by ${orders_order_date.granularity}' }],
+            yAxis: [{ name: '${orders_order_date.granularity} revenue' }],
+            series: [],
+            granularityMap: { orders_order_date: 'Week' },
+        });
+
+        expect(result.xAxis[0].name).toBe('Revenue by week');
+        expect(result.yAxis[0].name).toBe('week revenue');
+    });
+
+    test('resolves series name placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [],
+            yAxis: [],
+            series: [
+                {
+                    name: '${orders_order_date.granularity} revenue',
+                    type: CartesianSeriesType.BAR,
+                } as EChartsSeries,
+            ],
+            granularityMap: { orders_order_date: 'Month' },
+        });
+
+        expect(result.series[0].name).toBe('month revenue');
+    });
+
+    test('preserves unresolved placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [{ name: 'Revenue by ${orders_order_date.granularity}' }],
+            yAxis: [],
+            series: [
+                {
+                    name: '${orders_order_date.granularity} revenue',
+                    type: CartesianSeriesType.LINE,
+                } as EChartsSeries,
+            ],
+            granularityMap: {},
+        });
+
+        expect(result.xAxis[0].name).toBe(
+            'Revenue by ${orders_order_date.granularity}',
+        );
+        expect(result.series[0].name).toBe(
+            '${orders_order_date.granularity} revenue',
+        );
+    });
+});
+
+describe('getAxisDefaultMinValue', () => {
+    test('should return undefined', () => {
+        expect(getAxisDefaultMinValue({ min: '', max: 5 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: 10, max: '' })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: '', max: '' })).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({ min: undefined, max: undefined }),
+        ).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({ min: null, max: null }),
+        ).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({
+                min: new Date('2021-03-10T00:00:00.000Z'),
+                max: new Date('2021-03-10T00:00:00.100Z'),
+            }),
+        ).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: 0, max: 5 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: 0.1, max: 0.5 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: 10, max: 50 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: 100, max: 500 })).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({ min: 1000, max: 5000 }),
+        ).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: 0, max: 60 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: -5, max: 0 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: -50, max: -10 })).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({ min: -500, max: -100 }),
+        ).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({ min: -5000, max: -1000 }),
+        ).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: -60, max: 0 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: -60, max: -50 })).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({ min: -600, max: -500 }),
+        ).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({ min: -6000, max: -5000 }),
+        ).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: -5, max: 5 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: -50, max: 50 })).toBeUndefined();
+        expect(getAxisDefaultMinValue({ min: -500, max: 100 })).toBeUndefined();
+        expect(
+            getAxisDefaultMinValue({ min: -5000, max: 1000 }),
+        ).toBeUndefined();
+    });
+
+    test('should return min value', () => {
+        expect(getAxisDefaultMinValue({ min: 0.5, max: 0.6 })).toBe(0.5);
+        expect(getAxisDefaultMinValue({ min: 50, max: 60 })).toBe(50);
+        expect(getAxisDefaultMinValue({ min: 500, max: 600 })).toBe(500);
+        expect(getAxisDefaultMinValue({ min: 5000, max: 6000 })).toBe(5000);
+    });
+});
+
+describe('getAxisDefaultMaxValue', () => {
+    test('should return undefined', () => {
+        expect(getAxisDefaultMaxValue({ min: '', max: 5 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 10, max: '' })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: '', max: '' })).toBeUndefined();
+        expect(
+            getAxisDefaultMaxValue({ min: undefined, max: undefined }),
+        ).toBeUndefined();
+        expect(
+            getAxisDefaultMaxValue({ min: null, max: null }),
+        ).toBeUndefined();
+        expect(
+            getAxisDefaultMaxValue({
+                min: new Date('2021-03-10T00:00:00.000Z'),
+                max: new Date('2021-03-10T00:00:00.100Z'),
+            }),
+        ).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 0, max: 5 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 0.1, max: 0.5 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 10, max: 50 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 100, max: 500 })).toBeUndefined();
+        expect(
+            getAxisDefaultMaxValue({ min: 1000, max: 5000 }),
+        ).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 0, max: 60 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 0.5, max: 0.6 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 50, max: 60 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 50, max: 60 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: 500, max: 600 })).toBeUndefined();
+        expect(
+            getAxisDefaultMaxValue({ min: 5000, max: 6000 }),
+        ).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: -5, max: 0 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: -50, max: -10 })).toBeUndefined();
+        expect(
+            getAxisDefaultMaxValue({ min: -500, max: -100 }),
+        ).toBeUndefined();
+        expect(
+            getAxisDefaultMaxValue({ min: -5000, max: -1000 }),
+        ).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: -60, max: 0 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: -5, max: 5 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: -50, max: 50 })).toBeUndefined();
+        expect(getAxisDefaultMaxValue({ min: -500, max: 100 })).toBeUndefined();
+        expect(
+            getAxisDefaultMaxValue({ min: -5000, max: 1000 }),
+        ).toBeUndefined();
+    });
+
+    test('should return max value', () => {
+        expect(getAxisDefaultMaxValue({ min: -60, max: -50 })).toBe(-50);
+        expect(getAxisDefaultMaxValue({ min: -600, max: -500 })).toBe(-500);
+        expect(getAxisDefaultMaxValue({ min: -6000, max: -5000 })).toBe(-5000);
+    });
+});
+
+describe('getMinAndMaxValues', () => {
+    test('should return min/max values for numbers in a single series', () => {
+        const axes = ['axis1'];
+        const values = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, -1, -2, -3, -100, 0,
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v.toString() } },
+        }));
+        expect(getMinAndMaxValues(axes, resultRow)).toStrictEqual([-100, 50]);
+    });
+
+    test('should return min/max values for dates in a single series', () => {
+        const axes = ['axis1'];
+        const time = ':00:00.000Z';
+        const values = [
+            '2018-02-28',
+            '2018-02-29',
+            '2018-02-30',
+            '2018-01-29',
+            '2017-03-29',
+            '2019-01-15',
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: `${v}${time}`, formatted: v } },
+        }));
+        expect(getMinAndMaxValues(axes, resultRow)).toStrictEqual([
+            `2017-03-29${time}`,
+            `2019-01-15${time}`,
+        ]);
+    });
+
+    test('should return min/max values for floats in a single series', () => {
+        const axes = ['axis1'];
+        const values = [
+            '1.000',
+            '2.000',
+            '5.000',
+            '8.000',
+            '50.000',
+            '-5.000',
+            '0.000',
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v } },
+        }));
+        expect(getMinAndMaxValues(axes, resultRow)).toStrictEqual([-5.0, 50.0]);
+    });
+
+    test('string values should return invalid min/max in a single series', () => {
+        const axes = ['axis1'];
+
+        const values = ['a', 'b', 'c', 'z'];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v } },
+        }));
+        expect(getMinAndMaxValues(axes, resultRow)).toStrictEqual([0, 0]);
+    });
+
+    test('should return min/max values for numbers in multiple series', () => {
+        const axes = ['axis1', 'axis2'];
+        const values = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, -1, -2, -3, -100, 0,
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v.toString() } },
+        }));
+        const values2 = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 70, -1, -2, -3, -10, 0,
+        ];
+        const resultRow2: ResultRow[] = values2.map((v) => ({
+            [axes[1]]: { value: { raw: v, formatted: v.toString() } },
+        }));
+        expect(
+            getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
+        ).toStrictEqual([-100, 70]);
+    });
+
+    test('should return min/max values for dates in multiple series', () => {
+        const axes = ['axis1', 'axis2'];
+        const time = ':00:00.000Z';
+        const values = [
+            '2018-02-28',
+            '2018-02-29',
+            '2018-02-30',
+            '2018-01-29',
+            '2017-03-29',
+            '2019-01-15', // max
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: `${v}${time}`, formatted: v } },
+        }));
+
+        const values2 = [
+            '2018-02-28',
+            '2018-02-29',
+            '2018-02-30',
+            '2018-01-29',
+            '2016-03-29', // min
+            '2019-01-15',
+        ];
+        const resultRow2: ResultRow[] = values2.map((v) => ({
+            [axes[1]]: { value: { raw: `${v}${time}`, formatted: v } },
+        }));
+        expect(
+            getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
+        ).toStrictEqual([`2016-03-29${time}`, `2019-01-15${time}`]);
+    });
+
+    test('should return min/max values for floats in multiple series', () => {
+        const axes = ['axis1', 'axis2'];
+        const values = [
+            '1.000',
+            '2.000',
+            '5.000',
+            '8.000',
+            '50.000', // max
+            '-5.000',
+            '0.000',
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v } },
+        }));
+        const values2 = [
+            '1.000',
+            '2.000',
+            '5.000',
+            '8.000',
+            '50.000',
+            '-10.000', // min
+            '0.000',
+        ];
+        const resultRow2: ResultRow[] = values2.map((v) => ({
+            [axes[1]]: { value: { raw: v, formatted: v } },
+        }));
+        expect(
+            getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
+        ).toStrictEqual([-10.0, 50.0]);
+    });
+
+    test('string values should return invalid min/max in multiple series', () => {
+        const axes = ['axis1', 'axis2'];
+
+        const values = ['a', 'b', 'c', 'z'];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v } },
+        }));
+
+        const values2 = ['y', 'x', 'c', 'z'];
+        const resultRow2: ResultRow[] = values2.map((v) => ({
+            [axes[1]]: { value: { raw: v, formatted: v } },
+        }));
+        expect(
+            getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
+        ).toStrictEqual([0, 0]);
+    });
+});
+
+describe('getNiceTickBound', () => {
+    test('rounds data max up to the nice tick boundary ECharts picks', () => {
+        expect(getNiceTickBound(314)).toBe(350);
+        expect(getNiceTickBound(96)).toBe(100);
+        expect(getNiceTickBound(222)).toBe(250);
+        expect(getNiceTickBound(1135)).toBe(1200);
+        expect(getNiceTickBound(50)).toBe(50);
+    });
+
+    test('rounds negative bounds away from zero', () => {
+        expect(getNiceTickBound(-222)).toBe(-250);
+        expect(getNiceTickBound(-96)).toBe(-100);
+    });
+
+    test('handles zero and non-finite values', () => {
+        expect(getNiceTickBound(0)).toBe(0);
+        expect(getNiceTickBound(Infinity)).toBe(0);
+        expect(getNiceTickBound(NaN)).toBe(0);
+    });
+
+    test('handles fractional values', () => {
+        // 0.8 is already on a nice boundary (4 × 0.2)
+        expect(getNiceTickBound(0.8)).toBeCloseTo(0.8);
+        expect(getNiceTickBound(0.83)).toBeCloseTo(1);
+    });
+});
+
+describe('getLongestLabelsForAxis', () => {
+    const rows: ResultRow[] = [
+        {
+            metric_small: { value: { raw: 9, formatted: '9' } },
+            metric_large: { value: { raw: 314, formatted: '314' } },
+        },
+        {
+            metric_small: { value: { raw: 5, formatted: '5' } },
+            metric_large: { value: { raw: 46, formatted: '46' } },
+        },
+    ];
+
+    test('returns the longest label for every field on the axis', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_small', 'metric_large'],
+            }),
+        ).toStrictEqual(['9', '314']);
+    });
+
+    test('ignores undefined and duplicate axis ids', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_small', undefined, 'metric_small'],
+            }),
+        ).toStrictEqual(['9']);
+    });
+
+    test('skips fields with no values in the rows', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_missing', 'metric_large'],
+            }),
+        ).toStrictEqual(['314']);
+    });
+
+    test('falls back to pivot column variants of the field', () => {
+        const pivotedRows: ResultRow[] = [
+            {
+                metric_large_any_channel_a: {
+                    value: { raw: 9, formatted: '9' },
+                },
+                metric_large_any_channel_b: {
+                    value: { raw: 1135, formatted: '1,135' },
+                },
+            },
+        ];
+        expect(
+            getLongestLabelsForAxis({
+                rows: pivotedRows,
+                axisIds: ['metric_large'],
+            }),
+        ).toStrictEqual(['1,135']);
+    });
+
+    test('returns an empty array for empty rows or axis ids', () => {
+        expect(
+            getLongestLabelsForAxis({ rows: [], axisIds: ['metric_small'] }),
+        ).toStrictEqual([]);
+        expect(getLongestLabelsForAxis({ rows, axisIds: [] })).toStrictEqual(
+            [],
+        );
+    });
+});
+
+describe('getTimeAxisPinnedTickValues', () => {
+    const axisId = 'date_axis';
+    const createRows = (dates: (string | null)[]): ResultRow[] =>
+        dates.map((d) => ({
+            [axisId]: { value: { raw: d, formatted: String(d) } },
+        }));
+    const dayField = {
+        timeInterval: TimeFrames.DAY,
+        name: 'test_date',
+        table: 'test_table',
+    } as unknown as Field;
+    const barSeries = [
+        { type: CartesianSeriesType.BAR },
+    ] as unknown as Series[];
+    const lineSeries = [
+        { type: CartesianSeriesType.LINE },
+    ] as unknown as Series[];
+
+    test('pins sorted unique instants when day values are not UTC midnights', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows([
+                '2026-03-01T04:00:00Z',
+                '2026-02-18T04:00:00Z',
+                '2026-03-01T04:00:00Z',
+            ]),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2026, 1, 18, 4),
+            Date.UTC(2026, 2, 1, 4),
+        ]);
+    });
+
+    test('parses naive timestamp strings as UTC', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2020-07-27T04:00:00Z', '2020-07-29T04:00:00']),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2020, 6, 27, 4),
+            Date.UTC(2020, 6, 29, 4),
+        ]);
+    });
+
+    test('keeps auto ticks for UTC-midnight days, consecutive or sparse', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18', '2026-02-19', '2026-02-20']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18', '2026-02-25', '2026-03-03']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('skips null raw values', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2026-02-18T04:00:00Z', null]),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([Date.UTC(2026, 1, 18, 4)]);
+    });
+
+    test('returns undefined when the time axis is timezone-shifted', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18T04:00:00Z']),
+                'time',
+                barSeries,
+                true,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined without a bar series', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18']),
+                'time',
+                lineSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined for non-day intervals', () => {
+        const monthField = {
+            ...(dayField as object),
+            timeInterval: TimeFrames.MONTH,
+        } as unknown as Field;
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                monthField,
+                createRows(['2026-02-01']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined for non-time axis types', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18']),
+                'category',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined when rows are empty', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                [],
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('pins non-midnight day values (days truncated in a non-UTC timezone)', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2025-07-01T04:00:00Z', '2025-07-02T04:00:00Z']),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2025, 6, 1, 4),
+            Date.UTC(2025, 6, 2, 4),
+        ]);
+    });
+
+    test('returns undefined for interval-less dimensions', () => {
+        const noIntervalField = {
+            name: 'test_date',
+            table: 'test_table',
+        } as unknown as Field;
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                noIntervalField,
+                createRows(['2025-07-01T04:00:00Z', '2025-07-02T04:00:00Z']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined above the pinned tick cap', () => {
+        // Non-midnight values so only the cap rule applies
+        const manyDays = Array.from({ length: 401 }, (_, i) => {
+            const d = new Date(Date.UTC(2024, 0, 1, 4) + i * 24 * 3600 * 1000);
+            return d.toISOString();
+        });
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(manyDays),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+});
+
+describe('getPinnedDayTickFormatter', () => {
+    const ticks = [
+        Date.UTC(2025, 11, 1), // Dec 1
+        Date.UTC(2025, 11, 29), // Dec 29
+        Date.UTC(2026, 0, 5), // Jan 5 — first tick of Jan, not the 1st
+        Date.UTC(2026, 0, 8), // Jan 8
+        Date.UTC(2026, 1, 1), // Feb 1
+        Date.UTC(2026, 1, 3), // Feb 3
+    ];
+    const formatter = getPinnedDayTickFormatter(ticks);
+
+    test('renders month starts as bold month', () => {
+        expect(formatter(Date.UTC(2025, 11, 1))).toBe('{bold|Dec}');
+        expect(formatter(Date.UTC(2026, 1, 1))).toBe('{bold|Feb}');
+    });
+
+    test('renders Jan 1 as bold year', () => {
+        expect(
+            getPinnedDayTickFormatter([Date.UTC(2026, 0, 1)])(
+                Date.UTC(2026, 0, 1),
+            ),
+        ).toBe('{bold|2026}');
+    });
+
+    test('keeps month context when a month has no tick on the 1st', () => {
+        expect(formatter(Date.UTC(2026, 0, 5))).toBe('{bold|Jan} 5');
+    });
+
+    test('renders remaining ticks as plain day numbers', () => {
+        expect(formatter(Date.UTC(2025, 11, 29))).toBe('29');
+        expect(formatter(Date.UTC(2026, 0, 8))).toBe('8');
+        expect(formatter(Date.UTC(2026, 1, 3))).toBe('3');
+    });
+
+    test('renders non-midnight instants by their UTC day (negative-offset warehouse tz)', () => {
+        // Local Jul 2 midnight in America/New_York = Jul 2 T04:00Z — UTC and
+        // local calendar days agree
+        const tz = [Date.UTC(2025, 6, 1, 4), Date.UTC(2025, 6, 2, 4)];
+        const f = getPinnedDayTickFormatter(tz);
+        expect(f(Date.UTC(2025, 6, 1, 4))).toBe('{bold|Jul}');
+        expect(f(Date.UTC(2025, 6, 2, 4))).toBe('2');
+    });
+
+    test('renders non-midnight instants by their UTC day (positive-offset warehouse tz)', () => {
+        // Local Jul 1 midnight at UTC+2 = Jun 30 T22:00Z. Intentionally
+        // labelled "30" — the UTC calendar day — because the results table
+        // and tooltips format the same raw value in UTC and must agree with
+        // the chart. The bold month marker lands on the first tick whose UTC
+        // month changes (local Jul 2 = Jul 1 T22:00Z → "Jul").
+        const tz = [
+            Date.UTC(2025, 5, 29, 22), // local Jun 30
+            Date.UTC(2025, 5, 30, 22), // local Jul 1
+            Date.UTC(2025, 6, 1, 22), // local Jul 2
+            Date.UTC(2025, 6, 2, 22), // local Jul 3
+        ];
+        const f = getPinnedDayTickFormatter(tz);
+        // First tick of the sequence doubles as first tick of its month
+        expect(f(Date.UTC(2025, 5, 29, 22))).toBe('{bold|Jun} 29');
+        expect(f(Date.UTC(2025, 5, 30, 22))).toBe('30');
+        expect(f(Date.UTC(2025, 6, 1, 22))).toBe('{bold|Jul}');
+        expect(f(Date.UTC(2025, 6, 2, 22))).toBe('2');
+    });
+});
+
+describe('getAxisType with treatAsCategory', () => {
+    const xFieldId = 'orders_year_number';
+    const yFieldId = 'orders_count';
+
+    const numericField = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.NUMBER,
+        name: 'year_number',
+        table: 'orders',
+    } as unknown as Field;
+
+    const itemsMap = {
+        [xFieldId]: numericField,
+        [yFieldId]: numericField,
+    } as ItemsMap;
+
+    const createConfig = ({
+        treatAsCategory,
+        flipAxes,
+    }: {
+        treatAsCategory?: boolean;
+        flipAxes?: boolean;
+    }): CartesianChart => ({
+        layout: { xField: xFieldId, yField: [yFieldId], flipAxes },
+        eChartsConfig: {
+            xAxis: [{ treatAsCategory }],
+            series: [
+                {
+                    type: CartesianSeriesType.BAR,
+                    yAxisIndex: 0,
+                    encode: {
+                        xRef: { field: xFieldId },
+                        yRef: { field: yFieldId },
+                    },
+                },
+            ],
+        },
+    });
+
+    const getBottomAxisType = (config: CartesianChart) =>
+        getAxisType({
+            validCartesianConfig: config,
+            itemsMap,
+            bottomAxisXId: xFieldId,
+            leftAxisYId: yFieldId,
+        }).bottomAxisType;
+
+    test('numeric x-axis stays a value axis by default', () => {
+        expect(getBottomAxisType(createConfig({}))).toBe('value');
+        expect(
+            getBottomAxisType(createConfig({ treatAsCategory: false })),
+        ).toBe('value');
+    });
+
+    test('numeric x-axis becomes a category axis when treatAsCategory is on', () => {
+        expect(getBottomAxisType(createConfig({ treatAsCategory: true }))).toBe(
+            'category',
+        );
+    });
+
+    test('treatAsCategory is ignored when axes are flipped', () => {
+        expect(
+            getBottomAxisType(
+                createConfig({ treatAsCategory: true, flipAxes: true }),
+            ),
+        ).toBe('value');
+    });
+
+    test('treatAsCategory does not override a time axis', () => {
+        const dateFieldId = 'orders_created_at';
+        const config = createConfig({ treatAsCategory: true });
+        expect(
+            getAxisType({
+                validCartesianConfig: config,
+                itemsMap: {
+                    [dateFieldId]: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.DATE,
+                        name: 'created_at',
+                        table: 'orders',
+                        timeInterval: TimeFrames.DAY,
+                    },
+                    [yFieldId]: numericField,
+                } as unknown as ItemsMap,
+                bottomAxisXId: dateFieldId,
+                leftAxisYId: yFieldId,
+            }).bottomAxisType,
+        ).toBe('time');
+    });
+});
+
+describe('getCategoryDateAxisConfig', () => {
+    const axisId = 'date_axis';
+
+    const createRows = (dates: string[]): ResultRow[] =>
+        dates.map((d) => ({
+            [axisId]: { value: { raw: d, formatted: d } },
+        }));
+
+    const createAxisField = (timeInterval: TimeFrames) =>
+        ({
+            timeInterval,
+            name: 'test_date',
+            table: 'test_table',
+        }) as unknown as Field;
+
+    test('returns empty object when axisType is not category', () => {
+        const result = getCategoryDateAxisConfig(
+            axisId,
+            createAxisField(TimeFrames.YEAR),
+            createRows(['2024-01-01', '2025-01-01']),
+            'time',
+        );
+        expect(result).toEqual({});
+    });
+
+    test('returns empty object when axisField has no timeInterval', () => {
+        const result = getCategoryDateAxisConfig(
+            axisId,
+            { name: 'test', table: 'test' } as never,
+            createRows(['2024-01-01', '2025-01-01']),
+            'category',
+        );
+        expect(result).toEqual({});
+    });
+
+    describe('YEAR interval', () => {
+        test('generates continuous year range', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                createRows(['2024-01-01', '2026-01-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(3);
+            expect(result.data?.[0]).toContain('2024');
+            expect(result.data?.[1]).toContain('2025');
+            expect(result.data?.[2]).toContain('2026');
+        });
+
+        test('handles single year', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                createRows(['2024-01-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(1);
+            expect(result.data?.[0]).toContain('2024');
+        });
+    });
+
+    describe('QUARTER interval', () => {
+        test('generates continuous quarter range', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.QUARTER),
+                createRows(['2024-01-01', '2024-10-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(4); // Q1, Q2, Q3, Q4
+        });
+
+        test('handles quarters spanning year boundary', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.QUARTER),
+                createRows(['2024-10-01', '2025-04-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(3); // Q4 2024, Q1 2025, Q2 2025
+        });
+    });
+
+    describe('MONTH interval', () => {
+        test('generates continuous month range', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                createRows(['2024-01-01', '2024-03-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(3); // Jan, Feb, Mar
+        });
+
+        test('handles months spanning year boundary', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                createRows(['2024-11-01', '2025-02-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(4); // Nov, Dec, Jan, Feb
+        });
+    });
+
+    describe('WEEK interval', () => {
+        test('generates continuous week range', () => {
+            const rows = createRows([
+                '2024-01-01T00:00:00.000Z',
+                '2024-01-22T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.WEEK),
+                rows,
+                'category',
+            );
+            // 21 days = 3 weeks, so 4 data points: Jan 1, 8, 15, 22
+            expect(result.data).toHaveLength(4);
+        });
+    });
+
+    // Regression: xAxis.data used ISO format ("2024-04-01T00:00:00Z") while
+    // series data read raw values from the backend ("2024-04-01"). ECharts
+    // uses strict string equality for category matching, so bars were invisible.
+    describe('date format matches raw input format', () => {
+        test('uses date-only format (YYYY-MM-DD) when raw values are date-only', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                createRows(['2024-01-01', '2024-03-01']),
+                'category',
+            );
+            expect(result.data?.[0]).toBe('2024-01-01');
+            expect(result.data?.[1]).toBe('2024-02-01');
+            expect(result.data?.[2]).toBe('2024-03-01');
+        });
+
+        test('uses ISO format when raw values are ISO timestamps', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                createRows([
+                    '2024-01-01T00:00:00.000Z',
+                    '2024-03-01T00:00:00.000Z',
+                ]),
+                'category',
+            );
+            expect(result.data?.[0]).toContain('T');
+            expect(result.data?.[0]).toContain('2024-01');
+        });
+
+        test('WEEK: uses date-only format when raw values are date-only', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.WEEK),
+                createRows(['2024-01-01', '2024-01-22']),
+                'category',
+            );
+            expect(result.data?.[0]).toBe('2024-01-01');
+            expect(result.data?.[1]).toBe('2024-01-08');
+            for (const d of result.data ?? []) {
+                expect(d).not.toContain('T');
+            }
+        });
+
+        test('YEAR: uses date-only format when raw values are date-only', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                createRows(['2024-01-01', '2026-01-01']),
+                'category',
+            );
+            expect(result.data?.[0]).toBe('2024-01-01');
+            expect(result.data?.[1]).toBe('2025-01-01');
+            expect(result.data?.[2]).toBe('2026-01-01');
+        });
+    });
+
+    // Regression: iteration landing exactly on maxX produced a duplicate
+    // trailing category due to dayjs.tz .isBefore drift.
+    describe('no duplicate entries when range lands exactly on maxX', () => {
+        const expectStrictlyIncreasingAndUnique = (data: string[]) => {
+            expect(new Set(data).size).toBe(data.length);
+            const values = data.map((d) => new Date(d).valueOf());
+            for (let i = 1; i < values.length; i += 1) {
+                expect(values[i]).toBeGreaterThan(values[i - 1]);
+            }
+        };
+
+        test('WEEK iteration ending exactly on maxX produces no duplicate', () => {
+            // 6 weeks apart — iteration lands exactly on maxX
+            const rows = createRows([
+                '2020-06-29T01:00:00Z',
+                '2020-08-10T01:00:00Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.WEEK),
+                rows,
+                'category',
+            );
+            expect(result.data).toHaveLength(7);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('MONTH iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2024-01-15T00:00:00.000Z',
+                '2024-06-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                rows,
+                'category',
+            );
+            // Jan..Jun inclusive = 6 months
+            expect(result.data).toHaveLength(6);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('QUARTER iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2024-01-15T00:00:00.000Z',
+                '2024-10-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.QUARTER),
+                rows,
+                'category',
+            );
+            // Q1..Q4 = 4 quarters
+            expect(result.data).toHaveLength(4);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('YEAR iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2020-06-15T00:00:00.000Z',
+                '2024-06-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                rows,
+                'category',
+            );
+            // 2020..2024 inclusive = 5 years
+            expect(result.data).toHaveLength(5);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+    });
+
+    // Snap labels must equal warehouse wall-clock-midnight UTC instants for
+    // the resolved zone, even across DST boundaries.
+    describe('DST stability across resolved timezone', () => {
+        const wallClockMidnightUtc = (
+            tz: string,
+            year: number,
+            month1Based: number,
+            day = 1,
+        ): string => {
+            const m = String(month1Based).padStart(2, '0');
+            const d = String(day).padStart(2, '0');
+            return dayjs.tz(`${year}-${m}-${d} 00:00:00`, tz).utc().format();
+        };
+
+        const monthlyRowsFor = (
+            tz: string,
+            months: Array<[number, number]>,
+        ): ResultRow[] =>
+            createRows(months.map(([y, m]) => wallClockMidnightUtc(tz, y, m)));
+
+        const expectedMonthlyRange = (
+            tz: string,
+            months: Array<[number, number]>,
+        ): string[] => months.map(([y, m]) => wallClockMidnightUtc(tz, y, m));
+
+        describe('MONTH', () => {
+            // Apr 2024 → Mar 2025: iteration starts in PDT, crosses fall-back
+            // (Nov 3 2024) and spring-forward (Mar 9 2025).
+            test('LA: snap honors PST↔PDT transitions across a full year', () => {
+                const tz = 'America/Los_Angeles';
+                const months: Array<[number, number]> = [
+                    [2024, 4],
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                    [2024, 10],
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                    [2025, 3],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            // May 2024 → Apr 2025: iteration starts in BST, crosses fall-back
+            // (Oct 27 2024) and spring-forward (Mar 30 2025).
+            test('London: snap honors GMT↔BST transitions across a full year', () => {
+                const tz = 'Europe/London';
+                const months: Array<[number, number]> = [
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                    [2024, 10],
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                    [2025, 3],
+                    [2025, 4],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+        });
+
+        describe('QUARTER', () => {
+            // Q2 2024 → Q1 2025: starts in PDT, ends in PST (Jan 1 2025).
+            test('LA: snap honors DST when iterating across quarter boundaries', () => {
+                const tz = 'America/Los_Angeles';
+                const quarters: Array<[number, number]> = [
+                    [2024, 4], // Q2 2024 — PDT
+                    [2024, 7], // Q3 2024 — PDT
+                    [2024, 10], // Q4 2024 — PDT (until Nov 3)
+                    [2025, 1], // Q1 2025 — PST
+                ];
+                const rows = monthlyRowsFor(tz, quarters);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.QUARTER),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, quarters));
+            });
+
+            // Q2 2024 → Q1 2025: starts in BST, ends in GMT (Jan 1 2025).
+            test('London: snap honors DST when iterating across quarter boundaries', () => {
+                const tz = 'Europe/London';
+                const quarters: Array<[number, number]> = [
+                    [2024, 4], // Q2 — BST
+                    [2024, 7], // Q3 — BST
+                    [2024, 10], // Q4 — BST (until Oct 27)
+                    [2025, 1], // Q1 — GMT
+                ];
+                const rows = monthlyRowsFor(tz, quarters);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.QUARTER),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, quarters));
+            });
+        });
+
+        describe('WEEK', () => {
+            // Mondays spanning LA fall-back (Nov 3 2024): Oct 28 PDT → Nov 4 PST.
+            test('LA: snap honors DST when iterating week-by-week across fall-back', () => {
+                const tz = 'America/Los_Angeles';
+                const weekStarts: Array<[number, number, number]> = [
+                    [2024, 10, 28], // Mon, PDT
+                    [2024, 11, 4], // Mon, PST (DST ended Nov 3)
+                    [2024, 11, 11], // Mon, PST
+                ];
+                const rows = createRows(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.WEEK),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+            });
+
+            // Mondays spanning London spring-forward (Mar 30 2025): Mar 24 GMT → Mar 31 BST.
+            test('London: snap honors DST when iterating week-by-week across spring-forward', () => {
+                const tz = 'Europe/London';
+                const weekStarts: Array<[number, number, number]> = [
+                    [2025, 3, 24], // Mon, GMT
+                    [2025, 3, 31], // Mon, BST (DST started Mar 30)
+                    [2025, 4, 7], // Mon, BST
+                ];
+                const rows = createRows(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.WEEK),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+            });
+        });
+
+        describe('current behavior preserved', () => {
+            test('LA: non-DST-crossing window stays in PDT throughout', () => {
+                const tz = 'America/Los_Angeles';
+                const months: Array<[number, number]> = [
+                    [2024, 4],
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            test('London: non-DST-crossing window stays in GMT throughout', () => {
+                const tz = 'Europe/London';
+                const months: Array<[number, number]> = [
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            // DATE-base dims must stay in UTC regardless of resolvedTimezone.
+            test('DATE-base dim ignores resolvedTimezone and snaps in UTC', () => {
+                const dateBaseField = {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    timeIntervalBaseDimensionType: DimensionType.DATE,
+                    name: 'order_date_month',
+                    table: 'orders',
+                } as unknown as Dimension;
+                const rows = createRows([
+                    '2024-01-01T00:00:00Z',
+                    '2024-02-01T00:00:00Z',
+                    '2024-03-01T00:00:00Z',
+                ]);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    dateBaseField,
+                    rows,
+                    'category',
+                    undefined,
+                    'America/Los_Angeles',
+                );
+                expect(result.data).toEqual([
+                    '2024-01-01T00:00:00Z',
+                    '2024-02-01T00:00:00Z',
+                    '2024-03-01T00:00:00Z',
+                ]);
+            });
+
+            // GLITCH-452: a TIMESTAMP-base day-or-coarser dim now compiles to a
+            // real DATE (calendar value), so it snaps in UTC like a DATE-base dim
+            // — no project-tz shift.
+            test('TIMESTAMP-base dim is now a calendar value — snaps in UTC (GLITCH-452)', () => {
+                const tsBaseField = {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    name: 'created_at_month',
+                    table: 'orders',
+                } as unknown as Dimension;
+                const rows = createRows([
+                    '2024-04-01T00:00:00Z',
+                    '2024-05-01T00:00:00Z',
+                    '2024-06-01T00:00:00Z',
+                ]);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    tsBaseField,
+                    rows,
+                    'category',
+                    undefined,
+                    'America/Los_Angeles',
+                );
+                expect(result.data).toEqual([
+                    '2024-04-01T00:00:00Z',
+                    '2024-05-01T00:00:00Z',
+                    '2024-06-01T00:00:00Z',
+                ]);
+            });
+        });
+
+        describe('YEAR', () => {
+            // Jan 1 is always winter in these zones — guards against future
+            // refactors drifting at year boundaries.
+            test('LA: year snap stays anchored to Jan 1 PST', () => {
+                const tz = 'America/Los_Angeles';
+                const years: Array<[number, number]> = [
+                    [2023, 1],
+                    [2024, 1],
+                    [2025, 1],
+                    [2026, 1],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.YEAR),
+                    monthlyRowsFor(tz, years),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, years));
+            });
+
+            test('London: year snap stays anchored to Jan 1 GMT', () => {
+                const tz = 'Europe/London';
+                const years: Array<[number, number]> = [
+                    [2023, 1],
+                    [2024, 1],
+                    [2025, 1],
+                    [2026, 1],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.YEAR),
+                    monthlyRowsFor(tz, years),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, years));
+            });
+        });
+    });
+});
+
+describe('filterSeriesWithNoData', () => {
+    const makeSeries = (tooltipKey: string | undefined): EChartsSeries =>
+        ({
+            type: CartesianSeriesType.BAR,
+            encode: tooltipKey
+                ? {
+                      x: 'date',
+                      y: tooltipKey,
+                      tooltip: [tooltipKey],
+                      seriesName: tooltipKey,
+                  }
+                : undefined,
+        }) as EChartsSeries;
+
+    const rowLimit = {
+        mode: 'show' as const,
+        direction: 'first' as const,
+        count: 5,
+    };
+
+    test('removes series whose data column is all null in visible results', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: null },
+            { metric_a: 20, metric_b: null },
+        ];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        expect(filtered).toHaveLength(1);
+        expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
+    });
+
+    test('removes series whose data column is all undefined in visible results', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: undefined },
+            { metric_a: 20 },
+        ];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        expect(filtered).toHaveLength(1);
+        expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
+    });
+
+    test('keeps series with zero values (falsy but valid data)', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: 0 },
+            { metric_a: 20, metric_b: 0 },
+        ];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('keeps series with empty string values (falsy but not null/undefined)', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: '' },
+            { metric_a: 20, metric_b: '' },
+        ];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('keeps series with no encode/tooltip (fallback: keep everything)', () => {
+        const series = [makeSeries('metric_a'), makeSeries(undefined)];
+        const results = [{ metric_a: 10 }];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('returns unfilteredSeries when results array is empty', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results: Record<string, unknown>[] = [];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        expect(filtered).toBe(series);
+    });
+
+    test('returns unfilteredSeries when rowLimit is undefined', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [{ metric_a: 10, metric_b: null }];
+
+        const filtered = filterSeriesWithNoData(series, results, undefined);
+        expect(filtered).toBe(series);
+    });
+
+    test('keeps series when at least one row has non-null data', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: null },
+            { metric_a: 20, metric_b: 5 },
+        ];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('treats formatted null placeholder strings as having data', () => {
+        // getResultValueArray uses `raw ?? formatted`, so null raw values
+        // with a formatted string like '∅' appear as non-null in results.
+        // The filter correctly keeps these series because the result value
+        // is the formatted string, not null. This documents current behavior.
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: '∅' },
+            { metric_a: 20, metric_b: '∅' },
+        ];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        // '∅' is a truthy string — series is kept. This is a known limitation:
+        // getResultValueArray falls back from null raw to formatted string.
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('keeps series when any tooltip key has data (multiple tooltip keys)', () => {
+        const seriesWithMultipleKeys = {
+            type: CartesianSeriesType.BAR,
+            encode: {
+                x: 'date',
+                y: 'metric_b',
+                tooltip: ['label_col', 'metric_b'],
+                seriesName: 'metric_b',
+            },
+        } as EChartsSeries;
+        const series = [makeSeries('metric_a'), seriesWithMultipleKeys];
+        const results = [
+            { metric_a: 10, label_col: null, metric_b: 5 },
+            { metric_a: 20, label_col: null, metric_b: null },
+        ];
+
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        expect(filtered).toHaveLength(2);
+    });
+});
+
+describe('padDatasetForContinuousAxis', () => {
+    const xField = 'date_month';
+
+    test('inserts empty rows for gap dates', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-05-01', value: 20 },
+        ];
+        const range = ['2023-03-01', '2023-04-01', '2023-05-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toEqual({ [xField]: '2023-03-01', value: 10 });
+        expect(result[1]).toEqual({ [xField]: '2023-04-01' });
+        expect(result[2]).toEqual({ [xField]: '2023-05-01', value: 20 });
+    });
+
+    test('matches dates despite timezone offset differences', () => {
+        const data = [
+            { [xField]: '2023-03-01T00:00:00Z', value: 10 },
+            { [xField]: '2023-05-01T01:00:00Z', value: 20 },
+        ];
+        const range = [
+            '2023-03-01T00:00:00Z',
+            '2023-04-01T00:00:00Z',
+            '2023-05-01T00:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0].value).toBe(10);
+        expect(result[1]).toEqual({ [xField]: '2023-04-01T00:00:00Z' });
+        expect(result[2].value).toBe(20);
+    });
+
+    test('returns data unchanged when no gaps', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-04-01', value: 20 },
+        ];
+        const range = ['2023-03-01', '2023-04-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(2);
+        expect(result).toEqual(data);
+    });
+
+    test('returns data unchanged when range is empty', () => {
+        const data = [{ [xField]: '2023-03-01', value: 10 }];
+        const result = padDatasetForContinuousAxis(data, [], xField);
+        expect(result).toBe(data);
+    });
+
+    test('returns data unchanged when data is empty', () => {
+        const range = ['2023-03-01', '2023-04-01'];
+        const result = padDatasetForContinuousAxis([], range, xField);
+        expect(result).toEqual([]);
+    });
+
+    test('drops rows whose dates are not in the continuous range', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-06-01', value: 30 },
+        ];
+        const range = ['2023-03-01', '2023-04-01', '2023-05-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toEqual({ [xField]: '2023-03-01', value: 10 });
+        expect(result[1]).toEqual({ [xField]: '2023-04-01' });
+        expect(result[2]).toEqual({ [xField]: '2023-05-01' });
+    });
+
+    test('rewrites x-field to canonical range value while preserving other columns', () => {
+        const data = [
+            { [xField]: '2023-03-01T01:00:00Z', value: 10, extra: 'a' },
+            { [xField]: '2023-04-01T01:00:00Z', value: 20, extra: 'b' },
+        ];
+        const range = ['2023-03-01T00:00:00Z', '2023-04-01T00:00:00Z'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(2);
+        expect(result[0][xField]).toBe('2023-03-01T00:00:00Z');
+        expect(result[0].value).toBe(10);
+        expect(result[0].extra).toBe('a');
+        expect(result[1][xField]).toBe('2023-04-01T00:00:00Z');
+        expect(result[1].value).toBe(20);
+        expect(result[1].extra).toBe('b');
+    });
+
+    test('matches DST-offset rows to non-DST continuous range', () => {
+        const data = [
+            { [xField]: '2024-01-01T05:00:00Z', value: 1 },
+            { [xField]: '2024-10-01T05:00:00Z', value: 10 },
+            // Nov 1 is still EDT (DST ends Nov 3), so the warehouse emits
+            // -04:00. The snap's iteration stays at the start-of-range -05:00.
+            { [xField]: '2024-11-01T04:00:00Z', value: 11 },
+            { [xField]: '2024-12-01T05:00:00Z', value: 12 },
+        ];
+        const range = [
+            '2024-01-01T05:00:00Z',
+            '2024-10-01T05:00:00Z',
+            '2024-11-01T05:00:00Z',
+            '2024-12-01T05:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(4);
+        expect(result[2][xField]).toBe('2024-11-01T05:00:00Z');
+        expect(result[2].value).toBe(11);
+    });
+
+    test('is a no-op when row x-field already equals category', () => {
+        const data = [
+            { [xField]: '2024-04-01T00:00:00Z', value: 4, extra: 'a' },
+            { [xField]: '2024-05-01T00:00:00Z', value: 5, extra: 'b' },
+            { [xField]: '2024-06-01T00:00:00Z', value: 6, extra: 'c' },
+        ];
+        const range = [
+            '2024-04-01T00:00:00Z',
+            '2024-05-01T00:00:00Z',
+            '2024-06-01T00:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toEqual(data);
+    });
+});
+
+describe('selectContinuousDateRange', () => {
+    const range = ['2024-01-01T00:00:00Z', '2024-01-08T00:00:00Z'];
+
+    test('non-flipped reads from bottom (X axis)', () => {
+        expect(
+            selectContinuousDateRange(
+                false,
+                { data: range },
+                { data: undefined },
+            ),
+        ).toEqual(range);
+    });
+
+    test('flipped reads from left (X axis)', () => {
+        expect(
+            selectContinuousDateRange(
+                true,
+                { data: undefined },
+                { data: range },
+            ),
+        ).toEqual(range);
+    });
+
+    // Regression: date dim on Y leaked into X-axis padding via the old
+    // bottom ?? top ?? left ?? right fallback chain.
+    test('non-flipped ignores left-axis data (Y-axis leak guard)', () => {
+        expect(
+            selectContinuousDateRange(
+                false,
+                { data: undefined },
+                { data: range },
+            ),
+        ).toBeUndefined();
+    });
+
+    test('flipped ignores bottom-axis data (Y-axis leak guard)', () => {
+        expect(
+            selectContinuousDateRange(
+                true,
+                { data: range },
+                { data: undefined },
+            ),
+        ).toBeUndefined();
+    });
+});
+
+describe('padDatasetForContinuousAxis ∘ transformToPercentageStacking', () => {
+    // Padding and the 100%-stack transform must commute on non-gap rows so
+    // dataset.source consumers can read from either composition order.
+    const xField = 'date';
+    const yFields = ['a', 'b'];
+    const range = [
+        '2024-01-01T00:00:00Z',
+        '2024-02-01T00:00:00Z',
+        '2024-03-01T00:00:00Z',
+    ];
+
+    test('produces equivalent ratios on non-gap rows regardless of order', () => {
+        // Drifted offsets — same calendar dates, different hours.
+        const rows = [
+            { [xField]: '2024-01-01T01:00:00Z', a: 3, b: 7 },
+            { [xField]: '2024-02-01T01:00:00Z', a: 1, b: 1 },
+            { [xField]: '2024-03-01T01:00:00Z', a: 4, b: 6 },
+        ];
+
+        const transformedFirst = transformToPercentageStacking(
+            rows,
+            xField,
+            yFields,
+        ).transformedResults;
+        const padThenTransform = padDatasetForContinuousAxis(
+            transformedFirst,
+            range,
+            xField,
+        );
+
+        const paddedFirst = padDatasetForContinuousAxis(rows, range, xField);
+        const transformThenPad = transformToPercentageStacking(
+            paddedFirst,
+            xField,
+            yFields,
+        ).transformedResults;
+
+        // Cats must match xAxis.data in both orders.
+        for (let i = 0; i < range.length; i += 1) {
+            expect(padThenTransform[i][xField]).toBe(range[i]);
+            expect(transformThenPad[i][xField]).toBe(range[i]);
+        }
+
+        // Ratios for present rows must match. Gap-row values legitimately
+        // differ between orders (undefined vs explicit 0%) — covered by the
+        // gap-tolerance test in tooltipFormatter.test.ts.
+        for (let i = 0; i < range.length; i += 1) {
+            for (const y of yFields) {
+                expect(transformThenPad[i][y]).toBe(padThenTransform[i][y]);
+            }
+        }
+    });
+
+    test('canonicalizes cats even when transform writes ratios first', () => {
+        const rows = [
+            { [xField]: '2024-01-01T01:00:00Z', a: 3, b: 7 },
+            { [xField]: '2024-02-01T01:00:00Z', a: 1, b: 1 },
+        ];
+        const partialRange = range.slice(0, 2);
+
+        const transformedFirst = transformToPercentageStacking(
+            rows,
+            xField,
+            yFields,
+        ).transformedResults;
+        const padThenTransformCats = padDatasetForContinuousAxis(
+            transformedFirst,
+            partialRange,
+            xField,
+        ).map((r) => r[xField]);
+        const transformThenPadCats = transformToPercentageStacking(
+            padDatasetForContinuousAxis(rows, partialRange, xField),
+            xField,
+            yFields,
+        ).transformedResults.map((r) => r[xField]);
+
+        expect(padThenTransformCats).toEqual(partialRange);
+        expect(transformThenPadCats).toEqual(partialRange);
+    });
+});
+
+describe('getStackTotalSeries', () => {
+    const itemsMap = {} as any;
+    const baseArgs = {
+        rows: [] as Record<string, unknown>[],
+        itemsMap,
+        flipAxis: false,
+        selectedLegendNames: {} as any,
+        isStack100: false,
+    };
+
+    test('emits a synthetic stack-total series when every series in the stack opts in', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0].stack).toBe('my_stack');
+        expect(result[0].label?.show).toBe(true);
+    });
+
+    // The index-0 short-circuit broke total labels whenever the pivot-merge
+    // re-ordered series and dropped an unconfigured auto-generated series
+    // at the front of the stack. As long as ANY series in the stack has
+    // stackLabel.show=true, the synthetic stack-total series must still be
+    // appended.
+    test('still emits the synthetic stack-total series when only a non-first series has stackLabel.show', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                // Auto-generated series for a new pivot value — no stackLabel.
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+            {
+                // Saved series carrying the user's stack-label intent.
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0].stack).toBe('my_stack');
+        expect(result[0].label?.show).toBe(true);
+    });
+
+    test('does not emit a synthetic series when no series in the stack opts in', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(0);
+    });
+
+    // Totals above a user-configured axis max used to be dropped entirely:
+    // the zero-height synthetic bar landed outside the grid and was clipped
+    // away together with its label. Those totals are carried on an extra
+    // invisible un-stacked line series pinned to the axis max so the label
+    // renders at the plot's top edge instead.
+    describe('axis max clamping', () => {
+        const verticalSeries: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+                encode: { x: 'cat', y: 'a', tooltip: [], seriesName: 'a' },
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+                encode: { x: 'cat', y: 'b', tooltip: [], seriesName: 'b' },
+            },
+        ];
+        const rows = [
+            { cat: 'A', a: 600, b: 300 }, // total 900 — above max
+            { cat: 'B', a: 400, b: 300 }, // total 700 — exactly max
+            { cat: 'C', a: 300, b: 200 }, // total 500 — below max
+        ];
+
+        test('carries totals above the configured value-axis max on an invisible line series', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            expect(result).toHaveLength(2);
+            // The stacked total series is untouched
+            expect(result[0].stack).toBe('my_stack');
+            expect(result[0].data).toEqual([
+                ['A', 0, 900],
+                ['B', 0, 700],
+                ['C', 0, 500],
+            ]);
+            // The carrier only holds the overflowing total, pinned to the max
+            expect(result[1].type).toBe(CartesianSeriesType.LINE);
+            expect(result[1].stack).toBeUndefined();
+            expect(result[1].data).toEqual([['A', 700, 900]]);
+            expect(result[1].label?.position).toBe('bottom');
+            expect(result[1].lineStyle?.opacity).toBe(0);
+        });
+
+        test('carrier formatter renders the total, not the pinned value', () => {
+            const result = getStackTotalSeries(
+                rows,
+                [
+                    {
+                        ...verticalSeries[0],
+                        pivotReference: { field: 'a' },
+                    },
+                    verticalSeries[1],
+                ],
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            const formatter = result[1].label?.formatter;
+            expect(formatter).toBeDefined();
+            expect(formatter!({ data: ['A', 700, 900] } as any)).toContain(
+                '900',
+            );
+        });
+
+        test('pins flipped-axis totals to the max with a left label', () => {
+            const flippedSeries: EChartsSeries[] = verticalSeries.map((s) => ({
+                ...s,
+                encode: {
+                    ...s.encode!,
+                    x: s.encode!.y,
+                    y: s.encode!.x,
+                },
+            }));
+            const result = getStackTotalSeries(
+                rows,
+                flippedSeries,
+                itemsMap,
+                true,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            expect(result).toHaveLength(2);
+            expect(result[1].data).toEqual([[700, 'A', 900]]);
+            expect(result[1].label?.position).toBe('left');
+        });
+
+        test('emits no carrier when no axis max is configured', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].data).toEqual([
+                ['A', 0, 900],
+                ['B', 0, 700],
+                ['C', 0, 500],
+            ]);
+        });
+
+        test('emits no carrier when all totals fit under the max', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [1000],
+            );
+            expect(result).toHaveLength(1);
+        });
+
+        test('emits no carrier for 100% stacked charts', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                true,
+                undefined,
+                undefined,
+                [50],
+            );
+            expect(result).toHaveLength(1);
+        });
+
+        test('reads the max for the series axis index', () => {
+            const rightAxisSeries = verticalSeries.map((s) => ({
+                ...s,
+                yAxisIndex: 1,
+            }));
+            const result = getStackTotalSeries(
+                rows,
+                rightAxisSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [10, 700],
+            );
+            expect(result).toHaveLength(2);
+            expect(result[1].data).toEqual([['A', 700, 900]]);
+            expect(result[1].yAxisIndex).toBe(1);
+        });
+    });
+});
+
+describe('transformStack100ByValueAxis', () => {
+    const barOnAxis = (y: string, yAxisIndex: number): EChartsSeries => ({
+        type: CartesianSeriesType.BAR,
+        stack: 'stack',
+        yAxisIndex,
+        encode: { x: 'x', y, tooltip: [y], seriesName: y },
+    });
+
+    // Series on the secondary axis were previously skipped, leaving raw values
+    // the tooltip then rendered with a "%" suffix.
+    test('normalizes stacked series on the secondary axis', () => {
+        const rows = [
+            { x: 'A', chA: 30, chB: 10 },
+            { x: 'B', chA: 20, chB: 20 },
+        ];
+        const { transformedResults, originalValues } =
+            transformStack100ByValueAxis(
+                rows,
+                'x',
+                [barOnAxis('chA', 1), barOnAxis('chB', 1)],
+                false,
+            );
+
+        expect(transformedResults[0].chA).toBe(75);
+        expect(transformedResults[0].chB).toBe(25);
+        expect(transformedResults[1].chA).toBe(50);
+        expect(transformedResults[1].chB).toBe(50);
+        // Original absolute values are preserved for tooltip counts.
+        expect(originalValues.get('A')?.get('chA')).toBe(30);
+        expect(originalValues.get('B')?.get('chB')).toBe(20);
+    });
+
+    test('normalizes each value axis against its own total, not across axes', () => {
+        const rows = [{ x: 'A', p0: 25, p1: 75, s0: 10, s1: 90 }];
+        const { transformedResults } = transformStack100ByValueAxis(
+            rows,
+            'x',
+            [
+                barOnAxis('p0', 0),
+                barOnAxis('p1', 0),
+                barOnAxis('s0', 1),
+                barOnAxis('s1', 1),
+            ],
+            false,
+        );
+
+        // Primary axis normalizes against 100 (25 + 75); secondary against
+        // 100 (10 + 90). A single cross-axis total would give 12.5 / 37.5 / …
+        expect(transformedResults[0].p0).toBe(25);
+        expect(transformedResults[0].p1).toBe(75);
+        expect(transformedResults[0].s0).toBe(10);
+        expect(transformedResults[0].s1).toBe(90);
+    });
+
+    test('reads the X-encoded hash and xAxisIndex when axes are flipped', () => {
+        const rows = [{ y: 'A', chA: 30, chB: 10 }];
+        const flippedBar = (x: string): EChartsSeries => ({
+            type: CartesianSeriesType.BAR,
+            stack: 'stack',
+            xAxisIndex: 1,
+            encode: { x, y: 'y', tooltip: [x], seriesName: x },
+        });
+
+        const { transformedResults } = transformStack100ByValueAxis(
+            rows,
+            'y',
+            [flippedBar('chA'), flippedBar('chB')],
+            true,
+        );
+
+        expect(transformedResults[0].chA).toBe(75);
+        expect(transformedResults[0].chB).toBe(25);
+    });
+
+    test('ignores series without a stack (e.g. line/scatter) so their values stay raw', () => {
+        const rows = [{ x: 'A', bar: 30, line: 10 }];
+        const lineSeries: EChartsSeries = {
+            type: CartesianSeriesType.LINE,
+            stack: undefined,
+            yAxisIndex: 0,
+            encode: {
+                x: 'x',
+                y: 'line',
+                tooltip: ['line'],
+                seriesName: 'line',
+            },
+        };
+
+        const { transformedResults, originalValues } =
+            transformStack100ByValueAxis(
+                rows,
+                'x',
+                [barOnAxis('bar', 0), lineSeries],
+                false,
+            );
+
+        // The single stacked bar is 100% of its own stack.
+        expect(transformedResults[0].bar).toBe(100);
+        // The un-stacked line keeps its raw value and no percentage entry.
+        expect(transformedResults[0].line).toBe(10);
+        expect(originalValues.get('A')?.has('line')).toBe(false);
+    });
+});
+
+describe('mergeLegendSettings', () => {
+    const series = [{ name: 'A' }, { name: 'B' }] as any;
+    const selected = { A: true, B: true };
+
+    test('returns defaults when config is undefined', () => {
+        const result = mergeLegendSettings(undefined, selected, series);
+        expect(result).toMatchObject({
+            show: true,
+            type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
+            selected,
+        });
+    });
+
+    test('returns defaults when config is empty', () => {
+        const result = mergeLegendSettings({}, selected, series);
+        expect(result).toMatchObject({
+            show: true,
+            type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
+            selected,
+        });
+    });
+
+    test('passes through user orient/position when placement is unset', () => {
+        const result = mergeLegendSettings(
+            { orient: 'vertical', right: '10', top: '20' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            orient: 'vertical',
+            right: '10',
+            top: '20',
+            selected,
+        });
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outsideRight overrides orient/position, forces scroll, and truncates labels', () => {
+        const result = mergeLegendSettings(
+            {
+                placement: 'outsideRight',
+                type: 'plain', // should be overridden to 'scroll'
+                orient: 'horizontal', // should be overridden
+                left: '50', // should be wiped
+            },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            right: '2%',
+            top: 'middle',
+            height: '80%',
+            textStyle: { overflow: 'truncate', width: 150 },
+            tooltip: { show: true },
+            selected,
+        });
+        expect(result.left).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outsideLeft mirrors outsideRight and forces scroll', () => {
+        const result = mergeLegendSettings(
+            { placement: 'outsideLeft', type: 'plain' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            left: '2%',
+            top: 'middle',
+            height: '80%',
+            textStyle: { overflow: 'truncate', width: 150 },
+            tooltip: { show: true },
+            selected,
+        });
+        expect(result.right).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outside placement margins always use defaults, ignoring stale user values', () => {
+        const result = mergeLegendSettings(
+            {
+                placement: 'outsideRight',
+                // User has stale positional values from a prior Chart Area
+                // session; outside placement should ignore them and apply
+                // the canonical defaults.
+                top: '20%',
+                bottom: '5%',
+                right: '8%',
+            },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            top: 'middle',
+            height: '80%',
+            right: '2%',
+            selected,
+        });
+        expect(result.left).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+    });
+
+    test('uses the provided outside label width', () => {
+        const result = mergeLegendSettings(
+            { placement: 'outsideRight' },
+            selected,
+            series,
+            220,
+        );
+        expect(result.textStyle).toEqual({ overflow: 'truncate', width: 220 });
+    });
+
+    test("placement 'custom' is treated as no override", () => {
+        const result = mergeLegendSettings(
+            { placement: 'custom', orient: 'vertical', right: '5' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            orient: 'vertical',
+            right: '5',
+            selected,
+        });
+        expect(result).not.toHaveProperty('placement');
+    });
+});
+
+describe('getOutsideLegendLabelWidth', () => {
+    const squareStyle = getLegendStyle('square');
+
+    test('falls back to a fixed width when the chart width is unknown', () => {
+        expect(getOutsideLegendLabelWidth(null, '25%', squareStyle)).toBe(150);
+        expect(getOutsideLegendLabelWidth(0, '25%', squareStyle)).toBe(150);
+    });
+
+    test('derives the width from a percentage legend area', () => {
+        // 250px area - 20px margin - 10px box padding - 12px icon - 5px gap - 2px text padding
+        expect(getOutsideLegendLabelWidth(1000, '25%', squareStyle)).toBe(201);
+    });
+
+    test('accepts pixel legend areas with or without a unit', () => {
+        expect(getOutsideLegendLabelWidth(1000, '300px', squareStyle)).toBe(
+            251,
+        );
+        expect(getOutsideLegendLabelWidth(1000, '300', squareStyle)).toBe(251);
+    });
+
+    test('accounts for the wider line icon', () => {
+        expect(
+            getOutsideLegendLabelWidth(1000, '25%', getLegendStyle('line')),
+        ).toBe(195);
+    });
+
+    test('never drops below the minimum on narrow charts', () => {
+        expect(getOutsideLegendLabelWidth(200, '25%', squareStyle)).toBe(40);
+    });
+
+    test('falls back when the legend area cannot be parsed', () => {
+        expect(getOutsideLegendLabelWidth(1000, 'auto', squareStyle)).toBe(150);
+    });
+});
+
+describe('composeLegendConfig', () => {
+    const series = [{ name: 'A' }, { name: 'B' }] as any;
+    const selected = { A: true, B: true };
+    const legendStyle = getLegendStyle('square');
+    const doubleClickTooltip: LegendDoubleClickTooltip = {
+        show: true,
+        backgroundColor: '#fff',
+        borderColor: '#ddd',
+        borderWidth: 0,
+        borderRadius: 4,
+        textStyle: { color: '#333', fontSize: 12, fontWeight: 400 },
+        padding: [4, 8],
+        extraCssText: '',
+        formatter: () => LEGEND_INTERACTION_HINT,
+    };
+
+    test('keeps outside-legend truncation alongside the shared typography', () => {
+        const merged = mergeLegendSettings(
+            { placement: 'outsideRight' },
+            selected,
+            series,
+            200,
+        );
+        const result = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(result.textStyle).toEqual({
+            ...legendStyle.textStyle,
+            overflow: 'truncate',
+            width: 200,
+        });
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            right: '2%',
+            icon: 'roundRect',
+            itemWidth: 12,
+        });
+    });
+
+    test('shows the full label above the hint when labels can be truncated', () => {
+        const merged = mergeLegendSettings(
+            { placement: 'outsideLeft' },
+            selected,
+            series,
+        );
+        const { tooltip } = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(tooltip).toMatchObject({ show: true, borderRadius: 4 });
+        const html = tooltip.formatter({ name: '<Long> & wordy label' });
+        expect(html).toContain('&lt;Long&gt; &amp; wordy label');
+        expect(html).toContain(LEGEND_INTERACTION_HINT);
+    });
+
+    test('leaves in-chart legends with the plain hint tooltip and typography', () => {
+        const merged = mergeLegendSettings(
+            { orient: 'horizontal', top: '0' },
+            selected,
+            series,
+        );
+        const result = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(result.tooltip).toBe(doubleClickTooltip);
+        expect(result.textStyle).toEqual(legendStyle.textStyle);
+    });
+});
+
+describe('applyLegendPlacementToGrid', () => {
+    const baseGrid = {
+        containLabel: true,
+        left: '10px',
+        right: '10px',
+        top: '10px',
+        bottom: '10px',
+    };
+
+    test('returns the grid unchanged when legend is not shown', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            false,
+        );
+        expect(result).toEqual(baseGrid);
+    });
+
+    test('returns the grid unchanged when placement is custom/unset', () => {
+        expect(applyLegendPlacementToGrid(baseGrid, undefined, true)).toEqual(
+            baseGrid,
+        );
+        expect(
+            applyLegendPlacementToGrid(baseGrid, { placement: 'custom' }, true),
+        ).toEqual(baseGrid);
+    });
+
+    test('reserves 25% on the right when placement is outsideRight', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            true,
+        );
+        expect(result).toEqual({ ...baseGrid, right: '25%' });
+    });
+
+    test('reserves 25% on the left when placement is outsideLeft', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideLeft' },
+            true,
+        );
+        expect(result).toEqual({ ...baseGrid, left: '25%' });
+    });
+
+    test('user-set grid values override the default 25% reservation', () => {
+        const outsideRight = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            true,
+            { right: '40%' },
+        );
+        expect(outsideRight).toEqual({ ...baseGrid, right: '40%' });
+
+        const outsideLeft = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideLeft' },
+            true,
+            { left: '15%' },
+        );
+        expect(outsideLeft).toEqual({ ...baseGrid, left: '15%' });
+    });
+});
+
+describe('relocateMarkLinesToVisibleSeries (PROD-7119)', () => {
+    const REFERENCE_LINE = { yAxis: 100, name: 'Target' };
+
+    // Pivoted/grouped series have NO top-level `name`; ECharts (and the legend
+    // selection map) identify them by encode.seriesName -> the matching
+    // dimension's displayName. Build them that way so the test mirrors runtime.
+    const makeSeries = (
+        legendName: string,
+        withMarkLine: boolean,
+    ): EChartsSeries => {
+        const yRef = `revenue.group.${legendName}`;
+        return {
+            type: CartesianSeriesType.LINE,
+            encode: { x: 'date', y: yRef, tooltip: [yRef], seriesName: yRef },
+            dimensions: [
+                { name: 'date', displayName: 'Date' },
+                { name: yRef, displayName: legendName },
+            ],
+            ...(withMarkLine ? { markLine: { data: [REFERENCE_LINE] } } : {}),
+        } as unknown as EChartsSeries;
+    };
+
+    const legendNameOf = (serie: EChartsSeries): string | undefined =>
+        serie.dimensions?.find((d) => d.name === serie.encode?.seriesName)
+            ?.displayName ?? serie.name;
+
+    const markLineData = (serie: EChartsSeries) =>
+        (serie.markLine as { data?: unknown[] } | undefined)?.data ?? [];
+
+    test('keeps the reference line on a visible series when its host is hidden via the legend', () => {
+        const series = [
+            makeSeries('standard', true),
+            makeSeries('express', false),
+            makeSeries('overnight', false),
+        ];
+
+        const result = relocateMarkLinesToVisibleSeries(series, {
+            standard: false,
+            express: true,
+            overnight: true,
+        });
+
+        // the hidden host loses its markLine...
+        expect(markLineData(result[0])).toHaveLength(0);
+        // ...and the reference line is re-attached to a still-visible series
+        const stillShown = result.filter(
+            (s) => legendNameOf(s) !== 'standard' && markLineData(s).length > 0,
+        );
+        expect(stillShown).toHaveLength(1);
+        expect(markLineData(stillShown[0])).toEqual([REFERENCE_LINE]);
+    });
+
+    test('keeps the reference line when a single series is isolated via double-click', () => {
+        const series = [
+            makeSeries('standard', true),
+            makeSeries('express', false),
+            makeSeries('overnight', false),
+        ];
+
+        // double-click isolates "overnight" (every other series hidden)
+        const result = relocateMarkLinesToVisibleSeries(series, {
+            standard: false,
+            express: false,
+            overnight: true,
+        });
+
+        const overnight = result.find((s) => legendNameOf(s) === 'overnight')!;
+        expect(markLineData(overnight)).toEqual([REFERENCE_LINE]);
+        expect(markLineData(result[0])).toHaveLength(0);
+    });
+
+    test('leaves series untouched when the reference-line host is visible', () => {
+        const series = [
+            makeSeries('standard', true),
+            makeSeries('express', false),
+        ];
+
+        const result = relocateMarkLinesToVisibleSeries(series, {
+            standard: true,
+            express: true,
+        });
+
+        expect(result).toBe(series);
+        expect(markLineData(result[0])).toEqual([REFERENCE_LINE]);
+    });
+
+    test('returns series unchanged when there is no legend selection', () => {
+        const series = [makeSeries('standard', true)];
+        expect(relocateMarkLinesToVisibleSeries(series, undefined)).toBe(
+            series,
+        );
+    });
+
+    test('does not relocate series-relative reference lines (use series average)', () => {
+        const averageSeries = {
+            ...makeSeries('standard', false),
+            markLine: { data: [{ type: 'average', name: 'Avg' }] },
+        } as unknown as EChartsSeries;
+        const series = [averageSeries, makeSeries('express', false)];
+
+        // hiding the series whose average line it is -> the line hides with it,
+        // it is NOT moved onto the still-visible "express" series
+        const result = relocateMarkLinesToVisibleSeries(series, {
+            standard: false,
+            express: true,
+        });
+
+        expect(result).toBe(series);
+        expect(markLineData(result[1])).toHaveLength(0);
+    });
+});
+
+describe('applyConditionalFormattingToStackedSeries', () => {
+    const revenueField = {
+        compiledSql: '',
+        tablesReferences: [],
+        fieldType: FieldType.DIMENSION,
+        hidden: false,
+        label: 'Revenue',
+        name: 'revenue',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '',
+        type: DimensionType.NUMBER,
+    } as ItemsMap[string];
+    const costField = {
+        ...revenueField,
+        label: 'Cost',
+        name: 'cost',
+    } as ItemsMap[string];
+    const itemsMap: ItemsMap = {
+        orders_revenue: revenueField,
+        orders_cost: costField,
+    };
+
+    const belowThresholdRed = (fieldId: string) => {
+        const config = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            { fieldId },
+        );
+        config.rules = [
+            {
+                id: 'r1',
+                operator: FilterOperator.LESS_THAN,
+                values: [100],
+            },
+        ];
+        return config;
+    };
+
+    const rawRows = [
+        { orders_category: 'a', orders_revenue: 50, orders_cost: 50 },
+        { orders_category: 'b', orders_revenue: 150, orders_cost: 50 },
+    ];
+
+    const mkStackedSeries = (fieldId: string): EChartsSeries =>
+        ({
+            type: CartesianSeriesType.BAR,
+            stack: 'stack-all-series',
+            color: '#123456',
+            encode: {
+                x: 'orders_category',
+                y: fieldId,
+                yRef: { field: fieldId },
+            },
+        }) as unknown as EChartsSeries;
+
+    test('normal stacks: colors matching per-item data and preserves rounded-corner itemStyle', () => {
+        const series = {
+            ...mkStackedSeries('orders_revenue'),
+            data: [
+                {
+                    value: ['a', 50],
+                    itemStyle: { borderRadius: [4, 4, 0, 0] },
+                },
+                { value: ['b', 150] },
+            ],
+        };
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result.data).toEqual([
+            {
+                value: ['a', 50],
+                itemStyle: { borderRadius: [4, 4, 0, 0], color: '#ff0000' },
+            },
+            { value: ['b', 150] },
+        ]);
+    });
+
+    test('normal stacks: untargeted series in the stack stays untouched', () => {
+        const series = {
+            ...mkStackedSeries('orders_cost'),
+            data: [{ value: ['a', 50] }, { value: ['b', 50] }],
+        };
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result.data).toEqual([
+            { value: ['a', 50] },
+            { value: ['b', 50] },
+        ]);
+    });
+
+    test('100% stacks: dataset-bound series get a callback evaluating raw values', () => {
+        const series = mkStackedSeries('orders_revenue');
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            // Simulates 100% mode: the dataset holds normalized percentages,
+            // but evaluation uses the raw rows by index
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        const colorFn = (
+            result.itemStyle as {
+                color: (params: { dataIndex: number }) => string;
+            }
+        ).color;
+        expect(colorFn({ dataIndex: 0 })).toBe('#ff0000');
+        expect(colorFn({ dataIndex: 1 })).toBe('#123456');
+    });
+
+    test('passes through non-stacked and non-bar series', () => {
+        const flatBar = {
+            type: CartesianSeriesType.BAR,
+            color: '#123456',
+            encode: { yRef: { field: 'orders_revenue' } },
+        } as unknown as EChartsSeries;
+        const line = {
+            type: CartesianSeriesType.LINE,
+            stack: 'stack-all-series',
+            color: '#123456',
+            encode: { yRef: { field: 'orders_cost' } },
+        } as unknown as EChartsSeries;
+
+        const result = applyConditionalFormattingToStackedSeries({
+            seriesList: [flatBar, line],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result[0]).toBe(flatBar);
+        expect(result[1]).toBe(line);
+    });
+});
+
+describe('assignSeriesZByOrder', () => {
+    const mkSeries = (type: CartesianSeriesType, name: string): EChartsSeries =>
+        ({ type, name }) as unknown as EChartsSeries;
+
+    test('assigns a strictly increasing z matching array position', () => {
+        const result = assignSeriesZByOrder([
+            mkSeries(CartesianSeriesType.AREA, 'area'),
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].z!).toBe(2);
+        expect(result[1].z!).toBeGreaterThan(result[0].z!);
+    });
+
+    test('later series paint on top regardless of type (bar over area)', () => {
+        const area = mkSeries(CartesianSeriesType.AREA, 'area');
+        const bar = mkSeries(CartesianSeriesType.BAR, 'bar');
+
+        // area first in list -> lower z -> painted behind the bar
+        const result = assignSeriesZByOrder([area, bar]);
+        const areaZ = result.find((s) => s.name === 'area')?.z ?? 0;
+        const barZ = result.find((s) => s.name === 'bar')?.z ?? 0;
+
+        expect(barZ).toBeGreaterThan(areaZ);
+    });
+
+    test('keeps every series z below the reference-line z, even with many series', () => {
+        const many = Array.from({ length: 40 }, (_, i) =>
+            mkSeries(CartesianSeriesType.BAR, `s${i}`),
+        );
+
+        const result = assignSeriesZByOrder(many);
+
+        result.forEach((s) => expect(s.z!).toBeLessThan(REFERENCE_LINE_Z));
+        // still strictly ordered
+        for (let i = 1; i < result.length; i += 1) {
+            expect(result[i].z!).toBeGreaterThan(result[i - 1].z!);
+        }
+    });
+
+    test('pins markLine z so persisted config cannot sink reference lines', () => {
+        const withRefLine = {
+            ...mkSeries(CartesianSeriesType.AREA, 'area'),
+            markLine: { z: 1, data: [{ yAxis: 5 }] },
+        } as unknown as EChartsSeries;
+
+        const result = assignSeriesZByOrder([
+            withRefLine,
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].markLine).toMatchObject({
+            z: REFERENCE_LINE_Z,
+            data: [{ yAxis: 5 }],
+        });
+        // series without a markLine don't gain one
+        expect(result[1].markLine).toBeUndefined();
+    });
+
+    test('preserves other series properties and does not mutate the input', () => {
+        const input = [mkSeries(CartesianSeriesType.LINE, 'line')];
+        const result = assignSeriesZByOrder(input);
+
+        expect(result[0]).toMatchObject({
+            type: CartesianSeriesType.LINE,
+            name: 'line',
+            z: 2,
+        });
+        expect(input[0]).not.toHaveProperty('z');
+    });
+
+    test('handles an empty series list', () => {
+        expect(assignSeriesZByOrder([])).toEqual([]);
+    });
+});
+
+describe('series symbol visibility', () => {
+    test.each([CartesianSeriesType.LINE, CartesianSeriesType.AREA])(
+        '%s symbols match the checkbox for grouped and ungrouped series',
+        (type) => {
+            for (const grouped of [false, true]) {
+                for (const showSymbol of [undefined, false, true]) {
+                    const yRef = {
+                        field: 'revenue',
+                        ...(grouped && {
+                            pivotValues: [
+                                { field: 'status', value: 'complete' },
+                            ],
+                        }),
+                    };
+                    const chart: CartesianChart = {
+                        layout: { xField: 'date', yField: ['revenue'] },
+                        eChartsConfig: {
+                            series: [
+                                {
+                                    type,
+                                    showSymbol,
+                                    label: { show: true },
+                                    encode: { xRef: { field: 'date' }, yRef },
+                                },
+                            ],
+                        },
+                    };
+                    const [series] = getEchartsSeriesFromPivotedData(
+                        {},
+                        chart,
+                        { revenue: grouped ? yRef : 'revenue' },
+                    );
+
+                    expect(series.pivotReference).toEqual(
+                        grouped ? yRef : undefined,
+                    );
+                    expect(series.showSymbol).toBe(true);
+                    expect(series.symbolSize).toBe(showSymbol ? 4 : 0);
+                    expect(series.label?.show).toBe(true);
+                }
+            }
+        },
+    );
+});

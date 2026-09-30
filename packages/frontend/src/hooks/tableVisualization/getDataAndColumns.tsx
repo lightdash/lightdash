@@ -1,18 +1,15 @@
+import { type ResultRow, type ResultValue } from '@lightdash/common';
 import {
-    buildPivotRowTotalKey,
-    formatItemValue,
-    getSubtotalKey,
-    isCustomDimension,
-    isDimension,
-    isField,
-    normalizePivotMatchRaw,
-    type ItemsMap,
-    type GroupedPivotRowSubtotals,
-    type MergeColumnTotal,
-    type ParametersValuesMap,
-    type ResultRow,
-    type ResultValue,
-} from '@lightdash/common';
+    buildTableColumns,
+    getUniqueColumnOrder,
+    findMatchingSubtotal as findMatchingSubtotalHeadless,
+    getRowSubtotalValue,
+    getSubtotalGroupKey,
+    getSubtotalValueFromGroup,
+    getTableSubtotalCell,
+    type TableColumnsInput,
+    type TableModelColumn,
+} from '@lightdash/visualization/editor';
 import { Skeleton, Text } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
@@ -29,30 +26,11 @@ import {
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
-import { canHaveWarehouseTotal } from '../../utils/canHaveWarehouseTotal';
 import { getFormattedValueCell } from '../useColumns';
 
-type Args = {
-    itemsMap: ItemsMap;
-    selectedItemIds: string[];
-    isColumnVisible: (key: string) => boolean;
-    isColumnFrozen: (key: string) => boolean;
-    getColumnWidth: (key: string) => number | undefined;
-    showTableNames: boolean;
-    getFieldLabelOverride: (key: string) => string | undefined;
-    columnOrder: string[];
-    totals?: Record<string, number>;
-    totalsLoading?: boolean;
-    totalsError?: unknown;
-    /** Totals over a merged result exist only for some metric types. */
-    isMergedResult?: boolean;
-    /** Where each merged column's total comes from, by field id. */
-    mergeColumnTotals?: Record<string, MergeColumnTotal>;
-    groupedSubtotals?: Record<string, Record<string, number>[]>;
-    subtotalsLoading?: boolean;
-    subtotalsError?: unknown;
-    parameters?: ParametersValuesMap;
-};
+export { getRowSubtotalValue, getSubtotalValueFromGroup };
+
+type Args = TableColumnsInput;
 
 export function getGroupingValuesAndSubtotalKey(
     info: Pick<CellContext<ResultRow, unknown>, 'row' | 'table'>,
@@ -61,7 +39,10 @@ export function getGroupingValuesAndSubtotalKey(
         .getState()
         .grouping.slice(0, info.row.depth + 1);
 
-    if (!groupingDimensions.length) {
+    // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
+    const subtotalGroupKey = getSubtotalGroupKey(groupingDimensions);
+
+    if (subtotalGroupKey === undefined) {
         return;
     }
 
@@ -73,9 +54,6 @@ export function getGroupingValuesAndSubtotalKey(
         ]),
     );
 
-    // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
-    const subtotalGroupKey = getSubtotalKey(groupingDimensions);
-
     return { groupingValues, subtotalGroupKey };
 }
 
@@ -85,88 +63,21 @@ export function findMatchingSubtotal(
     groupingValues: Record<string, { value: ResultValue } | undefined>,
     pivotedHeaderValues: Record<string, ResultValue>,
 ): Record<string, number> | undefined {
-    return records?.find((sub) => {
-        try {
-            return (
-                Object.keys(groupingValues).every(
-                    (key) =>
-                        normalizePivotMatchRaw(
-                            groupingValues[key]?.value.raw,
-                        ) === normalizePivotMatchRaw(sub[key]),
-                ) &&
-                Object.keys(pivotedHeaderValues).every(
-                    (key) =>
-                        normalizePivotMatchRaw(
-                            pivotedHeaderValues[key]?.raw,
-                        ) === normalizePivotMatchRaw(sub[key]),
-                )
-            );
-        } catch (e) {
-            captureException(e);
-            return false;
-        }
-    });
+    return findMatchingSubtotalHeadless(
+        records,
+        groupingValues,
+        pivotedHeaderValues,
+        captureException,
+    );
 }
 
-export function getSubtotalValueFromGroup(
-    subtotal: Record<string, number> | undefined,
-    columnId: string,
-): number | null | undefined {
-    // No matching subtotal record exists (no data for this combination)
-    // Return undefined so formatItemValue will show '-'
-    if (subtotal === undefined) {
-        return undefined;
-    }
-
-    const subtotalColumnIds = Object.keys(subtotal);
-
-    // If the subtotal column is not in the subtotalsGroup, return null
-    // This is needed to prevent showing '-' when processing a value for the last grouped dimension column which is not taken into account for subtotals
-    // This column only exists when we're expanding the last grouped dimension
-    if (!subtotalColumnIds.includes(columnId)) {
-        return null;
-    }
-
-    // Convert null to undefined so formatItemValue shows '-' instead of '∅'
-    // SQL returns null when all aggregated values are null (no data)
-    return subtotal[columnId] ?? undefined;
-}
-
-export function getRowSubtotalValue(
-    groupedRowSubtotals: GroupedPivotRowSubtotals | undefined,
-    subtotalGroupKey: string,
-    groupingValues: Record<string, { value: ResultValue } | undefined>,
-    metricFieldId: string | undefined,
-): number | null | undefined {
-    if (!groupedRowSubtotals || !metricFieldId) return undefined;
-
-    const subtotalRow =
-        groupedRowSubtotals[subtotalGroupKey]?.[
-            buildPivotRowTotalKey(
-                Object.entries(groupingValues).map(([fieldId, value]) => [
-                    fieldId,
-                    value?.value.raw,
-                ]),
-            )
-        ];
-    if (!subtotalRow) return undefined;
-
-    const total =
-        subtotalRow[`${metricFieldId}_any`] ?? subtotalRow[metricFieldId];
-    return typeof total === 'number' ? total : null;
-}
-
-const getImageSize = (item: ItemsMap[string] | undefined) => {
-    if (isDimension(item) && item.image?.url) {
-        const defaultWidth = 100;
-        const defaultPadding = 8 * 2;
-        const width = (item.image?.width || defaultWidth) + defaultPadding;
-
+const getImageSize = (imageWidth: number | undefined) => {
+    if (imageWidth !== undefined) {
         return {
             style: {
-                width,
-                minWidth: width,
-                maxWidth: width,
+                width: imageWidth,
+                minWidth: imageWidth,
+                maxWidth: imageWidth,
             },
         };
     }
@@ -185,28 +96,55 @@ const getColumnWidthMeta = (width: number | undefined) => {
     };
 };
 
-const getDataAndColumns = ({
-    itemsMap,
-    selectedItemIds,
-    isColumnVisible,
-    isColumnFrozen,
-    getColumnWidth,
-    showTableNames,
-    getFieldLabelOverride,
-    columnOrder,
-    totals,
-    totalsLoading,
-    totalsError,
-    isMergedResult,
-    mergeColumnTotals = {},
-    groupedSubtotals,
-    subtotalsLoading,
-    subtotalsError,
-    parameters,
-}: Args): Array<TableHeader | TableColumn> => {
-    // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
-    const uniqueColumnOrder = [...new Set(columnOrder)];
+const renderHeader = (header: TableModelColumn['header']) => {
+    switch (header.kind) {
+        case 'override':
+            return <TableHeaderBoldLabel>{header.label}</TableHeaderBoldLabel>;
+        case 'field':
+            return (
+                <>
+                    {header.showTableName && (
+                        <TableHeaderRegularLabel>
+                            {header.tableLabel}{' '}
+                        </TableHeaderRegularLabel>
+                    )}
 
+                    <TableHeaderBoldLabel>{header.label}</TableHeaderBoldLabel>
+                </>
+            );
+        case 'customDimension':
+        case 'other':
+            return <TableHeaderBoldLabel>{header.label}</TableHeaderBoldLabel>;
+    }
+};
+
+const renderTotal = (total: TableModelColumn['total']) => {
+    if (total === null) return null;
+    switch (total.kind) {
+        case 'value':
+            return total.value;
+        case 'valueFromSource':
+            return (
+                <TotalFromSourceCell
+                    value={total.value}
+                    sourceLabel={total.sourceLabel}
+                />
+            );
+        case 'notComputable':
+            return <TotalNotComputableCell reason={total.reason} />;
+        case 'error':
+            return <TotalCalculationErrorCell error={total.error} />;
+        case 'loading':
+            return <Skeleton height={16} width="min(60%, 50px)" ml="auto" />;
+    }
+};
+
+const getDataAndColumns = (args: Args): Array<TableHeader | TableColumn> => {
+    const { groupedSubtotals, subtotalsLoading, subtotalsError, parameters } =
+        args;
+
+    const { columnOrder } = args;
+    const uniqueColumnOrder = getUniqueColumnOrder(columnOrder);
     if (uniqueColumnOrder.length !== columnOrder.length) {
         console.warn(
             'Duplicate columns in columnOrder',
@@ -220,164 +158,85 @@ const getDataAndColumns = ({
         });
     }
 
-    return uniqueColumnOrder.reduce<Array<TableHeader | TableColumn>>(
-        (acc, itemId) => {
-            const item = itemsMap[itemId] as
-                | (typeof itemsMap)[number]
-                | undefined;
+    const columns = buildTableColumns(args);
 
-            if (!selectedItemIds.includes(itemId)) {
-                return acc;
-            }
-            const headerOverride = getFieldLabelOverride(itemId);
+    return columns.map((modelColumn) => {
+        const { id: itemId, item } = modelColumn;
 
-            const column: TableHeader | TableColumn = columnHelper.accessor(
-                (row: ResultRow) => row[itemId],
-                {
-                    id: itemId,
-                    header: () => (
-                        <TableHeaderLabelContainer>
-                            {!!headerOverride ? (
-                                <TableHeaderBoldLabel>
-                                    {headerOverride}
-                                </TableHeaderBoldLabel>
-                            ) : isField(item) ? (
-                                <>
-                                    {showTableNames && (
-                                        <TableHeaderRegularLabel>
-                                            {item.tableLabel}{' '}
-                                        </TableHeaderRegularLabel>
-                                    )}
+        const column: TableHeader | TableColumn = columnHelper.accessor(
+            (row: ResultRow) => row[itemId],
+            {
+                id: itemId,
+                header: () => (
+                    <TableHeaderLabelContainer>
+                        {renderHeader(modelColumn.header)}
+                    </TableHeaderLabelContainer>
+                ),
+                cell: (info) => getFormattedValueCell(info, parameters),
 
-                                    <TableHeaderBoldLabel>
-                                        {item.label}
-                                    </TableHeaderBoldLabel>
-                                </>
-                            ) : isCustomDimension(item) ? (
-                                <TableHeaderBoldLabel>
-                                    {item.name}
-                                </TableHeaderBoldLabel>
-                            ) : (
-                                <TableHeaderBoldLabel>
-                                    {item && 'displayName' in item
-                                        ? item.displayName
-                                        : 'Undefined'}
-                                </TableHeaderBoldLabel>
-                            )}
-                        </TableHeaderLabelContainer>
-                    ),
-                    cell: (info) => getFormattedValueCell(info, parameters),
+                footer: () => renderTotal(modelColumn.total),
+                meta: {
+                    item,
+                    labelOverride: modelColumn.labelOverride,
+                    isVisible: modelColumn.isVisible,
+                    frozen: modelColumn.frozen,
+                    // For image columns with explicit width: set fixed width constraints
+                    ...getImageSize(modelColumn.imageWidth),
+                    ...getColumnWidthMeta(modelColumn.width),
+                },
+                // Some features work in the TanStack Table demos but not here, for unknown reasons.
+                // For example, setting grouping value here does not work. The workaround is to use
+                // a custom getGroupedRowModel.
+                // getGroupingValue: (row) => { // Never gets called.
+                //     const value = row[itemId]?.value.raw;
+                //     return value === null || value === undefined ? 'null' : value;
+                // },
+                // aggregationFn: 'sum', // Not working.
+                // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
+                aggregatedCell: (info) => {
+                    if (info.row.getIsGrouped()) {
+                        const groupingValuesAndSubtotalKey =
+                            getGroupingValuesAndSubtotalKey(info);
 
-                    footer: () => {
-                        const mergeTotal = mergeColumnTotals[itemId];
-                        if (totals?.[itemId] !== undefined) {
-                            const value = formatItemValue(
-                                item,
-                                totals[itemId],
-                                false,
-                                parameters,
-                            );
-                            return mergeTotal?.from === 'sourceQuery' ? (
-                                <TotalFromSourceCell
-                                    value={value}
-                                    sourceLabel={mergeTotal.sourceLabel}
-                                />
-                            ) : (
-                                value
-                            );
+                        if (!groupingValuesAndSubtotalKey) {
+                            return null;
                         }
-                        if (
-                            isMergedResult &&
-                            canHaveWarehouseTotal(item) &&
-                            mergeTotal?.from === null
-                        ) {
-                            return (
-                                <TotalNotComputableCell
-                                    reason={mergeTotal.reason}
-                                />
-                            );
+
+                        const { groupingValues, subtotalGroupKey } =
+                            groupingValuesAndSubtotalKey;
+
+                        // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
+                        const subtotal = findMatchingSubtotal(
+                            groupedSubtotals?.[subtotalGroupKey],
+                            groupingValues,
+                            {},
+                        );
+
+                        const subtotalValue = getSubtotalValueFromGroup(
+                            subtotal,
+                            info.column.id,
+                        );
+
+                        const subtotalCell = getTableSubtotalCell({
+                            item,
+                            subtotalValue,
+                            subtotalsLoading,
+                            subtotalsError,
+                            parameters,
+                        });
+
+                        if (subtotalCell === null) {
+                            return null;
                         }
-                        if (totalsError && canHaveWarehouseTotal(item)) {
-                            return (
-                                <TotalCalculationErrorCell
-                                    error={totalsError}
-                                />
-                            );
-                        }
-                        if (totalsLoading && canHaveWarehouseTotal(item)) {
-                            return (
-                                <Skeleton
-                                    height={16}
-                                    width="min(60%, 50px)"
-                                    ml="auto"
-                                />
-                            );
-                        }
-                        return null;
-                    },
-                    meta: {
-                        item,
-                        labelOverride: headerOverride,
-                        isVisible: isColumnVisible(itemId),
-                        frozen: isColumnFrozen(itemId),
-                        // For image columns with explicit width: set fixed width constraints
-                        ...getImageSize(item),
-                        ...getColumnWidthMeta(getColumnWidth(itemId)),
-                    },
-                    // Some features work in the TanStack Table demos but not here, for unknown reasons.
-                    // For example, setting grouping value here does not work. The workaround is to use
-                    // a custom getGroupedRowModel.
-                    // getGroupingValue: (row) => { // Never gets called.
-                    //     const value = row[itemId]?.value.raw;
-                    //     return value === null || value === undefined ? 'null' : value;
-                    // },
-                    // aggregationFn: 'sum', // Not working.
-                    // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
-                    aggregatedCell: (info) => {
-                        if (info.row.getIsGrouped()) {
-                            const groupingValuesAndSubtotalKey =
-                                getGroupingValuesAndSubtotalKey(info);
 
-                            if (!groupingValuesAndSubtotalKey) {
-                                return null;
-                            }
-
-                            const { groupingValues, subtotalGroupKey } =
-                                groupingValuesAndSubtotalKey;
-
-                            // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                            const subtotal = findMatchingSubtotal(
-                                groupedSubtotals?.[subtotalGroupKey],
-                                groupingValues,
-                                {},
-                            );
-
-                            const subtotalValue = getSubtotalValueFromGroup(
-                                subtotal,
-                                info.column.id,
-                            );
-
-                            if (subtotalValue === null) {
-                                return null;
-                            }
-
-                            if (
-                                subtotalValue === undefined &&
-                                subtotalsError &&
-                                canHaveWarehouseTotal(item)
-                            ) {
+                        switch (subtotalCell.kind) {
+                            case 'error':
                                 return (
                                     <TotalCalculationErrorCell
-                                        error={subtotalsError}
+                                        error={subtotalCell.error}
                                     />
                                 );
-                            }
-
-                            if (
-                                subtotalValue === undefined &&
-                                subtotalsLoading &&
-                                canHaveWarehouseTotal(item)
-                            ) {
+                            case 'loading':
                                 return (
                                     <Skeleton
                                         height={16}
@@ -385,26 +244,19 @@ const getDataAndColumns = ({
                                         ml="auto"
                                     />
                                 );
-                            }
-
-                            return (
-                                <Text span inherit fw={600}>
-                                    {formatItemValue(
-                                        item,
-                                        subtotalValue,
-                                        false,
-                                        parameters,
-                                    )}
-                                </Text>
-                            );
+                            case 'value':
+                                return (
+                                    <Text span inherit fw={600}>
+                                        {subtotalCell.value}
+                                    </Text>
+                                );
                         }
-                    },
+                    }
                 },
-            );
-            return [...acc, column];
-        },
-        [],
-    );
+            },
+        );
+        return column;
+    });
 };
 
 export default getDataAndColumns;

@@ -1,9 +1,4 @@
 import {
-    formatItemValue,
-    isField,
-    isHexCodeColor,
-    isMetric,
-    isTableCalculation,
     PieChartLegendLabelMaxLengthDefault,
     PieChartLegendPositionDefault,
     type CustomDimension,
@@ -15,18 +10,25 @@ import {
     type PieChart,
     type PieChartLegendPosition,
     type PieChartValueOptions,
-    type ResultRow,
-    type ResultValue,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
+import {
+    buildValidPieConfig,
+    getPieChartData,
+    getPieGroupColorDefaults,
+    getPieSelectedMetric,
+    getSortedPieGroupLabels,
+    isPieValueOptionOverridden,
+    repairPieGroupFieldIds,
+    repairPieMetricId,
+    type PieChartDataPoint,
+} from '@lightdash/visualization/editor';
 import { useDebouncedValue } from '@mantine/hooks';
 import isEmpty from 'lodash/isEmpty';
 import isEqual from 'lodash/isEqual';
 import mapValues from 'lodash/mapValues';
 import omitBy from 'lodash/omitBy';
-import pick from 'lodash/pick';
-import pickBy from 'lodash/pickBy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';
 
@@ -78,14 +80,7 @@ type PieChartConfig = {
     legendPositionChange: (position: PieChartLegendPosition) => void;
     legendMaxItemLength: number | undefined;
     legendMaxItemLengthChange: (length: number | undefined) => void;
-    data: {
-        name: string;
-        value: number;
-        meta: {
-            value: ResultValue;
-            rows: ResultRow[];
-        };
-    }[];
+    data: PieChartDataPoint[];
 };
 
 export type PieChartConfigFn = (
@@ -185,15 +180,10 @@ const usePieChartConfig: PieChartConfigFn = (
         [numericMetrics],
     );
 
-    const selectedMetric = useMemo(() => {
-        if (!itemsMap || !metricId) return undefined;
-        const item = itemsMap[metricId];
-
-        if ((isField(item) && isMetric(item)) || isTableCalculation(item))
-            return item;
-
-        return undefined;
-    }, [itemsMap, metricId]);
+    const selectedMetric = useMemo(
+        () => getPieSelectedMetric(itemsMap, metricId),
+        [itemsMap, metricId],
+    );
 
     const isLoading = !resultsData;
 
@@ -211,17 +201,11 @@ const usePieChartConfig: PieChartConfigFn = (
     useEffect(() => {
         if (isLoading || dimensionIds.length === 0) return;
 
-        const newGroupFieldIds = groupFieldIds.filter(
-            (id) =>
-                dimensionIds.includes(id) ||
-                (!!id && pendingDimensionIds.has(id)),
-        );
-
-        const firstDimensionId = dimensionIds[0];
-        if (newGroupFieldIds.length === 0 && firstDimensionId) {
-            setGroupFieldIds([firstDimensionId]);
-            return;
-        }
+        const newGroupFieldIds = repairPieGroupFieldIds({
+            groupFieldIds,
+            dimensionIds,
+            pendingDimensionIds,
+        });
 
         if (isEqual(newGroupFieldIds, groupFieldIds)) return;
 
@@ -236,29 +220,16 @@ const usePieChartConfig: PieChartConfigFn = (
 
     useEffect(() => {
         if (isLoading || allNumericMetricIds.length === 0) return;
-        if (
-            metricId &&
-            (allNumericMetricIds.includes(metricId) ||
-                pendingMetricIds.has(metricId))
-        )
-            return;
 
-        /**
-         * When table calculations update, their name changes, so we need to update the selected fields
-         * If the selected field is a table calculation with the old name in the metadata, set it to the new name
-         */
-        if (tableCalculationsMetadata) {
-            const metricTcIndex = tableCalculationsMetadata.findIndex(
-                (tc) => tc.oldName === metricId,
-            );
+        const nextMetricId = repairPieMetricId({
+            metricId,
+            allNumericMetricIds,
+            pendingMetricIds,
+            tableCalculationsMetadata,
+        });
+        if (nextMetricId === metricId) return;
 
-            if (metricTcIndex !== -1) {
-                setMetricId(tableCalculationsMetadata[metricTcIndex].name);
-                return;
-            }
-        }
-
-        setMetricId(allNumericMetricIds[0] ?? null);
+        setMetricId(nextMetricId);
     }, [
         allNumericMetricIds,
         isLoading,
@@ -267,115 +238,52 @@ const usePieChartConfig: PieChartConfigFn = (
         tableCalculationsMetadata,
     ]);
 
-    const isValueLabelOverriden = useMemo(() => {
-        return Object.values(groupValueOptionOverrides).some(
-            (value) => value.valueLabel !== undefined,
-        );
-    }, [groupValueOptionOverrides]);
+    const isValueLabelOverriden = useMemo(
+        () =>
+            isPieValueOptionOverridden(groupValueOptionOverrides, 'valueLabel'),
+        [groupValueOptionOverrides],
+    );
 
-    const isShowValueOverriden = useMemo(() => {
-        return Object.values(groupValueOptionOverrides).some(
-            (value) => value.showValue !== undefined,
-        );
-    }, [groupValueOptionOverrides]);
+    const isShowValueOverriden = useMemo(
+        () =>
+            isPieValueOptionOverridden(groupValueOptionOverrides, 'showValue'),
+        [groupValueOptionOverrides],
+    );
 
-    const isShowPercentageOverriden = useMemo(() => {
-        return Object.values(groupValueOptionOverrides).some(
-            (value) => value.showPercentage !== undefined,
-        );
-    }, [groupValueOptionOverrides]);
+    const isShowPercentageOverriden = useMemo(
+        () =>
+            isPieValueOptionOverridden(
+                groupValueOptionOverrides,
+                'showPercentage',
+            ),
+        [groupValueOptionOverrides],
+    );
 
-    const data = useMemo(() => {
-        if (
-            !metricId ||
-            !selectedMetric ||
-            !resultsData ||
-            resultsData.rows.length === 0 ||
-            !groupFieldIds ||
-            groupFieldIds.length === 0
-        ) {
-            return [];
-        }
-
-        const isMetricPresentInResults = resultsData?.rows.some(
-            (r) => r[metricId],
-        );
-
-        if (!isMetricPresentInResults) {
-            return [];
-        }
-
-        const mappedData = resultsData.rows.map((row) => {
-            const name = groupFieldIds
-                .map((groupFieldId) => row[groupFieldId]?.value?.formatted)
-                .filter(Boolean)
-                .join(' - ');
-
-            const value = Number(row[metricId].value.raw);
-
-            return { name, value, row };
-        });
-
-        return Object.entries(
-            mappedData.reduce<
-                Record<
-                    string,
-                    {
-                        value: number;
-                        rows: ResultRow[];
-                    }
-                >
-            >((acc, { name, value, row }) => {
-                return {
-                    ...acc,
-                    [name]: {
-                        value: (acc[name]?.value ?? 0) + value,
-                        rows: [...(acc[name]?.rows ?? []), row],
-                    },
-                };
-            }, {}),
-        )
-            .map(([name, { value, rows }]) => ({
-                name,
-                value,
-                meta: {
-                    value: {
-                        formatted: formatItemValue(
-                            selectedMetric,
-                            value,
-                            false,
-                            parameters,
-                            resultsData?.resolvedTimezone,
-                        ),
-                        raw: value,
-                    },
-                    rows,
-                },
-            }))
-            .sort((a, b) => b.value - a.value);
-    }, [resultsData, groupFieldIds, selectedMetric, metricId, parameters]);
+    const data = useMemo(
+        () =>
+            getPieChartData({
+                resultsData,
+                groupFieldIds,
+                metricId,
+                selectedMetric,
+                parameters,
+            }),
+        [resultsData, groupFieldIds, selectedMetric, metricId, parameters],
+    );
 
     const groupLabels = useMemo(() => {
         return data.map(({ name }) => name);
     }, [data]);
 
-    const sortedGroupLabels = useMemo(() => {
-        const availableSortedOverrides = groupSortOverrides.filter((label) =>
-            groupLabels.includes(label),
-        );
+    const sortedGroupLabels = useMemo(
+        () => getSortedPieGroupLabels(groupSortOverrides, groupLabels),
+        [groupSortOverrides, groupLabels],
+    );
 
-        return availableSortedOverrides.length > 0
-            ? availableSortedOverrides
-            : groupLabels;
-    }, [groupSortOverrides, groupLabels]);
-
-    const groupColorDefaults = useMemo(() => {
-        return Object.fromEntries(
-            groupLabels.map((name, index) => {
-                return [name, colorPalette[index % colorPalette.length]];
-            }),
-        );
-    }, [groupLabels, colorPalette]);
+    const groupColorDefaults = useMemo(
+        () => getPieGroupColorDefaults(groupLabels, colorPalette),
+        [groupLabels, colorPalette],
+    );
 
     const handleGroupChange = useCallback(
         (prevDimensionId: string, newDimensionId: string) => {
@@ -513,33 +421,24 @@ const usePieChartConfig: PieChartConfigFn = (
     );
 
     const validConfig: PieChart = useMemo(
-        () => ({
-            groupFieldIds,
-            metricId: metricId ?? undefined,
-            isDonut,
-            valueLabel,
-            showValue,
-            showPercentage,
-            valueLabelColor,
-            groupLabelOverrides: pick(
-                debouncedGroupLabelOverrides,
+        () =>
+            buildValidPieConfig({
+                groupFieldIds,
+                metricId,
+                isDonut,
+                valueLabel,
+                showValue,
+                showPercentage,
+                valueLabelColor,
                 groupLabels,
-            ),
-            groupColorOverrides: pickBy(
-                pick(debouncedGroupColorOverrides, groupLabels),
-                isHexCodeColor,
-            ),
-            groupValueOptionOverrides: omitBy(
-                pick(groupValueOptionOverrides, groupLabels),
-                isEmpty,
-            ),
-            groupSortOverrides: groupSortOverrides.filter((label) =>
-                groupLabels.includes(label),
-            ),
-            showLegend,
-            legendPosition,
-            legendMaxItemLength,
-        }),
+                groupLabelOverrides: debouncedGroupLabelOverrides,
+                groupColorOverrides: debouncedGroupColorOverrides,
+                groupValueOptionOverrides,
+                groupSortOverrides,
+                showLegend,
+                legendPosition,
+                legendMaxItemLength,
+            }),
         [
             groupFieldIds,
             metricId,

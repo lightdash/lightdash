@@ -1,7 +1,5 @@
-import { type EChartsSeries, type Series } from '@lightdash/common';
+export type { SeriesLike } from '@lightdash/visualization/editor';
 
 export interface ChartColorMappingContextProps {
     colorMappings: Map<string, Map<string, number>>;
 }
-
-export type SeriesLike = EChartsSeries | Series;

@@ -1,4 +1,3 @@
-import { isField, isMetric, isTableCalculation } from '@lightdash/common';
 import type {
     ApiError,
     CustomDimension,
@@ -10,6 +9,18 @@ import type {
     TableCalculationMetadata,
     TreemapChart,
 } from '@lightdash/common';
+import {
+    buildTreemapData,
+    getTreemapMetricItem,
+    getValidTreemapGroupFieldIds,
+    reorderTreemapGroupFieldIds,
+    repairTreemapSizeMetricId,
+    TREEMAP_DEFAULT_END_COLOR,
+    TREEMAP_DEFAULT_LEAF_DEPTH,
+    TREEMAP_DEFAULT_START_COLOR,
+    TREEMAP_DEFAULT_VISIBLE_MIN,
+    type TreemapNode,
+} from '@lightdash/visualization/editor';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAsyncCalculateSubtotals } from './useAsyncCalculateTotal';
 import { useProjectUuid } from './useProjectUuid';
@@ -52,19 +63,6 @@ type TreemapChartConfig = {
     data: TreemapNode[];
 };
 
-type MutableTreemapNode = {
-    name: string;
-    value: number[];
-    children: Record<string, MutableTreemapNode>;
-};
-
-//For use with eCharts config
-type TreemapNode = {
-    name: string;
-    value: number[];
-    children?: TreemapNode[];
-};
-
 export type TreemapChartConfigFn = (
     treemapConfig: TreemapChart | undefined,
     resultsData:
@@ -80,6 +78,11 @@ export type TreemapChartConfigFn = (
     tableCalculationsMetadata?: TableCalculationMetadata[],
 ) => TreemapChartConfig;
 
+/**
+ * The treemap editor state. Defaults, field validation and the tree itself
+ * come from `@lightdash/visualization`; this hook holds the editor state
+ * and its mutators, and fetches the subtotals the tree's parent nodes need.
+ */
 const useTreemapChartConfig: TreemapChartConfigFn = (
     treemapConfig,
     resultsData,
@@ -91,23 +94,22 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     const projectUuid = useProjectUuid();
 
     const [visibleMin, setVisibleMin] = useState(
-        treemapConfig?.visibleMin ?? 100,
+        treemapConfig?.visibleMin ?? TREEMAP_DEFAULT_VISIBLE_MIN,
     );
-    const [leafDepth, setLeafDepth] = useState(treemapConfig?.leafDepth ?? 2);
+    const [leafDepth, setLeafDepth] = useState(
+        treemapConfig?.leafDepth ?? TREEMAP_DEFAULT_LEAF_DEPTH,
+    );
 
     const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
 
-    const validGroupFieldIds = useMemo(() => {
-        if (
-            dimensionIds.length === treemapConfig?.groupFieldIds?.length &&
-            treemapConfig.groupFieldIds?.every((id) =>
-                dimensionIds.includes(id),
-            )
-        ) {
-            return treemapConfig.groupFieldIds;
-        }
-        return dimensionIds;
-    }, [treemapConfig?.groupFieldIds, dimensionIds]);
+    const validGroupFieldIds = useMemo(
+        () =>
+            getValidTreemapGroupFieldIds(
+                treemapConfig?.groupFieldIds,
+                dimensionIds,
+            ),
+        [treemapConfig?.groupFieldIds, dimensionIds],
+    );
 
     const [groupFieldIds, setGroupFieldIds] = useState(validGroupFieldIds);
 
@@ -118,10 +120,10 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         treemapConfig?.colorMetricId ?? null,
     );
     const [startColor, onStartColorChange] = useState(
-        treemapConfig?.startColor ?? '#91cc75',
+        treemapConfig?.startColor ?? TREEMAP_DEFAULT_START_COLOR,
     );
     const [endColor, onEndColorChange] = useState(
-        treemapConfig?.endColor ?? '#ee6666',
+        treemapConfig?.endColor ?? TREEMAP_DEFAULT_END_COLOR,
     );
     const [useDynamicColors, setDynamicColors] = useState(
         treemapConfig?.useDynamicColors ?? false,
@@ -147,25 +149,15 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         [numericMetrics],
     );
 
-    const selectedSizeMetric = useMemo(() => {
-        if (!itemsMap || !sizeMetricId) return undefined;
-        const item = itemsMap[sizeMetricId];
+    const selectedSizeMetric = useMemo(
+        () => getTreemapMetricItem(itemsMap, sizeMetricId),
+        [itemsMap, sizeMetricId],
+    );
 
-        if ((isField(item) && isMetric(item)) || isTableCalculation(item))
-            return item;
-
-        return undefined;
-    }, [itemsMap, sizeMetricId]);
-
-    const selectedColorMetric = useMemo(() => {
-        if (!itemsMap || !colorMetricId) return undefined;
-        const item = itemsMap[colorMetricId];
-
-        if ((isField(item) && isMetric(item)) || isTableCalculation(item))
-            return item;
-
-        return undefined;
-    }, [itemsMap, colorMetricId]);
+    const selectedColorMetric = useMemo(
+        () => getTreemapMetricItem(itemsMap, colorMetricId),
+        [itemsMap, colorMetricId],
+    );
 
     const isLoading = !resultsData;
 
@@ -174,25 +166,14 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     }, [validGroupFieldIds]);
 
     useEffect(() => {
-        if (isLoading || allNumericMetricIds.length === 0) return;
-        if (sizeMetricId && allNumericMetricIds.includes(sizeMetricId)) return;
-
-        /**
-         * When table calculations update, their name changes, so we need to update the selected fields
-         * If the selected field is a table calculation with the old name in the metadata, set it to the new name
-         */
-        if (tableCalculationsMetadata) {
-            const metricTcIndex = tableCalculationsMetadata.findIndex(
-                (tc) => tc.oldName === sizeMetricId,
-            );
-
-            if (metricTcIndex !== -1) {
-                setSizeMetricId(tableCalculationsMetadata[metricTcIndex].name);
-                return;
-            }
-        }
-
-        setSizeMetricId(allNumericMetricIds[0] ?? null);
+        const repairedSizeMetricId = repairTreemapSizeMetricId({
+            sizeMetricId,
+            allNumericMetricIds,
+            isLoading,
+            tableCalculationsMetadata,
+        });
+        if (repairedSizeMetricId === undefined) return;
+        setSizeMetricId(repairedSizeMetricId);
     }, [
         allNumericMetricIds,
         isLoading,
@@ -202,15 +183,9 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
 
     const handleGroupReorder = useCallback(
         ({ from, to }: { from: number; to: number }) => {
-            setGroupFieldIds((prev) => {
-                const cloned = [...prev];
-                const item = prev[from];
-
-                cloned.splice(from, 1);
-                cloned.splice(to, 0, item);
-
-                return cloned;
-            });
+            setGroupFieldIds((prev) =>
+                reorderTreemapGroupFieldIds(prev, { from, to }),
+            );
         },
         [],
     );
@@ -229,123 +204,25 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         invalidateCache: undefined,
     });
 
-    const data = useMemo(() => {
-        if (!resultsData) return [];
-        if (
-            !sizeMetricId ||
-            !selectedSizeMetric ||
-            !resultsData ||
-            resultsData.rows.length === 0 ||
-            !groupFieldIds ||
-            groupFieldIds.length === 0
-        ) {
-            return [];
-        }
-
-        const isMetricPresentInResults = resultsData?.rows.some(
-            (r) => r[sizeMetricId],
-        );
-
-        if (!isMetricPresentInResults) {
-            return [];
-        }
-
-        const getEmptyTreemapNode = (name: string): MutableTreemapNode => ({
-            name,
-            value: [0, 0],
-            children: {},
-        });
-
-        const rootTreemapNode = resultsData.rows.reduce<MutableTreemapNode>(
-            (acc, row) => {
-                let parent = acc;
-                const rowSizeMetricValue = Number(
-                    row[sizeMetricId]?.value?.raw ?? 0,
-                );
-                const rowColorMetricValue = colorMetricId
-                    ? Number(row[colorMetricId]?.value?.raw ?? 0)
-                    : 0;
-
-                // Assumes parent-child relationship is determined by the order of groupFieldIds
-                for (let i = 0; i < groupFieldIds.length; i++) {
-                    const dimensionValueRaw = String(
-                        row[groupFieldIds[i]]?.value?.raw,
-                    );
-
-                    const dimensionValueFormatted = String(
-                        row[groupFieldIds[i]]?.value?.formatted,
-                    );
-
-                    if (!parent.children[dimensionValueRaw]) {
-                        parent.children[dimensionValueRaw] =
-                            getEmptyTreemapNode(dimensionValueFormatted);
-                    }
-                    if (i === groupFieldIds.length - 1) {
-                        parent.children[dimensionValueRaw].value = [
-                            rowSizeMetricValue,
-                            rowColorMetricValue,
-                        ];
-                    }
-                    parent = parent.children[dimensionValueRaw];
-                }
-                return acc;
-            },
-            getEmptyTreemapNode('root'),
-        );
-
-        // Convert the structure's children into an array
-        const convertToArray = (node: MutableTreemapNode): TreemapNode[] => {
-            const children = Object.values(node.children).flatMap(
-                convertToArray,
-            );
-            return [
-                {
-                    name: node.name,
-                    value: node.value,
-                    children: children.length > 0 ? children : undefined,
-                },
-            ];
-        };
-
-        // Iterate on the grouped subtotals, adjusting the parent values in the treemap with the subtotal aggregated values
-        if (groupedSubtotals) {
-            Object.entries(groupedSubtotals).forEach(
-                ([key, levelSubtotals]) => {
-                    const subtotalDimensionNames = key.split(':');
-                    levelSubtotals.forEach((subtotalValueObject) => {
-                        let parent = rootTreemapNode;
-                        const subtotalDimensionValues =
-                            subtotalDimensionNames.map(
-                                (k) => subtotalValueObject[k],
-                            ); // Values of the dimensions
-
-                        subtotalDimensionValues.forEach((dimValue, index) => {
-                            if (index === subtotalDimensionNames.length - 1) {
-                                if (parent?.children?.[dimValue]) {
-                                    // Handles null values
-                                    parent.children[dimValue].value[0] =
-                                        subtotalValueObject[sizeMetricId];
-                                    if (colorMetricId) {
-                                        parent.children[dimValue].value[1] =
-                                            subtotalValueObject[colorMetricId];
-                                    }
-                                }
-                            }
-                            parent = parent?.children?.[dimValue];
-                        });
-                    });
-                },
-            );
-        }
-        return convertToArray(rootTreemapNode)[0].children || [];
-    }, [
-        resultsData,
-        groupFieldIds,
-        selectedSizeMetric,
-        sizeMetricId,
-        colorMetricId,
-        groupedSubtotals,
-    ]);
+    const data = useMemo(
+        () =>
+            buildTreemapData({
+                resultsData,
+                sizeMetricId,
+                selectedSizeMetric,
+                colorMetricId,
+                groupFieldIds,
+                groupedSubtotals,
+            }),
+        [
+            resultsData,
+            groupFieldIds,
+            selectedSizeMetric,
+            sizeMetricId,
+            colorMetricId,
+            groupedSubtotals,
+        ],
+    );
 
     const validConfig: TreemapChart = useMemo(() => {
         return {

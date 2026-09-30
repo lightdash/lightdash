@@ -1,4 +1,4 @@
-import Ajv from 'ajv';
+import Ajv, { type ValidateFunction } from 'ajv';
 import { Document, isMap, isSeq, parseDocument, type YAMLMap } from 'yaml';
 import {
     type CustomDimensionWriteback,
@@ -22,8 +22,20 @@ import {
 } from '../utils/convertCustomDimensionsToYaml';
 import { convertCustomMetricToLightdash } from './convertCustomMetricToLightdash';
 
-const ajv = new Ajv({ allErrors: true, strict: false });
-const validate = ajv.compile<LightdashModel>(modelSchema);
+// Lazy compilation keeps importing common safe under browser CSP: Ajv
+// generates code with `new Function`, which a strict policy refuses.
+type ModelValidator = { ajv: Ajv; validate: ValidateFunction<LightdashModel> };
+let modelValidator: ModelValidator | undefined;
+const getModelValidator = (): ModelValidator => {
+    if (!modelValidator) {
+        const ajv = new Ajv({ allErrors: true, strict: false });
+        modelValidator = {
+            ajv,
+            validate: ajv.compile<LightdashModel>(modelSchema),
+        };
+    }
+    return modelValidator;
+};
 
 /** Edits the original native model document, preserving comments and unrelated nodes. */
 export class LightdashModelEditor {
@@ -43,6 +55,7 @@ export class LightdashModelEditor {
 
     private validate(): LightdashModel {
         const model: unknown = this.doc.toJS();
+        const { ajv, validate } = getModelValidator();
         if (this.doc.errors.length > 0 || !validate(model)) {
             throw new ParseError(
                 `Invalid Lightdash model in ${this.filename}: ${this.doc.errors.map((error) => error.message).join('; ') || ajv.errorsText(validate.errors)}`,

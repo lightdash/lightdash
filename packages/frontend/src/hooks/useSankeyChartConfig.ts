@@ -7,11 +7,15 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { useEffect, useMemo, useState } from 'react';
 import {
-    transformSankeyData,
+    buildValidSankeyConfig,
+    getSankeyData,
+    resolveSankeyMetricFieldId,
+    resolveSankeySourceFieldId,
+    resolveSankeyTargetFieldId,
     type SankeySeriesDataPoint,
-} from './sankeyTransform';
+} from '@lightdash/visualization/editor';
+import { useEffect, useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 type SankeyChartConfig = {
@@ -87,42 +91,24 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
 
     // Auto-select fields when data first loads
     useEffect(() => {
-        if (isLoading || dimensionIds.length < 2) return;
-
-        if (!sourceFieldId || !dimensionIds.includes(sourceFieldId)) {
-            // Handle table calculation renames
-            if (tableCalculationsMetadata && sourceFieldId) {
-                const meta = tableCalculationsMetadata.find(
-                    (tc) => tc.oldName === sourceFieldId,
-                );
-                if (meta) {
-                    setSourceFieldId(meta.name);
-                    return;
-                }
-            }
-            setSourceFieldId(dimensionIds[0]);
-        }
+        const resolved = resolveSankeySourceFieldId({
+            sourceFieldId,
+            dimensionIds,
+            isLoading,
+            tableCalculationsMetadata,
+        });
+        if (resolved !== sourceFieldId) setSourceFieldId(resolved);
     }, [dimensionIds, sourceFieldId, isLoading, tableCalculationsMetadata]);
 
     useEffect(() => {
-        if (isLoading || dimensionIds.length < 2) return;
-
-        if (!targetFieldId || !dimensionIds.includes(targetFieldId)) {
-            if (tableCalculationsMetadata && targetFieldId) {
-                const meta = tableCalculationsMetadata.find(
-                    (tc) => tc.oldName === targetFieldId,
-                );
-                if (meta) {
-                    setTargetFieldId(meta.name);
-                    return;
-                }
-            }
-            // Pick the second dimension, different from source
-            const available = dimensionIds.filter(
-                (id) => id !== (sourceFieldId ?? dimensionIds[0]),
-            );
-            setTargetFieldId(available[0] ?? dimensionIds[1] ?? null);
-        }
+        const resolved = resolveSankeyTargetFieldId({
+            targetFieldId,
+            sourceFieldId,
+            dimensionIds,
+            isLoading,
+            tableCalculationsMetadata,
+        });
+        if (resolved !== targetFieldId) setTargetFieldId(resolved);
     }, [
         dimensionIds,
         targetFieldId,
@@ -132,47 +118,37 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
     ]);
 
     useEffect(() => {
-        if (isLoading || numericFieldIds.length === 0) return;
-
-        if (!metricFieldId || !numericFieldIds.includes(metricFieldId)) {
-            if (tableCalculationsMetadata && metricFieldId) {
-                const meta = tableCalculationsMetadata.find(
-                    (tc) => tc.oldName === metricFieldId,
-                );
-                if (meta) {
-                    setMetricFieldId(meta.name);
-                    return;
-                }
-            }
-            setMetricFieldId(numericFieldIds[0]);
-        }
+        const resolved = resolveSankeyMetricFieldId({
+            metricFieldId,
+            numericFieldIds,
+            isLoading,
+            tableCalculationsMetadata,
+        });
+        if (resolved !== metricFieldId) setMetricFieldId(resolved);
     }, [numericFieldIds, metricFieldId, isLoading, tableCalculationsMetadata]);
 
-    const data: SankeySeriesDataPoint = useMemo(() => {
-        if (
-            !resultsData ||
-            !sourceFieldId ||
-            !targetFieldId ||
-            !metricFieldId
-        ) {
-            return { nodes: [], links: [], maxDepth: 0, hasCycle: false };
-        }
-        return transformSankeyData(
-            resultsData.rows,
-            { sourceFieldId, targetFieldId, metricFieldId },
-            { nodeLayout },
-        );
-    }, [resultsData, sourceFieldId, targetFieldId, metricFieldId, nodeLayout]);
+    const data: SankeySeriesDataPoint = useMemo(
+        () =>
+            getSankeyData({
+                resultsData,
+                sourceFieldId,
+                targetFieldId,
+                metricFieldId,
+                nodeLayout,
+            }),
+        [resultsData, sourceFieldId, targetFieldId, metricFieldId, nodeLayout],
+    );
 
     const validConfig: SankeyChart = useMemo(
-        () => ({
-            sourceFieldId: sourceFieldId ?? undefined,
-            targetFieldId: targetFieldId ?? undefined,
-            metricFieldId: metricFieldId ?? undefined,
-            nodeAlign,
-            orient,
-            nodeLayout,
-        }),
+        () =>
+            buildValidSankeyConfig({
+                sourceFieldId,
+                targetFieldId,
+                metricFieldId,
+                nodeAlign,
+                orient,
+                nodeLayout,
+            }),
         [
             sourceFieldId,
             targetFieldId,

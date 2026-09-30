@@ -80,9 +80,11 @@ aliases.
 
 ```bash
 pnpm -F common lint
+pnpm -F visualization lint
 pnpm -F backend lint
 pnpm -F frontend lint
 pnpm -F common typecheck
+pnpm -F visualization typecheck
 pnpm -F backend typecheck
 pnpm -F frontend typecheck
 pnpm -F warehouses typecheck
@@ -92,6 +94,7 @@ pnpm -F warehouses typecheck
 
 ```bash
 pnpm -F common test
+pnpm -F visualization test
 pnpm -F backend test:dev:nowatch # runs only tests for modified files
 ```
 
@@ -239,6 +242,12 @@ Freezing analytics/customer *deployments* is a different mechanism in a differen
 -   Shared types and utilities used across packages
 -   Authorization logic with CASL
 -   Published as `@lightdash/common`
+
+**Visualization (`packages/visualization/`):**
+
+-   The headless chart engine every Lightdash chart draws through (web app, SDK, embedding, Desktop)
+-   Published as `@lightdash/visualization`; the frontend's chart hooks are thin wrappers over it
+-   Changes must leave the web app's charts identical: run `pnpm -F visualization test:regression` (see `packages/visualization/CLAUDE.md`)
 
 ## Authorization & Custom Roles
 

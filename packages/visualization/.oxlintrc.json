@@ -1,0 +1,46 @@
+{
+    "$schema": "../../node_modules/oxlint/configuration_schema.json",
+    "extends": ["../../.oxlintrc.base.json"],
+    "options": {
+        "typeAware": true
+    },
+    "rules": {
+        "@typescript-eslint/consistent-type-imports": [
+            "error",
+            { "prefer": "type-imports", "fixStyle": "inline-type-imports" }
+        ],
+        "@typescript-eslint/only-throw-error": "warn",
+        "no-unused-vars": [
+            "error",
+            {
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "ignoreRestSiblings": true,
+                "caughtErrors": "none"
+            }
+        ],
+        "no-template-curly-in-string": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        // Global isNaN coerces its argument; the axis parsing relies on that.
+        "no-restricted-globals": "off",
+        /* The chart builders moved here from the frontend, which runs the
+           rules below off. They stay off so the code keeps matching the
+           frontend's tests line for line; tighten them as files are rewritten. */
+        "prefer-destructuring": "off",
+        "no-nested-ternary": "off",
+        "arrow-body-style": "off",
+        "no-continue": "off",
+        // A library leaves logging to its caller.
+        "no-console": "error"
+    },
+    "overrides": [
+        {
+            "files": ["**/*.mock.ts", "**/*.test.ts", "**/*.spec.ts"],
+            "rules": {
+                "@typescript-eslint/no-unsafe-member-access": "off",
+                "@typescript-eslint/no-unsafe-assignment": "off",
+                "@typescript-eslint/no-unsafe-call": "off"
+            }
+        }
+    ]
+}

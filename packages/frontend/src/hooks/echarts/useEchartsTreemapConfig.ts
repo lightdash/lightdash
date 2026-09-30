@@ -1,24 +1,13 @@
-import {
-    formatCartesianTooltipRow,
-    formatColorIndicator,
-    formatItemValue,
-    formatTooltipHeader,
-    formatTooltipValue,
-    getItemLabelWithoutTableName,
-    getReadableTextColor,
-    getTooltipDivider,
-    getTooltipStyle,
-    vizThemeColors,
-} from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
-import { type EChartsOption, type TreemapSeriesOption } from 'echarts';
+import { buildTreemapEchartsOption } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isTreemapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
+import { useVisualizationTheme } from '../useVisualizationTheme';
 
-const EchartsTreemapType = 'treemap';
-
+/**
+ * The ECharts option for the treemap in the visualization context.
+ * The option itself is built by `@lightdash/visualization`.
+ */
 const useEchartsTreemapConfig = (isInDashboard: boolean) => {
     const {
         visualizationConfig,
@@ -29,210 +18,36 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         minimal,
         resolvedTimezone,
     } = useVisualizationContext();
-    const theme = useMantineTheme();
+    const theme = useVisualizationTheme();
 
-    const chartConfig = useMemo(() => {
-        if (!isTreemapVisualizationConfig(visualizationConfig)) return;
-        return visualizationConfig.chartConfig;
-    }, [visualizationConfig]);
+    const treemapConfig = isTreemapVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig
+        : undefined;
 
-    const treemapSeriesOption: TreemapSeriesOption | undefined = useMemo(() => {
-        if (!chartConfig) return;
-
-        const getMetricDisplayName = (metricId: string) => {
-            if (!itemsMap) return metricId;
-            const metricItem = itemsMap[metricId];
-            if (!metricItem) return metricId;
-            return getItemLabelWithoutTableName(metricItem);
-        };
-
-        const getMetricDisplayValue = (metricId: string, value: any) => {
-            return formatItemValue(
-                itemsMap?.[metricId],
-                value,
-                false,
+    return useMemo(
+        () =>
+            buildTreemapEchartsOption({
+                treemapConfig,
+                itemsMap,
+                colorPalette,
                 parameters,
+                tooltipAppendToBody: !isTouchDevice,
+                animation: !(isInDashboard || minimal),
                 resolvedTimezone,
-            );
-        };
-
-        const getStyledMetricDisplay = (
-            metricId: string,
-            value: any,
-            color: string,
-        ) => {
-            const label = getMetricDisplayName(metricId);
-            const formattedValue = getMetricDisplayValue(metricId, value);
-            const valuePill = formatTooltipValue(formattedValue);
-            const colorIndicator = formatColorIndicator(color);
-            return formatCartesianTooltipRow(colorIndicator, label, valuePill);
-        };
-
-        const {
-            validConfig: { visibleMin, leafDepth },
-            sizeMetricId,
-            colorMetricId,
-            startColor,
-            endColor,
-            startColorThreshold,
-            endColorThreshold,
-            groupFieldIds,
-            data,
-        } = chartConfig;
-
-        let levels = groupFieldIds?.map((fieldId, index) => ({
-            itemStyle: {
-                borderColor:
-                    theme.colors.ldGray[index % theme.colors.ldGray.length],
-                borderRadius: 4,
-            },
-        }));
-        if (levels && levels.length > 0) {
-            levels = levels.slice(0, levels.length - 1);
-        } else {
-            levels = [];
-        }
-        let visualMin = undefined;
-        let visualMax = undefined;
-        if (
-            Number.isFinite(startColorThreshold) &&
-            Number.isFinite(endColorThreshold)
-        ) {
-            visualMin = startColorThreshold;
-            visualMax = endColorThreshold;
-        }
-
-        const customColors =
-            startColor && endColor ? [startColor, endColor] : undefined;
-
-        return {
-            name: 'All',
-            type: EchartsTreemapType,
-            visibleMin,
-            leafDepth: leafDepth ? leafDepth : undefined,
-            visualDimension: 1,
-            visualMin,
-            visualMax,
-            itemStyle: {
-                borderColor: 'transparent',
-                gapWidth: 4,
-                borderRadius: 4,
-            },
-            upperLabel: {
-                show: true,
-                height: 30,
-                formatter: '{b}',
-                padding: [4, 8],
-                color: vizThemeColors.GRAY_9,
-            },
-            label: {
-                show: true,
-                formatter: (params) => {
-                    const { name, color } = params;
-                    // Get adaptive text color based on background
-                    const textColor =
-                        typeof color === 'string'
-                            ? getReadableTextColor(color)
-                            : 'white';
-                    return `{${textColor}|${name}}`;
-                },
-                rich: {
-                    white: {
-                        color: 'white',
-                    },
-                    black: {
-                        color: 'black',
-                    },
-                },
-            },
-            tooltip: {
-                formatter: (info) => {
-                    const { name, value, color } = info;
-                    if (!value || !Array.isArray(value) || !sizeMetricId)
-                        return formatTooltipHeader(name);
-
-                    const segmentColor =
-                        typeof color === 'string'
-                            ? color
-                            : theme.colors.ldGray[6];
-                    const header = formatTooltipHeader(name);
-                    const divider = getTooltipDivider();
-                    const sizeMetricDisplay = getStyledMetricDisplay(
-                        sizeMetricId,
-                        value[0],
-                        segmentColor,
-                    );
-                    const colorMetricDisplay =
-                        colorMetricId &&
-                        value.length > 1 &&
-                        value[1] !== undefined
-                            ? getStyledMetricDisplay(
-                                  colorMetricId,
-                                  value[1],
-                                  segmentColor,
-                              )
-                            : '';
-
-                    return `${header}${divider}${sizeMetricDisplay}${colorMetricDisplay}`;
-                },
-            },
-            color: colorMetricId === null ? colorPalette : customColors,
-            colorMappingBy: colorMetricId === null ? 'index' : 'value',
-            levels: [
-                {
-                    upperLabel: {
-                        show: false,
-                    },
-                    itemStyle: {
-                        borderRadius: 4,
-                    },
-                    color: colorMetricId === null ? colorPalette : customColors, // The global color setting doesn't work for the first level.
-                    colorMappingBy: colorMetricId === null ? 'index' : 'value',
-                },
-                ...levels,
-            ],
-            data: data || [],
-        };
-    }, [
-        chartConfig,
-        theme,
-        itemsMap,
-        colorPalette,
-        parameters,
-        resolvedTimezone,
-    ]);
-
-    const eChartsOption: EChartsOption | undefined = useMemo(() => {
-        if (!chartConfig || !treemapSeriesOption) return;
-
-        const animation = !(isInDashboard || minimal);
-
-        return {
-            textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(theme?.other?.chartFont),
-            },
-            tooltip: {
-                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
-                trigger: 'item' as const, //Even though this is the default, tooltips will not show up if this is not set.
-            },
-            // The treemap series runs its own animation and ignores the root flag.
-            series: [{ ...treemapSeriesOption, animation }],
-            animation,
-        };
-    }, [
-        chartConfig,
-        treemapSeriesOption,
-        isInDashboard,
-        minimal,
-        theme?.other?.chartFont,
-        isTouchDevice,
-    ]);
-    if (!itemsMap) return;
-    if (!eChartsOption || !treemapSeriesOption) return;
-    if (!treemapSeriesOption.data || treemapSeriesOption.data.length === 0)
-        return;
-
-    return { eChartsOption, treemapSeriesOption };
+                theme,
+            }),
+        [
+            treemapConfig,
+            itemsMap,
+            colorPalette,
+            parameters,
+            isTouchDevice,
+            minimal,
+            resolvedTimezone,
+            isInDashboard,
+            theme,
+        ],
+    );
 };
 
 export default useEchartsTreemapConfig;
