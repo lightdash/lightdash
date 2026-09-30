@@ -293,6 +293,7 @@ export type ProjectContentAsCodeCounts = {
     scheduledDeliveriesNum?: number;
     googleSheetsNum?: number;
     externalConnectionsNum?: number;
+    documentsNum?: number;
 };
 
 type CliContentAsCode = BaseTrack &

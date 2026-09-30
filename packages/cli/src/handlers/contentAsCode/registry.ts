@@ -11,6 +11,7 @@ import { USER_CODE_RESOURCE } from '../organizationContent/users';
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
+    DOCUMENT_CODE_RESOURCE,
     EXTERNAL_CONNECTION_CODE_RESOURCE,
     GOOGLE_SHEETS_CODE_RESOURCE,
     HOMEPAGE_CODE_RESOURCE,
@@ -51,6 +52,7 @@ export const PROJECT_CODE_RESOURCES: readonly CodeResourceRegistration[] = [
             ContentAsCodeType.SQL_CHART,
         ],
     },
+    DOCUMENT_CODE_RESOURCE,
     AI_AGENT_CODE_RESOURCE,
     SCHEDULED_DELIVERY_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,

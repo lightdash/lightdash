@@ -1,6 +1,8 @@
 import {
+    ChartType,
     ContentAsCodeType,
     type AgentAsCode,
+    type DocumentAsCode,
     type HomepageAsCode,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
@@ -10,6 +12,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
+    DOCUMENT_CODE_RESOURCE,
     HOMEPAGE_CODE_RESOURCE,
 } from './projectResources';
 import { readCodeResourceFiles, writeCodeResourceDocuments } from './resource';
@@ -45,6 +48,103 @@ afterEach(async () => {
 });
 
 describe('content-as-code resource files', () => {
+    it('round trips a Document through its slug-named YAML file', async () => {
+        const basePath = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'lightdash-document-code-'),
+        );
+        temporaryDirectories.push(basePath);
+        const document: DocumentAsCode = {
+            name: 'Quarterly review',
+            slug: 'quarterly-review',
+            description: '',
+            spaceSlug: 'reports/finance',
+            schemaVersion: 1,
+            content: {
+                cells: [
+                    {
+                        type: 'markdown',
+                        content: { markdown: '# Findings\n\n- "quoted": yes' },
+                    },
+                    {
+                        type: 'chart',
+                        content: {
+                            source: 'semantic',
+                            chart: {
+                                name: 'Orders',
+                                tableName: 'orders',
+                                metricQuery: {
+                                    exploreName: 'orders',
+                                    dimensions: ['orders_status'],
+                                    metrics: ['orders_count'],
+                                    filters: {},
+                                    sorts: [],
+                                    limit: 100,
+                                    tableCalculations: [],
+                                },
+                                chartConfig: { type: ChartType.TABLE },
+                            },
+                        },
+                    },
+                ],
+            },
+        };
+
+        await writeCodeResourceDocuments({
+            definition: DOCUMENT_CODE_RESOURCE,
+            basePath,
+            documents: [document],
+            pruneOtherDocuments: true,
+        });
+
+        await expect(
+            fs.readdir(path.join(basePath, 'documents')),
+        ).resolves.toEqual(['quarterly-review.yml']);
+        await expect(
+            readCodeResourceFiles({
+                definition: DOCUMENT_CODE_RESOURCE,
+                basePath,
+            }),
+        ).resolves.toEqual({
+            files: [
+                {
+                    filePath: path.join(
+                        basePath,
+                        'documents',
+                        'quarterly-review.yml',
+                    ),
+                    document,
+                },
+            ],
+            failures: [],
+        });
+    });
+
+    it('reports an invalid Document file without reading it', async () => {
+        const basePath = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'lightdash-document-code-'),
+        );
+        temporaryDirectories.push(basePath);
+        await fs.mkdir(path.join(basePath, 'documents'));
+        await fs.writeFile(
+            path.join(basePath, 'documents', 'broken.yml'),
+            'name: Broken\nslug: broken\nspaceSlug: reports\nschemaVersion: 1\ncontent:\n  cells: [{ type: video }]\n',
+        );
+
+        const result = await readCodeResourceFiles({
+            definition: DOCUMENT_CODE_RESOURCE,
+            basePath,
+        });
+
+        expect(result.files).toEqual([]);
+        expect(result.failures).toEqual([
+            {
+                message: expect.stringMatching(
+                    /^Invalid document file ".*broken\.yml": Invalid Document content/,
+                ),
+            },
+        ]);
+    });
+
     it('round trips exact homepage names safely and rejects duplicate local identities', async () => {
         const basePath = await fs.mkdtemp(
             path.join(os.tmpdir(), 'lightdash-homepage-code-'),

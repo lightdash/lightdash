@@ -75,7 +75,8 @@ export type ContentAsCodeResourceKind =
     | 'group'
     | 'user_attribute'
     | 'theme'
-    | 'external_connection';
+    | 'external_connection'
+    | 'document';
 
 export type ContentAsCodeIdentity = {
     resource: ContentAsCodeResourceKind;

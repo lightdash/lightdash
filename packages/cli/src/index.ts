@@ -943,6 +943,17 @@ const downloadCommand = program
         false,
     )
     .option(
+        '--documents <slugs...>',
+        'specify document slugs to download',
+        parseRefsArgument,
+        [],
+    )
+    .option(
+        '--include-documents',
+        'include all documents you can view in the download',
+        false,
+    )
+    .option(
         '-l, --language-map',
         'generate a language maps for the downloaded charts and dashboards',
         false,
@@ -1130,6 +1141,12 @@ const uploadCommand = program
         [],
     )
     .option(
+        '--documents <slugs...>',
+        'specify document slugs to upload',
+        parseRefsArgument,
+        [],
+    )
+    .option(
         '--force',
         'Force upload unchanged files and allow destructive virtual-view column changes',
         false,
@@ -1166,6 +1183,7 @@ const uploadCommand = program
     .option('--skip-alerts', 'skip uploading alerts', false)
     .option('--skip-virtual-views', 'skip uploading virtual views', false)
     .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)
+    .option('--skip-documents', 'skip uploading documents', false)
     .option(
         '--skip-scheduled-deliveries',
         'skip uploading scheduled deliveries',
