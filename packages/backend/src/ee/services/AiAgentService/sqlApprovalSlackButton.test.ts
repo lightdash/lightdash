@@ -250,6 +250,30 @@ describe('AiAgentService.decideSqlApproval for Slack queries', () => {
 
         expect(schedulerClient.slackAiPrompt).toHaveBeenCalledTimes(2);
     });
+
+    it('rejects duplicate decisions without enqueueing once the resume stored a result', async () => {
+        const { service, aiAgentModel, schedulerClient } = buildService({
+            approvalContext: {
+                promptUuid: PROMPT_UUID,
+                threadUuid: THREAD_UUID,
+                agentUuid: AGENT_UUID,
+                toolName: 'runSql',
+                hasResult: true,
+            },
+        });
+
+        await expect(
+            service.decideSqlApproval(approverUser, {
+                agentUuid: AGENT_UUID,
+                threadUuid: THREAD_UUID,
+                toolCallId: TOOL_CALL_ID,
+                decision: 'rejected',
+            }),
+        ).rejects.toThrow('has already been resolved');
+
+        expect(aiAgentModel.recordSqlApproval).not.toHaveBeenCalled();
+        expect(schedulerClient.slackAiPrompt).not.toHaveBeenCalled();
+    });
 });
 
 describe('AiAgentService.handleSqlApprovalButton', () => {

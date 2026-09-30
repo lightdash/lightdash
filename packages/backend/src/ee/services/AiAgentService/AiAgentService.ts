@@ -425,6 +425,7 @@ import {
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import { formatSkillResult } from '../ai/tools/loadSkill';
+import { RUN_SQL_REJECTED_OUTPUT } from '../ai/tools/runSql';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import {
     AiAgentArgs,
@@ -10562,6 +10563,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             userUuid?: string;
             fastDecisionsEnabled?: boolean;
             currentPromptExamples?: CurrentPromptExamples;
+            pendingRejectedSqlApprovalResults?: Parameters<StoreToolResultsFn>[0];
         },
     ): Promise<ModelMessage[]> {
         const currentPromptExamples = options.currentPromptExamples ?? {
@@ -10628,6 +10630,28 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     );
                 const isCurrentPrompt =
                     message.ai_prompt_uuid === options.currentPromptUuid;
+                if (isCurrentPrompt) {
+                    options.pendingRejectedSqlApprovalResults?.push(
+                        ...toolCallsAndResults.flatMap(
+                            ({ toolCall, toolResult, approvalDecision }) =>
+                                toolCall.toolName === 'runSql' &&
+                                approvalDecision === 'rejected' &&
+                                toolResult === null
+                                    ? [
+                                          {
+                                              promptUuid:
+                                                  message.ai_prompt_uuid,
+                                              toolCallId: toolCall.toolCallId,
+                                              toolName: toolCall.toolName,
+                                              result: RUN_SQL_REJECTED_OUTPUT.result,
+                                              metadata:
+                                                  RUN_SQL_REJECTED_OUTPUT.metadata,
+                                          },
+                                      ]
+                                    : [],
+                        ),
+                    );
+                }
                 messages.push(
                     ...AiAgentService.buildToolCallTurnMessages(
                         toolCallsAndResults,
@@ -15659,7 +15683,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         agent: AiAgent | undefined;
         chatHistoryMessages: ModelMessage[];
         canManageAgent: boolean;
-    }): Promise<void> {
+    }): Promise<boolean> {
         const threadTs = slackPrompt.slackThreadTs || slackPrompt.promptSlackTs;
         const reasoningTaskId = 'agent_reasoning';
         let streamTs: string | undefined;
@@ -16074,6 +16098,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         let runtimeTableResults: ReadonlyMap<string, SlackTableQueryResults> =
             new Map();
+        let answerDelivered = false;
         try {
             const response = await this.generateOrStreamAgentResponse(
                 user,
@@ -16128,7 +16153,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     sql: pendingApproval.sql,
                     agentName: agent?.name,
                 });
-                return;
+                return false;
             }
 
             if (!response) {
@@ -16166,7 +16191,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         ...(agent?.name ? { username: agent.name } : {}),
                     });
                 }
-                return;
+                return false;
             }
 
             const finalizationStartedAt = Date.now();
@@ -16228,6 +16253,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 promptUuid: slackPrompt.promptUuid,
                 response: visibleResponse,
             });
+            answerDelivered = true;
 
             // The answer is already delivered. Only enqueue image work here;
             // the durable outbox sweep repairs a crash or temporary queue outage.
@@ -16269,6 +16295,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 threadMessages,
                 agent,
             );
+            return true;
         } catch (error) {
             await flushTaskUpdates();
             // Status-only phase: let the caller post the error message.
@@ -16309,7 +16336,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     'Slack agent answer too long to deliver; linked to Lightdash instead',
                     error,
                 );
-                return;
+                return false;
             }
             const userFacingMessage = await this.getPromptErrorMessage(
                 user,
@@ -16345,6 +16372,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
             await persistCardResponseTs();
             Logger.error('Failed to generate Slack agent response', error);
+            return answerDelivered;
         } finally {
             endStatusPhase();
             // Posting already clears the status; this covers paths where
@@ -16422,6 +16450,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 return;
             }
 
+            const pendingRejectedSqlApprovalResults: Parameters<StoreToolResultsFn>[0] =
+                [];
             const chatHistoryMessages =
                 await this.getChatHistoryFromThreadMessages(threadMessages, {
                     organizationUuid: slackPrompt.organizationUuid,
@@ -16434,9 +16464,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     userUuid: user.userUuid,
                     fastDecisionsEnabled:
                         !!(await this.getDecisionClient(user)),
+                    pendingRejectedSqlApprovalResults,
                 });
 
-            await this.replyToSlackPromptWithStatus({
+            const replyDelivered = await this.replyToSlackPromptWithStatus({
                 user,
                 slackPrompt,
                 threadMessages,
@@ -16444,6 +16475,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 chatHistoryMessages,
                 canManageAgent,
             });
+            if (
+                replyDelivered &&
+                pendingRejectedSqlApprovalResults.length > 0
+            ) {
+                // Persist only after the regenerated answer reaches Slack.
+                // Earlier persistence would make hasResult block a retry when
+                // generation or delivery fails partway through the resume.
+                // Best-effort: the answer is already delivered, so a failed
+                // write must not post an error; it only re-opens the
+                // duplicate-resume window, which is safe to retry.
+                await this.aiAgentModel
+                    .createToolResults(pendingRejectedSqlApprovalResults)
+                    .catch((error) => {
+                        this.logger.warn(
+                            `Failed to persist rejected SQL approval results for prompt ${slackPrompt.promptUuid}: ${getErrorMessage(error)}`,
+                        );
+                    });
+            }
         } catch (e) {
             const userFacingMessage = await this.getPromptErrorMessage(
                 {

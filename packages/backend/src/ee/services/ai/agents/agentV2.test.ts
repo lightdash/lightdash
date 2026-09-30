@@ -673,6 +673,95 @@ describe('empty finishes and interrupts', () => {
         },
     );
 
+    it('generate: replays a persisted rejected SQL approval without executing it again', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { dependencies } = buildInterruptibleDependencies(false);
+        const runSqlJob = vi.fn();
+        const storeToolResults = vi.fn().mockResolvedValue(undefined);
+        Object.assign(dependencies, {
+            consumePromptSteers: async () => [],
+            runSqlJob,
+            storeToolResults,
+        });
+        const args = buildAgentArgs();
+        args.messageHistory = [
+            { role: 'user', content: 'Run the query' },
+            {
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'tool-call',
+                        toolCallId: 'sql-call',
+                        toolName: 'runSql',
+                        input: { sql: 'SELECT 1', limit: 10 },
+                    },
+                    {
+                        type: 'tool-approval-request',
+                        approvalId: 'sql-approval:sql-call',
+                        toolCallId: 'sql-call',
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-approval-response',
+                        approvalId: 'sql-approval:sql-call',
+                        approved: false,
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId: 'sql-call',
+                        toolName: 'runSql',
+                        output: {
+                            type: 'json',
+                            value: 'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.',
+                        },
+                    },
+                ],
+            },
+        ];
+        args.model = new MockLanguageModelV4({
+            doGenerate: async () => ({
+                content: [
+                    {
+                        type: 'text' as const,
+                        text: 'I will not run that query.',
+                    },
+                ],
+                finishReason: { unified: 'stop', raw: undefined },
+                usage: {
+                    inputTokens: {
+                        total: 1,
+                        noCache: 1,
+                        cacheRead: 0,
+                        cacheWrite: 0,
+                    },
+                    outputTokens: { total: 1, text: 1, reasoning: 0 },
+                },
+                warnings: [],
+            }),
+        });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('I will not run that query.');
+        expect(runSqlJob).not.toHaveBeenCalled();
+        expect(storeToolResults).not.toHaveBeenCalled();
+    });
+
     it('generate: persists an empty response instead of an error when the prompt was interrupted', async () => {
         const { updatePrompt, dependencies } =
             buildInterruptibleDependencies(true);
