@@ -1,3 +1,10 @@
+# [2.405.0](https://github.com/lightdash/lightdash/compare/2.404.0...2.405.0) (2026-10-01)
+
+
+### Features
+
+* **documents:** let the AI launcher edit the open Document ([#30304](https://github.com/lightdash/lightdash/issues/30304)) ([e7c9793](https://github.com/lightdash/lightdash/commit/e7c979371bf6eff79ab0efd15d768c44d2033e13)), closes [#30303](https://github.com/lightdash/lightdash/issues/30303)
+
 # [2.404.0](https://github.com/lightdash/lightdash/compare/2.403.0...2.404.0) (2026-10-01)
 
 
