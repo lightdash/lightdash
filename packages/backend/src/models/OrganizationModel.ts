@@ -400,7 +400,7 @@ export class OrganizationModel {
         return allowedOrgs.map((o) => ({
             organizationUuid: o.organization_uuid,
             name: o.organization_name,
-            membersCount: o.members_count,
+            membersCount: Number(o.members_count),
         }));
     }
 
