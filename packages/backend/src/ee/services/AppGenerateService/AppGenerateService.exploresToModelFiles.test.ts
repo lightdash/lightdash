@@ -26,6 +26,7 @@ type PrivateAppGenerateService = {
         dimensionCount: number;
         metricCount: number;
         totalBytes: number;
+        skippedFilters: string[];
     };
 };
 
@@ -255,6 +256,64 @@ describe('AppGenerateService.exploresToModelFiles', () => {
             'orders  orders.yml  dims=1 metrics=0  joins=events  filters=required:1,default:2,sql',
         );
     });
+
+    // A map-valued filter in dbt YAML could compile to non-list `values`,
+    // which the type forbids but cached explores can still carry.
+    it.each([
+        ['an object', { inThePast: '14 days' }],
+        ['a string', 'completed'],
+    ])(
+        'leaves out a model filter whose value is %s rather than a list',
+        (_label, values) => {
+            const explore = {
+                name: 'orders',
+                baseTable: 'orders',
+                joinedTables: [],
+                tables: {
+                    orders: {
+                        requiredFilters: [
+                            {
+                                id: 'a',
+                                target: { fieldRef: 'status' },
+                                operator: 'equals',
+                                values,
+                                required: true,
+                            },
+                            {
+                                id: 'b',
+                                target: { fieldRef: 'order_date' },
+                                operator: 'inThePast',
+                                values: [4],
+                                settings: { unitOfTime: 'weeks' },
+                                required: true,
+                            },
+                        ],
+                        metrics: {},
+                        dimensions: {
+                            status: { name: 'status', type: 'string' },
+                        },
+                    },
+                },
+            } as unknown as Explore;
+
+            const result = exploresToModelFiles([explore]);
+
+            const orders = parseYaml(
+                result.files.find((file) => file.filename === 'orders.yml')!
+                    .contents,
+            ) as { models: Array<{ meta?: { required_filters?: unknown[] } }> };
+            expect(orders.models[0].meta?.required_filters).toEqual([
+                {
+                    field: 'order_date',
+                    operator: 'inThePast',
+                    value: [4],
+                    unit: 'weeks',
+                },
+            ]);
+            expect(result.skippedFilters).toEqual(['orders.status']);
+            expect(indexOf(result.files)).toContain('filters=required:1');
+        },
+    );
 
     it('orders the index by chart usage so detail is shed from the least-queried models', () => {
         const explores = [
