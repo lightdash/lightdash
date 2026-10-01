@@ -1,7 +1,10 @@
 import { assertUnreachable } from '@lightdash/common';
 import type { Knex } from 'knex';
 import type { UsageDimensionName } from '../analytics/eventStream/usageDimensions';
-import { usageContentInventoryQuery } from './usageContentInventory';
+import {
+    usageContentInventoryQuery,
+    usageContentTypes,
+} from './usageContentInventory';
 
 export const USAGE_DIMENSION_PAGE_SIZE = 1000;
 
@@ -11,15 +14,28 @@ type SnapshotRow = { cursor: string; json: string };
 export class UsageDimensionsModel {
     constructor(private readonly database: Knex) {}
 
+    private async readPage<Row>(query: Knex.QueryBuilder): Promise<Row[]> {
+        return this.database.transaction(async (trx) => {
+            // Enforced by Postgres, including while Node is busy. Rollback releases
+            // read locks on failure; no transaction is held across file/storage IO.
+            await trx.raw('SET TRANSACTION READ ONLY');
+            await trx.raw("SET LOCAL statement_timeout = '5s'");
+            await trx.raw("SET LOCAL lock_timeout = '1s'");
+            return query.transacting(trx);
+        });
+    }
+
     async *getOrganizations(): AsyncGenerator<Organization> {
         let cursor = 0;
         while (true) {
             // eslint-disable-next-line no-await-in-loop
-            const rows = await this.database('organizations')
-                .select('organization_id', 'organization_uuid')
-                .where('organization_id', '>', cursor)
-                .orderBy('organization_id')
-                .limit(USAGE_DIMENSION_PAGE_SIZE);
+            const rows = await this.readPage<Organization>(
+                this.database('organizations')
+                    .select('organization_id', 'organization_uuid')
+                    .where('organization_id', '>', cursor)
+                    .orderBy('organization_id')
+                    .limit(USAGE_DIMENSION_PAGE_SIZE),
+            );
             if (rows.length === 0) return;
             for (const row of rows) yield row;
             cursor = rows[rows.length - 1].organization_id;
@@ -42,7 +58,7 @@ export class UsageDimensionsModel {
             if (cursor !== null) page.where(cursorColumn, '>', cursor);
             // Each page releases its connection before waiting on file IO.
             // eslint-disable-next-line no-await-in-loop
-            const rows = await page;
+            const rows = await this.readPage<SnapshotRow>(page);
             if (rows.length === 0) return;
             for (const row of rows) yield `${row.json}\n`;
             cursor = rows[rows.length - 1].cursor;
@@ -57,10 +73,24 @@ export class UsageDimensionsModel {
             organization;
         switch (dimension) {
             case 'content': {
-                yield* this.readPages(
-                    usageContentInventoryQuery(this.database, orgId, orgUuid),
-                    'inventory.inventory_id',
-                );
+                for (const contentType of usageContentTypes) {
+                    let cursor: string | null = null;
+                    while (true) {
+                        const page = usageContentInventoryQuery(
+                            this.database,
+                            orgId,
+                            orgUuid,
+                            contentType,
+                            cursor,
+                            USAGE_DIMENSION_PAGE_SIZE,
+                        );
+                        // eslint-disable-next-line no-await-in-loop
+                        const rows: SnapshotRow[] = await this.readPage(page);
+                        if (rows.length === 0) break;
+                        for (const row of rows) yield `${row.json}\n`;
+                        cursor = rows[rows.length - 1].cursor;
+                    }
+                }
                 return;
             }
             case 'agents': {

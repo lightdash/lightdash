@@ -463,13 +463,17 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'charts'),
                 });
+                const originalContentSnapshot = await s3.headObject({
+                    Bucket: storage.bucket,
+                    Key: usageDimensionKey(org, 'content'),
+                });
                 const failingModel = new UsageDimensionsModel(db);
                 const read = failingModel.getJsonLines.bind(failingModel);
                 vi.spyOn(failingModel, 'getJsonLines').mockImplementation(
                     async function* interruptedExport(organization, dimension) {
                         if (
                             organization.organization_uuid === org &&
-                            dimension === 'charts'
+                            (dimension === 'charts' || dimension === 'content')
                         ) {
                             yield '{}\n';
                             throw new Error(
@@ -485,7 +489,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         prometheusMetrics: null,
                         usageDimensionsModel: failingModel,
                     }).run(new Date('2026-01-02')),
-                ).rejects.toThrow('1 refreshes failed');
+                ).rejects.toThrow('2 refreshes failed');
                 expect(
                     (
                         await s3.headObject({
@@ -494,6 +498,14 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         })
                     ).ETag,
                 ).toBe(originalSnapshot.ETag);
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: usageDimensionKey(org, 'content'),
+                        })
+                    ).ETag,
+                ).toBe(originalContentSnapshot.ETag);
                 expect((await run()).dimensions).toEqual({
                     refreshed: 10,
                     failed: 0,
