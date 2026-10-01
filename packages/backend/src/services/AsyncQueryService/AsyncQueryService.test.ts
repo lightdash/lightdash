@@ -3,6 +3,9 @@ import {
     Account,
     AnyType,
     assertUnreachable,
+    BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+    BigqueryAuthenticationType,
+    BigqueryTokenError,
     ChartType,
     CreateWarehouseCredentials,
     DimensionType,
@@ -27,6 +30,7 @@ import {
     ParameterError,
     PersistentDownloadFileAccessMode,
     PossibleAbilities,
+    ProjectType,
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
@@ -40,6 +44,7 @@ import {
     VizIndexType,
     WarehouseClient,
     WarehouseTypes,
+    type CreateBigqueryCredentials,
     type Document,
     type DocumentQueryReference,
     type Explore,
@@ -124,6 +129,7 @@ import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import * as analyticsClient from '../ProjectService/analyticsProject/analyticsProjectClient';
+import { type CheckGoogleRefreshToken } from '../ProjectService/previewBigquerySsoCredentials';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import {
     allExplores,
@@ -5977,6 +5983,304 @@ describe('AsyncQueryService', () => {
                 }),
                 expect.any(Object), // session account
             );
+        });
+    });
+
+    describe('runAsyncWarehouseQuery preview sign-in retry', () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const bigquerySso = (
+            refreshToken: string,
+        ): CreateBigqueryCredentials => ({
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            project: 'analytics',
+            dataset: 'prod',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            keyfileContents: {
+                type: 'authorized_user',
+                client_id: 'lightdash-client',
+                client_secret: 'secret',
+                refresh_token: refreshToken,
+            },
+        });
+        const refreshTokenOf = (credentials: CreateWarehouseCredentials) =>
+            credentials.type === WarehouseTypes.BIGQUERY
+                ? credentials.keyfileContents.refresh_token
+                : undefined;
+        const tokenError = () =>
+            new BigqueryTokenError(
+                `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} (invalid_grant). Reconnect your BigQuery account in personal settings.`,
+            );
+
+        const stored = new Map<string, CreateWarehouseCredentials>();
+        const rejectedByGoogle = new Set<string>();
+        const rejectedByWarehouse = new Set<string>();
+        const cachedCheck = vi.fn<CheckGoogleRefreshToken>(async () => 'valid');
+        const recheck = vi.fn<CheckGoogleRefreshToken>(async (keyfile) =>
+            rejectedByGoogle.has(keyfile.refresh_token) ? 'rejected' : 'valid',
+        );
+        const executeAttempts: string[] = [];
+        const tunnelDisconnects: string[] = [];
+
+        const setup = ({
+            syncEnabled = true,
+            isPreviewProject = true,
+            projectType = ProjectType.PREVIEW,
+            userWarehouseCredentials,
+        }: {
+            syncEnabled?: boolean;
+            isPreviewProject?: boolean;
+            projectType?: ProjectType;
+            userWarehouseCredentials?: {
+                uuid: string;
+                credentials: CreateWarehouseCredentials;
+            };
+        } = {}) => {
+            if (userWarehouseCredentials) {
+                stored.set(projectUuid, {
+                    ...bigquerySso('token-project'),
+                    allowUserCredentials: true,
+                });
+            }
+            const model = {
+                ...projectModel,
+                ...singleRouteProjectModelMethods,
+                getProjectWarehouseConfig: vi.fn(async () => ({
+                    organizationWarehouseCredentialsUuid: null,
+                    queryTimezone: null,
+                })),
+                getWarehouseCredentialsForProject: vi.fn(async (uuid: string) =>
+                    stored.get(uuid),
+                ),
+                getSummary: vi.fn(async (uuid: string) =>
+                    uuid === projectUuid
+                        ? {
+                              ...projectSummary,
+                              projectUuid,
+                              name: 'My preview',
+                              type: projectType,
+                              upstreamProjectUuid,
+                          }
+                        : {
+                              ...projectSummary,
+                              projectUuid: uuid,
+                              name: 'Production',
+                          },
+                ),
+                getPreviewOwnsCredentials: vi.fn(async () => null),
+                updateWarehouseCredentialsIf: vi.fn(
+                    async (
+                        uuid: string,
+                        update: (
+                            credentials: CreateWarehouseCredentials,
+                        ) => CreateWarehouseCredentials | null,
+                    ) => {
+                        const current = stored.get(uuid);
+                        const next = current ? update(current) : null;
+                        if (next) stored.set(uuid, next);
+                        return next !== null;
+                    },
+                ),
+            };
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                projectModel: model as unknown as ProjectModel,
+                userWarehouseCredentialsModel: {
+                    findForProjectWithSecrets: vi.fn(
+                        async () => userWarehouseCredentials,
+                    ),
+                } as unknown as UserWarehouseCredentialsModel,
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId ===
+                                    FeatureFlags.PreviewSsoCredentialSync &&
+                                syncEnabled,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
+            });
+            Object.assign(service, {
+                checkGoogleRefreshToken: cachedCheck,
+                recheckGoogleRefreshToken: recheck,
+            });
+            vi.spyOn(service, '_getWarehouseClient').mockImplementation(
+                async (_uuid, credentials) => {
+                    const token = refreshTokenOf(credentials) ?? 'none';
+                    return {
+                        warehouseClient: {
+                            ...warehouseClientMock,
+                            credentials,
+                            executeAsyncQuery: async (args, callback) => {
+                                executeAttempts.push(token);
+                                if (rejectedByWarehouse.has(token)) {
+                                    throw tokenError();
+                                }
+                                return warehouseClientMock.executeAsyncQuery(
+                                    args,
+                                    callback,
+                                );
+                            },
+                        },
+                        sshTunnel: {
+                            disconnect: vi.fn(async () => {
+                                tunnelDisconnects.push(token);
+                            }),
+                        } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                        tunnelConnectMs: null,
+                    };
+                },
+            );
+            const run = () =>
+                service.runAsyncWarehouseQuery({
+                    userUuid: sessionAccount.user.id,
+                    organizationUuid:
+                        sessionAccount.organization.organizationUuid!,
+                    isPreviewProject,
+                    isRegisteredUser: true,
+                    onboardingFlow: 'legacy',
+                    projectUuid,
+                    query: 'SELECT 1',
+                    fieldsMap: {},
+                    usedParameters: null,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    queryUuid: 'preview-query-uuid',
+                    cacheKey: 'preview-cache-key',
+                    queryCreatedAt: new Date(),
+                    displayTimezone: null,
+                });
+            return { service, model, run };
+        };
+
+        const readyUpdates = (service: AsyncQueryService) =>
+            vi
+                .mocked(service.queryHistoryModel.update)
+                .mock.calls.filter(
+                    ([, , update]) =>
+                        update.status === QueryHistoryStatus.READY,
+                );
+        const recordedErrors = (service: AsyncQueryService) =>
+            vi
+                .mocked(service.queryHistoryModel.updateStatusToError)
+                .mock.calls.map(([, , message]) => message);
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            stored.clear();
+            rejectedByGoogle.clear();
+            rejectedByWarehouse.clear();
+            executeAttempts.length = 0;
+            tunnelDisconnects.length = 0;
+            stored.set(projectUuid, bigquerySso('token-a'));
+            stored.set(upstreamProjectUuid, bigquerySso('token-b'));
+            rejectedByGoogle.add('token-a');
+            rejectedByWarehouse.add('token-a');
+        });
+
+        test('repairs a rejected preview token once and retries the query', async () => {
+            const { service, model, run } = setup();
+
+            await run();
+
+            expect(executeAttempts).toEqual(['token-a', 'token-b']);
+            expect(tunnelDisconnects).toEqual(['token-a', 'token-b']);
+            expect(refreshTokenOf(stored.get(projectUuid)!)).toBe('token-b');
+            expect(model.updateWarehouseCredentialsIf).toHaveBeenCalledTimes(1);
+            expect(recheck).toHaveBeenCalledTimes(2);
+            expect(readyUpdates(service)).toHaveLength(1);
+            expect(recordedErrors(service)).toEqual([]);
+        });
+
+        test('records one error when the retried query fails too', async () => {
+            rejectedByWarehouse.add('token-b');
+            const { service, run } = setup();
+
+            await run();
+
+            expect(executeAttempts).toEqual(['token-a', 'token-b']);
+            expect(readyUpdates(service)).toHaveLength(0);
+            expect(recordedErrors(service)).toEqual([
+                expect.stringContaining(BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER),
+            ]);
+        });
+
+        test('names the parent project when the parent sign-in expired too', async () => {
+            rejectedByGoogle.add('token-b');
+            const { service, model, run } = setup();
+
+            await run();
+
+            expect(executeAttempts).toEqual(['token-a']);
+            expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
+            expect(recordedErrors(service)).toEqual([
+                "This preview's warehouse sign-in expired. Reconnect the warehouse on Production.",
+            ]);
+        });
+
+        test('names the parent project when the parent holds the same rejected token', async () => {
+            stored.set(upstreamProjectUuid, bigquerySso('token-a'));
+            const { service, run } = setup();
+
+            await run();
+
+            expect(executeAttempts).toEqual(['token-a']);
+            expect(recordedErrors(service)).toEqual([
+                "This preview's warehouse sign-in expired. Reconnect the warehouse on Production.",
+            ]);
+        });
+
+        test('keeps the original error when Google still accepts the preview token', async () => {
+            rejectedByGoogle.clear();
+            const { service, run } = setup();
+
+            await run();
+
+            expect(executeAttempts).toEqual(['token-a']);
+            expect(recordedErrors(service)).toEqual([
+                expect.stringContaining('personal settings'),
+            ]);
+        });
+
+        test.each([
+            {
+                name: 'a project that is not a preview',
+                options: {
+                    isPreviewProject: false,
+                    projectType: ProjectType.DEFAULT,
+                },
+            },
+            {
+                name: 'personal warehouse credentials',
+                options: {
+                    userWarehouseCredentials: {
+                        uuid: 'user-warehouse-credentials-uuid',
+                        credentials: bigquerySso('token-a'),
+                    },
+                },
+            },
+            { name: 'the kill switch off', options: { syncEnabled: false } },
+        ])('does not retry for $name', async ({ options }) => {
+            const { service, model, run } = setup(options);
+
+            await run();
+
+            expect(executeAttempts).toEqual(['token-a']);
+            expect(recheck).not.toHaveBeenCalled();
+            expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
+            expect(recordedErrors(service)).toEqual([
+                expect.stringContaining('personal settings'),
+            ]);
         });
     });
 

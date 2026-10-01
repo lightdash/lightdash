@@ -169,14 +169,26 @@ export const checkGoogleRefreshToken: CheckGoogleRefreshToken = async (
 
 const validRefreshTokens = new NodeCache({ stdTTL: 60, checkperiod: 30 });
 
-export const checkGoogleRefreshTokenCached: CheckGoogleRefreshToken = async (
-    keyfileContents,
-) => {
-    const key = createHash('sha256')
+const getRefreshTokenCacheKey = (
+    keyfileContents: CreateBigqueryCredentials['keyfileContents'],
+): string =>
+    createHash('sha256')
         .update(keyfileContents.refresh_token ?? '')
         .digest('hex');
-    if (validRefreshTokens.get(key)) return 'valid';
+
+export const recheckGoogleRefreshToken: CheckGoogleRefreshToken = async (
+    keyfileContents,
+) => {
+    const key = getRefreshTokenCacheKey(keyfileContents);
+    validRefreshTokens.del(key);
     const status = await checkGoogleRefreshToken(keyfileContents);
     if (status === 'valid') validRefreshTokens.set(key, true);
     return status;
 };
+
+export const checkGoogleRefreshTokenCached: CheckGoogleRefreshToken = async (
+    keyfileContents,
+) =>
+    validRefreshTokens.get(getRefreshTokenCacheKey(keyfileContents))
+        ? 'valid'
+        : recheckGoogleRefreshToken(keyfileContents);

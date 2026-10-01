@@ -13,6 +13,7 @@ import {
     assertIsAccountWithOrg,
     assertRegisteredAccount,
     assertUnreachable,
+    BigqueryTokenError,
     buildMergeQueryFromMergeDefinition,
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
@@ -66,6 +67,7 @@ import {
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAgentContent,
+    isBigqueryTokenErrorMessage,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
@@ -95,6 +97,7 @@ import {
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
+    PreviewWarehouseSignInExpiredError,
     ProjectType,
     QueryExecutionContext,
     QueryHistoryListFilters,
@@ -3523,6 +3526,41 @@ export class AsyncQueryService extends ProjectService {
         return true;
     }
 
+    private async repairPreviewSignInAfterQueryError({
+        error,
+        projectUuid,
+        organizationUuid,
+        isPreviewProject,
+        rejectedCredentials,
+    }: {
+        error: unknown;
+        projectUuid: string;
+        organizationUuid: string;
+        isPreviewProject: boolean;
+        rejectedCredentials: CreateWarehouseCredentials;
+    }): Promise<boolean> {
+        const isTokenError =
+            error instanceof BigqueryTokenError ||
+            isBigqueryTokenErrorMessage(getErrorMessage(error));
+        if (!isPreviewProject || !isTokenError) return false;
+        try {
+            return await this.repairPreviewSsoCredentialsAfterRejection({
+                projectUuid,
+                organizationUuid,
+                rejectedCredentials,
+            });
+        } catch (repairError) {
+            if (repairError instanceof PreviewWarehouseSignInExpiredError) {
+                throw repairError;
+            }
+            this.logger.warn(
+                'Could not repair a preview sign-in after a query error',
+                { projectUuid, error: getErrorMessage(repairError) },
+            );
+            return false;
+        }
+    }
+
     /**
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
@@ -3597,6 +3635,49 @@ export class AsyncQueryService extends ProjectService {
         const executionSource: 'warehouse' | 'pre_aggregate_duckdb' =
             warehouseClientOverride ? 'pre_aggregate_duckdb' : 'warehouse';
         let queryStartTime = Date.now();
+        let projectCredentials: CreateWarehouseCredentials | null = null;
+
+        const connectToWarehouse = async (): Promise<{
+            warehouseClient: WarehouseClient;
+            warehouseCredentials: CreateWarehouseCredentials;
+            projectCredentials: CreateWarehouseCredentials | null;
+        }> => {
+            const resolvedCredentials =
+                await this.getWarehouseCredentialsWithConnection({
+                    projectUuid,
+                    binding: { kind: 'query', queryUuid },
+                    userId: userUuid,
+                    isRegisteredUser,
+                    isServiceAccount,
+                });
+            const { warehouseCredentials } = resolvedCredentials;
+
+            warehouseConnectionUuid =
+                resolvedCredentials.warehouseConnectionUuid;
+            connectionRoute = resolvedCredentials.connectionRoute;
+            connectionWarehouseType = warehouseCredentials.type;
+
+            const warehouseConnection = await this._getWarehouseClient(
+                projectUuid,
+                warehouseCredentials,
+                warehouseCredentialsOverrides,
+            );
+            sshTunnel = warehouseConnection.sshTunnel;
+            tunnelConnectMs = warehouseConnection.tunnelConnectMs;
+            const usesProjectCredentials =
+                resolvedCredentials.warehouseConnectionUuid === null &&
+                !(
+                    'userWarehouseCredentialsUuid' in warehouseCredentials &&
+                    warehouseCredentials.userWarehouseCredentialsUuid
+                );
+            return {
+                warehouseClient: warehouseConnection.warehouseClient,
+                warehouseCredentials,
+                projectCredentials: usesProjectCredentials
+                    ? warehouseCredentials
+                    : null,
+            };
+        };
 
         try {
             if (warehouseClientOverride) {
@@ -3605,31 +3686,10 @@ export class AsyncQueryService extends ProjectService {
                     warehouseCredentialsTypeOverride ??
                     warehouseClient.credentials.type;
             } else {
-                const resolvedCredentials =
-                    await this.getWarehouseCredentialsWithConnection({
-                        projectUuid,
-                        binding: { kind: 'query', queryUuid },
-                        userId: userUuid,
-                        isRegisteredUser,
-                        isServiceAccount,
-                    });
-                const { warehouseCredentials } = resolvedCredentials;
-
-                warehouseCredentialsType = warehouseCredentials.type;
-                warehouseConnectionUuid =
-                    resolvedCredentials.warehouseConnectionUuid;
-                connectionRoute = resolvedCredentials.connectionRoute;
-                connectionWarehouseType = warehouseCredentials.type;
-
-                // Get warehouse client using the projectService
-                const warehouseConnection = await this._getWarehouseClient(
-                    projectUuid,
-                    warehouseCredentials,
-                    warehouseCredentialsOverrides,
-                );
-                warehouseClient = warehouseConnection.warehouseClient;
-                sshTunnel = warehouseConnection.sshTunnel;
-                tunnelConnectMs = warehouseConnection.tunnelConnectMs;
+                const connection = await connectToWarehouse();
+                warehouseClient = connection.warehouseClient;
+                warehouseCredentialsType = connection.warehouseCredentials.type;
+                projectCredentials = connection.projectCredentials;
             }
 
             const isTimezoneSupportEnabled =
@@ -3711,6 +3771,62 @@ export class AsyncQueryService extends ProjectService {
                 },
             });
             queryStartTime = Date.now();
+            const resultsStream = stream;
+            let hasWrittenRows = false;
+            const runWarehouseQuery = (client: WarehouseClient) =>
+                traceSpan(
+                    {
+                        op: 'query.execute',
+                        name: `query.execute.${executionSource}`,
+                        attributes: {
+                            'lightdash.executionSource': executionSource,
+                            'lightdash.queryContext':
+                                queryTags.query_context || 'unknown',
+                            'lightdash.projectUuid': projectUuid,
+                            'lightdash.isPivoted': !!pivotConfiguration,
+                        },
+                    },
+                    () =>
+                        AsyncQueryService.runQueryAndTransformRows({
+                            warehouseClient: client,
+                            query,
+                            queryTags: { ...queryTags, query_uuid: queryUuid },
+                            write: resultsStream
+                                ? (rows) => {
+                                      hasWrittenRows = true;
+                                      return resultsStream.write(rows);
+                                  }
+                                : undefined,
+                            pivotConfiguration,
+                            itemsMap: fieldsMap,
+                            usedParameters,
+                            dataTimezone: resolvedDataTimezone,
+                            displayTimezone,
+                        }),
+                );
+            let queryResults: Awaited<ReturnType<typeof runWarehouseQuery>>;
+            try {
+                queryResults = await runWarehouseQuery(warehouseClient);
+            } catch (e) {
+                const canRetry =
+                    !hasWrittenRows &&
+                    projectCredentials !== null &&
+                    (await this.repairPreviewSignInAfterQueryError({
+                        error: e,
+                        projectUuid,
+                        organizationUuid,
+                        isPreviewProject,
+                        rejectedCredentials: projectCredentials,
+                    }));
+                if (!canRetry) throw e;
+                this.logger.info(
+                    `Retrying query ${queryUuid} with the repaired preview credentials`,
+                );
+                await sshTunnel?.disconnect();
+                sshTunnel = undefined;
+                ({ warehouseClient } = await connectToWarehouse());
+                queryResults = await runWarehouseQuery(warehouseClient);
+            }
             const {
                 warehouseResults: {
                     durationMs,
@@ -3722,31 +3838,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotDetails,
                 columns,
                 unpivotedColumns,
-            } = await traceSpan(
-                {
-                    op: 'query.execute',
-                    name: `query.execute.${executionSource}`,
-                    attributes: {
-                        'lightdash.executionSource': executionSource,
-                        'lightdash.queryContext':
-                            queryTags.query_context || 'unknown',
-                        'lightdash.projectUuid': projectUuid,
-                        'lightdash.isPivoted': !!pivotConfiguration,
-                    },
-                },
-                () =>
-                    AsyncQueryService.runQueryAndTransformRows({
-                        warehouseClient,
-                        query,
-                        queryTags: { ...queryTags, query_uuid: queryUuid },
-                        write: stream?.write,
-                        pivotConfiguration,
-                        itemsMap: fieldsMap,
-                        usedParameters,
-                        dataTimezone: resolvedDataTimezone,
-                        displayTimezone,
-                    }),
-            );
+            } = queryResults;
 
             const warehousePhaseTimings: WarehousePhaseTimings =
                 tunnelConnectMs !== null
