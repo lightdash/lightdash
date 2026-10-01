@@ -1516,13 +1516,17 @@ describe('Extra connection credentials on the real schema', () => {
             projectUuid: string,
             warehouseConnection: CreateWarehouseCredentials,
         ) =>
-            projectModel().update(projectUuid, {
-                name: 'Credentials project',
-                dbtConnection: { type: DbtProjectType.NONE },
-                dbtVersion: DefaultSupportedDbtVersion,
-                warehouseConnection,
-                organizationWarehouseCredentialsUuid: null,
-            } as never);
+            projectModel().update(
+                projectUuid,
+                {
+                    name: 'Credentials project',
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: DefaultSupportedDbtVersion,
+                    warehouseConnection,
+                    organizationWarehouseCredentialsUuid: null,
+                } as never,
+                null,
+            );
 
         const storedOriginalType = async (projectUuid: string) =>
             (

@@ -8,6 +8,8 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import { EgressIpNotice } from './EgressIpNotice';
 import { useFormContext } from './formContext';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
+import { SharedSignInNotice } from './SharedSignIn/SharedSignInNotice';
+import { useProjectFormContext } from './useProjectFormContext';
 import { WarehouseConnectionInputReview } from './WarehouseConnectionInputReview';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
@@ -27,6 +29,7 @@ export const WarehouseConnectionCard: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const form = useFormContext();
+    const { savedProject, isProjectExtraConnection } = useProjectFormContext();
     const warehouse = form.values.warehouse.type;
     const staticIp = health.data?.staticIp;
     const connectJourneyFlag = useServerFeatureFlag(
@@ -56,6 +59,16 @@ export const WarehouseConnectionCard: FC<Props> = ({
             </div>
 
             <WarehouseConnectionInputReview>
+                {isProjectUpdate &&
+                    savedProject &&
+                    !isProjectExtraConnection &&
+                    warehouse && (
+                        <SharedSignInNotice
+                            projectUuid={savedProject.projectUuid}
+                            warehouseType={warehouse}
+                            disabled={disabled}
+                        />
+                    )}
                 <WarehouseSettingsForm
                     disabled={disabled}
                     isProjectUpdate={isProjectUpdate}

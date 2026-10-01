@@ -85,6 +85,7 @@ import {
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
     type WarehouseLocation,
+    PersonSignInProvider,
 } from '@lightdash/common';
 import {
     SshTunnel,
@@ -12623,5 +12624,59 @@ describe('Personal-credential merge pins across warehouse types (SPK-2338)', () 
                 DatabricksTokenError,
             );
         });
+    });
+});
+
+describe('ProjectService.getSharedCredentialOwner', () => {
+    const owner = {
+        signIn: PersonSignInProvider.GOOGLE,
+        owner: { userUuid: 'founder-uuid', name: 'Fran Founder' },
+    };
+    const flagged = (enabled: boolean) =>
+        ({
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled,
+                }),
+            ),
+        }) as unknown as FeatureFlagModel;
+
+    beforeEach(() => {
+        (
+            projectModel as unknown as {
+                getSharedCredentialOwner: ReturnType<typeof vi.fn>;
+            }
+        ).getSharedCredentialOwner = vi.fn(async () => owner);
+    });
+
+    test('is not available while the flag is off', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(false),
+        });
+        await expect(
+            service.getSharedCredentialOwner(user, projectSummary.projectUuid),
+        ).rejects.toThrow('This feature is not enabled');
+    });
+
+    test('needs view access to the project', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(true),
+        });
+        await expect(
+            service.getSharedCredentialOwner(
+                { ...user, ability: new Ability<PossibleAbilities>([]) },
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('returns whose sign-in the project runs on', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(true),
+        });
+        await expect(
+            service.getSharedCredentialOwner(user, projectSummary.projectUuid),
+        ).resolves.toEqual(owner);
     });
 });

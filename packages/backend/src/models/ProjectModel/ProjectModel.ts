@@ -70,6 +70,10 @@ import {
     WarehouseTypes,
     type ConnectionRoute,
     type SummaryExplore,
+    getPersonSignIn,
+    resolveCredentialOwner,
+    type SharedCredentialOwner,
+    type StoredCredentialOwner,
 } from '@lightdash/common';
 import {
     buildMotherduckConnectionString,
@@ -858,14 +862,57 @@ export class ProjectModel {
             .update({ provisioning_source: provisioningSource });
     }
 
+    private async getStoredCredentialOwners(
+        trx: Transaction,
+        projectIds: number[],
+    ): Promise<StoredCredentialOwner[]> {
+        if (projectIds.length === 0) return [];
+        const rows = await trx('warehouse_credentials')
+            .whereIn('project_id', projectIds)
+            .select('encrypted_credentials', 'credential_owner_user_uuid');
+        return rows.map((row) => {
+            try {
+                const stored = JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials;
+                return {
+                    refreshToken: getPersonSignIn(stored)?.refreshToken ?? null,
+                    ownerUserUuid: row.credential_owner_user_uuid,
+                };
+            } catch {
+                return {
+                    refreshToken: null,
+                    ownerUserUuid: row.credential_owner_user_uuid,
+                };
+            }
+        });
+    }
+
     private async upsertWarehouseConnection(
         trx: Transaction,
         projectId: number,
         data: CreateWarehouseCredentials,
+        owner: {
+            actorUserUuid: string | null;
+            inheritFromProjectId: number | null;
+        },
     ): Promise<void> {
         // Normalize on write too, so stored blobs never hold legacy values
         // that violate the credentials types
         const credentials = normalizeWarehouseCredentials(data);
+        const signIn = getPersonSignIn(credentials);
+        const credentialOwnerUserUuid = resolveCredentialOwner({
+            signIn,
+            actorUserUuid: owner.actorUserUuid,
+            stored: signIn
+                ? await this.getStoredCredentialOwners(
+                      trx,
+                      [projectId, owner.inheritFromProjectId].filter(
+                          (id): id is number => id !== null,
+                      ),
+                  )
+                : [],
+        });
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
@@ -880,9 +927,65 @@ export class ProjectModel {
                 project_id: projectId,
                 warehouse_type: credentials.type,
                 encrypted_credentials: encryptedCredentials,
+                credential_owner_user_uuid: credentialOwnerUserUuid,
             })
             .onConflict('project_id')
             .merge();
+    }
+
+    async getSharedCredentialOwner(
+        projectUuid: string,
+    ): Promise<SharedCredentialOwner | null> {
+        const row = await this.database('warehouse_credentials')
+            .innerJoin(
+                'projects',
+                'projects.project_id',
+                'warehouse_credentials.project_id',
+            )
+            .leftJoin(
+                'users',
+                'users.user_uuid',
+                'warehouse_credentials.credential_owner_user_uuid',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .whereNull('projects.organization_warehouse_credentials_uuid')
+            .first<
+                | {
+                      encrypted_credentials: Buffer;
+                      credential_owner_user_uuid: string | null;
+                      first_name: string | null;
+                      last_name: string | null;
+                  }
+                | undefined
+            >(
+                'warehouse_credentials.encrypted_credentials',
+                'warehouse_credentials.credential_owner_user_uuid',
+                'users.first_name',
+                'users.last_name',
+            );
+        if (!row) return null;
+        let credentials: CreateWarehouseCredentials;
+        try {
+            credentials = JSON.parse(
+                this.encryptionUtil.decrypt(row.encrypted_credentials),
+            ) as CreateWarehouseCredentials;
+        } catch {
+            return null;
+        }
+        const signIn = getPersonSignIn(credentials);
+        if (!signIn) return null;
+        return {
+            signIn: signIn.provider,
+            owner: row.credential_owner_user_uuid
+                ? {
+                      userUuid: row.credential_owner_user_uuid,
+                      name: [row.first_name, row.last_name]
+                          .filter(Boolean)
+                          .join(' ')
+                          .trim(),
+                  }
+                : null,
+        };
     }
 
     async hasAnyProjects(): Promise<boolean> {
@@ -1007,6 +1110,13 @@ export class ProjectModel {
                     trx,
                     project.project_id,
                     data.warehouseConnection,
+                    {
+                        actorUserUuid: userUuid,
+                        inheritFromProjectId:
+                            copiedProjects.length === 1
+                                ? copiedProjects[0].project_id
+                                : null,
+                    },
                 );
             }
 
@@ -1178,7 +1288,11 @@ export class ProjectModel {
             .update({ expires_at: expiresAt });
     }
 
-    async update(projectUuid: string, data: UpdateProject): Promise<void> {
+    async update(
+        projectUuid: string,
+        data: UpdateProject,
+        actorUserUuid: string | null,
+    ): Promise<void> {
         let previousConnectionString: string | undefined;
         try {
             previousConnectionString = getMotherduckConnectionString(
@@ -1235,6 +1349,7 @@ export class ProjectModel {
                 trx,
                 project.project_id,
                 data.warehouseConnection,
+                { actorUserUuid, inheritFromProjectId: null },
             );
             await trx(ProjectSetupsTableName)
                 .where('project_uuid', projectUuid)

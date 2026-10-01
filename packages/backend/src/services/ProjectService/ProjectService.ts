@@ -296,6 +296,7 @@ import {
     type WarehouseConnectionStagedTestResults,
     type WarehouseLocation,
     type WarehouseSqlBuilder,
+    type SharedCredentialOwner,
 } from '@lightdash/common';
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
@@ -3574,6 +3575,30 @@ export class ProjectService extends BaseService {
         return project;
     }
 
+    async getSharedCredentialOwner(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SharedCredentialOwner | null> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.SharedSignInOwnership,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('This feature is not enabled');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.projectModel.getSharedCredentialOwner(projectUuid);
+    }
+
     async assertAnalyticsProjectAccess(
         account: Account | SessionUser,
         project: Pick<Project, 'provisioningSource' | 'organizationUuid'>,
@@ -5187,7 +5212,11 @@ export class ProjectService extends BaseService {
             updatedProject.dbtConnection,
         );
 
-        await this.projectModel.update(projectUuid, updatedProject);
+        await this.projectModel.update(
+            projectUuid,
+            updatedProject,
+            account.user.id,
+        );
 
         if (
             savedProject.type !== ProjectType.PREVIEW &&
@@ -5356,7 +5385,11 @@ export class ProjectService extends BaseService {
 
         this.validateConfigSecrets(updatedProject);
 
-        await this.projectModel.update(projectUuid, updatedProject);
+        await this.projectModel.update(
+            projectUuid,
+            updatedProject,
+            account.user.id,
+        );
 
         if (
             savedProject.type !== ProjectType.PREVIEW &&

@@ -99,6 +99,7 @@ import {
     type UpdateResultsCacheProjectSettings,
     type UpdateSchedulerSettings,
     type UUID,
+    type ApiSharedCredentialOwnerResponse,
 } from '@lightdash/common';
 import {
     Body,
@@ -289,6 +290,27 @@ export class ProjectController extends BaseController {
                 .getProjectService()
                 .getSpaces(toSessionUser(req.account), projectUuid),
         };
+    }
+
+    /**
+     * Get whose sign-in the project's shared warehouse credential is. Empty when
+     * the shared credential is not a person's sign-in.
+     * @summary Get shared credential owner
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/warehouse-credentials/owner')
+    @OperationId('GetSharedCredentialOwner')
+    async getSharedCredentialOwner(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSharedCredentialOwnerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .getSharedCredentialOwner(toSessionUser(req.account), projectUuid);
+        return { status: 'ok', results };
     }
 
     /**

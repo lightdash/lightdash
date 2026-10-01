@@ -20,15 +20,18 @@ type DbWarehouseCredentials = {
     created_at: Date;
     warehouse_type: WarehouseType;
     encrypted_credentials: Buffer;
+    credential_owner_user_uuid: string | null;
 };
 type DbWarehouseCredentialsIn = Omit<
     DbWarehouseCredentials,
-    'warehouse_credentials_id' | 'created_at'
->;
+    'warehouse_credentials_id' | 'created_at' | 'credential_owner_user_uuid'
+> &
+    Partial<Pick<DbWarehouseCredentials, 'credential_owner_user_uuid'>>;
 type DbWarehouseCredentialsUpdate = Pick<
     DbWarehouseCredentials,
     'encrypted_credentials'
->;
+> &
+    Partial<Pick<DbWarehouseCredentials, 'credential_owner_user_uuid'>>;
 
 export type WarehouseCredentialTable = Knex.CompositeTableType<
     DbWarehouseCredentials,

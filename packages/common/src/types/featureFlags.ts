@@ -258,6 +258,16 @@ export enum FeatureFlags {
     ConnectJourney = 'connect-journey',
 
     /**
+     * Say whose sign-in a project's shared warehouse credential is: the
+     * "Runs as <name>'s sign-in" badge, Add a service account, the setup
+     * line under each sign-in button and the first-schedule prompt. The
+     * accountable owner is recorded whatever the flag says; the flag gates
+     * what reads and shows it. Off by default; resolved per user and
+     * organization.
+     */
+    SharedSignInOwnership = 'shared-sign-in-ownership',
+
+    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a
