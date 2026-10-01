@@ -207,6 +207,7 @@ const Register: FC = () => {
             title="Create an account"
             subtitle="Start building analytics in minutes."
             legacyTitle="Sign up"
+            withCustomerLogos
             footer={<RegisterTermsFooter isNewLayout={isNewLayout} />}
         >
             {logins}

@@ -60,22 +60,31 @@
 }
 
 .brandWordmark {
+    --auth-wordmark-height: max(rem(20px), calc(var(--auth-block-size) * 0.22));
+
     position: absolute;
-    top: calc((var(--auth-block-size) - rem(20px)) / 2);
-    left: calc(var(--auth-block-size) + var(--mantine-spacing-md));
+    top: calc((var(--auth-block-size) - var(--auth-wordmark-height)) / 2);
+    left: calc(
+        var(--auth-block-size) + var(--mantine-spacing-md) +
+            var(--mantine-spacing-lg)
+    );
     width: auto;
-    height: rem(20px);
+    height: var(--auth-wordmark-height);
     color: var(--mantine-color-white);
 }
 
 .brandIntro {
     position: relative;
-    padding-inline: var(--mantine-spacing-md);
+    padding-inline: calc(var(--mantine-spacing-md) + var(--mantine-spacing-lg));
     animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .headline {
-    max-width: rem(520px);
+    max-width: 11em;
+    font-size: max(
+        var(--mantine-font-size-display),
+        calc(var(--auth-block-size) * 0.7)
+    );
     color: var(--mantine-color-white);
     font-family: 'Britti Sans', var(--mantine-font-family-headings);
     font-weight: 500;
@@ -88,7 +97,11 @@
 }
 
 .subcopy {
-    max-width: rem(440px);
+    max-width: 24em;
+    font-size: max(
+        var(--mantine-font-size-lg),
+        calc(var(--auth-block-size) * 0.24)
+    );
     color: rgba(255, 255, 255, 0.6);
 }
 

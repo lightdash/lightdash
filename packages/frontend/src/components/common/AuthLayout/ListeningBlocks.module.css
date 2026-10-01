@@ -2,15 +2,52 @@
     position: absolute;
     right: 0;
     bottom: 0;
-    width: calc(8 * var(--auth-block-size));
-    height: calc(7 * var(--auth-block-size));
+    left: 0;
+    height: calc(5 * var(--auth-block-size));
+    overflow-x: clip;
+    overflow-y: visible;
     pointer-events: none;
 }
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(8, var(--auth-block-size));
-    grid-auto-rows: var(--auth-block-size);
+    grid-template-columns: repeat(32, calc(var(--auth-block-size) / 2));
+    grid-auto-rows: calc(var(--auth-block-size) / 2);
+    justify-content: center;
+}
+
+.cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background-color: #ffffff;
+    mix-blend-mode: overlay;
+    opacity: 0;
+    pointer-events: none;
+}
+
+[data-stage='valid'] .cell::before {
+    animation: shimmer 0.5s steps(4, jump-none) both;
+    animation-delay: calc(0.2s + var(--wave-delay) * 1.5);
+}
+
+.spark {
+    position: relative;
+}
+
+.spark .fill {
+    opacity: 0;
+}
+
+.sparkFill {
+    background-image: linear-gradient(135deg, #ffffff, #d9b3ff);
+    box-shadow: 0 0 rem(12px) rgba(178, 103, 254, 0.8);
+}
+
+[data-stage='valid'] .spark .fill {
+    animation: sparkRise 1s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    animation-delay: calc(0.75s + var(--wave-delay) * 2);
 }
 
 .empty {
@@ -159,6 +196,32 @@
     }
 }
 
+@keyframes shimmer {
+    40% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes sparkRise {
+    0% {
+        opacity: 0;
+        transform: translateY(0);
+    }
+    15% {
+        opacity: 1;
+    }
+    75% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-200%);
+    }
+}
+
 @keyframes glint {
     0% {
         filter: brightness(1);
@@ -179,7 +242,8 @@
 
 @media (prefers-reduced-motion: reduce) {
     .cluster,
-    .cluster * {
+    .cluster *,
+    .cluster *::before {
         animation: none !important;
     }
 }
