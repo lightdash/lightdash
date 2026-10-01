@@ -50,6 +50,11 @@ export const getSuggestedOrganizationName = (
 
 export const LANDING_VISIBLE_MATCHES = 5;
 
+export const isPendingRequest = (
+    match: OrganizationLanding['requestable'][number],
+): boolean =>
+    match.joinRequest?.status === OrganizationJoinRequestStatus.PENDING;
+
 export const getMatchCount = (landing: OrganizationLanding): number =>
     landing.joinable.length + landing.requestable.length;
 
@@ -76,15 +81,13 @@ export const getVisibleLandingMatches = (
             hiddenCount: 0,
         };
     }
-    const isPending = (match: OrganizationLanding['requestable'][number]) =>
-        match.joinRequest?.status === OrganizationJoinRequestStatus.PENDING;
-    const pending = landing.requestable.filter(isPending);
+    const pending = landing.requestable.filter(isPendingRequest);
     const budget = Math.max(LANDING_VISIBLE_MATCHES - pending.length, 0);
     const joinable = landing.joinable.slice(0, budget);
     const requestable = [
         ...pending,
         ...landing.requestable
-            .filter((match) => !isPending(match))
+            .filter((match) => !isPendingRequest(match))
             .slice(0, budget - joinable.length),
     ];
     return {

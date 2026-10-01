@@ -3,11 +3,15 @@ import {
     OrganizationJoinRequestStatus,
     type OrganizationLandingMatch,
 } from '@lightdash/common';
-import { Avatar, Button, Card, Group, Stack, Text } from '@mantine/core';
+import { Button, Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useRequestToJoinOrganization } from '../../hooks/organization/useOrganizationLanding';
 import Callout from '../common/Callout';
-import { getOrganizationDisplayName } from './organizationLandingCopy';
+import {
+    formatMemberCount,
+    getOrganizationDisplayName,
+} from './organizationLandingCopy';
+import { OrganizationRowIdentity } from './OrganizationRowIdentity';
 
 const getStatusText = (
     status: OrganizationJoinRequestStatus,
@@ -36,24 +40,17 @@ export const RequestToJoinCard: FC<{
     const displayName = getOrganizationDisplayName(match.name);
 
     return (
-        <Card>
-            <Stack gap="sm">
+        <Card p="sm">
+            <Stack gap="xs">
                 <Group justify="space-between" wrap="nowrap">
-                    <Group gap="md" wrap="nowrap">
-                        <Avatar size="md" radius="xl">
-                            {displayName[0]?.toUpperCase()}
-                        </Avatar>
-                        <Stack gap="two">
-                            <Text fw={600} truncate="end">
-                                {displayName}
-                            </Text>
-                            <Text fz="xs" c="dimmed">
-                                {isPending
-                                    ? 'Request sent'
-                                    : 'Admin approval needed'}
-                            </Text>
-                        </Stack>
-                    </Group>
+                    <OrganizationRowIdentity
+                        displayName={displayName}
+                        detail={
+                            isPending
+                                ? 'Request sent'
+                                : `${formatMemberCount(match.membersCount)} · Admin approval needed`
+                        }
+                    />
                     {match.hasAdmin && !isPending && (
                         <Button
                             variant="default"
