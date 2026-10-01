@@ -101,7 +101,7 @@ jobs:
           token: ${{ secrets.DEPOT_PROJECT_TOKEN }}
           file: dockerfile
           push: true
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: |
             lightdash/lightdash:${{ steps.version.outputs.version }}
             lightdash/lightdash:latest
