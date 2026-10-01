@@ -98,6 +98,16 @@
     z-index: -1;
     background: inherit;
   }
+  /* Chart types (see VizFrame in main.jsx): the frame is the container. It
+     scrolls when the content is taller than the tile, and rem sizes shrink in
+     a narrow tile. */
+  html[data-viz-frame] {
+    font-size: clamp(12px, calc(4px + 2.5vw), 16px);
+  }
+  html[data-viz-frame] #root {
+    height: 100vh;
+    overflow-y: auto;
+  }
   /* `dark` on the shell re-points the theme variables but not the color already
      inherited from <body>, which would leave bare text in light-theme ink. */
   :where(#root > .dark:first-child) {

@@ -251,6 +251,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Show aggregated rows for each level of a hierarchy, such as totals per country above the cities in it.',
         wiring: 'Declare hierarchy: { field: "<dimension slot name>" } for a multiple dimension slot. useVizContext().rows stays at the most detailed level; when useVizContext().subtotals.enabled, call subtotals.get({ level, parentValues }) for the aggregated rows of a shallower level, where level 0 with an empty parentValues array returns the top level. Subtotals belong to the rows they were fetched for: discard them and fetch again whenever rows change.',
     },
+    {
+        key: 'viz-responsive-layout',
+        appliesTo: ['chart_type'],
+        label: 'Adapts to small tiles',
+        description:
+            'Reflows the layout for narrow and short tiles, such as a dashboard on a phone, so values stay readable and nothing scrolls sideways.',
+        wiring: 'Rework the layout to the "Fitting the frame" section of the reusable-visualization skill. A chart type built on an older template first needs the frame runtime added to its own files, as described under viz-responsive-layout in the sdk-features skill: the VizFrame marker in src/main.jsx and the html[data-viz-frame] rules in src/index.css. Then size type, padding and gaps in rem or Tailwind classes instead of px, make rows of items wrap with a minimum item width that keeps values on one line (capped just under half the frame), remove any scroll regions of the chart\'s own so only the frame scrolls, and make a title or table header row sticky.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

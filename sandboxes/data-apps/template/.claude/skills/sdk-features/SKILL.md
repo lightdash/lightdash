@@ -33,6 +33,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | Lightdash-owned "View underlying data" dialog (viz only) | `viz-host-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 | "executive summary", "what changed", anomaly callouts, "AI insight", "Analyse this view" | `ai-insights` | app code opt-in |
+| "Adapts to small tiles", responsive, works on a phone, readable in a narrow or short tile (viz only) | `viz-responsive-layout` | layout — see below |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
 
@@ -88,6 +89,45 @@ one mode:
 For colours CSS can't reach (a chart library's theme object, a logo swap), read
 the mode: `const colorScheme = useColorScheme();` — `'light' | 'dark'`,
 re-rendering on every host toggle.
+
+### `viz-responsive-layout` — a chart type that adapts to small tiles
+
+There is no API to call: this is a layout rework. The chart renders in an iframe
+exactly the size of its tile, and the tile never resizes to its content, so the
+chart adapts to the tile.
+
+The template makes the frame the container, but a chart type built on an older
+template carries its own copies of `src/main.jsx` and `src/index.css` without
+that. Add both pieces first if they are missing:
+
+```jsx
+// src/main.jsx — import useVizContext from '@lightdash/query-sdk', define this,
+// and render <VizFrame /> just before <App /> inside <VizContextProvider>.
+function VizFrame() {
+    const { ready } = useVizContext();
+    React.useEffect(() => {
+        document.documentElement.toggleAttribute('data-viz-frame', ready);
+    }, [ready]);
+    return null;
+}
+```
+
+```css
+/* src/index.css — inside the `@layer base` block that holds the `#root` rules. */
+html[data-viz-frame] {
+  font-size: clamp(12px, calc(4px + 2.5vw), 16px);
+}
+html[data-viz-frame] #root {
+  height: 100vh;
+  overflow-y: auto;
+}
+```
+
+Then follow the "Fitting the frame" section of the `reusable-visualization`
+skill. An older chart type usually needs its fixed column counts and pixel sizes
+replaced with wrapping, `rem`-sized ones and its own scroll regions removed; a
+chart drawn by a library that measures its container often needs nothing more.
+Keep the declaration (fields, config options, palette) unchanged.
 
 ### `viz-pivoted-results` — reusable visualization pivots
 

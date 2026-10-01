@@ -103,6 +103,8 @@ shadcn, charting, theming, floating surfaces, screenshots) still applies.
   NOT `height: 100%` — that collapses to a 0-height invisible box unless every ancestor also
   sets a height, leaving auto-sizing charts like recharts `<ResponsiveContainer>` nothing to
   measure. Confirm the chart actually renders and isn't a blank box.
+- **Fit the frame.** The viewport is an iframe exactly the size of the chart's tile, and
+  the tile never resizes to its content. See "Fitting the frame" below.
 - **Placeholder.** Show a clearly visible placeholder (readable, good contrast — never
   near-white on white) while `!ready`, when a required field is unmapped, or when there are
   no rows.
@@ -113,6 +115,24 @@ shadcn, charting, theming, floating surfaces, screenshots) still applies.
   series names, table headers, tooltip rows, default labels — use
   `getFieldLabel(context, fieldId)`. Never show the query id (`orders_total_revenue`)
   or a name derived from it (humanized, or with the table prefix stripped).
+
+### Fitting the frame
+
+A tile can be anything from about 300px wide and 300px tall (a phone, where a dashboard
+stacks its tiles in one column) to a full-width desktop tile. The template already makes
+the frame the container: it scrolls vertically when the content is taller than the tile,
+and its base font size shrinks in a narrow tile. What is left to the chart:
+
+- Size type, padding and gaps in `rem` or Tailwind classes, never `px`, so they shrink
+  with the frame.
+- A row of items wraps onto more rows as the frame narrows (auto-fit grid columns or
+  `flex-wrap`). The minimum item width is what one item needs to keep its values on one
+  line, capped just under half the frame so two still fit on a phone:
+  `min(<that width in rem>, 45%)`.
+- A value stays on one line and is never truncated. A long label wraps between words.
+  A table is `width: 100%` with wrapping header cells.
+- Add no scroll region of your own. A title or table header row that should stay visible
+  while the frame scrolls is `position: sticky; top: 0` with an opaque background.
 
 ## Series colours
 
@@ -606,6 +626,10 @@ chart.
 Then check both directions: every key you read from `options` is declared, and every option
 you declared is read somewhere. `colorPalette` is declared when you use either resolved-
 colour helper or colour from `colorPalette` — it is never read from `options`.
+
+Then resize the frame mentally, to a 320px by 320px phone tile and to a wide desktop
+tile: nothing is wider than the frame, rows of items wrap, and a title or table header
+stays in view if the frame scrolls.
 
 Before returning the declaration, add a `description` to each slot whose role
 could be ambiguous to a viewer, and add `inputGuidance` whenever row shape or ordering
