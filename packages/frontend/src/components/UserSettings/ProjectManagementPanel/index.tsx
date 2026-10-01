@@ -397,7 +397,7 @@ const ProjectManagementPanel: FC = () => {
                     const isCurrentProject =
                         lastProjectUuid === project.projectUuid;
                     return (
-                        <Group gap="xs" rowGap={4}>
+                        <Group gap="xs">
                             <Text fz="sm" fw={500} lineClamp={2}>
                                 {project.name}
                             </Text>
