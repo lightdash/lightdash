@@ -1,3 +1,10 @@
+# [2.414.0](https://github.com/lightdash/lightdash/compare/2.413.0...2.414.0) (2026-10-01)
+
+
+### Features
+
+* monitor nightly usage processing ([#30362](https://github.com/lightdash/lightdash/issues/30362)) ([962912c](https://github.com/lightdash/lightdash/commit/962912ca8ed77be2a8aecc8d17a1c9a76e17290d))
+
 # [2.413.0](https://github.com/lightdash/lightdash/compare/2.412.3...2.413.0) (2026-10-01)
 
 
