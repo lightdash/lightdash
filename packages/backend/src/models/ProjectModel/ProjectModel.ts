@@ -143,6 +143,7 @@ import {
     type DbCachedExplore,
     type DbCachedExploreStaging,
 } from '../../database/entities/projects';
+import { ProjectSetupsTableName } from '../../database/entities/projectSetups';
 import { RolesTableName } from '../../database/entities/roles';
 import {
     DbSavedChart,
@@ -1234,6 +1235,9 @@ export class ProjectModel {
                 project.project_id,
                 data.warehouseConnection,
             );
+            await trx(ProjectSetupsTableName)
+                .where('project_uuid', projectUuid)
+                .increment('configuration_revision', 1);
         });
 
         if (

@@ -118,6 +118,7 @@ import {
     getParameterReferences,
     getPreAggregateExploreName,
     getRequestMethod,
+    getSemanticLayerCompileStatus,
     getTimezoneLabel,
     getUnaccountedDimensions,
     GroupType,
@@ -202,6 +203,8 @@ import {
     ProjectGroupAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectSetupStepName,
+    ProjectSetupStepStatus,
     ProjectSummary,
     ProjectType,
     QueryExecutionContext,
@@ -303,7 +306,7 @@ import fetch from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { promisify } from 'util';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import v8 from 'v8';
 import { Worker } from 'worker_threads';
 import { gzip } from 'zlib';
@@ -322,6 +325,7 @@ import { resolveDbtSourceFetchConcurrency } from '../../config/dbtSourceFetchCon
 import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
+import type { DbProjectSetup } from '../../database/entities/projectSetups';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
@@ -357,6 +361,7 @@ import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
+import { ProjectSetupModel } from '../../models/ProjectSetupModel/ProjectSetupModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -523,6 +528,7 @@ export type ProjectServiceArguments = {
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     preAggregateModel: PreAggregateModel;
     onboardingModel: OnboardingModel;
+    projectSetupModel: ProjectSetupModel;
     savedChartModel: SavedChartModel;
     jobModel: JobModel;
     emailClient: EmailClient;
@@ -671,6 +677,8 @@ export class ProjectService extends BaseService {
 
     onboardingModel: OnboardingModel;
 
+    projectSetupModel: ProjectSetupModel;
+
     warehouseClients: Record<string, WarehouseClient>;
 
     savedChartModel: SavedChartModel;
@@ -780,6 +788,7 @@ export class ProjectService extends BaseService {
         projectDbtSourcesModel,
         preAggregateModel,
         onboardingModel,
+        projectSetupModel,
         savedChartModel,
         jobModel,
         emailClient,
@@ -834,6 +843,7 @@ export class ProjectService extends BaseService {
         this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.preAggregateModel = preAggregateModel;
         this.onboardingModel = onboardingModel;
+        this.projectSetupModel = projectSetupModel;
         this.warehouseClients = {};
         this.savedChartModel = savedChartModel;
         this.jobModel = jobModel;
@@ -3115,6 +3125,7 @@ export class ProjectService extends BaseService {
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
+            failedConnectionCount: 0,
             saveExplores: async (summary) => {
                 const saved = await this.projectModel.saveExploresToCache(
                     args.projectUuid,
@@ -3252,6 +3263,7 @@ export class ProjectService extends BaseService {
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
+            failedConnectionCount: 0,
             saveExplores: async (summary) => {
                 const saved = await this.multiConnectionCompiler.save(
                     args.projectUuid,
@@ -3277,6 +3289,7 @@ export class ProjectService extends BaseService {
         await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
+            failedConnectionCount: 0,
             saveExplores: async (summary) => {
                 const saved = await this.multiConnectionCompiler.save(
                     args.projectUuid,
@@ -3311,6 +3324,10 @@ export class ProjectService extends BaseService {
             ...metadata,
             complete: true,
             connectionWarnings: multiConnection?.warnings ?? [],
+            failedConnectionCount:
+                multiConnection?.carry.kind === 'connections'
+                    ? multiConnection.carry.warehouseConnectionUuids.length
+                    : 0,
             saveExplores: async (summary) => {
                 async function* observedExplores() {
                     for await (const explore of exploreStream) {
@@ -3339,6 +3356,7 @@ export class ProjectService extends BaseService {
                 summary: ExploreCompilationSummary,
             ) => Promise<{ cachedExploreUuids: string[] }>;
             connectionWarnings: string[];
+            failedConnectionCount: number;
         },
     ) {
         const {
@@ -3346,6 +3364,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             saveExplores,
             connectionWarnings,
+            failedConnectionCount,
             compilationSource,
             jobUuid,
             requestMethod,
@@ -3475,6 +3494,12 @@ export class ProjectService extends BaseService {
 
         this.logger.info(
             `Inserted compilation log for project ${projectUuid}: ${compilationReport.totalExploresCount} explores, ${compilationReport.errorExploresCount} errors`,
+        );
+
+        await this.recordProjectSetupStep(
+            projectUuid,
+            ProjectSetupStepName.SEMANTIC_LAYER,
+            getSemanticLayerCompileStatus({ failedConnectionCount }),
         );
 
         const indexCatalogJob = await this.schedulerClient.indexCatalog({
@@ -4151,10 +4176,22 @@ export class ProjectService extends BaseService {
         );
         ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
 
+        const setupAttempt = await this.startProjectSetupAttempt(user, data);
+        if (setupAttempt?.project_uuid) {
+            return this.createFinishedCreateProjectJob(
+                user,
+                setupAttempt.project_uuid,
+            );
+        }
+        const createData: CreateProject = {
+            ...data,
+            setupAttemptUuid: setupAttempt?.project_setup_uuid,
+        };
+
         let encryptedData: string;
         try {
             encryptedData = this.encryptionUtil
-                .encrypt(JSON.stringify(data))
+                .encrypt(JSON.stringify(createData))
                 .toString('base64');
         } catch {
             throw new UnexpectedServerError('Failed to load project data');
@@ -4214,6 +4251,103 @@ export class ProjectService extends BaseService {
             throw error;
         }
         return { jobUuid: job.jobUuid };
+    }
+
+    private async startProjectSetupAttempt(
+        user: SessionUser & { organizationUuid: string },
+        data: CreateProject,
+    ): Promise<DbProjectSetup | null> {
+        if (!data.setupAttemptUuid || data.type !== ProjectType.DEFAULT) {
+            return null;
+        }
+        if (!isValidUuid(data.setupAttemptUuid)) {
+            throw new ParameterError('setupAttemptUuid must be a UUID');
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ConnectJourney,
+        });
+        if (!enabled) {
+            return null;
+        }
+        const setup = await this.projectSetupModel.startAttempt({
+            projectSetupUuid: data.setupAttemptUuid,
+            organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
+        });
+        if (setup.project_uuid === null) {
+            await this.projectSetupModel.setStepStatus({
+                projectSetupUuid: setup.project_setup_uuid,
+                step: ProjectSetupStepName.WAREHOUSE_CONNECTION,
+                status: ProjectSetupStepStatus.RUNNING,
+            });
+        }
+        return setup;
+    }
+
+    private async createFinishedCreateProjectJob(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ jobUuid: string }> {
+        const jobUuid = uuidv4();
+        await this.jobModel.create(
+            {
+                jobUuid,
+                jobType: JobType.CREATE_PROJECT,
+                jobStatus: JobStatusType.STARTED,
+                projectUuid: undefined,
+                userUuid: user.userUuid,
+                steps: [],
+            },
+            false,
+        );
+        await this.jobModel.update(jobUuid, {
+            jobStatus: JobStatusType.DONE,
+            jobResults: { projectUuid },
+        });
+        return { jobUuid };
+    }
+
+    private async recordProjectSetupStep(
+        projectUuid: string,
+        step: ProjectSetupStepName,
+        status: ProjectSetupStepStatus,
+    ): Promise<void> {
+        try {
+            await this.projectSetupModel.setStepStatusForProject({
+                projectUuid,
+                step,
+                status,
+            });
+        } catch (error) {
+            this.logger.warn('Failed to record project setup step', {
+                projectUuid,
+                step,
+                status,
+                error: getErrorMessage(error),
+            });
+        }
+    }
+
+    private async recordSetupAttemptStep(
+        projectSetupUuid: string,
+        step: ProjectSetupStepName,
+        status: ProjectSetupStepStatus,
+    ): Promise<void> {
+        try {
+            await this.projectSetupModel.setStepStatus({
+                projectSetupUuid,
+                step,
+                status,
+            });
+        } catch (error) {
+            this.logger.warn('Failed to record project setup step', {
+                projectSetupUuid,
+                step,
+                status,
+                error: getErrorMessage(error),
+            });
+        }
     }
 
     private async reapStaleCreateProjectJobs(
@@ -4321,9 +4455,22 @@ export class ProjectService extends BaseService {
         jobUuid: string,
         method: RequestMethod,
     ): Promise<{ projectUuid: string }> {
+        const setupAttemptUuid = data.setupAttemptUuid ?? null;
+        let linkedProjectUuid: string | null = null;
         try {
             if (!isUserWithOrg(user)) {
                 throw new ForbiddenError('User is not part of an organization');
+            }
+            const existingSetup = setupAttemptUuid
+                ? await this.projectSetupModel.findByUuid(setupAttemptUuid)
+                : null;
+            if (existingSetup?.project_uuid) {
+                await this.jobModel.setPendingJobsToSkipped(jobUuid);
+                await this.jobModel.update(jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                    jobResults: { projectUuid: existingSetup.project_uuid },
+                });
+                return { projectUuid: existingSetup.project_uuid };
             }
             const createProject = await this._resolveWarehouseClientCredentials(
                 data,
@@ -4418,6 +4565,18 @@ export class ProjectService extends BaseService {
                                 createProject.expiresInHours,
                             ),
                         );
+                        if (setupAttemptUuid) {
+                            await this.projectSetupModel.linkProject(
+                                setupAttemptUuid,
+                                newProjectUuid,
+                            );
+                            linkedProjectUuid = newProjectUuid;
+                            await this.recordSetupAttemptStep(
+                                setupAttemptUuid,
+                                ProjectSetupStepName.WAREHOUSE_CONNECTION,
+                                ProjectSetupStepStatus.SUCCEEDED,
+                            );
+                        }
                         const newConnectionMap =
                             createProject.upstreamProjectUuid
                                 ? await this.copyConnectionsFromMultiUpstream(
@@ -4537,6 +4696,13 @@ export class ProjectService extends BaseService {
             return { projectUuid };
         } catch (error) {
             await this._markJobAsFailed(jobUuid);
+            if (setupAttemptUuid && linkedProjectUuid === null) {
+                await this.recordSetupAttemptStep(
+                    setupAttemptUuid,
+                    ProjectSetupStepName.WAREHOUSE_CONNECTION,
+                    ProjectSetupStepStatus.FAILED,
+                );
+            }
             if (!(error instanceof LightdashError)) {
                 Sentry.captureException(error);
             }
@@ -5161,6 +5327,7 @@ export class ProjectService extends BaseService {
             parameters: { start: 0, end: 0 },
             cacheExplores: { start: 0, end: 0 },
         };
+        let warehouseTestPassed = false;
 
         try {
             const auditedAbility = this.createAuditedAbility(user);
@@ -5203,9 +5370,20 @@ export class ProjectService extends BaseService {
                     ),
             );
             timings.testAdapter.end = performance.now();
+            warehouseTestPassed = true;
+            await this.recordProjectSetupStep(
+                projectUuid,
+                ProjectSetupStepName.WAREHOUSE_CONNECTION,
+                ProjectSetupStepStatus.SUCCEEDED,
+            );
             // Source git clones built only to read manifests for the merge.
             const manifestFetchAdapters: ProjectAdapter[] = [];
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
+                await this.recordProjectSetupStep(
+                    projectUuid,
+                    ProjectSetupStepName.SEMANTIC_LAYER,
+                    ProjectSetupStepStatus.RUNNING,
+                );
                 const compileResult = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
@@ -5424,6 +5602,21 @@ export class ProjectService extends BaseService {
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.ERROR,
             });
+            if (!warehouseTestPassed) {
+                await this.recordProjectSetupStep(
+                    projectUuid,
+                    ProjectSetupStepName.WAREHOUSE_CONNECTION,
+                    ProjectSetupStepStatus.FAILED,
+                );
+            } else if (
+                updatedProject.dbtConnection.type !== DbtProjectType.NONE
+            ) {
+                await this.recordProjectSetupStep(
+                    projectUuid,
+                    ProjectSetupStepName.SEMANTIC_LAYER,
+                    ProjectSetupStepStatus.FAILED,
+                );
+            }
             throw error;
         }
     }
@@ -10827,6 +11020,11 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
+                await this.recordProjectSetupStep(
+                    projectUuid,
+                    ProjectSetupStepName.SEMANTIC_LAYER,
+                    ProjectSetupStepStatus.RUNNING,
+                );
                 const compileResult = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
@@ -10928,6 +11126,11 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.ERROR,
                 });
+                await this.recordProjectSetupStep(
+                    projectUuid,
+                    ProjectSetupStepName.SEMANTIC_LAYER,
+                    ProjectSetupStepStatus.FAILED,
+                );
             }
         };
         await this.projectModel

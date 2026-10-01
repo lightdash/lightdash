@@ -42,6 +42,8 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PreAggregateMissReason,
+    ProjectSetupStepName,
+    ProjectSetupStepStatus,
     ProjectType,
     QueryExecutionContext,
     RedshiftAuthenticationType,
@@ -116,6 +118,7 @@ import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
+import { ProjectSetupModel } from '../../models/ProjectSetupModel/ProjectSetupModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -359,6 +362,13 @@ const preAggregateModel = {
     getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
     getActiveMaterialization: vi.fn(async () => undefined),
 };
+const projectSetupModel = {
+    findByUuid: vi.fn(async () => null),
+    startAttempt: vi.fn(),
+    linkProject: vi.fn(async () => undefined),
+    setStepStatus: vi.fn(async () => undefined),
+    setStepStatusForProject: vi.fn(async () => false),
+};
 const onboardingModel = {
     getByOrganizationUuid: vi.fn(async () => ({
         ranQueryAt: new Date(),
@@ -524,6 +534,7 @@ const getMockedProjectService = (
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
+        projectSetupModel: projectSetupModel as unknown as ProjectSetupModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         jobModel: jobModel as unknown as JobModel,
         emailClient: new EmailClient({
@@ -1590,6 +1601,137 @@ describe('ProjectService', () => {
             ).rejects.toThrow(
                 'No merged dbt manifest has been persisted for this project',
             );
+        });
+    });
+
+    describe('setup attempts', () => {
+        const organizationUuid = 'organization-uuid';
+        const setupAttemptUuid = '7d9e4a5e-6f0b-4f43-9a55-0c3bd14f4c51';
+        const projectCreator: SessionUser = {
+            ...user,
+            organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date('2026-08-03T08:00:00.000Z'),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const createProject: CreateProject = {
+            name: 'Organization',
+            type: ProjectType.DEFAULT,
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DbtVersionOptionLatest.LATEST,
+            warehouseConnection: warehouseClientMock.credentials,
+            setupAttemptUuid,
+        };
+        const setupRow = {
+            project_setup_uuid: setupAttemptUuid,
+            organization_uuid: organizationUuid,
+            project_uuid: null,
+            created_by_user_uuid: projectCreator.userUuid,
+            configuration_revision: 1,
+            created_at: new Date(),
+            updated_at: new Date(),
+        };
+        const getServiceWithConnectJourney = (enabled: boolean) =>
+            getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                enabled &&
+                                featureFlagId === FeatureFlags.ConnectJourney,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
+            });
+
+        test('ignores the setup attempt when the flag is off', async () => {
+            await getServiceWithConnectJourney(false).scheduleCreate(
+                projectCreator,
+                createProject,
+                RequestMethod.WEB_APP,
+            );
+
+            expect(projectSetupModel.startAttempt).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).toHaveBeenCalledOnce();
+        });
+
+        test('starts the attempt and marks the warehouse step running', async () => {
+            projectSetupModel.startAttempt.mockResolvedValueOnce(setupRow);
+
+            await getServiceWithConnectJourney(true).scheduleCreate(
+                projectCreator,
+                createProject,
+                RequestMethod.WEB_APP,
+            );
+
+            expect(projectSetupModel.startAttempt).toHaveBeenCalledWith({
+                projectSetupUuid: setupAttemptUuid,
+                organizationUuid,
+                userUuid: projectCreator.userUuid,
+            });
+            expect(projectSetupModel.setStepStatus).toHaveBeenCalledWith({
+                projectSetupUuid: setupAttemptUuid,
+                step: ProjectSetupStepName.WAREHOUSE_CONNECTION,
+                status: ProjectSetupStepStatus.RUNNING,
+            });
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).toHaveBeenCalledOnce();
+        });
+
+        test('returns a finished job for an attempt that already created a project', async () => {
+            projectSetupModel.startAttempt.mockResolvedValueOnce({
+                ...setupRow,
+                project_uuid: 'existing-project-uuid',
+            });
+
+            const result = await getServiceWithConnectJourney(
+                true,
+            ).scheduleCreate(
+                projectCreator,
+                createProject,
+                RequestMethod.WEB_APP,
+            );
+
+            expect(jobModel.update).toHaveBeenCalledWith(result.jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: { projectUuid: 'existing-project-uuid' },
+            });
+            expect(jobModel.createProjectJobIfNoActive).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
+            expect(projectSetupModel.setStepStatus).not.toHaveBeenCalled();
+        });
+
+        test('rejects a setup attempt id that is not a UUID', async () => {
+            await expect(
+                getServiceWithConnectJourney(true).scheduleCreate(
+                    projectCreator,
+                    { ...createProject, setupAttemptUuid: 'not-a-uuid' },
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(projectSetupModel.startAttempt).not.toHaveBeenCalled();
+        });
+
+        test('does not track setup for preview projects', async () => {
+            await getServiceWithConnectJourney(true).scheduleCreate(
+                projectCreator,
+                { ...createProject, type: ProjectType.PREVIEW },
+                RequestMethod.WEB_APP,
+            );
+
+            expect(projectSetupModel.startAttempt).not.toHaveBeenCalled();
         });
     });
 

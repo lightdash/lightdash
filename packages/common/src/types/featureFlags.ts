@@ -249,6 +249,15 @@ export enum FeatureFlags {
     NewOnboarding = 'new-onboarding',
 
     /**
+     * Delivery one of the connect-your-data journey redesign: server-side
+     * setup state per project, idempotent first-run project creation, and
+     * first projects named after the organization. One flag for the whole
+     * delivery until the rollout decision settles grouping. Off by default;
+     * resolved per user and organization.
+     */
+    ConnectJourney = 'connect-journey',
+
+    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a
