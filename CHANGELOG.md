@@ -1,3 +1,10 @@
+## [2.405.6](https://github.com/lightdash/lightdash/compare/2.405.5...2.405.6) (2026-10-01)
+
+
+### Bug Fixes
+
+* disable whole-job retries for usage compaction ([#30332](https://github.com/lightdash/lightdash/issues/30332)) ([88054de](https://github.com/lightdash/lightdash/commit/88054dee801b1bb47dc2e8f6f75b942fc67f0759))
+
 ## [2.405.5](https://github.com/lightdash/lightdash/compare/2.405.4...2.405.5) (2026-10-01)
 
 
