@@ -1,5 +1,8 @@
 import { generateText } from 'ai';
-import type { AiAgentPromptInputRequestClassifiedEvent } from '../../../analytics/LightdashAnalytics';
+import type {
+    AiAgentPromptInputRequestClassifiedEvent,
+    AiAgentRequestLifecycleEvent,
+} from '../../../analytics/LightdashAnalytics';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import { getModel } from '../ai/models';
@@ -42,7 +45,13 @@ const context = {
 const updatePromptNeedsUserInput =
     vi.fn<AiAgentModel['updatePromptNeedsUserInput']>();
 const track =
-    vi.fn<(event: AiAgentPromptInputRequestClassifiedEvent) => void>();
+    vi.fn<
+        (
+            event:
+                | AiAgentPromptInputRequestClassifiedEvent
+                | AiAgentRequestLifecycleEvent,
+        ) => void
+    >();
 
 describe('prompt input request gate', () => {
     it.each(promptInputRequestClassifierEvalCases)(

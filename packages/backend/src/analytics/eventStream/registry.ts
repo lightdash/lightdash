@@ -1,11 +1,17 @@
 import type { AiUsageEvent } from '../aiUsage';
 import type {
+    AiAgentPromptCreatedEvent,
+    AiAgentRequestLifecycleEvent,
     AiAgentStepCompletedEvent,
     AiAgentToolCallCompletedEvent,
     DownloadCsv,
     McpToolCallEvent,
     QueryCompletedEvent,
 } from '../LightdashAnalytics';
+import {
+    agentRequestEventsColumns,
+    agentRequestEventsProjections,
+} from './agentRequestEventsStream';
 import {
     agentStepsCompactedColumns,
     agentStepsProjections,
@@ -45,6 +51,8 @@ export type ProjectedEvent =
     | ContentViewEvent
     | QueryCompletedEvent
     | AiUsageEvent
+    | AiAgentPromptCreatedEvent
+    | AiAgentRequestLifecycleEvent
     | AiAgentStepCompletedEvent
     | AiAgentToolCallCompletedEvent
     | DataAppStreamEvent
@@ -60,6 +68,7 @@ export type EventStreamRegistry = {
  * not present here are ignored by the sink.
  */
 export const eventStreamRegistry: EventStreamRegistry = {
+    ...agentRequestEventsProjections,
     ...contentViewsProjections,
     ...queryEventsProjections,
     ...aiUsageProjections,
@@ -78,6 +87,7 @@ export const compactedStreamSchemas: Record<
     StreamName,
     CompactedStreamColumn[]
 > = {
+    agent_request_events: agentRequestEventsColumns,
     content_views: contentViewsColumns,
     query_events: queryEventsCompactedColumns,
     ai_usage: aiUsageCompactedColumns,

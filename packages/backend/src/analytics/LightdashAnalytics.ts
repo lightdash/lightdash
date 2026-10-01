@@ -3376,6 +3376,27 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
     };
 };
 
+/** Request lifecycle facts contain IDs and outcomes only, never prompt text. */
+export type AiAgentRequestLifecycleEvent = BaseTrack & {
+    event:
+        | 'ai_agent_request.outcome'
+        | 'ai_agent_request.retry_started'
+        | 'ai_agent_request.clarification_requested'
+        | 'ai_agent_request.interrupted'
+        | 'ai_agent_request.feedback_updated';
+    userId?: string;
+    properties: {
+        eventId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string | null;
+        threadId: string;
+        promptId: string;
+        outcome?: 'success' | 'error';
+        humanScore?: number;
+    };
+};
+
 /** One row per JEV turn decision, including turns JEV answered without the agent. */
 export type AiAgentTurnDecisionEvent = BaseTrack & {
     event: 'ai_agent.turn_decision';
@@ -4645,6 +4666,7 @@ type TypedEvent =
     | AiAgentSkillDeletedEvent
     | AiAgentSkillBindingsUpdatedEvent
     | AiAgentPromptCreatedEvent
+    | AiAgentRequestLifecycleEvent
     | AiAgentTurnDecisionEvent
     | AiAgentPromptFeedbackEvent
     | AiAgentEvalCreatedEvent
