@@ -24,11 +24,11 @@ const formatDate = (value: Date) => dayjs.utc(value).format('D MMM YYYY');
 const formatLastDay = (periodEnd: Date) =>
     dayjs.utc(periodEnd).subtract(1, 'millisecond').format('D MMM YYYY');
 
-const describeResetInterval = (months: number): string => {
-    if (months === 1) return 'Resets monthly';
-    if (months === 3) return 'Resets quarterly';
-    if (months === 12) return 'Resets yearly';
-    return `Resets every ${months} months`;
+const describePeriodLength = (months: number): string => {
+    if (months === 1) return 'monthly period';
+    if (months === 3) return 'quarterly period';
+    if (months === 12) return 'yearly period';
+    return `${months}-month period`;
 };
 
 const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
@@ -46,7 +46,10 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                     <Title order={5}>This period</Title>
                     <Text fz="sm" c="dimmed">
                         {formatDate(period.periodStart)} –{' '}
-                        {formatLastDay(period.periodEnd)}
+                        {formatLastDay(period.periodEnd)} ·{' '}
+                        {describePeriodLength(
+                            contract?.resetIntervalMonths ?? 1,
+                        )}
                     </Text>
                 </Group>
                 <Text fz="xl" fw={600}>
@@ -60,13 +63,11 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                         percent={(billable.credits / allowance) * 100}
                     />
                 )}
-                <Text fz="sm" c="dimmed">
-                    {isContractEnd
-                        ? `Your contract ends on ${formatDate(period.periodEnd)}`
-                        : `${describeResetInterval(
-                              contract?.resetIntervalMonths ?? 1,
-                          )} · next reset on ${formatDate(period.periodEnd)}`}
-                </Text>
+                {isContractEnd && (
+                    <Text fz="sm" c="dimmed">
+                        Your contract ends on {formatDate(period.periodEnd)}
+                    </Text>
+                )}
             </Stack>
         </Paper>
     );
