@@ -224,6 +224,7 @@ import {
 } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
+import { SchedulerTableName } from '../../database/entities/scheduler';
 
 export type BoundExplore = {
     explore: Explore | ExploreError;
@@ -986,6 +987,13 @@ export class ProjectModel {
                   }
                 : null,
         };
+    }
+
+    async hasSchedulers(projectUuid: string): Promise<boolean> {
+        const row = await this.database(SchedulerTableName)
+            .where('project_uuid', projectUuid)
+            .first('scheduler_uuid');
+        return row !== undefined;
     }
 
     async hasAnyProjects(): Promise<boolean> {

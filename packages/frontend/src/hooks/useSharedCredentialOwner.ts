@@ -1,7 +1,7 @@
 import {
     FeatureFlags,
     type ApiError,
-    type SharedCredentialOwner,
+    type SharedCredentialOwnerDetails,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
@@ -14,10 +14,10 @@ export const useIsSharedSignInOwnershipEnabled = () => {
 
 export const useSharedCredentialOwner = (projectUuid: string | undefined) => {
     const isEnabled = useIsSharedSignInOwnershipEnabled();
-    return useQuery<SharedCredentialOwner | null, ApiError>({
+    return useQuery<SharedCredentialOwnerDetails | null, ApiError>({
         queryKey: ['shared_credential_owner', projectUuid],
         queryFn: () =>
-            lightdashApi<SharedCredentialOwner | null>({
+            lightdashApi<SharedCredentialOwnerDetails | null>({
                 url: `/projects/${projectUuid}/warehouse-credentials/owner`,
                 method: 'GET',
                 body: undefined,

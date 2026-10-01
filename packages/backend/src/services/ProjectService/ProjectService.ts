@@ -296,7 +296,7 @@ import {
     type WarehouseConnectionStagedTestResults,
     type WarehouseLocation,
     type WarehouseSqlBuilder,
-    type SharedCredentialOwner,
+    type SharedCredentialOwnerDetails,
 } from '@lightdash/common';
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
@@ -3578,7 +3578,7 @@ export class ProjectService extends BaseService {
     async getSharedCredentialOwner(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<SharedCredentialOwner | null> {
+    ): Promise<SharedCredentialOwnerDetails | null> {
         const { enabled } = await this.featureFlagModel.get({
             user,
             featureFlagId: FeatureFlags.SharedSignInOwnership,
@@ -3596,7 +3596,13 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return this.projectModel.getSharedCredentialOwner(projectUuid);
+        const credentialOwner =
+            await this.projectModel.getSharedCredentialOwner(projectUuid);
+        if (!credentialOwner) return null;
+        return {
+            ...credentialOwner,
+            hasSchedules: await this.projectModel.hasSchedulers(projectUuid),
+        };
     }
 
     async assertAnalyticsProjectAccess(

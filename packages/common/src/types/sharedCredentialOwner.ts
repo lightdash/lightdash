@@ -24,9 +24,13 @@ export type SharedCredentialOwner = {
     owner: { userUuid: string; name: string } | null;
 };
 
+export type SharedCredentialOwnerDetails = SharedCredentialOwner & {
+    hasSchedules: boolean;
+};
+
 export type ApiSharedCredentialOwnerResponse = {
     status: 'ok';
-    results: SharedCredentialOwner | null;
+    results: SharedCredentialOwnerDetails | null;
 };
 
 export type PersonSignIn = {

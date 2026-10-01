@@ -12648,6 +12648,11 @@ describe('ProjectService.getSharedCredentialOwner', () => {
                 getSharedCredentialOwner: ReturnType<typeof vi.fn>;
             }
         ).getSharedCredentialOwner = vi.fn(async () => owner);
+        (
+            projectModel as unknown as {
+                hasSchedulers: ReturnType<typeof vi.fn>;
+            }
+        ).hasSchedulers = vi.fn(async () => false);
     });
 
     test('is not available while the flag is off', async () => {
@@ -12671,12 +12676,12 @@ describe('ProjectService.getSharedCredentialOwner', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    test('returns whose sign-in the project runs on', async () => {
+    test('returns whose sign-in the project runs on and whether it has schedules', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: flagged(true),
         });
         await expect(
             service.getSharedCredentialOwner(user, projectSummary.projectUuid),
-        ).resolves.toEqual(owner);
+        ).resolves.toEqual({ ...owner, hasSchedules: false });
     });
 });

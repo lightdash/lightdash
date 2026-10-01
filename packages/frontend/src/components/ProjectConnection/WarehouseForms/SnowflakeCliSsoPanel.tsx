@@ -32,6 +32,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
+import { SharedSignInSetupLine } from '../SharedSignIn/SharedSignInSetupLine';
 import {
     buildSnowflakeConnectCommand,
     largestDatabaseName,
@@ -414,6 +415,8 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 browser and sets up a secure, revocable connection for you, with
                 no credentials to copy by hand.
             </Text>
+
+            <SharedSignInSetupLine />
 
             {!code ? (
                 <Group>

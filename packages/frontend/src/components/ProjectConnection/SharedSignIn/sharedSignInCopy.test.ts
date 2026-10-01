@@ -1,6 +1,10 @@
 import { PersonSignInProvider, WarehouseTypes } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getRunsAsLabel, getServiceMethods } from './sharedSignInCopy';
+import {
+    getFirstSchedulePrompt,
+    getRunsAsLabel,
+    getServiceMethods,
+} from './sharedSignInCopy';
 
 describe('getRunsAsLabel', () => {
     it('names the owner and the sign-in', () => {
@@ -40,5 +44,18 @@ describe('getServiceMethods', () => {
         expect(getServiceMethods(WarehouseTypes.SNOWFLAKE)).toHaveLength(1);
         expect(getServiceMethods(WarehouseTypes.DATABRICKS)).toHaveLength(1);
         expect(getServiceMethods(WarehouseTypes.POSTGRES)).toEqual([]);
+    });
+});
+
+describe('getFirstSchedulePrompt', () => {
+    it('says whose sign-in the schedule runs on and what to do', () => {
+        expect(
+            getFirstSchedulePrompt({
+                signIn: PersonSignInProvider.GOOGLE,
+                owner: { userUuid: 'u', name: 'Sam Rivera' },
+            }),
+        ).toBe(
+            "This schedule runs on Sam Rivera's Google sign-in. If that sign-in expires, the schedule stops. Add a service account to keep it running.",
+        );
     });
 });

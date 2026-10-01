@@ -8,6 +8,9 @@ import {
     type SharedCredentialOwner,
 } from '@lightdash/common';
 
+export const SHARED_SIGN_IN_SETUP_LINE =
+    'Everyone in this project will query as you. You can add a service account later.';
+
 export const getOwnerName = (owner: SharedCredentialOwner['owner']) =>
     owner?.name.trim() || null;
 
@@ -67,3 +70,12 @@ export const getServiceMethods = (
     [...(SERVICE_METHODS[warehouseType] ?? [])].sort(
         (a, b) => Number(a.needsLongLivedKey) - Number(b.needsLongLivedKey),
     );
+
+export const getFirstSchedulePrompt = (
+    credentialOwner: SharedCredentialOwner,
+) => {
+    const signIn = PERSON_SIGN_IN_LABELS[credentialOwner.signIn];
+    const name = getOwnerName(credentialOwner.owner);
+    const whose = name ? `${name}'s` : `a person's`;
+    return `This schedule runs on ${whose} ${signIn} sign-in. If that sign-in expires, the schedule stops. Add a service account to keep it running.`;
+};

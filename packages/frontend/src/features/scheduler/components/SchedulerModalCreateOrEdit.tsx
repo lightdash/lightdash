@@ -29,6 +29,7 @@ import { useMemo, useState, type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
+import { FirstScheduleSignInPrompt } from '../../../components/ProjectConnection/SharedSignIn/FirstScheduleSignInPrompt';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
@@ -371,6 +372,14 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                     >
                                         <div className={classes.centerInner}>
                                             <Stack gap="lg">
+                                                {!savedSchedulerData &&
+                                                    projectUuid && (
+                                                        <FirstScheduleSignInPrompt
+                                                            projectUuid={
+                                                                projectUuid
+                                                            }
+                                                        />
+                                                    )}
                                                 <Stack gap={2}>
                                                     <span
                                                         className={

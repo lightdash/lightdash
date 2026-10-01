@@ -28,6 +28,7 @@ import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
+import { SharedSignInSetupLine } from '../SharedSignIn/SharedSignInSetupLine';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { DatabricksDefaultValues } from './defaultValues';
@@ -356,16 +357,19 @@ const DatabricksForm: FC<{
                         />
                     </Stack>
                 ) : (
-                    <DatabricksSSOInput
-                        isAuthenticated={isAuthenticated}
-                        // OAuth re-auth writes to the current user's own credentials,
-                        // not the project's warehouse config — so it must stay
-                        // available even when the rest of the form is locked
-                        // (preview projects, missing update permission, mid-save).
-                        disabled={!isServerHostNameProvided}
-                        disabledTooltip={databricksSsoDisabledTooltip}
-                        openLoginPopup={openLoginPopup}
-                    />
+                    <>
+                        <DatabricksSSOInput
+                            isAuthenticated={isAuthenticated}
+                            // OAuth re-auth writes to the current user's own credentials,
+                            // not the project's warehouse config — so it must stay
+                            // available even when the rest of the form is locked
+                            // (preview projects, missing update permission, mid-save).
+                            disabled={!isServerHostNameProvided}
+                            disabledTooltip={databricksSsoDisabledTooltip}
+                            openLoginPopup={openLoginPopup}
+                        />
+                        <SharedSignInSetupLine />
+                    </>
                 )}
 
                 <TextInput
