@@ -47,7 +47,11 @@ import {
     type Source,
     type TimestampDomain,
 } from '../types/field';
-import { parseModelRequiredFilters } from '../types/filterGrammar';
+import {
+    isFilterValueMap,
+    parseModelRequiredFilters,
+    type RequiredFilter,
+} from '../types/filterGrammar';
 import {
     type CustomGranularity,
     type LightdashProjectConfig,
@@ -670,6 +674,34 @@ const getColumnMeta = (column: DbtModelColumn): DbtColumnMetadata =>
 const hasRepeatedAncestor = (column: DbtModelColumn): boolean =>
     (column.repeated_ancestors?.length ?? 0) > 0;
 
+/**
+ * Under partial compilation a model filter with a map value is dropped with a
+ * warning so the explore stays usable; otherwise the parser rejects it.
+ */
+function dropMapValuedModelFilters(
+    owner: string,
+    filters: RequiredFilter[] | undefined,
+    allowPartialCompilation: boolean | undefined,
+): { filters: RequiredFilter[] | undefined; warnings: InlineError[] } {
+    if (!allowPartialCompilation || !filters) {
+        return { filters, warnings: [] };
+    }
+    const warnings: InlineError[] = [];
+    const validFilters = filters.filter((filter) => {
+        const mapValuedKeys = Object.keys(filter).filter((key) =>
+            isFilterValueMap(filter[key]),
+        );
+        mapValuedKeys.forEach((key) =>
+            warnings.push({
+                type: InlineErrorType.MODEL_FILTER_ERROR,
+                message: `Filter "${key}" in ${owner} was ignored: it must be a single value or a list of values, not a map`,
+            }),
+        );
+        return mapValuedKeys.length === 0;
+    });
+    return { filters: validFilters, warnings };
+}
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -1059,6 +1091,18 @@ export const convertTable = (
         });
     }
 
+    const requiredFilters = dropMapValuedModelFilters(
+        `model "${model.name}"`,
+        meta.required_filters,
+        allowPartialCompilation,
+    );
+    const defaultFilters = dropMapValuedModelFilters(
+        `model "${model.name}"`,
+        meta.default_filters,
+        allowPartialCompilation,
+    );
+    tableWarnings.push(...requiredFilters.warnings, ...defaultFilters.warnings);
+
     const sqlTable = meta.sql_from || model.relation_name;
     if (sqlTable === null || sqlTable === undefined || sqlTable === '') {
         throw new Error(`Model "${model.name}" is missing a table reference.`);
@@ -1131,8 +1175,8 @@ export const convertTable = (
         primaryKey: normalizePrimaryKey(meta.primary_key),
         sqlWhere: meta.sql_filter || meta.sql_where,
         requiredFilters: parseModelRequiredFilters({
-            requiredFilters: meta.required_filters,
-            defaultFilters: meta.default_filters,
+            requiredFilters: requiredFilters.filters,
+            defaultFilters: defaultFilters.filters,
         }),
         requiredAttributes: meta.required_attributes,
         anyAttributes: meta.any_attributes,
@@ -1783,6 +1827,22 @@ export async function* iterateExplores(
                           const baseTable = tableLookup[model.name];
                           const baseTableLabel =
                               meta.label || friendlyName(model.name);
+                          const exploreRequiredFilters =
+                              dropMapValuedModelFilters(
+                                  `explore "${exploreName}"`,
+                                  exploreConfig.required_filters,
+                                  allowPartialCompilation,
+                              );
+                          const exploreDefaultFilters =
+                              dropMapValuedModelFilters(
+                                  `explore "${exploreName}"`,
+                                  exploreConfig.default_filters,
+                                  allowPartialCompilation,
+                              );
+                          const exploreFilterWarnings = [
+                              ...exploreRequiredFilters.warnings,
+                              ...exploreDefaultFilters.warnings,
+                          ];
 
                           // Convert explore-scoped additional dimensions
                           const exploreScopedDimensions: Record<
@@ -1851,10 +1911,19 @@ export async function* iterateExplores(
                                       requiredFilters:
                                           parseModelRequiredFilters({
                                               requiredFilters:
-                                                  exploreConfig.required_filters,
+                                                  exploreRequiredFilters.filters,
                                               defaultFilters:
-                                                  exploreConfig.default_filters,
+                                                  exploreDefaultFilters.filters,
                                           }),
+                                      ...(exploreFilterWarnings.length > 0
+                                          ? {
+                                                warnings: [
+                                                    ...(baseTable.warnings ??
+                                                        []),
+                                                    ...exploreFilterWarnings,
+                                                ],
+                                            }
+                                          : {}),
                                       // Merge explore-scoped dimensions with existing dimensions
                                       dimensions: {
                                           ...baseTable.dimensions,

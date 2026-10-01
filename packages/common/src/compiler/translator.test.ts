@@ -2588,6 +2588,116 @@ describe('required/default filters on hidden dimensions', () => {
     });
 });
 
+describe('model filters with a map value', () => {
+    const MAP_VALUED_FILTER = { status: { equals: 'completed' } };
+
+    const createOrdersModel = (
+        meta: Record<string, unknown>,
+    ): DbtModelNode => ({
+        ...model,
+        name: 'orders',
+        alias: 'orders',
+        relation_name: 'orders',
+        columns: {
+            status: {
+                name: 'status',
+                data_type: DimensionType.STRING,
+                meta: { dimension: { type: DimensionType.STRING } },
+            },
+            region: {
+                name: 'region',
+                data_type: DimensionType.STRING,
+                meta: { dimension: { type: DimensionType.STRING } },
+            },
+        },
+        meta: meta as DbtModelNode['meta'],
+    });
+
+    const compile = (
+        dbtModel: DbtModelNode,
+        allowPartialCompilation: boolean,
+    ) =>
+        convertExplores(
+            [dbtModel],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { allowPartialCompilation },
+        );
+
+    it('drops the filter with a warning under partial compilation', async () => {
+        const explores = await compile(
+            createOrdersModel({
+                required_filters: [{ region: 'emea' }],
+                default_filters: [MAP_VALUED_FILTER],
+            }),
+            true,
+        );
+
+        const explore = explores.find((e) => e.name === 'orders') as Explore;
+        expect(isExploreError(explore)).toBe(false);
+        expect(
+            explore.tables.orders.requiredFilters?.map((filter) => ({
+                fieldRef: filter.target.fieldRef,
+                values: filter.values,
+            })),
+        ).toEqual([{ fieldRef: 'region', values: ['emea'] }]);
+        expect(explore.warnings).toEqual([
+            {
+                type: InlineErrorType.MODEL_FILTER_ERROR,
+                message:
+                    'Filter "status" in model "orders" was ignored: it must be a single value or a list of values, not a map',
+            },
+        ]);
+    });
+
+    it('fails the explore without partial compilation', async () => {
+        const explores = await compile(
+            createOrdersModel({ required_filters: [MAP_VALUED_FILTER] }),
+            false,
+        );
+
+        const explore = explores.find((e) => e.name === 'orders');
+        expect(explore && isExploreError(explore)).toBe(true);
+        expect((explore as ExploreError).errors).toEqual([
+            {
+                type: InlineErrorType.METADATA_PARSE_ERROR,
+                message:
+                    'Filter "status" must be a single value or a list of values, not a map',
+            },
+        ]);
+    });
+
+    it('drops an explore-level filter and names that explore in the warning', async () => {
+        const explores = await compile(
+            createOrdersModel({
+                explores: {
+                    orders_curated: { default_filters: [MAP_VALUED_FILTER] },
+                },
+            }),
+            true,
+        );
+
+        const baseExplore = explores.find(
+            (e) => e.name === 'orders',
+        ) as Explore;
+        const curated = explores.find(
+            (e) => e.name === 'orders_curated',
+        ) as Explore;
+        expect(baseExplore.warnings).toBeUndefined();
+        expect(isExploreError(curated)).toBe(false);
+        expect(curated.tables.orders.requiredFilters).toEqual([]);
+        expect(curated.warnings).toEqual([
+            {
+                type: InlineErrorType.MODEL_FILTER_ERROR,
+                message:
+                    'Filter "status" in explore "orders_curated" was ignored: it must be a single value or a list of values, not a map',
+            },
+        ]);
+    });
+});
+
 describe('custom granularities', () => {
     const customGranularities = {
         slt_week: {
