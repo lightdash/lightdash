@@ -1,3 +1,10 @@
+# [2.404.0](https://github.com/lightdash/lightdash/compare/2.403.0...2.404.0) (2026-10-01)
+
+
+### Features
+
+* **ai:** pin a Document as AI agent context ([#30303](https://github.com/lightdash/lightdash/issues/30303)) ([69a28f9](https://github.com/lightdash/lightdash/commit/69a28f98de5358be437b492511e16059b30b0a94)), closes [#30304](https://github.com/lightdash/lightdash/issues/30304)
+
 # [2.403.0](https://github.com/lightdash/lightdash/compare/2.402.0...2.403.0) (2026-10-01)
 
 

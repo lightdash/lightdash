@@ -29421,6 +29421,38 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "pinnedVersionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "documentSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "documentUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["document"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "pinnedVersionUuid",
+                            "documentSlug",
+                            "documentUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "designSlug": {
                                 "type": "string",
                                 "nullable": true
@@ -32522,6 +32554,24 @@
                             }
                         },
                         "required": ["appUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "documentSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "documentUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["document"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["documentUuid", "type"],
                         "type": "object"
                     },
                     {
@@ -68597,7 +68647,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.403.0",
+        "version": "2.404.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
