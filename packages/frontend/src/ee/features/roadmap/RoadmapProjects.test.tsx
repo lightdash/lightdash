@@ -6,6 +6,7 @@ import {
     within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import nock from 'nock';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -356,4 +357,149 @@ describe('following roadmap projects', () => {
         });
         expect(within(reopened).getByRole('textbox')).toHaveValue('');
     });
+});
+
+describe('roadmap loading errors', () => {
+    it.each(['initial projects', 'board projects', 'tickets'])(
+        'shows actionable network-egress guidance for failed %s instead of an empty roadmap',
+        async (failure) => {
+            const unreachable = {
+                status: 'error',
+                error: {
+                    name: 'UnexpectedServerError',
+                    statusCode: 500,
+                    message: 'The server cannot reach the roadmap service',
+                    data: { code: 'ROADMAP_UNREACHABLE' },
+                },
+            };
+            nock('http://test.lightdash')
+                .persist()
+                .get('/api/v1/org/roadmap/projects')
+                .query(true)
+                .reply((uri) => {
+                    const statuses = new URL(
+                        uri,
+                        'http://test.lightdash',
+                    ).searchParams.get('statuses');
+                    if (
+                        failure === 'initial projects' ||
+                        (failure === 'board projects' && statuses)
+                    ) {
+                        return [500, unreachable];
+                    }
+                    return [
+                        200,
+                        {
+                            status: 'ok',
+                            results: mockRoadmapResults(
+                                !statuses || statuses.includes('planned')
+                                    ? [
+                                          {
+                                              ...mockRoadmapProject('alpha'),
+                                              hasDirectNeed: true,
+                                          },
+                                      ]
+                                    : [],
+                            ),
+                        },
+                    ];
+                });
+            if (failure === 'tickets') {
+                nock('http://test.lightdash')
+                    .persist()
+                    .get('/api/v1/org/roadmap')
+                    .query(true)
+                    .reply(500, unreachable);
+            }
+            renderRoadmap();
+
+            expect(
+                await screen.findByText('Cannot reach the roadmap service'),
+            ).toBeInTheDocument();
+            expect(
+                within(screen.getByRole('alert')).getByText(
+                    'The Lightdash server cannot reach roadmap.lightdash.com. If you self-host Lightdash, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.',
+                ),
+            ).toBeInTheDocument();
+            const guidance = screen.getByRole('link', {
+                name: 'View network-egress guidance',
+            });
+            expect(guidance).toHaveAttribute(
+                'href',
+                'https://docs.lightdash.com/self-host/customize-deployment/organization-roadmap#network-egress',
+            );
+            expect(guidance).toHaveAttribute('target', '_blank');
+            expect(guidance).toHaveAttribute('rel', 'noopener noreferrer');
+            expect(
+                screen.queryByText('No roadmap items yet'),
+            ).not.toBeInTheDocument();
+            if (failure !== 'board projects') {
+                await userEvent.click(
+                    screen.getByRole('radio', { name: 'Table' }),
+                );
+                expect(
+                    await screen.findByText('Cannot reach the roadmap service'),
+                ).toBeInTheDocument();
+                expect(
+                    screen.getByRole('link', {
+                        name: 'View network-egress guidance',
+                    }),
+                ).toBeInTheDocument();
+            }
+        },
+    );
+
+    it.each([
+        {
+            status: 500,
+            payload: {
+                status: 'error',
+                error: {
+                    name: 'UnexpectedServerError',
+                    statusCode: 500,
+                    message:
+                        'private upstream details mentioning roadmap.lightdash.com',
+                    data: {},
+                },
+            },
+            title: 'Could not load the roadmap',
+        },
+        {
+            status: 403,
+            payload: {
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    message: 'private license details',
+                    data: {},
+                },
+            },
+            title: "Your roadmap isn't set up yet",
+        },
+        {
+            status: 200,
+            payload: { status: 'ok', results: {} },
+            title: 'Could not load the roadmap',
+        },
+    ])(
+        'keeps non-egress errors safe and distinct (%#)',
+        async ({ status, payload, title }) => {
+            nock('http://test.lightdash')
+                .get('/api/v1/org/roadmap/projects')
+                .query(true)
+                .reply(status, payload);
+            renderRoadmap();
+
+            expect(await screen.findByText(title)).toBeInTheDocument();
+            expect(
+                screen.queryByRole('link', {
+                    name: 'View network-egress guidance',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('private', { exact: false }),
+            ).not.toBeInTheDocument();
+        },
+    );
 });

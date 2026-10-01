@@ -637,13 +637,34 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
     );
 }
 
-function BoardError() {
+function BoardError({ roadmapUnreachable }: { roadmapUnreachable: boolean }) {
     return (
-        <Box p="xl">
+        <Box p="xl" role="alert">
             <SuboptimalState
                 icon={IconAlertCircle}
-                title="Could not load the roadmap"
-                description="The roadmap is currently unavailable."
+                title={
+                    roadmapUnreachable
+                        ? 'Cannot reach the roadmap service'
+                        : 'Could not load the roadmap'
+                }
+                description={
+                    roadmapUnreachable
+                        ? 'The Lightdash server cannot reach roadmap.lightdash.com. If you self-host Lightdash, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.'
+                        : 'The roadmap is currently unavailable.'
+                }
+                action={
+                    roadmapUnreachable ? (
+                        <Button
+                            component="a"
+                            variant="default"
+                            href="https://docs.lightdash.com/self-host/customize-deployment/organization-roadmap#network-egress"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            View network-egress guidance
+                        </Button>
+                    ) : undefined
+                }
             />
         </Box>
     );
@@ -812,6 +833,11 @@ export function RoadmapProjects({
     const failed =
         projectErrors.some(Boolean) ||
         requestErrors.some((error) => Boolean(error) && !isForbidden(error));
+    const roadmapUnreachable = [...projectErrors, ...requestErrors].some(
+        (error) =>
+            error?.error?.name === 'UnexpectedServerError' &&
+            error.error.data?.code === 'ROADMAP_UNREACHABLE',
+    );
     const back = () => {
         setSelectedProject(null);
         setProjectSearch('');
@@ -1069,7 +1095,7 @@ export function RoadmapProjects({
                     />
                 </Box>
             ) : failed ? (
-                <BoardError />
+                <BoardError roadmapUnreachable={roadmapUnreachable} />
             ) : loading ? (
                 <Box p="xl">
                     <EmptyStateLoader
