@@ -75,13 +75,14 @@ export const toolRunSqlStructuredContentSchema = z.object({
     rows: mcpSqlQueryRowsColumnsSchema.shape.rows
         .nullable()
         .describe(
-            `Preview rows shown to the model (first ${RUN_SQL_PREVIEW_ROW_LIMIT} at most). Null when data access is disabled and no row values are exposed.`,
+            `Raw values of the preview rows rendered as CSV in the result (first ${RUN_SQL_PREVIEW_ROW_LIMIT} at most). Null when data access is disabled and no row values are exposed.`,
         ),
     truncated: z
         .boolean()
         .describe(
             'True when `rows` holds only the first rows of a larger result; `rowCount` is the full count.',
         ),
+    review: z.string().nullable(),
 });
 
 export const toolRunSqlOutputSchema = structuredToolOutputSchema({

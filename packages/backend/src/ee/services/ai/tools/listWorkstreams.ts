@@ -16,10 +16,10 @@ type Dependencies = {
 
 const toolDefinition = listWorkstreamsToolDefinition.for('agent');
 
-const renderResult = ({
-    repoTarget,
-    workstreams,
-}: ToolListWorkstreamsStructuredContent): string => {
+const renderResult = (
+    repoTarget: string | null,
+    workstreams: ToolListWorkstreamsStructuredContent['workstreams'],
+): string => {
     if (workstreams.length === 0) {
         return repoTarget
             ? `This conversation has not opened any pull requests on ${repoTarget} yet. Use editRepo or editDbtProject to open one.`
@@ -51,21 +51,22 @@ export const getListWorkstreams = ({ listWorkstreams }: Dependencies) =>
             try {
                 const workstreams = await listWorkstreams({ repoTarget });
 
+                const listed = workstreams.map(
+                    ({ repository, prNumber, prUrl, summary }) => ({
+                        repository,
+                        prNumber,
+                        prUrl,
+                        summary,
+                    }),
+                );
+                // The scope is stated only by the empty-list text.
                 const structuredContent: ToolListWorkstreamsStructuredContent =
-                    {
-                        repoTarget,
-                        workstreams: workstreams.map(
-                            ({ repository, prNumber, prUrl, summary }) => ({
-                                repository,
-                                prNumber,
-                                prUrl,
-                                summary,
-                            }),
-                        ),
-                    };
+                    listed.length === 0
+                        ? { repoTarget, workstreams: [] }
+                        : { workstreams: listed };
 
                 return {
-                    result: renderResult(structuredContent),
+                    result: renderResult(repoTarget, listed),
                     metadata: { status: 'success' },
                     structuredContent,
                 };

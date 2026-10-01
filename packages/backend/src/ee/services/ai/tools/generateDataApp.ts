@@ -40,7 +40,7 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                 return {
                     result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
                     metadata: pendingBuild,
-                    structuredContent: pendingBuild,
+                    structuredContent: { status: 'pending' },
                 };
             } catch (error) {
                 const { result, structuredContent } = toolErrorOutput(

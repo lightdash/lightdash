@@ -59,7 +59,7 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
                 return {
                     result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
                     metadata: started,
-                    structuredContent: started,
+                    structuredContent: { status: 'pending' },
                 };
             } catch (error) {
                 return {

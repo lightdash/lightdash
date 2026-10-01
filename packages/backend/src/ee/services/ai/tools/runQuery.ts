@@ -5,6 +5,7 @@ import {
     generateVisualizationFilterExpressionToolDefinition,
     generateVisualizationToolDefinition,
     getItemId,
+    getItemLabelWithoutTableName,
     getReferencedExploreParameterDefinitions,
     getRunQueryAgentViewRejectingMerge,
     getRunQueryFilterExpressionAgentViewRejectingMerge,
@@ -302,19 +303,25 @@ export const summarizeAppliedParameters = (
         : '';
 };
 
-// The query identity every structured outcome carries; filters are echoed
-// as the agent authored them.
 // The rows written into the conversation: the CSV block and the structured
 // `data` are rendered from this one slice.
 const selectShownRows = (
     rows: Record<string, unknown>[],
     maxContextRows: number,
+    fields: ItemsMap,
 ): NonNullable<
     Extract<ToolRunQueryStructuredContent, { outcome: 'results' }>['data']
 > => {
     const shown = rows.slice(0, maxContextRows);
-    const [first] = shown;
-    return { columns: first ? Object.keys(first) : [], rows: shown };
+    const [first] = rows;
+    const fieldIds = first ? Object.keys(first) : [];
+    return {
+        columns: fieldIds.map((fieldId) => {
+            const item = fields[fieldId];
+            return item ? getItemLabelWithoutTableName(item) : fieldId;
+        }),
+        rows: shown.map((row) => fieldIds.map((fieldId) => row[fieldId])),
+    };
 };
 
 export const validateRunQueryTool = (
@@ -870,6 +877,14 @@ export const getRunQuery = ({
                             },
                             structuredContent: {
                                 outcome: 'chartOnly',
+                                chartVersionUuid:
+                                    getChartReference(
+                                        prompt,
+                                        queryTool.chartConfig,
+                                        artifact,
+                                    ) && artifact
+                                        ? artifact.versionUuid
+                                        : null,
                             },
                         };
                     }
@@ -896,29 +911,33 @@ export const getRunQuery = ({
                     ]);
 
                     if (queryResults.rows.length === 0) {
+                        const diagnosis =
+                            decisions && enableDataAccess
+                                ? await diagnoseEmptyResult({
+                                      decisions,
+                                      question: question ?? prompt.prompt,
+                                      conversation,
+                                      explores: ctx.getAvailableExplores(),
+                                      plan: {
+                                          kind: 'merge',
+                                          query: mergeQuery,
+                                          parameters:
+                                              queryTool.queryConfig.parameters,
+                                      },
+                                      review,
+                                  })
+                                : NO_RESULTS_RETRY_PROMPT;
                         return {
-                            result:
-                                decisions && enableDataAccess
-                                    ? await diagnoseEmptyResult({
-                                          decisions,
-                                          question: question ?? prompt.prompt,
-                                          conversation,
-                                          explores: ctx.getAvailableExplores(),
-                                          plan: {
-                                              kind: 'merge',
-                                              query: mergeQuery,
-                                              parameters:
-                                                  queryTool.queryConfig
-                                                      .parameters,
-                                          },
-                                          review,
-                                      })
-                                    : NO_RESULTS_RETRY_PROMPT,
+                            result: diagnosis,
                             metadata: { status: 'success' },
                             structuredContent: {
                                 outcome: 'noResults',
                                 rowCount: 0,
                                 parameters: null,
+                                review:
+                                    decisions && enableDataAccess
+                                        ? diagnosis
+                                        : null,
                             },
                         };
                     }
@@ -1053,21 +1072,32 @@ export const getRunQuery = ({
                     const shownMergeRows = selectShownRows(
                         queryResults.rows,
                         maxContextRows,
+                        queryResults.fields,
                     );
                     const mergeLimit = {
-                        requested: queryTool.queryConfig.limit,
+                        requested:
+                            queryResults.rows.length >= mergeQuery.limit
+                                ? queryTool.queryConfig.limit
+                                : null,
                         effective: mergeQuery.limit,
-                        max: maxLimit,
+                        max:
+                            queryResults.rows.length >= mergeQuery.limit &&
+                            (queryTool.queryConfig.limit === null ||
+                                queryTool.queryConfig.limit > maxLimit)
+                                ? maxLimit
+                                : null,
                     };
+                    const mergeTruncationNote = getContextTruncationNote({
+                        rowCount: queryResults.rows.length,
+                        maxContextRows,
+                    });
+                    const mergeChartQualityNote = decisions
+                        ? chartQualityHints(queryTool, queryResults.rows)
+                        : '';
                     return {
                         result: enableDataAccess
                             ? [
-                                  `${resultSummary}${queryReference}${chartReference}${getContextTruncationNote(
-                                      {
-                                          rowCount: queryResults.rows.length,
-                                          maxContextRows,
-                                      },
-                                  )}${exportReference}${review}${presentationNote}${decisions ? chartQualityHints(queryTool, queryResults.rows) : ''}`,
+                                  `${resultSummary}${queryReference}${chartReference}${mergeTruncationNote}${exportReference}${review}${presentationNote}${mergeChartQualityNote}`,
                                   serializeData(csv, 'csv'),
                               ].join('\n\n')
                             : `Success. ${resultSummary}${chartReference}`,
@@ -1090,10 +1120,36 @@ export const getRunQuery = ({
                         }),
                         structuredContent: {
                             outcome: 'results',
-                            // Cited exactly when the text cites it.
-                            queryUuid: queryReference
-                                ? queryResults.queryUuid
-                                : null,
+                            // Each note or id is carried exactly when the text states it.
+                            queryUuid:
+                                queryReference || (portableChart && !artifact)
+                                    ? queryResults.queryUuid
+                                    : null,
+                            chartVersionUuid:
+                                chartReference && artifact
+                                    ? artifact.versionUuid
+                                    : null,
+                            chartExport:
+                                portableChart && artifact
+                                    ? {
+                                          artifactUuid: artifact.artifactUuid,
+                                          versionUuid: artifact.versionUuid,
+                                      }
+                                    : null,
+                            truncationNote:
+                                enableDataAccess && mergeTruncationNote
+                                    ? mergeTruncationNote
+                                    : null,
+                            review: enableDataAccess && review ? review : null,
+                            presentationNote:
+                                enableDataAccess && presentationNote
+                                    ? presentationNote
+                                    : null,
+                            chartQualityNote:
+                                enableDataAccess && mergeChartQualityNote
+                                    ? mergeChartQualityNote
+                                    : null,
+                            sourceCoverageNote: null,
                             rowCount: queryResults.rows.length,
                             limit: mergeLimit,
                             parameters: null,
@@ -1276,6 +1332,14 @@ export const getRunQuery = ({
                         },
                         structuredContent: {
                             outcome: 'chartOnly',
+                            chartVersionUuid:
+                                getChartReference(
+                                    prompt,
+                                    queryTool.chartConfig,
+                                    artifact,
+                                ) && artifact
+                                    ? artifact.versionUuid
+                                    : null,
                         },
                     };
                 }
@@ -1368,11 +1432,12 @@ export const getRunQuery = ({
                               })
                             : '',
                     ]);
+                    const emptyResultText = valueHints
+                        ? `${EMPTY_QUERY_GUIDANCE} ${valueHints}${intentNote}`
+                        : diagnosis;
                     return {
                         result:
-                            (valueHints
-                                ? `${EMPTY_QUERY_GUIDANCE} ${valueHints}${intentNote}`
-                                : diagnosis) +
+                            emptyResultText +
                             summarizeAppliedParameters(
                                 explore,
                                 projectParameterDefinitions,
@@ -1383,6 +1448,10 @@ export const getRunQuery = ({
                             outcome: 'noResults',
                             rowCount: 0,
                             parameters: appliedParameters,
+                            review:
+                                decisions && enableDataAccess
+                                    ? emptyResultText
+                                    : null,
                         },
                     };
                 }
@@ -1525,11 +1594,30 @@ export const getRunQuery = ({
                             queryUuid: queryReference
                                 ? queryResults.queryUuid
                                 : null,
+                            chartVersionUuid:
+                                chartReference && artifact
+                                    ? artifact.versionUuid
+                                    : null,
+                            chartExport: null,
+                            truncationNote: null,
+                            review: null,
+                            presentationNote: null,
+                            chartQualityNote: null,
+                            sourceCoverageNote: null,
                             rowCount: queryResults.rows.length,
                             limit: {
-                                requested: requestedLimit,
+                                requested:
+                                    queryResults.rows.length >= effectiveLimit
+                                        ? requestedLimit
+                                        : null,
                                 effective: effectiveLimit,
-                                max: maxLimit,
+                                max:
+                                    queryResults.rows.length >=
+                                        effectiveLimit &&
+                                    (requestedLimit === null ||
+                                        requestedLimit > maxLimit)
+                                        ? maxLimit
+                                        : null,
                             },
                             parameters: appliedParameters,
                             data: null,
@@ -1544,13 +1632,26 @@ export const getRunQuery = ({
                 const shownRows = selectShownRows(
                     queryResults.rows,
                     maxContextRows,
+                    queryResults.fields,
                 );
+                const truncationNote = getContextTruncationNote({
+                    rowCount: queryResults.rows.length,
+                    maxContextRows,
+                });
+                const sourceCoverageNote = decisions
+                    ? joinedMeasureGuidance(
+                          queryTool.queryConfig.metrics,
+                          explore,
+                          queryResults.rows,
+                          ctx.getAvailableExplores(),
+                      )
+                    : '';
+                const chartQualityNote = decisions
+                    ? chartQualityHints(queryTool, queryResults.rows)
+                    : '';
                 return {
                     result: [
-                        `${resultSummary}${getContextTruncationNote({
-                            rowCount: queryResults.rows.length,
-                            maxContextRows,
-                        })}${queryReference}${chartReference}${exportReference}${intentNote}${presentationNote}${decisions ? joinedMeasureGuidance(queryTool.queryConfig.metrics, explore, queryResults.rows, ctx.getAvailableExplores()) + chartQualityHints(queryTool, queryResults.rows) : ''}`,
+                        `${resultSummary}${truncationNote}${queryReference}${chartReference}${exportReference}${intentNote}${presentationNote}${sourceCoverageNote}${chartQualityNote}`,
                         serializeData(csv, 'csv'),
                     ].join('\n\n'),
                     metadata: getSuccessMetadata({
@@ -1570,14 +1671,40 @@ export const getRunQuery = ({
                     }),
                     structuredContent: {
                         outcome: 'results',
-                        queryUuid: queryReference
-                            ? queryResults.queryUuid
-                            : null,
+                        // Each note or id is carried exactly when the text states it.
+                        queryUuid:
+                            queryReference || (portableChart && !artifact)
+                                ? queryResults.queryUuid
+                                : null,
+                        chartVersionUuid:
+                            chartReference && artifact
+                                ? artifact.versionUuid
+                                : null,
+                        chartExport:
+                            portableChart && artifact
+                                ? {
+                                      artifactUuid: artifact.artifactUuid,
+                                      versionUuid: artifact.versionUuid,
+                                  }
+                                : null,
+                        truncationNote: truncationNote || null,
+                        review: intentNote || null,
+                        presentationNote: presentationNote || null,
+                        chartQualityNote: chartQualityNote || null,
+                        sourceCoverageNote: sourceCoverageNote || null,
                         rowCount: queryResults.rows.length,
                         limit: {
-                            requested: requestedLimit,
+                            requested:
+                                queryResults.rows.length >= effectiveLimit
+                                    ? requestedLimit
+                                    : null,
                             effective: effectiveLimit,
-                            max: maxLimit,
+                            max:
+                                queryResults.rows.length >= effectiveLimit &&
+                                (requestedLimit === null ||
+                                    requestedLimit > maxLimit)
+                                    ? maxLimit
+                                    : null,
                         },
                         parameters: appliedParameters,
                         data: shownRows,

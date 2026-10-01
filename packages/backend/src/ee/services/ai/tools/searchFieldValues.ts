@@ -45,10 +45,15 @@ type SearchFieldValuesExecuteResult =
 // that raw shape while the structured form is normalised.
 const toStructuredContent = (
     results: Awaited<ReturnType<SearchFieldValuesFn>>,
+    resolved: ToolSearchFieldValuesStructuredContent['matchingValue'],
 ): ToolSearchFieldValuesStructuredContent =>
     Array.isArray(results)
-        ? { results, note: null }
-        : { results: results.results, note: results.note };
+        ? { results, note: null, matchingValue: resolved }
+        : {
+              results: results.results,
+              note: results.note,
+              matchingValue: resolved,
+          };
 
 export const getSearchFieldValues = ({
     searchFieldValues,
@@ -134,7 +139,7 @@ export const getSearchFieldValues = ({
                     metadata: {
                         status: 'success' as const,
                     },
-                    structuredContent: toStructuredContent(results),
+                    structuredContent: toStructuredContent(results, resolved),
                 };
             } catch (e) {
                 return toolErrorOutput(e, 'Error searching field values.');

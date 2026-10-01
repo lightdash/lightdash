@@ -68,9 +68,34 @@ const savedChartStructureSchema = z.object({
 const savedChartSpecSchema = savedChartStructureSchema.extend({
     filters: z
         .record(z.string(), z.unknown())
-        .describe('The saved chart filters, as stored.'),
-    sorts: z.array(z.object({ fieldId: z.string(), descending: z.boolean() })),
-    limit: z.number().describe('Row limit saved on the chart.'),
+        .describe(
+            "The executed query's filters, with dashboard filters applied for dashboardChart, as printed in the header's Filters: line.",
+        ),
+    sorts: z.array(
+        z.object({
+            fieldId: z.string(),
+            descending: z.boolean(),
+            nullsFirst: z.boolean().optional(),
+            pivotValues: z
+                .array(
+                    z.object({
+                        reference: z.string(),
+                        value: z.union([
+                            z.string(),
+                            z.number(),
+                            z.boolean(),
+                            z.null(),
+                        ]),
+                    }),
+                )
+                .optional(),
+        }),
+    ),
+    limit: z
+        .number()
+        .describe(
+            "The executed query's row limit after the source.limit override and clamping, as printed in the header's Limit: line.",
+        ),
     tableCalculations: z.array(z.string()).describe('Table calculation names.'),
     customMetrics: z.array(z.string()).describe('Custom metric field ids.'),
     customDimensions: z
@@ -101,18 +126,31 @@ export const toolRunContentQueryStructuredContentSchema = z.discriminatedUnion(
                     'Rows included in `rows`; fewer than rowCount when the result was truncated to keep the conversation small.',
                 ),
             columns: z
-                .array(z.object({ fieldId: z.string(), label: z.string() }))
+                .array(
+                    z.object({
+                        fieldId: z.string().nullable(),
+                        label: z.string(),
+                    }),
+                )
                 .describe(
-                    'Ordered columns: `fieldId` keys each row, `label` is the CSV header shown to the model.',
+                    'Ordered columns: `fieldId` keys saved chart rows and is null for an unsaved metricQuery; `label` is the CSV header shown to the model.',
                 ),
             rows: z
-                .array(z.record(z.string(), z.unknown()))
-                .describe('Result rows keyed by field id.'),
+                .union([
+                    z.array(z.record(z.string(), z.unknown())),
+                    z.array(z.array(z.unknown())),
+                ])
+                .describe(
+                    'Raw typed values of the rows rendered in the CSV: keyed by field id for saved charts, or cell arrays in column order for an unsaved metricQuery.',
+                ),
+            review: z.string().nullable(),
+            truncationNote: z.string().nullable(),
         }),
         z.object({
             outcome: z
                 .literal('noResults')
                 .describe('The query ran but returned no rows.'),
+            review: z.string().nullable(),
         }),
         z.object({
             outcome: z

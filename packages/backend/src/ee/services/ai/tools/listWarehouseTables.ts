@@ -135,23 +135,20 @@ export const getListWarehouseTables = ({
                 }
                 matches = matches.slice(0, limit);
 
-                const structuredContent: ToolListWarehouseTablesStructuredContent =
-                    {
-                        matchCount: matches.length,
-                        filters: {
-                            schema: schema ?? null,
-                            search: search ?? null,
-                        },
-                        tables: matches,
-                    };
-
-                if (structuredContent.matchCount === 0) {
+                if (matches.length === 0) {
                     return {
                         result: `No tables matched. Filters: schema=${
                             schema ?? '(none)'
                         }, search=${search ?? '(none)'}. Try a broader search.`,
                         metadata: { status: 'success' },
-                        structuredContent,
+                        structuredContent: {
+                            matchCount: 0,
+                            filters: {
+                                schema: schema ?? null,
+                                search: search ?? null,
+                            },
+                            tables: [],
+                        },
                     };
                 }
 
@@ -171,7 +168,10 @@ export const getListWarehouseTables = ({
                 return {
                     result: lines.join('\n'),
                     metadata: { status: 'success' },
-                    structuredContent,
+                    structuredContent: {
+                        matchCount: matches.length,
+                        tables: matches,
+                    },
                 };
             } catch (e) {
                 return toolErrorOutput(e, 'Error listing warehouse tables.');

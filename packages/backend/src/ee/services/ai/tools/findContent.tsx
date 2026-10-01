@@ -3,6 +3,8 @@ import {
     ContentVerificationInfo,
     findContentToolDefinition,
     getFindContentToolDescription,
+    type ToolFindContentCompactSearchResult,
+    type ToolFindContentSearchResult,
     type ToolFindContentStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -28,7 +30,7 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { DASHBOARD_CHARTS_PREVIEW_COUNT, truncate } from '../utils/truncation';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
-type SearchResult = ToolFindContentStructuredContent['searchResults'][number];
+type SearchResult = ToolFindContentSearchResult;
 type ContentItem = SearchResult['content'][number];
 type ContentItemOf<T extends ContentItem['contentType']> = Extract<
     ContentItem,
@@ -39,6 +41,12 @@ type Verification = ContentItemOf<'chart'>['verification'];
 
 const NO_VERIFIED_CONTENT_NOTE =
     'No verified content matched this query. Verified content may still exist under other search terms; re-run with verifiedOnly=false only if unverified content is acceptable.';
+const COMPACT_NO_VERIFIED_CONTENT_NOTE =
+    'No verified content matched this query. Try other search terms; use verifiedOnly=false only if unverified content is acceptable.';
+const COMPACT_TRUNCATION_NOTE =
+    'More matches were omitted. Narrow the search query or spaceSlug if the intended item is missing; this is not an exhaustive inventory.';
+const COMPACT_SHOWN_COUNT = 8;
+const COMPACT_DESCRIPTION_MAX_CHARS = 200;
 
 type Dependencies = {
     decisions?: Pick<AiDecisionClient, 'evaluate'>;
@@ -72,6 +80,7 @@ const toVerification = (
         ? {
               verifiedBy: fullName(verification.verifiedBy),
               verifiedAt: new Date(verification.verifiedAt).toISOString(),
+              verifiedAgo: moment(verification.verifiedAt).fromNow(),
           }
         : null;
 
@@ -132,7 +141,13 @@ const toChartItem = (
     description: toDescription(chart.description, toolDescriptionMaxChars),
     verification: toVerification(chart.verification),
     firstViewedAt: toTimestamp(chart.firstViewedAt),
+    firstViewedAgo: chart.firstViewedAt
+        ? moment(toTimestamp(chart.firstViewedAt)).fromNow()
+        : null,
     lastModified: toTimestamp(chart.lastModified),
+    lastModifiedAgo: chart.lastModified
+        ? moment(toTimestamp(chart.lastModified)).fromNow()
+        : null,
     createdBy: chart.createdBy ? fullName(chart.createdBy) : null,
     lastUpdatedBy: chart.lastUpdatedBy ? fullName(chart.lastUpdatedBy) : null,
 });
@@ -154,7 +169,13 @@ const toDashboardItem = (
     description: toDescription(dashboard.description, toolDescriptionMaxChars),
     verification: toVerification(dashboard.verification),
     firstViewedAt: toTimestamp(dashboard.firstViewedAt),
+    firstViewedAgo: dashboard.firstViewedAt
+        ? moment(toTimestamp(dashboard.firstViewedAt)).fromNow()
+        : null,
     lastModified: toTimestamp(dashboard.lastModified),
+    lastModifiedAgo: dashboard.lastModified
+        ? moment(toTimestamp(dashboard.lastModified)).fromNow()
+        : null,
     createdBy: dashboard.createdBy ? fullName(dashboard.createdBy) : null,
     lastUpdatedBy: dashboard.lastUpdatedBy
         ? fullName(dashboard.lastUpdatedBy)
@@ -199,6 +220,7 @@ const toContentItem = (
     content: FindContentResult,
     siteUrl: string,
     toolDescriptionMaxChars: number,
+    compact: boolean,
 ): ContentItem => {
     switch (content.contentType) {
         case 'document':
@@ -212,6 +234,10 @@ const toContentItem = (
                     content.description,
                     toolDescriptionMaxChars,
                 ),
+                space:
+                    compact && content.space
+                        ? toSpaceMetadata(content.space)
+                        : null,
             };
         case 'space':
             return toSpaceItem(content);
@@ -226,6 +252,61 @@ const toContentItem = (
     }
 };
 
+const toCompactContentItem = (
+    content: ContentItem,
+): ToolFindContentCompactSearchResult['content'][number] => {
+    switch (content.contentType) {
+        case 'space':
+            return content;
+        case 'document':
+            return {
+                ...content,
+                description: content.description || null,
+            };
+        case 'data_app':
+            return {
+                contentType: content.contentType,
+                uuid: content.uuid,
+                name: content.name,
+                slug: content.slug,
+                spaceUuid: content.spaceUuid,
+                href: content.href,
+                space: content.space,
+                description: content.description || null,
+            };
+        case 'dashboard':
+            return {
+                contentType: content.contentType,
+                uuid: content.uuid,
+                name: content.name,
+                slug: content.slug,
+                spaceUuid: content.spaceUuid,
+                href: content.href,
+                space: content.space,
+                description: content.description || null,
+                verification: content.verification,
+                charts: { count: content.charts.count },
+                validationErrorCount: content.validationErrorCount,
+            };
+        case 'chart':
+            return {
+                contentType: content.contentType,
+                uuid: content.uuid,
+                name: content.name,
+                slug: content.slug,
+                chartType: content.chartType,
+                chartSource: content.chartSource,
+                spaceUuid: content.spaceUuid,
+                href: content.href,
+                space: content.space,
+                description: content.description || null,
+                verification: content.verification,
+            };
+        default:
+            return assertUnreachable(content, 'Unknown content type');
+    }
+};
+
 const toSearchResult = (
     args: Awaited<ReturnType<FindContentFn>> & {
         searchQuery: string;
@@ -233,18 +314,38 @@ const toSearchResult = (
     },
     siteUrl: string,
     toolDescriptionMaxChars: number,
+    compact: boolean,
 ): SearchResult => {
     // Order is decided by the caller (verified-first, then optional ranking).
-    const content = args.content.map((item) =>
-        toContentItem(item, siteUrl, toolDescriptionMaxChars),
+    const matches = compact
+        ? args.content.slice(0, COMPACT_SHOWN_COUNT)
+        : args.content;
+    const noVerifiedContentNote = compact
+        ? COMPACT_NO_VERIFIED_CONTENT_NOTE
+        : NO_VERIFIED_CONTENT_NOTE;
+    const content = matches.map((item) =>
+        toContentItem(
+            item,
+            siteUrl,
+            compact
+                ? Math.min(
+                      toolDescriptionMaxChars,
+                      COMPACT_DESCRIPTION_MAX_CHARS,
+                  )
+                : toolDescriptionMaxChars,
+            compact,
+        ),
     );
     return {
         searchQuery: args.searchQuery,
-        verifiedOnly: args.verifiedOnly,
-        count: content.length,
+        count: args.content.length,
         note:
             args.verifiedOnly && content.length === 0
-                ? NO_VERIFIED_CONTENT_NOTE
+                ? noVerifiedContentNote
+                : null,
+        truncationNote:
+            compact && args.content.length > COMPACT_SHOWN_COUNT
+                ? COMPACT_TRUNCATION_NOTE
                 : null,
         content,
     };
@@ -254,7 +355,8 @@ const renderVerified = (verification: Verification) =>
     verification ? (
         <verified
             by={verification.verifiedBy}
-            at={moment(verification.verifiedAt).fromNow()}
+            at={verification.verifiedAgo}
+            iso={new Date(verification.verifiedAt).toISOString()}
         />
     ) : null;
 
@@ -301,12 +403,14 @@ const renderChart = (chart: ContentItemOf<'chart'>) => (
         )}
         {renderVerified(chart.verification)}
         {chart.firstViewedAt && (
-            <firstviewedat>
-                {moment(chart.firstViewedAt).fromNow()}
+            <firstviewedat iso={new Date(chart.firstViewedAt).toISOString()}>
+                {chart.firstViewedAgo}
             </firstviewedat>
         )}
         {chart.lastModified && (
-            <lastmodified>{moment(chart.lastModified).fromNow()}</lastmodified>
+            <lastmodified iso={new Date(chart.lastModified).toISOString()}>
+                {chart.lastModifiedAgo}
+            </lastmodified>
         )}
         {chart.createdBy && <createdby>{chart.createdBy}</createdby>}
         {chart.lastUpdatedBy && (
@@ -333,14 +437,16 @@ const renderDashboard = (dashboard: ContentItemOf<'dashboard'>) => (
         {renderVerified(dashboard.verification)}
 
         {dashboard.firstViewedAt && (
-            <firstviewedat>
-                {moment(dashboard.firstViewedAt).fromNow()}
+            <firstviewedat
+                iso={new Date(dashboard.firstViewedAt).toISOString()}
+            >
+                {dashboard.firstViewedAgo}
             </firstviewedat>
         )}
 
         {dashboard.lastModified && (
-            <lastmodified>
-                {moment(dashboard.lastModified).fromNow()}
+            <lastmodified iso={new Date(dashboard.lastModified).toISOString()}>
+                {dashboard.lastModifiedAgo}
             </lastmodified>
         )}
         {dashboard.createdBy && <createdby>{dashboard.createdBy}</createdby>}
@@ -415,11 +521,8 @@ const renderSearchResult = (searchResult: SearchResult) => (
     </searchresult>
 );
 
-const COMPACT_SHOWN_COUNT = 8;
-const COMPACT_DESCRIPTION_MAX_CHARS = 200;
-
 const renderCompactSearchResult = (
-    searchResult: SearchResult,
+    searchResult: ToolFindContentCompactSearchResult,
     descriptionMaxChars: number,
     detailsToolName: Dependencies['dashboardDetailsToolName'],
 ) => {
@@ -430,12 +533,8 @@ const renderCompactSearchResult = (
             totalMatches={searchResult.count}
             shown={shown.length}
         >
-            {shown.length === 0 && searchResult.verifiedOnly
-                ? searchResult.note
-                : null}
-            {shown.length < searchResult.count
-                ? 'More matches were omitted. Narrow the search query or spaceSlug if the intended item is missing; this is not an exhaustive inventory.'
-                : null}
+            {searchResult.note}
+            {searchResult.truncationNote}
             {shown.length > 0
                 ? `Search summaries only. Use ${detailsToolName} to inspect a selected dashboard's charts before making claims about their contents.`
                 : null}
@@ -559,29 +658,38 @@ export const getFindContent = ({
                     });
                 }
 
-                const structuredContent: ToolFindContentStructuredContent = {
-                    searchResults: searchQueryResults.map((searchQueryResult) =>
+                const searchResults = searchQueryResults.map(
+                    (searchQueryResult) =>
                         toSearchResult(
                             searchQueryResult,
                             siteUrl,
                             toolDescriptionMaxChars,
+                            Boolean(decisions),
                         ),
-                    ),
+                );
+                const compactSearchResults = decisions
+                    ? searchResults.map((searchResult) => ({
+                          ...searchResult,
+                          content:
+                              searchResult.content.map(toCompactContentItem),
+                      }))
+                    : null;
+                const structuredContent: ToolFindContentStructuredContent = {
+                    searchResults: compactSearchResults ?? searchResults,
                 };
 
                 return {
                     result: (
                         <searchresults>
-                            {structuredContent.searchResults.map(
-                                (searchResult) =>
-                                    decisions
-                                        ? renderCompactSearchResult(
-                                              searchResult,
-                                              toolDescriptionMaxChars,
-                                              dashboardDetailsToolName,
-                                          )
-                                        : renderSearchResult(searchResult),
-                            )}
+                            {compactSearchResults
+                                ? compactSearchResults.map((searchResult) =>
+                                      renderCompactSearchResult(
+                                          searchResult,
+                                          toolDescriptionMaxChars,
+                                          dashboardDetailsToolName,
+                                      ),
+                                  )
+                                : searchResults.map(renderSearchResult)}
                         </searchresults>
                     ).toString(),
                     metadata: {

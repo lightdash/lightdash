@@ -182,15 +182,13 @@ describe('getRunMetricQuery', () => {
             result: ['```csv', 'dim1,met1\none,1\ntwo,\n', '```'].join('\n'),
             metadata: { status: 'success', queryCacheHit: false },
             structuredContent: {
-                columns: [
-                    { fieldId: 'a_dim1', label: 'dim1' },
-                    { fieldId: 'a_met1', label: 'met1' },
-                ],
+                columns: [{ label: 'dim1' }, { label: 'met1' }],
                 rows: [
-                    { a_dim1: 'one', a_met1: 1 },
-                    { a_dim1: 'two', a_met1: null },
+                    ['one', 1],
+                    ['two', null],
                 ],
                 rowCount: 2,
+                review: null,
             },
         });
         expect(toolRunMetricQueryOutputSchema.safeParse(output).success).toBe(
@@ -211,7 +209,12 @@ describe('getRunMetricQuery', () => {
         expect(output).toEqual({
             result: NO_RESULTS_RETRY_PROMPT,
             metadata: { status: 'success', queryCacheHit: false },
-            structuredContent: { columns: [], rows: [], rowCount: 0 },
+            structuredContent: {
+                columns: [],
+                rows: [],
+                rowCount: 0,
+                review: null,
+            },
         });
         expect(toolRunMetricQueryOutputSchema.safeParse(output).success).toBe(
             true,

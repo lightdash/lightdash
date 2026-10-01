@@ -45,10 +45,16 @@ const wrapEntries = (entries: string[], truncatedCount: number): string =>
         '</ld-memories>',
     ].join('\n');
 
-export const renderMemoryBlock = (
+export const renderMemoryBlockWithDetails = (
     entries: AiAgentMemoryBlockEntry[],
-): string | null => {
-    if (entries.length === 0) return null;
+): {
+    block: string | null;
+    renderedCount: number;
+    truncationNote: string | null;
+} => {
+    if (entries.length === 0) {
+        return { block: null, renderedCount: 0, truncationNote: null };
+    }
 
     const rendered: string[] = [];
     const rowCandidates = entries.slice(0, AI_AGENT_MEMORY_BLOCK_MAX_ROWS);
@@ -65,8 +71,18 @@ export const renderMemoryBlock = (
         rendered.push(candidate.at(-1)!);
     }
 
-    return wrapEntries(rendered, entries.length - rendered.length);
+    const truncatedCount = entries.length - rendered.length;
+    return {
+        block: wrapEntries(rendered, truncatedCount),
+        renderedCount: rendered.length,
+        truncationNote:
+            truncatedCount > 0 ? TRUNCATION_HINT(truncatedCount) : null,
+    };
 };
+
+export const renderMemoryBlock = (
+    entries: AiAgentMemoryBlockEntry[],
+): string | null => renderMemoryBlockWithDetails(entries).block;
 
 export const stripMemoryBlocks = (value: string): string =>
     value.replace(AI_AGENT_MEMORY_BLOCK_REGEX, '');

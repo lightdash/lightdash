@@ -134,7 +134,10 @@ export type ToolDashboardV2ArgsTransformed = z.infer<
 export const toolDashboardV2StructuredContentSchema = z.object({
     visualizationCount: z
         .number()
-        .describe('How many visualizations the dashboard was created with.'),
+        .nullable()
+        .describe(
+            'How many visualizations the dashboard was created with; null when the result text does not state the count.',
+        ),
     excludedVisualizations: z
         .array(
             z.object({
@@ -147,6 +150,20 @@ export const toolDashboardV2StructuredContentSchema = z.object({
         .describe(
             'Visualizations left out of the dashboard because they failed validation; empty when every visualization was included.',
         ),
+    layout: z
+        .object({
+            template: z.enum(AI_DASHBOARD_LAYOUT_TEMPLATES),
+            positions: z.array(
+                z.object({
+                    x: z.number().int(),
+                    y: z.number().int(),
+                    w: z.number().int(),
+                    h: z.number().int(),
+                }),
+            ),
+        })
+        .nullable(),
+    defaultLayoutNote: z.string().nullable(),
 });
 
 export type ToolDashboardV2StructuredContent = z.infer<

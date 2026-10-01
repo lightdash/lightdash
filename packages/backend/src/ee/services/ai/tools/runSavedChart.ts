@@ -41,12 +41,6 @@ type Dependencies = {
 
 const toolDefinition = runSavedChartToolDefinition.for('agent');
 
-/**
- * Builds a structural summary the LLM can read to understand what the saved
- * chart is querying. When `includeFullSpec` is false (data access disabled
- * mode), only field IDs are surfaced — filter values and sort/limit details
- * are omitted to keep filter values out of the LLM context.
- */
 const buildSavedChartSpec = (
     chartUuid: string,
     name: string,
@@ -74,6 +68,12 @@ const buildSavedChartSpec = (
 const DATA_ACCESS_DISABLED_NOTE =
     'Data access is disabled for this agent. Reason about the chart from its structure above; do not assume specific row values.';
 
+/**
+ * Builds a structural summary the LLM can read to understand what the saved
+ * chart is querying. When `includeFullSpec` is false (data access disabled
+ * mode), only field IDs are surfaced — filter values and sort/limit details
+ * are omitted to keep filter values out of the LLM context.
+ */
 export const buildSavedChartHeader = (
     chartUuid: string,
     name: string,
@@ -258,17 +258,18 @@ export const getRunSavedChart = ({
                 ]);
 
                 if (queryResults.rows.length === 0) {
+                    const result = reviewQuery
+                        ? await reviewQuery(
+                              {
+                                  kind: 'semantic',
+                                  query: aiMetricQuery,
+                                  parameters: savedChart.parameters,
+                              },
+                              { emptyResult: true, review },
+                          )
+                        : NO_RESULTS_RETRY_PROMPT;
                     return {
-                        result: reviewQuery
-                            ? await reviewQuery(
-                                  {
-                                      kind: 'semantic',
-                                      query: aiMetricQuery,
-                                      parameters: savedChart.parameters,
-                                  },
-                                  { emptyResult: true, review },
-                              )
-                            : NO_RESULTS_RETRY_PROMPT,
+                        result,
                         metadata: {
                             status: 'success',
                             queryCacheHit:
@@ -276,7 +277,8 @@ export const getRunSavedChart = ({
                         },
                         structuredContent: {
                             status: 'no_results',
-                            note: NO_RESULTS_RETRY_PROMPT,
+                            note: reviewQuery ? null : NO_RESULTS_RETRY_PROMPT,
+                            review: reviewQuery ? result : null,
                         },
                     };
                 }
@@ -285,6 +287,10 @@ export const getRunSavedChart = ({
                     queryResults,
                     maxContextRows,
                 );
+                const truncationNote = getContextTruncationNote({
+                    rowCount: queryResults.rows.length,
+                    maxContextRows,
+                });
                 return {
                     result: `${buildSavedChartHeader(
                         chartUuid,
@@ -293,10 +299,7 @@ export const getRunSavedChart = ({
                         {
                             includeFullSpec: true,
                         },
-                    )}${getContextTruncationNote({
-                        rowCount: queryResults.rows.length,
-                        maxContextRows,
-                    })}${serializeData(csv, 'csv')}${review}`,
+                    )}${truncationNote}${serializeData(csv, 'csv')}${review}`,
                     metadata: {
                         status: 'success',
                         queryCacheHit:
@@ -314,6 +317,9 @@ export const getRunSavedChart = ({
                         truncated: rows.length < queryResults.rows.length,
                         columns,
                         rows,
+                        review: review === '' ? null : review,
+                        truncationNote:
+                            truncationNote === '' ? null : truncationNote,
                     },
                 };
             } catch (e) {

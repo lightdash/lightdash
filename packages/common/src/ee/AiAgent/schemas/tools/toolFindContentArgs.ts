@@ -94,6 +94,7 @@ const findContentVerificationSchema = z
             .string()
             .describe('Full name of the admin who verified the content.'),
         verifiedAt: z.string().describe('ISO 8601 verification timestamp.'),
+        verifiedAgo: z.string(),
     })
     .nullable()
     .describe('Admin verification, or null when the content is unverified.');
@@ -111,7 +112,9 @@ const findContentTimestampSchema = z
 const findContentDescriptionSchema = z
     .string()
     .nullable()
-    .describe('Description truncated to the tool limit, or null when empty.');
+    .describe(
+        'Description truncated to the rendered limit, or null when empty.',
+    );
 
 export const findContentDocumentItemSchema = z.object({
     contentType: z.literal('document'),
@@ -120,6 +123,7 @@ export const findContentDocumentItemSchema = z.object({
     slug: z.string(),
     href: z.string(),
     description: findContentDescriptionSchema,
+    space: findContentSpaceMetadataSchema.nullable(),
 });
 
 export const findContentSpaceItemSchema = z.object({
@@ -176,7 +180,9 @@ export const findContentDashboardItemSchema = z.object({
     description: findContentDescriptionSchema,
     verification: findContentVerificationSchema,
     firstViewedAt: findContentTimestampSchema,
+    firstViewedAgo: z.string().nullable(),
     lastModified: findContentTimestampSchema,
+    lastModifiedAgo: z.string().nullable(),
     createdBy: findContentUserNameSchema,
     lastUpdatedBy: findContentUserNameSchema,
     charts: z.object({
@@ -215,7 +221,9 @@ export const findContentChartItemSchema = z.object({
     description: findContentDescriptionSchema,
     verification: findContentVerificationSchema,
     firstViewedAt: findContentTimestampSchema,
+    firstViewedAgo: z.string().nullable(),
     lastModified: findContentTimestampSchema,
+    lastModifiedAgo: z.string().nullable(),
     createdBy: findContentUserNameSchema,
     lastUpdatedBy: findContentUserNameSchema,
 });
@@ -228,9 +236,44 @@ const findContentItemSchema = z.discriminatedUnion('contentType', [
     findContentChartItemSchema,
 ]);
 
+const findContentCompactItemSchema = z.discriminatedUnion('contentType', [
+    findContentDocumentItemSchema,
+    findContentSpaceItemSchema,
+    findContentDataAppItemSchema.omit({
+        searchRank: true,
+        viewsCount: true,
+        createdBy: true,
+    }),
+    findContentDashboardItemSchema
+        .omit({
+            searchRank: true,
+            viewsCount: true,
+            firstViewedAt: true,
+            firstViewedAgo: true,
+            lastModified: true,
+            lastModifiedAgo: true,
+            createdBy: true,
+            lastUpdatedBy: true,
+        })
+        .extend({
+            charts: findContentDashboardItemSchema.shape.charts.pick({
+                count: true,
+            }),
+        }),
+    findContentChartItemSchema.omit({
+        searchRank: true,
+        viewsCount: true,
+        firstViewedAt: true,
+        firstViewedAgo: true,
+        lastModified: true,
+        lastModifiedAgo: true,
+        createdBy: true,
+        lastUpdatedBy: true,
+    }),
+]);
+
 const findContentSearchResultSchema = z.object({
     searchQuery: z.string(),
-    verifiedOnly: z.boolean(),
     count: z.number().int().describe('Number of matches for this query.'),
     note: z
         .string()
@@ -238,14 +281,31 @@ const findContentSearchResultSchema = z.object({
         .describe(
             'Guidance when a verifiedOnly search matched nothing; null otherwise.',
         ),
+    truncationNote: z.string().nullable(),
     content: z
         .array(findContentItemSchema)
-        .describe('Matches for this query, verified content first.'),
+        .describe(
+            'Matches for this query, in the order rendered in the result.',
+        ),
 });
+
+const findContentCompactSearchResultSchema =
+    findContentSearchResultSchema.extend({
+        content: z
+            .array(findContentCompactItemSchema)
+            .describe(
+                'Matches for this query, in the order rendered in the result.',
+            ),
+    });
 
 export const toolFindContentStructuredContentSchema = z.object({
     searchResults: z
-        .array(findContentSearchResultSchema)
+        .array(
+            z.union([
+                findContentSearchResultSchema,
+                findContentCompactSearchResultSchema,
+            ]),
+        )
         .describe('One entry per search query, in the order given.'),
 });
 
@@ -256,6 +316,12 @@ export const toolFindContentOutputSchema = structuredToolOutputSchema({
 
 export type ToolFindContentArgs = z.infer<typeof toolFindContentArgsSchema>;
 export type ToolFindContentArgsTransformed = ToolFindContentArgs;
+export type ToolFindContentSearchResult = z.infer<
+    typeof findContentSearchResultSchema
+>;
+export type ToolFindContentCompactSearchResult = z.infer<
+    typeof findContentCompactSearchResultSchema
+>;
 export type ToolFindContentStructuredContent = z.infer<
     typeof toolFindContentStructuredContentSchema
 >;

@@ -662,9 +662,9 @@ describe('getFindContent', () => {
                 searchResults: [
                     {
                         searchQuery: 'test query',
-                        verifiedOnly: false,
                         count: 1,
                         note: null,
+                        truncationNote: null,
                         content: [
                             {
                                 contentType: 'dashboard',
@@ -685,9 +685,12 @@ describe('getFindContent', () => {
                                 verification: {
                                     verifiedBy: 'Alex Doe',
                                     verifiedAt: '2026-04-01T00:00:00.000Z',
+                                    verifiedAgo: expect.any(String),
                                 },
                                 firstViewedAt: '2024-01-01T00:00:00.000Z',
+                                firstViewedAgo: expect.any(String),
                                 lastModified: '2024-06-15T00:00:00.000Z',
+                                lastModifiedAgo: expect.any(String),
                                 createdBy: 'Test User',
                                 lastUpdatedBy: null,
                                 charts: {
@@ -831,7 +834,9 @@ describe('getFindContent', () => {
                     description: 'Monthly revenue',
                     verification: null,
                     firstViewedAt: '2024-01-01T00:00:00.000Z',
+                    firstViewedAgo: expect.any(String),
                     lastModified: '2024-06-15T00:00:00.000Z',
+                    lastModifiedAgo: expect.any(String),
                     createdBy: 'Test User',
                     lastUpdatedBy: null,
                 },
@@ -839,8 +844,12 @@ describe('getFindContent', () => {
 
             expect(output.result).toContain('chartUuid="chart-result-uuid"');
             expect(output.result).toContain('<name>Revenue by month</name>');
-            expect(output.result).toContain('<firstviewedat>');
-            expect(output.result).toContain('<lastmodified>');
+            expect(output.result).toContain(
+                '<firstviewedat iso="2024-01-01T00:00:00.000Z">',
+            );
+            expect(output.result).toContain(
+                '<lastmodified iso="2024-06-15T00:00:00.000Z">',
+            );
         });
 
         it('carries the empty verified-only guidance', async () => {
@@ -858,11 +867,11 @@ describe('getFindContent', () => {
                 searchResults: [
                     {
                         searchQuery: 'revenue',
-                        verifiedOnly: true,
                         count: 0,
                         note: expect.stringContaining(
                             'No verified content matched this query',
                         ),
+                        truncationNote: null,
                         content: [],
                     },
                 ],
@@ -1118,6 +1127,9 @@ describe('getGetDashboardCharts', () => {
                 verification: {
                     verifiedBy: 'Dana Lin',
                     verifiedAt: '2026-04-01T00:00:00.000Z',
+                    verifiedAgo: output.result.match(
+                        /<verified[^>]*at="([^"]*)"/,
+                    )?.[1],
                 },
             },
             { uuid: 'unverified-a', verification: null },

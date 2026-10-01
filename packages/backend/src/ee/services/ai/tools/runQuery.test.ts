@@ -2605,6 +2605,7 @@ describe('getRunQuery Slack links only', () => {
         });
         expect(output.structuredContent).toEqual({
             outcome: 'chartOnly',
+            chartVersionUuid: 'version-uuid',
         });
         expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
     });
@@ -3208,10 +3209,24 @@ describe('getRunQuery structured content', () => {
         expect(output.structuredContent).toEqual({
             outcome: 'results',
             queryUuid: null,
+            chartVersionUuid: null,
+            chartExport: null,
+            truncationNote: null,
+            review: null,
+            presentationNote: null,
+            chartQualityNote: null,
+            sourceCoverageNote: null,
             rowCount: 3,
-            limit: { requested: null, effective: 500, max: 500 },
+            limit: { requested: null, effective: 500, max: null },
             parameters: null,
-            data: { columns: ['a_dim1', 'a_met1'], rows },
+            data: {
+                columns: ['a_dim1', 'a_met1'],
+                rows: [
+                    ['one', 1],
+                    ['two', 2],
+                    ['three', 3],
+                ],
+            },
         });
     });
 
@@ -3225,7 +3240,12 @@ describe('getRunQuery structured content', () => {
         expect(output.result).not.toContain('three');
         expect(output.structuredContent).toMatchObject({
             rowCount: 3,
-            data: { rows: rows.slice(0, 2) },
+            data: {
+                rows: [
+                    ['one', 1],
+                    ['two', 2],
+                ],
+            },
         });
     });
 

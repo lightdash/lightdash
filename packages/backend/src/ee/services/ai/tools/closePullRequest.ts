@@ -29,7 +29,6 @@ export const getClosePullRequest = ({ closePullRequest }: Dependencies) =>
             try {
                 await closePullRequest({ prUrl });
                 const closed: ToolClosePullRequestStructuredContent = {
-                    prUrl,
                     state: 'closed',
                 };
                 return {

@@ -335,25 +335,23 @@ export const getRunComposerQueries = ({
                 const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
                     .join(', ');
+                const emptyReview =
+                    enableDataAccess && reviewQuery && terminal.rowCount === 0
+                        ? await reviewQuery(
+                              {
+                                  kind: 'composer',
+                                  queries,
+                                  terminalNodeId: resolvedTerminalNodeId,
+                              },
+                              { emptyResult: true, review },
+                          )
+                        : null;
                 const resultSummary = [
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows (queryUuid ${terminal.queryUuid}).`,
                     `Submitted nodes (any queryUuid below can be reused by a later submission via the map form of "references", without re-running that query):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
-                    ...(enableDataAccess &&
-                    reviewQuery &&
-                    terminal.rowCount === 0
-                        ? [
-                              await reviewQuery(
-                                  {
-                                      kind: 'composer',
-                                      queries,
-                                      terminalNodeId: resolvedTerminalNodeId,
-                                  },
-                                  { emptyResult: true, review },
-                              ),
-                          ]
-                        : []),
+                    ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
                 const summary = {
                     terminalNodeId: resolvedTerminalNodeId,
@@ -367,6 +365,9 @@ export const getRunComposerQueries = ({
                         }),
                     ),
                     columns,
+                    visualization: vizNote,
+                    review:
+                        terminal.rowCount === 0 ? emptyReview : review || null,
                 };
 
                 const vizLine = vizNote ? `\n${vizNote}` : '';

@@ -113,6 +113,7 @@ describe('loadProjectContext tool', () => {
         );
         expect(res.structuredContent).toEqual({
             outcome: 'loaded',
+            truncationNote: null,
             entries: [
                 {
                     id: 'arr-def',
@@ -165,6 +166,7 @@ describe('loadProjectContext tool', () => {
         );
         expect(res.structuredContent).toEqual({
             outcome: 'loaded',
+            truncationNote: null,
             entries: [],
         });
         expect(toolLoadProjectContextOutputSchema.safeParse(res).success).toBe(
@@ -182,6 +184,7 @@ describe('loadProjectContext tool', () => {
         expect(res.result).not.toContain('annual recurring revenue');
         expect(res.structuredContent).toEqual({
             outcome: 'no_match',
+            truncationNote: null,
             totalEntries: 4,
             available: [
                 {
@@ -232,6 +235,7 @@ describe('loadProjectContext tool', () => {
         expect(onEntriesLoaded).toHaveBeenCalledWith([memoryEntry]);
         expect(res.structuredContent).toEqual({
             outcome: 'loaded',
+            truncationNote: null,
             entries: [
                 {
                     id: 'completed-order-revenue',
@@ -266,6 +270,7 @@ describe('loadProjectContext tool', () => {
         );
         expect(res.structuredContent).toEqual({
             outcome: 'no_match',
+            truncationNote: null,
             totalEntries: 2,
             available: [
                 {

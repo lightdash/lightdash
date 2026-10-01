@@ -36,7 +36,6 @@ export const getResolveUrl = ({ resolveUrl }: Dependencies) =>
                 const structuredContent: ToolResolveUrlStructuredContent =
                     resolved.isShareLink
                         ? {
-                              url,
                               isShareLink: true,
                               resolvedUrl: resolved.url,
                           }

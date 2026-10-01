@@ -77,12 +77,13 @@ export const toolLoadProjectContextStructuredContentSchema =
                     loadedMemoryEntrySchema,
                 ]),
             ),
+            truncationNote: z.string().nullable(),
         }),
         z.object({
             outcome: z
                 .literal('no_match')
                 .describe(
-                    'Patterns matched nothing; `available` lists every entry (without content) to re-grep against.',
+                    'Patterns matched nothing; `available` lists the rendered entries (without content) to re-grep against.',
                 ),
             totalEntries: z.number(),
             available: z.array(
@@ -91,6 +92,7 @@ export const toolLoadProjectContextStructuredContentSchema =
                     memoryEntryInventorySchema,
                 ]),
             ),
+            truncationNote: z.string().nullable(),
         }),
     ]);
 

@@ -279,6 +279,7 @@ describe('getRunSql', () => {
             columns: ['answer'],
             rows: [{ answer: 1 }],
             truncated: false,
+            review: null,
         });
     });
 
@@ -298,6 +299,7 @@ describe('getRunSql', () => {
             columns: ['answer'],
             rows: null,
             truncated: false,
+            review: null,
         });
     });
 
@@ -324,6 +326,7 @@ describe('getRunSql', () => {
                 answer: index,
             })),
             truncated: true,
+            review: null,
         });
     });
 
@@ -344,6 +347,7 @@ describe('getRunSql', () => {
             columns: ['answer'],
             rows: [],
             truncated: false,
+            review: null,
         });
     });
 

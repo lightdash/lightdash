@@ -132,7 +132,6 @@ export const toolGenerateDataAppArgsSchema = z.object({
         .describe(DATA_APP_THEME_SLUG_DESCRIPTION),
 });
 
-const appUuidSchema = z.string().describe('Uuid of the data app.');
 const versionSchema = z
     .number()
     .describe('App version this build produces; 1 for a new app.');
@@ -143,25 +142,14 @@ const pendingBuildSchema = z.object({
         .describe(
             'The build has started and is still running; its outcome replaces this result on a later turn.',
         ),
-    appUuid: appUuidSchema,
-    version: versionSchema,
-    // Nullish: iterate results and results persisted before generate
-    // took a name lack it.
-    name: z.string().nullish(),
 });
 
 const readyBuildSchema = z.object({
     status: z
         .literal('success')
         .describe('The build finished; the app version is ready.'),
-    appUuid: appUuidSchema,
     version: versionSchema,
     name: z.string().describe('Name of the data app.'),
-    slug: z
-        .string()
-        .nullable()
-        .describe('Slug of the data app, the appSlug for iterateDataApp.'),
-    href: z.string().describe('URL of the app in the builder.'),
 });
 
 export const toolGenerateDataAppStructuredContentSchema = z.discriminatedUnion(
@@ -288,7 +276,7 @@ export const getGenerateDataAppBuildOutcome = ({
         return {
             result: `${readyPhrase} The user can view it from this thread.`,
             metadata: readyBuild,
-            structuredContent: readyBuild,
+            structuredContent: { status: 'success', version, name },
         };
     }
     const cancelled = error === APP_VERSION_CANCELLED_BY_USER;
