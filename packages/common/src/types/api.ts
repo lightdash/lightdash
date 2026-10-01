@@ -44,6 +44,7 @@ import type {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
+    ApiAiCreditDailyUsageResponse,
     ApiAiCreditUsageResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
@@ -1641,6 +1642,7 @@ type ApiResults =
     | ApiAiOrganizationSettingsResponse['results']
     | ApiAiOrganizationRuntimeSettingsResponse['results']
     | ApiAiCreditUsageResponse['results']
+    | ApiAiCreditDailyUsageResponse['results']
     | ApiDataAppDetectResponse['results']
     | ApiDataAppAnalysisLookupResponse['results']
     | ApiDataAppAnalysisResponse['results']

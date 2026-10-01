@@ -1,17 +1,5 @@
-import {
-    type AiCreditUsageBreakdownRow,
-    type AiCreditUsageSummary,
-} from '@lightdash/common';
-import {
-    Box,
-    Group,
-    Paper,
-    Progress,
-    SimpleGrid,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { type AiCreditUsageSummary } from '@lightdash/common';
+import { Group, Paper, Stack, Text, Title } from '@mantine/core';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { type FC } from 'react';
@@ -20,8 +8,8 @@ import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { AiCreditsUsageBar } from './AiCreditsUsageBar';
+import { AiCreditsUsageBreakdown } from './AiCreditsUsageBreakdown';
 import { useAiCreditUsage } from './hooks/useAiCreditUsage';
-import { getAiCreditChannelLabel, getAiCreditFeatureLabel } from './labels';
 
 const creditFormat = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
@@ -36,11 +24,11 @@ const formatDate = (value: Date) => dayjs.utc(value).format('D MMM YYYY');
 const formatLastDay = (periodEnd: Date) =>
     dayjs.utc(periodEnd).subtract(1, 'millisecond').format('D MMM YYYY');
 
-const describeResetInterval = (months: number): string => {
-    if (months === 1) return 'Resets monthly';
-    if (months === 3) return 'Resets quarterly';
-    if (months === 12) return 'Resets yearly';
-    return `Resets every ${months} months`;
+const describePeriodLength = (months: number): string => {
+    if (months === 1) return 'Monthly';
+    if (months === 3) return 'Quarterly';
+    if (months === 12) return 'Yearly';
+    return `Every ${months} months`;
 };
 
 const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
@@ -58,7 +46,10 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                     <Title order={5}>This period</Title>
                     <Text fz="sm" c="dimmed">
                         {formatDate(period.periodStart)} –{' '}
-                        {formatLastDay(period.periodEnd)}
+                        {formatLastDay(period.periodEnd)} ·{' '}
+                        {describePeriodLength(
+                            contract?.resetIntervalMonths ?? 1,
+                        )}
                     </Text>
                 </Group>
                 <Text fz="xl" fw={600}>
@@ -72,13 +63,11 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                         percent={(billable.credits / allowance) * 100}
                     />
                 )}
-                <Text fz="sm" c="dimmed">
-                    {isContractEnd
-                        ? `Your contract ends on ${formatDate(period.periodEnd)}`
-                        : `${describeResetInterval(
-                              contract?.resetIntervalMonths ?? 1,
-                          )} · next reset on ${formatDate(period.periodEnd)}`}
-                </Text>
+                {isContractEnd && (
+                    <Text fz="sm" c="dimmed">
+                        Your contract ends on {formatDate(period.periodEnd)}
+                    </Text>
+                )}
             </Stack>
         </Paper>
     );
@@ -97,48 +86,6 @@ const AllowanceUsedBanner: FC<{ usage: AiCreditUsageSummary }> = ({
             No worries, your usage isn&apos;t blocked. Your allowance resets on{' '}
             {formatDate(usage.period.periodEnd)}.
         </Callout>
-    );
-};
-
-const BreakdownCard: FC<{
-    title: string;
-    rows: AiCreditUsageBreakdownRow[];
-    getLabel: (key: string) => string;
-}> = ({ title, rows, getLabel }) => {
-    const maxCredits = Math.max(...rows.map((row) => row.credits), 0);
-    return (
-        <Paper p="md">
-            <Title order={5} mb="sm">
-                {title}
-            </Title>
-            {rows.length === 0 ? (
-                <Text fz="sm" c="dimmed">
-                    No usage yet this period
-                </Text>
-            ) : (
-                <Stack gap="sm">
-                    {rows.map((row) => (
-                        <Box key={row.key}>
-                            <Group justify="space-between" gap="xs" mb={4}>
-                                <Text fz="sm">{getLabel(row.key)}</Text>
-                                <Text fz="sm" c="dimmed">
-                                    {creditFormat.format(row.credits)}
-                                </Text>
-                            </Group>
-                            <Progress
-                                size="sm"
-                                value={
-                                    maxCredits > 0
-                                        ? (row.credits / maxCredits) * 100
-                                        : 0
-                                }
-                                aria-label={getLabel(row.key)}
-                            />
-                        </Box>
-                    ))}
-                </Stack>
-            )}
-        </Paper>
     );
 };
 
@@ -166,18 +113,12 @@ export const AiCreditsSettingsPage: FC = () => {
                 <Stack gap="lg">
                     <AllowanceUsedBanner usage={usage} />
                     <UsageSummary usage={usage} />
-                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
-                        <BreakdownCard
-                            title="By feature"
-                            rows={usage.byFeature}
-                            getLabel={getAiCreditFeatureLabel}
-                        />
-                        <BreakdownCard
-                            title="By channel"
-                            rows={usage.byChannel}
-                            getLabel={getAiCreditChannelLabel}
-                        />
-                    </SimpleGrid>
+                    <AiCreditsUsageBreakdown
+                        allowanceCredits={
+                            usage.contract?.allowanceCredits ?? null
+                        }
+                        usedCredits={usage.billable.credits}
+                    />
                 </Stack>
             )}
         </SettingsPage>
