@@ -1,3 +1,10 @@
+## [2.412.3](https://github.com/lightdash/lightdash/compare/2.412.2...2.412.3) (2026-10-01)
+
+
+### Bug Fixes
+
+* **embed:** keep the viewer's place when returning to an AI conversation ([#30384](https://github.com/lightdash/lightdash/issues/30384)) ([9529a14](https://github.com/lightdash/lightdash/commit/9529a14607518745afacced92e3f7d74b1576bc8))
+
 ## [2.412.2](https://github.com/lightdash/lightdash/compare/2.412.1...2.412.2) (2026-10-01)
 
 
