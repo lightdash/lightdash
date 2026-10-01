@@ -1,3 +1,10 @@
+## [2.405.2](https://github.com/lightdash/lightdash/compare/2.405.1...2.405.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* **backend:** read legacy GitHub connections as PAT and stop merging a PAT into OAuth ([#30280](https://github.com/lightdash/lightdash/issues/30280)) ([112dc71](https://github.com/lightdash/lightdash/commit/112dc716746958b150148a77c10a97a756684180)), closes [#2](https://github.com/lightdash/lightdash/issues/2) [#3](https://github.com/lightdash/lightdash/issues/3)
+
 ## [2.405.1](https://github.com/lightdash/lightdash/compare/2.405.0...2.405.1) (2026-10-01)
 
 
