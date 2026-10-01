@@ -1,3 +1,10 @@
+## [2.405.3](https://github.com/lightdash/lightdash/compare/2.405.2...2.405.3) (2026-10-01)
+
+
+### Bug Fixes
+
+* **backend:** never fall back to a PAT for a GitHub App connection ([#30281](https://github.com/lightdash/lightdash/issues/30281)) ([73a7594](https://github.com/lightdash/lightdash/commit/73a7594a26ba489fa6437c931b329cd279ff00f3))
+
 ## [2.405.2](https://github.com/lightdash/lightdash/compare/2.405.1...2.405.2) (2026-10-01)
 
 
