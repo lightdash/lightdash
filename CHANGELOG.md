@@ -1,3 +1,10 @@
+## [2.405.1](https://github.com/lightdash/lightdash/compare/2.405.0...2.405.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **scheduled-deliveries:** wait for flat table totals before capture ([#30325](https://github.com/lightdash/lightdash/issues/30325)) ([b299c9a](https://github.com/lightdash/lightdash/commit/b299c9a923f55377446ef7c3ceccf5949e86d81d))
+
 # [2.405.0](https://github.com/lightdash/lightdash/compare/2.404.0...2.405.0) (2026-10-01)
 
 
