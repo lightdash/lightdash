@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     GitHost,
+    SemanticLayerFormat,
     type GitHostCredentials,
     type GitHostRepository,
 } from '@lightdash/common';
@@ -73,4 +74,23 @@ export const EMPTY_REPOSITORY_SELECTION: RepositorySelection = {
     branch: '',
     subPath: '/',
     isManual: false,
+};
+
+export type SemanticLayerChoice = 'dbt' | 'lightdash';
+
+export const getAutomaticSemanticLayer = (
+    format: SemanticLayerFormat,
+    supportsNative: boolean,
+): SemanticLayerChoice | null => {
+    switch (format) {
+        case SemanticLayerFormat.DBT:
+            return 'dbt';
+        case SemanticLayerFormat.LIGHTDASH:
+            return supportsNative ? 'lightdash' : null;
+        case SemanticLayerFormat.BOTH:
+        case SemanticLayerFormat.NEITHER:
+            return null;
+        default:
+            return assertUnreachable(format, 'Unknown semantic layer format');
+    }
 };

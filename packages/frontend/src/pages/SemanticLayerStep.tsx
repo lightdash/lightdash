@@ -115,6 +115,7 @@ const StepOptions: FC<{ project: Project; isWaiting: boolean }> = ({
                     <SectionHeader
                         title="Let an agent build it"
                         description="An agent reads your warehouse and writes the models for you."
+                        linkLabel="Read about agent setup"
                     />
                     <AgentOnboardingLaunchPanel
                         project={project}
