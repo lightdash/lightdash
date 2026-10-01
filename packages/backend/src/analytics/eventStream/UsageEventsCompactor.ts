@@ -1,11 +1,16 @@
 import { getErrorMessage } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
+import { performance } from 'perf_hooks';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
+import type {
+    UsageProcessingResult,
+    UsageProcessingStage,
+} from '../../prometheus/UsageProcessingMetrics';
 import { quoteDuckdbIdentifier } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { getCompactedStreamColumns } from './registry';
@@ -189,28 +194,144 @@ export class UsageEventsCompactor extends S3BaseClient {
             users: UserActivitySummary;
         }
     > {
+        const runId = randomUUID();
         try {
-            const summary = await this.compactEvents(now);
-            const dimensions = await new UsageDimensionsRefresher(
-                this.s3Config,
-                this.usageDimensionsModel,
-                this.createDuckdbClient(),
-            ).run();
-            if (dimensions.failed > 0) {
-                throw new Error(
-                    `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
-                );
-            }
-            const users = await new UsageUserActivityBuilder(
-                this.s3Config,
-            ).runAll(now);
-            if (users.failed > 0)
-                throw new Error(
-                    `User activity: ${users.failed} partitions failed; previous output retained`,
-                );
-            return { ...summary, dimensions, users };
+            return await this.monitorStage(
+                runId,
+                'pipeline',
+                async () => {
+                    const summary = await this.monitorStage(
+                        runId,
+                        'compaction',
+                        () => this.compactEvents(now),
+                        UsageEventsCompactor.compactionOutcome,
+                    );
+                    const dimensions = await this.monitorStage(
+                        runId,
+                        'dimensions',
+                        () =>
+                            new UsageDimensionsRefresher(
+                                this.s3Config,
+                                this.usageDimensionsModel,
+                                this.createDuckdbClient(),
+                            ).run(),
+                        (result) => ({
+                            outcome: result.failed > 0 ? 'failed' : 'success',
+                            failed: result.failed,
+                            remaining: result.failed,
+                        }),
+                    );
+                    if (dimensions.failed > 0) {
+                        throw new Error(
+                            `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
+                        );
+                    }
+                    const users = await this.monitorStage(
+                        runId,
+                        'users',
+                        () =>
+                            new UsageUserActivityBuilder(this.s3Config).runAll(
+                                now,
+                            ),
+                        UsageEventsCompactor.usersOutcome,
+                    );
+                    if (users.failed > 0)
+                        throw new Error(
+                            `User activity: ${users.failed} partitions failed; previous output retained`,
+                        );
+                    return { ...summary, dimensions, users };
+                },
+                (result) => {
+                    const rawOutcome =
+                        UsageEventsCompactor.compactionOutcome(result).outcome;
+                    const usersOutcome = UsageEventsCompactor.usersOutcome(
+                        result.users,
+                    ).outcome;
+                    if (rawOutcome === 'failed') return { outcome: 'failed' };
+                    return {
+                        outcome:
+                            rawOutcome === 'partial' ||
+                            usersOutcome === 'partial'
+                                ? 'partial'
+                                : 'success',
+                    };
+                },
+            );
         } finally {
             this.s3?.destroy();
+        }
+    }
+
+    private static compactionOutcome(
+        summary: CompactionRunSummary,
+    ): UsageProcessingResult {
+        const remaining =
+            summary.partitionsDiscovered - summary.partitionsCompacted;
+        const outcome = remaining > 0 ? 'partial' : 'success';
+        return {
+            outcome: summary.partitionsFailed > 0 ? 'failed' : outcome,
+            failed: summary.partitionsFailed,
+            // Includes unknown streams, which must not count as complete catch-up.
+            remaining,
+            limitReached: summary.partitionsDiscovered > MAX_PARTITIONS_PER_RUN,
+        };
+    }
+
+    private static usersOutcome(
+        summary: UserActivitySummary,
+    ): UsageProcessingResult {
+        const outcome =
+            summary.deferred > 0 || summary.limitReached
+                ? 'partial'
+                : 'success';
+        return {
+            outcome: summary.failed > 0 ? 'failed' : outcome,
+            failed: summary.failed,
+            remaining: summary.failed + summary.deferred,
+            limitReached: summary.limitReached,
+        };
+    }
+
+    private recordMetrics(record: () => void) {
+        try {
+            record();
+        } catch {
+            Logger.warn('Failed to record usage processing metrics');
+        }
+    }
+
+    private async monitorStage<T>(
+        runId: string,
+        stage: UsageProcessingStage,
+        run: () => Promise<T>,
+        summarize: (result: T) => UsageProcessingResult,
+    ): Promise<T> {
+        const start = performance.now();
+        let result: UsageProcessingResult = { outcome: 'failed' };
+        this.recordMetrics(() =>
+            this.prometheusMetrics?.usageProcessing?.start(stage),
+        );
+        Logger.info('Usage processing stage started', { runId, stage });
+        try {
+            const value = await run();
+            result = summarize(value);
+            return value;
+        } finally {
+            const durationSeconds = (performance.now() - start) / 1000;
+            this.recordMetrics(() =>
+                this.prometheusMetrics?.usageProcessing?.finish(
+                    stage,
+                    result,
+                    durationSeconds,
+                ),
+            );
+            // Fixed fields and counts only: never serialize SDK errors or event data.
+            Logger.info('Usage processing stage finished', {
+                runId,
+                stage,
+                durationSeconds,
+                ...result,
+            });
         }
     }
 
@@ -227,12 +348,16 @@ export class UsageEventsCompactor extends S3BaseClient {
             rawObjectsDeleted: 0,
         };
         if (partitions.length === 0) {
-            this.prometheusMetrics?.setUsageEventsCompactionBacklog(0);
-            this.prometheusMetrics?.setUsageEventsRawObjects(rawKeys.length);
-            this.prometheusMetrics?.observeUsageEventsCompactionRunDuration(
-                Date.now() - runStart,
-                'success',
-            );
+            this.recordMetrics(() => {
+                this.prometheusMetrics?.setUsageEventsCompactionBacklog(0);
+                this.prometheusMetrics?.setUsageEventsRawObjects(
+                    rawKeys.length,
+                );
+                this.prometheusMetrics?.observeUsageEventsCompactionRunDuration(
+                    Date.now() - runStart,
+                    'success',
+                );
+            });
             Logger.info('Usage events compaction: no closed partitions found');
             return summary;
         }
@@ -275,12 +400,14 @@ export class UsageEventsCompactor extends S3BaseClient {
                     await this.deleteRawKeys(partition.keys);
                     summary.partitionsCompacted += 1;
                     summary.rawObjectsDeleted += partition.keys.length;
-                    this.prometheusMetrics?.incrementUsageEventsCompactedPartitions();
-                    this.prometheusMetrics?.observeUsageEventsCompactionPartition(
-                        Date.now() - partitionStart,
-                        'success',
-                        partitionRawBytes,
-                    );
+                    this.recordMetrics(() => {
+                        this.prometheusMetrics?.incrementUsageEventsCompactedPartitions();
+                        this.prometheusMetrics?.observeUsageEventsCompactionPartition(
+                            Date.now() - partitionStart,
+                            'success',
+                            partitionRawBytes,
+                        );
+                    });
                     Logger.info(
                         `Usage events compaction: compacted ${partition.keys.length} raw objects (${partitionRawBytes} bytes) from ${partitionLabel} into s3://${this.bucket}/${compactedKey} in ${
                             Date.now() - partitionStart
@@ -288,12 +415,14 @@ export class UsageEventsCompactor extends S3BaseClient {
                     );
                 } catch (error) {
                     summary.partitionsFailed += 1;
-                    this.prometheusMetrics?.incrementUsageEventsCompactionFailures();
-                    this.prometheusMetrics?.observeUsageEventsCompactionPartition(
-                        Date.now() - partitionStart,
-                        'failed',
-                        partitionRawBytes,
-                    );
+                    this.recordMetrics(() => {
+                        this.prometheusMetrics?.incrementUsageEventsCompactionFailures();
+                        this.prometheusMetrics?.observeUsageEventsCompactionPartition(
+                            Date.now() - partitionStart,
+                            'failed',
+                            partitionRawBytes,
+                        );
+                    });
                     Logger.error(
                         `Usage events compaction: failed partition ${partitionLabel}: ${getErrorMessage(
                             error,
@@ -308,21 +437,23 @@ export class UsageEventsCompactor extends S3BaseClient {
         // Unknown-stream partitions are excluded: they are not retryable work
         // (they compact only once their stream is registered) and are
         // surfaced via the warn log above instead.
-        this.prometheusMetrics?.setUsageEventsCompactionBacklog(
-            summary.partitionsDiscovered -
-                summary.partitionsCompacted -
-                summary.partitionsSkippedUnknownStream,
-        );
-        // Raw objects left behind: open (today) partitions, failed/deferred
-        // partitions, and unknown streams. Sustained growth here means the
-        // writer is producing files faster than compaction reclaims them.
-        this.prometheusMetrics?.setUsageEventsRawObjects(
-            rawKeys.length - summary.rawObjectsDeleted,
-        );
-        this.prometheusMetrics?.observeUsageEventsCompactionRunDuration(
-            Date.now() - runStart,
-            summary.partitionsFailed > 0 ? 'partial' : 'success',
-        );
+        this.recordMetrics(() => {
+            this.prometheusMetrics?.setUsageEventsCompactionBacklog(
+                summary.partitionsDiscovered -
+                    summary.partitionsCompacted -
+                    summary.partitionsSkippedUnknownStream,
+            );
+            // Raw objects left behind: open (today) partitions, failed/deferred
+            // partitions, and unknown streams. Sustained growth here means the
+            // writer is producing files faster than compaction reclaims them.
+            this.prometheusMetrics?.setUsageEventsRawObjects(
+                rawKeys.length - summary.rawObjectsDeleted,
+            );
+            this.prometheusMetrics?.observeUsageEventsCompactionRunDuration(
+                Date.now() - runStart,
+                summary.partitionsFailed > 0 ? 'partial' : 'success',
+            );
+        });
         Logger.info(
             `Usage events compaction complete in ${
                 Date.now() - runStart

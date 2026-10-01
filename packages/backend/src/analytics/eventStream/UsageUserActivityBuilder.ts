@@ -24,6 +24,7 @@ export type UserActivitySummary = {
     skipped: number;
     deferred: number;
     failed: number;
+    limitReached: boolean;
 };
 const emptySummary = (): UserActivitySummary => ({
     published: 0,
@@ -31,6 +32,7 @@ const emptySummary = (): UserActivitySummary => ({
     skipped: 0,
     deferred: 0,
     failed: 0,
+    limitReached: false,
 });
 
 export const validateUserActivityRange = (
@@ -172,6 +174,7 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                     Logger.warn(
                         'User activity refresh reached its 500-partition work limit; remaining partitions will be retried on the next run',
                     );
+                    summary.limitReached = true;
                     break;
                 }
                 try {
