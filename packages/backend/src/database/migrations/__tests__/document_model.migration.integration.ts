@@ -791,7 +791,8 @@ describe('DocumentModel PostgreSQL integration', () => {
                 '# Report\n\n<document-chart id="c1">\n\n<document-chart id="c2">',
             charts: { c1: chart, c2: chart },
         });
-        // Removing c2 and adding a chart hands out c3, never c2 again.
+        // Removing c2 and adding a different chart hands out c3, never c2 again.
+        const added = { ...chart, chart: { ...chart.chart, name: 'Added' } };
         const updated = await model.updateContent(
             input.projectUuid,
             document.documentUuid,
@@ -801,14 +802,14 @@ describe('DocumentModel PostgreSQL integration', () => {
                 content: {
                     markdown:
                         '<document-chart id="added">\n\n<document-chart id="c1">',
-                    charts: { added: chart, c1: chart },
+                    charts: { added, c1: chart },
                 },
             },
             SEED_ORG_1_ADMIN.user_uuid,
         );
         expect(updated.version.content).toEqual({
             markdown: '<document-chart id="c3">\n\n<document-chart id="c1">',
-            charts: { c3: chart, c1: chart },
+            charts: { c3: added, c1: chart },
         });
         const [row] = await transaction(DocumentsTableName)
             .where('document_uuid', document.documentUuid)
@@ -1535,6 +1536,51 @@ describe('DocumentModel PostgreSQL integration', () => {
         await expect(
             model.get(input.projectUuid, document.documentUuid),
         ).rejects.toThrow();
+    });
+
+    test('reads a version written as cells by the previous release', async () => {
+        const document = await model.create(input);
+        const row = await transaction(DocumentsTableName)
+            .where('document_uuid', document.documentUuid)
+            .first();
+        if (!row) {
+            throw new Error('Document missing');
+        }
+        const chart = {
+            source: 'semantic',
+            chart: {
+                name: 'Orders',
+                tableName: 'orders',
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_count'],
+                    filters: {},
+                    sorts: [],
+                    limit: 100,
+                    tableCalculations: [],
+                },
+                chartConfig: { type: 'table' },
+            },
+        };
+        await transaction.raw(
+            `INSERT INTO document_versions (document_id, version_number, schema_version, content)
+             VALUES (?, 2, 1, ?::jsonb)`,
+            [
+                row.document_id,
+                JSON.stringify({
+                    cells: [
+                        { type: 'markdown', content: { markdown: '# Old' } },
+                        { type: 'chart', content: chart },
+                    ],
+                }),
+            ],
+        );
+        const read = await model.get(input.projectUuid, document.documentUuid);
+        expect(read.version.content).toEqual({
+            markdown: '# Old\n\n<document-chart id="c1">',
+            charts: { c1: chart },
+        });
     });
 
     test('deleting an author preserves identity and versions', async () => {

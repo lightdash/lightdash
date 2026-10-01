@@ -60,8 +60,10 @@ export type DbDocumentVersion = {
     document_id: number;
     version_number: number;
     schema_version: number;
-    markdown: string;
-    chart_data: unknown;
+    /** Version 1 cells; null for versions written in version 2. Dropped once no release reads it. */
+    content: unknown | null;
+    markdown: string | null;
+    chart_data: unknown | null;
     created_by_user_uuid: string | null;
     created_at: Date;
 };

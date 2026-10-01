@@ -44,11 +44,6 @@
         "documents-markdown-schema-v2-api": {
             "reason": "Documents (beta, documents feature flag) switch to schema version 2: the REST API, content-as-code files, CLI uploads, promotion and MCP Document tools now read and write { markdown, charts } instead of ordered cells, chart queries move from /cells/{cellIndex}/query to /charts/{chartId}/query, and version 1 payloads are rejected. API clients and CLI users with Document files must switch to the new shape.",
             "requiredStop": false
-        },
-        "documents-markdown-schema-v2-migration": {
-            "reason": "The migration rewrites every Document version from cells into markdown with chart tags plus chart_data and drops document_versions.content. Pods from the previous release read the dropped column and fail on any Document request during a rolling upgrade, so the previous release must be stopped first.",
-            "requiredStop": true,
-            "migration": "packages/backend/src/database/migrations/20261001120000_store_documents_as_markdown_with_chart_tags.ts"
         }
     }
 }

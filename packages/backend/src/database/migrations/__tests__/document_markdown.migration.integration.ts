@@ -82,37 +82,61 @@ describe('Document markdown migration on PostgreSQL', () => {
         await database.destroy();
     });
 
-    test('up turns cells into markdown with sequential chart tags', async () => {
+    test('up adds markdown with sequential chart tags and keeps the cells', async () => {
         await up(transaction);
         const versions = await transaction.raw<{
             rows: Array<{
                 schema_version: number;
+                content: unknown;
                 markdown: string;
                 chart_data: Record<string, unknown>;
             }>;
         }>(
-            'SELECT schema_version, markdown, chart_data FROM document_versions ORDER BY version_number',
+            'SELECT schema_version, content, markdown, chart_data FROM document_versions ORDER BY version_number',
         );
         expect(versions.rows).toEqual([
             {
-                schema_version: 2,
+                schema_version: 1,
+                content: { cells },
                 markdown:
                     '# Findings\n\nRevenue grew.\n\n<document-chart id="c1">\n\n<document-chart id="c2">\n\n> Closing note',
                 chart_data: { c1: chart('Revenue'), c2: chart('Orders') },
             },
-            { schema_version: 2, markdown: '', chart_data: {} },
+            {
+                schema_version: 1,
+                content: { cells: [] },
+                markdown: '',
+                chart_data: {},
+            },
         ]);
         const documents = await transaction.raw<{
             rows: { next_chart_number: number }[];
         }>('SELECT next_chart_number FROM documents');
         expect(documents.rows).toEqual([{ next_chart_number: 3 }]);
-        expect(
-            await transaction.schema.hasColumn('document_versions', 'content'),
-        ).toBe(false);
     });
 
-    test('down restores cells, dropping only blank markdown', async () => {
+    test('up leaves content nullable for versions written as markdown', async () => {
         await up(transaction);
+        await transaction.raw(
+            `INSERT INTO document_versions (document_id, version_number, schema_version, markdown, chart_data)
+             SELECT document_id, 3, 2, 'Only text', '{}'::jsonb FROM documents`,
+        );
+        const { rows } = await transaction.raw<{ rows: { count: string }[] }>(
+            'SELECT count(*) FROM document_versions WHERE content IS NULL',
+        );
+        expect(rows).toEqual([{ count: '1' }]);
+    });
+
+    test('down restores cells for markdown-only versions and keeps the rest', async () => {
+        await up(transaction);
+        await transaction.raw(
+            `INSERT INTO document_versions (document_id, version_number, schema_version, markdown, chart_data)
+             SELECT document_id, 3, 2, ?, ?::jsonb FROM documents`,
+            [
+                '# New\n\n<document-chart id="c3">',
+                JSON.stringify({ c3: chart('Added') }),
+            ],
+        );
         await down(transaction);
         const versions = await transaction.raw<{
             rows: Array<{ schema_version: number; content: unknown }>;
@@ -120,20 +144,21 @@ describe('Document markdown migration on PostgreSQL', () => {
             'SELECT schema_version, content FROM document_versions ORDER BY version_number',
         );
         expect(versions.rows).toEqual([
+            { schema_version: 1, content: { cells } },
+            { schema_version: 1, content: { cells: [] } },
             {
                 schema_version: 1,
                 content: {
-                    cells: cells.filter(
-                        (cell) =>
-                            cell.type !== 'markdown' ||
-                            (
-                                cell.content as { markdown: string }
-                            ).markdown.trim() !== '',
-                    ),
+                    cells: [
+                        { type: 'markdown', content: { markdown: '# New' } },
+                        { type: 'chart', content: chart('Added') },
+                    ],
                 },
             },
-            { schema_version: 1, content: { cells: [] } },
         ]);
+        expect(
+            await transaction.schema.hasColumn('document_versions', 'markdown'),
+        ).toBe(false);
         expect(
             await transaction.schema.hasColumn(
                 'documents',

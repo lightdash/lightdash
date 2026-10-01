@@ -4,8 +4,8 @@ const DocumentsTableName = 'documents';
 const DocumentVersionsTableName = 'document_versions';
 
 export const classification = {
-    kind: 'breaking',
-    reason: 'Rewrites Document versions from ordered cells into markdown with chart tags plus a chart map, and drops the cells column',
+    kind: 'safe',
+    reason: 'Adds nullable markdown and chart_data columns backfilled from the existing cells, and makes content nullable; existing columns and values are kept so the previous release keeps reading them',
 } as const;
 
 type Cell =
@@ -59,23 +59,22 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(DocumentVersionsTableName, (table) => {
         table.text('markdown').nullable();
         table.jsonb('chart_data').nullable();
+        table.jsonb('content').nullable().alter();
     });
 
     const versions: Array<{
         document_version_id: number;
         document_id: number;
         content: { cells: Cell[] };
-    }> = await knex(DocumentVersionsTableName).select(
-        'document_version_id',
-        'document_id',
-        'content',
-    );
+    }> = await knex(DocumentVersionsTableName)
+        .whereNull('markdown')
+        .select('document_version_id', 'document_id', 'content');
     const nextChartNumbers = new Map<number, number>();
     for (const version of versions) {
         const { markdown, charts } = cellsToMarkdown(version.content.cells);
         // eslint-disable-next-line no-await-in-loop
         await knex.raw(
-            `UPDATE ${DocumentVersionsTableName} SET markdown = ?, chart_data = ?::jsonb, schema_version = 2 WHERE document_version_id = ?`,
+            `UPDATE ${DocumentVersionsTableName} SET markdown = ?, chart_data = ?::jsonb WHERE document_version_id = ?`,
             [markdown, JSON.stringify(charts), version.document_version_id],
         );
         nextChartNumbers.set(
@@ -92,28 +91,18 @@ export async function up(knex: Knex): Promise<void> {
             .where('document_id', documentId)
             .update({ next_chart_number: nextChartNumber });
     }
-
-    await knex.schema.alterTable(DocumentVersionsTableName, (table) => {
-        table.text('markdown').notNullable().alter();
-        table.jsonb('chart_data').notNullable().alter();
-        table.dropColumn('content');
-    });
 }
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
-    await knex.schema.alterTable(DocumentVersionsTableName, (table) => {
-        table.jsonb('content').nullable();
-    });
+    // Versions written after the migration only have markdown
     const versions: Array<{
         document_version_id: number;
         markdown: string;
         chart_data: Charts;
-    }> = await knex(DocumentVersionsTableName).select(
-        'document_version_id',
-        'markdown',
-        'chart_data',
-    );
+    }> = await knex(DocumentVersionsTableName)
+        .whereNull('content')
+        .select('document_version_id', 'markdown', 'chart_data');
     for (const version of versions) {
         // eslint-disable-next-line no-await-in-loop
         await knex.raw(

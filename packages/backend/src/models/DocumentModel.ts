@@ -7,16 +7,19 @@ import {
     DocumentSummary,
     DocumentVersionList,
     DocumentVersionSummary,
+    getDocumentChartTag,
     getUserAvatarUrl,
     isUserAvatarColorValue,
     matchDocumentChartKeys,
     NotFoundError,
+    ParameterError,
     parseDocumentContent,
     UpdateDocumentContentRequest,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DbDocument,
+    DbDocumentVersion,
     DocumentsTableName,
     DocumentVersionsTableName,
 } from '../database/entities/documents';
@@ -43,6 +46,43 @@ export type CreateDocument = {
 };
 
 export type DocumentContentUpdate = UpdateDocumentContentRequest;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * A version written by the previous release during a rolling upgrade has only
+ * version 1 cells; read it as markdown with chart tags.
+ */
+const cellsToContent = (content: unknown) => {
+    const cells =
+        isRecord(content) && Array.isArray(content.cells) ? content.cells : [];
+    const charts: Record<string, unknown> = {};
+    const blocks = cells.flatMap((cell: unknown) => {
+        if (!isRecord(cell) || !isRecord(cell.content)) return [];
+        if (cell.type === 'chart') {
+            const id = `c${Object.keys(charts).length + 1}`;
+            charts[id] = cell.content;
+            return [getDocumentChartTag(id)];
+        }
+        const { markdown } = cell.content;
+        return typeof markdown === 'string' && markdown.trim()
+            ? [markdown.trim()]
+            : [];
+    });
+    return { markdown: blocks.join('\n\n'), charts };
+};
+
+const getStoredContent = (version: DbDocumentVersion): unknown => {
+    if (![1, DOCUMENT_SCHEMA_VERSION].includes(version.schema_version)) {
+        throw new ParameterError(
+            `Unsupported Document schema version: ${version.schema_version}`,
+        );
+    }
+    return version.markdown === null
+        ? cellsToContent(version.content)
+        : { markdown: version.markdown, charts: version.chart_data };
+};
 
 type DocumentRow = DbDocument & {
     organization_uuid: string;
@@ -541,10 +581,10 @@ export class DocumentModel {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
                 schemaVersion: DOCUMENT_SCHEMA_VERSION,
-                content: parseDocumentContent(version.schema_version, {
-                    markdown: version.markdown,
-                    charts: version.chart_data,
-                }),
+                content: parseDocumentContent(
+                    DOCUMENT_SCHEMA_VERSION,
+                    getStoredContent(version),
+                ),
                 createdByUserUuid: version.created_by_user_uuid,
                 createdAt: version.created_at,
             },
