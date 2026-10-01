@@ -26,27 +26,43 @@ export const SharedSignInExpiryListener: FC = () => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const userUuid = user.data?.userUuid ?? null;
 
-    useEffect(
-        () =>
-            queryClient.getQueryCache().subscribe((event) => {
-                if (event.type !== 'updated' || !activeProjectUuid) return;
-                const expiry = getSharedSignInExpiry(event.query.state.error);
-                if (!expiry || expiry.ownerUserUuid !== userUuid) return;
-                showToastWarning({
-                    key: 'shared-sign-in-expired',
-                    title: getExpiredSharedSignInMessage(expiry, userUuid),
-                    action: {
-                        children: 'Reconnect',
-                        icon: IconPlugConnected,
-                        onClick: () =>
-                            navigate(
-                                `/generalSettings/projectManagement/${activeProjectUuid}/settings`,
-                            ),
-                    },
-                });
-            }),
-        [queryClient, activeProjectUuid, userUuid, showToastWarning, navigate],
-    );
+    useEffect(() => {
+        const notifyOwner = (error: unknown) => {
+            if (!activeProjectUuid) return;
+            const expiry = getSharedSignInExpiry(error);
+            if (!expiry || expiry.ownerUserUuid !== userUuid) return;
+            showToastWarning({
+                key: 'shared-sign-in-expired',
+                title: getExpiredSharedSignInMessage(expiry, userUuid),
+                action: {
+                    children: 'Reconnect',
+                    icon: IconPlugConnected,
+                    onClick: () =>
+                        navigate(
+                            `/generalSettings/projectManagement/${activeProjectUuid}/settings`,
+                        ),
+                },
+            });
+        };
+        const unsubscribeQueries = queryClient
+            .getQueryCache()
+            .subscribe((event) => {
+                if (event.type === 'updated') {
+                    notifyOwner(event.query.state.error);
+                }
+            });
+        const unsubscribeMutations = queryClient
+            .getMutationCache()
+            .subscribe((event) => {
+                if (event.type === 'updated') {
+                    notifyOwner(event.mutation?.state.error);
+                }
+            });
+        return () => {
+            unsubscribeQueries();
+            unsubscribeMutations();
+        };
+    }, [queryClient, activeProjectUuid, userUuid, showToastWarning, navigate]);
 
     return null;
 };
