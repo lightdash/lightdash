@@ -90,6 +90,8 @@ const UsageChart: FC<{
                 stack: 'credits',
                 barMaxWidth: 24,
                 itemStyle: { color: item.color },
+                // ECharts derives a hover colour by lightening this one, which fails on a CSS variable and blanks the bar.
+                emphasis: { disabled: true },
                 data: buckets.map((bucket) => bucket.credits[index]),
             })),
         };
