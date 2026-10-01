@@ -22,6 +22,7 @@ import MantineModal from '../components/common/MantineModal';
 import PageSpinner from '../components/PageSpinner';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
+import useLogoutMutation from '../hooks/user/useUserLogoutMutation';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { sanitizeRedirectUrl } from '../utils/redirectUrl';
@@ -72,6 +73,11 @@ const VerifyEmailPage: FC = () => {
     );
     const { show: showIntercom } = useIntercom();
     const { isNewLayout } = useAuthLayoutVariant();
+    const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation({
+        onSuccess: () => {
+            window.location.href = '/register';
+        },
+    });
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const redirectParam = searchParams.get('redirect');
@@ -117,7 +123,20 @@ const VerifyEmailPage: FC = () => {
         <AuthLayout
             pageTitle="Verify your email"
             title="Check your inbox"
-            subtitle={`We sent a 6-digit code to ${data?.email ?? 'your email'}.`}
+            subtitle={
+                <>
+                    We sent a 6-digit code to {data?.email ?? 'your email'}.{' '}
+                    <Anchor
+                        component="button"
+                        type="button"
+                        inherit
+                        disabled={isLoggingOut}
+                        onClick={() => logout()}
+                    >
+                        Wrong email?
+                    </Anchor>
+                </>
+            }
             withLegacyCard={false}
             withCustomerLogos
             footer={

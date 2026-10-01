@@ -41,7 +41,7 @@ type Props = {
     pageTitle: string;
     /** Split-layout heading. Omitted when the page renders its own heading. */
     title?: string;
-    subtitle?: string;
+    subtitle?: ReactNode;
     /** Centred heading inside the legacy card. */
     legacyTitle?: string;
     /** Bounds the form in both layouts, for `SCREENSHOT_SELECTORS.LOGIN_PAGE`. */
