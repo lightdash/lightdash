@@ -1,3 +1,10 @@
+## [2.405.5](https://github.com/lightdash/lightdash/compare/2.405.4...2.405.5) (2026-10-01)
+
+
+### Bug Fixes
+
+* bound usage inventory export work per page ([#30328](https://github.com/lightdash/lightdash/issues/30328)) ([71297cb](https://github.com/lightdash/lightdash/commit/71297cb8f6c6cf39785fbbcc91cc05ad777ad960))
+
 ## [2.405.4](https://github.com/lightdash/lightdash/compare/2.405.3...2.405.4) (2026-10-01)
 
 
