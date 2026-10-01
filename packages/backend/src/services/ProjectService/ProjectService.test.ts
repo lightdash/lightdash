@@ -12540,6 +12540,7 @@ describe('preview BigQuery SSO credentials', () => {
         tokenStatus.clear();
         stored.set(upstreamProjectUuid, bigquerySso('token-a'));
         stored.set(previewProjectUuid, bigquerySso('token-a'));
+        previewOwns.set(previewProjectUuid, false);
     });
 
     test('a preview created with token A still works after the parent reconnects with token B', async () => {
@@ -12629,6 +12630,20 @@ describe('preview BigQuery SSO credentials', () => {
         tokenStatus.set('token-a', 'rejected');
 
         expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-a');
+        expect(checkRefreshToken).not.toHaveBeenCalled();
+        expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
+    });
+
+    test('an older preview with its own expired token and no recorded ownership is not repaired from the parent', async () => {
+        stored.set(previewProjectUuid, bigquerySso('own-token'));
+        stored.set(upstreamProjectUuid, bigquerySso('token-b'));
+        previewOwns.delete(previewProjectUuid);
+        tokenStatus.set('own-token', 'rejected');
+
+        expect(refreshTokenOf(await getPreviewCredentials())).toBe('own-token');
+        expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe(
+            'own-token',
+        );
         expect(checkRefreshToken).not.toHaveBeenCalled();
         expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
     });

@@ -1931,7 +1931,8 @@ export class ProjectService extends BaseService {
             !(await this.isPreviewSsoCredentialSyncEnabled(
                 preview.organizationUuid,
             )) ||
-            (await this.projectModel.getPreviewOwnsCredentials(projectUuid))
+            (await this.projectModel.getPreviewOwnsCredentials(projectUuid)) !==
+                false
         ) {
             return credentials;
         }
