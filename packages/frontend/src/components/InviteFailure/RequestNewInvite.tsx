@@ -20,21 +20,8 @@ export const RequestNewInvite: FC<{
                 body: undefined,
             }),
     });
-    if (!failure.inviterName) {
-        return (
-            <Text>
-                We cannot tell who sent this invite. Ask the person who shared
-                the link for a new invite.
-            </Text>
-        );
-    }
-    if (!failure.canSendEmail || !failure.canRequestNewInvite) {
-        return (
-            <Text>
-                Ask {failure.inviterName} for a new invite. Contact them
-                directly.
-            </Text>
-        );
+    if (!failure.canRequestNewInvite) {
+        return <Text>Ask the person who invited you for a new invite.</Text>;
     }
     return (
         <Stack gap="sm">
@@ -43,11 +30,11 @@ export const RequestNewInvite: FC<{
                 loading={request.isLoading}
                 disabled={request.isSuccess}
             >
-                Ask {failure.inviterName} for a new invite
+                Ask for a new invite
             </Button>
             {request.isSuccess && (
                 <Callout variant="success">
-                    Your request has been sent to {failure.inviterName}.
+                    We sent your request to the person who invited you.
                 </Callout>
             )}
             {request.error && (

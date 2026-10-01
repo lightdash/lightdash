@@ -36,7 +36,7 @@ import { BaseController } from './baseController';
 @Tags('Organizations')
 export class InviteLinksController extends BaseController {
     /**
-     * Explain why an invite link cannot be used, and who sent it when that is known.
+     * Explain why an invite link cannot be used.
      * @summary Get invite link failure
      */
     @Middlewares([unauthorisedInDemo])
