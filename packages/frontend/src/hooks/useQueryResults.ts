@@ -3,6 +3,7 @@ import {
     DEFAULT_RESULTS_PAGE_SIZE,
     DownloadFileType,
     isBigqueryTokenErrorMessage,
+    isPreviewWarehouseSignInExpiredMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
     MAX_SAFE_INTEGER,
     ParameterError,
@@ -71,6 +72,9 @@ const getAsyncQueryErrorType = (
 ): Pick<ApiError['error'], 'name' | 'statusCode'> => {
     if (isRedshiftIamTokenErrorMessage(message)) {
         return { name: 'RedshiftIamTokenError', statusCode: 401 };
+    }
+    if (isPreviewWarehouseSignInExpiredMessage(message)) {
+        return { name: 'PreviewWarehouseSignInExpiredError', statusCode: 401 };
     }
     if (isBigqueryTokenErrorMessage(message)) {
         return { name: 'BigqueryTokenError', statusCode: 401 };

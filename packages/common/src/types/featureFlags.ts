@@ -93,6 +93,12 @@ export enum FeatureFlags {
     EnableLearn = 'enable-learn',
 
     /**
+     * Keeps a preview's copied BigQuery SSO credential in step with its
+     * upstream project. On by default; the flag is a kill switch only.
+     */
+    PreviewSsoCredentialSync = 'preview-sso-credential-sync',
+
+    /**
      * Per-organization gate for declaring custom npm dependencies in data
      * apps. Disabled by default; self-hosted instances can enable it globally
      * via LIGHTDASH_ENABLE_FEATURE_FLAGS.

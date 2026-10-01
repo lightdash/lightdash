@@ -210,6 +210,40 @@ describe('FeatureFlagModel', () => {
             );
         },
     );
+    describe('Preview SSO credential sync', () => {
+        const featureFlagId = FeatureFlags.PreviewSsoCredentialSync;
+
+        it('is on by default', async () => {
+            const model = buildModel({}, buildFakeDatabase({}));
+            await expect(
+                model.get({ user: dbUser, featureFlagId }),
+            ).resolves.toEqual({ id: featureFlagId, enabled: true });
+        });
+
+        it('turns off for one organization with an override', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: null },
+                    orgOverride: { enabled: false },
+                }),
+            );
+            await expect(
+                model.get({ user: dbUser, featureFlagId }),
+            ).resolves.toEqual({ id: featureFlagId, enabled: false });
+        });
+
+        it('is off when the kill switch lists it', async () => {
+            const model = buildModel(
+                { disabledFeatureFlags: new Set([featureFlagId]) },
+                buildFakeDatabase({}),
+            );
+            await expect(
+                model.get({ user: dbUser, featureFlagId }),
+            ).resolves.toEqual({ id: featureFlagId, enabled: false });
+        });
+    });
+
     describe('Learn', () => {
         it('is off by default on self-hosted', async () => {
             const model = buildModel({}, buildFakeDatabase({}));
