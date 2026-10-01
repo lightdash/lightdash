@@ -135,7 +135,7 @@ export const convertDataTypeToDimensionType = (
 // Force lowercase for column names
 const normalizeColumnName = (columnName: string) => columnName.toLowerCase();
 
-const AWS_AUTH_ERROR_NAMES = new Set([
+export const AWS_AUTH_ERROR_NAMES = new Set([
     'UnrecognizedClientException',
     'InvalidClientTokenId',
     'InvalidSignatureException',
@@ -221,10 +221,14 @@ const translateAthenaError = (
         (awsErrorName !== undefined &&
             AWS_AUTH_ERROR_NAMES.has(awsErrorName)) ||
         httpStatusCode === 401;
+    const driverData = {
+        driverCode:
+            awsErrorName ?? (httpStatusCode ? `http_${httpStatusCode}` : null),
+    };
     if (isAuthError || options.defaultErrorClass === 'connection') {
-        return new WarehouseConnectionError(fullMessage);
+        return new WarehouseConnectionError(fullMessage, driverData);
     }
-    return new WarehouseQueryError(fullMessage);
+    return new WarehouseQueryError(fullMessage, driverData);
 };
 
 export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {

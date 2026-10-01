@@ -15,6 +15,7 @@ import {
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
+    toWarehouseDriverErrorData,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -301,6 +302,8 @@ export type ClickhouseWarehouseClientOptions = {
     maxOpenConnections?: number;
 };
 
+export const CLICKHOUSE_HOST_INCLUDES_SCHEME = 'host_includes_scheme';
+
 export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickhouseCredentials> {
     client: ClickHouseClient;
 
@@ -573,13 +576,25 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     }
 
     async test(): Promise<void> {
+        const schemeInHost = this.credentials.host.match(
+            /^([a-z][a-z0-9+.-]*):\/\//i,
+        );
+        if (schemeInHost) {
+            throw new WarehouseConnectionError(
+                `The host starts with ${schemeInHost[0]}. Remove it from the host and use the "Secure" setting to choose HTTPS.`,
+                { driverCode: CLICKHOUSE_HOST_INCLUDES_SCHEME },
+            );
+        }
         try {
             await this.client.query({
                 query: 'SELECT 1 as test',
                 format: 'JSON',
             });
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            throw new WarehouseConnectionError(
+                getErrorMessage(e),
+                toWarehouseDriverErrorData(e),
+            );
         }
     }
 }

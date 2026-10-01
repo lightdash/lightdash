@@ -375,6 +375,7 @@ export * from './types/user';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
 export * from './types/projectSetup';
+export * from './types/warehouseConnectionFailure';
 export * from './types/userOnboarding';
 export * from './types/learnProgress';
 export * from './types/userWarehouseCredentials';
@@ -1267,3 +1268,4 @@ export * from './types/recentContent';
 export * from './utils/dashboardTilePositions';
 
 export * from './utils/savedMerge';
+export * from './utils/warehouseConnectionInput';

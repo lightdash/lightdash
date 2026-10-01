@@ -32,6 +32,7 @@ import {
     JobStepStatusType,
     JobStepType,
     JobType,
+    LightdashMode,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
     MergeQueryErrorKind,
@@ -1732,6 +1733,118 @@ describe('ProjectService', () => {
             );
 
             expect(projectSetupModel.startAttempt).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('warehouse connection input', () => {
+        const organizationUuid = 'organization-uuid';
+        const projectCreator: SessionUser = {
+            ...user,
+            organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date('2026-08-03T08:00:00.000Z'),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const postgres = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            user: 'user',
+            password: 'password',
+            port: 5432,
+            dbname: 'db',
+            schema: 'public',
+        } as const;
+        const createProject = (
+            warehouseConnection: CreateProject['warehouseConnection'],
+        ): CreateProject => ({
+            name: 'Organization',
+            type: ProjectType.DEFAULT,
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DbtVersionOptionLatest.LATEST,
+            warehouseConnection,
+        });
+        const getService = (enabled: boolean) => {
+            const encrypt = vi.fn(() => Buffer.from('encrypted-project-data'));
+            const cloudService = getMockedProjectService(
+                { ...lightdashConfigMock, mode: LightdashMode.CLOUD_BETA },
+                {
+                    featureFlagModel: {
+                        get: vi.fn(
+                            async ({
+                                featureFlagId,
+                            }: {
+                                featureFlagId: string;
+                            }) => ({
+                                id: featureFlagId,
+                                enabled:
+                                    enabled &&
+                                    featureFlagId ===
+                                        FeatureFlags.ConnectJourney,
+                            }),
+                        ),
+                    } as unknown as FeatureFlagModel,
+                },
+            );
+            Object.assign(cloudService, { encryptionUtil: { encrypt } });
+            return { service: cloudService, encrypt };
+        };
+        const encryptedWarehouse = (encrypt: ReturnType<typeof vi.fn>) =>
+            JSON.parse(encrypt.mock.calls[0][0]).warehouseConnection;
+
+        test('blocks a local host on Cloud before scheduling', async () => {
+            const { service: inputService } = getService(true);
+
+            await expect(
+                inputService.scheduleCreate(
+                    projectCreator,
+                    createProject(postgres),
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('asks for confirmation instead of rewriting a host with a scheme', async () => {
+            const { service: inputService } = getService(true);
+
+            await expect(
+                inputService.scheduleCreate(
+                    projectCreator,
+                    createProject({
+                        ...postgres,
+                        host: 'https://db.example.com',
+                    }),
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow('Did you mean "db.example.com"?');
+        });
+
+        test('applies automatic fixes before the credentials are stored', async () => {
+            const { service: inputService, encrypt } = getService(true);
+
+            await inputService.scheduleCreate(
+                projectCreator,
+                createProject({ ...postgres, host: ' db.example.com ' }),
+                RequestMethod.WEB_APP,
+            );
+
+            expect(encryptedWarehouse(encrypt).host).toBe('db.example.com');
+        });
+
+        test('leaves input alone when the flag is off', async () => {
+            const { service: inputService, encrypt } = getService(false);
+
+            await inputService.scheduleCreate(
+                projectCreator,
+                createProject(postgres),
+                RequestMethod.WEB_APP,
+            );
+
+            expect(encryptedWarehouse(encrypt).host).toBe('localhost');
         });
     });
 

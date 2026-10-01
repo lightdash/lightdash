@@ -1,3 +1,4 @@
+export * from './connectionFailure/classifyWarehouseConnectionFailure';
 export * from './ssh/sshTunnel';
 export * from './types';
 export * from './validateWarehouseColumnReferences';

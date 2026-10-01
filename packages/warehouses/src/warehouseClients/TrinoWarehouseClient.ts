@@ -9,6 +9,7 @@ import {
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
+    toWarehouseDriverErrorData,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -332,7 +333,10 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         try {
             session = await client.create(this.connectionOptions);
         } catch (e: AnyType) {
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            throw new WarehouseConnectionError(
+                getErrorMessage(e),
+                toWarehouseDriverErrorData(e),
+            );
         }
 
         return {
