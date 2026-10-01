@@ -1,10 +1,13 @@
 import {
+    FeatureFlags,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
     type Project,
     type WarehouseTypes,
 } from '@lightdash/common';
-import { Stack, Text, TextInput } from '@mantine/core';
+import { Box, Stack, Text, TextInput } from '@mantine/core';
 import { type FC } from 'react';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { EgressIpNotice } from './EgressIpNotice';
 import { FormProvider, type Form } from './formContext';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { WarehouseConnectionInputReview } from './WarehouseConnectionInputReview';
@@ -27,38 +30,49 @@ export const ConnectionFields: FC<{
     nameRef,
     savedProject,
     showName,
-}) => (
-    <FormProvider form={form}>
-        <ProjectFormProvider
-            projectUuid={projectUuid}
-            savedProject={savedProject}
-            isProjectExtraConnection
-        >
-            <Stack gap="md">
-                <Text size="sm" c="dimmed">
-                    {intro}
-                </Text>
-                {showName && (
-                    <TextInput
-                        ref={nameRef}
-                        label="Name"
-                        description="Shown wherever this connection is picked."
-                        placeholder="e.g. Finance warehouse"
-                        required
-                        maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
-                        {...form.getInputProps('name')}
-                    />
-                )}
-                <WarehouseConnectionInputReview>
-                    <WarehouseSettingsForm disabled={false}>
-                        <WarehouseSchemaInput
-                            warehouseType={warehouseType}
-                            disabled={false}
-                            warehouseOnly
+}) => {
+    const connectJourneyFlag = useServerFeatureFlag(
+        FeatureFlags.ConnectJourney,
+    );
+
+    return (
+        <FormProvider form={form}>
+            <ProjectFormProvider
+                projectUuid={projectUuid}
+                savedProject={savedProject}
+                isProjectExtraConnection
+            >
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        {intro}
+                    </Text>
+                    {showName && (
+                        <TextInput
+                            ref={nameRef}
+                            label="Name"
+                            description="Shown wherever this connection is picked."
+                            placeholder="e.g. Finance warehouse"
+                            required
+                            maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
+                            {...form.getInputProps('name')}
                         />
-                    </WarehouseSettingsForm>
-                </WarehouseConnectionInputReview>
-            </Stack>
-        </ProjectFormProvider>
-    </FormProvider>
-);
+                    )}
+                    <WarehouseConnectionInputReview>
+                        <WarehouseSettingsForm disabled={false}>
+                            <WarehouseSchemaInput
+                                warehouseType={warehouseType}
+                                disabled={false}
+                                warehouseOnly
+                            />
+                        </WarehouseSettingsForm>
+                        {connectJourneyFlag.data?.enabled && (
+                            <Box mt="md">
+                                <EgressIpNotice warehouseType={warehouseType} />
+                            </Box>
+                        )}
+                    </WarehouseConnectionInputReview>
+                </Stack>
+            </ProjectFormProvider>
+        </FormProvider>
+    );
+};
