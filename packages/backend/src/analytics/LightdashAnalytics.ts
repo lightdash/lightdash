@@ -36,6 +36,7 @@ import {
     SchedulerResourceType,
     TableSelectionType,
     ValidateProjectPayload,
+    WarehouseConnectionFailureCause,
     WarehouseTypes,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
@@ -330,6 +331,8 @@ type WarehouseConnectionTestedEvent = BaseTrack & {
         warehouseType: WarehouseTypes;
         result: 'success' | 'failure';
         errorType?: string;
+        failureCause?: WarehouseConnectionFailureCause;
+        driverCode?: string | null;
         context: 'project_create' | 'project_update';
         method: RequestMethod;
         onboardingFlow: OnboardingFlow;

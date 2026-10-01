@@ -1,7 +1,6 @@
 import { ProjectType, DbtProjectType } from '@lightdash/common';
-import { TextInput, Flex, Stack, Text, Title, Avatar } from '@mantine/core';
+import { TextInput, Flex, Stack, Title, Avatar } from '@mantine/core';
 import { type FC } from 'react';
-import useApp from '../../providers/App/useApp';
 import LightdashLogo from '../../svgs/logo-icon.svg';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
@@ -10,10 +9,8 @@ import DbtSettingsForm from './DbtSettingsForm';
 import DbtSourcesPanel from './DbtSourcesPanel';
 import { useFormContext } from './formContext';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import { useProjectFormContext } from './useProjectFormContext';
-import WarehouseSchemaInput from './WarehouseSchemaInput';
-import WarehouseSettingsForm from './WarehouseSettingsForm';
+import { WarehouseConnectionCard } from './WarehouseConnectionCard';
 
 interface Props {
     showGeneralSettings: boolean;
@@ -30,10 +27,8 @@ export const ProjectForm: FC<Props> = ({
     isProjectUpdate,
     warehouseOnly = false,
 }) => {
-    const { health } = useApp();
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
-    const warehouse = form.values.warehouse.type;
     const isNative =
         (form.values.dbt.type === DbtProjectType.GITHUB ||
             form.values.dbt.type === DbtProjectType.BITBUCKET) &&
@@ -59,44 +54,15 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            <SettingsGridCard p={warehouseOnly ? 'xl' : 'md'}>
-                <div>
-                    {warehouse && getWarehouseIcon(warehouse)}
-                    <Flex align="center" gap={2}>
-                        <Title order={5}>Warehouse connection</Title>
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
-                            pos="relative"
-                            top="2px"
-                        />
-                    </Flex>
-
-                    {health.data?.staticIp && (
-                        <Text c="gray">
-                            If you need to add our IP address to your database's
-                            allow-list, use <b>{health.data?.staticIp}</b>
-                        </Text>
-                    )}
-                </div>
-
-                <div>
-                    <WarehouseSettingsForm
-                        disabled={disabled}
-                        isProjectUpdate={isProjectUpdate}
-                    >
-                        {(warehouseOnly || isNative) &&
-                            warehouse &&
-                            !form.values
-                                .organizationWarehouseCredentialsUuid && (
-                                <WarehouseSchemaInput
-                                    warehouseType={warehouse}
-                                    disabled={disabled}
-                                    warehouseOnly
-                                />
-                            )}
-                    </WarehouseSettingsForm>
-                </div>
-            </SettingsGridCard>
+            <WarehouseConnectionCard
+                disabled={disabled}
+                isProjectUpdate={isProjectUpdate}
+                warehouseOnly={warehouseOnly}
+                showSchemaInput={
+                    (warehouseOnly || isNative) &&
+                    !form.values.organizationWarehouseCredentialsUuid
+                }
+            />
 
             {!warehouseOnly && (
                 <SettingsGridCard>

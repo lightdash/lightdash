@@ -10,6 +10,7 @@ import {
     setCatalogTimestampDomain,
     SslConfiguration,
     SupportedDbtAdapter,
+    toWarehouseDriverErrorData,
     WAREHOUSE_LISTED_DATABASES_LIMIT,
     WarehouseCatalog,
     WarehouseDatabaseListing,
@@ -856,7 +857,9 @@ export class PostgresClient<
             return undefined;
         };
         // do noithing if there is no position returned)
-        if (!error?.position) return new WarehouseQueryError(error?.message);
+        const driverData = toWarehouseDriverErrorData(error);
+        if (!error?.position)
+            return new WarehouseQueryError(error?.message, driverData);
         // The query will look something like this:
         // 'WITH user_sql AS (
         //     SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;
@@ -866,7 +869,8 @@ export class PostgresClient<
         // get the position and line from the position returned from postgres
         const positionObj = getErrorLineAndCharPosition(query, error?.position);
         // do nothing if the line and charNumber cannot be determined
-        if (!positionObj) return new WarehouseQueryError(error?.message);
+        if (!positionObj)
+            return new WarehouseQueryError(error?.message, driverData);
         let lineNumber = positionObj.line;
         const charNumber = positionObj.charPosition;
         // if query match, subtract the number of lines from the line number
@@ -875,6 +879,7 @@ export class PostgresClient<
         }
         // return a new error with the line and character number in data object
         return new WarehouseQueryError(error.message, {
+            ...driverData,
             lineNumber,
             charNumber,
         });

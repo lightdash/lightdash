@@ -1,7 +1,13 @@
-import { DimensionType } from '@lightdash/common';
 import {
+    DimensionType,
+    WarehouseConnectionError,
+    WarehouseTypes,
+} from '@lightdash/common';
+import {
+    CLICKHOUSE_HOST_INCLUDES_SCHEME,
     ClickhouseSqlBuilder,
     ClickhouseTypes,
+    ClickhouseWarehouseClient,
     convertDataTypeToDimensionType,
     getMaxOpenConnections,
 } from './ClickhouseWarehouseClient';
@@ -131,5 +137,28 @@ describe('convertDataTypeToDimensionType', () => {
         expect(convertDataTypeToDimensionType('SomeFutureType')).toBe(
             DimensionType.STRING,
         );
+    });
+});
+
+describe('ClickhouseWarehouseClient.test', () => {
+    it('rejects a host that includes a scheme before querying', async () => {
+        const client = new ClickhouseWarehouseClient({
+            type: WarehouseTypes.CLICKHOUSE,
+            host: 'https://example.clickhouse.cloud',
+            port: 8443,
+            user: 'default',
+            password: 'password',
+            schema: 'default',
+            secure: true,
+        });
+        const query = vi.spyOn(client.client, 'query');
+
+        const error = await client.test().catch((caught) => caught);
+
+        expect(error).toBeInstanceOf(WarehouseConnectionError);
+        expect(error.data).toEqual({
+            driverCode: CLICKHOUSE_HOST_INCLUDES_SCHEME,
+        });
+        expect(query).not.toHaveBeenCalled();
     });
 });

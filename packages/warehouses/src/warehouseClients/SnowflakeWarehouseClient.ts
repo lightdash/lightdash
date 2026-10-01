@@ -11,6 +11,7 @@ import {
     setCatalogTimestampDomain,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
+    toWarehouseDriverErrorData,
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -866,6 +867,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         : `Snowflake interactive authentication error: ${getErrorMessage(
                               e,
                           )}`,
+                    toWarehouseDriverErrorData(e),
                 );
             }
             return connection;
@@ -894,6 +896,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
+                toWarehouseDriverErrorData(e),
             );
         }
         return connection;
@@ -1281,6 +1284,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     `Failed to select Snowflake warehouse "${
                         this.connectionOptions.warehouse
                     }"${identityContext}: ${getErrorMessage(e)}`,
+                    toWarehouseDriverErrorData(e),
                 );
             }
         }
