@@ -105,6 +105,10 @@ const VerifyEmailPage: FC = () => {
         return <PageSpinner />;
     }
 
+    if (!health.data?.isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
     if (isVerifiedEmailOnlySignup) {
         return redirectTo === null ? <Navigate to="/" /> : <PageSpinner />;
     }
