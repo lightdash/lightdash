@@ -10,6 +10,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getUserAbilityBuilder,
+    InvalidUser,
     InviteLinkPurpose,
     LightdashUser,
     LocalIssuerTypes,
@@ -342,6 +343,46 @@ describe('UserService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('findSessionUser', () => {
+        it('reads a session without an organization by user uuid', async () => {
+            await expect(
+                userService.findSessionUser({
+                    id: sessionUser.userUuid,
+                    organization: null as unknown as string,
+                }),
+            ).resolves.toBe(sessionUser);
+            expect(userModel.findSessionUserByUUID).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+            );
+            expect(
+                userModel.getSessionUserFromCacheOrDB,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('ends a session without an organization for a missing user', async () => {
+            userModel.findSessionUserByUUID.mockRejectedValueOnce(
+                new NotFoundError('missing'),
+            );
+            await expect(
+                userService.findSessionUser({
+                    id: 'missing-user',
+                    organization: null as unknown as string,
+                }),
+            ).rejects.toBeInstanceOf(InvalidUser);
+        });
+
+        it('reads a session with an organization from the cache', async () => {
+            await userService.findSessionUser({
+                id: sessionUser.userUuid,
+                organization: 'org-uuid',
+            });
+            expect(userModel.getSessionUserFromCacheOrDB).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'org-uuid',
+            );
+        });
     });
 
     describe('joinOrg by allowed email domain', () => {

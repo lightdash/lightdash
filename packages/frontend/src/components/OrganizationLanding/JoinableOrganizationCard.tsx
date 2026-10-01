@@ -3,6 +3,7 @@ import { Avatar, Button, Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useJoinOrganizationMutation } from '../../hooks/user/useJoinOrganizationMutation';
+import { formatMemberCount } from './organizationLandingCopy';
 
 export const JoinableOrganizationCard: FC<{
     organization: UserAllowedOrganization;
@@ -22,7 +23,7 @@ export const JoinableOrganizationCard: FC<{
                             {organization.name}
                         </Text>
                         <Text fz="xs" c="dimmed">
-                            {organization.membersCount} members
+                            {formatMemberCount(organization.membersCount)}
                         </Text>
                     </Stack>
                 </Group>

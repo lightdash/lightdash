@@ -4,6 +4,9 @@ import {
 } from '@lightdash/common';
 import { inferOrganizationName } from '../../utils/organizationName';
 
+export const formatMemberCount = (count: number): string =>
+    `${count} ${count === 1 ? 'member' : 'members'}`;
+
 export const getRequestCardContext = (landing: OrganizationLanding): string =>
     landing.canCreateOrganization
         ? `People at ${landing.emailDomain} use this organization. An admin approves new members.`
