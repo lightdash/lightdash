@@ -45,6 +45,7 @@ import { FavoritesService } from './FavoritesService/FavoritesService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { FunnelService } from './FunnelService/FunnelService';
 import { GdriveService } from './GdriveService/GdriveService';
+import { GitHostDiscoveryService } from './GitHostDiscoveryService/GitHostDiscoveryService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GitlabAppService } from './GitlabAppService/GitlabAppService';
@@ -190,6 +191,7 @@ interface ServiceManifest {
     warehouseConnectionBindingService: WarehouseConnectionBindingService;
     projectCompileLogService: ProjectCompileLogService;
     projectSetupService: ProjectSetupService;
+    gitHostDiscoveryService: GitHostDiscoveryService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
@@ -2174,6 +2176,19 @@ export class ServiceRepository
                 new ProjectCompileLogService({
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
+                }),
+        );
+    }
+
+    public getGitHostDiscoveryService(): GitHostDiscoveryService {
+        return this.getService(
+            'gitHostDiscoveryService',
+            () =>
+                new GitHostDiscoveryService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    githubAppInstallationsModel:
+                        this.models.getGithubAppInstallationsModel(),
                 }),
         );
     }

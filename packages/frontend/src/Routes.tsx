@@ -9,6 +9,8 @@ import JobDetailsDrawer from './components/JobDetailsDrawer';
 import NavBar from './components/NavBar';
 import { NavBarLayout } from './components/NavBarLayout';
 import PrivateRoute from './components/PrivateRoute';
+import { ResumeProjectSetup } from './components/ProjectConnection/SemanticLayerStep/ResumeProjectSetup';
+import { SemanticLayerStepRedirect } from './components/ProjectConnection/SemanticLayerStep/SemanticLayerStepRedirect';
 import ProjectRoute from './components/ProjectRoute';
 import CreateProjectSettings from './components/Settings/CreateProjectSettings';
 import UserCompletionModal from './components/UserCompletionModal';
@@ -584,8 +586,27 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
             );
             return {
                 Component: () => (
-                    <TrackPage name={PageName.HOME}>
-                        <Home />
+                    <ResumeProjectSetup>
+                        <TrackPage name={PageName.HOME}>
+                            <Home />
+                        </TrackPage>
+                    </ResumeProjectSetup>
+                ),
+            };
+        },
+    },
+    {
+        path: 'setup/semantic-layer',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const SemanticLayerStep = await loadLazyRouteDefault(
+                './pages/SemanticLayerStep',
+                () => import('./pages/SemanticLayerStep'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.ONBOARDING_DBT}>
+                        <SemanticLayerStep />
                     </TrackPage>
                 ),
             };
@@ -987,9 +1008,13 @@ const PRIVATE_ROUTES: RouteObject[] = [
                             );
                             return {
                                 Component: () => (
-                                    <TrackPage name={PageName.ONBOARDING_DBT}>
-                                        <OnboardingDbt />
-                                    </TrackPage>
+                                    <SemanticLayerStepRedirect>
+                                        <TrackPage
+                                            name={PageName.ONBOARDING_DBT}
+                                        >
+                                            <OnboardingDbt />
+                                        </TrackPage>
+                                    </SemanticLayerStepRedirect>
                                 ),
                             };
                         },
