@@ -1,4 +1,4 @@
-import { Anchor, Button, PinInput, Stack, Text } from '@mantine/core';
+import { Anchor, Box, Button, PinInput, Stack, Text } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
@@ -54,7 +54,7 @@ const VerifyEmailCodeForm: FC<Props> = ({
                     autoFocus
                 />
                 {errorMessage && (
-                    <Text c="red" fz="sm">
+                    <Text c="red" fz="sm" className={classes.errorSlot}>
                         {errorMessage.toString()}
                     </Text>
                 )}
@@ -113,6 +113,9 @@ const VerifyEmailCodeForm: FC<Props> = ({
                         );
                     }}
                 />
+                {!errorMessage && (
+                    <Box className={classes.errorSlot} aria-hidden />
+                )}
             </Stack>
         </form>
     );

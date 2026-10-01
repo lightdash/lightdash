@@ -19,3 +19,9 @@
 .countdown {
     font-variant-numeric: tabular-nums;
 }
+
+.errorSlot {
+    min-height: calc(
+        2 * var(--mantine-line-height-sm) * var(--mantine-font-size-sm)
+    );
+}
