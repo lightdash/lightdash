@@ -123,6 +123,7 @@ import type {
     ExternalFetchResponse,
     ManagedAgentRuntimeInfo,
 } from '../ee';
+import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
@@ -1339,6 +1340,7 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiAiThreadFileResponse['results']
     | SharedSignInStatus
     | ApiDbtSourceBindingsResponse['results']
     | ApiWarehouseConnectionSwitchAvailabilityResponse['results']

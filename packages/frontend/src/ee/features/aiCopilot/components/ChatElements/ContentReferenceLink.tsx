@@ -42,6 +42,7 @@ type ContentReferenceKind =
     | 'file'
     | 'repository'
     | 'external_source'
+    | 'thread_file'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
@@ -53,6 +54,8 @@ type Props = {
     chartKind?: ChartKind;
     children: ReactNode;
     kind: ContentReferenceKind;
+    /** Overrides the icon the kind implies, e.g. a table for a CSV attachment. */
+    icon?: Icon;
     showArrow?: boolean;
     /** Replaces the trailing arrow, e.g. to signal opening in a modal. */
     trailingIcon?: Icon;
@@ -140,6 +143,12 @@ const getIconMeta = ({
                 fill: 'teal.4',
                 icon: IconFileSpreadsheet,
             };
+        case 'thread_file':
+            return {
+                color: 'ldGray.7',
+                fill: 'ldGray.4',
+                icon: IconFileText,
+            };
         case 'pull_request':
             return {
                 color: 'teal.7',
@@ -184,6 +193,7 @@ export const ContentReferenceLink = ({
     chartKind,
     children,
     kind,
+    icon: iconOverride,
     showArrow = true,
     trailingIcon,
     to,
@@ -194,7 +204,7 @@ export const ContentReferenceLink = ({
     const content = (
         <>
             <MantineIcon
-                icon={icon}
+                icon={iconOverride ?? icon}
                 size={13}
                 color={color}
                 fill={fill}

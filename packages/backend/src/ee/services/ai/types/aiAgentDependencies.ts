@@ -722,6 +722,13 @@ export type ReadPinnedThreadFn = (args: { threadUuid: string }) => Promise<
     }[]
 >;
 
+/**
+ * Run one read-only shell command over the documents the user attached to
+ * this thread, mounted at `/attachments/<file name>`. The filesystem is built
+ * from the server-resolved thread, never from a model-chosen id.
+ */
+export type ReadAttachmentsFn = (args: { command: string }) => Promise<string>;
+
 export type WaitForSqlApprovalFn = (
     toolCallId: string,
     timeoutMs?: number,

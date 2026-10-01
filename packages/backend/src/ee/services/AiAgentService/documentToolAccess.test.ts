@@ -86,6 +86,10 @@ describe('Document runtime access', () => {
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,
                 },
+                aiThreadFileModel: {
+                    findForThread: vi.fn().mockResolvedValue([]),
+                    findClaimableByUser: vi.fn().mockResolvedValue([]),
+                },
                 lightdashConfig: {
                     ai: { copilot: { embeddingEnabled: false } },
                 },

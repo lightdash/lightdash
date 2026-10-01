@@ -38,6 +38,7 @@ import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassif
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
+import type { AiThreadFileService } from '../services/AiThreadFileService';
 import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { DataAppAnalysisService } from '../services/DataAppAnalysisService/DataAppAnalysisService';
@@ -149,6 +150,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
         ExternalSourceService,
         'runIngest' | 'markIngestError' | 'maintain'
     >;
+    aiThreadFileService: Pick<AiThreadFileService, 'sweepExpiredUnclaimed'>;
     mobilePushNotificationService: Pick<
         MobilePushNotificationService,
         | 'deliverLiveActivityStart'
@@ -213,6 +215,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly externalSourceService: CommercialSchedulerWorkerArguments['externalSourceService'];
 
+    protected readonly aiThreadFileService: CommercialSchedulerWorkerArguments['aiThreadFileService'];
+
     protected readonly mobilePushNotificationService: CommercialSchedulerWorkerArguments['mobilePushNotificationService'];
 
     protected readonly contentReviewRequestModel: ContentReviewRequestModel;
@@ -257,6 +261,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.scimRequestLogModel = args.scimRequestLogModel;
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
+        this.aiThreadFileService = args.aiThreadFileService;
         this.mobilePushNotificationService = args.mobilePushNotificationService;
         this.contentReviewRequestModel = args.contentReviewRequestModel;
         this.contentReviewSettingsModel = args.contentReviewSettingsModel;
@@ -285,6 +290,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 options: {
                     backfillPeriod: 10 * 60 * 1000,
                     maxAttempts: 3,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES,
+                pattern: '15 * * * *', // Hourly
+                options: {
+                    backfillPeriod: 60 * 60 * 1000,
+                    maxAttempts: 1,
                 },
             },
             {
@@ -1024,6 +1037,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 ),
             [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: async () => {
                 await this.externalSourceService.maintain();
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: async () => {
+                await this.aiThreadFileService.sweepExpiredUnclaimed();
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
                 payload,

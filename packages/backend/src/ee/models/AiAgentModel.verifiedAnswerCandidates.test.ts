@@ -9,6 +9,7 @@ describe('verified artifact candidate scope', () => {
         database,
         lightdashConfig: lightdashConfigMock,
         encryptionUtil: {} as never,
+        aiThreadFileModel: {} as never,
     });
     const tracker = getTracker();
     afterEach(() => tracker.reset());

@@ -9,6 +9,7 @@ describe('AiAgentModel prompt feedback', () => {
         database,
         lightdashConfig: lightdashConfigMock,
         encryptionUtil: {} as never,
+        aiThreadFileModel: {} as never,
     });
     let tracker: Tracker;
 
