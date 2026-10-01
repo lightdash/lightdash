@@ -5,6 +5,8 @@ import { createAnalyticsExplores } from './createAnalyticsExplores';
 
 describe('createAnalyticsExplores', () => {
     it.each([
+        ['agent_requests', 'users', 'total_requests'],
+        ['agent_requests', 'agents', 'total_requests'],
         ['tool_activity', 'users', 'total_calls'],
         ['tool_activity', 'agents', 'error_rate'],
         ['user_activity', 'users', 'total_csv_downloads'],
@@ -76,6 +78,8 @@ describe('createAnalyticsExplores', () => {
             'tool_activity',
             'content_reach',
             'content_health',
+            'agent_requests',
+            'agent_request_events',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

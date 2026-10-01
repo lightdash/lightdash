@@ -10,7 +10,8 @@ export type StreamName =
     | 'data_app_events'
     | 'export_events'
     | 'mcp_tool_calls'
-    | 'content_views';
+    | 'content_views'
+    | 'agent_request_events';
 
 /**
  * Common envelope stamped on every row pushed into the usage event stream.

@@ -23,6 +23,11 @@ import {
     userActivityColumns,
 } from '../../../analytics/eventStream/userActivity';
 import {
+    agentRequestsColumns,
+    agentRequestsMetrics,
+    agentRequestsSql,
+} from '../../../analytics/systemExplores/agentRequests';
+import {
     contentHealthColumns,
     contentHealthMetrics,
     contentHealthSql,
@@ -65,13 +70,14 @@ export const analyticsExploreNames = [
     'tool_activity',
     'content_reach',
     'content_health',
+    'agent_requests',
+    'agent_request_events',
 ] as const;
 
 /** Compile backend-owned system models without querying remote storage. */
 export const createAnalyticsExplores = (): Explore[] => {
     const sqlBuilder = warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB);
     const compiler = new ExploreCompiler(sqlBuilder);
-
     const buildTable = (name: (typeof analyticsExploreNames)[number]) => {
         const label = friendlyName(name);
         const base = {
@@ -97,12 +103,30 @@ export const createAnalyticsExplores = (): Explore[] => {
                 columns: toolActivityColumns,
                 metrics: toolActivityMetrics,
             },
+            agent_requests: {
+                columns: agentRequestsColumns,
+                metrics: agentRequestsMetrics,
+            },
+            agent_request_events: {
+                columns: compactedStreamSchemas.agent_request_events,
+                metrics: [
+                    {
+                        name: 'unique_lifecycle_events',
+                        description:
+                            'Distinct captured request lifecycle facts; includes starts, outcomes, retries, clarification waits, interruptions and feedback updates',
+                        type: MetricType.COUNT_DISTINCT,
+                        column: 'event_id',
+                    },
+                ],
+            },
         };
         const modelDefinition =
             name === 'user_activity' ||
             name === 'tool_activity' ||
             name === 'content_reach' ||
-            name === 'content_health'
+            name === 'content_health' ||
+            name === 'agent_requests' ||
+            name === 'agent_request_events'
                 ? model[name]
                 : {
                       columns: compactedStreamSchemas[name],
@@ -142,6 +166,49 @@ export const createAnalyticsExplores = (): Explore[] => {
                 sql: '1.0 * COUNT(DISTINCT ${verified_viewer_id}) / NULLIF(COUNT(DISTINCT ${known_verification_viewer_id}), 0)',
             };
         }
+        if (name === 'agent_requests') {
+            const ratio = (
+                metricName: string,
+                condition: string,
+                description: string,
+            ): Metric => ({
+                ...base,
+                name: metricName,
+                label: friendlyName(metricName),
+                description,
+                type: MetricType.NUMBER,
+                sql: `1.0 * SUM(CASE WHEN ${condition} THEN 1 ELSE 0 END) / NULLIF(COUNT(\${prompt_id}), 0)`,
+            });
+            metrics.completion_rate = ratio(
+                'completion_rate',
+                "${status} = 'success'",
+                'Successful requests divided by all captured requests, including pending requests',
+            );
+            metrics.failure_rate = ratio(
+                'failure_rate',
+                "${status} = 'error'",
+                'Failed requests divided by all captured requests, including pending requests',
+            );
+            metrics.response_coverage = ratio(
+                'response_coverage',
+                "${status} IN ('success', 'error', 'clarification', 'cancelled')",
+                'Requests with an observed outcome or explicit wait/cancellation divided by all captured requests',
+            );
+            metrics.feedback_coverage = ratio(
+                'feedback_coverage',
+                '${feedback_score} IS NOT NULL',
+                'Requests with a current rating divided by all captured requests; removed ratings are excluded',
+            );
+            metrics.negative_feedback_rate = {
+                ...base,
+                name: 'negative_feedback_rate',
+                label: 'Negative feedback rate',
+                description:
+                    'Negative ratings divided by requests with a current rating; unrated requests are excluded',
+                type: MetricType.NUMBER,
+                sql: '1.0 * SUM(CASE WHEN ${feedback_score} = -1 THEN 1 ELSE 0 END) / NULLIF(COUNT(${feedback_score}), 0)',
+            };
+        }
         const table = {
             name,
             label,
@@ -154,6 +221,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                         tool_activity: toolActivitySql,
                         content_reach: contentReachSql,
                         content_health: contentHealthSql,
+                        agent_requests: agentRequestsSql,
                     } as Partial<Record<typeof name, string>>
                 )[name] ?? `"${name}"`,
             database: 'memory',
@@ -226,6 +294,8 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (
             name === 'ai_usage' ||
             name === 'agent_steps' ||
+            name === 'agent_requests' ||
+            name === 'agent_request_events' ||
             name === 'tool_activity'
         )
             dimensions.push('agents');

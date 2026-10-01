@@ -211,6 +211,7 @@ import {
     type ToolSet,
 } from 'ai';
 import { createCanvas, loadImage } from 'canvas';
+import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
 import fs from 'fs/promises';
 import _ from 'lodash';
@@ -233,6 +234,7 @@ import {
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentPullRequestViewedEvent,
+    AiAgentRequestLifecycleEvent,
     AiAgentResponseStreamed,
     AiAgentSlackChannelLinkedEvent,
     AiAgentSuggestionsGeneratedEvent,
@@ -7202,6 +7204,13 @@ export class AiAgentService extends BaseService {
             // The failed attempt's interrupt row is stale now the retry has
             // claimed the prompt; left in place it would stop every retry.
             await this.aiAgentModel.deleteAiPromptInterrupt(prompt.promptUuid);
+            this.trackAgentRequestLifecycle('ai_agent_request.retry_started', {
+                organizationUuid: prompt.organizationUuid,
+                projectUuid: prompt.projectUuid,
+                agentUuid: prompt.agentUuid,
+                threadUuid: prompt.threadUuid,
+                promptUuid: prompt.promptUuid,
+            });
             prompt.respondedAt = null;
             prompt.errorMessage = null;
         }
@@ -7349,6 +7358,38 @@ export class AiAgentService extends BaseService {
         this.inFlightStreamPrompts.set(promptUuid, responseState);
     }
 
+    private trackAgentRequestLifecycle(
+        event: AiAgentRequestLifecycleEvent['event'],
+        context: {
+            organizationUuid: string;
+            projectUuid: string;
+            agentUuid: string | null;
+            threadUuid: string;
+            promptUuid: string;
+        },
+        details: Pick<
+            AiAgentRequestLifecycleEvent['properties'],
+            'outcome' | 'humanScore'
+        > = {},
+    ): void {
+        try {
+            this.analytics.track<AiAgentRequestLifecycleEvent>({
+                event,
+                properties: {
+                    eventId: randomUUID(),
+                    organizationId: context.organizationUuid,
+                    projectId: context.projectUuid,
+                    aiAgentId: context.agentUuid,
+                    threadId: context.threadUuid,
+                    promptId: context.promptUuid,
+                    ...details,
+                },
+            });
+        } catch (error) {
+            Logger.warn('Failed to track agent request lifecycle', error);
+        }
+    }
+
     private persistTrackedPromptUpdate(
         update: UpdateSlackResponse | UpdateWebAppResponse,
         classificationContext?: {
@@ -7382,26 +7423,57 @@ export class AiAgentService extends BaseService {
                 ? { onlyIfUnfinalized: true }
                 : { onlyIfPending: isTerminalStreamUpdate },
         );
-        const persistedUpdatePromise = modelUpdatePromise.then((persisted) => {
-            if (persisted && classificationContext !== undefined) {
-                this.enqueueMobilePushThreadReconciliation(
-                    classificationContext.threadUuid,
-                );
-            }
-            if (
-                persisted &&
-                isClassifiableTerminalUpdate &&
-                classificationContext !== undefined &&
-                update.response !== undefined
-            ) {
-                this.classifyPromptInputRequestAfterResponse({
-                    ...classificationContext,
-                    promptUuid: update.promptUuid,
-                    response: update.response,
-                });
-            }
-            return persisted;
-        });
+        const persistedUpdatePromise = modelUpdatePromise.then(
+            async (persisted) => {
+                if (
+                    persisted &&
+                    shouldEnqueueReviewClassifierForPromptUpdate(update)
+                ) {
+                    try {
+                        const context =
+                            classificationContext ??
+                            (await this.aiAgentModel.findPromptContext(
+                                update.promptUuid,
+                            ));
+                        if (context) {
+                            this.trackAgentRequestLifecycle(
+                                'ai_agent_request.outcome',
+                                { ...context, promptUuid: update.promptUuid },
+                                {
+                                    outcome:
+                                        update.errorMessage != null
+                                            ? 'error'
+                                            : 'success',
+                                },
+                            );
+                        }
+                    } catch (error) {
+                        Logger.warn(
+                            'Failed to track agent request outcome',
+                            error,
+                        );
+                    }
+                }
+                if (persisted && classificationContext !== undefined) {
+                    this.enqueueMobilePushThreadReconciliation(
+                        classificationContext.threadUuid,
+                    );
+                }
+                if (
+                    persisted &&
+                    isClassifiableTerminalUpdate &&
+                    classificationContext !== undefined &&
+                    update.response !== undefined
+                ) {
+                    this.classifyPromptInputRequestAfterResponse({
+                        ...classificationContext,
+                        promptUuid: update.promptUuid,
+                        response: update.response,
+                    });
+                }
+                return persisted;
+            },
+        );
         if (!isTerminalStreamUpdate) {
             return persistedUpdatePromise;
         }
@@ -7633,6 +7705,28 @@ export class AiAgentService extends BaseService {
 
         try {
             const failedPromptUuids = await persistFailures(1);
+            await Promise.all(
+                failedPromptUuids.map(async (promptUuid) => {
+                    try {
+                        const context =
+                            await this.aiAgentModel.findPromptContext(
+                                promptUuid,
+                            );
+                        if (context) {
+                            this.trackAgentRequestLifecycle(
+                                'ai_agent_request.outcome',
+                                context,
+                                { outcome: 'error' },
+                            );
+                        }
+                    } catch (error) {
+                        Logger.warn(
+                            'Failed to track shutdown agent request outcome',
+                            error,
+                        );
+                    }
+                }),
+            );
             Logger.info(
                 `[AiAgent][Shutdown] Marked ${failedPromptUuids.length} in-flight prompt(s) as failed`,
             );
@@ -7710,6 +7804,15 @@ export class AiAgentService extends BaseService {
             promptUuid: messageUuid,
             createdByUserUuid: user.userUuid,
         });
+        if (!prompt.respondedAt) {
+            this.trackAgentRequestLifecycle('ai_agent_request.interrupted', {
+                organizationUuid: user.organizationUuid,
+                projectUuid: prompt.projectUuid,
+                agentUuid,
+                threadUuid,
+                promptUuid: messageUuid,
+            });
+        }
         this.enqueueMobilePushThreadReconciliation(threadUuid);
     }
 
@@ -8907,6 +9010,17 @@ export class AiAgentService extends BaseService {
             humanScore,
             humanFeedback,
         });
+        this.trackAgentRequestLifecycle(
+            'ai_agent_request.feedback_updated',
+            {
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                agentUuid: agent.uuid,
+                threadUuid,
+                promptUuid: threadMessage.uuid,
+            },
+            { humanScore },
+        );
 
         this.enqueueReviewClassifierEvent({
             eventType: 'feedback_changed',
@@ -11098,14 +11212,27 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 promptUuid,
                 response: sourceSelectionMessage,
             });
-            await this.aiAgentModel.setPromptNeedsUserInput({
-                promptUuid,
-                needsUserInput: true,
-                metadata: {
-                    gate: 'structured',
-                    reason: 'writeback_source_selection',
-                },
-            });
+            const needsInputSaved =
+                await this.aiAgentModel.setPromptNeedsUserInput({
+                    promptUuid,
+                    needsUserInput: true,
+                    metadata: {
+                        gate: 'structured',
+                        reason: 'writeback_source_selection',
+                    },
+                });
+            if (needsInputSaved) {
+                this.trackAgentRequestLifecycle(
+                    'ai_agent_request.clarification_requested',
+                    {
+                        organizationUuid: prompt.organizationUuid,
+                        projectUuid: prompt.projectUuid,
+                        agentUuid: prompt.agentUuid,
+                        threadUuid: prompt.threadUuid,
+                        promptUuid,
+                    },
+                );
+            }
             if (isSlackPrompt(prompt)) {
                 await this.postOutcomeToSlack(
                     prompt,
@@ -14874,6 +15001,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         const promptContext =
             await this.aiAgentModel.findPromptContext(promptUuid);
+        if (promptContext) {
+            this.trackAgentRequestLifecycle(
+                'ai_agent_request.feedback_updated',
+                promptContext,
+                { humanScore },
+            );
+        }
 
         this.enqueueReviewClassifierEvent({
             eventType: 'feedback_changed',
@@ -17089,6 +17223,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
                 const promptContext =
                     await this.aiAgentModel.findPromptContext(promptUuid);
+                if (promptContext) {
+                    this.trackAgentRequestLifecycle(
+                        'ai_agent_request.feedback_updated',
+                        promptContext,
+                        { humanScore: -1 },
+                    );
+                }
 
                 this.enqueueReviewClassifierEvent({
                     eventType: 'feedback_changed',

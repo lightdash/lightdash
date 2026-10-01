@@ -3,12 +3,16 @@ import type {
     UpdateWebAppResponse,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
 } from '../../../analytics/aiUsage';
-import type { AiAgentPromptInputRequestClassifiedEvent } from '../../../analytics/LightdashAnalytics';
+import type {
+    AiAgentPromptInputRequestClassifiedEvent,
+    AiAgentRequestLifecycleEvent,
+} from '../../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import type { AiPromptClassifierNeedsUserInputMetadata } from '../../database/entities/ai';
@@ -56,7 +60,11 @@ export type PromptInputRequestClassification = {
 };
 
 type PromptInputRequestClassificationAnalytics = {
-    track: (event: AiAgentPromptInputRequestClassifiedEvent) => void;
+    track: (
+        event:
+            | AiAgentPromptInputRequestClassifiedEvent
+            | AiAgentRequestLifecycleEvent,
+    ) => void;
 };
 
 type PromptInputRequestClassificationModel = {
@@ -255,7 +263,7 @@ export const runPromptInputRequestClassification = async ({
         return;
     }
 
-    await aiAgentModel.updatePromptNeedsUserInput({
+    const updated = await aiAgentModel.updatePromptNeedsUserInput({
         promptUuid,
         needsUserInput: classification.classified,
         metadata: {
@@ -265,4 +273,21 @@ export const runPromptInputRequestClassification = async ({
             confidence: classification.confidence,
         },
     });
+    if (updated && classification.classified) {
+        try {
+            analytics.track({
+                event: 'ai_agent_request.clarification_requested',
+                properties: {
+                    eventId: randomUUID(),
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    aiAgentId: agentUuid,
+                    threadId: threadUuid,
+                    promptId: promptUuid,
+                },
+            });
+        } catch (error) {
+            Logger.warn('Failed to track agent clarification request', error);
+        }
+    }
 };

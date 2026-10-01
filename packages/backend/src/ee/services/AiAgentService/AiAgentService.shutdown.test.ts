@@ -60,6 +60,14 @@ const createDeferred = <T = void>() => {
 
 const buildService = () => {
     const updateModelResponse = vi.fn().mockResolvedValue(true);
+    const findPromptContext = vi.fn().mockResolvedValue({
+        organizationUuid: 'organization-uuid',
+        projectUuid: 'project-uuid',
+        agentUuid: 'agent-uuid',
+        threadUuid: 'thread-uuid',
+        promptUuid: 'prompt-uuid',
+    });
+    const analyticsTrack = vi.fn();
     const failPendingPrompts = vi
         .fn()
         .mockImplementation(async (promptUuids: string[]) => promptUuids);
@@ -67,7 +75,9 @@ const buildService = () => {
         aiAgentModel: {
             updateModelResponse,
             failPendingPrompts,
+            findPromptContext,
         },
+        analytics: { track: analyticsTrack },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
 
     return {
@@ -75,6 +85,7 @@ const buildService = () => {
         service: service as unknown as ShutdownHarness,
         updateModelResponse,
         failPendingPrompts,
+        analyticsTrack,
     };
 };
 
@@ -223,6 +234,39 @@ describe('AiAgentService streamed prompt shutdown', () => {
 
         expect(lateUpdate).toBeUndefined();
         expect(updateModelResponse).not.toHaveBeenCalled();
+    });
+
+    it('tracks a persisted error even when preparation fails before a model call', async () => {
+        const { service, analyticsTrack } = buildService();
+        service.trackStreamPrompt('prompt-uuid', pendingState);
+        await service.persistTrackedPromptUpdate({
+            promptUuid: 'prompt-uuid',
+            errorMessage: 'Preparation failed',
+        });
+
+        expect(analyticsTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'ai_agent_request.outcome',
+                properties: expect.objectContaining({
+                    promptId: 'prompt-uuid',
+                    outcome: 'error',
+                }),
+            }),
+        );
+    });
+
+    it('tracks only prompts that shutdown actually marked failed', async () => {
+        const { service, failPendingPrompts, analyticsTrack } = buildService();
+        failPendingPrompts.mockResolvedValueOnce(['prompt-uuid']);
+        service.trackStreamPrompt('prompt-uuid', pendingState);
+        service.trackStreamPrompt('already-completed', pendingState);
+        await service.failInFlightStreamedPrompts();
+
+        const outcomes = analyticsTrack.mock.calls.filter(
+            ([event]) => event.event === 'ai_agent_request.outcome',
+        );
+        expect(outcomes).toHaveLength(1);
+        expect(outcomes[0]![0].properties.promptId).toBe('prompt-uuid');
     });
 
     it('bounds the preparation barrier during shutdown', async () => {

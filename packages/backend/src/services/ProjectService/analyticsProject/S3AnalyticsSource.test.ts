@@ -208,6 +208,7 @@ describe('signed analytics file manifests', () => {
             'agent_steps',
             'mcp_tool_calls',
             'content_views',
+            'agent_request_events',
             'user_activity',
         ]);
         expect(getSignedUrl).toHaveBeenCalledTimes(4);

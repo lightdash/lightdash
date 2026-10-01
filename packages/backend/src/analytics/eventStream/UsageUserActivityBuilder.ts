@@ -219,7 +219,7 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                 if (
                     match &&
                     match[3] < today &&
-                    analyticsStreams.includes(match[2] as StreamName)
+                    analyticsStreams.some((stream) => stream === match[2])
                 ) {
                     const [, orgId, stream, date] = match;
                     const partition = `${orgId}/${stream}/${date}`;
