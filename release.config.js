@@ -62,14 +62,6 @@ module.exports = {
             },
         ],
 
-        [
-            '@semantic-release/exec',
-            {
-                prepareCmd:
-                    'node scripts/scope-tours/prepare-artifacts.mjs --validate',
-            },
-        ],
-
         // Generate the release-safety marker (PROD-8359). Runs before the github
         // plugin so the asset exists at publish time.
         //

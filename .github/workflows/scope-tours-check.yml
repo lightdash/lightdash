@@ -2,8 +2,8 @@ name: Scope walkthrough checks
 
 # Generation checks for scope walkthroughs (CS-209): every rule the first
 # modules settled by hand, enforced on any change to the frontend markers or
-# the generator. The docs are checked out because step text is cited from
-# them.
+# the generator. Unrelated frontend edits use committed walkthroughs; docs
+# are only needed when walkthrough inputs change.
 
 on:
     pull_request:
@@ -19,6 +19,7 @@ on:
             - 'package.json'
             - 'scripts/scope-tours/scope-tours.test.ts'
             - '.github/workflows/scope-tours-check.yml'
+            - '.github/workflows/_prepare_scope_tours/**'
 
 permissions:
     contents: read
@@ -32,35 +33,40 @@ jobs:
                   egress-policy: audit
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
             - uses: ./.github/workflows/_setup_node_pnpm_cypress
-            # After the setup action: it cleans the workspace, which would remove
-            # a docs checkout made before it.
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
               with:
-                  repository: lightdash/mintlify-docs
-                  path: mintlify-docs
-                  token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
-            - name: Docs checkout is complete
-              run: test -f mintlify-docs/explore/spaces.mdx && ls mintlify-docs | head -20
+                  fetch-depth: 0
+                  clean: false
+            - name: Walkthrough CI fallback tests
+              run: node --test .github/workflows/_prepare_scope_tours/action.test.mjs
+            - name: Detect walkthrough input changes
+              id: inputs
+              env:
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+              run: |
+                  git diff --unified=0 "$BASE_SHA...$HEAD_SHA" -- packages/frontend/src > "$RUNNER_TEMP/walkthrough-inputs.diff"
+                  if [ -n "$(git diff --name-only "$BASE_SHA...$HEAD_SHA" -- scripts/scope-tours packages/frontend/src/features/learn/sandboxLessons.ts packages/common/src/authorization packages/backend/assets/learn packages/frontend/src/Routes.tsx packages/frontend/src/ee/CommercialRoutes.tsx packages/frontend/src/pages/Settings.tsx packages/frontend/src/components/Settings/ProjectSettings.tsx)" ] || grep -Eq '^[+-].*data-tour-' "$RUNNER_TEMP/walkthrough-inputs.diff"; then
+                    echo 'strict=true' >> "$GITHUB_OUTPUT"
+                  else
+                    echo 'strict=false' >> "$GITHUB_OUTPUT"
+                  fi
             - name: Build common
               run: pnpm common-build
             - name: Checker tests
               run: pnpm exec tsx scripts/scope-tours/scope-tours.test.ts
             - name: Playground teaching samples survive a bundle rebuild
               run: pnpm test:playground-content
-            - name: Generate walkthrough artifacts
-              env:
-                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
-              run: |
-                  pnpm scope-tours:generate
-                  pnpm scope-tours:order
+            - name: Validate changed walkthrough inputs
+              if: steps.inputs.outputs.strict == 'true'
+              uses: ./.github/workflows/_prepare_scope_tours
+              with:
+                  docs-token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
+                  strict: 'true'
             - name: Content coverage tests
               run: pnpm scope-tours:coverage:test
             - name: Every curriculum permission has a walkthrough or explicit disposition
               run: pnpm scope-tours:release-check
-            - name: Generation checks
-              env:
-                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
-              run: pnpm scope-tours:check
             - name: Point the author at the guide
               if: failure()
               env:

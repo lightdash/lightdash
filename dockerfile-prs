@@ -208,19 +208,6 @@ COPY --from=build-visualization /usr/app/packages/visualization/ packages/visual
 COPY --from=build-formula /usr/app/packages/formula/ packages/formula/
 
 COPY packages/frontend/ packages/frontend/
-COPY scripts/scope-tours/ scripts/scope-tours/
-COPY packages/backend/assets/learn/jaffle-dbt.json packages/backend/assets/learn/jaffle-dbt.json
-
-# Preview CI pins the same docs revision used by Build & Test. Snapshot builds
-# omit it and use the committed artifacts without requiring private docs.
-ARG SCOPE_TOURS_DOCS_SHA=""
-RUN --mount=type=secret,id=MINTLIFY_DOCS_READ_TOKEN \
-    if [ -n "$SCOPE_TOURS_DOCS_SHA" ]; then \
-        docs_dir="$(mktemp -d)" && \
-        node scripts/scope-tours/download-docs.mjs "$SCOPE_TOURS_DOCS_SHA" /run/secrets/MINTLIFY_DOCS_READ_TOKEN "$docs_dir" && \
-        LIGHTDASH_DOCS_DIR="$docs_dir" node scripts/scope-tours/prepare-artifacts.mjs && \
-        rm -rf "$docs_dir"; \
-    fi
 
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \

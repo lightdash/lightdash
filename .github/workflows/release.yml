@@ -30,20 +30,14 @@ jobs:
           cache: true
           install: false
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          repository: lightdash/mintlify-docs
-          path: mintlify-docs
-          token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
-
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Generate backend API artifacts
         run: pnpm generate-api:backend
-      - name: Generate and validate walkthrough artifacts
-        env:
-          LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
-        run: node scripts/scope-tours/prepare-artifacts.mjs --validate
+      - name: Prepare walkthrough artifacts
+        uses: ./.github/workflows/_prepare_scope_tours
+        with:
+          docs-token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
       - name: Build all packages
         run: pnpm build
 
@@ -96,12 +90,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline --config.production=false --network-concurrency=16
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          repository: lightdash/mintlify-docs
-          path: mintlify-docs
-          token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
-
       # PROD-8359: install oasdiff so the release-safety marker generator can diff
       # the REST API (swagger.json) between the previous tag and HEAD for breaking
       # changes (api.rest). Pinned + sha256-verified; the download goes over the
@@ -120,6 +108,11 @@ jobs:
           sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
           oasdiff --version
 
+      - name: Prepare walkthrough artifacts
+        uses: ./.github/workflows/_prepare_scope_tours
+        with:
+          docs-token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
+
       - name: Semantic Release
         # Config is on release.config.js
         id: semantic
@@ -127,7 +120,6 @@ jobs:
         env:
           HUSKY: 0
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-          LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
           # PROD-8359: powers the gated AI migration review (P6) in the marker
           # generator. The review reaches api.anthropic.com over the harden-runner
           # audited egress; absent the key, the generator skips it and leaves the

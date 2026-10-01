@@ -13,7 +13,7 @@ Two kinds of change can break a walkthrough:
 
 ## Who fixes what
 
-- **Your pull request** keeps `Scope walkthrough checks` green for failures your change caused. Most are fixed by putting an attribute back on the equivalent control. PR CI regenerates the walkthrough artifacts for validation, and the release workflow commits them.
+- **Your pull request** keeps `Scope walkthrough checks` green for failures your change caused. Most are fixed by putting an attribute back on the equivalent control. PR CI validates changes to walkthrough inputs, and the release workflow commits generated artifacts.
 - **The Learn owners** (Customer Success team, Linear project *Lightdash University*) own failures you did not cause (a docs page renamed upstream, a checker bug, CI setup) and any walkthrough that needs a new click path. Say so on your pull request and ask them; they fix it in a separate pull request against `main` and you rebase.
 - **Never change product UI to make a walkthrough pass.** Adapt the walkthrough instead. For a control only some instances show, that means an optional hop (see *When a learner reports a stuck walkthrough*).
 
@@ -116,7 +116,7 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 
 **Playground teaching samples survive a bundle rebuild.** `scripts/playground-bundle/content.ts` and the shipped `packages/backend/assets/playground/content.json` differ. Walkthroughs rely on that seeded content, so the two must change together.
 
-**Generate walkthrough artifacts.** The generator threw; the log names the file, selector or docs citation. PR CI does not require `generated.ts` or `curriculum.ts` to match the latest docs checkout because the release workflow owns those files. Coverage checks run against these freshly generated artifacts. This check stays strict, but `PR Checks`, previews and releases do not: when generation fails there, they print a `Walkthrough artifacts were not regenerated` warning and continue with the committed `generated.ts` and `curriculum.ts`, so learners keep the last released walkthroughs until the citation is fixed. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
+**Validate changed walkthrough inputs.** Changes to `data-tour-*` markers, the generator, sandbox lessons, training scopes or the learn bundle must generate and validate successfully. Unrelated frontend edits, PR builds and previews use committed walkthroughs. Releases try to refresh both artifacts; if docs checkout, generation or validation fails, CI restores both committed files and warns. Coverage remains a required check after fallback. The docs repository checks citations and curriculum ordering before docs changes merge. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
 
 **Content coverage tests.** Tests for the coverage audit (`scripts/scope-tours/coverage.test.ts`). Same as the checker tests: yours only if you changed `scripts/scope-tours`.
 
@@ -126,7 +126,7 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 - `staleDispositions`: a listed scope now has a walkthrough or no longer exists. Remove the entry.
 - `pending` or `related`: a listed gap that blocks a release. Ask the Learn owners.
 
-**Generation checks.** `pnpm scope-tours:check` found a rule broken. It prints `file:line: error: message`; warnings do not fail the job.
+**Generate and validate walkthroughs.** `pnpm scope-tours:check` found a rule broken. It prints `file:line: error: message`; warnings do not fail the job.
 
 ### Messages from the generator and the checker
 
