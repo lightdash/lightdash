@@ -1,5 +1,7 @@
 import {
     getAiCreditContractWindow,
+    isAiCreditHoldBlocking,
+    type AiCreditAllowanceMode,
     type AiCreditHold,
     type AiCreditPeriod,
 } from '@lightdash/common';
@@ -35,6 +37,7 @@ type HoldWithContractRow = DbAiCreditHold & {
     contract_ends_at: Date | null;
     contract_reset_interval_months: number | null;
     contract_allowance_credits: string | null;
+    contract_allowance_mode: AiCreditAllowanceMode | null;
 };
 
 const matchesContract = (row: HoldWithContractRow, at: Date): boolean => {
@@ -109,15 +112,10 @@ export class AiCreditHoldModel {
         return row ? toHold(row) : undefined;
     }
 
-    /**
-     * One query, so it is cheap enough to run before every AI call. An allowance
-     * hold only applies while the contract still has that allowance and window,
-     * so raising the allowance or changing the contract lifts it straight away.
-     */
-    async findActive(
+    private async findActiveRows(
         organizationUuid: string,
-        at: Date = new Date(),
-    ): Promise<AiCreditHold[]> {
+        at: Date,
+    ): Promise<HoldWithContractRow[]> {
         const rows: HoldWithContractRow[] = await this.database(
             AiCreditHoldsTableName,
         )
@@ -132,6 +130,7 @@ export class AiCreditHoldModel {
                 `${AiCreditContractsTableName}.ends_at as contract_ends_at`,
                 `${AiCreditContractsTableName}.reset_interval_months as contract_reset_interval_months`,
                 `${AiCreditContractsTableName}.allowance_credits as contract_allowance_credits`,
+                `${AiCreditContractsTableName}.allowance_mode as contract_allowance_mode`,
             )
             .where(
                 `${AiCreditHoldsTableName}.organization_uuid`,
@@ -144,6 +143,31 @@ export class AiCreditHoldModel {
                     .orWhere(`${AiCreditHoldsTableName}.expires_at`, '>', at);
             })
             .orderBy(`${AiCreditHoldsTableName}.placed_at`, 'desc');
-        return rows.filter((row) => matchesContract(row, at)).map(toHold);
+        return rows.filter((row) => matchesContract(row, at));
+    }
+
+    /**
+     * One query, so it is cheap enough to run before every AI call. An allowance
+     * hold only applies while the contract still has that allowance and window,
+     * so raising the allowance or changing the contract lifts it straight away.
+     */
+    async findActive(
+        organizationUuid: string,
+        at: Date = new Date(),
+    ): Promise<AiCreditHold[]> {
+        const rows = await this.findActiveRows(organizationUuid, at);
+        return rows.map(toHold);
+    }
+
+    /** The newest active hold that pauses billable AI, read fresh so contract changes apply on the next action. */
+    async findBlocking(
+        organizationUuid: string,
+        at: Date = new Date(),
+    ): Promise<AiCreditHold | undefined> {
+        const rows = await this.findActiveRows(organizationUuid, at);
+        const blocking = rows.find((row) =>
+            isAiCreditHoldBlocking(row.reason, row.contract_allowance_mode),
+        );
+        return blocking ? toHold(blocking) : undefined;
     }
 }

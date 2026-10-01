@@ -522,6 +522,7 @@ import {
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import { type AiCreditService } from '../AiCreditService';
 import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
 import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
@@ -731,6 +732,9 @@ export const assertDeepResearchPromptExecution = ({
     }
 };
 
+// Set where a user action starts; null where the run continues one that was already checked.
+export type AiCreditCheck = { isEmbedViewer: boolean };
+
 type EmbedAiAgentRuntimeOptions = {
     embedSpaceUuid: string;
     // The host application's id for the viewer, when its token carries one.
@@ -793,6 +797,7 @@ type AiAgentServiceDependencies = {
     savedChartService: SavedChartService;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     shareService: ShareService;
     fileStorageClient: FileStorageClient;
@@ -1148,6 +1153,11 @@ export class AiAgentService extends BaseService {
     private readonly prometheusMetrics?: PrometheusMetrics;
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
+    private readonly aiCreditService: Pick<
+        AiCreditService,
+        'assertAiCreditsAvailable'
+    >;
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
@@ -1628,6 +1638,7 @@ export class AiAgentService extends BaseService {
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
+        this.aiCreditService = dependencies.aiCreditService;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
         this.shareService = dependencies.shareService;
@@ -4510,6 +4521,7 @@ export class AiAgentService extends BaseService {
         }
 
         return this.generateAgentThreadResponse(user, {
+            aiCreditCheck: { isEmbedViewer: false },
             agentUuid,
             threadUuid: thread.uuid,
         });
@@ -7097,10 +7109,12 @@ export class AiAgentService extends BaseService {
             expectedDeepResearchRunUuid,
             deferCurrentVerifiedExamples = false,
             enableFastDecisions = true,
+            aiCreditCheck,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
+            aiCreditCheck: AiCreditCheck | null;
             retrieveRelevantArtifacts?: boolean;
             enableFastDecisions?: boolean;
             /** Look up the prompt's verified examples without blocking fast decisions on them. */
@@ -7243,6 +7257,13 @@ export class AiAgentService extends BaseService {
             0,
             targetPromptIndex + 1,
         );
+        // Before compaction, which is itself billable.
+        if (aiCreditCheck !== null) {
+            await this.assertAgentCreditsAvailable(user, {
+                modelConfig: prompt.modelConfig ?? null,
+                aiCreditCheck,
+            });
+        }
         const compaction = await this.maybeCompactThreadBeforeResponse(user, {
             threadUuid: prompt.threadUuid,
             prompt,
@@ -7562,6 +7583,7 @@ export class AiAgentService extends BaseService {
                 expectedDeepResearchRunUuid: null,
                 deferCurrentVerifiedExamples: true,
                 enableFastDecisions,
+                aiCreditCheck: { isEmbedViewer: runtimeOptions !== undefined },
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -7632,6 +7654,7 @@ export class AiAgentService extends BaseService {
                         toolHints,
                         runtimeOptions,
                         redactToolOutputs,
+                        aiCreditCheck: null,
                     },
                 );
             } catch (error) {
@@ -8203,6 +8226,34 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    /** Refuses a billable agent action while AI credits are paused, using the key the action's model runs on. */
+    async assertAgentCreditsAvailable(
+        user: SessionUser,
+        {
+            modelConfig,
+            aiCreditCheck,
+        }: {
+            modelConfig: AiAgentModelConfig | null;
+            aiCreditCheck: AiCreditCheck;
+        },
+    ): Promise<void> {
+        await this.aiCreditService.assertAiCreditsAvailable({
+            user,
+            resolveKeyManagement: async () => {
+                const copilotConfig =
+                    await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                        user.organizationUuid ?? null,
+                    );
+                return getModel(copilotConfig, {
+                    enableReasoning: modelConfig?.reasoning,
+                    modelName: modelConfig?.modelName,
+                    provider: modelConfig?.modelProvider as AnyType,
+                }).keyManagement;
+            },
+            isEmbedViewer: aiCreditCheck.isEmbedViewer,
+        });
+    }
+
     async generateAgentThreadResponse(
         user: SessionUser,
         {
@@ -8217,10 +8268,12 @@ export class AiAgentService extends BaseService {
             dbtSourceUuid,
             isReviewRemediationWorkThread,
             execution = { mode: 'standard' },
+            aiCreditCheck,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
+            aiCreditCheck: AiCreditCheck | null;
             autoApproveSql?: boolean;
             toolHints?: string[];
             forceToolHints?: boolean;
@@ -8253,6 +8306,7 @@ export class AiAgentService extends BaseService {
                     execution.mode === 'deep_research'
                         ? execution.runUuid
                         : null,
+                aiCreditCheck,
             });
             if (!user.organizationUuid) {
                 throw new ForbiddenError();
@@ -8288,6 +8342,7 @@ export class AiAgentService extends BaseService {
                     suppressWritebackPreview,
                     dbtSourceUuid,
                     isReviewRemediationWorkThread,
+                    aiCreditCheck: null,
                     execution,
                 },
             );
@@ -8426,6 +8481,7 @@ export class AiAgentService extends BaseService {
                     agentUuid,
                     threadUuid,
                     retrieveRelevantArtifacts: false,
+                    aiCreditCheck: null,
                 });
 
             // Use fast model for title generation (lightweight task)
@@ -13405,6 +13461,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             prompt: AiWebAppPrompt;
             stream: true;
             canManageAgent: boolean;
+            aiCreditCheck: AiCreditCheck | null;
             enableSqlMode?: boolean;
             enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
@@ -13426,6 +13483,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             prompt: AiWebAppPrompt;
             stream: false;
             canManageAgent: boolean;
+            aiCreditCheck: AiCreditCheck | null;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             // Set by the review Build-fix flow, which owns preview compilation
@@ -13459,6 +13517,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 results: ReadonlyMap<string, SlackTableQueryResults>,
             ) => void;
             canManageAgent: boolean;
+            aiCreditCheck: AiCreditCheck | null;
             threadMessages: Awaited<
                 ReturnType<AiAgentModel['getThreadMessages']>
             >;
@@ -13479,6 +13538,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         conversation: AgentConversationContext,
         options: {
             canManageAgent: boolean;
+            aiCreditCheck: AiCreditCheck | null;
             onSlackTableResults?: (
                 results: ReadonlyMap<string, SlackTableQueryResults>,
             ) => void;
@@ -13528,6 +13588,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         const { prompt, stream } = options;
+        if (options.aiCreditCheck !== null) {
+            await this.assertAgentCreditsAvailable(user, {
+                modelConfig: prompt.modelConfig ?? null,
+                aiCreditCheck: options.aiCreditCheck,
+            });
+        }
         const responseStartedAt = Date.now();
         const { messageHistory: decisionHistory, compactionSummary } =
             conversation;
@@ -16315,6 +16381,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     stream: false,
                     canManageAgent,
                     threadMessages,
+                    aiCreditCheck: { isEmbedViewer: false },
                     onSlackStepProgress: appendTaskUpdate,
                     onSlackTableResults: (results) => {
                         runtimeTableResults = results;
@@ -20689,6 +20756,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         );
 
         await this.generateAgentThreadResponse(sessionUser, {
+            aiCreditCheck: { isEmbedViewer: false },
             agentUuid,
             threadUuid,
             autoApproveSql: true,
@@ -20725,6 +20793,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
             // Generate the agent response
             await this.generateAgentThreadResponse(sessionUser, {
+                aiCreditCheck: { isEmbedViewer: false },
                 agentUuid,
                 threadUuid,
                 autoApproveSql: true,

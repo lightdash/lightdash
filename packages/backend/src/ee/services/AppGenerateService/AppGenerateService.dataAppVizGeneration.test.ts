@@ -53,6 +53,7 @@ function buildService(
         appGeneratePipeline: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AppGenerateService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {
                 sampleDataEnabled: overrides.sampleDataEnabled ?? true,

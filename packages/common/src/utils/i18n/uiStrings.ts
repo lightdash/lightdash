@@ -330,6 +330,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.summary.hide': 'Hide',
     'dashboard.exportAllTiles': 'Export all tiles',
     'dashboard.printPage': 'Print this page',
+    'aiAgent.unavailable': "AI isn't available right now.",
 } as const satisfies Record<string, string>;
 
 export type UiStringKey = keyof typeof DEFAULT_UI_STRINGS;

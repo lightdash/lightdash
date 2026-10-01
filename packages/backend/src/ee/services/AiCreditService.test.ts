@@ -1,8 +1,10 @@
 import { Ability } from '@casl/ability';
 import {
+    AiCreditsPausedError,
     FeatureFlags,
     ForbiddenError,
     type AiCreditContract,
+    type AiCreditHold,
     type SessionUser,
 } from '@lightdash/common';
 import { buildAiCreditDailyUsage } from '../models/aiCreditDailyUsage';
@@ -21,6 +23,7 @@ const contract = (
     endsAt: null,
     resetIntervalMonths: 1,
     allowanceCredits: 5_000,
+    allowanceMode: 'warn',
     ...overrides,
 });
 
@@ -39,6 +42,7 @@ const member = () => userWith([{ action: 'view', subject: 'Organization' }]);
 const buildService = ({
     flagEnabled = true,
     organizationContract = undefined as AiCreditContract | undefined,
+    blockingHold = undefined as AiCreditHold | undefined,
 } = {}) =>
     new AiCreditService({
         featureFlagModel: {
@@ -65,8 +69,25 @@ const buildService = ({
         aiCreditContractModel: {
             find: vi.fn(async () => organizationContract),
         },
-        aiCreditHoldModel: { findActive: vi.fn(async () => []) },
+        aiCreditHoldModel: {
+            findActive: vi.fn(async () => []),
+            findBlocking: vi.fn(async () => blockingHold),
+        },
+        siteUrl: 'https://app.example.com',
     });
+
+const hold = (reason: AiCreditHold['reason']): AiCreditHold => ({
+    uuid: 'hold-1',
+    organizationUuid,
+    userUuid: null,
+    contractUuid: null,
+    reason,
+    notes: 'operator only',
+    placedBy: 'operator@lightdash.com',
+    placedAt: now,
+    expiresAt: null,
+    releasedAt: null,
+});
 
 describe('AiCreditService.getOrganizationUsage', () => {
     test('only organization admins may see usage', async () => {
@@ -145,5 +166,89 @@ describe('AiCreditService.getOrganizationDailyUsage', () => {
         expect(usage.days[0].date).toBe('2026-09-15');
         expect(usage.days.at(-1)?.date).toBe('2026-10-14');
         expect(usage.days).toHaveLength(30);
+    });
+});
+
+describe('AiCreditService.assertAiCreditsAvailable', () => {
+    const check = (
+        service: AiCreditService,
+        user: SessionUser,
+        overrides: Partial<{
+            keyManagement: 'lightdash-managed' | 'self-managed' | null;
+            isEmbedViewer: boolean;
+        }> = {},
+    ) =>
+        service.assertAiCreditsAvailable({
+            user,
+            resolveKeyManagement: async () =>
+                overrides.keyManagement === undefined
+                    ? 'lightdash-managed'
+                    : overrides.keyManagement,
+            isEmbedViewer: overrides.isEmbedViewer ?? false,
+        });
+
+    test('lets billable AI run while nothing pauses the organization', async () => {
+        await expect(check(buildService(), member())).resolves.toBeUndefined();
+    });
+
+    test("never pauses AI that runs on the organization's own key", async () => {
+        const service = buildService({ blockingHold: hold('manual_pause') });
+        await expect(
+            check(service, member(), { keyManagement: 'self-managed' }),
+        ).resolves.toBeUndefined();
+        await expect(
+            check(service, member(), { keyManagement: null }),
+        ).resolves.toBeUndefined();
+    });
+
+    test('refuses a member with the reason and a nudge to contact an admin', async () => {
+        const error = await check(
+            buildService({ blockingHold: hold('manual_pause') }),
+            member(),
+        ).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(AiCreditsPausedError);
+        expect(error).toMatchObject({
+            reason: 'manual_pause',
+            statusCode: 403,
+            message:
+                'AI usage is paused for your organization. Contact an organization admin.',
+        });
+    });
+
+    test('links admins to AI credits settings only while the page is enabled', async () => {
+        await expect(
+            check(
+                buildService({ blockingHold: hold('allowance_exhausted') }),
+                orgAdmin(),
+            ),
+        ).rejects.toThrow(
+            "This period's AI credit allowance is used up. See AI credits settings: https://app.example.com/generalSettings/aiCredits",
+        );
+        await expect(
+            check(
+                buildService({
+                    blockingHold: hold('allowance_exhausted'),
+                    flagEnabled: false,
+                }),
+                orgAdmin(),
+            ),
+        ).rejects.toThrow(
+            new AiCreditsPausedError({
+                reason: 'allowance_exhausted',
+                message: "This period's AI credit allowance is used up.",
+            }),
+        );
+    });
+
+    test('tells embedded viewers nothing about credits or operator notes', async () => {
+        const error = await check(
+            buildService({ blockingHold: hold('trial_ended') }),
+            orgAdmin(),
+            { isEmbedViewer: true },
+        ).catch((e: unknown) => e);
+        expect(error).toMatchObject({
+            reason: 'trial_ended',
+            message: "AI isn't available right now.",
+        });
     });
 });

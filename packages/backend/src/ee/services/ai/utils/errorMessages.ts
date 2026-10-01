@@ -1,3 +1,4 @@
+import { AiCreditsPausedError } from '@lightdash/common';
 import { APICallError, RetryError } from 'ai';
 import { get, isPlainObject } from 'lodash';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
@@ -113,6 +114,9 @@ export const getKnownUserFacingErrorMessage = (
     keyManagement?: AiKeyManagement,
     structuredErrors = true,
 ): string | undefined => {
+    // Already worded for the person who was refused.
+    if (error instanceof AiCreditsPausedError) return error.message;
+
     if (error instanceof AiAgentStepCapReachedError) {
         return STEP_CAP_REACHED_MESSAGE;
     }

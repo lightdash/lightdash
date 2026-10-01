@@ -244,6 +244,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { type AiCreditService } from '../AiCreditService';
 import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
@@ -469,6 +470,7 @@ type AppGenerateServiceDeps = {
     externalConnectionModel: ExternalConnectionModel;
     sandboxRegistryModel: SandboxRegistryModel;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
     /** Test seams: null in production, where both are built from config. */
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
@@ -797,6 +799,11 @@ export class AppGenerateService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
+    private readonly aiCreditService: Pick<
+        AiCreditService,
+        'assertAiCreditsAvailable'
+    >;
+
     private readonly appRuntimeS3: AppRuntimeS3 | null;
 
     private readonly chartRegistryClient: ChartRegistryClient;
@@ -835,6 +842,7 @@ export class AppGenerateService extends BaseService {
         externalConnectionModel,
         sandboxRegistryModel,
         orgAiCopilotConfigResolver,
+        aiCreditService,
         sandboxManager,
         appRuntimeS3,
         chartRegistryClient,
@@ -865,6 +873,7 @@ export class AppGenerateService extends BaseService {
         this.externalConnectionModel = externalConnectionModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
+        this.aiCreditService = aiCreditService;
         this.sandboxManager = sandboxManager ?? undefined;
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
@@ -1372,6 +1381,34 @@ export class AppGenerateService extends BaseService {
     }
 
     // Resolved once per build; both levers come from one flag. Codex has neither.
+    /** Refuses a build or iteration while AI credits are paused, using the key the coding agent runs on. */
+    private async assertDataAppCreditsAvailable(
+        user: SessionUser,
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) return;
+        await this.aiCreditService.assertAiCreditsAvailable({
+            user,
+            resolveKeyManagement: async () => {
+                try {
+                    const copilot =
+                        await this.getCodingAgentConfig(organizationUuid);
+                    return resolveKeyManagement(
+                        copilot,
+                        this.getCodingAgentProvider(
+                            this.getCodingAgentEnv(copilot),
+                        ),
+                    );
+                } catch (error) {
+                    // The build itself reports missing coding-agent configuration.
+                    if (error instanceof MissingConfigError) return null;
+                    throw error;
+                }
+            },
+            isEmbedViewer: false,
+        });
+    }
+
     private async getCodingAgentConfig(
         organizationUuid: string | null | undefined,
     ): Promise<CodingAgentConfig> {
@@ -7208,6 +7245,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             'Insufficient permissions to create data apps',
         );
+        await this.assertDataAppCreditsAvailable(user);
         const claudeModel =
             this.dataAppCodingAgent === 'claude'
                 ? await this.resolveClaudeModel(
@@ -7470,6 +7508,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid,
         });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
+        await this.assertDataAppCreditsAvailable(user);
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.

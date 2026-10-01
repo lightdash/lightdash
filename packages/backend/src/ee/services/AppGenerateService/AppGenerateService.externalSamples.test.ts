@@ -58,6 +58,9 @@ function buildService() {
     };
     return {
         service: new AppGenerateService({
+            aiCreditService: {
+                assertAiCreditsAvailable: async () => undefined,
+            },
             lightdashConfig: {} as never,
             analytics: {} as never,
             analyticsModel: {} as never,

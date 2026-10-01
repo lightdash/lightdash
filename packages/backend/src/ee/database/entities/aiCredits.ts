@@ -1,5 +1,6 @@
 import {
     type AiCreditAllowanceAlertThreshold,
+    type AiCreditAllowanceMode,
     type AiCreditHoldReason,
     type AiCreditModelTier,
 } from '@lightdash/common';
@@ -51,6 +52,7 @@ export type DbAiCreditContract = {
     ends_at: Date | null;
     reset_interval_months: number;
     allowance_credits: string | null;
+    allowance_mode: AiCreditAllowanceMode;
     created_at: Date;
     updated_at: Date;
 };
@@ -61,6 +63,8 @@ export type DbAiCreditContractInsert = {
     ends_at: Date | null;
     reset_interval_months: number;
     allowance_credits: number | null;
+    // Defaults to warn in the database.
+    allowance_mode?: AiCreditAllowanceMode;
 };
 
 export type AiCreditContractsTable = Knex.CompositeTableType<

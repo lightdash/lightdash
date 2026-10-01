@@ -1563,6 +1563,7 @@ export class AiAgentController extends BaseController {
             await this.getAiAgentService().generateAgentThreadResponse(
                 toSessionUser(req.account),
                 {
+                    aiCreditCheck: { isEmbedViewer: false },
                     agentUuid,
                     threadUuid,
                 },

@@ -54,6 +54,7 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
         }),
     );
     const service = new AiAgentService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: lightdashConfigMock,
         aiAgentModel,
         analytics: { track: vi.fn() },
@@ -486,6 +487,9 @@ describe('battle profile response preparation', () => {
                 }),
             };
             const service = new AiAgentService({
+                aiCreditService: {
+                    assertAiCreditsAvailable: async () => undefined,
+                },
                 lightdashConfig: lightdashConfigMock,
                 aiAgentModel,
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
@@ -516,6 +520,7 @@ describe('battle profile response preparation', () => {
                             agentUuid: string;
                             threadUuid: string;
                             promptUuid: string;
+                            aiCreditCheck: null;
                         },
                     ) => Promise<unknown>;
                 }
@@ -523,6 +528,7 @@ describe('battle profile response preparation', () => {
                 agentUuid: 'agent',
                 threadUuid: 'thread',
                 promptUuid: 'prompt',
+                aiCreditCheck: null,
             });
 
             expect(getHistory).toHaveBeenCalledWith(

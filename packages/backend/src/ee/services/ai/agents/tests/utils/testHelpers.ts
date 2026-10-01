@@ -45,6 +45,7 @@ export const promptAndGetToolCalls = async (
     const response = await services.aiAgentService.generateAgentThreadResponse(
         context.testUser,
         {
+            aiCreditCheck: null,
             agentUuid: createdAgent.uuid,
             threadUuid: threadUuidToUse,
         },

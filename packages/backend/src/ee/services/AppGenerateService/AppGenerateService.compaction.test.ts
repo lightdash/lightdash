@@ -100,6 +100,7 @@ function buildService(
     };
 
     const raw = new AppGenerateService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {
                 dataAppCodingAgent: 'claude',

@@ -28,7 +28,12 @@ type PrivateService = {
             compactionSummary: null;
             resolveMessageHistory: () => Promise<[]>;
         },
-        options: { prompt: unknown; stream: false; canManageAgent: false },
+        options: {
+            prompt: unknown;
+            stream: false;
+            canManageAgent: false;
+            aiCreditCheck: null;
+        },
     ) => Promise<unknown>;
 };
 
@@ -78,6 +83,9 @@ describe('Document runtime access', () => {
         '$name passes effective access to discovery and authoring',
         async ({ slack, trusted, authorized, enabled, expected }) => {
             const service = new AiAgentService({
+                aiCreditService: {
+                    assertAiCreditsAvailable: async () => undefined,
+                },
                 lightdashConfig: {
                     ai: { copilot: { embeddingEnabled: false } },
                 },
@@ -169,7 +177,12 @@ describe('Document runtime access', () => {
                         compactionSummary: null,
                         resolveMessageHistory: async () => [],
                     },
-                    { prompt, stream: false, canManageAgent: false },
+                    {
+                        prompt,
+                        stream: false,
+                        canManageAgent: false,
+                        aiCreditCheck: null,
+                    },
                 ),
             ).rejects.toBe(stopAtDependencies);
             expect(dependencies).toHaveBeenCalledWith(
