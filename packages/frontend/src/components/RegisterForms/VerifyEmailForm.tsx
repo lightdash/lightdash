@@ -12,6 +12,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import Callout from '../common/Callout';
 import EmptyStateLoader from '../common/EmptyStateLoader';
+import VerifyEmailCodeForm from './VerifyEmailCodeForm';
 
 const VerifyEmailForm: FC<{
     isLoading?: boolean;
@@ -69,8 +70,36 @@ const VerifyEmailForm: FC<{
         }
     }, [data, setFieldError, clearFieldError]);
 
+    const resendCode = () => {
+        track({
+            name: EventName.OTP_RESEND_CLICKED,
+            properties: { purpose: 'signup_verification' },
+        });
+        form.reset();
+        sendVerificationEmail();
+    };
+
     if (loadingState) {
         return <EmptyStateLoader my="xl" />;
+    }
+
+    if (isLeftAligned) {
+        return (
+            <VerifyEmailCodeForm
+                form={form}
+                onSubmitCode={submitCode}
+                onResend={resendCode}
+                expirationTime={expirationTime}
+                isDisabled={
+                    !!data?.otp?.isMaxAttempts ||
+                    !!data?.otp?.isExpired ||
+                    verificationLoading
+                }
+                isMaxAttempts={!!data?.otp?.isMaxAttempts}
+                isVerified={!!emailStatusData?.isVerified}
+                isVerifying={verificationLoading}
+            />
+        );
     }
 
     return (
@@ -172,14 +201,7 @@ const VerifyEmailForm: FC<{
                 fz="sm"
                 ta={isLeftAligned ? 'left' : undefined}
                 component="button"
-                onClick={() => {
-                    track({
-                        name: EventName.OTP_RESEND_CLICKED,
-                        properties: { purpose: 'signup_verification' },
-                    });
-                    form.reset();
-                    sendVerificationEmail();
-                }}
+                onClick={resendCode}
             >
                 Resend verification email
             </Anchor>

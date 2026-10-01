@@ -112,15 +112,32 @@ const VerifyEmailPage: FC = () => {
     return (
         <AuthLayout
             pageTitle="Verify your email"
+            title="Check your inbox"
+            subtitle={`We sent a 6-digit code to ${data?.email ?? 'your email'}.`}
             withLegacyCard={false}
+            withCustomerLogos
             footer={
-                <Text c="dimmed" ta="center" px="xs" fz="sm" fw={500}>
-                    You need to verify your email to get access to Lightdash. If
-                    you need help, you can{' '}
-                    <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
-                        chat to support here.
-                    </Anchor>
-                </Text>
+                isNewLayout ? (
+                    <Text c="dimmed" ta="center" fz="xs">
+                        Need a hand?{' '}
+                        <Anchor
+                            component="button"
+                            type="button"
+                            inherit
+                            onClick={() => showIntercom()}
+                        >
+                            Chat to support
+                        </Anchor>
+                    </Text>
+                ) : (
+                    <Text c="dimmed" ta="center" px="xs" fz="sm" fw={500}>
+                        You need to verify your email to get access to
+                        Lightdash. If you need help, you can{' '}
+                        <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
+                            chat to support here.
+                        </Anchor>
+                    </Text>
+                )
             }
         >
             {isNewLayout ? (
