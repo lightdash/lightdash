@@ -22,6 +22,6 @@
 
 .errorSlot {
     min-height: calc(
-        2 * var(--mantine-line-height-sm) * var(--mantine-font-size-sm)
+        var(--mantine-line-height-sm) * var(--mantine-font-size-sm)
     );
 }

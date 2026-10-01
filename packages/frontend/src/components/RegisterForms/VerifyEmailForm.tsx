@@ -66,12 +66,12 @@ const VerifyEmailForm: FC<{
         if (data?.otp && data?.otp.numberOfAttempts > 0) {
             const remainingAttempts = 5 - data.otp.numberOfAttempts;
             const message = data.otp.isExpired
-                ? 'Your one-time password expired. Please resend a verification email.'
+                ? 'This code has expired. Send a new one.'
                 : data.otp.numberOfAttempts < 5
-                  ? `The code doesn't match the one we sent you. You have ${remainingAttempts} attempt${
+                  ? `Wrong code. ${remainingAttempts} attempt${
                         remainingAttempts > 1 ? 's' : ''
                     } left.`
-                  : "Hmm that code doesn't match the one we sent you. You've already had 5 attempts, please resend a verification email and try again.";
+                  : 'Too many attempts. Send a new code to try again.';
             setFieldError('code', message);
         } else {
             clearFieldError('code');
