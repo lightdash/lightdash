@@ -1,6 +1,7 @@
 import { type OrganizationLanding } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    formatMemberCount,
     getCreateOrganizationWarning,
     getRequestCardContext,
     getSuggestedOrganizationName,
@@ -82,5 +83,16 @@ describe('getSuggestedOrganizationName', () => {
         expect(
             getSuggestedOrganizationName(landing({ emailDomain: 'gmail.com' })),
         ).toBe('');
+    });
+});
+
+describe('formatMemberCount', () => {
+    it('uses the singular for one member', () => {
+        expect(formatMemberCount(1)).toBe('1 member');
+    });
+
+    it('uses the plural for other counts', () => {
+        expect(formatMemberCount(0)).toBe('0 members');
+        expect(formatMemberCount(7)).toBe('7 members');
     });
 });
