@@ -902,6 +902,19 @@ type AgentOnboardingDemoOfferProperties = {
     offerType: 'provision_demo' | 'open_existing_demo';
 };
 
+export type NamePromptTrigger = 'invite' | 'share_space' | 'comment';
+
+type NamePromptEvent = {
+    name:
+        | EventName.NAME_PROMPT_SHOWN
+        | EventName.NAME_PROMPT_SAVED
+        | EventName.NAME_PROMPT_SKIPPED;
+    properties: {
+        organizationId: string;
+        trigger: NamePromptTrigger;
+    };
+};
+
 type AgentOnboardingDemoOfferShownEvent = {
     name: EventName.AGENT_ONBOARDING_DEMO_OFFER_SHOWN;
     properties: AgentOnboardingDemoOfferProperties;
@@ -1179,6 +1192,7 @@ export type EventData =
     | MapTileUsageEvent
     | MapTileFallbackEvent
     | AgentOnboardingDemoOfferShownEvent
+    | NamePromptEvent
     | AgentOnboardingDemoOfferAcceptedEvent
     | AgentOnboardingCompletionToastShownEvent
     | AgentOnboardingCompletionToastClickedEvent

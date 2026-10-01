@@ -12,6 +12,7 @@ import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
+import { NamePromptProvider } from './features/namePrompt/NamePromptProvider';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import AbilityProvider from './providers/Ability/AbilityProvider';
@@ -74,7 +75,9 @@ const router = sentryCreateBrowserRouter([
                                                                 <AgentOnboardingCompletionWatcher />
                                                             </Suspense>
                                                         )}
-                                                        <Outlet />
+                                                        <NamePromptProvider>
+                                                            <Outlet />
+                                                        </NamePromptProvider>
                                                     </AiAgentsGlobalProvider>
                                                 </SourceCodeEditorProvider>
                                             </ChartColorMappingContextProvider>

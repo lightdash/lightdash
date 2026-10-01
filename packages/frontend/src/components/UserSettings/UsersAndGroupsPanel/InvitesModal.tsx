@@ -10,6 +10,7 @@ import { IconUser } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
+import { useNamePrompt } from '../../../features/namePrompt/useNamePrompt';
 import { useOrganizationSettings } from '../../../hooks/organization/useOrganizationSettings';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import useApp from '../../../providers/App/useApp';
@@ -57,6 +58,7 @@ const InvitesModal: FC<{
         isLoading,
     } = useCreateInviteLinkMutation();
     const isSubmitting = isLoading;
+    const namePrompt = useNamePrompt('invite');
 
     const handleSubmit = async (data: SendInviteFormProps) => {
         track({
@@ -96,7 +98,7 @@ const InvitesModal: FC<{
                     id="invite_user"
                     name="invite_user"
                     onSubmit={form.onSubmit((values: SendInviteFormProps) =>
-                        handleSubmit(values),
+                        namePrompt.withName(() => void handleSubmit(values)),
                     )}
                 >
                     <Stack gap="md">
