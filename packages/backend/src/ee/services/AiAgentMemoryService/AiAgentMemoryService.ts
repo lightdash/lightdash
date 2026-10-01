@@ -1704,9 +1704,10 @@ export class AiAgentMemoryService extends BaseService {
             throw new Error('AI copilot config resolver is required');
         }
         const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                args.partition.organizationUuid,
-            );
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid: args.partition.organizationUuid,
+                projectUuid: args.partition.projectUuid,
+            });
         // Rare and consequential where distillation is frequent and cheap: the
         // org's default model, reasoning on, with a two-call ceiling.
         const model = getModel(copilotConfig, { enableReasoning: true });
@@ -2023,9 +2024,10 @@ export class AiAgentMemoryService extends BaseService {
             throw new Error('AI copilot config resolver is required');
         }
         const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                args.thread.organizationUuid,
-            );
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid: args.thread.organizationUuid,
+                projectUuid: args.thread.projectUuid,
+            });
         const model = getModel(copilotConfig, { useFastModel: true });
         const system = await distillPromptPromise;
         const result = await generateText({

@@ -425,13 +425,19 @@ export class ManagedAgentService extends BaseService {
     }
 
     // Recheck availability because keys and the provider catalog can change between runs.
-    private async resolveAutopilotModel(organizationUuid: string) {
+    // Autopilot reads the project's own repository and warehouse, so it resolves
+    // the project's credential rather than the organization default.
+    private async resolveAutopilotModel(
+        organizationUuid: string,
+        projectUuid: string,
+    ) {
         try {
             const [copilotConfig, orgDefaultModel, overrides] =
                 await Promise.all([
-                    this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid,
-                    ),
+                        projectUuid,
+                    }),
                     this.aiOrganizationSettingsService.getDefaultModelConfig(
                         organizationUuid,
                     ),
@@ -1197,7 +1203,10 @@ export class ManagedAgentService extends BaseService {
             throw new ForbiddenError();
         const policy = await this.getPolicy(projectUuid);
         try {
-            const resolved = await this.resolveAutopilotModel(organizationUuid);
+            const resolved = await this.resolveAutopilotModel(
+                organizationUuid,
+                projectUuid,
+            );
             return this.describeAiSdkRuntime(policy, resolved);
         } catch {
             return {
@@ -1271,7 +1280,7 @@ export class ManagedAgentService extends BaseService {
         if (update.enabled) {
             const { organizationUuid } =
                 await this.projectModel.getSummary(projectUuid);
-            await this.resolveAutopilotModel(organizationUuid);
+            await this.resolveAutopilotModel(organizationUuid, projectUuid);
         }
 
         // Space scope updates replace the selection atomically and keep the
@@ -1794,7 +1803,7 @@ export class ManagedAgentService extends BaseService {
             await Promise.all([
                 this.getAutopilotRenderArgs(projectUuid),
                 this.projectModel.getSummary(projectUuid),
-                this.resolveAutopilotModel(organizationUuid),
+                this.resolveAutopilotModel(organizationUuid, projectUuid),
             ]);
         const runtimeInfo = this.describeAiSdkRuntime(policy, resolvedModel);
         // Persist before tools or model execution: a crash must not erase the

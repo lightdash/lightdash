@@ -16,6 +16,8 @@ import {
     AiOrganizationProviderCredentialTable,
     AiOrganizationProviderCredentialTableName,
     DbAiOrganizationProviderCredential,
+    ProjectAiSettingsTable,
+    ProjectAiSettingsTableName,
 } from '../database/entities/ai';
 import { buildProviderApiKeyHint } from './AiOrganizationSettingsModel';
 
@@ -228,6 +230,84 @@ export class AiOrganizationProviderCredentialModel {
         return row ? this.resolveRow(row) : { status: 'none' };
     }
 
+    /**
+     * Credential a project's AI features run on: the project's own pin when it
+     * has one, otherwise the organization default. Scoped by organization so a
+     * pin that somehow references another org's credential cannot resolve.
+     */
+    async findForProjectDecrypted(
+        organizationUuid: string,
+        projectUuid: string,
+        database: Knex = this.database,
+    ): Promise<AiProviderCredentialResolution> {
+        const row = await database(`${ProjectAiSettingsTableName} as s`)
+            .innerJoin(
+                `${AiOrganizationProviderCredentialTableName} as c`,
+                'c.ai_organization_provider_credential_uuid',
+                's.ai_organization_provider_credential_uuid',
+            )
+            .select<DbAiOrganizationProviderCredential>('c.*')
+            .where('s.project_uuid', projectUuid)
+            .andWhere('c.organization_uuid', organizationUuid)
+            .first();
+
+        // An unreadable pin is reported as such rather than falling through to
+        // the organization default, which would be a different region.
+        if (row) return this.resolveRow(row);
+        return this.findDefaultDecrypted(organizationUuid, database);
+    }
+
+    async findProjectCredentialUuid(
+        projectUuid: string,
+        database: Knex = this.database,
+    ): Promise<string | null> {
+        const row = await database<ProjectAiSettingsTable>(
+            ProjectAiSettingsTableName,
+        )
+            .select('ai_organization_provider_credential_uuid')
+            .where('project_uuid', projectUuid)
+            .first();
+        return row?.ai_organization_provider_credential_uuid ?? null;
+    }
+
+    /**
+     * Pin a project to a credential, or clear the pin with null so the project
+     * follows the organization default again.
+     */
+    async setProjectCredential(
+        projectUuid: string,
+        credentialUuid: string | null,
+        database: Knex = this.database,
+    ): Promise<void> {
+        await database<ProjectAiSettingsTable>(ProjectAiSettingsTableName)
+            .insert({
+                project_uuid: projectUuid,
+                ai_organization_provider_credential_uuid: credentialUuid,
+            })
+            .onConflict('project_uuid')
+            .merge({
+                ai_organization_provider_credential_uuid: credentialUuid,
+                updated_at: database.raw('NOW()'),
+            });
+    }
+
+    /**
+     * Projects pinned to a credential. The delete path reports these instead of
+     * letting the FK error surface, so an admin is told which projects to
+     * repoint rather than seeing a constraint violation.
+     */
+    async findProjectUuidsUsingCredential(
+        credentialUuid: string,
+        database: Knex = this.database,
+    ): Promise<string[]> {
+        const rows = await database<ProjectAiSettingsTable>(
+            ProjectAiSettingsTableName,
+        )
+            .select('project_uuid')
+            .where('ai_organization_provider_credential_uuid', credentialUuid);
+        return rows.map((row) => row.project_uuid);
+    }
+
     async countByOrganizationUuid(
         organizationUuid: string,
         database: Knex = this.database,
@@ -386,6 +466,18 @@ export class AiOrganizationProviderCredentialModel {
         credentialUuid: string,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            // Checked before the delete so the admin gets the project list
+            // rather than an opaque foreign-key violation.
+            const pinnedProjects = await this.findProjectUuidsUsingCredential(
+                credentialUuid,
+                trx,
+            );
+            if (pinnedProjects.length > 0) {
+                throw new ParameterError(
+                    `This credential is still used by ${pinnedProjects.length} project(s). Point them at another credential before deleting it.`,
+                );
+            }
+
             const [deleted] = await trx<AiOrganizationProviderCredentialTable>(
                 AiOrganizationProviderCredentialTableName,
             )

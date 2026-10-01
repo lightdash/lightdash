@@ -27,7 +27,10 @@ export const resolveReviewJudgeModel = async ({
             organizationUuid,
         );
     const copilotConfig = canJudgeOnByoKey
-        ? await orgAiCopilotConfigResolver.getCopilotConfig(organizationUuid)
+        ? await orgAiCopilotConfigResolver.getCopilotConfig({
+              organizationUuid,
+              projectUuid: null,
+          })
         : instanceCopilotConfig;
     const model = getModel(copilotConfig, {
         provider: byoJudgeProvider ?? resolveReviewJudgeProvider(copilotConfig),

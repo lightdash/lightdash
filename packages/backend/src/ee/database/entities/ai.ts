@@ -730,6 +730,30 @@ export type AiOrganizationProviderCredentialTable = Knex.CompositeTableType<
     }
 >;
 
+export const ProjectAiSettingsTableName = 'project_ai_settings';
+
+/**
+ * Per-project AI settings. A project with no row, or a null credential uuid,
+ * resolves the organization's default credential.
+ */
+export type DbProjectAiSettings = {
+    project_uuid: string;
+    ai_organization_provider_credential_uuid: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type ProjectAiSettingsTable = Knex.CompositeTableType<
+    DbProjectAiSettings,
+    Pick<
+        DbProjectAiSettings,
+        'project_uuid' | 'ai_organization_provider_credential_uuid'
+    >,
+    Pick<DbProjectAiSettings, 'ai_organization_provider_credential_uuid'> & {
+        updated_at: Knex.Raw;
+    }
+>;
+
 export const AiSqlApprovalTableName = 'ai_sql_approval';
 
 export type AiSqlApprovalDecision = 'approved' | 'rejected';

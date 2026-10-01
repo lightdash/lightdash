@@ -133,13 +133,18 @@ export class AiAgentDocumentService extends BaseService {
         args: {
             name: string;
             content: string;
+            // The summary is generated from the document's own content, so it
+            // runs on that project's credential. Null only for a document
+            // created without a project, which correctly uses the org default.
+            projectUuid: string | null;
             projectExplores: Explore[];
         },
     ): Promise<AiAgentDocument['summary']> {
         const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
-            );
+                projectUuid: args.projectUuid,
+            });
         return generateDocumentSummary(
             {
                 ...getModel(copilotConfig, {
@@ -370,6 +375,7 @@ export class AiAgentDocumentService extends BaseService {
                 summary = await this.generateSummary(user, organizationUuid, {
                     name,
                     content: body.content,
+                    projectUuid: agent.projectUuid,
                     projectExplores,
                 });
             } catch (error) {
@@ -486,6 +492,7 @@ export class AiAgentDocumentService extends BaseService {
             summary = await this.generateSummary(user, organizationUuid, {
                 name: body.name,
                 content: body.content,
+                projectUuid: scope.projectUuid,
                 projectExplores: scope.projectExplores,
             });
         } catch (error) {
