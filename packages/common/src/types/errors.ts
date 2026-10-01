@@ -852,6 +852,35 @@ export const BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER =
 export const isBigqueryTokenErrorMessage = (message: string): boolean =>
     message.includes(BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER);
 
+export const PREVIEW_WAREHOUSE_SIGN_IN_EXPIRED_MESSAGE_MARKER =
+    "This preview's warehouse sign-in expired";
+
+export const getPreviewWarehouseSignInExpiredMessage = (
+    upstreamProjectName: string,
+): string =>
+    `${PREVIEW_WAREHOUSE_SIGN_IN_EXPIRED_MESSAGE_MARKER}. Reconnect the warehouse on ${upstreamProjectName}.`;
+
+export const isPreviewWarehouseSignInExpiredMessage = (
+    message: string,
+): boolean =>
+    message.includes(PREVIEW_WAREHOUSE_SIGN_IN_EXPIRED_MESSAGE_MARKER);
+
+export class PreviewWarehouseSignInExpiredError extends LightdashError {
+    constructor(upstream: {
+        upstreamProjectUuid: string;
+        upstreamProjectName: string;
+    }) {
+        super({
+            message: getPreviewWarehouseSignInExpiredMessage(
+                upstream.upstreamProjectName,
+            ),
+            name: 'PreviewWarehouseSignInExpiredError',
+            statusCode: 401,
+            data: upstream,
+        });
+    }
+}
+
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI
 */

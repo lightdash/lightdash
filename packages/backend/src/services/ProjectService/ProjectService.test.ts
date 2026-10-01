@@ -42,6 +42,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PreAggregateMissReason,
+    PreviewWarehouseSignInExpiredError,
     ProjectType,
     QueryExecutionContext,
     RedshiftAuthenticationType,
@@ -148,6 +149,7 @@ import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
+import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -12400,5 +12402,205 @@ describe('Personal-credential merge pins across warehouse types (SPK-2338)', () 
                 DatabricksTokenError,
             );
         });
+    });
+});
+
+describe('preview BigQuery SSO credentials', () => {
+    const upstreamProjectUuid = 'upstream-project-uuid';
+    const previewProjectUuid = 'preview-project-uuid';
+    const bigquerySso = (refreshToken: string): CreateBigqueryCredentials => ({
+        type: WarehouseTypes.BIGQUERY,
+        authenticationType: BigqueryAuthenticationType.SSO,
+        project: 'analytics',
+        dataset: 'prod',
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+        keyfileContents: {
+            type: 'authorized_user',
+            client_id: 'lightdash-client',
+            client_secret: 'secret',
+            refresh_token: refreshToken,
+        },
+    });
+    const refreshTokenOf = (credentials: CreateWarehouseCredentials | null) =>
+        credentials?.type === WarehouseTypes.BIGQUERY
+            ? credentials.keyfileContents.refresh_token
+            : undefined;
+
+    let syncEnabled = true;
+    const stored = new Map<string, CreateWarehouseCredentials>();
+    const tokenStatus = new Map<string, 'valid' | 'rejected'>();
+    const checkRefreshToken = vi.fn<CheckGoogleRefreshToken>(
+        async (keyfile) => tokenStatus.get(keyfile.refresh_token) ?? 'valid',
+    );
+    const updateIf = (
+        projectUuid: string,
+        update: (
+            credentials: CreateWarehouseCredentials,
+        ) => CreateWarehouseCredentials | null,
+    ) => {
+        const current = stored.get(projectUuid);
+        const next = current ? update(current) : null;
+        if (next) stored.set(projectUuid, next);
+        return next !== null;
+    };
+    const model = {
+        ...singleRouteProjectModelMethods,
+        getProjectWarehouseConfig: vi.fn(async () => ({
+            organizationWarehouseCredentialsUuid: null,
+        })),
+        getWarehouseCredentialsForProject: vi.fn(async (projectUuid: string) =>
+            stored.get(projectUuid),
+        ),
+        getSummary: vi.fn(async (projectUuid: string) =>
+            projectUuid === previewProjectUuid
+                ? {
+                      ...projectSummary,
+                      projectUuid,
+                      name: 'My preview',
+                      type: ProjectType.PREVIEW,
+                      upstreamProjectUuid,
+                  }
+                : { ...projectSummary, projectUuid, name: 'Production' },
+        ),
+        updateWarehouseCredentialsIf: vi.fn(async (projectUuid, update) =>
+            updateIf(projectUuid, update),
+        ),
+        updatePreviewWarehouseCredentials: vi.fn(
+            async (projectUuid: string, update) =>
+                projectUuid === upstreamProjectUuid &&
+                updateIf(previewProjectUuid, update)
+                    ? [previewProjectUuid]
+                    : [],
+        ),
+        getWithSensitiveFields: vi.fn(async (projectUuid: string) => ({
+            ...projectWithSensitiveFields,
+            projectUuid,
+            warehouseConnection: stored.get(projectUuid),
+        })),
+        update: vi.fn(async (projectUuid: string, data: UpdateProject) => {
+            stored.set(projectUuid, data.warehouseConnection);
+        }),
+    };
+    const service = getMockedProjectService(lightdashConfigMock, {
+        featureFlagModel: {
+            get: vi.fn(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled:
+                    featureFlagId === FeatureFlags.PreviewSsoCredentialSync &&
+                    syncEnabled,
+            })),
+        } as unknown as FeatureFlagModel,
+    });
+    Object.assign(service, {
+        projectModel: model,
+        checkGoogleRefreshToken: checkRefreshToken,
+    });
+    const getPreviewCredentials = () =>
+        (
+            service as unknown as {
+                getWarehouseCredentials: (args: {
+                    projectUuid: string;
+                    userId: string;
+                    isRegisteredUser: boolean;
+                    binding: { kind: 'original' };
+                }) => Promise<CreateWarehouseCredentials>;
+            }
+        ).getWarehouseCredentials({
+            projectUuid: previewProjectUuid,
+            userId: sessionAccount.user.id,
+            isRegisteredUser: true,
+            binding: { kind: 'original' },
+        });
+    const reconnectUpstream = (refreshToken: string) =>
+        service.updateWarehouseCredentials(upstreamProjectUuid, account, {
+            warehouseConnection: bigquerySso(refreshToken),
+        });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        syncEnabled = true;
+        stored.clear();
+        tokenStatus.clear();
+        stored.set(upstreamProjectUuid, bigquerySso('token-a'));
+        stored.set(previewProjectUuid, bigquerySso('token-a'));
+    });
+
+    test('a preview created with token A still works after the parent reconnects with token B', async () => {
+        await reconnectUpstream('token-b');
+        tokenStatus.set('token-a', 'rejected');
+
+        expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe('token-b');
+        expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-b');
+        expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
+    });
+
+    test('a preview with its own different credential is untouched', async () => {
+        stored.set(previewProjectUuid, bigquerySso('own-token'));
+
+        await reconnectUpstream('token-b');
+
+        expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe(
+            'own-token',
+        );
+        expect(refreshTokenOf(await getPreviewCredentials())).toBe('own-token');
+        expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
+    });
+
+    test('the retry repairs a stale preview once and does not loop', async () => {
+        stored.set(upstreamProjectUuid, bigquerySso('token-b'));
+        tokenStatus.set('token-a', 'rejected');
+
+        expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-b');
+        expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe('token-b');
+        expect(checkRefreshToken).toHaveBeenCalledTimes(2);
+        expect(model.updateWarehouseCredentialsIf).toHaveBeenCalledTimes(1);
+
+        checkRefreshToken.mockClear();
+        expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-b');
+        expect(checkRefreshToken).toHaveBeenCalledTimes(1);
+        expect(model.updateWarehouseCredentialsIf).toHaveBeenCalledTimes(1);
+    });
+
+    test('a preview that shares an expired token with its parent names the parent project', async () => {
+        tokenStatus.set('token-a', 'rejected');
+
+        await expect(getPreviewCredentials()).rejects.toThrow(
+            "This preview's warehouse sign-in expired. Reconnect the warehouse on Production.",
+        );
+        expect(checkRefreshToken).toHaveBeenCalledTimes(1);
+    });
+
+    test('a stale preview whose parent sign-in expired too names the parent project', async () => {
+        stored.set(upstreamProjectUuid, bigquerySso('token-b'));
+        tokenStatus.set('token-a', 'rejected');
+        tokenStatus.set('token-b', 'rejected');
+
+        const error = await getPreviewCredentials().catch((e) => e);
+
+        expect(error).toBeInstanceOf(PreviewWarehouseSignInExpiredError);
+        expect(error.message).toBe(
+            "This preview's warehouse sign-in expired. Reconnect the warehouse on Production.",
+        );
+        expect(error.data).toEqual({
+            upstreamProjectUuid,
+            upstreamProjectName: 'Production',
+        });
+        expect(checkRefreshToken).toHaveBeenCalledTimes(2);
+        expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
+    });
+
+    test('the kill switch turns off both the push and the repair', async () => {
+        syncEnabled = false;
+        tokenStatus.set('token-a', 'rejected');
+
+        await reconnectUpstream('token-b');
+
+        expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-a');
+        expect(model.updatePreviewWarehouseCredentials).not.toHaveBeenCalled();
+        expect(checkRefreshToken).not.toHaveBeenCalled();
     });
 });

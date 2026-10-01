@@ -194,6 +194,7 @@ import {
     PreAggregateMissReason,
     preAggregateUtils,
     PreviewExpiresAt,
+    PreviewWarehouseSignInExpiredError,
     Project,
     ProjectCatalog,
     ProjectContextEntry,
@@ -455,6 +456,13 @@ import {
     reconcilePlaygroundBundles,
     type ReconcilePlaygroundBundlesResult,
 } from './playgroundBundle';
+import {
+    checkGoogleRefreshTokenCached,
+    getBigquerySsoCredentials,
+    getPushedPreviewCredentials,
+    repairStalePreviewBigquerySso,
+    type CheckGoogleRefreshToken,
+} from './previewBigquerySsoCredentials';
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
@@ -1805,6 +1813,129 @@ export class ProjectService extends BaseService {
         }
     }
 
+    protected checkGoogleRefreshToken: CheckGoogleRefreshToken =
+        checkGoogleRefreshTokenCached;
+
+    private async isPreviewSsoCredentialSyncEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.PreviewSsoCredentialSync,
+        });
+        return enabled;
+    }
+
+    private async pushSsoCredentialsToPreviews({
+        savedProject,
+        updatedProject,
+    }: {
+        savedProject: Pick<
+            Project,
+            'projectUuid' | 'organizationUuid' | 'type'
+        > & { warehouseConnection?: CreateWarehouseCredentials };
+        updatedProject: UpdateProject;
+    }): Promise<void> {
+        if (
+            savedProject.type === ProjectType.PREVIEW ||
+            !savedProject.warehouseConnection ||
+            updatedProject.organizationWarehouseCredentialsUuid ||
+            !getBigquerySsoCredentials(updatedProject.warehouseConnection)
+        ) {
+            return;
+        }
+        const previousUpstreamCredentials = savedProject.warehouseConnection;
+        try {
+            if (
+                !(await this.isPreviewSsoCredentialSyncEnabled(
+                    savedProject.organizationUuid,
+                ))
+            ) {
+                return;
+            }
+            const previewProjectUuids =
+                await this.projectModel.updatePreviewWarehouseCredentials(
+                    savedProject.projectUuid,
+                    (previewCredentials) =>
+                        getPushedPreviewCredentials({
+                            previewCredentials,
+                            previousUpstreamCredentials,
+                            nextUpstreamCredentials:
+                                updatedProject.warehouseConnection,
+                        }),
+                );
+            if (previewProjectUuids.length > 0) {
+                this.logger.info('Pushed SSO credentials to previews', {
+                    projectUuid: savedProject.projectUuid,
+                    previewProjectUuids,
+                });
+            }
+        } catch (error) {
+            this.logger.error('Failed to push SSO credentials to previews', {
+                projectUuid: savedProject.projectUuid,
+                error: getErrorMessage(error),
+            });
+        }
+    }
+
+    protected async repairStalePreviewSsoCredentials(
+        projectUuid: string,
+        credentials: CreateWarehouseCredentials,
+    ): Promise<CreateWarehouseCredentials> {
+        if (!getBigquerySsoCredentials(credentials)) return credentials;
+        const preview = await this.projectModel.getSummary(projectUuid);
+        if (
+            preview.type !== ProjectType.PREVIEW ||
+            !preview.upstreamProjectUuid ||
+            !(await this.isPreviewSsoCredentialSyncEnabled(
+                preview.organizationUuid,
+            ))
+        ) {
+            return credentials;
+        }
+        const { upstreamProjectUuid } = preview;
+        const repair = await repairStalePreviewBigquerySso({
+            previewCredentials: credentials,
+            upstreamCredentials:
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    upstreamProjectUuid,
+                ),
+            checkRefreshToken: this.checkGoogleRefreshToken,
+        });
+        switch (repair.kind) {
+            case 'unchanged':
+                return credentials;
+            case 'expired': {
+                const upstream =
+                    await this.projectModel.getSummary(upstreamProjectUuid);
+                throw new PreviewWarehouseSignInExpiredError({
+                    upstreamProjectUuid,
+                    upstreamProjectName: upstream.name,
+                });
+            }
+            case 'repaired':
+                await this.projectModel.updateWarehouseCredentialsIf(
+                    projectUuid,
+                    (stored) =>
+                        getBigquerySsoCredentials(stored)?.refreshToken ===
+                        repair.staleRefreshToken
+                            ? {
+                                  ...stored,
+                                  keyfileContents:
+                                      repair.credentials.keyfileContents,
+                              }
+                            : null,
+                );
+                this.logger.info(
+                    'Repaired a stale preview SSO credential from its upstream project',
+                    { projectUuid, upstreamProjectUuid },
+                );
+                return repair.credentials;
+            default:
+                return assertUnreachable(repair, 'Unknown preview repair');
+        }
+    }
+
     private async findUserCredentialsForExtraConnection({
         projectUuid,
         warehouseConnectionUuid,
@@ -2733,7 +2864,10 @@ export class ProjectService extends BaseService {
                     `Refreshing warehouse credentials for session user ${userId}`,
                 );
                 credentials = await this.refreshCredentialsAndPersistRotation(
-                    credentials,
+                    await this.repairStalePreviewSsoCredentials(
+                        projectUuid,
+                        credentials,
+                    ),
                     userId,
                     { kind: 'project', projectUuid },
                 );
@@ -2751,7 +2885,10 @@ export class ProjectService extends BaseService {
                 `Refreshing warehouse credentials for embed user ${userId}`,
             );
             credentials = await this.refreshCredentialsAndPersistRotation(
-                credentials,
+                await this.repairStalePreviewSsoCredentials(
+                    projectUuid,
+                    credentials,
+                ),
                 userId,
                 { kind: 'project', projectUuid },
             );
@@ -4943,6 +5080,10 @@ export class ProjectService extends BaseService {
         );
 
         await this.projectModel.update(projectUuid, updatedProject);
+        await this.pushSsoCredentialsToPreviews({
+            savedProject,
+            updatedProject,
+        });
 
         if (
             savedProject.type !== ProjectType.PREVIEW &&
@@ -5106,6 +5247,10 @@ export class ProjectService extends BaseService {
         this.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
+        await this.pushSsoCredentialsToPreviews({
+            savedProject,
+            updatedProject,
+        });
 
         if (
             savedProject.type !== ProjectType.PREVIEW &&
@@ -5982,6 +6127,13 @@ export class ProjectService extends BaseService {
             throw new MissingWarehouseCredentialsError(
                 'Warehouse credentials must be provided to connect to your dbt project',
             );
+        }
+        if (!project.organizationWarehouseCredentialsUuid) {
+            project.warehouseConnection =
+                await this.repairStalePreviewSsoCredentials(
+                    projectUuid,
+                    project.warehouseConnection,
+                );
         }
         const cachedWarehouseCatalog =
             await this.projectModel.getWarehouseFromCache(projectUuid);

@@ -4815,6 +4815,125 @@ export class ProjectModel {
         return swapped;
     }
 
+    private decryptWarehouseCredentials(
+        encryptedCredentials: Buffer,
+    ): CreateWarehouseCredentials | null {
+        try {
+            return normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(encryptedCredentials),
+                ) as CreateWarehouseCredentials,
+            );
+        } catch {
+            return null;
+        }
+    }
+
+    /** Rewrites the stored credentials of each preview of a project where `update` returns new credentials. Returns the updated preview uuids. */
+    async updatePreviewWarehouseCredentials(
+        upstreamProjectUuid: string,
+        update: (
+            credentials: CreateWarehouseCredentials,
+        ) => CreateWarehouseCredentials | null,
+    ): Promise<string[]> {
+        const updatedProjectUuids = await this.database.transaction(
+            async (trx) => {
+                const rows = await trx('warehouse_credentials')
+                    .innerJoin(
+                        'projects',
+                        'warehouse_credentials.project_id',
+                        'projects.project_id',
+                    )
+                    .where(
+                        'projects.copied_from_project_uuid',
+                        upstreamProjectUuid,
+                    )
+                    .where('projects.project_type', ProjectType.PREVIEW)
+                    .whereNull(
+                        'projects.organization_warehouse_credentials_uuid',
+                    )
+                    .select<
+                        {
+                            project_uuid: string;
+                            project_id: number;
+                            encrypted_credentials: Buffer;
+                        }[]
+                    >([
+                        'projects.project_uuid',
+                        'warehouse_credentials.project_id',
+                        'warehouse_credentials.encrypted_credentials',
+                    ])
+                    .forUpdate();
+                const updated: string[] = [];
+                await rows.reduce<Promise<void>>(async (previous, row) => {
+                    await previous;
+                    const credentials = this.decryptWarehouseCredentials(
+                        row.encrypted_credentials,
+                    );
+                    const next = credentials ? update(credentials) : null;
+                    if (!next) return;
+                    await trx('warehouse_credentials')
+                        .update({
+                            encrypted_credentials: this.encryptionUtil.encrypt(
+                                JSON.stringify(next),
+                            ),
+                        })
+                        .where('project_id', row.project_id);
+                    updated.push(row.project_uuid);
+                }, Promise.resolve());
+                return updated;
+            },
+        );
+        updatedProjectUuids.forEach((projectUuid) =>
+            warehouseCredentialsCache?.del(projectUuid),
+        );
+        return updatedProjectUuids;
+    }
+
+    /** Compare-and-swap on a project's stored credentials: `update` sees the locked row and returns null to leave it. */
+    async updateWarehouseCredentialsIf(
+        projectUuid: string,
+        update: (
+            credentials: CreateWarehouseCredentials,
+        ) => CreateWarehouseCredentials | null,
+    ): Promise<boolean> {
+        const swapped = await this.database.transaction(async (trx) => {
+            const row = await trx('warehouse_credentials')
+                .innerJoin(
+                    'projects',
+                    'warehouse_credentials.project_id',
+                    'projects.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select<
+                    { project_id: number; encrypted_credentials: Buffer }[]
+                >([
+                    'warehouse_credentials.project_id',
+                    'warehouse_credentials.encrypted_credentials',
+                ])
+                .forUpdate()
+                .first();
+            if (!row) return false;
+            const credentials = this.decryptWarehouseCredentials(
+                row.encrypted_credentials,
+            );
+            const next = credentials ? update(credentials) : null;
+            if (!next) return false;
+            await trx('warehouse_credentials')
+                .update({
+                    encrypted_credentials: this.encryptionUtil.encrypt(
+                        JSON.stringify(next),
+                    ),
+                })
+                .where('project_id', row.project_id);
+            return true;
+        });
+        if (swapped) {
+            warehouseCredentialsCache?.del(projectUuid);
+        }
+        return swapped;
+    }
+
     async copyChartSlugMappingsToPreview(
         trx: Knex,
         sourceProjectUuid: string,
