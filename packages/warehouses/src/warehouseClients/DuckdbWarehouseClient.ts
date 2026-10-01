@@ -153,17 +153,19 @@ export type DuckdbS3Credentials = {
     s3Config: DuckdbS3SessionConfig;
 };
 
+export type DuckdbParquetColumns = {
+    name: string;
+    type: 'VARCHAR' | 'BOOLEAN' | 'TIMESTAMP' | 'INTEGER' | 'BIGINT';
+}[];
+
 /** Server-owned manifest. Never accept this configuration from project APIs. */
 export type DuckdbParquetSource = {
     scope: string;
-    tables: { name: string; urls: string[] }[];
+    tables: { name: string; urls: string[]; columns?: DuckdbParquetColumns }[];
     /** Typed, empty lookups for snapshots which have not been published yet. */
     emptyTables?: {
         name: string;
-        columns: {
-            name: string;
-            type: 'VARCHAR' | 'BOOLEAN' | 'TIMESTAMP' | 'INTEGER' | 'BIGINT';
-        }[];
+        columns: DuckdbParquetColumns;
     }[];
     /** Exact server-signed GET URLs; never combine with bucket credentials. */
     signedUrls?: boolean;
@@ -1117,10 +1119,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         const names = new Set<string>();
-        (source.emptyTables ?? []).forEach(({ name, columns }) => {
+        const validateColumns = (columns: DuckdbParquetColumns) => {
             if (
-                !/^[a-z][a-z0-9_]*$/.test(name) ||
-                names.has(name) ||
                 columns.length === 0 ||
                 new Set(columns.map((column) => column.name)).size !==
                     columns.length ||
@@ -1135,12 +1135,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                             'BIGINT',
                         ].includes(column.type),
                 )
-            ) {
+            )
+                throw new ParameterError('Invalid empty Parquet table schema');
+        };
+        (source.emptyTables ?? []).forEach(({ name, columns }) => {
+            if (!/^[a-z][a-z0-9_]*$/.test(name) || names.has(name)) {
                 throw new ParameterError('Invalid empty Parquet table schema');
             }
+            validateColumns(columns);
             names.add(name);
         });
-        source.tables.forEach(({ name, urls }) => {
+        source.tables.forEach(({ name, urls, columns }) => {
+            if (columns) validateColumns(columns);
             if (
                 !/^[a-z][a-z0-9_]*$/.test(name) ||
                 names.has(name) ||
@@ -1222,10 +1228,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         // eslint-disable-next-line no-restricted-syntax
-        for (const { name, urls } of tables) {
+        for (const { name, urls, columns } of tables) {
+            // Older retained files may all predate an additive column. A typed
+            // zero-row branch supplies its schema without materializing rows.
+            const missingColumns = columns
+                ? ` UNION ALL BY NAME SELECT ${columns.map((column) => `NULL::${column.type} AS "${column.name}"`).join(', ')} WHERE false`
+                : '';
             // eslint-disable-next-line no-await-in-loop
             await db.run(
-                `CREATE VIEW "${name}" AS SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true);`,
+                `CREATE VIEW "${name}" AS SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true)${missingColumns};`,
             );
         }
     }

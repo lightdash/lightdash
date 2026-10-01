@@ -50,6 +50,40 @@ const queryCompletedEvent: QueryCompletedEvent = {
 };
 
 describe('EventStreamSink', () => {
+    it('projects query timing and workload metadata without copying arbitrary properties', () => {
+        const writer = createWriterMock();
+        const sink = new EventStreamSink(eventStreamRegistry, writer);
+        sink.handle({
+            ...queryCompletedEvent,
+            properties: {
+                ...queryCompletedEvent.properties,
+                responseTimeMs: 350,
+                responseTimingBasis: 'request',
+                workloadOrigin: 'app',
+                appId: 'app',
+                appVersion: 2,
+                dashboardTileId: 'tile',
+                requestId: 'request',
+                parentOperationId: 'job',
+                initiatingActorType: 'service_account',
+                schedulerId: 'schedule',
+            },
+        });
+        expect(writer.push.mock.calls[0][1]).toMatchObject({
+            response_time_ms: 350,
+            response_timing_basis: 'request',
+            workload_origin: 'app',
+            app_id: 'app',
+            app_version: 2,
+            dashboard_tile_id: 'tile',
+            request_id: 'request',
+            parent_operation_id: 'job',
+            initiating_actor_type: 'service_account',
+            scheduler_id: 'schedule',
+            warehouse_execution_time_ms: 123,
+        });
+    });
+
     afterEach(() => {
         vi.clearAllMocks();
     });

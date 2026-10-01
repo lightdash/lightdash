@@ -162,6 +162,37 @@ export const systemStreamMetrics: Record<
     ],
     query_events: [
         {
+            name: 'avg_response_time_ms',
+            description:
+                'Average backend time to query outcome, including queueing and result storage. Filter Response timing basis to request for request-start latency. Excludes browser transfer/rendering, cancellations, and historical rows without timing.',
+            type: MetricType.AVERAGE,
+            column: 'response_time_ms',
+        },
+        {
+            name: 'p50_response_time_ms',
+            description:
+                'Median backend response time in milliseconds; see Response timing basis.',
+            type: MetricType.PERCENTILE,
+            column: 'response_time_ms',
+            percentile: 50,
+        },
+        {
+            name: 'p90_response_time_ms',
+            description:
+                '90th percentile backend response time in milliseconds; see Response timing basis.',
+            type: MetricType.PERCENTILE,
+            column: 'response_time_ms',
+            percentile: 90,
+        },
+        {
+            name: 'p95_response_time_ms',
+            description:
+                '95th percentile backend response time in milliseconds; see Response timing basis.',
+            type: MetricType.PERCENTILE,
+            column: 'response_time_ms',
+            percentile: 95,
+        },
+        {
             name: 'total_queries',
             description: 'Total number of queries executed',
             type: MetricType.COUNT,

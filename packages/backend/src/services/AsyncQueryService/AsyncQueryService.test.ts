@@ -1429,7 +1429,8 @@ describe('AsyncQueryService', () => {
                     fields: fieldsMap,
                     originalColumns,
                     metricQuery,
-                    requestParameters,
+                    requestParameters:
+                        expect.objectContaining(requestParameters),
                     usedParameters: { region: 'EU' },
                     pivotConfiguration: null,
                     compiledSql: 'SELECT * FROM orders ORDER BY 1',
@@ -5581,6 +5582,160 @@ describe('AsyncQueryService', () => {
             trackAccount.mockRestore();
         });
     });
+
+    test('persists server-owned attribution and keeps repeated chart tiles distinct', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const history = {
+            projectUuid,
+            organizationUuid: 'org',
+            context: QueryExecutionContext.DASHBOARD,
+            fields: {},
+            compiledSql: 'SELECT 1',
+            usedParameters: null,
+            metricQuery: metricQueryMock,
+            cacheKey: 'unchanged',
+            pivotConfiguration: null,
+            originalColumns: null,
+        };
+        const submit = (tileUuid: string) =>
+            service['createQueryHistory'](sessionAccount, {
+                ...history,
+                requestParameters: {
+                    ...metricQueryMock,
+                    context: QueryExecutionContext.DASHBOARD,
+                    dashboardUuid: 'dashboard',
+                    chartUuid: 'same-chart',
+                    tileUuid,
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    queryUsage: { startedAtMs: -1 } as never,
+                },
+            });
+        await ExecutionContext.run(
+            async () => {
+                const first = await submit('tile-a');
+                const second = await submit('tile-b');
+                expect(first.queryUsage).toMatchObject({
+                    startedAtMs: 1000,
+                    timingBasis: 'request',
+                    requestId: 'request',
+                    parentOperationId: 'job',
+                    appId: 'app',
+                    schedulerId: 'schedule',
+                    dashboardTileId: 'tile-a',
+                });
+                expect(second.queryUsage.dashboardTileId).toBe('tile-b');
+                expect(
+                    service.queryHistoryModel.create,
+                ).toHaveBeenLastCalledWith(
+                    sessionAccount,
+                    expect.objectContaining({
+                        cacheKey: 'unchanged',
+                        requestParameters: expect.objectContaining({
+                            queryUsage: second.queryUsage,
+                        }),
+                    }),
+                );
+            },
+            {
+                query_request: { startedAtMs: 1000, requestId: 'request' },
+                app_uuid: 'app',
+                scheduler: { scheduler_uuid: 'schedule', job_id: 'job' },
+            },
+        );
+    });
+
+    test.each([false, true])(
+        'terminal usage waits for upload and READY persistence (upload failure=%s)',
+        async (uploadFails) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                projectModel: {
+                    ...projectModel,
+                    ...singleRouteProjectModelMethods,
+                    getWarehouseCredentialsForProject: vi.fn(
+                        async () => warehouseClientMock.credentials,
+                    ),
+                    getWarehouseClientFromCredentials: vi.fn(() => ({
+                        ...warehouseClientMock,
+                        runQuery: vi.fn(async () => resultsWith1Row),
+                    })),
+                } as unknown as ProjectModel,
+            });
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            let now = 1000;
+            const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+            const completed = () =>
+                track.mock.calls.filter(
+                    ([event]) => event.event === 'query.completed',
+                );
+            let closed = false;
+            const stream = {
+                write: vi.fn(),
+                close: vi.fn(async () => {
+                    if (closed) return;
+                    closed = true;
+                    expect(completed()).toHaveLength(0);
+                    now = 10000;
+                    if (uploadFails) throw new Error('upload failed');
+                }),
+            };
+            vi.spyOn(
+                service.resultsStorageClient,
+                'createUploadStream',
+            ).mockReturnValue(stream as never);
+            service.queryHistoryModel.update = vi.fn(async () => {
+                expect(completed()).toHaveLength(0);
+                now = 12000;
+            }) as never;
+            try {
+                await service.runAsyncWarehouseQuery({
+                    userUuid: sessionAccount.user.id,
+                    organizationUuid: 'org',
+                    isPreviewProject: false,
+                    isRegisteredUser: true,
+                    onboardingFlow: 'legacy',
+                    projectUuid,
+                    query: 'SELECT 1',
+                    fieldsMap: {},
+                    usedParameters: null,
+                    queryTags: {
+                        query_context: QueryExecutionContext.DASHBOARD,
+                    },
+                    queryUuid: 'query',
+                    cacheKey: 'cache',
+                    queryCreatedAt: new Date(500),
+                    displayTimezone: null,
+                    queryUsage: {
+                        startedAtMs: 500,
+                        timingBasis: 'request',
+                        requestId: 'request',
+                        parentOperationId: null,
+                        appId: null,
+                        schedulerId: null,
+                        dashboardTileId: 'tile-a',
+                        actorType: 'registered_user',
+                    },
+                });
+                expect(completed()).toHaveLength(1);
+                expect(completed()[0][0]).toMatchObject({
+                    properties: {
+                        status: uploadFails ? 'error' : 'success',
+                        responseTimeMs: uploadFails ? 9500 : 11500,
+                        dashboardTileId: 'tile-a',
+                        workloadOrigin: 'interactive',
+                    },
+                });
+            } finally {
+                clock.mockRestore();
+                track.mockRestore();
+            }
+        },
+    );
 
     describe('runAsyncWarehouseQuery', () => {
         describe('when credentials have sshTunnel config', () => {

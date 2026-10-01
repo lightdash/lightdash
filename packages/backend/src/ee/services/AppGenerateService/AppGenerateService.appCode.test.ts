@@ -11,9 +11,11 @@ import {
     type DataAppDependencies,
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
+import ExecutionContext from 'node-execution-context';
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { extract as tarExtract, pack as tarPack } from 'tar-stream';
+import { getQueryRequestContext } from '../../../logging/winston';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { AppGenerateService } from './AppGenerateService';
 import {
@@ -1456,13 +1458,20 @@ describe('AppGenerateService.getCustomSqlProvenance', () => {
         });
 
         await expect(
-            service.getCustomSqlProvenance({
-                account,
-                projectUuid: PROJECT_UUID,
-                organizationUuid,
-                exploreName: 'orders',
-                previewToken: previewToken(),
-            }),
+            ExecutionContext.run(async () => {
+                const result = await service.getCustomSqlProvenance({
+                    account,
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid,
+                    exploreName: 'orders',
+                    previewToken: previewToken(),
+                });
+                expect(getQueryRequestContext()).toMatchObject({
+                    app_uuid: NEW_APP_UUID,
+                    app_version: 2,
+                });
+                return result;
+            }, {}),
         ).resolves.toEqual({
             tableCalculations: new Set(['SUM(1)']),
             customDimensions: new Set([

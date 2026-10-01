@@ -25,6 +25,7 @@ import {
     type QueryExecutionContext,
     type QueryHistory,
     type QuerySourceTableName,
+    type QueryUsageMetadata,
     type ResultColumns,
     type ResultsPaginationArgs,
     type RunQueryTags,
@@ -305,6 +306,7 @@ export type RunAsyncWarehouseQueryArgs = {
     originalColumns?: ResultColumns;
     query: string;
     queryCreatedAt: Date;
+    queryUsage?: QueryUsageMetadata;
     displayTimezone: string | null;
     warehouseConnectionUuid?: string | null;
     connectionRoute?: ConnectionRouteWithOriginal | null;
@@ -451,6 +453,7 @@ export type RunDuckdbQueryArgs = {
     engine: DuckdbQueryEngine;
     queryTags: RunQueryTags;
     queryCreatedAt: Date;
+    queryUsage?: QueryUsageMetadata;
     cacheKey: string;
     context: QueryExecutionContext;
 };

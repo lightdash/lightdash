@@ -1,7 +1,6 @@
 import type {
     AuthType,
     DuckdbExecutionSpec,
-    ExecuteAsyncQueryRequestParams,
     ItemsMap,
     MetricQuery,
     ParametersValuesMap,
@@ -10,6 +9,7 @@ import type {
     PreAggregateExecutionEngine,
     PreAggregateFallbackReason,
     QueryExecutionContext,
+    QueryHistory,
     QueryHistoryStatus,
     ResultColumns,
     WarehouseQueryMetadata,
@@ -31,7 +31,7 @@ export type DbQueryHistory = {
     warehouse_query_metadata: WarehouseQueryMetadata | null;
     metric_query: MetricQuery;
     fields: ItemsMap;
-    request_parameters: ExecuteAsyncQueryRequestParams;
+    request_parameters: QueryHistory['requestParameters'];
     used_parameters: ParametersValuesMap | null;
     total_row_count: number | null;
     warehouse_execution_time_ms: number | null;

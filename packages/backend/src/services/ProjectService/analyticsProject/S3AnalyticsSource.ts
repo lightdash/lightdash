@@ -146,23 +146,26 @@ export const createS3AnalyticsSourceResolver = ({
                 'No analytics data is available yet. Newly captured events become available after daily processing. Try again after the next daily update.',
             );
         }
+        const schemas = [
+            ...usageDimensionNames.map((name) => ({
+                name: usageDimensionTable(name),
+                columns: usageDimensionSchemas[name],
+            })),
+            ...analyticsStreams.map((name) => ({
+                name,
+                columns: compactedStreamSchemas[name],
+            })),
+            { name: 'user_activity', columns: userActivityColumns },
+        ];
         return {
             scope,
             signedUrls: true,
-            emptyTables: [
-                ...usageDimensionNames.map((name) => ({
-                    name: usageDimensionTable(name),
-                    columns: usageDimensionSchemas[name],
-                })),
-                ...analyticsStreams.map((name) => ({
-                    name,
-                    columns: compactedStreamSchemas[name],
-                })),
-                { name: 'user_activity', columns: userActivityColumns },
-            ].filter(({ name }) => !tables.has(name)),
+            emptyTables: schemas.filter(({ name }) => !tables.has(name)),
             tables: [...tables].map(([name, urls]) => ({
                 name,
                 urls: urls.sort(),
+                columns: schemas.find((schema) => schema.name === name)
+                    ?.columns,
             })),
         };
     };

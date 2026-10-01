@@ -191,6 +191,7 @@ import {
 } from '../../../database/entities/apps';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
+import { setQueryAppVersion } from '../../../logging/winston';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import {
     AppModel,
@@ -12330,6 +12331,9 @@ export class AppGenerateService extends BaseService {
         ) {
             return empty();
         }
+
+        // Reuse the validated app/version for query attribution; no additional reads.
+        setQueryAppVersion(payload.appUuid, payload.version);
 
         const dataReferences = await this.getVersionDataReferences(
             payload.appUuid,
