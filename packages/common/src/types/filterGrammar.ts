@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from './any';
-import { UnexpectedServerError } from './errors';
+import { ParseError, UnexpectedServerError } from './errors';
 import {
     FilterOperator,
     type MetricFilterRule,
@@ -140,6 +140,10 @@ export const parseFilters = (
     }, []);
 };
 
+// A filter value is a scalar or a list; a YAML map has no meaning here.
+export const isFilterValueMap = (value: unknown): boolean =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
 export const parseModelRequiredFilters = ({
     requiredFilters,
     defaultFilters,
@@ -225,6 +229,11 @@ export const parseModelRequiredFilters = ({
                     required,
                 },
             ];
+        }
+        if (isFilterValueMap(value)) {
+            throw new ParseError(
+                `Filter "${key}" must be a single value or a list of values, not a map`,
+            );
         }
         if (typeof value === 'object') {
             return [

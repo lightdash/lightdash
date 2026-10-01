@@ -744,6 +744,17 @@ describe('Parse required filters', () => {
         ]);
     });
 
+    it('Should reject a filter whose value is a map', () => {
+        expect(() =>
+            parseModelRequiredFilters({
+                requiredFilters: [{ order_date: { inThePast: '14 days' } }],
+                defaultFilters: [],
+            }),
+        ).toThrow(
+            'Filter "order_date" must be a single value or a list of values, not a map',
+        );
+    });
+
     it('Should parse default and required filters with opposite values', () => {
         expect(
             removeIds(
