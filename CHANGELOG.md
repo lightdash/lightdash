@@ -1,3 +1,10 @@
+# [2.415.0](https://github.com/lightdash/lightdash/compare/2.414.0...2.415.0) (2026-10-01)
+
+
+### Features
+
+* **ai:** pause billable AI while an AI credit hold applies, with warn-only or enforced allowances per contract ([#30380](https://github.com/lightdash/lightdash/issues/30380)) ([ecbe6c5](https://github.com/lightdash/lightdash/commit/ecbe6c529db79e94b4e86c1fc3167d5a5ca2dc5c))
+
 # [2.414.0](https://github.com/lightdash/lightdash/compare/2.413.0...2.414.0) (2026-10-01)
 
 

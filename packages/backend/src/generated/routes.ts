@@ -42197,6 +42197,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                allowanceMode: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['warn'] },
+                        { dataType: 'enum', enums: ['enforce'] },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },

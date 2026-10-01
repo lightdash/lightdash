@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.414.0",
-  "previousVersion": "2.413.0",
-  "releaseDate": "2026-10-01T20:59:39.873Z",
+  "version": "2.415.0",
+  "previousVersion": "2.414.0",
+  "releaseDate": "2026-10-01T21:20:26.969Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261001170000_add_allowance_mode_to_ai_credit_contracts.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_credit_contracts"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
