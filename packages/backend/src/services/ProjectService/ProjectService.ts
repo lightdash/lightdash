@@ -459,6 +459,7 @@ import {
 import {
     checkGoogleRefreshTokenCached,
     getBigquerySsoCredentials,
+    getPreviewOwnsBigquerySsoCredentials,
     getPushedPreviewCredentials,
     repairStalePreviewBigquerySso,
     type CheckGoogleRefreshToken,
@@ -1878,6 +1879,40 @@ export class ProjectService extends BaseService {
         }
     }
 
+    private async recordPreviewCredentialOwnership({
+        previewProjectUuid,
+        upstreamProjectUuid,
+        previewCredentials,
+    }: {
+        previewProjectUuid: string;
+        upstreamProjectUuid: string;
+        previewCredentials: CreateWarehouseCredentials;
+    }): Promise<void> {
+        try {
+            const previewOwnsCredentials = getPreviewOwnsBigquerySsoCredentials(
+                {
+                    previewCredentials,
+                    upstreamCredentials:
+                        await this.projectModel.getWarehouseCredentialsForBinding(
+                            upstreamProjectUuid,
+                            { kind: 'original' },
+                        ),
+                },
+            );
+            if (previewOwnsCredentials === null) return;
+            await this.projectModel.setPreviewOwnsCredentials(
+                previewProjectUuid,
+                previewOwnsCredentials,
+            );
+        } catch (error) {
+            this.logger.error('Failed to record preview credential ownership', {
+                projectUuid: previewProjectUuid,
+                upstreamProjectUuid,
+                error: getErrorMessage(error),
+            });
+        }
+    }
+
     protected async repairStalePreviewSsoCredentials(
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
@@ -1889,7 +1924,8 @@ export class ProjectService extends BaseService {
             !preview.upstreamProjectUuid ||
             !(await this.isPreviewSsoCredentialSyncEnabled(
                 preview.organizationUuid,
-            ))
+            )) ||
+            (await this.projectModel.getPreviewOwnsCredentials(projectUuid))
         ) {
             return credentials;
         }
@@ -4051,6 +4087,16 @@ export class ProjectService extends BaseService {
                 previewProjectUuid: projectUuid,
                 warehouseConnectionUuidMap: connectionMap?.uuids ?? new Map(),
             });
+            if (
+                createProject.warehouseConnection &&
+                !createProject.organizationWarehouseCredentialsUuid
+            ) {
+                await this.recordPreviewCredentialOwnership({
+                    previewProjectUuid: projectUuid,
+                    upstreamProjectUuid: createProject.upstreamProjectUuid,
+                    previewCredentials: createProject.warehouseConnection,
+                });
+            }
         }
 
         const onboardingFlow = await this.getOnboardingFlow(user);
@@ -5107,6 +5153,17 @@ export class ProjectService extends BaseService {
             savedProject,
             updatedProject,
         });
+        if (
+            savedProject.type === ProjectType.PREVIEW &&
+            savedProject.upstreamProjectUuid &&
+            !updatedProject.organizationWarehouseCredentialsUuid
+        ) {
+            await this.recordPreviewCredentialOwnership({
+                previewProjectUuid: projectUuid,
+                upstreamProjectUuid: savedProject.upstreamProjectUuid,
+                previewCredentials: updatedProject.warehouseConnection,
+            });
+        }
 
         if (
             savedProject.type !== ProjectType.PREVIEW &&
@@ -5274,6 +5331,17 @@ export class ProjectService extends BaseService {
             savedProject,
             updatedProject,
         });
+        if (
+            savedProject.type === ProjectType.PREVIEW &&
+            savedProject.upstreamProjectUuid &&
+            !updatedProject.organizationWarehouseCredentialsUuid
+        ) {
+            await this.recordPreviewCredentialOwnership({
+                previewProjectUuid: projectUuid,
+                upstreamProjectUuid: savedProject.upstreamProjectUuid,
+                previewCredentials: updatedProject.warehouseConnection,
+            });
+        }
 
         if (
             savedProject.type !== ProjectType.PREVIEW &&

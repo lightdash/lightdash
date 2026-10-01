@@ -12432,6 +12432,7 @@ describe('preview BigQuery SSO credentials', () => {
 
     let syncEnabled = true;
     const stored = new Map<string, CreateWarehouseCredentials>();
+    const previewOwns = new Map<string, boolean>();
     const tokenStatus = new Map<string, 'valid' | 'rejected'>();
     const checkRefreshToken = vi.fn<CheckGoogleRefreshToken>(
         async (keyfile) => tokenStatus.get(keyfile.refresh_token) ?? 'valid',
@@ -12479,8 +12480,19 @@ describe('preview BigQuery SSO credentials', () => {
         getWithSensitiveFields: vi.fn(async (projectUuid: string) => ({
             ...projectWithSensitiveFields,
             projectUuid,
+            ...(projectUuid === previewProjectUuid
+                ? { type: ProjectType.PREVIEW, upstreamProjectUuid }
+                : {}),
             warehouseConnection: stored.get(projectUuid),
         })),
+        getPreviewOwnsCredentials: vi.fn(
+            async (projectUuid: string) => previewOwns.get(projectUuid) ?? null,
+        ),
+        setPreviewOwnsCredentials: vi.fn(
+            async (projectUuid: string, owns: boolean) => {
+                previewOwns.set(projectUuid, owns);
+            },
+        ),
         update: vi.fn(async (projectUuid: string, data: UpdateProject) => {
             stored.set(projectUuid, data.warehouseConnection);
         }),
@@ -12524,6 +12536,7 @@ describe('preview BigQuery SSO credentials', () => {
         vi.clearAllMocks();
         syncEnabled = true;
         stored.clear();
+        previewOwns.clear();
         tokenStatus.clear();
         stored.set(upstreamProjectUuid, bigquerySso('token-a'));
         stored.set(previewProjectUuid, bigquerySso('token-a'));
@@ -12608,6 +12621,29 @@ describe('preview BigQuery SSO credentials', () => {
 
         expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-c');
         expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe('token-c');
+    });
+
+    test('the repair skips a preview that owns its credential', async () => {
+        stored.set(upstreamProjectUuid, bigquerySso('token-b'));
+        previewOwns.set(previewProjectUuid, true);
+        tokenStatus.set('token-a', 'rejected');
+
+        expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-a');
+        expect(checkRefreshToken).not.toHaveBeenCalled();
+        expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
+    });
+
+    test('saving a credential on the preview records whether the preview owns it', async () => {
+        const saveOnPreview = (refreshToken: string) =>
+            service.updateWarehouseCredentials(previewProjectUuid, account, {
+                warehouseConnection: bigquerySso(refreshToken),
+            });
+
+        await saveOnPreview('own-token');
+        expect(previewOwns.get(previewProjectUuid)).toBe(true);
+
+        await saveOnPreview('token-a');
+        expect(previewOwns.get(previewProjectUuid)).toBe(false);
     });
 
     test('a stale preview whose parent sign-in expired too names the parent project', async () => {

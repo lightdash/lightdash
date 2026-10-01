@@ -82,6 +82,23 @@ export const getPushedPreviewCredentials = ({
     return withKeyfile(preview.credentials, next.credentials.keyfileContents);
 };
 
+export const getPreviewOwnsBigquerySsoCredentials = ({
+    previewCredentials,
+    upstreamCredentials,
+}: {
+    previewCredentials: CreateWarehouseCredentials;
+    upstreamCredentials: CreateWarehouseCredentials;
+}): boolean | null => {
+    const preview = getBigquerySsoCredentials(previewCredentials);
+    if (!preview) return null;
+    const upstream = getBigquerySsoCredentials(upstreamCredentials);
+    return (
+        upstream === null ||
+        preview.clientId !== upstream.clientId ||
+        preview.refreshToken !== upstream.refreshToken
+    );
+};
+
 export const repairStalePreviewBigquerySso = async ({
     previewCredentials,
     upstreamCredentials,
