@@ -1,3 +1,15 @@
+# [2.407.0](https://github.com/lightdash/lightdash/compare/2.406.2...2.407.0) (2026-10-01)
+
+
+### Bug Fixes
+
+* **previews:** push a parent's new sign-in to previews in the save transaction ([#30346](https://github.com/lightdash/lightdash/issues/30346)) ([387ed88](https://github.com/lightdash/lightdash/commit/387ed88de4d5d3c247fea5a8362d927a3d2541aa))
+
+
+### Features
+
+* **auth:** let /api/v1/health recognise a token-authenticated caller ([#30343](https://github.com/lightdash/lightdash/issues/30343)) ([3d279f9](https://github.com/lightdash/lightdash/commit/3d279f99278e6abea03e1627730d8237ca3f1b0b))
+
 ## [2.406.2](https://github.com/lightdash/lightdash/compare/2.406.1...2.406.2) (2026-10-01)
 
 
