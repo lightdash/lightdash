@@ -41,7 +41,11 @@ const ConfirmationCallout: FC<{
                 so check it before you test.
             </Text>
             <Box>
-                <Button size="xs" onClick={() => onUse(issue)}>
+                <Button
+                    size="xs"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => onUse(issue)}
+                >
                     Use {issue.result.proposed}
                 </Button>
             </Box>
