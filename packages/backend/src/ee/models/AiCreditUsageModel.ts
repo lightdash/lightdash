@@ -1,13 +1,16 @@
 import {
     AI_BILLABLE_FEATURES,
+    assertUnreachable,
     calculateAiCredits,
     findAiCreditRate,
     getAiCreditContractWindow,
     isAiCreditAllowanceAlertPlanSettled,
     planAiCreditAllowanceAlerts,
     type AiCreditAllowanceAlertRecord,
+    type AiCreditDailyUsage,
     type AiCreditPeriod,
     type AiCreditRateCardRow,
+    type AiCreditUsageBreakdown,
     type AiCreditUsageBreakdownRow,
     type AiCreditUsageSummary,
     type AiCreditUsageTotals,
@@ -23,13 +26,24 @@ import {
     AiUsageLedgerTableName,
     type DbAiUsageLedger,
 } from '../../database/entities/aiUsageLedger';
+import { EmailTableName } from '../../database/entities/emails';
+import { OrganizationTableName } from '../../database/entities/organizations';
+import { ProjectTableName } from '../../database/entities/projects';
+import { UserTableName } from '../../database/entities/users';
 import Logger from '../../logging/logger';
+import { AiAgentTableName } from '../database/entities/aiAgent';
 import { type AiCreditAllowanceAlertModel } from './AiCreditAllowanceAlertModel';
 import {
     hasAllowance,
     type AiCreditContractModel,
     type AiCreditContractWithAllowance,
 } from './AiCreditContractModel';
+import {
+    breakdownHasNames,
+    buildAiCreditDailyUsage,
+    type AiCreditDailyUsageBucket,
+    type AiCreditDailyUsageEntry,
+} from './aiCreditDailyUsage';
 import { type AiCreditHoldModel } from './AiCreditHoldModel';
 import { type AiCreditRateCardModel } from './AiCreditRateCardModel';
 
@@ -78,6 +92,34 @@ export type LedgerUsageGroup = {
     output_tokens: string;
     cache_read_tokens: string;
     cache_write_tokens: string;
+};
+
+export type LedgerDailyUsageGroup = PricedTokenGroup & {
+    day: string;
+    breakdown_key: string | null;
+    is_embedded_viewer: boolean;
+};
+
+const BREAKDOWN_COLUMNS: Record<AiCreditUsageBreakdown, keyof DbAiUsageLedger> =
+    {
+        feature: 'feature',
+        channel: 'usage_channel',
+        user: 'user_uuid',
+        project: 'project_uuid',
+        agent: 'agent_uuid',
+    };
+
+export const toDailyUsageBucket = (
+    breakdown: AiCreditUsageBreakdown,
+    group: Pick<LedgerDailyUsageGroup, 'breakdown_key' | 'is_embedded_viewer'>,
+): AiCreditDailyUsageBucket => {
+    // Every embedded viewer acts as the embed's service user, so their calls are grouped rather than listed.
+    if (breakdown === 'user' && group.is_embedded_viewer) {
+        return { type: 'embeddedViewers' };
+    }
+    return group.breakdown_key === null
+        ? { type: 'unattributed' }
+        : { type: 'value', key: group.breakdown_key };
 };
 
 export type AiCreditUsageAccumulator = Pick<
@@ -135,12 +177,22 @@ export const toBreakdownRows = (
 // Rows recorded before the key origin or channel columns existed carry null there.
 const UNKNOWN_BREAKDOWN_KEY = 'unknown';
 
-export const accumulateUsage = (
+type PricedTokenGroup = Pick<
+    LedgerUsageGroup,
+    | 'provider'
+    | 'model'
+    | 'priced_at'
+    | 'uncached_input_tokens'
+    | 'output_tokens'
+    | 'cache_read_tokens'
+    | 'cache_write_tokens'
+>;
+
+/** Null when the rate card has no row for the group's model. */
+export const priceUsageGroup = (
     rateCard: AiCreditRateCardRow[],
-    acc: AiCreditUsageAccumulator,
-    group: LedgerUsageGroup,
-): AiCreditUsageAccumulator => {
-    const tokens = Number(group.total_tokens);
+    group: PricedTokenGroup,
+): { credits: number; tier: string } | null => {
     const rate =
         group.provider === null || group.model === null
             ? null
@@ -149,23 +201,35 @@ export const accumulateUsage = (
                   model: group.model,
                   at: group.priced_at,
               });
-    if (rate === null) {
+    if (rate === null) return null;
+    // The uncached input is clamped per call in SQL, so the tokens are passed pre-split.
+    const credits = calculateAiCredits(
+        {
+            inputTokens:
+                Number(group.uncached_input_tokens) +
+                Number(group.cache_read_tokens) +
+                Number(group.cache_write_tokens),
+            outputTokens: Number(group.output_tokens),
+            cacheReadTokens: Number(group.cache_read_tokens),
+            cacheWriteTokens: Number(group.cache_write_tokens),
+        },
+        rate,
+    );
+    return { credits, tier: rate.tier };
+};
+
+export const accumulateUsage = (
+    rateCard: AiCreditRateCardRow[],
+    acc: AiCreditUsageAccumulator,
+    group: LedgerUsageGroup,
+): AiCreditUsageAccumulator => {
+    const tokens = Number(group.total_tokens);
+    const priced = priceUsageGroup(rateCard, group);
+    if (priced === null) {
         return { ...acc, unpricedTokens: acc.unpricedTokens + tokens };
     }
-    // The uncached input is clamped per call in SQL, so the tokens are passed pre-split.
     const totals: AiCreditUsageTotals = {
-        credits: calculateAiCredits(
-            {
-                inputTokens:
-                    Number(group.uncached_input_tokens) +
-                    Number(group.cache_read_tokens) +
-                    Number(group.cache_write_tokens),
-                outputTokens: Number(group.output_tokens),
-                cacheReadTokens: Number(group.cache_read_tokens),
-                cacheWriteTokens: Number(group.cache_write_tokens),
-            },
-            rate,
-        ),
+        credits: priced.credits,
         tokens,
         calls: Number(group.calls),
     };
@@ -184,7 +248,7 @@ export const accumulateUsage = (
             ...acc,
             billable: addTotals(acc.billable, totals),
             byFeature: addKeyed(acc.byFeature, group.feature, totals),
-            byTier: addKeyed(acc.byTier, rate.tier, totals),
+            byTier: addKeyed(acc.byTier, priced.tier, totals),
             byChannel: addKeyed(
                 acc.byChannel,
                 group.usage_channel ?? UNKNOWN_BREAKDOWN_KEY,
@@ -241,21 +305,44 @@ export class AiCreditUsageModel {
         this.allowanceAlertModel = allowanceAlertModel;
     }
 
+    private rateSegment(rateBoundaries: Date[]): Knex.Raw {
+        return rateBoundaries.length === 0
+            ? this.database.raw('0')
+            : this.database.raw(
+                  `width_bucket(created_at, ARRAY[${rateBoundaries
+                      .map(() => '?')
+                      .join(', ')}]::timestamptz[])`,
+                  rateBoundaries,
+              );
+    }
+
+    private tokenAggregates(): Knex.Raw[] {
+        return [
+            this.database.raw('min(created_at) as priced_at'),
+            this.database.raw('count(*) as calls'),
+            this.database.raw('coalesce(sum(total_tokens), 0) as total_tokens'),
+            this.database.raw(
+                `coalesce(sum(greatest(coalesce(input_tokens, 0) - coalesce(cache_read_tokens, 0) - coalesce(cache_write_tokens, 0), 0)), 0) as uncached_input_tokens`,
+            ),
+            this.database.raw(
+                'coalesce(sum(output_tokens), 0) as output_tokens',
+            ),
+            this.database.raw(
+                'coalesce(sum(cache_read_tokens), 0) as cache_read_tokens',
+            ),
+            this.database.raw(
+                'coalesce(sum(cache_write_tokens), 0) as cache_write_tokens',
+            ),
+        ];
+    }
+
     // Pricing is linear in tokens, so calls sharing a model and a rate card segment can be summed before pricing.
     private async groupUsage(
         organizationUuid: string,
         period: AiCreditPeriod,
         rateBoundaries: Date[],
     ): Promise<LedgerUsageGroup[]> {
-        const rateSegment =
-            rateBoundaries.length === 0
-                ? this.database.raw('0')
-                : this.database.raw(
-                      `width_bucket(created_at, ARRAY[${rateBoundaries
-                          .map(() => '?')
-                          .join(', ')}]::timestamptz[])`,
-                      rateBoundaries,
-                  );
+        const rateSegment = this.rateSegment(rateBoundaries);
         return this.database(AiUsageLedgerTableName)
             .select(
                 'feature',
@@ -264,23 +351,7 @@ export class AiCreditUsageModel {
                 'usage_channel',
                 'provider',
                 'model',
-                this.database.raw('min(created_at) as priced_at'),
-                this.database.raw('count(*) as calls'),
-                this.database.raw(
-                    'coalesce(sum(total_tokens), 0) as total_tokens',
-                ),
-                this.database.raw(
-                    `coalesce(sum(greatest(coalesce(input_tokens, 0) - coalesce(cache_read_tokens, 0) - coalesce(cache_write_tokens, 0), 0)), 0) as uncached_input_tokens`,
-                ),
-                this.database.raw(
-                    'coalesce(sum(output_tokens), 0) as output_tokens',
-                ),
-                this.database.raw(
-                    'coalesce(sum(cache_read_tokens), 0) as cache_read_tokens',
-                ),
-                this.database.raw(
-                    'coalesce(sum(cache_write_tokens), 0) as cache_write_tokens',
-                ),
+                ...this.tokenAggregates(),
             )
             .where({ organization_uuid: organizationUuid })
             .where('created_at', '>=', period.periodStart)
@@ -311,6 +382,152 @@ export class AiCreditUsageModel {
             (acc, group) => accumulateUsage(rateCard, acc, group),
             emptyAccumulator(),
         );
+    }
+
+    // Billable calls only, filtered in SQL with the same rule as isAiUsageBillable.
+    private async groupBillableUsageByDay(
+        organizationUuid: string,
+        period: AiCreditPeriod,
+        breakdown: AiCreditUsageBreakdown,
+        rateBoundaries: Date[],
+    ): Promise<LedgerDailyUsageGroup[]> {
+        const day = this.database.raw(
+            `to_char(created_at at time zone 'UTC', 'YYYY-MM-DD')`,
+        );
+        const embedded = this.database.raw('(external_user_id is not null)');
+        const column = BREAKDOWN_COLUMNS[breakdown];
+        return (
+            this.database(AiUsageLedgerTableName)
+                .select(
+                    this.database.raw(`${day.toQuery()} as day`),
+                    `${column} as breakdown_key`,
+                    this.database.raw(
+                        `${embedded.toQuery()} as is_embedded_viewer`,
+                    ),
+                    'provider',
+                    'model',
+                    ...this.tokenAggregates(),
+                )
+                .where({
+                    organization_uuid: organizationUuid,
+                    key_management: BILLABLE_KEY_MANAGEMENT,
+                    outcome: BILLABLE_OUTCOME,
+                })
+                .whereIn('feature', BILLABLE_FEATURE_LIST)
+                .where('created_at', '>=', period.periodStart)
+                .where('created_at', '<', period.periodEnd)
+                // Plain columns first: knex drops the rest when the first argument is a raw expression.
+                .groupBy(
+                    column,
+                    'provider',
+                    'model',
+                    day,
+                    embedded,
+                    this.rateSegment(rateBoundaries),
+                )
+        );
+    }
+
+    // Names are scoped to the organization; a key with no row here was deleted.
+    private async findBreakdownNames(
+        organizationUuid: string,
+        breakdown: AiCreditUsageBreakdown,
+        keys: string[],
+    ): Promise<Map<string, string>> {
+        if (keys.length === 0) return new Map();
+        switch (breakdown) {
+            case 'user': {
+                const rows: { key: string; name: string }[] =
+                    await this.database(UserTableName)
+                        .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                            this.on(
+                                `${EmailTableName}.user_id`,
+                                '=',
+                                `${UserTableName}.user_id`,
+                            ).andOnVal(`${EmailTableName}.is_primary`, true);
+                        })
+                        .whereIn(`${UserTableName}.user_uuid`, keys)
+                        .select(
+                            `${UserTableName}.user_uuid as key`,
+                            this.database.raw(
+                                `coalesce(nullif(trim(concat_ws(' ', ${UserTableName}.first_name, ${UserTableName}.last_name)), ''), ${EmailTableName}.email, 'Unnamed user') as name`,
+                            ),
+                        );
+                return new Map(rows.map(({ key, name }) => [key, name]));
+            }
+            case 'project': {
+                const rows: { key: string; name: string }[] =
+                    await this.database(ProjectTableName)
+                        .innerJoin(
+                            OrganizationTableName,
+                            `${OrganizationTableName}.organization_id`,
+                            `${ProjectTableName}.organization_id`,
+                        )
+                        .where(
+                            `${OrganizationTableName}.organization_uuid`,
+                            organizationUuid,
+                        )
+                        .whereIn(`${ProjectTableName}.project_uuid`, keys)
+                        .select(
+                            `${ProjectTableName}.project_uuid as key`,
+                            `${ProjectTableName}.name as name`,
+                        );
+                return new Map(rows.map(({ key, name }) => [key, name]));
+            }
+            case 'agent': {
+                const rows: { key: string; name: string }[] =
+                    await this.database(AiAgentTableName)
+                        .where('organization_uuid', organizationUuid)
+                        .whereIn('ai_agent_uuid', keys)
+                        .select('ai_agent_uuid as key', 'name');
+                return new Map(rows.map(({ key, name }) => [key, name]));
+            }
+            case 'feature':
+            case 'channel':
+                return new Map();
+            default:
+                return assertUnreachable(
+                    breakdown,
+                    `Unknown AI credit usage breakdown ${breakdown}`,
+                );
+        }
+    }
+
+    /** Billable credits per UTC day of the period, split by one breakdown. */
+    async summarizeByDay(
+        organizationUuid: string,
+        period: AiCreditPeriod,
+        breakdown: AiCreditUsageBreakdown,
+    ): Promise<AiCreditDailyUsage> {
+        const rateCard = await this.rateCardModel.getAll();
+        const groups = await this.groupBillableUsageByDay(
+            organizationUuid,
+            period,
+            breakdown,
+            toRateBoundaries(rateCard),
+        );
+        const entries = groups.flatMap<AiCreditDailyUsageEntry>((group) => {
+            const priced = priceUsageGroup(rateCard, group);
+            return priced === null
+                ? []
+                : [
+                      {
+                          date: group.day,
+                          bucket: toDailyUsageBucket(breakdown, group),
+                          credits: priced.credits,
+                      },
+                  ];
+        });
+        const names = breakdownHasNames(breakdown)
+            ? await this.findBreakdownNames(organizationUuid, breakdown, [
+                  ...new Set(
+                      entries.flatMap(({ bucket }) =>
+                          bucket.type === 'value' ? [bucket.key] : [],
+                      ),
+                  ),
+              ])
+            : null;
+        return buildAiCreditDailyUsage({ period, breakdown, entries, names });
     }
 
     // The hold decision reads the same billable figure the usage card shows.

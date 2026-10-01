@@ -1,3 +1,29 @@
+# [2.412.0](https://github.com/lightdash/lightdash/compare/2.411.0...2.412.0) (2026-10-01)
+
+
+### Features
+
+* **chart-types:** make generated chart types fit small tiles ([#30360](https://github.com/lightdash/lightdash/issues/30360)) ([0b74192](https://github.com/lightdash/lightdash/commit/0b74192528e09ed8341c5b2b70f60ef0c869b180))
+
+# [2.411.0](https://github.com/lightdash/lightdash/compare/2.410.0...2.411.0) (2026-10-01)
+
+
+### Features
+
+* **ai:** report an organization's daily AI credit usage by feature, channel, user, project or agent ([#30302](https://github.com/lightdash/lightdash/issues/30302)) ([1754835](https://github.com/lightdash/lightdash/commit/175483537646f8e685a52e62ba64ee3b502a6113))
+
+# [2.410.0](https://github.com/lightdash/lightdash/compare/2.409.0...2.410.0) (2026-10-01)
+
+
+### Features
+
+* **embed:** let embedders hide the AI agent Debug panel ([#30357](https://github.com/lightdash/lightdash/issues/30357)) ([301c5f1](https://github.com/lightdash/lightdash/commit/301c5f1a5fa9ffdf16ba9761e9573cbe84287f1f))
+
+
+### Reverts
+
+* write documents without extended thinking ([#30276](https://github.com/lightdash/lightdash/issues/30276)) ([#30363](https://github.com/lightdash/lightdash/issues/30363)) ([66555ed](https://github.com/lightdash/lightdash/commit/66555edcc6f4bcb7c1fa5cd526cebab30953e6a4))
+
 # [2.409.0](https://github.com/lightdash/lightdash/compare/2.408.1...2.409.0) (2026-10-01)
 
 

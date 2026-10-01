@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
     createClient,
     LightdashProvider,
+    useVizContext,
     VizContextProvider,
 } from '@lightdash/query-sdk';
 import { FilterProvider } from '@/lib/filters';
@@ -33,6 +34,16 @@ const lightdash = createClient();
 
 initScreenshotHandler();
 
+// A chart type renders in a frame the size of its tile; a page app grows.
+// Only a chart type receives a viz context, so mark the document for index.css.
+function VizFrame() {
+    const { ready } = useVizContext();
+    React.useEffect(() => {
+        document.documentElement.toggleAttribute('data-viz-frame', ready);
+    }, [ready]);
+    return null;
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <QueryClientProvider client={queryClient}>
@@ -40,6 +51,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <FilterProvider>
                     <ErrorBoundary>
                         <VizContextProvider>
+                            <VizFrame />
                             <App />
                         </VizContextProvider>
                     </ErrorBoundary>

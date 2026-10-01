@@ -4,6 +4,10 @@ import {
     ForbiddenError,
     getAiCreditContractWindow,
     getCalendarMonthPeriod,
+    type AiCreditContract,
+    type AiCreditDailyUsage,
+    type AiCreditPeriod,
+    type AiCreditUsageBreakdown,
     type AiCreditUsageSummary,
     type SessionUser,
 } from '@lightdash/common';
@@ -18,7 +22,10 @@ import {
 
 type Dependencies = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-    aiCreditUsageModel: Pick<AiCreditUsageModel, 'summarize'>;
+    aiCreditUsageModel: Pick<
+        AiCreditUsageModel,
+        'summarize' | 'summarizeByDay'
+    >;
     aiCreditContractModel: Pick<AiCreditContractModel, 'find'>;
     aiCreditHoldModel: Pick<AiCreditHoldModel, 'findActive'>;
 };
@@ -26,7 +33,10 @@ type Dependencies = {
 export class AiCreditService extends BaseService {
     private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 
-    private readonly aiCreditUsageModel: Pick<AiCreditUsageModel, 'summarize'>;
+    private readonly aiCreditUsageModel: Pick<
+        AiCreditUsageModel,
+        'summarize' | 'summarizeByDay'
+    >;
 
     private readonly aiCreditContractModel: Pick<AiCreditContractModel, 'find'>;
 
@@ -64,24 +74,62 @@ export class AiCreditService extends BaseService {
         }
     }
 
-    async getOrganizationUsage(
+    private async assertCanViewOrganizationUsage(
         user: SessionUser,
-        now: Date = new Date(),
-    ): Promise<AiCreditUsageSummary> {
+    ): Promise<string> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
         await this.assertCanViewUsage(user, organizationUuid);
+        return organizationUuid;
+    }
 
+    // The contract window containing now, or the calendar month when no contract is in force.
+    private async findCurrentPeriod(
+        organizationUuid: string,
+        now: Date,
+    ): Promise<{
+        period: AiCreditPeriod;
+        contractInForce: AiCreditContract | undefined;
+    }> {
         const contract =
             await this.aiCreditContractModel.find(organizationUuid);
         const window =
             contract === undefined
                 ? null
                 : getAiCreditContractWindow(contract, now);
-        const contractInForce = window === null ? undefined : contract;
-        const period = window ?? getCalendarMonthPeriod(now);
+        return {
+            period: window ?? getCalendarMonthPeriod(now),
+            contractInForce: window === null ? undefined : contract,
+        };
+    }
+
+    async getOrganizationDailyUsage(
+        user: SessionUser,
+        breakdown: AiCreditUsageBreakdown,
+        now: Date = new Date(),
+    ): Promise<AiCreditDailyUsage> {
+        const organizationUuid =
+            await this.assertCanViewOrganizationUsage(user);
+        const { period } = await this.findCurrentPeriod(organizationUuid, now);
+        return this.aiCreditUsageModel.summarizeByDay(
+            organizationUuid,
+            period,
+            breakdown,
+        );
+    }
+
+    async getOrganizationUsage(
+        user: SessionUser,
+        now: Date = new Date(),
+    ): Promise<AiCreditUsageSummary> {
+        const organizationUuid =
+            await this.assertCanViewOrganizationUsage(user);
+        const { period, contractInForce } = await this.findCurrentPeriod(
+            organizationUuid,
+            now,
+        );
         const [usage, activeHolds] = await Promise.all([
             this.aiCreditUsageModel.summarize(organizationUuid, period),
             this.aiCreditHoldModel.findActive(organizationUuid, now),
