@@ -1,6 +1,9 @@
+import { OrganizationJoinRequestStatus } from '@lightdash/common';
 import { Divider, Stack, Text } from '@mantine/core';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
+import { Navigate } from 'react-router';
 import { useOrganizationLanding } from '../../hooks/organization/useOrganizationLanding';
+import useApp from '../../providers/App/useApp';
 import AuthLayout from '../common/AuthLayout';
 import Callout from '../common/Callout';
 import PageSpinner from '../PageSpinner';
@@ -14,9 +17,32 @@ import {
 } from './organizationLandingCopy';
 import { RequestToJoinCard } from './RequestToJoinCard';
 
-export const OrganizationLanding: FC = () => {
-    const landing = useOrganizationLanding(true);
+const APPROVAL_POLL_MS = 15_000;
 
+export const OrganizationLanding: FC = () => {
+    const { user } = useApp();
+    const hasOrganization = !!user.data?.organizationUuid;
+    const landing = useOrganizationLanding(!hasOrganization);
+    const hasPendingRequest =
+        landing.data?.requestable.some(
+            (match) =>
+                match.joinRequest?.status ===
+                OrganizationJoinRequestStatus.PENDING,
+        ) ?? false;
+    const refetchUser = user.refetch;
+
+    useEffect(() => {
+        if (!hasPendingRequest) return undefined;
+        const interval = window.setInterval(
+            () => void refetchUser(),
+            APPROVAL_POLL_MS,
+        );
+        return () => window.clearInterval(interval);
+    }, [hasPendingRequest, refetchUser]);
+
+    if (hasOrganization) {
+        return <Navigate to="/" replace />;
+    }
     if (landing.isInitialLoading) {
         return <PageSpinner />;
     }
