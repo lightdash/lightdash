@@ -1661,6 +1661,75 @@ describe('Filter SQL', () => {
         ).toBe(stringFilterRuleMocks.endsWithFilterWithNoValSQL);
     });
 
+    test.each<[FilterOperator, string[], boolean, string]>([
+        [
+            FilterOperator.NOT_STARTS_WITH,
+            ['Bob'],
+            true,
+            "((field_name) NOT LIKE 'Bob%' OR (field_name) IS NULL)",
+        ],
+        [
+            FilterOperator.NOT_ENDS_WITH,
+            ['Bob'],
+            true,
+            "((field_name) NOT LIKE '%Bob' OR (field_name) IS NULL)",
+        ],
+        [
+            FilterOperator.NOT_STARTS_WITH,
+            ["Bob's", '', "Tom's"],
+            false,
+            "(UPPER(field_name) NOT LIKE 'BOB''S%'\n  AND\n  UPPER(field_name) NOT LIKE 'TOM''S%' OR (field_name) IS NULL)",
+        ],
+        [
+            FilterOperator.NOT_ENDS_WITH,
+            ["Bob's", '', "Tom's"],
+            false,
+            "(UPPER(field_name) NOT LIKE '%BOB''S'\n  AND\n  UPPER(field_name) NOT LIKE '%TOM''S' OR (field_name) IS NULL)",
+        ],
+    ])(
+        'compiles %s values %j with caseSensitive=%s and retains null rows',
+        (operator, values, caseSensitive, expectedSql) => {
+            expect(
+                renderFilterRuleSql(
+                    {
+                        id: 'test',
+                        target: { fieldId: 'test' },
+                        operator,
+                        values,
+                    },
+                    DimensionType.STRING,
+                    'field_name',
+                    "'",
+                    (value) => value.replaceAll("'", "''"),
+                    WeekDay.MONDAY,
+                    SupportedDbtAdapter.POSTGRES,
+                    'UTC',
+                    caseSensitive,
+                ),
+            ).toBe(expectedSql);
+        },
+    );
+
+    test.each([FilterOperator.NOT_STARTS_WITH, FilterOperator.NOT_ENDS_WITH])(
+        'treats %s without nonempty values as a no-op',
+        (operator) => {
+            [undefined, [], ['']].forEach((values) => {
+                expect(
+                    renderStringFilterSql(
+                        'field_name',
+                        {
+                            id: 'test',
+                            target: { fieldId: 'test' },
+                            operator,
+                            values,
+                        },
+                        "'",
+                    ),
+                ).toBe('true');
+            });
+        },
+    );
+
     describe('case sensitivity hierarchy', () => {
         const caseFilter: FilterRule = {
             id: '1',

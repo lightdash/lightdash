@@ -33,7 +33,9 @@ Grammar: <field> <operator form>
 - \`equals=<value>[,<value>...] [1+ values]\`
 - \`notEquals=<value>[,<value>...] [1+ values]\`
 - \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`doesNotStartWith=<value>[,<value>...] [1+ values]\`
 - \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`doesNotEndWith=<value>[,<value>...] [1+ values]\`
 - \`include=<value>[,<value>...] [1+ values]\`
 - \`doesNotInclude=<value>[,<value>...] [1+ values]\`
 

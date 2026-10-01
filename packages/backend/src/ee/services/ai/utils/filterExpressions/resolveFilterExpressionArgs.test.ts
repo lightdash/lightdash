@@ -2050,7 +2050,7 @@ describe('strict expression value interpretation', () => {
             filterType: FilterType.STRING,
             expression: 'orders_product_category greaterThan=1',
             guidance:
-                'Use a supported string operator (isNull, notNull, equals, notEquals, startsWith, endsWith, include, doesNotInclude), or move the rule to a field of a matching type.',
+                'Use a supported string operator (isNull, notNull, equals, notEquals, startsWith, doesNotStartWith, endsWith, doesNotEndWith, include, doesNotInclude), or move the rule to a field of a matching type.',
         },
         {
             filterType: FilterType.NUMBER,

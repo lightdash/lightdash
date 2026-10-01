@@ -320,6 +320,8 @@ describe('parseFilterExpression', () => {
         FilterOperator.NOT_EQUALS,
         FilterOperator.NOT_IN_THE_PAST,
         FilterOperator.NOT_IN_THE_CURRENT,
+        FilterOperator.NOT_STARTS_WITH,
+        FilterOperator.NOT_ENDS_WITH,
     ])('parses prefix-sensitive operator %s', (operator) => {
         expect(withoutSpans(`field ${operator}=value`)).toMatchObject({
             rules: [{ operator }],
@@ -413,7 +415,9 @@ describe('filter expression operator definitions', () => {
             FilterOperator.EQUALS,
             FilterOperator.NOT_EQUALS,
             FilterOperator.STARTS_WITH,
+            FilterOperator.NOT_STARTS_WITH,
             FilterOperator.ENDS_WITH,
+            FilterOperator.NOT_ENDS_WITH,
             FilterOperator.INCLUDE,
             FilterOperator.NOT_INCLUDE,
             FilterOperator.LESS_THAN,

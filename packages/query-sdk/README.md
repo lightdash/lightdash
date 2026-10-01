@@ -104,7 +104,7 @@ lightdash
 metric can be used only as a filter and does not need to be selected with
 `.metrics()`.
 
-Supported filter operators: `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`, `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent`, `inBetween`, `notInBetween`, `isNull`, `notNull`, `startsWith`, `endsWith`, `include`, `doesNotInclude`.
+Supported filter operators: `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`, `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent`, `inBetween`, `notInBetween`, `isNull`, `notNull`, `startsWith`, `doesNotStartWith`, `endsWith`, `doesNotEndWith`, `include`, `doesNotInclude`.
 
 ## Parameters
 
@@ -145,19 +145,19 @@ strings, numbers, or arrays of either. They are sent at the top level of the API
 
 `useLightdash(query)` returns:
 
-| Field     | Type            | Description                                                      |
-| --------- | --------------- | ---------------------------------------------------------------- |
-| `data`    | `Row[]`         | Array of flat objects. Numbers are numbers, strings are strings. |
-| `columns` | `Column[]`      | Field metadata for returned rows.                                |
-| `format`  | `(row, fieldName) => string` | Server-formatted value for a field.                  |
-| `totalResults` | `number \| null` | Total rows returned by the loaded source query. |
-| `loading` | `boolean`       | True while the query is running.                                 |
-| `error`   | `Error \| null` | Error if the query failed.                                       |
-| `refetch` | `() => void`    | Re-run the query.                                                |
-| `queryUuid` | `string \| null` | Async query UUID for the loaded source query.                 |
-| `getUnderlyingData` | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>` | Fetch raw rows behind an aggregated metric value. |
+| Field                    | Type                                                                                         | Description                                                                        |
+| ------------------------ | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `data`                   | `Row[]`                                                                                      | Array of flat objects. Numbers are numbers, strings are strings.                   |
+| `columns`                | `Column[]`                                                                                   | Field metadata for returned rows.                                                  |
+| `format`                 | `(row, fieldName) => string`                                                                 | Server-formatted value for a field.                                                |
+| `totalResults`           | `number \| null`                                                                             | Total rows returned by the loaded source query.                                    |
+| `loading`                | `boolean`                                                                                    | True while the query is running.                                                   |
+| `error`                  | `Error \| null`                                                                              | Error if the query failed.                                                         |
+| `refetch`                | `() => void`                                                                                 | Re-run the query.                                                                  |
+| `queryUuid`              | `string \| null`                                                                             | Async query UUID for the loaded source query.                                      |
+| `getUnderlyingData`      | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>`                                 | Fetch raw rows behind an aggregated metric value.                                  |
 | `downloadUnderlyingData` | `({ row, metric, fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for raw rows behind an aggregated metric value. |
-| `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for this query. |
+| `downloadResults`        | `({ fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>`              | Schedule a backend CSV/XLSX export for this query.                                 |
 
 ## Underlying data
 
@@ -321,14 +321,14 @@ Hiding the controls does not change stored bounds or the SDK scale behavior.
 
 ```json
 {
-  "type": "gradient",
-  "name": "scale",
-  "label": "Colour scale",
-  "default": {
-    "colors": ["#2166ac", "#f7f7f7", "#b2182b"],
-    "min": "auto",
-    "max": "auto"
-  }
+    "type": "gradient",
+    "name": "scale",
+    "label": "Colour scale",
+    "default": {
+        "colors": ["#2166ac", "#f7f7f7", "#b2182b"],
+        "min": "auto",
+        "max": "auto"
+    }
 }
 ```
 
@@ -337,10 +337,16 @@ saved as colours, so changing the chart palette does not change saved stops.
 Each bound independently accepts `"auto"` or a finite number.
 
 ```tsx
-import { createGradientColorScale, getRaw, useVizContext } from '@lightdash/query-sdk';
+import {
+    createGradientColorScale,
+    getRaw,
+    useVizContext,
+} from '@lightdash/query-sdk';
 
 const context = useVizContext();
-const values = context.rows.map((row) => getRaw(row, context.fieldMapping.value));
+const values = context.rows.map((row) =>
+    getRaw(row, context.fieldMapping.value),
+);
 const colorForValue = createGradientColorScale(context.options.scale, values);
 const fill = colorForValue(values[0]) ?? '#888888';
 ```

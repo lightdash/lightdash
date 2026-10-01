@@ -44,7 +44,9 @@ const stringFilterExampleTemplates: FilterExampleTemplate[] = [
     { operator: FilterOperator.EQUALS, values: ['example'] },
     { operator: FilterOperator.NOT_EQUALS, values: ['excluded'] },
     { operator: FilterOperator.STARTS_WITH, values: ['prefix'] },
+    { operator: FilterOperator.NOT_STARTS_WITH, values: ['prefix'] },
     { operator: FilterOperator.ENDS_WITH, values: ['suffix'] },
+    { operator: FilterOperator.NOT_ENDS_WITH, values: ['suffix'] },
     { operator: FilterOperator.INCLUDE, values: ['contains'] },
     { operator: FilterOperator.NOT_INCLUDE, values: ['exclude'] },
 ];
@@ -217,7 +219,9 @@ const valuesTypeForOperator = (
         case FilterOperator.NOT_EQUALS:
             return primitive === 'boolean' ? '[boolean]' : `${primitive}[]`;
         case FilterOperator.STARTS_WITH:
+        case FilterOperator.NOT_STARTS_WITH:
         case FilterOperator.ENDS_WITH:
+        case FilterOperator.NOT_ENDS_WITH:
         case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
             return 'string[]';
@@ -292,7 +296,9 @@ const valuesCommentForOperator = (
         case FilterOperator.GREATER_THAN_OR_EQUAL:
             return ' // exactly one array value';
         case FilterOperator.STARTS_WITH:
+        case FilterOperator.NOT_STARTS_WITH:
         case FilterOperator.ENDS_WITH:
+        case FilterOperator.NOT_ENDS_WITH:
         case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
             return '';

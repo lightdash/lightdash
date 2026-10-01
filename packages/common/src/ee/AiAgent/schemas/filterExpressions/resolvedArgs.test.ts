@@ -81,6 +81,22 @@ const withoutGeneratedIds = (value: unknown): unknown => {
 };
 
 describe('filterExpressionResolvedFiltersSchema', () => {
+    it.each([FilterOperator.NOT_STARTS_WITH, FilterOperator.NOT_ENDS_WITH])(
+        'preserves %s and its values when validating string filters',
+        (operator) => {
+            expect(
+                filtersSchemaTransformed.parse({
+                    ...legacyFilters,
+                    dimensions: [
+                        { ...stringRule, operator, values: ['pre', 'post'] },
+                    ],
+                }).dimensions,
+            ).toMatchObject({
+                or: [{ operator, values: ['pre', 'post'] }],
+            });
+        },
+    );
+
     it('parses the strict per-category V2 shape', () => {
         expect(
             filterExpressionResolvedFiltersSchemaV2.parse(perCategoryFilters),

@@ -61,6 +61,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Pass metric filter rules to query(...).metricFilters([...]); keep dimension filter rules in .filters([...]).',
     },
     {
+        key: 'negated-prefix-suffix-filters',
+        appliesTo: ['data_app'],
+        label: 'Does not start with / does not end with',
+        description:
+            'Exclude rows whose string fields start or end with specified values, without excluding matches in the middle of the string.',
+        wiring: 'Pass doesNotStartWith or doesNotEndWith rules to query(...).filters([...]) or savedChart(...).filters([...]).',
+    },
+    {
         key: 'saved-chart',
         appliesTo: ['data_app'],
         label: 'Saved chart queries',

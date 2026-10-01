@@ -31,6 +31,15 @@ const visibleDimension: FilterableDimension = {
     hidden: false,
 };
 
+const stringDimension: FilterableDimension = {
+    ...visibleDimension,
+    type: DimensionType.STRING,
+    name: 'status',
+    label: 'Status',
+    sql: '${TABLE}.status',
+    filterAutocomplete: { fetchFromWarehouse: false },
+};
+
 const timestampDimension: FilterableDimension = {
     ...visibleDimension,
     type: DimensionType.TIMESTAMP,
@@ -45,9 +54,14 @@ const renderFilterRuleForm = (
     onChange = vi.fn(),
 ) => {
     renderWithProviders(
-        <FiltersProvider itemsMap={{}}>
+        <FiltersProvider itemsMap={{}} projectUuid="test-project">
             <FilterRuleForm
-                fields={[visibleDimension, hiddenDimension, timestampDimension]}
+                fields={[
+                    visibleDimension,
+                    hiddenDimension,
+                    timestampDimension,
+                    stringDimension,
+                ]}
                 filterRule={filterRule}
                 isEditMode
                 onChange={onChange}
@@ -137,6 +151,27 @@ describe('FilterRuleForm', () => {
         expect(
             screen.queryByRole('option', { name: hiddenDimension.label }),
         ).toBeNull();
+    });
+
+    it.each([
+        [FilterOperator.NOT_STARTS_WITH, 'does not start with'],
+        [FilterOperator.NOT_ENDS_WITH, 'does not end with'],
+    ])('lets users enter values for %s', async (operator, label) => {
+        const user = userEvent.setup();
+        const filterRule = {
+            ...createFilterRuleFromField(stringDimension),
+            operator,
+            values: [],
+        };
+        const { onChange } = renderFilterRuleForm(stringDimension, filterRule);
+
+        expect(screen.getByDisplayValue(label)).toBeEnabled();
+        await user.type(screen.getByRole('textbox'), 'test{Enter}');
+
+        expect(onChange).toHaveBeenCalledWith({
+            ...filterRule,
+            values: ['test'],
+        });
     });
 
     it('preserves a timestamp value when changing to is between', async () => {

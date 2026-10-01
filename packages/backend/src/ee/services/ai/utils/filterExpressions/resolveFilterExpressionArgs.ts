@@ -1124,7 +1124,9 @@ const resolveRule = ({
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
         case FilterOperator.STARTS_WITH:
+        case FilterOperator.NOT_STARTS_WITH:
         case FilterOperator.ENDS_WITH:
+        case FilterOperator.NOT_ENDS_WITH:
         case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
         case FilterOperator.LESS_THAN:

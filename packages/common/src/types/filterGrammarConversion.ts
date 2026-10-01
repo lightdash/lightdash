@@ -53,8 +53,16 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
             return [`!%${firstValue}%`];
         case FilterOperator.STARTS_WITH:
             return [`${firstValue}%`];
+        case FilterOperator.NOT_STARTS_WITH:
+            return validValues
+                .filter((value) => value !== '')
+                .map((value) => `!${value}%`);
         case FilterOperator.ENDS_WITH:
             return [`%${firstValue}`];
+        case FilterOperator.NOT_ENDS_WITH:
+            return validValues
+                .filter((value) => value !== '')
+                .map((value) => `!%${value}`);
         case FilterOperator.GREATER_THAN:
             return [`> ${firstValue}`];
         case FilterOperator.GREATER_THAN_OR_EQUAL:
@@ -120,6 +128,18 @@ export const convertMetricFilterToDbt = (
             const fieldRefParts = target.fieldRef.split('.');
             const fieldId =
                 fieldRefParts.length > 1 ? fieldRefParts[1] : target.fieldRef;
+            if (
+                [
+                    FilterOperator.NOT_STARTS_WITH,
+                    FilterOperator.NOT_ENDS_WITH,
+                ].includes(filter.operator)
+            ) {
+                // dbt value arrays mean equality, so exclusions need separate AND rules.
+                return [
+                    ...(acc || []),
+                    ...values.map((value) => ({ [fieldId]: value })),
+                ];
+            }
             const dbtFilters = {
                 [fieldId]: values.length > 1 ? values : values[0],
             };

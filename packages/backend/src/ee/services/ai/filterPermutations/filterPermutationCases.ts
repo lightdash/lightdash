@@ -248,7 +248,9 @@ const stringOperatorPhrases: Record<
     | FilterOperator.EQUALS
     | FilterOperator.NOT_EQUALS
     | FilterOperator.STARTS_WITH
+    | FilterOperator.NOT_STARTS_WITH
     | FilterOperator.ENDS_WITH
+    | FilterOperator.NOT_ENDS_WITH
     | FilterOperator.INCLUDE
     | FilterOperator.NOT_INCLUDE,
     string
@@ -256,7 +258,9 @@ const stringOperatorPhrases: Record<
     [FilterOperator.EQUALS]: 'equals',
     [FilterOperator.NOT_EQUALS]: 'does not equal',
     [FilterOperator.STARTS_WITH]: 'starts with',
+    [FilterOperator.NOT_STARTS_WITH]: 'does not start with',
     [FilterOperator.ENDS_WITH]: 'ends with',
+    [FilterOperator.NOT_ENDS_WITH]: 'does not end with',
     [FilterOperator.INCLUDE]: 'contains',
     [FilterOperator.NOT_INCLUDE]: 'does not contain',
 };
@@ -309,7 +313,9 @@ const stringSeeds: CaseSeed[] = [
             FilterOperator.EQUALS,
             FilterOperator.NOT_EQUALS,
             FilterOperator.STARTS_WITH,
+            FilterOperator.NOT_STARTS_WITH,
             FilterOperator.ENDS_WITH,
+            FilterOperator.NOT_ENDS_WITH,
             FilterOperator.INCLUDE,
             FilterOperator.NOT_INCLUDE,
         ] as const
