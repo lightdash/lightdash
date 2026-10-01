@@ -744,7 +744,9 @@ export class SchedulerWorker extends SchedulerTask {
                 options: {
                     queueName: 'usage-events-compaction',
                     backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
-                    maxAttempts: 3,
+                    // Let the next nightly run catch up instead of retrying
+                    // expensive compaction during business hours.
+                    maxAttempts: 1,
                 },
             },
             {
