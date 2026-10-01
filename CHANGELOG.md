@@ -1,3 +1,10 @@
+# [2.408.0](https://github.com/lightdash/lightdash/compare/2.407.2...2.408.0) (2026-10-01)
+
+
+### Features
+
+* **auth:** accept a token on the routes the web app calls on every page ([#30351](https://github.com/lightdash/lightdash/issues/30351)) ([5075916](https://github.com/lightdash/lightdash/commit/5075916391eacc2c659490960b3502d8e2fd044b)), closes [#30343](https://github.com/lightdash/lightdash/issues/30343)
+
 ## [2.407.2](https://github.com/lightdash/lightdash/compare/2.407.1...2.407.2) (2026-10-01)
 
 
