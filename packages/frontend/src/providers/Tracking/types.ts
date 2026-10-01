@@ -908,7 +908,7 @@ type NamePromptEvent = {
     name:
         | EventName.NAME_PROMPT_SHOWN
         | EventName.NAME_PROMPT_SAVED
-        | EventName.NAME_PROMPT_SKIPPED;
+        | EventName.NAME_PROMPT_CLOSED;
     properties: {
         organizationId: string;
         trigger: NamePromptTrigger;

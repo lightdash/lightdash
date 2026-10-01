@@ -10,15 +10,3 @@ export const NAME_PROMPT_REASONS: Record<NamePromptTrigger, string> = {
     share_space: 'The people you share with will see who shared it.',
     comment: 'Your colleagues will see who wrote the comment.',
 };
-
-const getSkipKey = (userUuid: string) => `name-prompt-skipped:${userUuid}`;
-
-export const hasSkippedNamePrompt = (
-    storage: Pick<Storage, 'getItem'>,
-    userUuid: string,
-): boolean => storage.getItem(getSkipKey(userUuid)) === 'true';
-
-export const rememberNamePromptSkipped = (
-    storage: Pick<Storage, 'setItem'>,
-    userUuid: string,
-): void => storage.setItem(getSkipKey(userUuid), 'true');

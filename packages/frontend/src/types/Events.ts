@@ -245,7 +245,7 @@ export enum EventName {
     AGENT_ONBOARDING_DEMO_OFFER_SHOWN = 'agent_onboarding_demo_offer.shown',
     NAME_PROMPT_SHOWN = 'name_prompt.shown',
     NAME_PROMPT_SAVED = 'name_prompt.saved',
-    NAME_PROMPT_SKIPPED = 'name_prompt.skipped',
+    NAME_PROMPT_CLOSED = 'name_prompt.closed',
     AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED = 'agent_onboarding_demo_offer.accepted',
     AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN = 'agent_onboarding_completion_toast.shown',
     AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED = 'agent_onboarding_completion_toast.clicked',
