@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     FilterInteractivityValues,
     getFilterInteractivityValue,
+    isAiAgentContent,
     isChartContent,
     isDashboardContent,
     isDashboardUuidContent,
@@ -426,6 +427,7 @@ const data = {
         projectUuid: projectUuid,
         agentUuid: agentUuid,
         canExplore: {{canExplore}},
+        canViewDebugInfo: {{canViewDebugInfo}},
     },
     user: {
         externalId: {{externalId}},
@@ -455,6 +457,7 @@ data = {
         "projectUuid": projectUuid,
         "agentUuid": agentUuid,
         "canExplore": {{canExplore}},
+        "canViewDebugInfo": {{canViewDebugInfo}},
     },
     "user": {
         "externalId": {{externalId}},
@@ -491,10 +494,11 @@ func main() {
 
     type CustomClaims struct {
         Content struct {
-            Type        string \`json:"type"\`
-            ProjectUuid string \`json:"projectUuid"\`
-            AgentUuid   string \`json:"agentUuid"\`
-            CanExplore  bool   \`json:"canExplore"\`
+            Type             string \`json:"type"\`
+            ProjectUuid      string \`json:"projectUuid"\`
+            AgentUuid        string \`json:"agentUuid"\`
+            CanExplore       bool   \`json:"canExplore"\`
+            CanViewDebugInfo bool   \`json:"canViewDebugInfo"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         WriteActions *struct {
@@ -511,15 +515,17 @@ func main() {
 
     claims := CustomClaims{
         Content: struct {
-            Type        string \`json:"type"\`
-            ProjectUuid string \`json:"projectUuid"\`
-            AgentUuid   string \`json:"agentUuid"\`
-            CanExplore  bool   \`json:"canExplore"\`
+            Type             string \`json:"type"\`
+            ProjectUuid      string \`json:"projectUuid"\`
+            AgentUuid        string \`json:"agentUuid"\`
+            CanExplore       bool   \`json:"canExplore"\`
+            CanViewDebugInfo bool   \`json:"canViewDebugInfo"\`
         }{
-            Type:        "aiAgent",
-            ProjectUuid: projectUuid,
-            AgentUuid:   agentUuid,
-            CanExplore:  {{canExplore}},
+            Type:             "aiAgent",
+            ProjectUuid:      projectUuid,
+            AgentUuid:        agentUuid,
+            CanExplore:       {{canExplore}},
+            CanViewDebugInfo: {{canViewDebugInfo}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -565,6 +571,7 @@ const data = {
         projectUuid: projectUuid,
         agentUuid: agentUuid,
         canExplore: {{canExplore}},
+        canViewDebugInfo: {{canViewDebugInfo}},
     },
     user: {
         externalId: {{externalId}},
@@ -590,6 +597,7 @@ data = {
         "projectUuid": projectUuid,
         "agentUuid": agentUuid,
         "canExplore": {{canExplore}},
+        "canViewDebugInfo": {{canViewDebugInfo}},
     },
     "user": {
         "externalId": {{externalId}},
@@ -620,10 +628,11 @@ func main() {
 
     type CustomClaims struct {
         Content struct {
-            Type        string \`json:"type"\`
-            ProjectUuid string \`json:"projectUuid"\`
-            AgentUuid   string \`json:"agentUuid"\`
-            CanExplore  bool   \`json:"canExplore"\`
+            Type             string \`json:"type"\`
+            ProjectUuid      string \`json:"projectUuid"\`
+            AgentUuid        string \`json:"agentUuid"\`
+            CanExplore       bool   \`json:"canExplore"\`
+            CanViewDebugInfo bool   \`json:"canViewDebugInfo"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         WriteActions *struct {
@@ -640,15 +649,17 @@ func main() {
 
     claims := CustomClaims{
         Content: struct {
-            Type        string \`json:"type"\`
-            ProjectUuid string \`json:"projectUuid"\`
-            AgentUuid   string \`json:"agentUuid"\`
-            CanExplore  bool   \`json:"canExplore"\`
+            Type             string \`json:"type"\`
+            ProjectUuid      string \`json:"projectUuid"\`
+            AgentUuid        string \`json:"agentUuid"\`
+            CanExplore       bool   \`json:"canExplore"\`
+            CanViewDebugInfo bool   \`json:"canViewDebugInfo"\`
         }{
-            Type:        "aiAgent",
-            ProjectUuid: projectUuid,
-            AgentUuid:   agentUuid,
-            CanExplore:  {{canExplore}},
+            Type:             "aiAgent",
+            ProjectUuid:      projectUuid,
+            AgentUuid:        agentUuid,
+            CanExplore:       {{canExplore}},
+            CanViewDebugInfo: {{canViewDebugInfo}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -1427,6 +1438,14 @@ const getBackendCodeSnippet = (
                 .replace(
                     '{{canExplore}}',
                     languageBoolean(language, data.content.canExplore ?? false),
+                )
+                .replace(
+                    '{{canViewDebugInfo}}',
+                    languageBoolean(
+                        language,
+                        isAiAgentContent(data.content) &&
+                            data.content.canViewDebugInfo === true,
+                    ),
                 );
             break;
         case 'apiAccess':

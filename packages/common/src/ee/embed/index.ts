@@ -186,6 +186,7 @@ export const EmbedJwtSchema = z
                 projectUuid: z.string().optional(),
                 agentUuid: z.string(),
                 canExplore: z.boolean().optional(),
+                canViewDebugInfo: z.boolean().optional(),
             }),
             z.object({
                 type: z.literal('metricsCatalog'),
@@ -281,6 +282,8 @@ export type EmbedJwtContentAiAgent = {
     projectUuid?: string;
     agentUuid: string;
     canExplore?: boolean;
+    /** Shows agent debug information. Ignored in roles mode, where view:EmbedAiAgentDebug decides. */
+    canViewDebugInfo?: boolean;
 };
 
 export type EmbedJwtContentMetricsCatalog = {
