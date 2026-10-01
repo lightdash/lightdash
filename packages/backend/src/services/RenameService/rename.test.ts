@@ -187,6 +187,22 @@ describe('createRenametableRename', () => {
             expect(tableRename.replaceId('payment_payment_id')).toBe(
                 'invoice_payment_id',
             );
+            const joinedRename = createRenameFactory({
+                from: 'payment_items',
+                to: 'line_items',
+                fromReference: 'payment_items',
+                toReference: 'line_items',
+                fromFieldName: undefined,
+                toFieldName: undefined,
+                isPrefix: true,
+                protectedModelNames: ['payment', 'payment_items'],
+            });
+            expect(joinedRename.replaceId('payment_items_amount')).toBe(
+                'line_items_amount',
+            );
+            expect(joinedRename.replaceString('payment_items_amount')).toBe(
+                'line_items_amount',
+            );
         });
         test('replaceId should not replace invalid prefix', () => {
             expect(tableRename.replaceId('payments_payment_id')).toBe(
@@ -976,6 +992,7 @@ describe('renameChartConfigType', () => {
                     mark: 'bar',
                     encoding: {
                         x: { field: 'payment_date' },
+                        y: { field: 'archived_payment_date' },
                     },
                 },
             },
@@ -986,6 +1003,9 @@ describe('renameChartConfigType', () => {
         const config = (result as CustomVisConfig).config!;
         expect((config.spec as AnyType).data.name).toBe('invoice_data');
         expect((config.spec?.encoding as AnyType).x.field).toBe('invoice_date');
+        expect((config.spec?.encoding as AnyType).y.field).toBe(
+            'archived_payment_date',
+        );
     });
 });
 
@@ -1531,39 +1551,38 @@ describe('renameDashboard', () => {
         );
     });
 
-    test('should return unchanged dashboard when no matches found', () => {
-        const dashboard = {
-            name: 'Customer Dashboard',
-            filters: {
-                dimensions: [
-                    {
-                        target: {
-                            fieldId: 'customer_id',
-                            tableName: 'customer',
-                        },
-                    },
-                ],
-                metrics: [],
-                tableCalculations: [],
-            },
-        } as unknown as DashboardDAO; // TODO fix
+    test.each([
+        { tableName: 'customer', fieldId: 'customer_id' },
+        { tableName: 'payment_v2', fieldId: 'payment_v2_id' },
+    ])(
+        'reports no changes for unaffected or already-renamed filters: $tableName',
+        ({ tableName, fieldId }) => {
+            const dashboard = {
+                name: 'Customer Dashboard',
+                filters: {
+                    metrics: [],
+                    dimensions: [{ target: { fieldId, tableName } }],
+                    tableCalculations: [],
+                },
+            } as unknown as DashboardDAO;
 
-        const { updatedDashboard, hasChanges } = renameDashboard(
-            RenameType.MODEL,
-            dashboard,
-            {
-                from: 'payment',
-                fromReference: 'payment',
-                to: 'invoice',
-                toReference: 'invoice',
-                fromFieldName: undefined,
-                toFieldName: undefined,
-            },
-        );
+            const { updatedDashboard, hasChanges } = renameDashboard(
+                RenameType.MODEL,
+                dashboard,
+                {
+                    from: 'payment',
+                    fromReference: 'payment',
+                    to: 'payment_v2',
+                    toReference: 'payment_v2',
+                    fromFieldName: undefined,
+                    toFieldName: undefined,
+                },
+            );
 
-        expect(hasChanges).toBe(false);
-        expect(updatedDashboard).toBe(dashboard); // Should be the same object reference
-    });
+            expect(hasChanges).toBe(false);
+            expect(updatedDashboard).toEqual(dashboard);
+        },
+    );
 });
 
 describe('validateRename', () => {
