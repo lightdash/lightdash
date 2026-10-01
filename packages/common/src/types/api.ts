@@ -481,6 +481,7 @@ import {
     type ApiWarehouseConnectionSwitchPlanResponse,
     type ApiWarehouseConnectionSwitchResponse,
 } from './warehouseConnectionSwitch';
+import { type WarehouseConnectionStagedTestResults } from './warehouseConnectionTest';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -1376,6 +1377,7 @@ type ApiResults =
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
     | WarehouseConnectionTestResults
+    | WarehouseConnectionStagedTestResults
     | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess

@@ -1269,3 +1269,4 @@ export * from './utils/dashboardTilePositions';
 
 export * from './utils/savedMerge';
 export * from './utils/warehouseConnectionInput';
+export * from './types/warehouseConnectionTest';

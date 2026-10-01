@@ -124,6 +124,7 @@ import {
     getTimezoneLabel,
     getUnaccountedDimensions,
     getWarehouseConnectionInputIssues,
+    getWarehouseCredentialSecrets,
     GroupType,
     hasConnectionChanges,
     hasIntersection,
@@ -289,6 +290,7 @@ import {
     type RunQueryTags,
     type Tag,
     type UUID,
+    type WarehouseConnectionStagedTestResults,
     type WarehouseLocation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -299,6 +301,7 @@ import {
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     exchangeDatabricksOAuthCredentials,
     refreshDatabricksOAuthToken,
+    runStagedConnectionTest,
     SshTunnel,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
@@ -5856,6 +5859,85 @@ export class ProjectService extends BaseService {
             await adapter?.destroy();
             await sshTunnel.disconnect();
             throw error;
+        }
+    }
+
+    async runStagedWarehouseConnectionTest(
+        account: RegisteredAccount,
+        warehouseConnection: CreateWarehouseCredentials,
+    ): Promise<WarehouseConnectionStagedTestResults> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        const flagUser = { userUuid: account.user.userUuid, organizationUuid };
+        if (!(await this.isConnectJourneyEnabled(flagUser))) {
+            throw new ForbiddenError(
+                'The staged connection test is not enabled',
+            );
+        }
+        if (
+            this.createAuditedAbility(account).cannot(
+                'create',
+                subject('Project', {
+                    organizationUuid,
+                    type: ProjectType.DEFAULT,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            warehouseConnection,
+        );
+        const { warehouseConnection: credentials } =
+            await this._resolveWarehouseClientCredentials(
+                {
+                    warehouseConnection:
+                        await this.normaliseWarehouseConnectionInput(
+                            flagUser,
+                            warehouseConnection,
+                        ),
+                },
+                account.user.userUuid,
+                organizationUuid,
+            );
+        const sshTunnel = new SshTunnel(
+            credentials,
+            this.connectionTestTunnelOptions(),
+        );
+        try {
+            const results = await runStagedConnectionTest({
+                credentials,
+                connectThroughTunnel:
+                    'useSshTunnel' in credentials &&
+                    credentials.useSshTunnel === true,
+                createClient: async () =>
+                    this.projectModel.getWarehouseClientFromCredentials(
+                        await sshTunnel.connect(),
+                    ),
+                secrets: getWarehouseCredentialSecrets(credentials),
+            });
+            const onboardingFlow = await this.getOnboardingFlow(flagUser);
+            this.analytics.track({
+                event: 'warehouse_connection.tested',
+                userId: account.user.userUuid,
+                properties: {
+                    warehouseType: credentials.type,
+                    result: results.ok ? 'success' : 'failure',
+                    context: 'staged_test',
+                    method: RequestMethod.WEB_APP,
+                    onboardingFlow,
+                    ...(results.failure
+                        ? {
+                              failureCause: results.failure.cause,
+                              driverCode: results.failure.driverCode,
+                              failureStage: results.failure.stage,
+                          }
+                        : {}),
+                },
+            });
+            return results;
+        } finally {
+            await sshTunnel.disconnect();
         }
     }
 

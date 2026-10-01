@@ -1848,6 +1848,46 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('runStagedWarehouseConnectionTest', () => {
+        const stagedTestAccount = buildAccount() as RegisteredAccount;
+        const credentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'db.example.com',
+            user: 'user',
+            password: 'password',
+            port: 5432,
+            dbname: 'db',
+            schema: 'public',
+        } as const;
+        const serviceWithFlag = (enabled: boolean) =>
+            getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.ConnectJourney,
+                        enabled,
+                    })),
+                } as unknown as FeatureFlagModel,
+            });
+
+        test('is refused when the flag is off', async () => {
+            await expect(
+                serviceWithFlag(false).runStagedWarehouseConnectionTest(
+                    stagedTestAccount,
+                    credentials,
+                ),
+            ).rejects.toThrow('The staged connection test is not enabled');
+        });
+
+        test('needs permission to create a project', async () => {
+            await expect(
+                serviceWithFlag(true).runStagedWarehouseConnectionTest(
+                    stagedTestAccount,
+                    credentials,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
     describe('active create project jobs', () => {
         const organizationUuid = 'organization-uuid';
         const projectCreator: SessionUser = {
