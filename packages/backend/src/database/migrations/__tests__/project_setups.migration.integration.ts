@@ -26,13 +26,16 @@ const createProject = async (
     database: Knex,
     organizationUuid: string,
 ): Promise<string> => {
-    const { organization_id: organizationId } = await database('organizations')
+    const organization = await database('organizations')
         .where('organization_uuid', organizationUuid)
         .first('organization_id');
+    if (!organization) {
+        throw new Error('Organization not found');
+    }
     const [{ project_uuid: projectUuid }] = await database('projects')
         .insert({
             name: 'project setup test',
-            organization_id: organizationId,
+            organization_id: organization.organization_id,
             project_type: ProjectType.DEFAULT,
             dbt_connection: null,
             dbt_connection_type: null,
