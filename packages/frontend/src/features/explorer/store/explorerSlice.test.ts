@@ -55,6 +55,39 @@ describe('explorerSlice pivot axis updates', () => {
     });
 });
 
+describe('explorerSlice unpivoted row reorder', () => {
+    it('reorders columnOrder instead of storing pivot rows when nothing is pivoted', () => {
+        const withColumnOrder = explorerReducer(
+            undefined,
+            explorerActions.setColumnOrder([
+                'orders_status',
+                'orders_source',
+                'orders_count',
+                'drivers_name',
+            ]),
+        );
+
+        const result = explorerReducer(
+            withColumnOrder,
+            explorerActions.setPivotRows([
+                'drivers_name',
+                'orders_status',
+                'orders_source',
+            ]),
+        );
+
+        expect(result.unsavedChartVersion.tableConfig.columnOrder).toEqual([
+            'drivers_name',
+            'orders_status',
+            'orders_count',
+            'orders_source',
+        ]);
+        expect(result.unsavedChartVersion.pivotConfig).toEqual({
+            columns: [],
+        });
+    });
+});
+
 describe('explorerSlice table calculation updates', () => {
     const tableCalculation: TableCalculation = {
         name: 'revenue_growth',
