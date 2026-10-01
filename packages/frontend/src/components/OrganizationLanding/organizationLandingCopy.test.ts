@@ -4,7 +4,8 @@ import {
     formatMemberCount,
     getOrganizationDisplayName,
     getCreateOrganizationWarning,
-    getRequestCardContext,
+    getLandingTitle,
+    getRequestListIntro,
     getSuggestedOrganizationName,
     hasNoWayIn,
 } from './organizationLandingCopy';
@@ -27,17 +28,41 @@ const match = {
     joinRequest: null,
 };
 
-describe('getRequestCardContext', () => {
+describe('getRequestListIntro', () => {
     it('names the domain', () => {
-        expect(getRequestCardContext(landing())).toContain(
-            'People at acme.com use this organization',
+        expect(getRequestListIntro(landing({ requestable: [match] }))).toBe(
+            'People at acme.com use this organization. An admin approves new members.',
         );
+    });
+
+    it('talks about every organization when there are several', () => {
+        expect(
+            getRequestListIntro(landing({ requestable: [match, match] })),
+        ).toContain('People at acme.com use these organizations');
     });
 
     it('talks about the instance when it allows one organization', () => {
         expect(
-            getRequestCardContext(landing({ canCreateOrganization: false })),
+            getRequestListIntro(
+                landing({ canCreateOrganization: false, requestable: [match] }),
+            ),
         ).toContain('This Lightdash instance has this organization');
+    });
+});
+
+describe('getLandingTitle', () => {
+    it('asks to create when there is nothing to join', () => {
+        expect(getLandingTitle(landing())).toBe('Create your organization');
+    });
+
+    it('asks to choose when there is something to join', () => {
+        expect(getLandingTitle(landing({ requestable: [match] }))).toBe(
+            'Choose your organization',
+        );
+    });
+
+    it('asks to choose before the page loads', () => {
+        expect(getLandingTitle(undefined)).toBe('Choose your organization');
     });
 });
 

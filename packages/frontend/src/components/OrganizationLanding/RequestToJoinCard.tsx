@@ -6,6 +6,7 @@ import {
 import { Avatar, Button, Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useRequestToJoinOrganization } from '../../hooks/organization/useOrganizationLanding';
+import Callout from '../common/Callout';
 import { getOrganizationDisplayName } from './organizationLandingCopy';
 
 const getStatusText = (
@@ -27,8 +28,7 @@ const getStatusText = (
 
 export const RequestToJoinCard: FC<{
     match: OrganizationLandingMatch;
-    context: string;
-}> = ({ match, context }) => {
+}> = ({ match }) => {
     const requestToJoin = useRequestToJoinOrganization();
     const status = match.joinRequest?.status ?? null;
     const isPending = status === OrganizationJoinRequestStatus.PENDING;
@@ -38,28 +38,26 @@ export const RequestToJoinCard: FC<{
     return (
         <Card>
             <Stack gap="sm">
-                <Group gap="md" wrap="nowrap">
-                    <Avatar size="md" radius="xl">
-                        {displayName[0]?.toUpperCase()}
-                    </Avatar>
-                    <Stack gap={2}>
-                        <Text fw={600} truncate="end">
-                            {displayName}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            {context}
-                        </Text>
-                    </Stack>
-                </Group>
-                {statusText && (
-                    <Text size="sm" c="dimmed">
-                        {statusText}
-                    </Text>
-                )}
-                {match.hasAdmin ? (
-                    !isPending && (
+                <Group justify="space-between" wrap="nowrap">
+                    <Group gap="md" wrap="nowrap">
+                        <Avatar size="md" radius="xl">
+                            {displayName[0]?.toUpperCase()}
+                        </Avatar>
+                        <Stack gap="two">
+                            <Text fw={600} truncate="end">
+                                {displayName}
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                {isPending
+                                    ? 'Request sent'
+                                    : 'Admin approval needed'}
+                            </Text>
+                        </Stack>
+                    </Group>
+                    {match.hasAdmin && !isPending && (
                         <Button
                             variant="default"
+                            flex="none"
                             loading={requestToJoin.isLoading}
                             onClick={() =>
                                 requestToJoin.mutate(match.organizationUuid)
@@ -67,8 +65,14 @@ export const RequestToJoinCard: FC<{
                         >
                             Request to join
                         </Button>
-                    )
-                ) : (
+                    )}
+                </Group>
+                {statusText && (
+                    <Text size="sm" c="dimmed">
+                        {statusText}
+                    </Text>
+                )}
+                {!match.hasAdmin && (
                     <Text size="sm" c="dimmed">
                         This organization has no admin who can approve a
                         request. Ask the person who runs Lightdash for an
@@ -76,9 +80,9 @@ export const RequestToJoinCard: FC<{
                     </Text>
                 )}
                 {requestToJoin.error && (
-                    <Text size="sm" c="red">
+                    <Callout variant="danger">
                         {requestToJoin.error.error.message}
-                    </Text>
+                    </Callout>
                 )}
             </Stack>
         </Card>
