@@ -123,6 +123,8 @@ describe('WarehouseConnectionService on the real schema', () => {
                         data,
                     ),
                 testWarehouseConnectionCredentials,
+                normaliseWarehouseConnectionInput: async (_user, input) =>
+                    input,
             },
             analytics,
         });

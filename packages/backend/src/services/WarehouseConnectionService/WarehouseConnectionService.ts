@@ -63,7 +63,30 @@ export type WarehouseCredentialPolicy = {
         organizationUuid: string,
         warehouseConnection: CreateWarehouseCredentials,
     ) => Promise<WarehouseConnectionTestResults>;
+    normaliseWarehouseConnectionInput: <T extends CreateWarehouseCredentials>(
+        user: { userUuid: string; organizationUuid: string },
+        credentials: T,
+    ) => Promise<T>;
 };
+
+export const normaliseCredentialSource = async (
+    credentialPolicy: Pick<
+        WarehouseCredentialPolicy,
+        'normaliseWarehouseConnectionInput'
+    >,
+    user: { userUuid: string; organizationUuid: string },
+    source: WarehouseConnectionCredentialSource,
+): Promise<WarehouseConnectionCredentialSource> =>
+    source.kind === 'project'
+        ? {
+              kind: 'project',
+              credentials:
+                  await credentialPolicy.normaliseWarehouseConnectionInput(
+                      user,
+                      source.credentials,
+                  ),
+          }
+        : source;
 
 type WarehouseConnectionServiceArguments = {
     warehouseConnectionModel: WarehouseConnectionModel;
@@ -683,8 +706,14 @@ export class WarehouseConnectionService extends BaseService {
             account,
             projectUuid,
         );
-        const requestedSource =
-            WarehouseConnectionService.toCreateSource(request);
+        const requestedSource = await normaliseCredentialSource(
+            this.credentialPolicy,
+            {
+                userUuid: account.user.userUuid,
+                organizationUuid: summary.organizationUuid,
+            },
+            WarehouseConnectionService.toCreateSource(request),
+        );
         this.assertCanWrite(
             account,
             summary,
@@ -911,11 +940,21 @@ export class WarehouseConnectionService extends BaseService {
                 'Edit the original connection in the project settings.',
             );
         }
-        const requestedSource = await this.resolveUpdateSource(
+        const updateSource = await this.resolveUpdateSource(
             project,
             existing,
             request,
         );
+        const requestedSource = updateSource
+            ? await normaliseCredentialSource(
+                  this.credentialPolicy,
+                  {
+                      userUuid: account.user.userUuid,
+                      organizationUuid: summary.organizationUuid,
+                  },
+                  updateSource,
+              )
+            : null;
         const source = requestedSource
             ? await this.inheritPrimaryCredentialRequirement(
                   projectUuid,

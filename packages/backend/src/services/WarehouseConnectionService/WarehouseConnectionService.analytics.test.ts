@@ -119,6 +119,7 @@ const buildService = () => {
         credentialPolicy: {
             assertCanWriteWarehouseConnection: vi.fn(),
             testWarehouseConnectionCredentials: vi.fn(),
+            normaliseWarehouseConnectionInput: async (_user, input) => input,
         },
         analytics,
     });
