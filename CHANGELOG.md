@@ -1,3 +1,10 @@
+# [2.400.0](https://github.com/lightdash/lightdash/compare/2.399.4...2.400.0) (2026-10-01)
+
+
+### Features
+
+* create new analytics projects as standard projects ([#30270](https://github.com/lightdash/lightdash/issues/30270)) ([f4d5925](https://github.com/lightdash/lightdash/commit/f4d5925d37ac53fabe5f130dfe1e333f4ffb5777))
+
 ## [2.399.4](https://github.com/lightdash/lightdash/compare/2.399.3...2.399.4) (2026-09-30)
 
 
