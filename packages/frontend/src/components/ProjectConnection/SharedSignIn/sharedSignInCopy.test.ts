@@ -2,6 +2,7 @@ import { PersonSignInProvider, WarehouseTypes } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     getFirstSchedulePrompt,
+    getSharedSignInExpiry,
     getRunsAsLabel,
     getServiceMethods,
 } from './sharedSignInCopy';
@@ -57,5 +58,19 @@ describe('getFirstSchedulePrompt', () => {
         ).toBe(
             "This schedule runs on Sam Rivera's Google sign-in. If that sign-in expires, the schedule stops. Add a service account to keep it running.",
         );
+    });
+});
+
+describe('getSharedSignInExpiry', () => {
+    it('reads the attributed sign-in from an API error', () => {
+        const sharedSignIn = {
+            provider: PersonSignInProvider.GOOGLE,
+            ownerUserUuid: 'u',
+            ownerName: 'Sam Rivera',
+        };
+        expect(getSharedSignInExpiry({ data: { sharedSignIn } })).toEqual(
+            sharedSignIn,
+        );
+        expect(getSharedSignInExpiry({ data: {} })).toBeNull();
     });
 });

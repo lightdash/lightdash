@@ -120,3 +120,23 @@ export const resolveCredentialOwner = ({
     );
     return match?.ownerUserUuid ?? actorUserUuid;
 };
+
+export type SharedSignInExpiry = {
+    provider: PersonSignInProvider;
+    ownerUserUuid: string | null;
+    ownerName: string | null;
+};
+
+export const getExpiredSharedSignInMessage = (
+    expiry: SharedSignInExpiry,
+    viewerUserUuid: string | null,
+): string => {
+    const signIn = PERSON_SIGN_IN_LABELS[expiry.provider];
+    if (expiry.ownerUserUuid && expiry.ownerUserUuid === viewerUserUuid) {
+        return `Your ${signIn} sign-in for this project's connection has expired. Reconnect it in the project's connection settings.`;
+    }
+    const name = expiry.ownerName?.trim();
+    return name
+        ? `This project's connection uses ${name}'s sign-in, which has expired. Ask ${name} or an admin to reconnect.`
+        : `This project's connection uses a person's sign-in, which has expired. Ask an admin to reconnect.`;
+};

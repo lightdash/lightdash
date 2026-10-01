@@ -10,6 +10,7 @@ import {
     type CreateWarehouseCredentials,
 } from './projects';
 import {
+    getExpiredSharedSignInMessage,
     getPersonSignIn,
     PersonSignInProvider,
     resolveCredentialOwner,
@@ -177,5 +178,39 @@ describe('resolveCredentialOwner', () => {
                 stored: [{ refreshToken: 'token-a', ownerUserUuid: null }],
             }),
         ).toBe('actor');
+    });
+});
+
+describe('getExpiredSharedSignInMessage', () => {
+    const expiry = {
+        provider: PersonSignInProvider.GOOGLE,
+        ownerUserUuid: 'owner',
+        ownerName: 'Sam Rivera',
+    };
+
+    it('tells everyone else whose sign-in expired and who can fix it', () => {
+        expect(getExpiredSharedSignInMessage(expiry, 'teammate')).toBe(
+            "This project's connection uses Sam Rivera's sign-in, which has expired. Ask Sam Rivera or an admin to reconnect.",
+        );
+        expect(getExpiredSharedSignInMessage(expiry, null)).toContain(
+            'Ask Sam Rivera or an admin',
+        );
+    });
+
+    it('tells the owner to reconnect', () => {
+        expect(getExpiredSharedSignInMessage(expiry, 'owner')).toBe(
+            "Your Google sign-in for this project's connection has expired. Reconnect it in the project's connection settings.",
+        );
+    });
+
+    it('asks for an admin when the owner is unknown', () => {
+        expect(
+            getExpiredSharedSignInMessage(
+                { ...expiry, ownerUserUuid: null, ownerName: null },
+                'teammate',
+            ),
+        ).toBe(
+            "This project's connection uses a person's sign-in, which has expired. Ask an admin to reconnect.",
+        );
     });
 });

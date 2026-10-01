@@ -268,6 +268,14 @@ export enum FeatureFlags {
     SharedSignInOwnership = 'shared-sign-in-ownership',
 
     /**
+     * Kill switch for the expired shared sign-in message. When a project's
+     * shared credential is a person's sign-in and it expires, the error names
+     * that person and tells everyone else to ask them or an admin to reconnect.
+     * A defect fix: on by default; resolved per organization.
+     */
+    SharedSignInExpiryMessage = 'shared-sign-in-expiry-message',
+
+    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a

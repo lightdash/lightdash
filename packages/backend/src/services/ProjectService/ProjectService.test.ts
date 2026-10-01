@@ -12685,3 +12685,98 @@ describe('ProjectService.getSharedCredentialOwner', () => {
         ).resolves.toEqual({ ...owner, hasSchedules: false });
     });
 });
+
+describe('ProjectService expired shared sign-in', () => {
+    const projectUuid = projectSummary.projectUuid;
+    const signInCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'analytics',
+        dataset: 'marts',
+        authenticationType: BigqueryAuthenticationType.SSO,
+        keyfileContents: {
+            type: 'authorized_user',
+            refresh_token: 'shared-token',
+        },
+    } as unknown as CreateWarehouseCredentials;
+    const owner = {
+        signIn: PersonSignInProvider.GOOGLE,
+        owner: { userUuid: 'owner-uuid', name: 'Sam Rivera' },
+    };
+    const flagged = (enabled: boolean) =>
+        ({
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled,
+                }),
+            ),
+        }) as unknown as FeatureFlagModel;
+    const failingClient = () => ({
+        credentials: signInCredentials,
+        runQuery: vi.fn(async () => {
+            throw new BigqueryTokenError('Google rejected the token');
+        }),
+    });
+
+    const model = projectModel as unknown as {
+        getSharedSignInOwnerForToken: ReturnType<typeof vi.fn>;
+        getWarehouseClientFromCredentials: ReturnType<typeof vi.fn>;
+    };
+
+    beforeEach(() => {
+        model.getSharedSignInOwnerForToken = vi.fn(
+            async (_project: string, token: string) =>
+                token === 'shared-token' ? owner : null,
+        );
+        model.getWarehouseClientFromCredentials.mockImplementation(
+            failingClient,
+        );
+    });
+
+    const queryWith = async (
+        enabled: boolean,
+        credentials: CreateWarehouseCredentials,
+    ) => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(enabled),
+        });
+        const { warehouseClient } = await service._getWarehouseClient(
+            `${projectUuid}-${Math.random()}`,
+            credentials,
+        );
+        return warehouseClient.runQuery('select 1');
+    };
+
+    test("names the owner when the project's shared sign-in is rejected", async () => {
+        model.getSharedSignInOwnerForToken.mockImplementationOnce(
+            async () => owner,
+        );
+        await expect(queryWith(true, signInCredentials)).rejects.toMatchObject({
+            name: 'BigqueryTokenError',
+            message:
+                "This project's connection uses Sam Rivera's sign-in, which has expired. Ask Sam Rivera or an admin to reconnect.",
+            data: {
+                sharedSignIn: {
+                    provider: PersonSignInProvider.GOOGLE,
+                    ownerUserUuid: 'owner-uuid',
+                    ownerName: 'Sam Rivera',
+                },
+            },
+        });
+    });
+
+    test('keeps the original error when the kill switch is off', async () => {
+        await expect(queryWith(false, signInCredentials)).rejects.toThrow(
+            'Google rejected the token',
+        );
+    });
+
+    test("keeps the original error for someone's personal sign-in", async () => {
+        model.getSharedSignInOwnerForToken.mockImplementationOnce(
+            async () => null,
+        );
+        await expect(queryWith(true, signInCredentials)).rejects.toThrow(
+            'Google rejected the token',
+        );
+    });
+});

@@ -108,6 +108,7 @@ import {
     ServiceRepository,
 } from './services/ServiceRepository';
 import { initOtelTracing, shutdownOtelTracing } from './tracing/tracing';
+import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
@@ -959,7 +960,11 @@ export default class App {
         expressApp.use(scimErrorHandler); // SCIM error check before general error handler
         expressApp.use(invalidUserErrorHandler);
         expressApp.use(
-            (error: Error, req: Request, res: Response, _: NextFunction) => {
+            (rawError: Error, req: Request, res: Response, _: NextFunction) => {
+                const error = personaliseSharedSignInError(
+                    rawError,
+                    req.user?.userUuid ?? null,
+                );
                 const errorResponse = errorHandler(error);
                 if (
                     error instanceof UnexpectedServerError ||

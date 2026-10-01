@@ -72,6 +72,10 @@ export class FeatureFlagModel {
             // stored flag default) still wins, so one org can be turned off.
             [FeatureFlags.NewOnboarding]:
                 this.getNewOnboardingEnabled.bind(this),
+            // A defect fix: on unless an override or the disable list turns
+            // it off.
+            [FeatureFlags.SharedSignInExpiryMessage]: (flagArgs, options) =>
+                this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.EnableLearn]: (flagArgs, options) =>
                 this.getWithEnvFallback(
                     flagArgs,
