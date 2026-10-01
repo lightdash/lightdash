@@ -19,6 +19,7 @@ import InlineErrorState from '../../../components/common/InlineErrorState';
 import EChartsReact from '../../../components/EChartsReactWrapper';
 import classes from './AiCreditsUsageBreakdown.module.css';
 import {
+    findTopSeriesIndex,
     getAiCreditRowShare,
     getAiCreditSeriesColor,
     toAiCreditChartBuckets,
@@ -31,6 +32,7 @@ const creditFormat = new Intl.NumberFormat(undefined, {
 });
 
 const CHART_HEIGHT = 200;
+const BAR_TOP_RADIUS: [number, number, number, number] = [4, 4, 0, 0];
 
 type LabelledSeries = {
     id: string;
@@ -92,7 +94,14 @@ const UsageChart: FC<{
                 itemStyle: { color: item.color },
                 // ECharts derives a hover colour by lightening this one, which fails on a CSS variable and blanks the bar.
                 emphasis: { disabled: true },
-                data: buckets.map((bucket) => bucket.credits[index]),
+                data: buckets.map((bucket) =>
+                    findTopSeriesIndex(bucket.credits) === index
+                        ? {
+                              value: bucket.credits[index],
+                              itemStyle: { borderRadius: BAR_TOP_RADIUS },
+                          }
+                        : bucket.credits[index],
+                ),
             })),
         };
     }, [usage, series]);

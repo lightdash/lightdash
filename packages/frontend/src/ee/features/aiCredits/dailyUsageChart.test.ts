@@ -1,6 +1,7 @@
 import { type AiCreditDailyUsageSeries } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    findTopSeriesIndex,
     getAiCreditRowShare,
     getAiCreditSeriesColor,
     toAiCreditChartBuckets,
@@ -76,5 +77,16 @@ describe('getAiCreditSeriesColor', () => {
     it('shows combined usage in a neutral colour', () => {
         expect(getAiCreditSeriesColor(series[1], 1)).toContain('ldGray');
         expect(getAiCreditSeriesColor(series[0], 0)).toContain('violet');
+    });
+});
+
+describe('findTopSeriesIndex', () => {
+    it('rounds the highest segment that has credits that day', () => {
+        expect(findTopSeriesIndex([3, 2, 0])).toBe(1);
+        expect(findTopSeriesIndex([3, 2, 1])).toBe(2);
+    });
+
+    it('finds nothing to round on a day without usage', () => {
+        expect(findTopSeriesIndex([0, 0])).toBe(-1);
     });
 });
