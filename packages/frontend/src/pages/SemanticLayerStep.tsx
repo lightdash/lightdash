@@ -5,7 +5,7 @@ import {
     type GitHost,
     type Project,
 } from '@lightdash/common';
-import { Box, Divider, Stack, Text, Title } from '@mantine/core';
+import { Box, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import Callout from '../components/common/Callout';
@@ -46,7 +46,7 @@ const STATUS_CALLOUTS: Partial<
     [ProjectSetupStepStatus.FAILED]: {
         variant: 'danger',
         title: 'The last deploy failed',
-        body: 'Check the repository, branch and project path, then connect again. The job details have the full error.',
+        body: 'Check the repository, branch and project path, then connect again.',
     },
     [ProjectSetupStepStatus.PARTIAL]: {
         variant: 'warning',
@@ -55,16 +55,40 @@ const STATUS_CALLOUTS: Partial<
     },
 };
 
+const StepHeader: FC<{ project: Project }> = ({ project }) => {
+    const navigate = useNavigate();
+    const skip = useSkipSemanticLayer(project.projectUuid);
+    return (
+        <Group justify="space-between" align="flex-start" wrap="nowrap">
+            <Stack gap="xs">
+                <Title order={1}>Add your semantic layer</Title>
+                <Text c="dimmed">
+                    {project.name} is connected. Add the models that define your
+                    metrics, or skip and explore your tables first.
+                </Text>
+            </Stack>
+            <SkipOption
+                isSkipping={skip.isLoading}
+                onSkip={() =>
+                    void skip
+                        .mutateAsync()
+                        .then(() =>
+                            navigate(`/projects/${project.projectUuid}/home`),
+                        )
+                        .catch(() => undefined)
+                }
+            />
+        </Group>
+    );
+};
+
 const StepOptions: FC<{ project: Project; isWaiting: boolean }> = ({
     project,
     isWaiting,
 }) => {
-    const navigate = useNavigate();
     const { health } = useApp();
     const isCopilotEnabled = useIsCopilotEnabled();
-    const skip = useSkipSemanticLayer(project.projectUuid);
     const [host, setHost] = useState<GitHost | null>(null);
-    const projectHome = `/projects/${project.projectUuid}/home`;
 
     if (host) {
         return (
@@ -100,15 +124,6 @@ const StepOptions: FC<{ project: Project; isWaiting: boolean }> = ({
                 </>
             )}
             <MoreOptions projectUuid={project.projectUuid} />
-            <SkipOption
-                isSkipping={skip.isLoading}
-                onSkip={() =>
-                    void skip
-                        .mutateAsync()
-                        .then(() => navigate(projectHome))
-                        .catch(() => undefined)
-                }
-            />
         </Stack>
     );
 };
@@ -142,14 +157,7 @@ const SemanticLayerStep: FC = () => {
         <Box className={classes.page}>
             <DocumentTitle title="Add your semantic layer" />
             <Box className={classes.column}>
-                <Stack gap="xs">
-                    <Title order={1}>Add your semantic layer</Title>
-                    <Text c="dimmed">
-                        {project.data.name} is connected. Add the models that
-                        define your metrics, or skip and explore your tables
-                        first.
-                    </Text>
-                </Stack>
+                <StepHeader project={project.data} />
                 {callout && (
                     <Callout variant={callout.variant} title={callout.title}>
                         {callout.body}

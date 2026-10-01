@@ -48,16 +48,17 @@ describe('getGitHostTileLabels', () => {
         expect(getGitHostTileLabels(GitHost.GITHUB)).toEqual([]);
     });
 
-    it('says write-back is not available on Azure DevOps', () => {
-        expect(getGitHostTileLabels(GitHost.AZURE_DEVOPS)).toContain(
-            'Write-back and pull requests: not available on Azure DevOps',
-        );
+    it('groups what Azure DevOps lacks into one line for each reason', () => {
+        expect(getGitHostTileLabels(GitHost.AZURE_DEVOPS)).toEqual([
+            'Not on Azure DevOps: write-back and pull requests, previews from pull requests',
+            'Not available yet: extra semantic layer connections, native Lightdash YAML',
+        ]);
     });
 
     it('marks planned features as not available yet', () => {
-        expect(getGitHostTileLabels(GitHost.GITLAB)).toContain(
-            'Native Lightdash YAML: not available yet',
-        );
+        expect(getGitHostTileLabels(GitHost.GITLAB)).toEqual([
+            'Not available yet: previews from pull requests, extra semantic layer connections, native Lightdash YAML',
+        ]);
     });
 });
 
