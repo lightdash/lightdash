@@ -1,5 +1,6 @@
 import { Button, Stack, Text, TextInput } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { useForm } from '@mantine/form';
+import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganizationCreateMutation } from '../../hooks/organization/useOrganizationCreateMutation';
 
@@ -8,7 +9,8 @@ export const CreateOrganizationForm: FC<{
     suggestedName: string;
 }> = ({ warning, suggestedName }) => {
     const navigate = useNavigate();
-    const [name, setName] = useState(suggestedName);
+    const form = useForm({ initialValues: { name: suggestedName } });
+    const name = form.values.name;
     const createOrganization = useOrganizationCreateMutation();
 
     const create = () =>
@@ -28,8 +30,7 @@ export const CreateOrganizationForm: FC<{
             <TextInput
                 label="Organization name"
                 placeholder="For example, Acme Analytics"
-                value={name}
-                onChange={(event) => setName(event.currentTarget.value)}
+                {...form.getInputProps('name')}
                 error={createOrganization.error?.error.message}
             />
             <Button
