@@ -39,10 +39,11 @@ const HOST_ICONS: Record<GitHost, Icon> = {
 const SETUP_DOCS =
     'https://docs.lightdash.com/get-started/setup-lightdash/connect-project';
 
-export const SectionHeader: FC<{ title: string; description: string }> = ({
-    title,
-    description,
-}) => (
+export const SectionHeader: FC<{
+    title: string;
+    description: string;
+    linkLabel: string;
+}> = ({ title, description, linkLabel }) => (
     <Stack gap={2}>
         <Text size="xs" fw={600} c="dimmed" tt="uppercase" lts={0.5}>
             {title}
@@ -50,7 +51,7 @@ export const SectionHeader: FC<{ title: string; description: string }> = ({
         <Text size="sm" c="dimmed">
             {description}{' '}
             <Anchor href={SETUP_DOCS} target="_blank" rel="noreferrer" inherit>
-                Read more
+                {linkLabel}
             </Anchor>
         </Text>
     </Stack>
@@ -83,6 +84,7 @@ export const GitHostTiles: FC<{ onPick: (host: GitHost) => void }> = ({
         <SectionHeader
             title="Connect a repository"
             description="Lightdash pulls your project and redeploys when you refresh."
+            linkLabel="Read about git connections"
         />
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
             {GIT_HOST_ORDER.map((host) => (
@@ -118,6 +120,7 @@ export const CliDeployOption: FC<{
             <SectionHeader
                 title="Deploy from the CLI"
                 description="You or your CI push models. There is nothing to connect."
+                linkLabel="Read about the CLI"
             />
             <Group gap="xs" wrap="nowrap">
                 <Code className={classes.command}>{command}</Code>

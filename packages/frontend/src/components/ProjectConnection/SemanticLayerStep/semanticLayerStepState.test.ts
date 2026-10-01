@@ -1,6 +1,7 @@
-import { GitHost } from '@lightdash/common';
+import { GitHost, SemanticLayerFormat } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    getAutomaticSemanticLayer,
     getEmptyGitHostDraft,
     toGitHostCredentials,
 } from './semanticLayerStepState';
@@ -39,4 +40,28 @@ describe('toGitHostCredentials for GitHub', () => {
             ),
         ).toBeNull();
     });
+});
+
+describe('getAutomaticSemanticLayer', () => {
+    it('connects a dbt project without asking', () => {
+        expect(getAutomaticSemanticLayer(SemanticLayerFormat.DBT, false)).toBe(
+            'dbt',
+        );
+    });
+
+    it('connects Lightdash YAML only where the host supports it', () => {
+        expect(
+            getAutomaticSemanticLayer(SemanticLayerFormat.LIGHTDASH, true),
+        ).toBe('lightdash');
+        expect(
+            getAutomaticSemanticLayer(SemanticLayerFormat.LIGHTDASH, false),
+        ).toBeNull();
+    });
+
+    it.each([SemanticLayerFormat.BOTH, SemanticLayerFormat.NEITHER])(
+        'asks when the repository has %s',
+        (format) => {
+            expect(getAutomaticSemanticLayer(format, true)).toBeNull();
+        },
+    );
 });

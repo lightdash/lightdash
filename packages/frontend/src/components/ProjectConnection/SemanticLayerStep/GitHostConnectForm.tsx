@@ -8,19 +8,22 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Stack, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useSemanticLayerFormat } from '../../../hooks/useGitHostDiscovery';
 import { useUpdateMutation } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../../common/Callout';
 import { useGithubConfig } from '../../common/GithubIntegration/hooks/useGithubIntegration';
-import { FormatCheck, type SemanticLayerChoice } from './FormatCheck';
+import { FormatCheck } from './FormatCheck';
 import { GitHostCredentialsFields } from './GitHostCredentialsFields';
 import { RepositoryPicker } from './RepositoryPicker';
 import {
+    getAutomaticSemanticLayer,
     getEmptyGitHostDraft,
     EMPTY_REPOSITORY_SELECTION,
     toGitHostCredentials,
     type GitHostDraft,
     type RepositorySelection,
+    type SemanticLayerChoice,
 } from './semanticLayerStepState';
 
 export const GitHostConnectForm: FC<{
@@ -42,6 +45,7 @@ export const GitHostConnectForm: FC<{
     const [semanticLayer, setSemanticLayer] =
         useState<SemanticLayerChoice | null>(null);
     const update = useUpdateMutation(project.projectUuid);
+    const detection = useSemanticLayerFormat();
 
     const credentials = toGitHostCredentials(
         host,
@@ -50,20 +54,22 @@ export const GitHostConnectForm: FC<{
     );
     const supportsNative =
         credentials !== null && supportsNativeLightdashYaml(credentials);
-    const canSave =
+    const hasRepository =
         credentials !== null &&
         selection.repository !== null &&
-        !!selection.branch &&
-        semanticLayer !== null &&
-        (semanticLayer === 'dbt' || supportsNative);
+        !!selection.branch;
+    const canConnect =
+        hasRepository &&
+        (semanticLayer === null || semanticLayer === 'dbt' || supportsNative);
 
     const changeSelection = (next: RepositorySelection) => {
         setSelection(next);
         setSemanticLayer(null);
+        detection.reset();
     };
 
-    const save = async () => {
-        if (!credentials || !selection.repository || !semanticLayer) return;
+    const save = async (choice: SemanticLayerChoice) => {
+        if (!credentials || !selection.repository) return;
         await update.mutateAsync({
             name: project.name,
             dbtVersion: project.dbtVersion,
@@ -76,11 +82,27 @@ export const GitHostConnectForm: FC<{
                 repository: selection.repository,
                 branch: selection.branch,
                 subPath: selection.subPath,
-                semanticLayer,
+                semanticLayer: choice,
                 githubInstallationId: installationId,
             }),
         });
         onSaved();
+    };
+
+    const connect = async () => {
+        if (semanticLayer) {
+            await save(semanticLayer);
+            return;
+        }
+        if (!credentials || !selection.repository) return;
+        const format = await detection.mutateAsync({
+            credentials,
+            repository: selection.repository,
+            branch: selection.branch,
+            subPath: selection.subPath,
+        });
+        const choice = getAutomaticSemanticLayer(format, supportsNative);
+        if (choice) await save(choice);
     };
 
     return (
@@ -99,8 +121,8 @@ export const GitHostConnectForm: FC<{
                 onChange={changeSelection}
             />
             <FormatCheck
-                credentials={credentials}
-                selection={selection}
+                format={detection.data}
+                error={detection.error}
                 supportsNative={supportsNative}
                 hostLabel={GIT_HOST_LABELS[host]}
                 value={semanticLayer}
@@ -114,9 +136,9 @@ export const GitHostConnectForm: FC<{
                     Back
                 </Button>
                 <Button
-                    disabled={!canSave}
-                    loading={update.isLoading}
-                    onClick={() => void save().catch(() => undefined)}
+                    disabled={!canConnect}
+                    loading={detection.isLoading || update.isLoading}
+                    onClick={() => void connect().catch(() => undefined)}
                 >
                     Connect and deploy
                 </Button>
