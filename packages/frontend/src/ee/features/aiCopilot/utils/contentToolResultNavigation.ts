@@ -54,3 +54,19 @@ export const getDashboardNavigationUrlFromContentToolResult = (
 
     return target.dashboardUrl;
 };
+
+/** The Document an agent just created or edited, so an open page can reload it. */
+export const getSavedDocumentUuidFromContentToolResult = (
+    toolResult: AiAgentToolResult,
+): string | undefined => {
+    if (toolResult.isPreliminary) return undefined;
+    if (
+        toolResult.toolName !== 'createContent' &&
+        toolResult.toolName !== 'editContent'
+    ) {
+        return undefined;
+    }
+    if (toolResult.toolArgs.type !== 'document') return undefined;
+    if (toolResult.toolResult.metadata.status !== 'success') return undefined;
+    return toolResult.toolResult.metadata.uuid;
+};

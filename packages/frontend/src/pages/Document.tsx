@@ -18,6 +18,7 @@ import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DocumentActions from '../features/documents/DocumentActions';
+import DocumentAiAgentContextBridge from '../features/documents/DocumentAiAgentContextBridge';
 import {
     getDocumentReturnUrl,
     isStartEditingState,
@@ -64,6 +65,10 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
             >
                 <DocumentEditor
                     document={editingDocument}
+                    newerVersionSaved={
+                        document.version.versionUuid !==
+                        editingDocument.version.versionUuid
+                    }
                     initialScrollTop={openAt}
                     onScrollTopChange={trackScroll}
                     onClose={() => {
@@ -139,10 +144,16 @@ const DocumentContent = ({
         );
     }
     return (
-        <DocumentWorkspace
-            key={query.data.documentUuid}
-            document={query.data}
-        />
+        <>
+            <DocumentAiAgentContextBridge
+                projectUuid={projectUuid}
+                documentUuid={query.data.documentUuid}
+            />
+            <DocumentWorkspace
+                key={query.data.documentUuid}
+                document={query.data}
+            />
+        </>
     );
 };
 

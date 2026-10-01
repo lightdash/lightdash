@@ -92,6 +92,9 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     const currentDataApp = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDataApp,
     );
+    const currentDocument = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDocument,
+    );
     const { dock } = useLauncherDock(activeProjectUuid);
     const panelSize = useLauncherPanelSize();
 
@@ -196,7 +199,8 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         activeDataAppPreview ?? lastDataAppPreviewRef.current;
     const isContentPage =
         currentDashboard?.projectUuid === activeProjectUuid ||
-        currentDataApp?.projectUuid === activeProjectUuid;
+        currentDataApp?.projectUuid === activeProjectUuid ||
+        currentDocument?.projectUuid === activeProjectUuid;
 
     if (
         !activeProjectUuid ||

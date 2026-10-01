@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { type AiAgentToolResult } from '../types';
-import { getDashboardNavigationUrlFromContentToolResult } from './contentToolResultNavigation';
+import {
+    getDashboardNavigationUrlFromContentToolResult,
+    getSavedDocumentUuidFromContentToolResult,
+} from './contentToolResultNavigation';
 
 const dashboardEditResult = {
     toolName: 'editContent',
@@ -69,5 +72,60 @@ describe('getDashboardNavigationUrlFromContentToolResult', () => {
                 },
             ),
         ).toBe('/projects/project-uuid/dashboards/jaffle-dashboard');
+    });
+});
+
+describe('getSavedDocumentUuidFromContentToolResult', () => {
+    const documentResult = ({
+        status = 'success',
+        isPreliminary = false,
+    }: {
+        status?: 'success' | 'error';
+        isPreliminary?: boolean;
+    } = {}) =>
+        ({
+            toolName: 'editContent',
+            isPreliminary,
+            toolArgs: {
+                type: 'document',
+                slug: 'q3-review',
+                documentEdit: { type: 'metadata', name: 'Q3' },
+            },
+            toolResult: {
+                result: '{}',
+                metadata:
+                    status === 'success'
+                        ? {
+                              status,
+                              slug: 'q3-review',
+                              name: 'Q3',
+                              uuid: 'doc-uuid',
+                              href: '/projects/project-uuid/documents/doc-uuid',
+                              warnings: [],
+                          }
+                        : { status },
+            },
+        }) as unknown as AiAgentToolResult;
+
+    it('returns the Document saved by a successful edit', () => {
+        expect(
+            getSavedDocumentUuidFromContentToolResult(documentResult()),
+        ).toBe('doc-uuid');
+    });
+
+    it('ignores dashboards, failed saves and streaming results', () => {
+        expect(
+            getSavedDocumentUuidFromContentToolResult(dashboardEditResult),
+        ).toBeUndefined();
+        expect(
+            getSavedDocumentUuidFromContentToolResult(
+                documentResult({ status: 'error' }),
+            ),
+        ).toBeUndefined();
+        expect(
+            getSavedDocumentUuidFromContentToolResult(
+                documentResult({ isPreliminary: true }),
+            ),
+        ).toBeUndefined();
     });
 });

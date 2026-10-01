@@ -16,6 +16,16 @@ describe('buildNewThreadUrl', () => {
         ).toBe('/projects/p1/ai-agents/agent-1/threads?dataAppUuid=app-1');
     });
 
+    it('carries the open Document so the full-page thread pins it', () => {
+        expect(
+            buildNewThreadUrl({
+                projectUuid: 'p1',
+                agent,
+                pendingContext: { documentUuid: 'doc-1' },
+            }),
+        ).toBe('/projects/p1/ai-agents/agent-1/threads?documentUuid=doc-1');
+    });
+
     it('carries chart and dashboard params', () => {
         expect(
             buildNewThreadUrl({

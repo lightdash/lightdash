@@ -1,6 +1,8 @@
 import {
     agentToolDefinitionsByName,
     isAiAgentMcpToolName,
+    mcpCreateContentArgsSchema,
+    mcpEditContentArgsSchema,
     parsePartialToolComposerQueriesArgs,
     toolDashboardV2ArgsSchemaPersisted,
     toolRunQueryArgsSchemaPersisted,
@@ -23,6 +25,10 @@ const wideInputSchemaOverrides = {
         .or(toolRunQueryExpressionArgsSchema)
         .or(toolRunQueryExpressionArgsSchemaV2),
     generateDashboard: toolDashboardV2ArgsSchemaPersisted,
+    // With Documents enabled the agent gets the Documents variant of the
+    // content tools, whose args also accept type "document".
+    createContent: mcpCreateContentArgsSchema,
+    editContent: mcpEditContentArgsSchema,
 } as const;
 
 type ToolArgs<TName extends ToolName> =

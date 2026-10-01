@@ -26,6 +26,11 @@ vi.mock('../features/documents/DocumentEditor', () => ({
 vi.mock('../features/documents/DocumentActions', () => ({
     default: () => null,
 }));
+vi.mock('../features/documents/DocumentAiAgentContextBridge', () => ({
+    default: ({ documentUuid }: { documentUuid: string }) => (
+        <span data-testid="ai-agent-context">{documentUuid}</span>
+    ),
+}));
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
@@ -358,6 +363,9 @@ describe('Document page', () => {
                 versionUuid: 'version-uuid',
                 cellIndex: 1,
             }),
+        );
+        expect(screen.getByTestId('ai-agent-context')).toHaveTextContent(
+            'document-uuid',
         );
     });
 

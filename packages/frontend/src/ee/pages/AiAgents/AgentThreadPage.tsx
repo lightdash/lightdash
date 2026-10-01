@@ -259,6 +259,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     });
     const dashboardUuid = searchParams.get('dashboardUuid');
     const dataAppUuid = searchParams.get('dataAppUuid');
+    const documentUuid = searchParams.get('documentUuid');
     const {
         contextInput: pageContextInput,
         previewItems: pagePreviewItems,
@@ -267,6 +268,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         projectUuid,
         dashboardUuidOrSlug: dashboardUuid,
         dataAppUuidOrSlug: dataAppUuid,
+        documentUuid,
     });
 
     const contentMentionItems = useMemo(

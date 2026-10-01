@@ -86,6 +86,7 @@ const AgentsRouterPage = () => {
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
     const dataAppUuid = searchParams.get('dataAppUuid');
+    const documentUuid = searchParams.get('documentUuid');
 
     const {
         contextInput,
@@ -97,6 +98,7 @@ const AgentsRouterPage = () => {
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
         dataAppUuidOrSlug: dataAppUuid,
+        documentUuid,
     });
 
     const {

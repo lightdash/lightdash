@@ -16,9 +16,13 @@ export const useIsLauncherMounted = (
     const currentDataApp = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDataApp,
     );
+    const currentDocument = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDocument,
+    );
     const isContentPage =
         currentDashboard?.projectUuid === projectUuid ||
-        currentDataApp?.projectUuid === projectUuid;
+        currentDataApp?.projectUuid === projectUuid ||
+        currentDocument?.projectUuid === projectUuid;
     return (
         isPanelOpen || dock.length > 0 || (isContentPage && isAiAgentEnabled)
     );
