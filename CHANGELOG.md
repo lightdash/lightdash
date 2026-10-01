@@ -1,3 +1,10 @@
+## [2.407.2](https://github.com/lightdash/lightdash/compare/2.407.1...2.407.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* **roadmap:** explain unreachable self-hosted roadmap connections ([#30258](https://github.com/lightdash/lightdash/issues/30258)) ([11c7cb4](https://github.com/lightdash/lightdash/commit/11c7cb40bfd5468ef4a4f1c91ba5cae47aa3fdc7))
+
 ## [2.407.1](https://github.com/lightdash/lightdash/compare/2.407.0...2.407.1) (2026-10-01)
 
 
