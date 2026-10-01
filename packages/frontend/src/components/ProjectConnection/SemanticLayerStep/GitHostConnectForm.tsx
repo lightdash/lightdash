@@ -9,12 +9,13 @@ import {
 import { Button, Group, Stack, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useUpdateMutation } from '../../../hooks/useProject';
+import useApp from '../../../providers/App/useApp';
 import { useGithubConfig } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import { FormatCheck, type SemanticLayerChoice } from './FormatCheck';
 import { GitHostCredentialsFields } from './GitHostCredentialsFields';
 import { RepositoryPicker } from './RepositoryPicker';
 import {
-    EMPTY_GIT_HOST_DRAFT,
+    getEmptyGitHostDraft,
     EMPTY_REPOSITORY_SELECTION,
     toGitHostCredentials,
     type GitHostDraft,
@@ -27,9 +28,13 @@ export const GitHostConnectForm: FC<{
     onBack: () => void;
     onSaved: () => void;
 }> = ({ host, project, onBack, onSaved }) => {
+    const { health } = useApp();
+    const canInstallGithubApp = health.data?.hasGithub === true;
     const githubConfig = useGithubConfig();
     const installationId = githubConfig.data?.installationId ?? null;
-    const [draft, setDraft] = useState<GitHostDraft>(EMPTY_GIT_HOST_DRAFT);
+    const [draft, setDraft] = useState<GitHostDraft>(() =>
+        getEmptyGitHostDraft(canInstallGithubApp),
+    );
     const [selection, setSelection] = useState<RepositorySelection>(
         EMPTY_REPOSITORY_SELECTION,
     );
@@ -85,6 +90,7 @@ export const GitHostConnectForm: FC<{
                 draft={draft}
                 onChange={setDraft}
                 hasGithubInstallation={githubConfig.data?.enabled === true}
+                canInstallGithubApp={canInstallGithubApp}
             />
             <RepositoryPicker
                 credentials={credentials}

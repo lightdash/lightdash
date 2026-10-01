@@ -82,21 +82,28 @@ const GithubFields: FC<{
     draft: GitHostDraft;
     onChange: (draft: GitHostDraft) => void;
     hasGithubInstallation: boolean;
-}> = ({ draft, onChange, hasGithubInstallation }) => (
+    canInstallGithubApp: boolean;
+}> = ({ draft, onChange, hasGithubInstallation, canInstallGithubApp }) => (
     <Stack gap="sm">
-        <SegmentedControl
-            value={draft.githubMethod}
-            onChange={(value) =>
-                onChange({
-                    ...draft,
-                    githubMethod: value === 'token' ? 'token' : 'installation',
-                })
-            }
-            data={[
-                { value: 'installation', label: 'GitHub App (recommended)' },
-                { value: 'token', label: 'Access token' },
-            ]}
-        />
+        {canInstallGithubApp && (
+            <SegmentedControl
+                value={draft.githubMethod}
+                onChange={(value) =>
+                    onChange({
+                        ...draft,
+                        githubMethod:
+                            value === 'token' ? 'token' : 'installation',
+                    })
+                }
+                data={[
+                    {
+                        value: 'installation',
+                        label: 'GitHub App (recommended)',
+                    },
+                    { value: 'token', label: 'Access token' },
+                ]}
+            />
+        )}
         {draft.githubMethod === 'installation' && !hasGithubInstallation && (
             <Stack gap="xs">
                 <Text size="sm" c="dimmed">
@@ -128,7 +135,14 @@ export const GitHostCredentialsFields: FC<{
     draft: GitHostDraft;
     onChange: (draft: GitHostDraft) => void;
     hasGithubInstallation: boolean;
-}> = ({ host, draft, onChange, hasGithubInstallation }) => {
+    canInstallGithubApp: boolean;
+}> = ({
+    host,
+    draft,
+    onChange,
+    hasGithubInstallation,
+    canInstallGithubApp,
+}) => {
     switch (host) {
         case GitHost.GITHUB:
             return (
@@ -136,6 +150,7 @@ export const GitHostCredentialsFields: FC<{
                     draft={draft}
                     onChange={onChange}
                     hasGithubInstallation={hasGithubInstallation}
+                    canInstallGithubApp={canInstallGithubApp}
                 />
             );
         case GitHost.GITLAB:

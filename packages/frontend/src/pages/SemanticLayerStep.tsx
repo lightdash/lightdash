@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Box, Divider, Stack, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import Callout from '../components/common/Callout';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import PageSpinner from '../components/PageSpinner';
@@ -27,6 +27,7 @@ import {
     useProjectSetup,
     useSkipSemanticLayer,
 } from '../hooks/useProjectSetup';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import classes from './SemanticLayerStep.module.css';
@@ -113,7 +114,7 @@ const StepOptions: FC<{ project: Project; isWaiting: boolean }> = ({
 };
 
 const SemanticLayerStep: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const connectJourneyFlag = useServerFeatureFlag(
         FeatureFlags.ConnectJourney,
     );

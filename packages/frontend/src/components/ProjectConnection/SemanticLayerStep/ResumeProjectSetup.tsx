@@ -1,8 +1,9 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, ProjectSetupStepName } from '@lightdash/common';
 import { type FC, type ReactNode } from 'react';
-import { Navigate, useParams } from 'react-router';
+import { Navigate } from 'react-router';
 import { useProjectSetup } from '../../../hooks/useProjectSetup';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import PageSpinner from '../../PageSpinner';
@@ -10,7 +11,7 @@ import PageSpinner from '../../PageSpinner';
 export const ResumeProjectSetup: FC<{ children: ReactNode }> = ({
     children,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const connectJourneyFlag = useServerFeatureFlag(
         FeatureFlags.ConnectJourney,
     );
