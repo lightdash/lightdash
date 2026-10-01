@@ -18,6 +18,7 @@
 .logos {
     display: flex;
     flex-wrap: wrap;
+    justify-content: space-between;
     align-items: center;
     gap: 1.25em 1.5em;
     margin: 0;
