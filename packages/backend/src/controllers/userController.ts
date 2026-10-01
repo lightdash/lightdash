@@ -188,7 +188,7 @@ export class UserController extends BaseController {
      * @param req express request
      * @param passcode the one-time passcode sent to the user's primary email
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/me/email/status')
     @OperationId('GetEmailVerificationStatus')
     async getEmailVerificationStatus(

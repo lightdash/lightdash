@@ -95,6 +95,7 @@ organizationRouter.delete(
 
 organizationRouter.get(
     '/onboardingStatus',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -116,6 +117,7 @@ organizationRouter.get(
 
 organizationRouter.post(
     '/onboardingStatus/shownSuccess',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
