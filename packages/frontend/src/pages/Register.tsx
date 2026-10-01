@@ -92,7 +92,9 @@ const RegisterTermsFooter: FC<{ isNewLayout: boolean }> = ({ isNewLayout }) =>
 const Register: FC = () => {
     const location = useLocation();
     const { health } = useApp();
-    const emailStatus = useEmailStatus(!!health.data?.isAuthenticated);
+    const emailStatus = useEmailStatus(
+        !!health.data?.isAuthenticated && !!health.data?.hasEmailClient,
+    );
     const { isNewLayout } = useAuthLayoutVariant();
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
