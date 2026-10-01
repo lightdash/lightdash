@@ -385,7 +385,7 @@ const ProjectManagementPanel: FC = () => {
                 accessorKey: 'name',
                 header: 'Name',
                 enableSorting: true,
-                size: 200,
+                size: 280,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
                         <MantineIcon icon={IconTextCaption} color="dimmed" />
@@ -402,10 +402,14 @@ const ProjectManagementPanel: FC = () => {
                                 {project.name}
                             </Text>
                             {isCurrentProject && (
-                                <Badge size="xs">Current</Badge>
+                                <Badge size="xs" flex="none">
+                                    Current
+                                </Badge>
                             )}
                             {project.type === ProjectType.PREVIEW && (
-                                <Badge size="xs">Preview</Badge>
+                                <Badge size="xs" flex="none">
+                                    Preview
+                                </Badge>
                             )}
                             {project.type === ProjectType.TRAINING && (
                                 <Badge size="xs" color="grape" flex="none">
