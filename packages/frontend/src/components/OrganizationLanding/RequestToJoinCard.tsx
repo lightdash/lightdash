@@ -6,6 +6,7 @@ import {
 import { Avatar, Button, Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useRequestToJoinOrganization } from '../../hooks/organization/useOrganizationLanding';
+import { getOrganizationDisplayName } from './organizationLandingCopy';
 
 const getStatusText = (
     status: OrganizationJoinRequestStatus,
@@ -32,17 +33,18 @@ export const RequestToJoinCard: FC<{
     const status = match.joinRequest?.status ?? null;
     const isPending = status === OrganizationJoinRequestStatus.PENDING;
     const statusText = status ? getStatusText(status) : null;
+    const displayName = getOrganizationDisplayName(match.name);
 
     return (
         <Card>
             <Stack gap="sm">
                 <Group gap="md" wrap="nowrap">
                     <Avatar size="md" radius="xl">
-                        {match.name[0]?.toUpperCase()}
+                        {displayName[0]?.toUpperCase()}
                     </Avatar>
                     <Stack gap={2}>
                         <Text fw={600} truncate="end">
-                            {match.name}
+                            {displayName}
                         </Text>
                         <Text size="xs" c="dimmed">
                             {context}

@@ -4,6 +4,9 @@ import {
 } from '@lightdash/common';
 import { inferOrganizationName } from '../../utils/organizationName';
 
+export const getOrganizationDisplayName = (name: string): string =>
+    name.trim() || 'Unnamed organization';
+
 export const formatMemberCount = (count: number): string =>
     `${count} ${count === 1 ? 'member' : 'members'}`;
 
