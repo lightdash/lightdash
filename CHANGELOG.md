@@ -1,3 +1,10 @@
+## [2.405.4](https://github.com/lightdash/lightdash/compare/2.405.3...2.405.4) (2026-10-01)
+
+
+### Bug Fixes
+
+* **frontend:** block saving a GitHub OAuth connection without the app installed ([#30282](https://github.com/lightdash/lightdash/issues/30282)) ([41caa81](https://github.com/lightdash/lightdash/commit/41caa81830e3935907624ddca8f5cf573be10d47))
+
 ## [2.405.3](https://github.com/lightdash/lightdash/compare/2.405.2...2.405.3) (2026-10-01)
 
 
