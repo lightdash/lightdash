@@ -31,6 +31,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { InviteLinkFailureService } from '../InviteLinkFailureService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { RolesService } from './RolesService';
 import {
@@ -74,6 +75,9 @@ const limitedOrganizationManagerAccount = () => {
 describe('RolesService', () => {
     const buildService = (licenseValid = true) =>
         new RolesService({
+            inviteLinkFailureService: {
+                recordInvite: vi.fn(async () => {}),
+            } as unknown as InviteLinkFailureService,
             lightdashConfig: {
                 customRoles: { enabled: false },
             } as LightdashConfig,
@@ -1803,6 +1807,9 @@ describe('RolesService', () => {
             // still self-escalation via an invited/assigned role: #26771).
             const buildPatScopeService = (patScopeAuthoritative: boolean) =>
                 new RolesService({
+                    inviteLinkFailureService: {
+                        recordInvite: vi.fn(async () => {}),
+                    } as unknown as InviteLinkFailureService,
                     lightdashConfig: {
                         customRoles: { enabled: false },
                         auth: {

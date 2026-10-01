@@ -1276,3 +1276,5 @@ export * from './utils/savedMerge';
 export * from './types/sharedSignIn';
 export * from './utils/warehouseConnectionInput';
 export * from './types/warehouseConnectionTest';
+
+export * from './utils/inviteLinkFailure';

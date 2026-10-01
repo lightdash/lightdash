@@ -23,6 +23,7 @@ import { lightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
+import { useInviteFailure } from '../components/InviteFailure/useInviteFailure';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import { useOrganization } from '../hooks/organization/useOrganization';
@@ -250,24 +251,34 @@ const Invite: FC = () => {
         redirectUrl,
     );
 
-    const { isLoading, mutate, isSuccess } = useMutation<
-        LightdashUser,
-        ApiError,
-        ActivateUserWithInviteCode
-    >(createUserQuery, {
-        mutationKey: ['create_user'],
-        onSuccess: (data) => {
-            identify({ id: data.userUuid });
-            window.location.href = redirectUrl;
+    const {
+        isLoading,
+        mutate,
+        isSuccess,
+        error: createUserError,
+    } = useMutation<LightdashUser, ApiError, ActivateUserWithInviteCode>(
+        createUserQuery,
+        {
+            mutationKey: ['create_user'],
+            onSuccess: (data) => {
+                identify({ id: data.userUuid });
+                window.location.href = redirectUrl;
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to create user`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to create user`,
-                apiError: error,
-            });
-        },
-    });
+    );
 
+    const inviteFailure = useInviteFailure({
+        inviteCode,
+        redirectUrl,
+        errors: [createUserError, activateInvite.error, inviteLinkQuery.error],
+        flashMessages,
+    });
     const isNewOnboarding = newOnboardingFlag.data?.enabled ?? false;
     const showOneClick =
         isNewOnboarding &&
@@ -290,6 +301,10 @@ const Invite: FC = () => {
         return <PageSpinner />;
     }
 
+    if (inviteFailure.page) {
+        return inviteFailure.page;
+    }
+
     if (health.status === 'success' && health.data?.isAuthenticated) {
         return <Navigate to={{ pathname: redirectUrl }} />;
     }
@@ -306,7 +321,7 @@ const Invite: FC = () => {
                     loginHint={inviteLinkQuery.data?.email}
                     forceShow
                     intent="signup"
-                    redirect={redirectUrl}
+                    redirect={inviteFailure.ssoRedirectUrl}
                 />
             ))}
         </Stack>
