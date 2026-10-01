@@ -33,6 +33,7 @@ import {
     PrometheusEventMetricManager,
     PrometheusEventMetricManagerConfig,
 } from './PrometheusEventMetricManager';
+import { UsageProcessingMetrics } from './UsageProcessingMetrics';
 
 const prometheusEventMetricsConfigSchema = z.object({
     metrics: z.array(
@@ -297,6 +298,8 @@ export default class PrometheusMetrics {
     public usageEventsCompactionBacklogGauge: prometheus.Gauge | null = null;
 
     public usageEventsRawObjectsGauge: prometheus.Gauge | null = null;
+
+    public usageProcessing: UsageProcessingMetrics | null = null;
 
     public preAggregateMaterializationFileSizeHistogram: prometheus.Histogram<string> | null =
         null;
@@ -1128,6 +1131,7 @@ export default class PrometheusMetrics {
                     });
 
                 // Usage event stream writer metrics
+                this.usageProcessing = new UsageProcessingMetrics();
                 this.usageEventsPushedCounter = new prometheus.Counter({
                     name: 'lightdash_usage_events_pushed_total',
                     help: 'Total usage events pushed into the event stream buffer',
@@ -1175,7 +1179,7 @@ export default class PrometheusMetrics {
                 this.usageEventsCompactionRunDurationHistogram =
                     new prometheus.Histogram({
                         name: 'lightdash_usage_events_compaction_run_duration_ms',
-                        help: 'Duration of a full usage events compaction run in milliseconds',
+                        help: 'Duration of raw usage event compaction only, excluding dimensions and user summaries, in milliseconds',
                         labelNames: ['outcome'],
                         buckets: [
                             1_000, 5_000, 15_000, 60_000, 300_000, 900_000,

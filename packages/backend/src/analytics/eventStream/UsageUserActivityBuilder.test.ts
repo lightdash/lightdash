@@ -68,6 +68,24 @@ describe('user activity safeguards', () => {
         ).toEqual(['2025-12-31', '2026-01-01', '2026-01-02']);
     });
 
+    it('reports unvisited partitions when the work limit is reached', async () => {
+        vi.spyOn(S3.prototype, 'listObjectsV2').mockImplementation(
+            async (input) => {
+                if (input.Prefix === 'events/compacted/')
+                    return {
+                        Contents: Array.from({ length: 501 }, (_, index) => ({
+                            Key: `events/compacted/org_id=${org}/stream=query_events/dt=${new Date(Date.UTC(2023, 0, index + 1)).toISOString().slice(0, 10)}/part.parquet`,
+                        })),
+                    };
+                throw new Error('storage unavailable');
+            },
+        );
+        const summary = await new UsageUserActivityBuilder(storage, {
+            runSqlWithMetrics: vi.fn(),
+        }).runAll(now);
+        expect(summary).toMatchObject({ failed: 500, limitReached: true });
+    });
+
     it('uses one inventory request for an empty deployment, without per-organization probes', async () => {
         const list = vi
             .spyOn(S3.prototype, 'listObjectsV2')

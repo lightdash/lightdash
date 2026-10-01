@@ -798,6 +798,15 @@ describe('Credential reads by connection binding on the real schema', () => {
     });
 
     describe('guard owners (A-6)', () => {
+        test.each(['update', 'updateAndPushToPreviews'])(
+            '%s delegates to the guarded update helper',
+            (method) => {
+                expect(
+                    methodSource('models/ProjectModel/ProjectModel.ts', method),
+                ).toContain('this.updateProject(');
+            },
+        );
+
         test.each(GUARD_OWNERS.map((row) => [row.guard, row] as const))(
             '%s',
             async (_guard, row) => {

@@ -314,6 +314,13 @@ export class SchedulerWorker extends SchedulerTask {
     }
 
     async run() {
+        this.prometheusMetrics?.usageProcessing?.setEnabled(
+            !!this.lightdashConfig.usageEvents?.enabled &&
+                this.lightdashConfig.usageEvents.s3 !== null &&
+                this.enabledTasks.includes(
+                    SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+                ),
+        );
         // Wait for graphile utils to finish migration and prevent race conditions
         await this.schedulerClient.graphileUtils;
         // Run a worker to execute jobs:

@@ -1,6 +1,9 @@
+import prometheus from 'prom-client';
 import Logger from '../../logging/logger';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
+import { UsageProcessingMetrics } from '../../prometheus/UsageProcessingMetrics';
 import { queryEventsCompactedColumns } from './queryEventsStream';
+import { UsageDimensionsRefresher } from './UsageDimensionsRefresher';
 import {
     buildCompactionSql,
     buildPartFileName,
@@ -9,6 +12,7 @@ import {
     parseRawKey,
     UsageEventsCompactor,
 } from './UsageEventsCompactor';
+import { UsageUserActivityBuilder } from './UsageUserActivityBuilder';
 
 vi.mock('../../logging/logger', () => ({
     __esModule: true,
@@ -77,6 +81,7 @@ const rawKey = (
 ) => `events/raw/org_id=${orgId}/stream=${stream}/dt=${dt}/${file}`;
 
 const createMetricsMock = () => ({
+    usageProcessing: { start: vi.fn(), finish: vi.fn() },
     incrementUsageEventsCompactedPartitions: vi.fn(),
     incrementUsageEventsCompactionFailures: vi.fn(),
     observeUsageEventsCompactionRunDuration: vi.fn(),
@@ -263,6 +268,7 @@ describe('UsageEventsCompactor.run', () => {
 
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
     it('never deletes raw files when the compaction write fails', async () => {
@@ -275,6 +281,11 @@ describe('UsageEventsCompactor.run', () => {
 
         expect(summary.partitionsFailed).toEqual(1);
         expect(summary.partitionsCompacted).toEqual(0);
+        expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+            'pipeline',
+            { outcome: 'failed' },
+            expect.any(Number),
+        );
         expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
         expect(
             metrics.incrementUsageEventsCompactionFailures,
@@ -401,5 +412,178 @@ describe('UsageEventsCompactor.run', () => {
         expect(metrics.setUsageEventsCompactionBacklog).toHaveBeenCalledWith(0);
         // Unknown-stream raw object stays in the raw zone
         expect(metrics.setUsageEventsRawObjects).toHaveBeenCalledWith(1);
+        expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+            'pipeline',
+            { outcome: 'partial' },
+            expect.any(Number),
+        );
+    });
+
+    it('records every stage of a healthy empty run as complete', async () => {
+        mockListedKeys([]);
+        const registry = new prometheus.Registry();
+        const exportedMetrics = new UsageProcessingMetrics([registry]);
+        metrics.usageProcessing.start.mockImplementation((stage) =>
+            exportedMetrics.start(stage),
+        );
+        metrics.usageProcessing.finish.mockImplementation(
+            (stage, result, duration) =>
+                exportedMetrics.finish(stage, result, duration),
+        );
+        await createCompactor(metrics).run(NOW);
+        expect(metrics.usageProcessing.start.mock.calls).toEqual([
+            ['pipeline'],
+            ['compaction'],
+            ['dimensions'],
+            ['users'],
+        ]);
+        expect(
+            metrics.usageProcessing.finish.mock.calls.map(([stage, result]) => [
+                stage,
+                result.outcome,
+            ]),
+        ).toEqual([
+            ['compaction', 'success'],
+            ['dimensions', 'success'],
+            ['users', 'success'],
+            ['pipeline', 'success'],
+        ]);
+        const scrape = await registry.metrics();
+        for (const stage of ['compaction', 'dimensions', 'users', 'pipeline']) {
+            expect(scrape).toContain(
+                `lightdash_usage_processing_duration_seconds_count{stage="${stage}",outcome="success"} 1`,
+            );
+            expect(scrape).toContain(
+                `lightdash_usage_processing_running{stage="${stage}"} 0`,
+            );
+        }
+    });
+
+    it.each(['compaction', 'dimensions', 'users'] as const)(
+        'preserves thrown %s errors and reports failed pipeline',
+        async (stage) => {
+            mockListedKeys([]);
+            const error = new Error('storage unavailable');
+            if (stage === 'compaction')
+                s3Mocks.listObjectsV2.mockRejectedValue(error);
+            if (stage === 'dimensions')
+                vi.spyOn(
+                    UsageDimensionsRefresher.prototype,
+                    'run',
+                ).mockRejectedValue(error);
+            if (stage === 'users')
+                vi.spyOn(
+                    UsageUserActivityBuilder.prototype,
+                    'runAll',
+                ).mockRejectedValue(error);
+            await expect(createCompactor(metrics).run(NOW)).rejects.toBe(error);
+            expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+                stage,
+                { outcome: 'failed' },
+                expect.any(Number),
+            );
+            expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
+                'pipeline',
+                { outcome: 'failed' },
+                expect.any(Number),
+            );
+        },
+    );
+
+    it('reports returned dimension failures and still stops before user summaries', async () => {
+        mockListedKeys([]);
+        vi.spyOn(UsageDimensionsRefresher.prototype, 'run').mockResolvedValue({
+            refreshed: 4,
+            failed: 1,
+        });
+        const users = vi.spyOn(UsageUserActivityBuilder.prototype, 'runAll');
+        await expect(createCompactor(metrics).run(NOW)).rejects.toThrow(
+            'previous snapshots retained',
+        );
+        expect(users).not.toHaveBeenCalled();
+        expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+            'dimensions',
+            { outcome: 'failed', failed: 1, remaining: 1 },
+            expect.any(Number),
+        );
+    });
+
+    it.each([
+        { deferred: 1, failed: 0, limitReached: false, outcome: 'partial' },
+        { deferred: 0, failed: 0, limitReached: true, outcome: 'partial' },
+        { deferred: 0, failed: 1, limitReached: false, outcome: 'failed' },
+    ])(
+        'reports user summary $outcome without a full-success heartbeat',
+        async ({ outcome, ...summary }) => {
+            mockListedKeys([]);
+            vi.spyOn(
+                UsageUserActivityBuilder.prototype,
+                'runAll',
+            ).mockResolvedValue({
+                published: 2,
+                unchanged: 1,
+                skipped: 0,
+                ...summary,
+            });
+            const run = createCompactor(metrics).run(NOW);
+            if (summary.failed)
+                await expect(run).rejects.toThrow('previous output retained');
+            else await run;
+            expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
+                'pipeline',
+                { outcome },
+                expect.any(Number),
+            );
+        },
+    );
+
+    it('reports raw work capped at 500 partitions as partial', async () => {
+        mockListedKeys(
+            Array.from({ length: 501 }, (_, index) =>
+                rawKey(`org-${index}`, 'query_events', '2026-07-01'),
+            ),
+        );
+        const summary = await createCompactor(metrics).run(NOW);
+        expect(summary.partitionsCompacted).toBe(500);
+        expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+            'compaction',
+            { outcome: 'partial', failed: 0, remaining: 1, limitReached: true },
+            expect.any(Number),
+        );
+        expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
+            'pipeline',
+            { outcome: 'partial' },
+            expect.any(Number),
+        );
+    });
+
+    it('does not turn successful compaction into a failure when old or new metrics throw', async () => {
+        mockListedKeys([rawKey('org-1', 'query_events', '2026-07-01')]);
+        metrics.incrementUsageEventsCompactedPartitions.mockImplementation(
+            () => {
+                throw new Error('counter unavailable');
+            },
+        );
+        metrics.usageProcessing.start.mockImplementation(() => {
+            throw new Error('gauge unavailable');
+        });
+        metrics.usageProcessing.finish.mockImplementation(() => {
+            throw new Error('histogram unavailable');
+        });
+        const summary = await createCompactor(metrics).run(NOW);
+        expect(summary).toMatchObject({
+            partitionsCompacted: 1,
+            partitionsFailed: 0,
+        });
+        expect(s3Mocks.deleteObjects).toHaveBeenCalledOnce();
+    });
+
+    it('does not replace the original processing error when failure metrics throw', async () => {
+        const error = new Error('listing failed');
+        s3Mocks.listObjectsV2.mockRejectedValue(error);
+        metrics.usageProcessing.finish.mockImplementation(() => {
+            throw new Error('metrics failed');
+        });
+        await expect(createCompactor(metrics).run(NOW)).rejects.toBe(error);
     });
 });
