@@ -323,6 +323,21 @@ export const themeComponents: MantineThemeOverride['components'] = {
             variant: 'light',
         },
         classNames: alertClasses,
+        vars: (_theme, props) => {
+            // Mantine's yellow text is too light to read on the pale fill.
+            if (
+                props.color === 'yellow' &&
+                (props.variant === undefined || props.variant === 'light')
+            ) {
+                return {
+                    root: {
+                        '--alert-color':
+                            'light-dark(color-mix(in srgb, var(--mantine-color-yellow-9) 55%, black), var(--mantine-color-yellow-4))',
+                    },
+                };
+            }
+            return { root: {} };
+        },
     }),
 
     Table: Table.extend({

@@ -32,7 +32,8 @@ export const ClickhouseSchemaInput: FC<{
 
 const ClickhouseForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
@@ -82,6 +83,7 @@ const ClickhouseForm: FC<{
                     disabled={disabled}
                 />
 
+                {extraFields}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
                         <BooleanSwitch

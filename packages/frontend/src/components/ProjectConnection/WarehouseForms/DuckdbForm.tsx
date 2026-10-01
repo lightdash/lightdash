@@ -364,7 +364,8 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
 
 const DuckdbForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const form = useFormContext();
 
@@ -402,6 +403,7 @@ const DuckdbForm: FC<{
                 <DucklakeFields disabled={disabled} />
             )}
 
+            {extraFields}
             <FormSection isOpen={isOpen} name="advanced">
                 <Stack mt="sm">
                     <NumberInput

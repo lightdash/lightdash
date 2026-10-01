@@ -44,7 +44,8 @@ export const PostgresSchemaInput: FC<{
 
 const PostgresForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject, isProjectExtraConnection } = useProjectFormContext();
     const requireSecrets: boolean =
@@ -126,6 +127,7 @@ const PostgresForm: FC<{
                     {...form.getInputProps('warehouse.dbname')}
                     disabled={disabled}
                 />
+                {extraFields}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
                         {isProjectExtraConnection ? (

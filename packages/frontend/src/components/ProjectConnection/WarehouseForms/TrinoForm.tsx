@@ -32,7 +32,8 @@ export const TrinoSchemaInput: FC<{
 
 const TrinoForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
@@ -85,6 +86,7 @@ const TrinoForm: FC<{
                     disabled={disabled}
                 />
 
+                {extraFields}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
                         <BooleanSwitch

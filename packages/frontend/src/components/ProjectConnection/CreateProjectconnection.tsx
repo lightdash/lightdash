@@ -7,7 +7,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Group, Loader } from '@mantine/core';
+import { Button, Group, Loader, Text } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -272,17 +272,24 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                     warehouseOnly={warehouseOnly}
                                 />
 
-                                <Button
-                                    ref={submitButtonRef}
-                                    style={{ alignSelf: 'end' }}
-                                    type="submit"
-                                    loading={isSavingProject}
-                                    disabled={!form.isValid()}
-                                >
-                                    {warehouseOnly
-                                        ? 'Test & save'
-                                        : 'Test & deploy project'}
-                                </Button>
+                                <Group justify="flex-end" gap="md">
+                                    {!form.isValid() && (
+                                        <Text size="sm" c="dimmed">
+                                            Fill in the required fields to
+                                            continue.
+                                        </Text>
+                                    )}
+                                    <Button
+                                        ref={submitButtonRef}
+                                        type="submit"
+                                        loading={isSavingProject}
+                                        disabled={!form.isValid()}
+                                    >
+                                        {warehouseOnly
+                                            ? 'Test & save'
+                                            : 'Test & deploy project'}
+                                    </Button>
+                                </Group>
                             </>
                         )}
                     </ProjectFormProvider>
