@@ -17,6 +17,7 @@ import {
     ExternalSourceScope,
     ExternalSourceType,
     getRequestMethod,
+    InviteLinkFailureReason,
     InviteLinkPurpose,
     LightdashInstallType,
     LightdashMode,
@@ -282,6 +283,22 @@ type OnboardingStepCompletedEvent = BaseTrack & {
         onboardingFlow: OnboardingFlow;
         organizationId?: string;
     };
+};
+
+type InviteLinkFailedEvent = BaseTrack & {
+    event: 'invite_link.failed';
+    anonymousId: string;
+    properties: {
+        reason: InviteLinkFailureReason;
+        hasProvenance: boolean;
+        organizationId: string | null;
+    };
+};
+
+type NewInviteRequestedEvent = BaseTrack & {
+    event: 'invite_link.new_invite_requested';
+    anonymousId: string;
+    properties: { organizationId: string };
 };
 
 type SetupInviteAcceptedEvent = BaseTrack & {
@@ -4504,6 +4521,8 @@ type TypedEvent =
     | OneTimePasscodeFailedEvent
     | OnboardingStepCompletedEvent
     | SetupInviteAcceptedEvent
+    | InviteLinkFailedEvent
+    | NewInviteRequestedEvent
     | UserJoinOrganizationEvent
     | UserLeftOrganizationEvent
     | QueryExecutionEvent

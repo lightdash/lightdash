@@ -75,6 +75,13 @@ export class InviteLinkModel {
             .delete();
     }
 
+    async findExpiresAt(inviteCode: string): Promise<Date | null> {
+        const row = await this.database(InviteLinkTableName)
+            .where('invite_code_hash', InviteLinkModel._hash(inviteCode))
+            .first('expires_at');
+        return row?.expires_at ?? null;
+    }
+
     async getByCode(inviteCode: string): Promise<InviteLink> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const inviteLinks = await this.database(InviteLinkTableName)

@@ -766,6 +766,14 @@ export class SchedulerWorker extends SchedulerTask {
                 },
             },
             {
+                task: SCHEDULER_TASKS.CLEAN_INVITE_LINK_PROVENANCE,
+                pattern: '30 1 * * *',
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000,
+                    maxAttempts: 3,
+                },
+            },
+            {
                 task: SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES,
                 pattern: '41 * * * *', // Hourly, off the top of the hour
                 options: {
@@ -1915,6 +1923,9 @@ export class SchedulerWorker extends SchedulerTask {
                 Logger.info(
                     `AI usage ledger cleanup completed. Records deleted: ${deletedCount}. Organizations kept in full: ${retainedOrganizationUuids.length}`,
                 );
+            },
+            [SCHEDULER_TASKS.CLEAN_INVITE_LINK_PROVENANCE]: async () => {
+                await this.userService.cleanupInviteLinkProvenance();
             },
             [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
                 Logger.info('Starting warehouse connect codes cleanup job');

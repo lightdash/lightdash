@@ -170,6 +170,10 @@ import {
     HeadlessBrowserLoginGrantTable,
 } from '../database/entities/headlessBrowserLoginGrants';
 import {
+    InviteLinkProvenanceTable,
+    InviteLinkProvenanceTableName,
+} from '../database/entities/inviteLinkProvenance';
+import {
     InviteLinkTable,
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
@@ -713,6 +717,7 @@ declare module 'knex/types/tables' {
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;
         [InviteLinkTableName]: InviteLinkTable;
+        [InviteLinkProvenanceTableName]: InviteLinkProvenanceTable;
         [OrganizationTableName]: OrganizationTable;
         [UserTableName]: UserTable;
         [UserAvatarsTableName]: UserAvatarsTable;

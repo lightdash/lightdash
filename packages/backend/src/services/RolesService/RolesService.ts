@@ -67,6 +67,7 @@ import {
 } from '../../utils/organizationRolePermissions';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { InviteLinkFailureService } from '../InviteLinkFailureService';
 import { LicenseService } from '../LicenseService/LicenseService';
 
 type RolesServiceArguments = {
@@ -81,6 +82,7 @@ type RolesServiceArguments = {
     emailClient: EmailClient;
     adminNotificationService: AdminNotificationService;
     inviteLinkModel: InviteLinkModel;
+    inviteLinkFailureService: InviteLinkFailureService;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     featureFlagModel: FeatureFlagModel;
 };
@@ -111,6 +113,8 @@ export class RolesService extends BaseService {
 
     private readonly inviteLinkModel: InviteLinkModel;
 
+    private readonly inviteLinkFailureService: InviteLinkFailureService;
+
     private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
 
     private readonly featureFlagModel: FeatureFlagModel;
@@ -127,6 +131,7 @@ export class RolesService extends BaseService {
         emailClient,
         adminNotificationService,
         inviteLinkModel,
+        inviteLinkFailureService,
         organizationMemberProfileModel,
         featureFlagModel,
     }: RolesServiceArguments) {
@@ -142,6 +147,7 @@ export class RolesService extends BaseService {
         this.emailClient = emailClient;
         this.adminNotificationService = adminNotificationService;
         this.inviteLinkModel = inviteLinkModel;
+        this.inviteLinkFailureService = inviteLinkFailureService;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.featureFlagModel = featureFlagModel;
     }
@@ -874,6 +880,10 @@ export class RolesService extends BaseService {
             organizationUuid,
             userUuid,
             InviteLinkPurpose.Member,
+        );
+        await this.inviteLinkFailureService.recordInvite(
+            inviteLink,
+            toSessionUser(account),
         );
         try {
             await this.emailClient.sendInviteEmail(

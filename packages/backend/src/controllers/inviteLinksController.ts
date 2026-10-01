@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiGetInviteLinkResponse,
+    ApiInviteLinkFailureResponse,
     ApiInviteLinkResponse,
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
@@ -35,6 +36,40 @@ import { BaseController } from './baseController';
 @Tags('Organizations')
 export class InviteLinksController extends BaseController {
     /**
+     * Explain why an invite link cannot be used, and who sent it when that is known.
+     * @summary Get invite link failure
+     */
+    @Middlewares([unauthorisedInDemo])
+    @Get('{inviteCode}/failure')
+    @OperationId('GetInviteLinkFailure')
+    async getInviteLinkFailure(
+        @Request() req: express.Request,
+        @Path() inviteCode: string,
+    ): Promise<ApiInviteLinkFailureResponse> {
+        const results = await this.services
+            .getInviteLinkFailureService()
+            .getFailure(inviteCode, req.user ?? null);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Ask the person who sent an invite link for a new invite.
+     * @summary Request a new invite
+     */
+    @Middlewares([unauthorisedInDemo])
+    @Post('{inviteCode}/request-new')
+    @OperationId('RequestNewInviteLink')
+    async requestNewInviteLink(
+        @Request() req: express.Request,
+        @Path() inviteCode: string,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getInviteLinkFailureService()
+            .requestNew(inviteCode, req.user ?? null);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Get an invite link by its code. Public endpoint used by the invite
      * acceptance page.
      * @summary Get invite link
@@ -45,11 +80,15 @@ export class InviteLinksController extends BaseController {
     @Get('{inviteLinkCode}')
     @OperationId('GetInviteLink')
     async getInviteLink(
+        @Request() req: express.Request,
         @Path() inviteLinkCode: string,
     ): Promise<ApiGetInviteLinkResponse> {
         const inviteLink = await this.services
             .getUserService()
-            .getInviteLinkWithAuthenticationOptions(inviteLinkCode);
+            .getInviteLinkWithAuthenticationOptions(
+                inviteLinkCode,
+                req.user ?? null,
+            );
         this.setStatus(200);
         return {
             status: 'ok',
