@@ -52,6 +52,8 @@ import type {
     ApiAiGenerateTableCalculationResponse,
     ApiAiOrganizationRuntimeSettingsResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiProviderCredentialCreatedResponse,
+    ApiAiProviderCredentialsResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
     ApiAiRouterDecisionListResponse,
@@ -101,6 +103,7 @@ import type {
     ApiOrganizationDesignsResponse,
     ApiOrganizationHomepageSettingsResponse,
     ApiPreviewTokenResponse,
+    ApiProjectAiCredentialResponse,
     ApiProjectHomepageOrNullResponse,
     ApiProjectHomepageResponse,
     ApiPromoteAiAgentMemoryResponse,
@@ -1733,7 +1736,10 @@ type ApiResults =
     | ApiLearnWorkspaceFilesResponse['results']
     | ApiLearnWorkspaceFileResponse['results']
     | ApiLearnCommandCreatedResponse['results']
-    | ApiLearnCommandOutputResponse['results'];
+    | ApiLearnCommandOutputResponse['results']
+    | ApiAiProviderCredentialsResponse['results']
+    | ApiAiProviderCredentialCreatedResponse['results']
+    | ApiProjectAiCredentialResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

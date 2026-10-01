@@ -344,7 +344,6 @@ export const AiGeneralSettingsPage = () => {
                                 showDataAppModels={
                                     dataAppsFlag.data?.enabled === true
                                 }
-                                bedrockConfig={settings.bedrockConfig ?? null}
                                 bedrockModelOptions={
                                     settings.bedrockModelOptions ?? []
                                 }
