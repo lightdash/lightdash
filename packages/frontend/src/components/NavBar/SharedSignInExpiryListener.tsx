@@ -29,6 +29,7 @@ export const SharedSignInExpiryListener: FC = () => {
             showToastWarning({
                 key: 'shared-sign-in-expired',
                 title: getExpiredSharedSignInMessage(expiry, userUuid),
+                autoClose: false,
                 action: isOwner
                     ? {
                           children: 'Reconnect',
