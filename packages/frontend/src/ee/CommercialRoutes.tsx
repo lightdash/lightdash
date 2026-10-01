@@ -125,6 +125,8 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                         ),
                     };
                 },
+                // A child route keeps the dashboard mounted when switching tabs.
+                children: [{ path: 'tabs/:tabUuid' }],
             },
             {
                 path: '/embed/:projectUuid/ai-agents/not-authorized',
