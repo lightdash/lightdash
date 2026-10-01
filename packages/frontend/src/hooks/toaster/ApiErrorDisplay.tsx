@@ -17,6 +17,7 @@ import { useContext, useLayoutEffect, useRef, useState } from 'react';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
 import {
@@ -216,6 +217,28 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
     );
 };
 
+const PreviewSignInExpiredMessage = ({
+    apiError,
+}: {
+    apiError: ApiErrorDetail;
+}) => {
+    const isEmbedded = useIsEmbedded();
+    const { upstreamProjectUuid } = apiError.data;
+    return (
+        <Text mb={0} fz="xs">
+            {apiError.message}{' '}
+            {!isEmbedded && typeof upstreamProjectUuid === 'string' && (
+                <Anchor
+                    inherit
+                    href={`/generalSettings/projectManagement/${upstreamProjectUuid}/settings`}
+                >
+                    Open the connection settings
+                </Anchor>
+            )}
+        </Text>
+    );
+};
+
 const ApiErrorDisplayStatic = ({
     apiError,
     defaultExpanded,
@@ -302,6 +325,8 @@ const ApiErrorDisplayWithHealth = ({
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':
             return <GoogleSheetsReauthMessage message={apiError.message} />;
+        case 'PreviewWarehouseSignInExpiredError':
+            return <PreviewSignInExpiredMessage apiError={apiError} />;
         case 'NetworkError':
             return (
                 <NetworkFailureMessage
