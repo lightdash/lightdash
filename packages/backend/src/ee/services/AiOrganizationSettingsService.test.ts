@@ -643,6 +643,374 @@ describe('upsertSettings model validation', () => {
     });
 });
 
+describe('converting a legacy Bedrock configuration', () => {
+    const LEGACY = {
+        apiKey: 'ABSKlegacy-key',
+        region: 'ap-northeast-1',
+        allowedModels: ['claude-sonnet-4-5'],
+    };
+
+    const buildService = ({
+        existingCount = 0,
+        legacy = LEGACY,
+    }: {
+        existingCount?: number;
+        legacy?: typeof LEGACY | null;
+    } = {}) => {
+        const createCredential = vi.fn(
+            async (_org: string, _user: string | null, _data: unknown) =>
+                'new-cred-uuid',
+        );
+        const updateSettings = vi.fn(async () => undefined);
+        const service = new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findDecryptedProviderApiKeys: async () =>
+                    legacy ? { bedrock: legacy } : null,
+                findByOrganizationUuid: async () => ({
+                    defaultAiAgentModelConfig: {
+                        modelName: 'gpt-6-sol',
+                        modelProvider: 'openai',
+                    },
+                }),
+                update: updateSettings,
+            },
+            aiOrganizationProviderCredentialModel: {
+                countByOrganizationUuid: async () => existingCount,
+                create: createCredential,
+                // Mirroring and default-model reconciliation read these back
+                // after every lifecycle change.
+                findDefaultDecrypted: async () =>
+                    legacy
+                        ? {
+                              status: 'ok',
+                              credential: {
+                                  uuid: 'new-cred-uuid',
+                                  organizationUuid: 'org-uuid',
+                                  provider: 'bedrock',
+                                  label: legacy.region,
+                                  isDefault: true,
+                                  config: legacy,
+                              },
+                          }
+                        : { status: 'none' },
+                findAllByOrganizationUuid: async () => ({
+                    credentials: legacy
+                        ? [
+                              {
+                                  uuid: 'new-cred-uuid',
+                                  provider: 'bedrock',
+                                  label: legacy.region,
+                                  region: legacy.region,
+                                  allowedModels: legacy.allowedModels,
+                                  apiKeyHint: 'ABSK...',
+                                  isDefault: true,
+                              },
+                          ]
+                        : [],
+                    unreadable: [],
+                }),
+            },
+            organizationModel: {},
+            projectModel: {},
+            commercialFeatureFlagModel: {
+                get: async () => ({ enabled: true }),
+            },
+            lightdashConfig: { ai: { copilot: { providers: {} } } },
+            orgAiCopilotConfigResolver: {},
+        } as never);
+        (
+            service as unknown as { createAuditedAbility: () => unknown }
+        ).createAuditedAbility = () => ({ can: () => true });
+        return { service, createCredential, updateSettings };
+    };
+
+    const user = {
+        organizationUuid: 'org-uuid',
+        userUuid: 'user-uuid',
+    } as never;
+
+    // Without this an org that configured Bedrock before named credentials
+    // could see its configuration but never edit or remove it.
+    it('converts the legacy config into a managed credential', async () => {
+        const { service, createCredential, updateSettings } = buildService();
+        await service.adoptLegacyProviderCredential(user);
+
+        expect(createCredential).toHaveBeenCalledTimes(1);
+        expect(createCredential.mock.calls[0][2]).toEqual({
+            provider: 'bedrock',
+            label: 'ap-northeast-1',
+            region: 'ap-northeast-1',
+            allowedModels: ['claude-sonnet-4-5'],
+            apiKey: 'ABSKlegacy-key',
+        });
+        // Mirrored, not cleared — an N-1 pod reads only this blob.
+        expect(updateSettings).toHaveBeenCalledWith('org-uuid', {
+            providerApiKeys: { bedrock: LEGACY },
+        });
+    });
+
+    it('refuses when the org already manages credentials', async () => {
+        const { service, createCredential } = buildService({
+            existingCount: 1,
+        });
+        await expect(
+            service.adoptLegacyProviderCredential(user),
+        ).rejects.toThrow(/already manages/);
+        expect(createCredential).not.toHaveBeenCalled();
+    });
+
+    it('refuses when there is no legacy configuration', async () => {
+        const { service, createCredential } = buildService({ legacy: null });
+        await expect(
+            service.adoptLegacyProviderCredential(user),
+        ).rejects.toThrow(/No legacy Bedrock/);
+        expect(createCredential).not.toHaveBeenCalled();
+    });
+});
+
+describe('pinning a project to a credential', () => {
+    const buildService = ({
+        resolution = { status: 'ok' as const, credential: {} },
+    } = {}) => {
+        const setProjectCredential = vi.fn(async () => undefined);
+        const service = new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {},
+            aiOrganizationProviderCredentialModel: {
+                findDecrypted: async () => resolution,
+                setProjectCredential,
+            },
+            organizationModel: {},
+            projectModel: {
+                getSummary: async () => ({ organizationUuid: 'org-uuid' }),
+            },
+            commercialFeatureFlagModel: {
+                get: async () => ({ enabled: true }),
+            },
+            lightdashConfig: { ai: { copilot: { providers: {} } } },
+            orgAiCopilotConfigResolver: {},
+        } as never);
+        (
+            service as unknown as { createAuditedAbility: () => unknown }
+        ).createAuditedAbility = () => ({ can: () => true });
+        return { service, setProjectCredential };
+    };
+
+    const user = {
+        organizationUuid: 'org-uuid',
+        userUuid: 'user-uuid',
+    } as never;
+
+    it('stores the pin for a readable credential', async () => {
+        const { service, setProjectCredential } = buildService();
+        await service.setProjectProviderCredential(user, 'project-1', 'cred-1');
+        expect(setProjectCredential).toHaveBeenCalledWith(
+            'project-1',
+            'cred-1',
+        );
+    });
+
+    it('rejects a credential that does not exist', async () => {
+        const { service, setProjectCredential } = buildService({
+            resolution: { status: 'none' } as never,
+        });
+        await expect(
+            service.setProjectProviderCredential(user, 'project-1', 'cred-1'),
+        ).rejects.toThrow(/not found/);
+        expect(setProjectCredential).not.toHaveBeenCalled();
+    });
+
+    // Caught at pin time, not at the project's first AI request, which would
+    // otherwise fail with no obvious cause.
+    it('rejects an unreadable credential', async () => {
+        const { service, setProjectCredential } = buildService({
+            resolution: {
+                status: 'unreadable',
+                uuid: 'cred-1',
+                label: 'Japan (Tokyo)',
+            } as never,
+        });
+        await expect(
+            service.setProjectProviderCredential(user, 'project-1', 'cred-1'),
+        ).rejects.toThrow(/cannot be read/);
+        expect(setProjectCredential).not.toHaveBeenCalled();
+    });
+
+    it('clears the pin without looking up a credential', async () => {
+        const { service, setProjectCredential } = buildService({
+            resolution: { status: 'none' } as never,
+        });
+        await service.setProjectProviderCredential(user, 'project-1', null);
+        expect(setProjectCredential).toHaveBeenCalledWith('project-1', null);
+    });
+});
+
+describe('legacy Bedrock adoption', () => {
+    const LEGACY_BEDROCK = {
+        apiKey: 'ABSKlegacy-key',
+        region: 'ap-northeast-1',
+        allowedModels: ['claude-sonnet-4-5'],
+    };
+
+    const buildService = ({
+        existingCount = 0,
+        legacy = LEGACY_BEDROCK,
+    }: {
+        existingCount?: number;
+        legacy?: typeof LEGACY_BEDROCK | null;
+    } = {}) => {
+        const createCredential = vi.fn(
+            async (_org: string, _user: string | null, _data: unknown) =>
+                'new-cred-uuid',
+        );
+        const updateSettings = vi.fn(async () => undefined);
+        const service = new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findDecryptedProviderApiKeys: async () =>
+                    legacy ? { bedrock: legacy } : null,
+                findByOrganizationUuid: async () => ({
+                    defaultAiAgentModelConfig: {
+                        modelName: 'gpt-6-sol',
+                        modelProvider: 'openai',
+                    },
+                }),
+                update: updateSettings,
+            },
+            aiOrganizationProviderCredentialModel: {
+                countByOrganizationUuid: async () => existingCount,
+                create: createCredential,
+                // Mirroring and default-model reconciliation read these back
+                // after every lifecycle change.
+                findDefaultDecrypted: async () =>
+                    legacy
+                        ? {
+                              status: 'ok',
+                              credential: {
+                                  uuid: 'new-cred-uuid',
+                                  organizationUuid: 'org-uuid',
+                                  provider: 'bedrock',
+                                  label: legacy.region,
+                                  isDefault: true,
+                                  config: legacy,
+                              },
+                          }
+                        : { status: 'none' },
+                findAllByOrganizationUuid: async () => ({
+                    credentials: legacy
+                        ? [
+                              {
+                                  uuid: 'new-cred-uuid',
+                                  provider: 'bedrock',
+                                  label: legacy.region,
+                                  region: legacy.region,
+                                  allowedModels: legacy.allowedModels,
+                                  apiKeyHint: 'ABSK...',
+                                  isDefault: true,
+                              },
+                          ]
+                        : [],
+                    unreadable: [],
+                }),
+            },
+            organizationModel: {},
+            projectModel: {},
+            commercialFeatureFlagModel: {
+                get: async () => ({ enabled: true }),
+            },
+            lightdashConfig: { ai: { copilot: { providers: {} } } },
+            orgAiCopilotConfigResolver: {},
+        } as never);
+        (
+            service as unknown as { createAuditedAbility: () => unknown }
+        ).createAuditedAbility = () => ({ can: () => true });
+        return { service, createCredential, updateSettings };
+    };
+
+    const user = {
+        organizationUuid: 'org-uuid',
+        userUuid: 'user-uuid',
+    } as never;
+
+    const newCredential = {
+        provider: 'bedrock' as const,
+        label: 'US (Virginia)',
+        region: 'us-east-1',
+        allowedModels: ['claude-sonnet-4-5'],
+        apiKey: 'ABSKus-key',
+    };
+
+    // Without adoption, adding a second region would leave the original
+    // org-wide config unreachable from the credential list.
+    it('adopts the legacy blob as a credential before the first create', async () => {
+        const { service, createCredential } = buildService();
+        await service.createProviderCredential(user, newCredential);
+
+        expect(createCredential).toHaveBeenCalledTimes(2);
+        expect(createCredential.mock.calls[0][2]).toEqual({
+            provider: 'bedrock',
+            label: 'ap-northeast-1',
+            region: 'ap-northeast-1',
+            allowedModels: ['claude-sonnet-4-5'],
+            apiKey: 'ABSKlegacy-key',
+        });
+        expect(createCredential.mock.calls[1][2]).toEqual(newCredential);
+    });
+
+    // An N-1 pod mid-rollout can only read the legacy blob. Clearing it on
+    // adoption would make that pod see no Bedrock key and fall through to
+    // another provider — a residency break, not just an outage. The blob is
+    // mirrored to the default credential instead.
+    it('keeps the legacy blob as a mirror of the default credential', async () => {
+        const { service, updateSettings } = buildService();
+        await service.createProviderCredential(user, newCredential);
+
+        expect(updateSettings).not.toHaveBeenCalledWith('org-uuid', {
+            providerApiKeys: { bedrock: null },
+        });
+        expect(updateSettings).toHaveBeenCalledWith('org-uuid', {
+            providerApiKeys: { bedrock: LEGACY_BEDROCK },
+        });
+    });
+
+    // Model resolution honours a pinned provider and never falls back, so a
+    // default left on OpenAI while the config is Bedrock-only fails every turn.
+    it('repoints the default model at the adopted Bedrock credential', async () => {
+        const { service, updateSettings } = buildService();
+        await service.createProviderCredential(user, newCredential);
+
+        expect(updateSettings).toHaveBeenCalledWith('org-uuid', {
+            defaultAiAgentModelConfig: {
+                modelName: LEGACY_BEDROCK.allowedModels[0],
+                modelProvider: 'bedrock',
+            },
+        });
+    });
+
+    it('does not adopt again once the org has credentials', async () => {
+        const { service, createCredential, updateSettings } = buildService({
+            existingCount: 2,
+        });
+        await service.createProviderCredential(user, newCredential);
+
+        // Only the requested credential is created — no second adoption.
+        expect(createCredential).toHaveBeenCalledTimes(1);
+        // Mirroring still runs on every lifecycle change, but it must never
+        // clear the blob out from under an N-1 pod.
+        expect(updateSettings).not.toHaveBeenCalledWith('org-uuid', {
+            providerApiKeys: { bedrock: null },
+        });
+    });
+
+    it('does nothing to adopt when there is no legacy blob', async () => {
+        const { service, createCredential, updateSettings } = buildService({
+            legacy: null,
+        });
+        await service.createProviderCredential(user, newCredential);
+
+        expect(createCredential).toHaveBeenCalledTimes(1);
+        expect(updateSettings).not.toHaveBeenCalled();
+    });
+});
+
 describe('isAiAgentMemoryEnabled', () => {
     const buildService = (settingEnabled: boolean | null) =>
         new AiOrganizationSettingsService({

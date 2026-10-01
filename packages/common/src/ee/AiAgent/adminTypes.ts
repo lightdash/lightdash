@@ -476,6 +476,35 @@ export type CreateAiProviderCredential = {
     apiKey: string;
 };
 
+/** A credential row whose ciphertext could not be read with the current secret. */
+export type UnreadableAiProviderCredential = {
+    uuid: string;
+    label: string;
+};
+
+/**
+ * Bedrock config still held in the organization's legacy single-key blob,
+ * surfaced so an organization that configured Bedrock before named credentials
+ * existed does not open the page to an empty list. Adopted as a real
+ * credential the first time any credential is created.
+ */
+export type LegacyBedrockCredential = {
+    region: string;
+    allowedModels: string[];
+    apiKeyHint: string;
+};
+
+export type AiProviderCredentialsList = {
+    credentials: AiProviderCredential[];
+    legacyBedrock: LegacyBedrockCredential | null;
+    unreadableCredentials: UnreadableAiProviderCredential[];
+};
+
+/** Which credential a project's AI features run on; null means org default. */
+export type ProjectAiCredentialSelection = {
+    credentialUuid: string | null;
+};
+
 export type UpdateAiProviderCredential = {
     label?: string;
     region?: string;
@@ -592,6 +621,16 @@ export type AiOrganizationRuntimeSettings = {
 
 export type ApiAiOrganizationRuntimeSettingsResponse =
     ApiSuccess<AiOrganizationRuntimeSettings>;
+
+export type ApiAiProviderCredentialsResponse =
+    ApiSuccess<AiProviderCredentialsList>;
+
+export type ApiAiProviderCredentialCreatedResponse = ApiSuccess<{
+    uuid: string;
+}>;
+
+export type ApiProjectAiCredentialResponse =
+    ApiSuccess<ProjectAiCredentialSelection>;
 
 export type ApiUpdateAiOrganizationSettingsResponse =
     ApiSuccess<AiOrganizationSettings>;

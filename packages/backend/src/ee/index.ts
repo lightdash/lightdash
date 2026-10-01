@@ -939,7 +939,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiOrganizationSettingsService({
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
+                    aiOrganizationProviderCredentialModel:
+                        models.getAiOrganizationProviderCredentialModel(),
                     organizationModel: models.getOrganizationModel(),
+                    projectModel: models.getProjectModel(),
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     lightdashConfig: context.lightdashConfig,
