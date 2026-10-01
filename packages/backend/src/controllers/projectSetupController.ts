@@ -3,6 +3,7 @@ import {
     assertRegisteredAccount,
     type ApiProjectSetupResponse,
     type ApiSkipProjectSetupStepResponse,
+    type UUID,
 } from '@lightdash/common';
 import {
     Get,
@@ -36,7 +37,7 @@ export class ProjectSetupController extends BaseController {
     @OperationId('getProjectSetup')
     async getProjectSetup(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
     ): Promise<ApiProjectSetupResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -59,7 +60,7 @@ export class ProjectSetupController extends BaseController {
     @OperationId('skipProjectSetupSemanticLayer')
     async skipSemanticLayer(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
     ): Promise<ApiSkipProjectSetupStepResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
