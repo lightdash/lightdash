@@ -1,11 +1,15 @@
 import {
+    isPreviewWarehouseSignInExpiredMessage,
     type ApiErrorDetail,
     type QueryHistoryStatus,
 } from '@lightdash/common';
 import { Anchor, Text } from '@mantine/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
+import { Link } from 'react-router';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
+import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { LD_FIELD_COLORS } from '../../../theme';
@@ -174,6 +178,23 @@ export const ExploreLoadingState = ({
     );
 };
 
+const PreviewSignInExpiredLink: FC = () => {
+    const { data: project } = useProject(useProjectUuid());
+    const upstreamProjectUuid = project?.upstreamProjectUuid;
+    if (!upstreamProjectUuid) return null;
+    return (
+        <Fragment>
+            <br />
+            <Anchor
+                component={Link}
+                to={`/generalSettings/projectManagement/${upstreamProjectUuid}/settings`}
+            >
+                Open the connection settings
+            </Anchor>
+        </Fragment>
+    );
+};
+
 export const ExploreErrorState = ({
     errorDetail,
 }: {
@@ -191,6 +212,11 @@ export const ExploreErrorState = ({
                         {errorDetail?.message ||
                             'There was an error loading the results'}
                     </Text>
+                    {errorDetail?.message &&
+                        isPreviewWarehouseSignInExpiredMessage(
+                            errorDetail.message,
+                        ) &&
+                        !isEmbedded && <PreviewSignInExpiredLink />}
                     {errorDetail?.data.documentationUrl && !isEmbedded && (
                         <Fragment>
                             <br />
