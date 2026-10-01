@@ -101,16 +101,21 @@ export const parseHostInput = (
     if (typeof input !== 'string') {
         return { kind: ConnectionInputParseKind.UNCHANGED, value: input };
     }
-    const automaticChanges: string[] = [];
+    const automaticChanges: { done: string; proposed: string }[] = [];
     const confirmChanges: string[] = [];
     let rest = input.trim();
     if (rest !== input) {
-        automaticChanges.push(
-            `We removed spaces around the ${options.fieldLabel}`,
-        );
+        automaticChanges.push({
+            done: `We removed spaces around the ${options.fieldLabel}`,
+            proposed: `Remove spaces around the ${options.fieldLabel}`,
+        });
     }
     if (rest === '') {
-        return finish(input, rest, automaticChanges);
+        return finish(
+            input,
+            rest,
+            automaticChanges.map(({ done }) => done),
+        );
     }
 
     const schemeMatch = rest.match(SCHEME_PATTERN);
@@ -121,7 +126,10 @@ export const parseHostInput = (
         if (options.schemeAffectsTransport) {
             confirmChanges.push(change);
         } else {
-            automaticChanges.push(`We removed ${schemeMatch[0]}`);
+            automaticChanges.push({
+                done: `We removed ${schemeMatch[0]}`,
+                proposed: change,
+            });
         }
     }
 
@@ -142,7 +150,10 @@ export const parseHostInput = (
                 `Remove ${path} from the ${options.fieldLabel}`,
             );
         } else {
-            automaticChanges.push('We removed the trailing /');
+            automaticChanges.push({
+                done: 'We removed the trailing /',
+                proposed: 'Remove the trailing /',
+            });
         }
     }
 
@@ -170,10 +181,17 @@ export const parseHostInput = (
             proposed: host,
             proposedPort: port,
             scheme,
-            changes: [...automaticChanges, ...confirmChanges],
+            changes: [
+                ...automaticChanges.map(({ proposed }) => proposed),
+                ...confirmChanges,
+            ],
         };
     }
-    return finish(input, host, automaticChanges);
+    return finish(
+        input,
+        host,
+        automaticChanges.map(({ done }) => done),
+    );
 };
 
 export const parseSnowflakeAccountInput = (
