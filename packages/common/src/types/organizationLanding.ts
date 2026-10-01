@@ -22,6 +22,7 @@ export type OrganizationLandingMatch = {
     organizationUuid: string;
     name: string;
     hasAdmin: boolean;
+    membersCount: number;
     joinRequest: OrganizationJoinRequestSummary | null;
 };
 

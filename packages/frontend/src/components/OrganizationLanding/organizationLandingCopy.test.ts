@@ -1,4 +1,7 @@
-import { type OrganizationLanding } from '@lightdash/common';
+import {
+    OrganizationJoinRequestStatus,
+    type OrganizationLanding,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     formatMemberCount,
@@ -7,7 +10,9 @@ import {
     getLandingTitle,
     getRequestListIntro,
     getSuggestedOrganizationName,
+    getVisibleLandingMatches,
     hasNoWayIn,
+    shouldShowOrganizationSearch,
 } from './organizationLandingCopy';
 
 const landing = (
@@ -25,6 +30,7 @@ const match = {
     organizationUuid: 'org',
     name: 'Acme',
     hasAdmin: true,
+    membersCount: 3,
     joinRequest: null,
 };
 
@@ -130,5 +136,93 @@ describe('getOrganizationDisplayName', () => {
 
     it('labels an organization without a name', () => {
         expect(getOrganizationDisplayName('  ')).toBe('Unnamed organization');
+    });
+});
+
+const joinableOrg = (name: string) => ({
+    organizationUuid: name,
+    name,
+    membersCount: 1,
+});
+const requestableOrg = (
+    name: string,
+    status: OrganizationJoinRequestStatus | null = null,
+) => ({
+    ...match,
+    organizationUuid: name,
+    name,
+    joinRequest: status
+        ? {
+              joinRequestUuid: `${name}-request`,
+              status,
+              createdAt: new Date('2026-10-01T00:00:00Z'),
+              decidedAt: null,
+          }
+        : null,
+});
+const names = (visible: ReturnType<typeof getVisibleLandingMatches>) => [
+    ...visible.joinable.map(({ name }) => name),
+    ...visible.requestable.map(({ name }) => name),
+];
+
+describe('shouldShowOrganizationSearch', () => {
+    it('hides search for five matches or fewer', () => {
+        expect(
+            shouldShowOrganizationSearch(
+                landing({
+                    joinable: ['a', 'b', 'c'].map(joinableOrg),
+                    requestable: ['d', 'e'].map((n) => requestableOrg(n)),
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('shows search for more than five matches', () => {
+        expect(
+            shouldShowOrganizationSearch(
+                landing({
+                    joinable: ['a', 'b', 'c'].map(joinableOrg),
+                    requestable: ['d', 'e', 'f'].map((n) => requestableOrg(n)),
+                }),
+            ),
+        ).toBe(true);
+    });
+});
+
+describe('getVisibleLandingMatches', () => {
+    const many = landing({
+        joinable: ['Alpha', 'Bravo', 'Charlie', 'Delta'].map(joinableOrg),
+        requestable: [
+            requestableOrg('Echo'),
+            requestableOrg('Foxtrot'),
+            requestableOrg('Golf', OrganizationJoinRequestStatus.PENDING),
+        ],
+    });
+
+    it('shows five, keeps a pending request and counts the rest', () => {
+        const visible = getVisibleLandingMatches(many, '');
+        expect(names(visible)).toEqual([
+            'Alpha',
+            'Bravo',
+            'Charlie',
+            'Delta',
+            'Golf',
+        ]);
+        expect(visible.hiddenCount).toBe(2);
+    });
+
+    it('searches every match by name, ignoring case and spaces', () => {
+        const visible = getVisibleLandingMatches(many, '  ECH ');
+        expect(names(visible)).toEqual(['Echo']);
+        expect(visible.hiddenCount).toBe(0);
+    });
+
+    it('shows everything when there are few matches', () => {
+        const visible = getVisibleLandingMatches(
+            landing({ joinable: [joinableOrg('Alpha')] }),
+            '',
+        );
+        expect(names(visible)).toEqual(['Alpha']);
+        expect(visible.hiddenCount).toBe(0);
     });
 });

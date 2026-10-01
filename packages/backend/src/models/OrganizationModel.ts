@@ -411,7 +411,14 @@ export class OrganizationModel {
     async getOrganizationsWithMemberDomain(
         domain: string,
         excludeOrganizationUuids: string[],
-    ): Promise<{ organizationUuid: string; name: string; hasAdmin: boolean }[]> {
+    ): Promise<
+        {
+            organizationUuid: string;
+            name: string;
+            hasAdmin: boolean;
+            membersCount: number;
+        }[]
+    > {
         const rows = await this.database(OrganizationTableName)
             .join(
                 OrganizationMembershipsTableName,
@@ -443,6 +450,7 @@ export class OrganizationModel {
                     organization_uuid: string;
                     organization_name: string;
                     has_admin: boolean;
+                    members_count: string;
                 }[]
             >(
                 `${OrganizationTableName}.organization_uuid`,
@@ -450,22 +458,32 @@ export class OrganizationModel {
                 this.database.raw(
                     `EXISTS (SELECT 1 FROM ${OrganizationMembershipsTableName} admins WHERE admins.organization_id = ${OrganizationTableName}.organization_id AND admins.role = 'admin') AS has_admin`,
                 ),
+                this.database.raw(
+                    `(SELECT count(*) FROM ${OrganizationMembershipsTableName} members WHERE members.organization_id = ${OrganizationTableName}.organization_id) AS members_count`,
+                ),
             );
         return rows.map((row) => ({
             organizationUuid: row.organization_uuid,
             name: row.organization_name,
             hasAdmin: row.has_admin,
+            membersCount: Number(row.members_count),
         }));
     }
 
     async getAllOrganizationsWithAdminFlag(): Promise<
-        { organizationUuid: string; name: string; hasAdmin: boolean }[]
+        {
+            organizationUuid: string;
+            name: string;
+            hasAdmin: boolean;
+            membersCount: number;
+        }[]
     > {
         const rows = await this.database(OrganizationTableName).select<
             {
                 organization_uuid: string;
                 organization_name: string;
                 has_admin: boolean;
+                members_count: string;
             }[]
         >(
             `${OrganizationTableName}.organization_uuid`,
@@ -473,11 +491,15 @@ export class OrganizationModel {
             this.database.raw(
                 `EXISTS (SELECT 1 FROM ${OrganizationMembershipsTableName} admins WHERE admins.organization_id = ${OrganizationTableName}.organization_id AND admins.role = 'admin') AS has_admin`,
             ),
+            this.database.raw(
+                `(SELECT count(*) FROM ${OrganizationMembershipsTableName} members WHERE members.organization_id = ${OrganizationTableName}.organization_id) AS members_count`,
+            ),
         );
         return rows.map((row) => ({
             organizationUuid: row.organization_uuid,
             name: row.organization_name,
             hasAdmin: row.has_admin,
+            membersCount: Number(row.members_count),
         }));
     }
 

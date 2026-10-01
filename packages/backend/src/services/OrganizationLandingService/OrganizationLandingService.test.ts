@@ -13,7 +13,11 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { type DbOrganizationJoinRequest } from '../../database/entities/organizationJoinRequests';
 import { buildAccount } from '../ProjectService/ProjectService.mock';
-import { OrganizationLandingService } from './OrganizationLandingService';
+import {
+    OrganizationLandingService,
+    sortJoinableOrganizations,
+    sortRequestableOrganizations,
+} from './OrganizationLandingService';
 
 const NOW = new Date();
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -54,7 +58,12 @@ const buildService = ({
     email = 'ada@acme.com',
     smtp = false,
     memberDomainOrgs = [
-        { organizationUuid: 'private-org', name: 'Acme', hasAdmin: true },
+        {
+            organizationUuid: 'private-org',
+            name: 'Acme',
+            hasAdmin: true,
+            membersCount: 3,
+        },
     ],
     latestRequests = [] as DbOrganizationJoinRequest[],
     createdInLastDay = 0,
@@ -69,6 +78,7 @@ const buildService = ({
         organizationUuid: string;
         name: string;
         hasAdmin: boolean;
+        membersCount: number;
     }[];
     latestRequests?: DbOrganizationJoinRequest[];
     createdInLastDay?: number;
@@ -115,7 +125,12 @@ const buildService = ({
             getOrganizationsWithMemberDomain:
                 mocks.getOrganizationsWithMemberDomain,
             getAllOrganizationsWithAdminFlag: vi.fn(async () => [
-                { organizationUuid: 'only-org', name: 'Only', hasAdmin: true },
+                {
+                    organizationUuid: 'only-org',
+                    name: 'Only',
+                    hasAdmin: true,
+                    membersCount: 1,
+                },
             ]),
         },
         organizationJoinRequestModel: {
@@ -189,6 +204,7 @@ describe('OrganizationLandingService.getLanding', () => {
                 organizationUuid: 'private-org',
                 name: 'Acme',
                 hasAdmin: true,
+                membersCount: 3,
                 joinRequest: null,
             },
         ]);
@@ -356,5 +372,46 @@ describe('OrganizationLandingService decisions', () => {
             OrganizationJoinRequestStatus.DECLINED,
             expect.any(String),
         );
+    });
+});
+
+describe('organization landing order', () => {
+    const match = (
+        organizationUuid: string,
+        membersCount: number,
+        status: OrganizationJoinRequestStatus | null = null,
+    ) => ({
+        organizationUuid,
+        name: organizationUuid,
+        hasAdmin: true,
+        membersCount,
+        joinRequest: status
+            ? {
+                  joinRequestUuid: `${organizationUuid}-request`,
+                  status,
+                  createdAt: new Date('2026-10-01T00:00:00Z'),
+                  decidedAt: null,
+              }
+            : null,
+    });
+
+    it('puts the largest joinable organization first, then sorts by name', () => {
+        expect(
+            sortJoinableOrganizations([
+                { organizationUuid: 'b', name: 'Beta', membersCount: 2 },
+                { organizationUuid: 'c', name: 'Gamma', membersCount: 9 },
+                { organizationUuid: 'a', name: 'Alpha', membersCount: 2 },
+            ]).map(({ organizationUuid }) => organizationUuid),
+        ).toEqual(['c', 'a', 'b']);
+    });
+
+    it('keeps a pending request first, whatever the size', () => {
+        expect(
+            sortRequestableOrganizations([
+                match('big', 50),
+                match('pending', 1, OrganizationJoinRequestStatus.PENDING),
+                match('declined', 80, OrganizationJoinRequestStatus.DECLINED),
+            ]).map(({ organizationUuid }) => organizationUuid),
+        ).toEqual(['pending', 'declined', 'big']);
     });
 });
