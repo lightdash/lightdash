@@ -51,7 +51,7 @@ const HOST_WITH_PORT_PATTERN = /^([^:]+):(\d{1,5})$/;
 const LOCAL_HOSTS = new Set(['localhost', '0.0.0.0', '::1', '::']);
 const SNOWFLAKE_SUFFIX_PATTERN = /\.snowflakecomputing\.com$/i;
 
-const isLocalHost = (host: string) => {
+export const isLocalHost = (host: string): boolean => {
     const lower = host.toLowerCase();
     return (
         LOCAL_HOSTS.has(lower) ||

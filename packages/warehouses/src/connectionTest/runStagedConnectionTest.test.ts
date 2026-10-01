@@ -184,6 +184,31 @@ describe('runStagedConnectionTest', () => {
         expect(result.grantSuggestion).toBeNull();
     });
 
+    it('shows a Postgres TLS failure on the TLS stage, not on sign in', async () => {
+        const result = await runStagedConnectionTest({
+            credentials: postgres,
+            connectThroughTunnel: false,
+            createClient: async () =>
+                fakeClient(
+                    [],
+                    new Error('The server does not support SSL connections'),
+                ),
+            secrets: ['super-secret'],
+            probes: passingProbes(),
+        });
+
+        expect(result.failure).toMatchObject({
+            stage: WarehouseConnectionTestStage.TLS,
+            cause: WarehouseConnectionFailureCause.TLS,
+        });
+        expect(statuses(result.stages)).toEqual({
+            reach_host: WarehouseConnectionTestStageStatus.PASSED,
+            tls: WarehouseConnectionTestStageStatus.FAILED,
+            sign_in: WarehouseConnectionTestStageStatus.NOT_RUN,
+            check_access: WarehouseConnectionTestStageStatus.NOT_RUN,
+        });
+    });
+
     it('offers no GRANT for a schema that does not exist', async () => {
         const result = await runStagedConnectionTest({
             credentials: postgres,
