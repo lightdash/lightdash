@@ -43,11 +43,7 @@ jobs:
       - name: Generate and validate walkthrough artifacts
         env:
           LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
-        run: |
-          pnpm scope-tours:generate
-          pnpm scope-tours:order
-          pnpm scope-tours:check
-          pnpm scope-tours:release-check
+        run: node scripts/scope-tours/prepare-artifacts.mjs --validate
       - name: Build all packages
         run: pnpm build
 

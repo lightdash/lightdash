@@ -218,8 +218,7 @@ RUN --mount=type=secret,id=MINTLIFY_DOCS_READ_TOKEN \
     if [ -n "$SCOPE_TOURS_DOCS_SHA" ]; then \
         docs_dir="$(mktemp -d)" && \
         node scripts/scope-tours/download-docs.mjs "$SCOPE_TOURS_DOCS_SHA" /run/secrets/MINTLIFY_DOCS_READ_TOKEN "$docs_dir" && \
-        LIGHTDASH_DOCS_DIR="$docs_dir" pnpm scope-tours:generate && \
-        LIGHTDASH_DOCS_DIR="$docs_dir" pnpm scope-tours:order && \
+        LIGHTDASH_DOCS_DIR="$docs_dir" node scripts/scope-tours/prepare-artifacts.mjs && \
         rm -rf "$docs_dir"; \
     fi
 

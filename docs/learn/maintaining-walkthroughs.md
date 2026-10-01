@@ -116,7 +116,7 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 
 **Playground teaching samples survive a bundle rebuild.** `scripts/playground-bundle/content.ts` and the shipped `packages/backend/assets/playground/content.json` differ. Walkthroughs rely on that seeded content, so the two must change together.
 
-**Generate walkthrough artifacts.** The generator threw; the log names the file, selector or docs citation. PR CI does not require `generated.ts` or `curriculum.ts` to match the latest docs checkout because the release workflow owns those files. Coverage checks run against these freshly generated artifacts. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
+**Generate walkthrough artifacts.** The generator threw; the log names the file, selector or docs citation. PR CI does not require `generated.ts` or `curriculum.ts` to match the latest docs checkout because the release workflow owns those files. Coverage checks run against these freshly generated artifacts. This check stays strict, but `PR Checks`, previews and releases do not: when generation fails there, they print a `Walkthrough artifacts were not regenerated` warning and continue with the committed `generated.ts` and `curriculum.ts`, so learners keep the last released walkthroughs until the citation is fixed. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
 
 **Content coverage tests.** Tests for the coverage audit (`scripts/scope-tours/coverage.test.ts`). Same as the checker tests: yours only if you changed `scripts/scope-tours`.
 

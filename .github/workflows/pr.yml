@@ -144,11 +144,9 @@ jobs:
       - name: Generate walkthrough artifacts
         env:
           LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
-        run: |
-          pnpm scope-tours:generate
-          pnpm scope-tours:order
-      - name: Docs archive download tests
-        run: node --test scripts/scope-tours/download-docs.test.mjs
+        run: node scripts/scope-tours/prepare-artifacts.mjs
+      - name: Walkthrough CI script tests
+        run: node --test scripts/scope-tours/download-docs.test.mjs scripts/scope-tours/prepare-artifacts.test.mjs
       - name: Upload walkthrough artifacts
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
