@@ -75,6 +75,9 @@ export const CAUSE_COPY: Record<WarehouseConnectionFailureCause, CauseCopy> = {
     },
 };
 
+export const LOCAL_HOST_NETWORK_NEXT_STEP =
+    'Check that the database is running and accepts connections on this host and port.';
+
 const ACCESS_MESSAGES: Record<
     WarehouseAccessCheckKind,
     (schema: string) => string

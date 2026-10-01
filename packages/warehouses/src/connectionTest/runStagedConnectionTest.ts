@@ -217,6 +217,54 @@ const timed = async <T>(
     return { value, durationMs: Math.round(performance.now() - start) };
 };
 
+const CAUSE_STAGES: Partial<
+    Record<WarehouseConnectionFailureCause, WarehouseConnectionTestStage>
+> = {
+    [WarehouseConnectionFailureCause.NETWORK]:
+        WarehouseConnectionTestStage.REACH_HOST,
+    [WarehouseConnectionFailureCause.TIMEOUT]:
+        WarehouseConnectionTestStage.REACH_HOST,
+    [WarehouseConnectionFailureCause.TLS]: WarehouseConnectionTestStage.TLS,
+};
+
+export const attributeFailureToUncheckedStage = (
+    stages: WarehouseConnectionTestStageResult[],
+    failure: WarehouseConnectionStagedTestResults['failure'],
+): Pick<WarehouseConnectionStagedTestResults, 'stages' | 'failure'> => {
+    const causeStage = failure ? CAUSE_STAGES[failure.cause] : undefined;
+    const causeIndex = stages.findIndex(({ stage }) => stage === causeStage);
+    if (
+        !failure ||
+        causeIndex < 0 ||
+        stages[causeIndex].status !==
+            WarehouseConnectionTestStageStatus.NOT_CHECKED_SEPARATELY
+    ) {
+        return { stages, failure };
+    }
+    return {
+        stages: stages.map((result, index) => {
+            if (index === causeIndex) {
+                return {
+                    ...result,
+                    status: WarehouseConnectionTestStageStatus.FAILED,
+                };
+            }
+            if (
+                index > causeIndex &&
+                result.status !== WarehouseConnectionTestStageStatus.PASSED
+            ) {
+                return {
+                    ...result,
+                    status: WarehouseConnectionTestStageStatus.NOT_RUN,
+                    durationMs: null,
+                };
+            }
+            return result;
+        }),
+        failure: { ...failure, stage: stages[causeIndex].stage },
+    };
+};
+
 export const runStagedConnectionTest = async ({
     credentials,
     connectThroughTunnel,
@@ -344,6 +392,8 @@ export const runStagedConnectionTest = async ({
         }
     }
 
+    const attributed = attributeFailureToUncheckedStage(stages, failure);
+
     const grantSuggestion =
         schema !== null &&
         failure?.cause ===
@@ -355,8 +405,8 @@ export const runStagedConnectionTest = async ({
     return {
         ok: failure === null,
         host: endpoint?.host ?? null,
-        stages,
-        failure,
+        stages: attributed.stages,
+        failure: attributed.failure,
         access,
         grantSuggestion,
     };

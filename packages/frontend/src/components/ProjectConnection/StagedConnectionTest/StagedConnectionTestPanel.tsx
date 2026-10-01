@@ -1,5 +1,6 @@
 import {
     getWarehouseConnectionDocsUrl,
+    isLocalHost,
     WarehouseConnectionFailureCause,
     WarehouseConnectionTestStageStatus,
     WarehouseTypes,
@@ -26,11 +27,11 @@ import { Link, useLocation } from 'react-router';
 import Callout from '../../common/Callout';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
-import { EgressIpNotice } from '../EgressIpNotice';
 import { useFormContext } from '../formContext';
 import {
     CAUSE_COPY,
     getAccessMessage,
+    LOCAL_HOST_NETWORK_NEXT_STEP,
     SSL_MODE_DESCRIPTIONS,
     STAGE_LABELS,
     STAGE_STATUS_LABELS,
@@ -180,6 +181,10 @@ const FailureCallout: FC<{
     const isNetwork =
         failure.cause === WarehouseConnectionFailureCause.NETWORK ||
         failure.cause === WarehouseConnectionFailureCause.TIMEOUT;
+    const nextStep =
+        isNetwork && results.host && isLocalHost(results.host)
+            ? LOCAL_HOST_NETWORK_NEXT_STEP
+            : copy.nextStep;
 
     return (
         <Callout variant="danger" title={copy.headline(results.host)}>
@@ -187,9 +192,8 @@ const FailureCallout: FC<{
                 <Text size="sm">
                     {results.access
                         ? getAccessMessage(results.access)
-                        : copy.nextStep}
+                        : nextStep}
                 </Text>
-                {isNetwork && <EgressIpNotice warehouseType={warehouseType} />}
                 {failure.cause === WarehouseConnectionFailureCause.TLS && (
                     <TlsChoice warehouseType={warehouseType} />
                 )}
