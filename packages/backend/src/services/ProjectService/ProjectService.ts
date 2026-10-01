@@ -1336,6 +1336,11 @@ export class ProjectService extends BaseService {
                             },
                         );
                     }
+                    if (upstreamProject.provisioningSource === 'analytics') {
+                        throw new ForbiddenError(
+                            'Cannot create a preview from a managed analytics project',
+                        );
+                    }
                     if (upstreamProject.type === ProjectType.PREVIEW) {
                         throw new ForbiddenError(
                             'Cannot create a preview project from a preview project',
@@ -9525,7 +9530,7 @@ export class ProjectService extends BaseService {
         sql: string,
         binding: ConnectionBinding,
     ): Promise<ApiSqlQueryResults> {
-        const { organizationUuid } =
+        const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -9536,6 +9541,12 @@ export class ProjectService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (provisioningSource === 'analytics') {
+            throw new ForbiddenError(
+                'SQL Runner is unavailable for managed analytics projects',
+            );
         }
 
         const {
