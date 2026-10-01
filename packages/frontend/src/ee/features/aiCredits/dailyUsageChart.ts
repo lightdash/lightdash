@@ -11,14 +11,14 @@ dayjs.extend(utc);
 const MAX_DAILY_BARS = 93;
 const DAYS_PER_WEEK = 7;
 
-// Shades of the usage bar's accent, darkest for the largest series, so the chart reads as one family.
+// Distinct hues at a lighter shade, so series are easy to tell apart without shouting.
 const SERIES_COLORS = [
-    'var(--mantine-color-violet-8)',
-    'var(--mantine-color-violet-6)',
-    'var(--mantine-color-violet-5)',
     'var(--mantine-color-violet-4)',
-    'var(--mantine-color-violet-3)',
-    'var(--mantine-color-violet-2)',
+    'var(--mantine-color-blue-4)',
+    'var(--mantine-color-teal-4)',
+    'var(--mantine-color-orange-4)',
+    'var(--mantine-color-pink-4)',
+    'var(--mantine-color-cyan-4)',
 ] as const;
 
 const COMBINED_SERIES_COLOR = 'var(--mantine-color-ldGray-5)';
