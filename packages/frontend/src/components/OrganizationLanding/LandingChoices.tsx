@@ -12,6 +12,7 @@ import {
     getSuggestedOrganizationName,
     getVisibleLandingMatches,
     hasNoWayIn,
+    isPendingRequest,
     shouldShowOrganizationSearch,
 } from './organizationLandingCopy';
 import { RequestToJoinCard } from './RequestToJoinCard';
@@ -24,6 +25,10 @@ export const LandingChoices: FC<{ landing: OrganizationLanding }> = ({
     const hasMatches = getMatchCount(landing) > 0;
     const visible = getVisibleLandingMatches(landing, query);
     const visibleCount = visible.joinable.length + visible.requestable.length;
+    const pending = visible.requestable.filter(isPendingRequest);
+    const requestable = visible.requestable.filter(
+        (match) => !isPendingRequest(match),
+    );
 
     return (
         <Stack gap="lg">
@@ -36,20 +41,35 @@ export const LandingChoices: FC<{ landing: OrganizationLanding }> = ({
                     onChange={(event) => setQuery(event.currentTarget.value)}
                 />
             )}
-            {visible.joinable.map((organization) => (
-                <JoinableOrganizationCard
-                    key={organization.organizationUuid}
-                    organization={organization}
-                />
-            ))}
-            {visible.requestable.length > 0 && (
-                <Text size="sm" c="dimmed">
-                    {getRequestListIntro(landing)}
-                </Text>
+            {pending.length + visible.joinable.length > 0 && (
+                <Stack gap="xs">
+                    {pending.map((match) => (
+                        <RequestToJoinCard
+                            key={match.organizationUuid}
+                            match={match}
+                        />
+                    ))}
+                    {visible.joinable.map((organization) => (
+                        <JoinableOrganizationCard
+                            key={organization.organizationUuid}
+                            organization={organization}
+                        />
+                    ))}
+                </Stack>
             )}
-            {visible.requestable.map((match) => (
-                <RequestToJoinCard key={match.organizationUuid} match={match} />
-            ))}
+            {requestable.length > 0 && (
+                <Stack gap="xs">
+                    <Text size="sm" c="dimmed">
+                        {getRequestListIntro(landing)}
+                    </Text>
+                    {requestable.map((match) => (
+                        <RequestToJoinCard
+                            key={match.organizationUuid}
+                            match={match}
+                        />
+                    ))}
+                </Stack>
+            )}
             {query.trim() !== '' && visibleCount === 0 && (
                 <Text size="sm" c="dimmed">
                     No organization matches “{query.trim()}”.

@@ -1,5 +1,5 @@
 import { type UserAllowedOrganization } from '@lightdash/common';
-import { Avatar, Button, Card, Group, Stack, Text } from '@mantine/core';
+import { Button, Card, Group } from '@mantine/core';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useJoinOrganizationMutation } from '../../hooks/user/useJoinOrganizationMutation';
@@ -7,6 +7,7 @@ import {
     formatMemberCount,
     getOrganizationDisplayName,
 } from './organizationLandingCopy';
+import { OrganizationRowIdentity } from './OrganizationRowIdentity';
 
 export const JoinableOrganizationCard: FC<{
     organization: UserAllowedOrganization;
@@ -16,22 +17,14 @@ export const JoinableOrganizationCard: FC<{
     const displayName = getOrganizationDisplayName(organization.name);
 
     return (
-        <Card>
+        <Card p="sm">
             <Group justify="space-between" wrap="nowrap">
-                <Group gap="md" wrap="nowrap">
-                    <Avatar size="md" radius="xl">
-                        {displayName[0]?.toUpperCase()}
-                    </Avatar>
-                    <Stack gap="two">
-                        <Text truncate="end" fw={600}>
-                            {displayName}
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            {formatMemberCount(organization.membersCount)}
-                        </Text>
-                    </Stack>
-                </Group>
+                <OrganizationRowIdentity
+                    displayName={displayName}
+                    detail={formatMemberCount(organization.membersCount)}
+                />
                 <Button
+                    flex="none"
                     loading={joinOrganization.isLoading}
                     onClick={() =>
                         joinOrganization.mutate(organization.organizationUuid, {
