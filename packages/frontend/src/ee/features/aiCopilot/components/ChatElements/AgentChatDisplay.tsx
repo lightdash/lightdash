@@ -19,6 +19,7 @@ import {
 } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
+import { ChatViewportContext } from '../../hooks/useChatBackUrl';
 import { useDeepResearchThreadRunRegistrations } from '../../hooks/useDeepResearch';
 import { useAgentAiMcpServers } from '../../hooks/useProjectAiMcpServers';
 import { AddToEvalModal } from '../Admin/AddToEvalModal';
@@ -184,7 +185,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                 !visibleUserPromptUuids.has(registration.promptUuid),
         );
 
-    return (
+    const display = (
         <Flex
             ref={viewport}
             direction="column"
@@ -340,5 +341,11 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     />
                 )}
         </Flex>
+    );
+
+    return (
+        <ChatViewportContext.Provider value={viewport}>
+            {display}
+        </ChatViewportContext.Provider>
     );
 };
