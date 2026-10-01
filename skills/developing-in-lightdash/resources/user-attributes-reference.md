@@ -148,6 +148,7 @@ meta:
   metrics:
     confidential_revenue:
       type: sum
+      sql: ${TABLE}.revenue
       required_attributes:
         role: "finance"
 ```
@@ -188,7 +189,8 @@ any_attributes:
 
 ### Access Control Notes
 
-- Hidden dimensions also hide any metrics derived from them
+- Metrics defined under a column's `meta.metrics` inherit that dimension's `required_attributes` / `any_attributes`; setting either key on the metric overrides that key only
+- Model-level metrics (model `meta.metrics`) do **not** inherit column access control, even when their `sql` references a restricted column — set the keys on the metric or the table
 - Querying a hidden dimension returns a Forbidden error
 - `required_attributes` and `any_attributes` do **not** support intrinsic attributes (`email`)
 - Values are always strings — use `"true"` not `true`
