@@ -1,3 +1,10 @@
+## [2.412.2](https://github.com/lightdash/lightdash/compare/2.412.1...2.412.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* **charts:** stop embedded and minimal charts flashing "No data available" ([#30377](https://github.com/lightdash/lightdash/issues/30377)) ([0e6758e](https://github.com/lightdash/lightdash/commit/0e6758e3c5d4b5c34a20487105ecf4b7775fde2a))
+
 ## [2.412.1](https://github.com/lightdash/lightdash/compare/2.412.0...2.412.1) (2026-10-01)
 
 
