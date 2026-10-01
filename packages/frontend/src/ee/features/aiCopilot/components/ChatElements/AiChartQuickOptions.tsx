@@ -24,7 +24,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -52,6 +52,7 @@ import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
+import { useChatBackUrl } from '../../hooks/useChatBackUrl';
 import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
 import {
     requestDashboardRefresh,
@@ -114,7 +115,7 @@ export const AiChartQuickOptions = ({
     const ability = useAbilityContext();
     const { content, writeActions, embedToken } = useEmbed();
     const isEmbed = isEmbedAiAgentRoute();
-    const location = useLocation();
+    const getBackUrl = useChatBackUrl();
     const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -396,6 +397,7 @@ export const AiChartQuickOptions = ({
         if (isEmbed) {
             if (!metricQuery?.exploreName) return;
 
+            const backUrl = getBackUrl();
             void navigate(
                 {
                     pathname: `/embed/${projectUuid}/explore/${encodeURIComponent(
@@ -403,13 +405,11 @@ export const AiChartQuickOptions = ({
                     )}`,
                     search: getEmbedExploreSearch(
                         openInExploreUrl.search,
-                        `${location.pathname}${location.search}`,
+                        backUrl,
                     ),
                 },
                 {
-                    state: {
-                        embedBackUrl: `${location.pathname}${location.search}`,
-                    },
+                    state: { embedBackUrl: backUrl },
                 },
             );
         } else {
@@ -443,8 +443,7 @@ export const AiChartQuickOptions = ({
         openInExploreUrl,
         isEmbed,
         navigate,
-        location.pathname,
-        location.search,
+        getBackUrl,
         metricQuery?.exploreName,
         createShareUrl,
         user?.data?.userUuid,

@@ -1,5 +1,13 @@
 import { rem } from '@mantine/core';
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from 'react';
+import { useSearchParams } from 'react-router';
+import { CHAT_MESSAGE_PARAM } from '../../hooks/useChatBackUrl';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 
@@ -7,6 +15,8 @@ const SCROLL_TO_BOTTOM_THRESHOLD = {
     streaming: 200,
     chart: 500,
 };
+// Short panels, like small embed iframes, use a smaller threshold.
+const MAX_THRESHOLD_VIEWPORT_RATIO = 0.2;
 
 type ScrollToBottomOptions = {
     behavior?: 'auto' | 'smooth';
@@ -29,7 +39,11 @@ function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
                     scrollAreaRef.current?.scrollHeight -
                         scrollAreaRef.current?.scrollTop -
                         scrollAreaRef.current?.clientHeight <
-                    SCROLL_TO_BOTTOM_THRESHOLD[type];
+                    Math.min(
+                        SCROLL_TO_BOTTOM_THRESHOLD[type],
+                        scrollAreaRef.current.clientHeight *
+                            MAX_THRESHOLD_VIEWPORT_RATIO,
+                    );
 
                 if (!nearBottom) return;
             }
@@ -63,10 +77,50 @@ const ThreadScrollToBottom = ({
 
     const { messagesEndRef, scrollToBottom } = useAutoScroll(scrollAreaRef);
 
-    // Scroll to bottom when the thread is loaded/switched
+    // Return to where the viewer left the thread, else scroll to bottom when
+    // the thread is loaded/switched
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [returnMessageId] = useState(() =>
+        searchParams.get(CHAT_MESSAGE_PARAM),
+    );
+    const hasPositioned = useRef(false);
     useLayoutEffect(() => {
+        if (!hasPositioned.current && returnMessageId !== null) {
+            const frame = requestAnimationFrame(() => {
+                hasPositioned.current = true;
+                const viewport = scrollAreaRef.current;
+                const message = viewport?.querySelector(
+                    `[data-message-id="${CSS.escape(returnMessageId)}"]`,
+                );
+                if (!viewport) return;
+                viewport.scrollTop = message
+                    ? viewport.scrollTop +
+                      message.getBoundingClientRect().top -
+                      viewport.getBoundingClientRect().top
+                    : viewport.scrollHeight;
+            });
+            return () => cancelAnimationFrame(frame);
+        }
+        hasPositioned.current = true;
         return scrollToBottom();
-    }, [thread.data?.messages.length, threadUuid, scrollToBottom]);
+    }, [
+        thread.data?.messages.length,
+        threadUuid,
+        returnMessageId,
+        scrollAreaRef,
+        scrollToBottom,
+    ]);
+
+    useEffect(() => {
+        if (!searchParams.has(CHAT_MESSAGE_PARAM)) return;
+        setSearchParams(
+            (params) => {
+                params.delete(CHAT_MESSAGE_PARAM);
+                return params;
+            },
+            { replace: true },
+        );
+    }, [searchParams, setSearchParams]);
 
     // Scroll to bottom when the thread is streaming, if user has manually scrolled up do not autoscroll
     const totalReasoningPartsCount = streamingState?.reasoning?.flatMap(

@@ -82,6 +82,7 @@ export const UserBubble: FC<Props> = ({
             gap={2}
             className={styles.bubble}
             bg={isActive ? 'ldGray.0' : 'transparent'}
+            data-message-id={`user-${message.uuid}`}
         >
             <Stack gap={0} align="flex-end">
                 {showUserName ? (

@@ -394,7 +394,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 <AgentChatDisplay
                     thread={thread}
                     agentName={agentQuery.data?.name ?? 'AI'}
-                    enableAutoScroll={!isEmbed}
+                    enableAutoScroll
                     promptUuid={promptUuid}
                     debug={debug}
                     projectUuid={projectUuid}

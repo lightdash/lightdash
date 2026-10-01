@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { getEmbedExploreSearch } from '../../embed/embedNavigation';
 import {
     getEmbedAiAgentDashboardPath,
     isEmbedAiAgentRoute,
 } from './aiAgentRouting';
+import { useChatBackUrl } from './useChatBackUrl';
 
 /**
  * Inside an embedded AI agent the full app is unreachable, so a saved
@@ -15,7 +16,7 @@ export const useEmbedAiAgentDashboardOpener = (
     projectUuid: string | undefined,
 ) => {
     const navigate = useNavigate();
-    const { pathname, search } = useLocation();
+    const getBackUrl = useChatBackUrl();
     const { agentUuid } = useParams<{ agentUuid: string }>();
     const isEmbed = isEmbedAiAgentRoute();
 
@@ -24,7 +25,7 @@ export const useEmbedAiAgentDashboardOpener = (
             if (!agentUuid || !projectUuid) {
                 return;
             }
-            const backUrl = `${pathname}${search}`;
+            const backUrl = getBackUrl();
             void navigate(
                 {
                     pathname: getEmbedAiAgentDashboardPath(
@@ -37,7 +38,7 @@ export const useEmbedAiAgentDashboardOpener = (
                 { state: { embedBackUrl: backUrl } },
             );
         },
-        [agentUuid, navigate, pathname, projectUuid, search],
+        [agentUuid, getBackUrl, navigate, projectUuid],
     );
 
     return isEmbed && agentUuid && projectUuid ? open : null;
