@@ -12596,6 +12596,20 @@ describe('preview BigQuery SSO credentials', () => {
         expect(checkRefreshToken).toHaveBeenCalledTimes(1);
     });
 
+    test('a concurrent change to the preview credential wins over the repair', async () => {
+        stored.set(upstreamProjectUuid, bigquerySso('token-b'));
+        tokenStatus.set('token-a', 'rejected');
+        model.updateWarehouseCredentialsIf.mockImplementationOnce(
+            async (projectUuid, update) => {
+                stored.set(projectUuid, bigquerySso('token-c'));
+                return updateIf(projectUuid, update);
+            },
+        );
+
+        expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-c');
+        expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe('token-c');
+    });
+
     test('a stale preview whose parent sign-in expired too names the parent project', async () => {
         stored.set(upstreamProjectUuid, bigquerySso('token-b'));
         tokenStatus.set('token-a', 'rejected');

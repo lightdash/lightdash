@@ -150,7 +150,7 @@ export const checkGoogleRefreshToken: CheckGoogleRefreshToken = async (
     }
 };
 
-const validRefreshTokens = new NodeCache({ stdTTL: 300, checkperiod: 120 });
+const validRefreshTokens = new NodeCache({ stdTTL: 60, checkperiod: 30 });
 
 export const checkGoogleRefreshTokenCached: CheckGoogleRefreshToken = async (
     keyfileContents,

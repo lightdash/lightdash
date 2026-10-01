@@ -1928,24 +1928,32 @@ export class ProjectService extends BaseService {
                     upstreamProjectName: upstream.name,
                 });
             }
-            case 'repaired':
-                await this.projectModel.updateWarehouseCredentialsIf(
-                    projectUuid,
-                    (stored) =>
-                        getBigquerySsoCredentials(stored)?.refreshToken ===
-                        repair.staleRefreshToken
-                            ? {
-                                  ...stored,
-                                  keyfileContents:
-                                      repair.credentials.keyfileContents,
-                              }
-                            : null,
-                );
+            case 'repaired': {
+                const swapped =
+                    await this.projectModel.updateWarehouseCredentialsIf(
+                        projectUuid,
+                        (stored) =>
+                            getBigquerySsoCredentials(stored)?.refreshToken ===
+                            repair.staleRefreshToken
+                                ? {
+                                      ...stored,
+                                      keyfileContents:
+                                          repair.credentials.keyfileContents,
+                                  }
+                                : null,
+                    );
+                if (!swapped) {
+                    return this.projectModel.getWarehouseCredentialsForBinding(
+                        projectUuid,
+                        { kind: 'original' },
+                    );
+                }
                 this.logger.info(
                     'Repaired a stale preview SSO credential from its upstream project',
                     { projectUuid, upstreamProjectUuid },
                 );
                 return repair.credentials;
+            }
             default:
                 return assertUnreachable(repair, 'Unknown preview repair');
         }
@@ -5350,6 +5358,13 @@ export class ProjectService extends BaseService {
                 throw new Error(
                     `Missing warehouseConnection details on project ${projectUuid}'}`,
                 );
+            }
+            if (!updatedProject.organizationWarehouseCredentialsUuid) {
+                updatedProject.warehouseConnection =
+                    await this.repairStalePreviewSsoCredentials(
+                        projectUuid,
+                        updatedProject.warehouseConnection,
+                    );
             }
 
             await this.jobModel.update(job.jobUuid, {
