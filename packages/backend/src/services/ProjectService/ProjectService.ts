@@ -356,7 +356,10 @@ import { OrganizationSettingsModel } from '../../models/OrganizationSettingsMode
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import {
+    ProjectModel,
+    type PushToPreview,
+} from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -1831,55 +1834,93 @@ export class ProjectService extends BaseService {
         return enabled;
     }
 
-    private async pushSsoCredentialsToPreviews({
+    private async getSsoPushToPreviews({
         savedProject,
         updatedProject,
     }: {
         savedProject: Pick<
             Project,
             'projectUuid' | 'organizationUuid' | 'type'
-        > & { warehouseConnection?: CreateWarehouseCredentials };
+        >;
         updatedProject: UpdateProject;
-    }): Promise<void> {
+    }): Promise<PushToPreview | null> {
         if (
             savedProject.type === ProjectType.PREVIEW ||
-            !savedProject.warehouseConnection ||
             updatedProject.organizationWarehouseCredentialsUuid ||
             !getBigquerySsoCredentials(updatedProject.warehouseConnection)
         ) {
-            return;
+            return null;
         }
-        const previousUpstreamCredentials = savedProject.warehouseConnection;
         try {
             if (
                 !(await this.isPreviewSsoCredentialSyncEnabled(
                     savedProject.organizationUuid,
                 ))
             ) {
-                return;
-            }
-            const previewProjectUuids =
-                await this.projectModel.updatePreviewWarehouseCredentials(
-                    savedProject.projectUuid,
-                    (previewCredentials) =>
-                        getPushedPreviewCredentials({
-                            previewCredentials,
-                            previousUpstreamCredentials,
-                            nextUpstreamCredentials:
-                                updatedProject.warehouseConnection,
-                        }),
-                );
-            if (previewProjectUuids.length > 0) {
-                this.logger.info('Pushed SSO credentials to previews', {
-                    projectUuid: savedProject.projectUuid,
-                    previewProjectUuids,
-                });
+                return null;
             }
         } catch (error) {
             this.logger.error('Failed to push SSO credentials to previews', {
                 projectUuid: savedProject.projectUuid,
                 error: getErrorMessage(error),
             });
+            return null;
+        }
+        return ({ previewCredentials, previousUpstreamCredentials }) =>
+            getPushedPreviewCredentials({
+                previewCredentials,
+                previousUpstreamCredentials,
+                nextUpstreamCredentials: updatedProject.warehouseConnection,
+            });
+    }
+
+    private async updateAndPushSsoCredentialsToPreviews({
+        projectUuid,
+        savedProject,
+        updatedProject,
+    }: {
+        projectUuid: string;
+        savedProject: Pick<
+            Project,
+            'projectUuid' | 'organizationUuid' | 'type'
+        >;
+        updatedProject: UpdateProject;
+    }): Promise<void> {
+        const pushToPreview = await this.getSsoPushToPreviews({
+            savedProject,
+            updatedProject,
+        });
+        if (!pushToPreview) {
+            await this.projectModel.update(projectUuid, updatedProject);
+            return;
+        }
+        const push = await this.projectModel.updateAndPushToPreviews(
+            projectUuid,
+            updatedProject,
+            pushToPreview,
+        );
+        switch (push.kind) {
+            case 'skipped':
+                return;
+            case 'pushed':
+                if (push.previewProjectUuids.length > 0) {
+                    this.logger.info('Pushed SSO credentials to previews', {
+                        projectUuid,
+                        previewProjectUuids: push.previewProjectUuids,
+                    });
+                }
+                return;
+            case 'failed':
+                this.logger.error(
+                    'Failed to push SSO credentials to previews',
+                    {
+                        projectUuid,
+                        error: getErrorMessage(push.error),
+                    },
+                );
+                return;
+            default:
+                assertUnreachable(push, 'Unknown preview credentials push');
         }
     }
 
@@ -5192,8 +5233,8 @@ export class ProjectService extends BaseService {
             updatedProject.dbtConnection,
         );
 
-        await this.projectModel.update(projectUuid, updatedProject);
-        await this.pushSsoCredentialsToPreviews({
+        await this.updateAndPushSsoCredentialsToPreviews({
+            projectUuid,
             savedProject,
             updatedProject,
         });
@@ -5370,8 +5411,8 @@ export class ProjectService extends BaseService {
 
         this.validateConfigSecrets(updatedProject);
 
-        await this.projectModel.update(projectUuid, updatedProject);
-        await this.pushSsoCredentialsToPreviews({
+        await this.updateAndPushSsoCredentialsToPreviews({
+            projectUuid,
             savedProject,
             updatedProject,
         });
