@@ -38,13 +38,19 @@ const VerifyEmailForm: FC<{
         },
     });
     const { setFieldError, clearFieldError } = form;
+    const { startChecking, flashError } = useAuthPanel();
     const submitInFlightRef = useRef(false);
     const submitCode = (code: string) => {
         if (submitInFlightRef.current || verificationLoading) {
             return;
         }
         submitInFlightRef.current = true;
+        startChecking();
         verifyCode(code, {
+            onSuccess: (result) => {
+                if (!result.isVerified) flashError();
+            },
+            onError: () => flashError(),
             onSettled: () => {
                 submitInFlightRef.current = false;
             },
@@ -54,15 +60,6 @@ const VerifyEmailForm: FC<{
     const expirationTime = data?.otp?.expiresAt || new Date();
     const loadingState =
         statusLoading || emailLoading || health.isInitialLoading || isLoading;
-
-    const { flashError } = useAuthPanel();
-    const attemptsRef = useRef(data?.otp?.numberOfAttempts ?? 0);
-
-    useEffect(() => {
-        const attempts = data?.otp?.numberOfAttempts ?? 0;
-        if (attempts > attemptsRef.current) flashError();
-        attemptsRef.current = attempts;
-    }, [data, flashError]);
 
     useEffect(() => {
         if (data?.otp && data?.otp.numberOfAttempts > 0) {

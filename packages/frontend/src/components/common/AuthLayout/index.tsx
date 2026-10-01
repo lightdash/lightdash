@@ -74,7 +74,16 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         void panel.offsetWidth;
         panel.dataset.stage = 'error';
     }, []);
-    const authPanel = useMemo(() => ({ flashError }), [flashError]);
+    const startChecking = useCallback(() => {
+        const panel = brandPanelRef.current;
+        if (!panel) return;
+        lightCellsByProgress(panel, 1);
+        panel.dataset.stage = 'checking';
+    }, []);
+    const authPanel = useMemo(
+        () => ({ startChecking, flashError }),
+        [startChecking, flashError],
+    );
 
     const handleFormFocus = (event: FocusEvent<HTMLDivElement>) => {
         const panel = brandPanelRef.current;
@@ -91,10 +100,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         requestAnimationFrame(() => {
             const inputs = [...group.querySelectorAll('input')];
             const filled = inputs.filter((input) => input.value !== '').length;
-            panel.dataset.stage =
-                inputs.length > 0 && filled === inputs.length
-                    ? 'valid'
-                    : 'typing';
+            if (filled < inputs.length) panel.dataset.stage = 'typing';
             lightCellsByProgress(
                 panel,
                 inputs.length > 0 ? filled / inputs.length : 0,
