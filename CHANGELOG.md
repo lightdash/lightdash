@@ -1,3 +1,17 @@
+# [2.402.0](https://github.com/lightdash/lightdash/compare/2.401.0...2.402.0) (2026-10-01)
+
+
+### Bug Fixes
+
+* **embed:** hide docs links and Lightdash branding in embedded Explore ([#30291](https://github.com/lightdash/lightdash/issues/30291)) ([406dba9](https://github.com/lightdash/lightdash/commit/406dba9e1f106d3d358cc261f614830cae248e94))
+* include saved-chart views in content health ([#30316](https://github.com/lightdash/lightdash/issues/30316)) ([8157611](https://github.com/lightdash/lightdash/commit/81576114baeee4545d53524447a3bb35a9b42dfe))
+* **sdk:** stop the React SDK writing the host document title ([#30284](https://github.com/lightdash/lightdash/issues/30284)) ([a029382](https://github.com/lightdash/lightdash/commit/a0293824ce3925686476f8b6f26b3b181f6c22bc))
+
+
+### Features
+
+* add query response latency and workload attribution ([#30315](https://github.com/lightdash/lightdash/issues/30315)) ([126459e](https://github.com/lightdash/lightdash/commit/126459ea82878863fa6238594e9b2b625b714936))
+
 # [2.401.0](https://github.com/lightdash/lightdash/compare/2.400.0...2.401.0) (2026-10-01)
 
 
