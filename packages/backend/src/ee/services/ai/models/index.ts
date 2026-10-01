@@ -376,8 +376,6 @@ export const getModel = (
         enableReasoning?: boolean;
         /** Anthropic and Bedrock only; other providers keep their preset effort. */
         reasoningEffort?: ReasoningEffort;
-        /** Anthropic only: send thinking disabled rather than omitting it. */
-        disableThinking?: boolean;
         modelName?: string;
         provider?: typeof config.defaultProvider;
         /** Only server-generated immutable snapshots may pin non-preset names. */
@@ -446,7 +444,6 @@ export const getModel = (
                     getAnthropicModel(anthropicConfig, preset, {
                         enableReasoning: options?.enableReasoning,
                         reasoningEffort: options?.reasoningEffort,
-                        disableThinking: options?.disableThinking,
                     }),
                     anthropicConfig.supportsStreaming,
                 ),
