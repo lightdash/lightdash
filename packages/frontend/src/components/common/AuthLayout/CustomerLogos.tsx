@@ -2,6 +2,7 @@ import { Box, Divider } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './CustomerLogos.module.css';
 import Adobe from './customerLogos/adobe.svg?react';
+import Ebay from './customerLogos/ebay.svg?react';
 import Fal from './customerLogos/fal.svg?react';
 import Kraken from './customerLogos/kraken.svg?react';
 import OctopusEnergy from './customerLogos/octopus-energy.svg?react';
@@ -12,6 +13,7 @@ import Workday from './customerLogos/workday.svg?react';
 const BASE_LOGO_HEIGHT = 18;
 
 const CUSTOMERS = [
+    { name: 'eBay', Logo: Ebay, aspectRatio: 2.5, weight: 1 },
     { name: 'ServiceNow', Logo: ServiceNow, aspectRatio: 6.74, weight: 1 },
     { name: 'Adobe', Logo: Adobe, aspectRatio: 3.8, weight: 1 },
     { name: 'Workday', Logo: Workday, aspectRatio: 2.08, weight: 1.1 },
