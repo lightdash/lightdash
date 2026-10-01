@@ -14,7 +14,10 @@ import { type SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { type CoderService } from '../CoderService/CoderService';
-import { createAnalyticsExplores } from '../ProjectService/analyticsProject/createAnalyticsExplores';
+import {
+    analyticsExploreNames,
+    createAnalyticsExplores,
+} from '../ProjectService/analyticsProject/createAnalyticsExplores';
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
@@ -24,6 +27,7 @@ type Dependencies = {
     projectModel: Pick<
         ProjectModel,
         | 'getAllByOrganizationUuid'
+        | 'getCachedExploreNames'
         | 'runInAnalyticsProvisioningLock'
         | 'saveExploresToCache'
     >;
@@ -62,16 +66,35 @@ export class AnalyticsProjectService extends BaseService {
         const project = projects.find(
             (candidate) => candidate.provisioningSource === 'analytics',
         );
+        if (!project) return { project: null };
+
+        const dashboardSlugs = analyticsContentAsCode.map(
+            ({ dashboard }) => dashboard.slug,
+        );
+        const [exploreNames, dashboards] = await Promise.all([
+            this.dependencies.projectModel.getCachedExploreNames(
+                project.projectUuid,
+            ),
+            this.dependencies.dashboardModel.find({
+                projectUuid: project.projectUuid,
+                slugs: dashboardSlugs,
+            }),
+        ]);
+        // Ignore custom models and dashboards when checking managed content.
+        const managedModelCount = exploreNames.filter((name) =>
+            analyticsExploreNames.some((expected) => expected === name),
+        ).length;
         return {
-            project: project
-                ? {
-                      projectUuid: project.projectUuid,
-                      name: project.name,
-                      slug: project.slug ?? null,
-                      url: `/projects/${project.slug ?? project.projectUuid}/tables`,
-                      createdAt: new Date(project.createdAt).toISOString(),
-                  }
-                : null,
+            project: {
+                projectUuid: project.projectUuid,
+                name: project.name,
+                slug: project.slug ?? null,
+                url: `/projects/${project.slug ?? project.projectUuid}/tables`,
+                createdAt: new Date(project.createdAt).toISOString(),
+                hasContentUpdates:
+                    managedModelCount !== analyticsExploreNames.length ||
+                    dashboards.length !== dashboardSlugs.length,
+            },
         };
     }
 

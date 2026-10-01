@@ -57,21 +57,22 @@ const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
     BIGINT: DimensionType.NUMBER,
 };
 
+export const analyticsExploreNames = [
+    ...analyticsStreams.filter(
+        (name) => name !== 'mcp_tool_calls' && name !== 'content_views',
+    ),
+    'user_activity',
+    'tool_activity',
+    'content_reach',
+    'content_health',
+] as const;
+
 /** Compile backend-owned system models without querying remote storage. */
 export const createAnalyticsExplores = (): Explore[] => {
     const sqlBuilder = warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB);
     const compiler = new ExploreCompiler(sqlBuilder);
-    const streams = [
-        ...analyticsStreams.filter(
-            (name) => name !== 'mcp_tool_calls' && name !== 'content_views',
-        ),
-        'user_activity',
-        'tool_activity',
-        'content_reach',
-        'content_health',
-    ] as const;
 
-    const buildTable = (name: (typeof streams)[number]) => {
+    const buildTable = (name: (typeof analyticsExploreNames)[number]) => {
         const label = friendlyName(name);
         const base = {
             table: name,
@@ -215,7 +216,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         return table;
     };
 
-    return streams.map((name) => {
+    return analyticsExploreNames.map((name) => {
         const dimensions: Exclude<UsageDimensionName, 'content'>[] = [];
         if (name === 'query_events' || name === 'export_events') {
             dimensions.push('charts', 'dashboards', 'users');

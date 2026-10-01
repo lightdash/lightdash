@@ -75,6 +75,7 @@ export const useInstallAnalyticsSampleContent = () => {
                 Promise.all([
                     queryClient.invalidateQueries(['analytics-project']),
                     queryClient.invalidateQueries(['dashboards']),
+                    queryClient.invalidateQueries(['tables']),
                 ]),
         },
     );
