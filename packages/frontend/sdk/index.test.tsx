@@ -231,13 +231,16 @@ vi.mock('../src/features/comments', () => ({
 }));
 
 vi.mock('../src/pages/MetricsCatalog', async () => {
-    const ReactModule = await import('react');
+    const { DocumentTitle } =
+        await import('../src/components/common/DocumentTitle');
 
     return {
-        default: () =>
-            ReactModule.createElement('div', {
-                'data-testid': 'metrics-catalog-page',
-            }),
+        default: () => (
+            <>
+                <DocumentTitle title="Metrics" />
+                <div data-testid="metrics-catalog-page" />
+            </>
+        ),
     };
 });
 
@@ -635,6 +638,24 @@ describe('SDK AI agent', () => {
         );
     });
 
+    it('names the iframe without Lightdash branding', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        expect(
+            container.querySelector('iframe')?.getAttribute('title'),
+        ).not.toMatch(/lightdash/i);
+    });
+
     it('renders an existing embed AI agent thread when threadUuid is provided', async () => {
         const { container } = render(
             <AiAgent
@@ -716,6 +737,22 @@ describe('SDK metrics catalog', () => {
         });
 
         expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('SDK elements do not override document title', async () => {
+        document.title = 'Host page';
+        const { getByTestId } = render(
+            <MetricsCatalog
+                token={mockToken}
+                instanceUrl="http://localhost:3000"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('metrics-catalog-page')).toBeTruthy();
+        });
+
+        expect(document.title).toBe('Host page');
     });
 });
 
