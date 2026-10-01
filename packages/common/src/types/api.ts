@@ -419,6 +419,7 @@ import {
 import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
 import { type ShareUrl } from './share';
+import { type ApiSharedCredentialOwnerResponse } from './sharedCredentialOwner';
 import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
 import {
@@ -1425,6 +1426,7 @@ type ApiResults =
     | Space[]
     | InviteLink
     | InviteLinkFailure
+    | ApiSharedCredentialOwnerResponse['results']
     | OrganizationProject[]
     | Project
     | WarehouseCredentials
