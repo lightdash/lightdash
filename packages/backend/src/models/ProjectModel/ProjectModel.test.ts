@@ -2871,6 +2871,44 @@ describe('ProjectModel', () => {
             }
             expect(result.personal_access_token).toEqual('saved-token');
         });
+
+        const savedGithubPat: DbtGithubProjectConfig = {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'personal_access_token',
+            personal_access_token: 'ghp_saved',
+            repository: 'lightdash/lightdash',
+            branch: 'main',
+            project_sub_path: '/',
+            host_domain: 'github.com',
+        };
+
+        test('does not restore a GitHub PAT when the connection now authenticates with the GitHub App', () => {
+            const incoming: DbtGithubProjectConfig = {
+                ...savedGithubPat,
+                authorization_method: 'installation_id',
+                installation_id: '123',
+                personal_access_token: '',
+            };
+            expect(
+                ProjectModel.mergeMissingDbtConfigSecrets(
+                    incoming,
+                    savedGithubPat,
+                ),
+            ).toEqual(incoming);
+        });
+
+        test('restores a GitHub PAT for a personal_access_token connection', () => {
+            const incoming: DbtGithubProjectConfig = {
+                ...savedGithubPat,
+                personal_access_token: '',
+            };
+            expect(
+                ProjectModel.mergeMissingDbtConfigSecrets(
+                    incoming,
+                    savedGithubPat,
+                ),
+            ).toEqual(savedGithubPat);
+        });
     });
 
     describe('removing sensitive credentials from API', () => {
