@@ -1,9 +1,13 @@
 import {
     FilterOperator,
     getFieldsFromMetricQuery,
+    getItemsFromFilterGroup,
+    isAndFilterGroup,
+    isFilterGroup,
     normalizeCellRawForFilter,
     type DashboardFilters,
     type Explore,
+    type FilterGroup,
     type FilterGroupItem,
     type FilterRule,
     type Filters,
@@ -23,6 +27,15 @@ type CombineFiltersArgs = {
     timezone?: string;
 };
 
+const isEmptyGroup = (item: FilterGroupItem): boolean =>
+    isFilterGroup(item) && getItemsFromFilterGroup(item).length === 0;
+
+// Spread `and` groups into the combined `and`; keep `or` groups wrapped to preserve logic
+const getSourceGroupItems = (group: FilterGroup): FilterGroupItem[] => {
+    const items = isAndFilterGroup(group) ? group.and : [group];
+    return items.filter((item) => !isEmptyGroup(item));
+};
+
 export const combineFilters = ({
     fieldValues,
     metricQuery,
@@ -36,10 +49,14 @@ export const combineFilters = ({
     const combinedMetricFilters: Array<FilterGroupItem> = [];
 
     if (metricQuery.filters.dimensions) {
-        combinedDimensionFilters.push(metricQuery.filters.dimensions);
+        combinedDimensionFilters.push(
+            ...getSourceGroupItems(metricQuery.filters.dimensions),
+        );
     }
     if (metricQuery.filters.metrics) {
-        combinedMetricFilters.push(metricQuery.filters.metrics);
+        combinedMetricFilters.push(
+            ...getSourceGroupItems(metricQuery.filters.metrics),
+        );
     }
     if (dashboardFilters) {
         combinedDimensionFilters.push(...dashboardFilters.dimensions);
@@ -61,10 +78,14 @@ export const combineFilters = ({
         combinedDimensionFilters.push(...pivotFilter);
     }
     if (extraFilters?.dimensions) {
-        combinedDimensionFilters.push(extraFilters.dimensions);
+        combinedDimensionFilters.push(
+            ...getSourceGroupItems(extraFilters.dimensions),
+        );
     }
     if (extraFilters?.metrics) {
-        combinedMetricFilters.push(extraFilters.metrics);
+        combinedMetricFilters.push(
+            ...getSourceGroupItems(extraFilters.metrics),
+        );
     }
 
     const itemsMap = explore
