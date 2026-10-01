@@ -1,0 +1,39 @@
+.root {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+    margin-top: 2em;
+    font-size: max(rem(14px), calc(var(--auth-block-size) * 0.22));
+}
+
+.divider {
+    --divider-color: var(--auth-guide-line);
+}
+
+.label {
+    font-size: max(rem(12px), 0.75em);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.logos {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.25em 1.5em;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.logo {
+    display: block;
+    width: auto;
+}

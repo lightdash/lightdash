@@ -10,8 +10,10 @@ import {
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { useAuthPanel } from '../common/AuthLayout/AuthPanelContext';
 import Callout from '../common/Callout';
 import EmptyStateLoader from '../common/EmptyStateLoader';
+import VerifyEmailCodeForm from './VerifyEmailCodeForm';
 
 const VerifyEmailForm: FC<{
     isLoading?: boolean;
@@ -31,18 +33,25 @@ const VerifyEmailForm: FC<{
         initialValues: {
             code: '',
         },
+        clearInputErrorOnChange: false,
         validate: {
             code: isNotEmpty('This field is required.'),
         },
     });
     const { setFieldError, clearFieldError } = form;
+    const { startChecking, flashError } = useAuthPanel();
     const submitInFlightRef = useRef(false);
     const submitCode = (code: string) => {
         if (submitInFlightRef.current || verificationLoading) {
             return;
         }
         submitInFlightRef.current = true;
+        startChecking();
         verifyCode(code, {
+            onSuccess: (result) => {
+                if (!result.isVerified) flashError();
+            },
+            onError: () => flashError(),
             onSettled: () => {
                 submitInFlightRef.current = false;
             },
@@ -57,20 +66,48 @@ const VerifyEmailForm: FC<{
         if (data?.otp && data?.otp.numberOfAttempts > 0) {
             const remainingAttempts = 5 - data.otp.numberOfAttempts;
             const message = data.otp.isExpired
-                ? 'Your one-time password expired. Please resend a verification email.'
+                ? 'This code has expired. Send a new one.'
                 : data.otp.numberOfAttempts < 5
-                  ? `The code doesn't match the one we sent you. You have ${remainingAttempts} attempt${
+                  ? `Wrong code. ${remainingAttempts} attempt${
                         remainingAttempts > 1 ? 's' : ''
                     } left.`
-                  : "Hmm that code doesn't match the one we sent you. You've already had 5 attempts, please resend a verification email and try again.";
+                  : 'Too many attempts. Send a new code to try again.';
             setFieldError('code', message);
         } else {
             clearFieldError('code');
         }
     }, [data, setFieldError, clearFieldError]);
 
+    const resendCode = () => {
+        track({
+            name: EventName.OTP_RESEND_CLICKED,
+            properties: { purpose: 'signup_verification' },
+        });
+        form.reset();
+        sendVerificationEmail();
+    };
+
     if (loadingState) {
         return <EmptyStateLoader my="xl" />;
+    }
+
+    if (isLeftAligned) {
+        return (
+            <VerifyEmailCodeForm
+                form={form}
+                onSubmitCode={submitCode}
+                onResend={resendCode}
+                expirationTime={expirationTime}
+                isDisabled={
+                    !!data?.otp?.isMaxAttempts ||
+                    !!data?.otp?.isExpired ||
+                    verificationLoading
+                }
+                isMaxAttempts={!!data?.otp?.isMaxAttempts}
+                isVerified={!!emailStatusData?.isVerified}
+                isVerifying={verificationLoading}
+            />
+        );
     }
 
     return (
@@ -172,14 +209,7 @@ const VerifyEmailForm: FC<{
                 fz="sm"
                 ta={isLeftAligned ? 'left' : undefined}
                 component="button"
-                onClick={() => {
-                    track({
-                        name: EventName.OTP_RESEND_CLICKED,
-                        properties: { purpose: 'signup_verification' },
-                    });
-                    form.reset();
-                    sendVerificationEmail();
-                }}
+                onClick={resendCode}
             >
                 Resend verification email
             </Anchor>

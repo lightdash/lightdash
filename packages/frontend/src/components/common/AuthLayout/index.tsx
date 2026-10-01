@@ -1,5 +1,7 @@
 import { Box, Card, Stack, Text, Title } from '@mantine/core';
 import {
+    useCallback,
+    useMemo,
     useRef,
     type FC,
     type FocusEvent,
@@ -11,6 +13,8 @@ import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import classes from './AuthLayout.module.css';
+import { AuthPanelContext } from './AuthPanelContext';
+import CustomerLogos from './CustomerLogos';
 import LightdashWordmark from './LightdashWordmark';
 import ListeningBlocks from './ListeningBlocks';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
@@ -21,18 +25,31 @@ const isEmailInput = (target: EventTarget): target is HTMLInputElement =>
     target instanceof HTMLInputElement &&
     (target.type === 'email' || target.name === 'email');
 
+const lightCellsByProgress = (panel: HTMLElement, progress: number) => {
+    const cells = [...panel.querySelectorAll<HTMLElement>('[data-order]')];
+    const steps =
+        Math.max(0, ...cells.map((cell) => Number(cell.dataset.order))) + 1;
+    cells.forEach((cell) => {
+        cell.dataset.lit = String(
+            Number(cell.dataset.order) < progress * steps,
+        );
+    });
+};
+
 type Props = {
     /** Document title, matching what each page passed to `Page` before. */
     pageTitle: string;
     /** Split-layout heading. Omitted when the page renders its own heading. */
     title?: string;
-    subtitle?: string;
+    subtitle?: ReactNode;
     /** Centred heading inside the legacy card. */
     legacyTitle?: string;
     /** Bounds the form in both layouts, for `SCREENSHOT_SELECTORS.LOGIN_PAGE`. */
     cardId?: string;
     /** Pages that bring their own cards (Invite) opt out of the legacy card. */
     withLegacyCard?: boolean;
+    /** Shows customer logos on the brand panel in the split layout. */
+    withCustomerLogos?: boolean;
     footer?: ReactNode;
 };
 
@@ -43,11 +60,30 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     legacyTitle,
     cardId,
     withLegacyCard = true,
+    withCustomerLogos = false,
     footer,
     children,
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
     const brandPanelRef = useRef<HTMLDivElement>(null);
+
+    const flashError = useCallback(() => {
+        const panel = brandPanelRef.current;
+        if (!panel) return;
+        panel.dataset.stage = 'idle';
+        void panel.offsetWidth;
+        panel.dataset.stage = 'error';
+    }, []);
+    const startChecking = useCallback(() => {
+        const panel = brandPanelRef.current;
+        if (!panel) return;
+        lightCellsByProgress(panel, 1);
+        panel.dataset.stage = 'checking';
+    }, []);
+    const authPanel = useMemo(
+        () => ({ startChecking, flashError }),
+        [startChecking, flashError],
+    );
 
     const handleFormFocus = (event: FocusEvent<HTMLDivElement>) => {
         const panel = brandPanelRef.current;
@@ -56,7 +92,24 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         panel.dataset.stage = 'focus';
     };
 
+    const syncCodeProgress = (target: EventTarget) => {
+        const panel = brandPanelRef.current;
+        if (!panel || !(target instanceof HTMLElement)) return;
+        const group = target.closest<HTMLElement>('[data-auth-progress]');
+        if (!group) return;
+        requestAnimationFrame(() => {
+            const inputs = [...group.querySelectorAll('input')];
+            const filled = inputs.filter((input) => input.value !== '').length;
+            if (filled < inputs.length) panel.dataset.stage = 'typing';
+            lightCellsByProgress(
+                panel,
+                inputs.length > 0 ? filled / inputs.length : 0,
+            );
+        });
+    };
+
     const handleFormInput = (event: FormEvent<HTMLDivElement>) => {
+        syncCodeProgress(event.target);
         const panel = brandPanelRef.current;
         if (!panel || !isEmailInput(event.target)) return;
         panel.dataset.stage = EMAIL_PATTERN.test(event.target.value)
@@ -107,7 +160,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     }
 
     return (
-        <>
+        <AuthPanelContext.Provider value={authPanel}>
             <DocumentTitle title={pageTitle} />
 
             <Box className={classes.root}>
@@ -119,18 +172,15 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     <LightdashWordmark className={classes.brandWordmark} />
 
                     <Stack gap="lg" className={classes.brandIntro}>
-                        <Title
-                            order={1}
-                            fz="display"
-                            className={classes.headline}
-                        >
+                        <Title order={1} className={classes.headline}>
                             Analytics at the speed of code.
                         </Title>
-                        <Text fz="lg" className={classes.subcopy}>
+                        <Text className={classes.subcopy}>
                             The only open-source, AI-native BI platform that
                             lets AI build, refactor, and ship analytics in
                             minutes.
                         </Text>
+                        {withCustomerLogos && <CustomerLogos />}
                     </Stack>
 
                     <ListeningBlocks />
@@ -141,6 +191,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     onFocusCapture={handleFormFocus}
                     onInputCapture={handleFormInput}
                     onSubmitCapture={handleFormSubmit}
+                    onKeyUpCapture={(event) => syncCodeProgress(event.target)}
                 >
                     <Stack id={cardId} className={classes.formContent} gap="xl">
                         <LightdashWordmark className={classes.formWordmark} />
@@ -161,7 +212,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     </Stack>
                 </Box>
             </Box>
-        </>
+        </AuthPanelContext.Provider>
     );
 };
 

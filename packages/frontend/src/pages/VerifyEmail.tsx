@@ -22,6 +22,7 @@ import MantineModal from '../components/common/MantineModal';
 import PageSpinner from '../components/PageSpinner';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
+import useLogoutMutation from '../hooks/user/useUserLogoutMutation';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { sanitizeRedirectUrl } from '../utils/redirectUrl';
@@ -72,6 +73,11 @@ const VerifyEmailPage: FC = () => {
     );
     const { show: showIntercom } = useIntercom();
     const { isNewLayout } = useAuthLayoutVariant();
+    const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation({
+        onSuccess: () => {
+            window.location.href = '/register';
+        },
+    });
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const redirectParam = searchParams.get('redirect');
@@ -105,6 +111,10 @@ const VerifyEmailPage: FC = () => {
         return <PageSpinner />;
     }
 
+    if (!health.data?.isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
     if (isVerifiedEmailOnlySignup) {
         return redirectTo === null ? <Navigate to="/" /> : <PageSpinner />;
     }
@@ -112,15 +122,45 @@ const VerifyEmailPage: FC = () => {
     return (
         <AuthLayout
             pageTitle="Verify your email"
-            withLegacyCard={false}
-            footer={
-                <Text c="dimmed" ta="center" px="xs" fz="sm" fw={500}>
-                    You need to verify your email to get access to Lightdash. If
-                    you need help, you can{' '}
-                    <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
-                        chat to support here.
+            title="Check your inbox"
+            subtitle={
+                <>
+                    We sent a 6-digit code to {data?.email ?? 'your email'}.{' '}
+                    <Anchor
+                        component="button"
+                        type="button"
+                        inherit
+                        disabled={isLoggingOut}
+                        onClick={() => logout()}
+                    >
+                        Wrong email?
                     </Anchor>
-                </Text>
+                </>
+            }
+            withLegacyCard={false}
+            withCustomerLogos
+            footer={
+                isNewLayout ? (
+                    <Text c="dimmed" ta="center" fz="xs">
+                        Need a hand?{' '}
+                        <Anchor
+                            component="button"
+                            type="button"
+                            inherit
+                            onClick={() => showIntercom()}
+                        >
+                            Chat to support
+                        </Anchor>
+                    </Text>
+                ) : (
+                    <Text c="dimmed" ta="center" px="xs" fz="sm" fw={500}>
+                        You need to verify your email to get access to
+                        Lightdash. If you need help, you can{' '}
+                        <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
+                            chat to support here.
+                        </Anchor>
+                    </Text>
+                )
             }
         >
             {isNewLayout ? (

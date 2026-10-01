@@ -1,0 +1,27 @@
+.pinRoot {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--mantine-spacing-sm);
+    width: 100%;
+}
+
+.pinCell {
+    flex: 1;
+    min-width: 0;
+}
+
+.pinField {
+    width: 100%;
+    height: rem(52px);
+    font-size: var(--mantine-font-size-xl);
+}
+
+.countdown {
+    font-variant-numeric: tabular-nums;
+}
+
+.errorSlot {
+    min-height: calc(
+        var(--mantine-line-height-sm) * var(--mantine-font-size-sm)
+    );
+}
