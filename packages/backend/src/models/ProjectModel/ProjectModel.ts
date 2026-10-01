@@ -4890,6 +4890,36 @@ export class ProjectModel {
         return updatedProjectUuids;
     }
 
+    async getPreviewOwnsCredentials(
+        projectUuid: string,
+    ): Promise<boolean | null> {
+        const row = await this.database(WarehouseCredentialTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${WarehouseCredentialTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .first<{ preview_owns_credentials: boolean | null } | undefined>(
+                `${WarehouseCredentialTableName}.preview_owns_credentials`,
+            );
+        return row?.preview_owns_credentials ?? null;
+    }
+
+    async setPreviewOwnsCredentials(
+        projectUuid: string,
+        previewOwnsCredentials: boolean,
+    ): Promise<void> {
+        await this.database(WarehouseCredentialTableName)
+            .update({ preview_owns_credentials: previewOwnsCredentials })
+            .whereIn(
+                'project_id',
+                this.database(ProjectTableName)
+                    .select('project_id')
+                    .where('project_uuid', projectUuid),
+            );
+    }
+
     /** Compare-and-swap on a project's stored credentials: `update` sees the locked row and returns null to leave it. */
     async updateWarehouseCredentialsIf(
         projectUuid: string,

@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import {
+    getPreviewOwnsBigquerySsoCredentials,
     getPushedPreviewCredentials,
     repairStalePreviewBigquerySso,
     type CheckGoogleRefreshToken,
@@ -226,5 +227,51 @@ describe('repairStalePreviewBigquerySso', () => {
                 checkRefreshToken,
             }),
         ).resolves.toEqual({ kind: 'unchanged' });
+    });
+});
+
+describe('getPreviewOwnsBigquerySsoCredentials', () => {
+    it('is false for a copy of the parent credential', () => {
+        expect(
+            getPreviewOwnsBigquerySsoCredentials({
+                previewCredentials: bigquerySso('token-a', {
+                    dataset: 'preview_schema',
+                }),
+                upstreamCredentials: bigquerySso('token-a'),
+            }),
+        ).toBe(false);
+    });
+
+    it('is true for another refresh token or OAuth client', () => {
+        expect(
+            getPreviewOwnsBigquerySsoCredentials({
+                previewCredentials: bigquerySso('own-token'),
+                upstreamCredentials: bigquerySso('token-a'),
+            }),
+        ).toBe(true);
+        expect(
+            getPreviewOwnsBigquerySsoCredentials({
+                previewCredentials: bigquerySso('token-a', {}, 'gcloud-client'),
+                upstreamCredentials: bigquerySso('token-a'),
+            }),
+        ).toBe(true);
+    });
+
+    it('is true when the parent does not use BigQuery SSO', () => {
+        expect(
+            getPreviewOwnsBigquerySsoCredentials({
+                previewCredentials: bigquerySso('token-a'),
+                upstreamCredentials: privateKey,
+            }),
+        ).toBe(true);
+    });
+
+    it('is null when the preview does not use BigQuery SSO', () => {
+        expect(
+            getPreviewOwnsBigquerySsoCredentials({
+                previewCredentials: privateKey,
+                upstreamCredentials: bigquerySso('token-a'),
+            }),
+        ).toBeNull();
     });
 });
