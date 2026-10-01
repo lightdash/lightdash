@@ -173,7 +173,7 @@ export const SkipOption: FC<{
     onSkip: () => void;
     isSkipping: boolean;
 }> = ({ onSkip, isSkipping }) => (
-    <Button variant="default" loading={isSkipping} onClick={onSkip}>
+    <Button variant="default" flex="none" loading={isSkipping} onClick={onSkip}>
         Skip for now
     </Button>
 );
