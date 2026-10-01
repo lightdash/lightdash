@@ -115,6 +115,25 @@ export class PivotQueryBuilder {
     }
 
     /**
+     * Renders a column reference list for use inside a window PARTITION BY.
+     * BigQuery does not allow partitioning by FLOAT64 expressions, so partition
+     * keys are wrapped in TO_JSON_STRING() there; other warehouses emit the
+     * quoted columns unchanged.
+     * @param columnReferences - Quoted (and optionally qualified) column references
+     * @returns Comma-separated PARTITION BY column list
+     */
+    private getPartitionByColumnsSql(columnReferences: string[]): string {
+        return columnReferences
+            .map((reference) =>
+                this.warehouseSqlBuilder.getAdapterType() ===
+                SupportedDbtAdapter.BIGQUERY
+                    ? `TO_JSON_STRING(${reference})`
+                    : reference,
+            )
+            .join(', ');
+    }
+
+    /**
      * Identifies table calculations that contain pivot functions.
      * @returns Record of table calculations keyed by their ID that use pivot functions
      */
@@ -860,9 +879,14 @@ export class PivotQueryBuilder {
             const groupColumnReferences = groupByColumns
                 .map((col) => this.quoteIdentifier(col.reference))
                 .join(', ');
+            const groupColumnPartition = this.getPartitionByColumnsSql(
+                groupByColumns.map((col) =>
+                    this.quoteIdentifier(col.reference),
+                ),
+            );
 
             const quotedFieldName = this.quoteIdentifier(fieldName);
-            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
+            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnPartition} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
                 `${colAnchorCteName}_value`,
             )} FROM group_by_query`;
 
@@ -889,9 +913,9 @@ export class PivotQueryBuilder {
         sortBy: PivotConfiguration['sortBy'],
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
-        const groupColumnReferences = groupByColumns
-            .map((col) => this.quoteIdentifier(col.reference))
-            .join(', ');
+        const groupColumnPartition = this.getPartitionByColumnsSql(
+            groupByColumns.map((col) => this.quoteIdentifier(col.reference)),
+        );
 
         // Dims the outer ORDER BY references: visible groupBys, sort-only dims,
         // and the _order companion of any sorted custom-bin dim among them.
@@ -930,7 +954,7 @@ export class PivotQueryBuilder {
                 const colAnchorCteName = `${valCol.reference}_ca`;
                 const quotedFieldName = this.quoteIdentifier(fieldName);
                 acc.push(
-                    `FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
+                    `FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnPartition} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
                         `${colAnchorCteName}_value`,
                     )}`,
                 );
@@ -1573,9 +1597,9 @@ export class PivotQueryBuilder {
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
         passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
     ): string {
-        const groupColumnReferences = groupByColumns
-            .map((col) => this.quoteIdentifier(col.reference))
-            .join(', ');
+        const groupColumnPartition = this.getPartitionByColumnsSql(
+            groupByColumns.map((col) => this.quoteIdentifier(col.reference)),
+        );
 
         // Layer 1 — column anchor: FIRST_VALUE per sorted value column.
         const firstValueSelects = (valuesColumns ?? []).reduce<string[]>(
@@ -1599,7 +1623,7 @@ export class PivotQueryBuilder {
                 const colAnchorCteName = `${valCol.reference}_ca`;
                 const quotedFieldName = this.quoteIdentifier(fieldName);
                 acc.push(
-                    `FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
+                    `FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnPartition} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
                         `${colAnchorCteName}_value`,
                     )}`,
                 );
@@ -1627,9 +1651,11 @@ export class PivotQueryBuilder {
 
         // Layer 3 — row anchor: metric value at each metric's anchor column
         // (col_idx = 1, or its rebased pin), constant per index combo.
-        const indexPartition = indexColumns
-            .map((col) => this.qualifyIdentifier('g', col.reference))
-            .join(', ');
+        const indexPartition = this.getPartitionByColumnsSql(
+            indexColumns.map((col) =>
+                this.qualifyIdentifier('g', col.reference),
+            ),
+        );
         const maxCaseSelects = (valuesColumns ?? []).reduce<string[]>(
             (acc, valCol) => {
                 const sortConfig = sortBy?.find(
@@ -2199,6 +2225,9 @@ export class PivotQueryBuilder {
         const groupByPartition = groupByColumns
             .map((col) => this.quoteIdentifier(col.reference))
             .join(', ');
+        const groupByPartitionColumns = this.getPartitionByColumnsSql(
+            groupByColumns.map((col) => this.quoteIdentifier(col.reference)),
+        );
 
         const outputColumns = this.getPivotOutputColumns(
             indexColumns,
@@ -2223,7 +2252,7 @@ export class PivotQueryBuilder {
         const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN ${this.qualifyIdentifier(
             'p',
             '__grp_rn',
-        )} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition}${grpRnOrderBy}) AS ${this.quoteIdentifier(
+        )} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartitionColumns}${grpRnOrderBy}) AS ${this.quoteIdentifier(
             '__grp_rn',
         )} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${this.quoteIdentifier(
             'row_index',

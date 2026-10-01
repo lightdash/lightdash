@@ -286,6 +286,47 @@ function registerPivotQueryTests(
             getRawValues(results.rows, 'orders_unique_order_count').length,
         ).toBeGreaterThan(0);
     });
+
+    it(`[${label}] pivots on a numeric group-by column`, async () => {
+        const { client, projectUuid } = getContext();
+        const query = {
+            exploreName: 'orders',
+            dimensions: ['orders_is_completed', 'customers_customer_id'],
+            metrics: ['orders_total_order_amount'],
+            filters: {},
+            sorts: [{ fieldId: 'orders_is_completed', descending: false }],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            metricOverrides: {},
+        };
+
+        // customers_customer_id is numeric; warehouses that restrict PARTITION
+        // BY types (e.g. BigQuery FLOAT64) must still pivot on it.
+        const pivotConfiguration = {
+            indexColumn: {
+                reference: 'orders_is_completed',
+                type: 'category',
+            },
+            groupByColumns: [{ reference: 'customers_customer_id' }],
+            valuesColumns: [
+                { reference: 'orders_total_order_amount', aggregation: 'any' },
+            ],
+            sortBy: [{ reference: 'orders_is_completed', direction: 'ASC' }],
+        };
+
+        const results = await runPivotQuery(
+            client,
+            projectUuid,
+            query,
+            pivotConfiguration,
+        );
+
+        expect(results.rows.length).toBeGreaterThan(0);
+        expect(getValuesColumnReferences(results)).toContain(
+            'orders_total_order_amount',
+        );
+    });
 }
 
 // Postgres is covered by the seed project below. Databricks is excluded to avoid

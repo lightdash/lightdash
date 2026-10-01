@@ -950,6 +950,147 @@ describe('PivotQueryBuilder', () => {
             });
         });
 
+        describe('BigQuery FLOAT64 partition keys', () => {
+            // BigQuery rejects PARTITION BY on FLOAT64 expressions, so pivot
+            // partition keys are wrapped in TO_JSON_STRING there.
+            const mockBigQuerySqlBuilder = {
+                ...mockWarehouseSqlBuilder,
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+            } as unknown as WarehouseSqlBuilder;
+
+            test('wraps the __grp_rn PARTITION BY in TO_JSON_STRING (ORDER BY stays raw)', () => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: [
+                        { reference: 'date', direction: SortByDirection.ASC },
+                    ],
+                };
+
+                const result = replaceWhitespace(
+                    new PivotQueryBuilder(
+                        baseSql,
+                        pivotConfiguration,
+                        mockBigQuerySqlBuilder,
+                    ).toSql(),
+                );
+
+                expect(result).toContain(
+                    'ROW_NUMBER() OVER (PARTITION BY TO_JSON_STRING(`category`) ORDER BY `category`) AS `__grp_rn` FROM filtered_rows f',
+                );
+                expect(result).not.toContain('PARTITION BY `category`');
+            });
+
+            test('wraps column-anchor and row-anchor partition keys in the single-scan form', () => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: [
+                        {
+                            reference: 'revenue',
+                            direction: SortByDirection.DESC,
+                        },
+                    ],
+                };
+
+                const result = replaceWhitespace(
+                    new PivotQueryBuilder(baseSql, pivotConfiguration, {
+                        ...mockBigQuerySqlBuilder,
+                        supportsCteMaterialization: () => false,
+                    } as unknown as WarehouseSqlBuilder).toSql(),
+                );
+
+                expect(result).toContain(
+                    'FIRST_VALUE(`revenue_sum`) OVER (PARTITION BY TO_JSON_STRING(`category`) ORDER BY `revenue_sum` DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS `revenue_ca_value`',
+                );
+                expect(result).toContain(
+                    'OVER (PARTITION BY TO_JSON_STRING(g.`date`)) AS `revenue_ra_value`',
+                );
+            });
+
+            test('wraps the column-anchor PARTITION BY in the 3-CTE form', () => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: [
+                        {
+                            reference: 'revenue',
+                            direction: SortByDirection.DESC,
+                        },
+                    ],
+                };
+
+                const result = replaceWhitespace(
+                    new PivotQueryBuilder(
+                        baseSql,
+                        pivotConfiguration,
+                        mockBigQuerySqlBuilder,
+                    ).toSql(),
+                );
+
+                expect(result).toContain(
+                    'FIRST_VALUE(`revenue_sum`) OVER (PARTITION BY TO_JSON_STRING(`category`) ORDER BY `revenue_sum` DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS `revenue_ca_value`',
+                );
+                expect(result).not.toContain('PARTITION BY `category`');
+            });
+
+            test('leaves PARTITION BY columns unwrapped on Postgres', () => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: [
+                        { reference: 'date', direction: SortByDirection.ASC },
+                    ],
+                };
+
+                const result = replaceWhitespace(
+                    new PivotQueryBuilder(
+                        baseSql,
+                        pivotConfiguration,
+                        mockWarehouseSqlBuilder,
+                    ).toSql(),
+                );
+
+                expect(result).toContain(
+                    'ROW_NUMBER() OVER (PARTITION BY "category" ORDER BY "category") AS "__grp_rn"',
+                );
+                expect(result).not.toContain('TO_JSON_STRING');
+            });
+        });
+
         test('No metric sort: should NOT create row_ranking CTE when no anchor CTEs exist', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
