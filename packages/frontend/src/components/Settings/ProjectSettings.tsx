@@ -15,6 +15,7 @@ import {
     useRoutes,
     type RouteObject,
 } from 'react-router';
+import { ProjectAiRegionPanel } from '../../ee/features/aiCopilot/components/Admin/settings/ProjectAiRegionPanel';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { ContentReviewSettingsPanel } from '../../ee/features/contentReview';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
@@ -96,6 +97,15 @@ const ProjectSettings: FC<{
 
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    // Must match the backend: the credential list and the project selection
+    // both require manage:OrganizationAiAgent, not update:Project.
+    const canManageOrgAiAgent =
+        user.data?.ability?.can(
+            'manage',
+            subject('OrganizationAiAgent', {
+                organizationUuid: user.data?.organizationUuid,
+            }),
+        ) ?? false;
     const isAiCopilotEnabledOrTrial =
         aiOrganizationSettingsQuery.isSuccess &&
         (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
@@ -363,6 +373,23 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
+            ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
+                ? [
+                      {
+                          path: `/aiRegion`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="AI region"
+                                  description="Choose which AI provider credential, and therefore which region, serves this project."
+                              >
+                                  <ProjectAiRegionPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/queryTimezone`,
                 element: (
@@ -563,6 +590,7 @@ const ProjectSettings: FC<{
         canManageExternalSources,
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
+        canManageOrgAiAgent,
     ]);
     const routesElements = useRoutes(routes);
 

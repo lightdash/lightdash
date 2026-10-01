@@ -802,6 +802,30 @@ export const useSettingsNavigation = (
                           },
                       ]
                     : []),
+                // Selecting a region is gated on organization-level AI
+                // administration to match the backend: both the credential
+                // list and the project selection require
+                // manage:OrganizationAiAgent, so a project admin without it
+                // would land on a page whose queries 403.
+                ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
+                    ? [
+                          {
+                              label: 'AI region',
+                              to: `${base}/aiRegion`,
+                              icon: IconWorldCog,
+                              keywords: [
+                                  'ai',
+                                  'bedrock',
+                                  'region',
+                                  'residency',
+                                  'locality',
+                                  'credential',
+                              ],
+                              children: [],
+                              exact: true,
+                          },
+                      ]
+                    : []),
                 {
                     label: 'Compilation history',
                     to: `${base}/compilationHistory`,
