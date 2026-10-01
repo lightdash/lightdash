@@ -1,3 +1,10 @@
+## [2.405.8](https://github.com/lightdash/lightdash/compare/2.405.7...2.405.8) (2026-10-01)
+
+
+### Bug Fixes
+
+* **previews:** keep a preview's BigQuery sign-in in step with its parent ([#30329](https://github.com/lightdash/lightdash/issues/30329)) ([8b41fa6](https://github.com/lightdash/lightdash/commit/8b41fa6cdd958a6ad8087c4c4187806641745ca5))
+
 ## [2.405.7](https://github.com/lightdash/lightdash/compare/2.405.6...2.405.7) (2026-10-01)
 
 
