@@ -1,3 +1,10 @@
+## [2.406.2](https://github.com/lightdash/lightdash/compare/2.406.1...2.406.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* **previews:** retry a preview query once when Google rejects a cached token ([#30345](https://github.com/lightdash/lightdash/issues/30345)) ([66062a7](https://github.com/lightdash/lightdash/commit/66062a7d2d7d6ebd017ad25da8925985f470854a))
+
 ## [2.406.1](https://github.com/lightdash/lightdash/compare/2.406.0...2.406.1) (2026-10-01)
 
 
