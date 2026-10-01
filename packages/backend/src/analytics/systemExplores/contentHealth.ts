@@ -73,7 +73,8 @@ export const contentHealthSql = `(WITH views AS (
         COALESCE(q.queries_with_execution_time, 0)::BIGINT AS queries_with_execution_time,
         w.first_observed_event_at
     FROM lightdash_content i
-    LEFT JOIN views v ON i.org_id = v.org_id AND i.project_id = v.project_id AND i.content_type = v.content_type AND i.content_id = v.content_id
+    LEFT JOIN views v ON i.org_id = v.org_id AND i.project_id = v.project_id AND i.content_id = v.content_id
+        AND v.content_type = CASE WHEN i.content_type = 'saved_chart' THEN 'chart' ELSE i.content_type END
     LEFT JOIN content_queries q ON i.org_id = q.org_id AND i.project_id = q.project_id AND i.content_type = q.content_type AND i.content_id = q.content_id
     LEFT JOIN app_loads a ON i.org_id = a.org_id AND i.project_id = a.project_id AND i.content_type = 'data_app' AND i.content_id = a.app_id
     LEFT JOIN observed_window w ON i.org_id = w.org_id
