@@ -13,13 +13,15 @@ export type GitHostDraft = {
     hostDomain: string;
 };
 
-export const EMPTY_GIT_HOST_DRAFT: GitHostDraft = {
-    githubMethod: 'installation',
+export const getEmptyGitHostDraft = (
+    canInstallGithubApp: boolean,
+): GitHostDraft => ({
+    githubMethod: canInstallGithubApp ? 'installation' : 'token',
     token: '',
     username: '',
     organization: '',
     hostDomain: '',
-};
+});
 
 const blankToNull = (value: string) => (value.trim() ? value.trim() : null);
 
