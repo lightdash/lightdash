@@ -5,6 +5,7 @@ export default defineConfig({
         name: 'migration-integration-tests',
         include: [
             'src/**/database/migrations/__tests__/*.migration.integration.ts',
+            'src/models/ProjectModel/ProjectModel.membershipOrdering.integration.test.ts',
         ],
         environment: 'node',
         testTimeout: 120000,
