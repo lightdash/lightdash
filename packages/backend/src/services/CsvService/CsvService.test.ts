@@ -30,6 +30,7 @@ import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
+import { ProjectSetupModel } from '../../models/ProjectSetupModel/ProjectSetupModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -69,6 +70,7 @@ describe('Csv service', () => {
             emailClient: {} as EmailClient,
             jobModel: {} as JobModel,
             onboardingModel: {} as OnboardingModel,
+            projectSetupModel: {} as ProjectSetupModel,
             projectModel: {} as ProjectModel,
             projectDbtSourcesModel: {} as ProjectDbtSourcesModel,
             preAggregateModel: {} as PreAggregateModel,

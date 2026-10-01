@@ -1,5 +1,6 @@
 import {
     DbtProjectType,
+    FeatureFlags,
     ProjectType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -10,6 +11,8 @@ import { IconChevronLeft } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
 import { AgentOnboardingLaunchPanel } from '../../../ee/features/agentOnboarding/AgentOnboardingLaunchPanel';
 import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { dbtDefaults } from '../DbtForms/defaultValues';
@@ -58,6 +61,15 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
     const [preparedProject, setPreparedProject] = useState<PreparedProject>();
     const isCreatingProjectRef = useRef(false);
     const createProjectMutation = useCreateProjectWithoutCompileMutation();
+    const { user } = useApp();
+    const connectJourneyFlag = useServerFeatureFlag(
+        FeatureFlags.ConnectJourney,
+    );
+    const organizationName = user.data?.organizationName;
+    const projectName =
+        connectJourneyFlag.data?.enabled && organizationName
+            ? organizationName
+            : `Coding agent onboarding ${new Date().toISOString()}`;
     const onProjectError = useOnProjectError();
 
     const form = useForm({
@@ -85,7 +97,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                 [getSchemaField(selectedWarehouse)]: '',
             } as CreateWarehouseCredentials;
             const result = await createProjectMutation.mutateAsync({
-                name: `Coding agent onboarding ${new Date().toISOString()}`,
+                name: projectName,
                 type: ProjectType.DEFAULT,
                 dbtConnection: { type: DbtProjectType.NONE },
                 dbtVersion: dbtDefaults.dbtVersion,
