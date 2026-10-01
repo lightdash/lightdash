@@ -217,4 +217,29 @@ describe('warehouse credential owner', () => {
             owner: null,
         });
     });
+    test('finds the owner only for the token that the project stores', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Fran');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData(googleSignIn('founder-token')),
+        );
+
+        expect(
+            await model.getSharedSignInOwnerForToken(
+                projectUuid,
+                'founder-token',
+            ),
+        ).toEqual({
+            signIn: PersonSignInProvider.GOOGLE,
+            owner: { userUuid: founder, name: 'Fran Person' },
+        });
+        expect(
+            await model.getSharedSignInOwnerForToken(
+                projectUuid,
+                'someone-elses-personal-token',
+            ),
+        ).toBeNull();
+    });
 });

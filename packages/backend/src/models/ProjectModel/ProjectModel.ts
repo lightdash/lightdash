@@ -72,6 +72,7 @@ import {
     type SummaryExplore,
     getPersonSignIn,
     resolveCredentialOwner,
+    type PersonSignIn,
     type SharedCredentialOwner,
     type StoredCredentialOwner,
 } from '@lightdash/common';
@@ -937,6 +938,26 @@ export class ProjectModel {
     async getSharedCredentialOwner(
         projectUuid: string,
     ): Promise<SharedCredentialOwner | null> {
+        const stored = await this.readSharedSignIn(projectUuid);
+        return stored
+            ? { signIn: stored.signIn.provider, owner: stored.owner }
+            : null;
+    }
+
+    async getSharedSignInOwnerForToken(
+        projectUuid: string,
+        refreshToken: string,
+    ): Promise<SharedCredentialOwner | null> {
+        const stored = await this.readSharedSignIn(projectUuid);
+        return stored && stored.signIn.refreshToken === refreshToken
+            ? { signIn: stored.signIn.provider, owner: stored.owner }
+            : null;
+    }
+
+    private async readSharedSignIn(projectUuid: string): Promise<{
+        signIn: PersonSignIn;
+        owner: SharedCredentialOwner['owner'];
+    } | null> {
         const row = await this.database('warehouse_credentials')
             .innerJoin(
                 'projects',
@@ -976,7 +997,7 @@ export class ProjectModel {
         const signIn = getPersonSignIn(credentials);
         if (!signIn) return null;
         return {
-            signIn: signIn.provider,
+            signIn,
             owner: row.credential_owner_user_uuid
                 ? {
                       userUuid: row.credential_owner_user_uuid,
