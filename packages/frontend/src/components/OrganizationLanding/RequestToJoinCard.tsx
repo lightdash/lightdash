@@ -14,7 +14,7 @@ const getStatusText = (
 ): string | null => {
     switch (status) {
         case OrganizationJoinRequestStatus.PENDING:
-            return 'Request sent. An admin will approve or decline it.';
+            return 'An admin will approve or decline it.';
         case OrganizationJoinRequestStatus.DECLINED:
             return 'An admin declined your last request.';
         case OrganizationJoinRequestStatus.EXPIRED:
