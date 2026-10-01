@@ -688,6 +688,48 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
     >
 >;
 
+export const AiOrganizationProviderCredentialTableName =
+    'ai_organization_provider_credential';
+
+/**
+ * A named AI provider credential an organization owns. Unlike the single
+ * `encrypted_provider_api_keys` blob on `ai_organization_settings`, there may
+ * be several per organization — one per region — so projects and agents can
+ * each be pinned to one.
+ */
+export type DbAiOrganizationProviderCredential = {
+    ai_organization_provider_credential_uuid: string;
+    organization_uuid: string;
+    provider: string;
+    label: string;
+    encrypted_config: Buffer;
+    /** Serves AI paths with no project or agent in scope. At most one per org. */
+    is_default: boolean;
+    created_by_user_uuid: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiOrganizationProviderCredentialTable = Knex.CompositeTableType<
+    DbAiOrganizationProviderCredential,
+    Omit<
+        DbAiOrganizationProviderCredential,
+        | 'ai_organization_provider_credential_uuid'
+        | 'is_default'
+        | 'created_at'
+        | 'updated_at'
+    > &
+        Partial<Pick<DbAiOrganizationProviderCredential, 'is_default'>>,
+    Partial<
+        Pick<
+            DbAiOrganizationProviderCredential,
+            'label' | 'encrypted_config' | 'is_default'
+        >
+    > & {
+        updated_at: Knex.Raw;
+    }
+>;
+
 export const AiSqlApprovalTableName = 'ai_sql_approval';
 
 export type AiSqlApprovalDecision = 'approved' | 'rejected';
