@@ -255,7 +255,7 @@ const GUARD_OWNERS: GuardOwnerRow[] = [
         owners: ['PR 6'],
         probe: 'addedGuard',
         file: 'models/ProjectModel/ProjectModel.ts',
-        method: 'update',
+        method: 'updateProject',
         marker: 'ORIGINAL_TYPE_LOCKED_MESSAGE',
     },
 ];
