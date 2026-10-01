@@ -265,3 +265,54 @@ test('walkthrough changes on main do not make an unrelated PR strict', () => {
         );
     });
 });
+
+for (const removed of [false, true]) {
+    test(`multiline marker ${removed ? 'removal' : 'value edit'} requires validation`, () => {
+        withRepository(({ cwd, run }) => {
+            const git = (...args) =>
+                execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+            const file = 'packages/frontend/src/Example.tsx';
+            writeFileSync(
+                path.join(cwd, file),
+                "const props = {\n  'data-tour-docs':\n    'spaces.mdx#intro:1',\n};\n",
+            );
+            git('add', file);
+            git(
+                '-c',
+                'user.name=Test',
+                '-c',
+                'user.email=test@example.com',
+                'commit',
+                '-qm',
+                'marker',
+            );
+            const base = git('rev-parse', 'HEAD');
+            writeFileSync(
+                path.join(cwd, file),
+                removed
+                    ? 'const props = {};\n'
+                    : "const props = {\n  'data-tour-docs':\n    'spaces.mdx#missing:1',\n};\n",
+            );
+            git('add', file);
+            git(
+                '-c',
+                'user.name=Test',
+                '-c',
+                'user.email=test@example.com',
+                'commit',
+                '-qm',
+                'edit',
+            );
+            const result = run(
+                'inputs',
+                { BASE_SHA: base, HEAD_SHA: 'HEAD', RUNNER_TEMP: cwd },
+                workflow,
+            );
+            assert.equal(result.status, 0, result.stderr);
+            assert.equal(
+                readFileSync(path.join(cwd, 'outputs'), 'utf8'),
+                'strict=true\n',
+            );
+        });
+    });
+}

@@ -45,8 +45,16 @@ jobs:
                   BASE_SHA: ${{ github.event.pull_request.base.sha }}
                   HEAD_SHA: ${{ github.event.pull_request.head.sha }}
               run: |
-                  git diff --unified=0 "$BASE_SHA...$HEAD_SHA" -- packages/frontend/src > "$RUNNER_TEMP/walkthrough-inputs.diff"
-                  if [ -n "$(git diff --name-only "$BASE_SHA...$HEAD_SHA" -- scripts/scope-tours packages/frontend/src/features/learn/sandboxLessons.ts packages/common/src/authorization packages/backend/assets/learn packages/frontend/src/Routes.tsx packages/frontend/src/ee/CommercialRoutes.tsx packages/frontend/src/pages/Settings.tsx packages/frontend/src/components/Settings/ProjectSettings.tsx)" ] || grep -Eq '^[+-].*data-tour-' "$RUNNER_TEMP/walkthrough-inputs.diff"; then
+                  merge_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+                  marker_changed=false
+                  while IFS= read -r -d '' file; do
+                    for ref in "$merge_base" "$HEAD_SHA"; do
+                      if git show "$ref:$file" > "$RUNNER_TEMP/walkthrough-source" 2>/dev/null && grep -q 'data-tour-' "$RUNNER_TEMP/walkthrough-source"; then
+                        marker_changed=true
+                      fi
+                    done
+                  done < <(git diff --no-renames --name-only -z "$merge_base" "$HEAD_SHA" -- packages/frontend/src)
+                  if [ -n "$(git diff --name-only "$BASE_SHA...$HEAD_SHA" -- scripts/scope-tours packages/frontend/src/features/learn/sandboxLessons.ts packages/common/src/authorization packages/backend/assets/learn packages/frontend/src/Routes.tsx packages/frontend/src/ee/CommercialRoutes.tsx packages/frontend/src/pages/Settings.tsx packages/frontend/src/components/Settings/ProjectSettings.tsx)" ] || [ "$marker_changed" = true ]; then
                     echo 'strict=true' >> "$GITHUB_OUTPUT"
                   else
                     echo 'strict=false' >> "$GITHUB_OUTPUT"
