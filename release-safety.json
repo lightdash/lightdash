@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.406.0",
-  "previousVersion": "2.405.9",
-  "releaseDate": "2026-10-01T12:35:18.537Z",
+  "version": "2.406.1",
+  "previousVersion": "2.406.0",
+  "releaseDate": "2026-10-01T12:41:15.273Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261001130000_add_warehouse_credentials_preview_owns_credentials.ts",
+        "edition": "core",
+        "tables": [
+          "warehouse_credentials"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

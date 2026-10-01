@@ -1,3 +1,10 @@
+## [2.406.1](https://github.com/lightdash/lightdash/compare/2.406.0...2.406.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **previews:** do not repair a preview credential that was saved on the preview ([#30344](https://github.com/lightdash/lightdash/issues/30344)) ([1de582d](https://github.com/lightdash/lightdash/commit/1de582daf83ca4a41723a27e2e2892a36a099dfe))
+
 # [2.406.0](https://github.com/lightdash/lightdash/compare/2.405.9...2.406.0) (2026-10-01)
 
 
