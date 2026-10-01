@@ -20,6 +20,7 @@ import {
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
+import LoadingChart from '../components/common/LoadingChart';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import LightdashVisualization from '../components/LightdashVisualization';
@@ -135,7 +136,7 @@ const MinimalExplorerContent = memo(() => {
     ]);
 
     if (!savedChart || health.isInitialLoading || !health.data) {
-        return null;
+        return <LoadingChart />;
     }
 
     return (
@@ -340,7 +341,7 @@ const MinimalSavedExplorer: FC<Props> = ({
         !projectRouteContext ||
         !data
     ) {
-        return null;
+        return <LoadingChart />;
     }
 
     return (
