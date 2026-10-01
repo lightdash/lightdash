@@ -25,10 +25,10 @@ const formatLastDay = (periodEnd: Date) =>
     dayjs.utc(periodEnd).subtract(1, 'millisecond').format('D MMM YYYY');
 
 const describePeriodLength = (months: number): string => {
-    if (months === 1) return 'monthly period';
-    if (months === 3) return 'quarterly period';
-    if (months === 12) return 'yearly period';
-    return `${months}-month period`;
+    if (months === 1) return 'Monthly';
+    if (months === 3) return 'Quarterly';
+    if (months === 12) return 'Yearly';
+    return `Every ${months} months`;
 };
 
 const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
