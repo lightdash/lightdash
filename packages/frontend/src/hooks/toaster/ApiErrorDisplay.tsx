@@ -16,6 +16,8 @@ import { defaultContext } from '@tanstack/react-query';
 import { useContext, useLayoutEffect, useRef, useState } from 'react';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
+import { getSharedSignInExpiry } from '../../components/ProjectConnection/SharedSignIn/sharedSignInCopy';
+import { SharedSignInExpiredMessage } from '../../components/ProjectConnection/SharedSignIn/SharedSignInExpiredMessage';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
@@ -223,6 +225,16 @@ const ApiErrorDisplayStatic = ({
     apiError: ApiErrorDetail;
     defaultExpanded?: boolean;
 }) => {
+    const sharedSignIn = getSharedSignInExpiry(apiError);
+    if (sharedSignIn) {
+        return (
+            <SharedSignInExpiredMessage
+                message={apiError.message}
+                expiry={sharedSignIn}
+            />
+        );
+    }
+
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':
             return (
@@ -298,6 +310,17 @@ const ApiErrorDisplayWithHealth = ({
 
     const showSupportButton =
         (isCloudCustomer && isNotMultiTenantCloud) || isDevelopment;
+
+    const sharedSignIn = getSharedSignInExpiry(apiError);
+    if (sharedSignIn) {
+        return (
+            <SharedSignInExpiredMessage
+                message={apiError.message}
+                expiry={sharedSignIn}
+                onNavigate={onClose}
+            />
+        );
+    }
 
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':

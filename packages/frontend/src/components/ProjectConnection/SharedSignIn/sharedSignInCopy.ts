@@ -5,7 +5,9 @@ import {
     PERSON_SIGN_IN_LABELS,
     SnowflakeAuthenticationType,
     WarehouseTypes,
+    type ApiErrorDetail,
     type SharedCredentialOwner,
+    type SharedSignInExpiry,
 } from '@lightdash/common';
 
 export const SHARED_SIGN_IN_SETUP_LINE =
@@ -78,4 +80,13 @@ export const getFirstSchedulePrompt = (
     const name = getOwnerName(credentialOwner.owner);
     const whose = name ? `${name}'s` : `a person's`;
     return `This schedule runs on ${whose} ${signIn} sign-in. If that sign-in expires, the schedule stops. Add a service account to keep it running.`;
+};
+
+export const getSharedSignInExpiry = (
+    apiError: Pick<ApiErrorDetail, 'data'>,
+): SharedSignInExpiry | null => {
+    const sharedSignIn: unknown = apiError.data?.sharedSignIn;
+    return sharedSignIn && typeof sharedSignIn === 'object'
+        ? (sharedSignIn as SharedSignInExpiry)
+        : null;
 };
