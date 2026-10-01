@@ -47,7 +47,10 @@ import {
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
 } from '../WarehouseConnectionService/multipleConnectionsGate';
-import { type WarehouseCredentialPolicy } from '../WarehouseConnectionService/WarehouseConnectionService';
+import {
+    normaliseCredentialSource,
+    type WarehouseCredentialPolicy,
+} from '../WarehouseConnectionService/WarehouseConnectionService';
 
 export const DEFAULT_PROJECT_ONLY_REASON =
     'Only a default project can have multiple connections.';
@@ -542,8 +545,13 @@ export class WarehouseConnectionSwitchService extends BaseService {
         operation: 'switch_preview' | 'switch',
     ): Promise<PreparedSwitch> {
         const summary = await this.assertCanManageProject(account, projectUuid);
-        const source = WarehouseConnectionSwitchService.toSource(
-            request.connection,
+        const source = await normaliseCredentialSource(
+            this.credentialPolicy,
+            {
+                userUuid: account.user.userUuid,
+                organizationUuid: summary.organizationUuid,
+            },
+            WarehouseConnectionSwitchService.toSource(request.connection),
         );
         this.assertCanWrite(
             account,

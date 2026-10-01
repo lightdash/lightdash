@@ -156,6 +156,10 @@ describe('Enable multiple connections on the real schema', () => {
             >
         ) => projectService.assertCanWriteWarehouseConnection(...args),
         testWarehouseConnectionCredentials,
+        normaliseWarehouseConnectionInput: async <T>(
+            _user: unknown,
+            credentials: T,
+        ) => credentials,
     });
 
     const buildService = (licensed = true) =>

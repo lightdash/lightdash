@@ -4279,7 +4279,7 @@ export class ProjectService extends BaseService {
         return enabled;
     }
 
-    private async normaliseWarehouseConnectionInput<
+    async normaliseWarehouseConnectionInput<
         T extends CreateWarehouseCredentials,
     >(
         user: { userUuid: string; organizationUuid: string },
