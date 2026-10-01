@@ -33,6 +33,7 @@ const VerifyEmailForm: FC<{
         initialValues: {
             code: '',
         },
+        clearInputErrorOnChange: false,
         validate: {
             code: isNotEmpty('This field is required.'),
         },
