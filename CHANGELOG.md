@@ -1,3 +1,11 @@
+## [2.408.1](https://github.com/lightdash/lightdash/compare/2.408.0...2.408.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **compiler:** stop map-valued model filters compiling to non-list values ([#30356](https://github.com/lightdash/lightdash/issues/30356)) ([2efabd8](https://github.com/lightdash/lightdash/commit/2efabd8da7bdb59d2684482a2527bc4e2583116a))
+* **embed:** keep AI agent dashboard tab switches inside the embed ([#30358](https://github.com/lightdash/lightdash/issues/30358)) ([f4c644f](https://github.com/lightdash/lightdash/commit/f4c644fa1463312e348f396b3d2259ac641bfd0e))
+
 # [2.408.0](https://github.com/lightdash/lightdash/compare/2.407.2...2.408.0) (2026-10-01)
 
 

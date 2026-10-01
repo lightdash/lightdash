@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.408.0",
-  "previousVersion": "2.407.2",
-  "releaseDate": "2026-10-01T13:52:00.275Z",
+  "version": "2.408.1",
+  "previousVersion": "2.408.0",
+  "releaseDate": "2026-10-01T14:09:20.622Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,23 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `MODEL_FILTER_ERROR` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/tables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `MODEL_FILTER_ERROR` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/unfilteredTables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `MODEL_FILTER_ERROR` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/warnings/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `MODEL_FILTER_ERROR` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[subschema #3]/errors/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `MODEL_FILTER_ERROR` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/tables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `MODEL_FILTER_ERROR` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/unfilteredTables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `MODEL_FILTER_ERROR` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/warnings/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `MODEL_FILTER_ERROR` enum value to the `results/log/report/exploresWithErrors/items/allOf[subschema #3]/errors/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/dataCatalog — added the new `MODEL_FILTER_ERROR` enum value to the `results/items/anyOf[#/components/schemas/CatalogTable]/allOf[subschema #2]/errors/items/type` response property for the response status `200`",
+        "PUT /api/v1/projects/{projectUuid}/explores — added the new `MODEL_FILTER_ERROR` enum value to the `results/warnings/exploresWithWarnings/items/allOf[subschema #2]/warnings/allOf[subschema #1]/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `MODEL_FILTER_ERROR` enum value to the `results/tables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `MODEL_FILTER_ERROR` enum value to the `results/warnings/items/type` response property for the response status `200`",
+        "PUT /api/v2/projects/{projectUuid}/deploy — added the new `MODEL_FILTER_ERROR` enum value to the `results/warnings/exploresWithWarnings/items/allOf[subschema #2]/warnings/allOf[subschema #1]/items/type` response property for the response status `200`",
+        "POST /api/v2/projects/{projectUuid}/deploy/{sessionUuid}/finalize — added the new `MODEL_FILTER_ERROR` enum value to the `results/allOf[#/components/schemas/ApiDeployExploresResults]/warnings/exploresWithWarnings/items/allOf[subschema #2]/warnings/allOf[subschema #1]/items/type` response property for the response status `200`"
+      ],
+      "advisoryCount": 14
     },
     "mcp": {
       "checked": true,

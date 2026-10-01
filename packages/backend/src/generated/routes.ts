@@ -17014,6 +17014,7 @@ const models: TsoaRoute.Models = {
             'SHOW_UNDERLYING_VALUES_ERROR',
             'INVALID_PARAMETER',
             'DUPLICATE_FIELD_NAME',
+            'MODEL_FILTER_ERROR',
             'WAREHOUSE_COLUMN_ERROR',
         ],
     },
