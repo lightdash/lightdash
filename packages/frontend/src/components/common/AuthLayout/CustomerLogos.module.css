@@ -3,7 +3,7 @@
     flex-direction: column;
     gap: 1em;
     margin-top: 2em;
-    font-size: max(rem(16px), calc(var(--auth-block-size) * 0.22));
+    font-size: max(rem(14px), calc(var(--auth-block-size) * 0.22));
 }
 
 .divider {
@@ -11,16 +11,15 @@
 }
 
 .label {
-    font-size: 0.75em;
+    font-size: max(rem(12px), 0.75em);
     color: rgba(255, 255, 255, 0.6);
 }
 
 .logos {
-    display: grid;
-    grid-template-columns: repeat(4, auto);
-    justify-content: space-between;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    row-gap: 1.25em;
+    gap: 1.25em 1.5em;
     margin: 0;
     padding: 0;
     list-style: none;
