@@ -1,3 +1,10 @@
+# [2.412.0](https://github.com/lightdash/lightdash/compare/2.411.0...2.412.0) (2026-10-01)
+
+
+### Features
+
+* **chart-types:** make generated chart types fit small tiles ([#30360](https://github.com/lightdash/lightdash/issues/30360)) ([0b74192](https://github.com/lightdash/lightdash/commit/0b74192528e09ed8341c5b2b70f60ef0c869b180))
+
 # [2.411.0](https://github.com/lightdash/lightdash/compare/2.410.0...2.411.0) (2026-10-01)
 
 
