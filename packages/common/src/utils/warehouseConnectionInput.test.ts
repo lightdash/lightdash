@@ -11,6 +11,7 @@ import {
     getWarehouseConnectionInputIssues,
     parseHostInput,
     parseMotherduckDatabaseInput,
+    parsePortInput,
     parseSnowflakeAccountInput,
     parseTrimmedInput,
 } from './warehouseConnectionInput';
@@ -174,6 +175,20 @@ describe('parseSnowflakeAccountInput', () => {
     it('leaves an account identifier alone', () => {
         expect(parseSnowflakeAccountInput('org-acct').kind).toBe(
             ConnectionInputParseKind.UNCHANGED,
+        );
+    });
+});
+
+describe('parsePortInput', () => {
+    it.each([5432, '6543'])('accepts %s', (port) => {
+        expect(parsePortInput(port).kind).toBe(
+            ConnectionInputParseKind.UNCHANGED,
+        );
+    });
+
+    it.each([0, 70000, 543215432, 'abc'])('blocks %s', (port) => {
+        expect(parsePortInput(port).kind).toBe(
+            ConnectionInputParseKind.BLOCKED,
         );
     });
 });

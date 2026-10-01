@@ -2,7 +2,7 @@ import {
     isApiError,
     JobStatusType,
     ProjectType,
-    WarehouseTypes,
+    type WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { Button, Group, Loader } from '@mantine/core';
@@ -15,20 +15,19 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import classes from './CreateProjectconnection.module.css';
 import CreateProjectJobProgress from './CreateProjectJobProgress';
-import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
-import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
-import { FormProvider, useForm } from './formContext';
+import { FormProvider } from './formContext';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
+import { StagedConnectionTestPanel } from './StagedConnectionTest/StagedConnectionTestPanel';
+import { useStagedTestGate } from './StagedConnectionTest/useStagedTestGate';
 import { type ProjectConnectionForm } from './types';
+import { useCreateProjectForm } from './useCreateProjectForm';
 import { useCreateProjectJob } from './useCreateProjectJob';
 import { useCreateProjectSuccessRedirect } from './useCreateProjectSuccessRedirect';
 import { useOnProjectError } from './useOnProjectError';
 import { useProjectSetupAttempt } from './useProjectSetupAttempt';
 import { useTrackCreateProjectFailure } from './useTrackCreateProjectFailure';
-import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
-import { createWarehouseValueValidators } from './WarehouseForms/validators';
 
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
@@ -53,6 +52,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const { user, health } = useApp();
     const { isConnectJourneyEnabled, setupAttemptPayload } =
         useProjectSetupAttempt();
+    const stagedTestGate = useStagedTestGate(
+        isConnectJourneyEnabled && warehouseOnly,
+    );
     const { isLoading: isSaving, mutateAsync } = useCreateMutation({
         quietJobToast: warehouseOnly,
         warehouseOnly,
@@ -71,26 +73,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
-    const warehouseType = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
-    const dbtType = health.data?.defaultProject?.type ?? dbtDefaults.dbtType;
-    const form = useForm({
-        initialValues: {
-            name: user.data?.organizationName || '',
-            dbt: warehouseOnly
-                ? noneDefaultValues
-                : {
-                      ...dbtDefaults.formValues[dbtType],
-                      ...health.data?.defaultProject,
-                  },
-            warehouse: warehouseDefaultValues[warehouseType],
-            dbtVersion: dbtDefaults.dbtVersion,
-            organizationWarehouseCredentialsUuid: undefined,
-        },
-        validate: {
-            warehouse: createWarehouseValueValidators[warehouseType],
-            dbt: warehouseOnly ? {} : dbtFormValidators,
-        },
-        validateInputOnBlur: true,
+    const { form, warehouseType } = useCreateProjectForm({
+        selectedWarehouse,
+        warehouseOnly,
     });
 
     const { track } = useTracking();
@@ -115,7 +100,14 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 onboardingFlow,
             },
         });
-        if (selectedWarehouse) {
+        const typedConnection = {
+            ...warehouseConnection,
+            type: selectedWarehouse,
+        } as CreateWarehouseCredentials;
+        if (
+            selectedWarehouse &&
+            (await stagedTestGate.passesStagedTest(typedConnection))
+        ) {
             try {
                 const data = await mutateAsync({
                     name: name || user.data?.organizationName || 'My project',
@@ -123,10 +115,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     dbtConnection,
                     dbtVersion,
                     organizationWarehouseCredentialsUuid,
-                    warehouseConnection: {
-                        ...warehouseConnection,
-                        type: selectedWarehouse,
-                    } as CreateWarehouseCredentials,
+                    warehouseConnection: typedConnection,
                     ...setupAttemptPayload,
                 });
                 setCreateProjectJobId(data.jobUuid);
@@ -203,6 +192,11 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                         health.data?.defaultProject?.type
                                     }
                                     warehouseOnly={warehouseOnly}
+                                />
+
+                                <StagedConnectionTestPanel
+                                    warehouseType={warehouseType}
+                                    {...stagedTestGate.panelProps}
                                 />
 
                                 <Button

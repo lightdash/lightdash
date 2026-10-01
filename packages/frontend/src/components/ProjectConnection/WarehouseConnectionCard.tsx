@@ -1,8 +1,11 @@
-import { Flex, Text, Title } from '@mantine/core';
+import { FeatureFlags } from '@lightdash/common';
+import { Box, Flex, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
+import { EgressIpNotice } from './EgressIpNotice';
 import { useFormContext } from './formContext';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import { WarehouseConnectionInputReview } from './WarehouseConnectionInputReview';
@@ -26,6 +29,10 @@ export const WarehouseConnectionCard: FC<Props> = ({
     const form = useFormContext();
     const warehouse = form.values.warehouse.type;
     const staticIp = health.data?.staticIp;
+    const connectJourneyFlag = useServerFeatureFlag(
+        FeatureFlags.ConnectJourney,
+    );
+    const isConnectJourneyEnabled = connectJourneyFlag.data?.enabled === true;
 
     return (
         <SettingsGridCard p={warehouseOnly ? 'xl' : 'md'}>
@@ -40,7 +47,7 @@ export const WarehouseConnectionCard: FC<Props> = ({
                     />
                 </Flex>
 
-                {staticIp && (
+                {!isConnectJourneyEnabled && staticIp && (
                     <Text c="gray">
                         If you need to add our IP address to your database's
                         allow-list, use <b>{staticIp}</b>
@@ -61,6 +68,11 @@ export const WarehouseConnectionCard: FC<Props> = ({
                         />
                     )}
                 </WarehouseSettingsForm>
+                {isConnectJourneyEnabled && warehouse && (
+                    <Box mt="md">
+                        <EgressIpNotice warehouseType={warehouse} />
+                    </Box>
+                )}
             </WarehouseConnectionInputReview>
         </SettingsGridCard>
     );

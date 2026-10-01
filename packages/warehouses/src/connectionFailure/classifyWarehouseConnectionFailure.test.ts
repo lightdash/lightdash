@@ -63,6 +63,15 @@ describe('classifyWarehouseConnectionFailure', () => {
         ).toBe(cause);
     });
 
+    it('maps a port out of range to input format', () => {
+        expect(
+            classifyWarehouseConnectionFailure(
+                WarehouseTypes.POSTGRES,
+                nodeError('ERR_SOCKET_BAD_PORT', 'Port should be >= 0'),
+            ).cause,
+        ).toBe(WarehouseConnectionFailureCause.INPUT_FORMAT);
+    });
+
     it('uses the Postgres rules for Redshift', () => {
         expect(
             classifyWarehouseConnectionFailure(
