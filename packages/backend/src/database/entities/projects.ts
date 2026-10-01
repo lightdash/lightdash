@@ -5,6 +5,7 @@ import {
     GroupType,
     ProjectDefaults,
     ProjectType,
+    ProvisioningSource,
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -47,7 +48,7 @@ export type DbProject = {
     default_preview_expiration_hours: number;
     max_preview_expiration_hours: number;
     results_cache_ttl_seconds: number | null;
-    provisioning_source: string | null;
+    provisioning_source: ProvisioningSource | null;
     agent_sql_scope: AgentSqlScope | null;
     playground_bundle_version: string | null;
 };
@@ -68,7 +69,7 @@ type CreateDbProject = Pick<
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
     query_timezone?: string | null;
     use_project_timezone_in_filters?: boolean; // On create it will default to false as per migration
-    provisioning_source?: string | null;
+    provisioning_source?: ProvisioningSource | null;
 };
 type UpdateDbProject = Partial<
     Pick<

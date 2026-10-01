@@ -1,5 +1,5 @@
-const PLAYGROUND_PROVISIONING_SOURCE = 'playground';
+import { ProvisioningSource } from '@lightdash/common';
 
 export const isPlaygroundProvisioningSource = (
-    provisioningSource: string | null | undefined,
-): boolean => provisioningSource === PLAYGROUND_PROVISIONING_SOURCE;
+    provisioningSource: ProvisioningSource | null | undefined,
+): boolean => provisioningSource === ProvisioningSource.PLAYGROUND;

@@ -140,6 +140,7 @@ import {
     parseVizConfig,
     PersistentDownloadFileAccessMode,
     ProjectType,
+    ProvisioningSource,
     PullRequestProvider,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -4928,7 +4929,7 @@ export class AiAgentService extends BaseService {
         const isTraining =
             project.type === ProjectType.TRAINING ||
             (project.type === ProjectType.PREVIEW &&
-                project.provisioningSource === 'training');
+                project.provisioningSource === ProvisioningSource.TRAINING);
         if (!isTraining) return;
         if (body.integrations?.length || body.mcpServerUuids?.length) {
             throw new ForbiddenError(
@@ -4948,7 +4949,7 @@ export class AiAgentService extends BaseService {
         if (
             project.type === ProjectType.TRAINING ||
             (project.type === ProjectType.PREVIEW &&
-                project.provisioningSource === 'training')
+                project.provisioningSource === ProvisioningSource.TRAINING)
         ) {
             throw new ForbiddenError(
                 'MCP servers cannot be added to the training project',

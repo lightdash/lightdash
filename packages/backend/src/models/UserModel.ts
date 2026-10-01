@@ -11,6 +11,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getAllScopesForRole,
+    getPlaygroundProjectMemberScopes,
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
@@ -35,6 +36,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
+    ProvisioningSource,
     Role,
     RoleWithScopes,
     ServiceAccount,
@@ -1167,6 +1169,7 @@ export class UserModel {
             customRolesFlag,
             patScopeAuthoritativeFlag,
             learnFlag,
+            connectJourneyFlag,
         ] = await Promise.all([
             this.customRoleScopes(customRoleUuids, trx),
             this.featureFlagModel.get(
@@ -1187,6 +1190,13 @@ export class UserModel {
                 {
                     user: lightdashUser,
                     featureFlagId: FeatureFlags.EnableLearn,
+                },
+                { trx },
+            ),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: FeatureFlags.ConnectJourney,
                 },
                 { trx },
             ),
@@ -1245,6 +1255,15 @@ export class UserModel {
             learnFlag.enabled,
             trx,
         );
+        if (connectJourneyFlag.enabled) {
+            await this.applyPlaygroundProjectAbilities(
+                user.organization_id,
+                user.user_uuid,
+                isEnterprise,
+                abilityBuilder,
+                trx,
+            );
+        }
 
         return {
             abilityBuilder,
@@ -1288,7 +1307,7 @@ export class UserModel {
             >('project_uuid', 'created_by_user_uuid')
             .where('organization_id', organizationId)
             .where('project_type', ProjectType.PREVIEW)
-            .where('provisioning_source', 'training')
+            .where('provisioning_source', ProvisioningSource.TRAINING)
             .where('copied_from_project_uuid', training.project_uuid)
             .where('created_by_user_uuid', userUuid);
         return [
@@ -1361,6 +1380,60 @@ export class UserModel {
                 builder,
             );
         });
+    }
+
+    private async getPlaygroundProject(
+        organizationId: number,
+        trx: Knex = this.database,
+    ): Promise<{
+        projectUuid: string;
+        createdByUserUuid: string | null;
+    } | null> {
+        const playground = await trx(ProjectTableName)
+            .select<{
+                project_uuid: string;
+                created_by_user_uuid: string | null;
+            }>('project_uuid', 'created_by_user_uuid')
+            .where('organization_id', organizationId)
+            .where('project_type', ProjectType.DEFAULT)
+            .where('provisioning_source', ProvisioningSource.PLAYGROUND)
+            .first();
+        return playground
+            ? {
+                  projectUuid: playground.project_uuid,
+                  createdByUserUuid: playground.created_by_user_uuid,
+              }
+            : null;
+    }
+
+    /**
+     * Every member of an organization, whatever their org role, can explore
+     * the org's Playground as an interactive viewer. No membership rows are
+     * involved, so new joiners are covered. Human users only.
+     */
+    private async applyPlaygroundProjectAbilities(
+        organizationId: number,
+        userUuid: string,
+        isEnterprise: boolean,
+        builder: AbilityBuilder<MemberAbility>,
+        trx: Knex = this.database,
+    ): Promise<void> {
+        const playground = await this.getPlaygroundProject(organizationId, trx);
+        if (!playground) return;
+        buildAbilityFromScopes(
+            {
+                projectUuid: playground.projectUuid,
+                projectType: ProjectType.DEFAULT,
+                projectCreatedByUserUuid: playground.createdByUserUuid,
+                userUuid,
+                scopes: getPlaygroundProjectMemberScopes(),
+                isEnterprise,
+                permissionsConfig: {
+                    pat: this.lightdashConfig.auth.pat,
+                },
+            },
+            builder,
+        );
     }
 
     /**

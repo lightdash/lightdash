@@ -20,12 +20,14 @@ import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import MantineIcon from '../common/MantineIcon';
 import ConnectionTestResults from './ConnectionTestResults';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
 import { FormProvider, useForm } from './formContext';
+import { PlaygroundConnectionLocked } from './PlaygroundConnectionLocked';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -255,6 +257,9 @@ const UpdateProjectConnectionWrapper: FC<{
 
     if (!data) {
         return null;
+    }
+    if (isPlaygroundProvisioningSource(data.provisioningSource)) {
+        return <PlaygroundConnectionLocked />;
     }
 
     return (

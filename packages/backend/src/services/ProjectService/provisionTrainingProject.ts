@@ -7,6 +7,7 @@ import {
     NotFoundError,
     ProjectMemberRole,
     ProjectType,
+    ProvisioningSource,
     RequestMethod,
     WarehouseTypes,
     type EnableLearnResults,
@@ -182,7 +183,7 @@ export const provisionTrainingProject = async ({
                         },
                     },
                     RequestMethod.BACKEND,
-                    { source: 'training' },
+                    { source: ProvisioningSource.TRAINING },
                 );
                 const { projectUuid } = creation.project;
                 lastKnownProjectUuid = projectUuid;

@@ -1,4 +1,4 @@
-import { getFieldQuoteChar } from '@lightdash/common';
+import { getFieldQuoteChar, ProvisioningSource } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import { Provider } from 'react-redux';
@@ -290,7 +290,7 @@ const SqlRunnerNewPage = ({
     if (isInitialLoading || !project) {
         return <SuboptimalState title="Loading project" loading />;
     }
-    if (project.provisioningSource === 'analytics') {
+    if (project.provisioningSource === ProvisioningSource.ANALYTICS) {
         return (
             <SuboptimalState title="SQL Runner is unavailable for managed analytics projects" />
         );

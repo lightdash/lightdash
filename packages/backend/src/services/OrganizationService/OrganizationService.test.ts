@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
+    ProvisioningSource,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -127,7 +128,7 @@ describe('organization service', () => {
             const analyticsProject = {
                 ...projectSummary,
                 projectUuid: 'analytics',
-                provisioningSource: 'analytics',
+                provisioningSource: ProvisioningSource.ANALYTICS,
             };
             projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
                 ordinaryProject,

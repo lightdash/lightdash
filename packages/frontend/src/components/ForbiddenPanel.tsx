@@ -3,11 +3,16 @@ import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useOrganization } from '../hooks/organization/useOrganization';
+import { usePlaygroundAvailability } from '../hooks/usePlaygroundAvailability';
 import { Can } from '../providers/Ability';
 import SuboptimalState from './common/SuboptimalState/SuboptimalState';
 
 const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
     const orgRequest = useOrganization();
+    const playgroundAvailability = usePlaygroundAvailability();
+    const canAskForSampleData =
+        playgroundAvailability.isConnectJourney &&
+        playgroundAvailability.isAvailable;
 
     const createProjectLink = (
         <Can I="create" a={'Project'}>
@@ -43,6 +48,12 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
                                 A project connects Lightdash to your data. Ask
                                 an organization admin to finish setting one up.
                             </p>
+                            {canAskForSampleData && (
+                                <p>
+                                    Ask an admin to add sample data, so you can
+                                    explore Lightdash first.
+                                </p>
+                            )}
                             {createProjectLink}
                         </>
                     }

@@ -414,6 +414,9 @@ export const lightdashConfigMock: LightdashConfig = {
     customRoles: {
         enabled: false,
     },
+    playground: {
+        enabled: true,
+    },
     editYamlInUi: {
         enabled: false,
     },

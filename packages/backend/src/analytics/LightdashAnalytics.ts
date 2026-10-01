@@ -1301,7 +1301,7 @@ export type PlaygroundProjectSkippedReason =
     | 'playground_already_exists'
     | 'organization_has_project'
     | 'no_project_access'
-    | 'playground_previously_removed';
+    | 'instance_disabled';
 
 type PlaygroundProjectSkippedEvent = BaseTrack & {
     event: 'playground_project.skipped';

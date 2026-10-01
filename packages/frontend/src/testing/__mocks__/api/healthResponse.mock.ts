@@ -107,6 +107,7 @@ export default function mockHealthResponse(
         },
         hasEmailClient: false,
         hasPlaygroundProjects: false,
+        isPlaygroundEnabled: true,
         hasEmailWhitelabel: false,
         hasHeadlessBrowser: false,
         hasExtendedUsageAnalytics: false,

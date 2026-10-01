@@ -32,6 +32,7 @@ vi.mock('../providers/App/useApp', () => ({
             data: {
                 hasEmailClient: true,
                 hasPlaygroundProjects: mocks.hasPlaygroundProjects,
+                isPlaygroundEnabled: mocks.hasPlaygroundProjects,
             },
         },
         user: {

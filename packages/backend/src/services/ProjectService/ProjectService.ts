@@ -193,6 +193,7 @@ import {
     PivotConfiguration,
     PivotValuesColumn,
     placeMergeSortNulls,
+    PLAYGROUND_CONNECTION_LOCKED_MESSAGE,
     PlaygroundProjectTrigger,
     PreAggregateCheckResult,
     PreAggregateMatchMiss,
@@ -212,6 +213,7 @@ import {
     ProjectSetupStepStatus,
     ProjectSummary,
     ProjectType,
+    ProvisioningSource,
     QueryExecutionContext,
     RedshiftAuthenticationType,
     RegisteredAccount,
@@ -524,11 +526,7 @@ type RefreshTokenRotationSource =
  * playground and the training project. Only these may use embedded DuckDB
  * credentials or the `TRAINING` project type.
  */
-export type InternalProvisioningSource =
-    | 'playground'
-    | 'training'
-    | 'analytics';
-export type InternalProvisioning = { source: InternalProvisioningSource };
+export type InternalProvisioning = { source: ProvisioningSource };
 
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -609,7 +607,7 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectUuid: string;
         projectType: ProjectType;
-        provisioningSource?: InternalProvisioningSource;
+        provisioningSource?: ProvisioningSource;
     }) => Promise<void>;
     provisionPlaygroundProject?: (args: {
         user: SessionUser;
@@ -959,7 +957,7 @@ export class ProjectService extends BaseService {
         const { organizationUuid } = user;
         await this.assertAnalyticsProjectAccess(user, {
             organizationUuid,
-            provisioningSource: 'analytics',
+            provisioningSource: ProvisioningSource.ANALYTICS,
         });
         // Fail before creating a project if the signed file reads cannot authenticate.
         const analyticsClient = await createAnalyticsClient(
@@ -976,7 +974,11 @@ export class ProjectService extends BaseService {
                     await this.projectModel.getAllByOrganizationUuid(
                         organizationUuid,
                     )
-                ).find((project) => project.provisioningSource === 'analytics');
+                ).find(
+                    (project) =>
+                        project.provisioningSource ===
+                        ProvisioningSource.ANALYTICS,
+                );
                 const projectUuid =
                     existing?.projectUuid ??
                     (
@@ -996,7 +998,7 @@ export class ProjectService extends BaseService {
                                 },
                             },
                             RequestMethod.BACKEND,
-                            { source: 'analytics' },
+                            { source: ProvisioningSource.ANALYTICS },
                         )
                     ).project.projectUuid;
                 // Also repairs a previous attempt that created the project but
@@ -1080,7 +1082,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
-        provisioningSource?: InternalProvisioningSource,
+        provisioningSource?: ProvisioningSource,
     ): Promise<void> {
         if (projectType === ProjectType.PREVIEW) {
             return;
@@ -1089,8 +1091,8 @@ export class ProjectService extends BaseService {
         // walkthroughs name it); a second, default agent would make Ask AI
         // land on either.
         if (
-            provisioningSource === 'training' ||
-            provisioningSource === 'analytics'
+            provisioningSource === ProvisioningSource.TRAINING ||
+            provisioningSource === ProvisioningSource.ANALYTICS
         ) {
             return;
         }
@@ -1145,9 +1147,9 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
-        provisioningSource?: InternalProvisioningSource,
+        provisioningSource?: ProvisioningSource,
     ): Promise<void> {
-        if (provisioningSource === 'analytics') return;
+        if (provisioningSource === ProvisioningSource.ANALYTICS) return;
         await this.provisionDefaultAiAgent(
             user,
             projectUuid,
@@ -1355,7 +1357,10 @@ export class ProjectService extends BaseService {
                             },
                         );
                     }
-                    if (upstreamProject.provisioningSource === 'analytics') {
+                    if (
+                        upstreamProject.provisioningSource ===
+                        ProvisioningSource.ANALYTICS
+                    ) {
                         throw new ForbiddenError(
                             'Cannot create a preview from a managed analytics project',
                         );
@@ -1369,7 +1374,8 @@ export class ProjectService extends BaseService {
                     // walkthrough: provisioned internally, so the trainee
                     // needs no preview-creation scope. See createTrainingPreview.
                     if (
-                        internalProvisioning?.source === 'training' &&
+                        internalProvisioning?.source ===
+                            ProvisioningSource.TRAINING &&
                         upstreamProject.type === ProjectType.TRAINING
                     ) {
                         return true;
@@ -2823,7 +2829,7 @@ export class ProjectService extends BaseService {
             credentials.connectionType === DuckdbConnectionType.ANALYTICS
         ) {
             const project = await this.projectModel.get(projectUuid);
-            if (project.provisioningSource !== 'analytics') {
+            if (project.provisioningSource !== ProvisioningSource.ANALYTICS) {
                 throw new ForbiddenError('Invalid internal analytics project');
             }
             return {
@@ -3572,7 +3578,7 @@ export class ProjectService extends BaseService {
         account: Account | SessionUser,
         project: Pick<Project, 'provisioningSource' | 'organizationUuid'>,
     ): Promise<void> {
-        if (project.provisioningSource !== 'analytics') return;
+        if (project.provisioningSource !== ProvisioningSource.ANALYTICS) return;
         const organizationUuid =
             'organization' in account
                 ? account.organization.organizationUuid
@@ -3903,7 +3909,7 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
                 createProject,
-                internalProvisioning?.source === 'analytics'
+                internalProvisioning?.source === ProvisioningSource.ANALYTICS
                     ? null
                     : await this.getPreviewExpiresAt(
                           createProject.type,
@@ -4840,7 +4846,7 @@ export class ProjectService extends BaseService {
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
-        if (project.provisioningSource === 'analytics')
+        if (project.provisioningSource === ProvisioningSource.ANALYTICS)
             throw new ForbiddenError(
                 'Internal analytics models are managed by the backend',
             );
@@ -4949,14 +4955,16 @@ export class ProjectService extends BaseService {
     private static assertConnectionIsNotManagedInternally(
         project: Pick<ProjectSummary, 'provisioningSource'>,
     ): void {
-        if (project.provisioningSource === 'analytics')
+        if (project.provisioningSource === ProvisioningSource.ANALYTICS)
             throw new ForbiddenError(
                 'Internal analytics configuration is managed by the backend',
             );
-        if (project.provisioningSource === 'training')
+        if (project.provisioningSource === ProvisioningSource.TRAINING)
             throw new ForbiddenError(
                 ProjectService.TRAINING_CONNECTION_MANAGED_MESSAGE,
             );
+        if (project.provisioningSource === ProvisioningSource.PLAYGROUND)
+            throw new ForbiddenError(PLAYGROUND_CONNECTION_LOCKED_MESSAGE);
     }
 
     private static readonly TRAINING_CONNECTION_MANAGED_MESSAGE =
@@ -4968,7 +4976,7 @@ export class ProjectService extends BaseService {
     ): void {
         if (
             type === ProjectType.TRAINING &&
-            internalProvisioning?.source !== 'training'
+            internalProvisioning?.source !== ProvisioningSource.TRAINING
         ) {
             throw new ForbiddenError(
                 'Training projects can only be provisioned internally',
@@ -4983,7 +4991,7 @@ export class ProjectService extends BaseService {
         if (
             credentials?.type === WarehouseTypes.DUCKDB &&
             credentials.connectionType === DuckdbConnectionType.ANALYTICS &&
-            internalProvisioning?.source !== 'analytics'
+            internalProvisioning?.source !== ProvisioningSource.ANALYTICS
         ) {
             throw new ParameterError(
                 'Analytics connections can only be provisioned internally',
@@ -5114,12 +5122,12 @@ export class ProjectService extends BaseService {
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
         assertIsAccountWithOrg(account);
-        ProjectService.assertEmbeddedCredentialsAreInternal(
-            data.warehouseConnection,
-        );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -5254,7 +5262,7 @@ export class ProjectService extends BaseService {
         }
 
         const project = await this.projectModel.getSummary(projectUuid);
-        if (project.provisioningSource === 'analytics')
+        if (project.provisioningSource === ProvisioningSource.ANALYTICS)
             throw new ForbiddenError(
                 'Internal analytics configuration is managed by the backend',
             );
@@ -5279,12 +5287,12 @@ export class ProjectService extends BaseService {
         data: { warehouseConnection: CreateWarehouseCredentials },
     ): Promise<void> {
         assertIsAccountWithOrg(account);
-        ProjectService.assertEmbeddedCredentialsAreInternal(
-            data.warehouseConnection,
-        );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -6240,7 +6248,8 @@ export class ProjectService extends BaseService {
             ).filter(
                 (candidate) =>
                     candidate.type === ProjectType.PREVIEW &&
-                    candidate.provisioningSource === 'training' &&
+                    candidate.provisioningSource ===
+                        ProvisioningSource.TRAINING &&
                     candidate.upstreamProjectUuid === projectUuid,
             );
             await Promise.all(
@@ -6250,20 +6259,11 @@ export class ProjectService extends BaseService {
             );
         }
 
-        if (project.provisioningSource === 'playground') {
+        if (project.provisioningSource === ProvisioningSource.PLAYGROUND) {
             await this.projectModel.deleteContentInBatches(projectUuid);
             await this.onboardingModel.runInPlaygroundProvisioningLock(
                 project.organizationUuid,
                 async (trx) => {
-                    await this.onboardingModel.getByOrganizationUuid(
-                        project.organizationUuid,
-                        trx,
-                    );
-                    await this.onboardingModel.update(
-                        project.organizationUuid,
-                        { playgroundProjectDeletedAt: new Date() },
-                        trx,
-                    );
                     await this.projectModel.delete(projectUuid, trx);
                 },
             );
@@ -9922,7 +9922,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (provisioningSource === 'analytics') {
+        if (provisioningSource === ProvisioningSource.ANALYTICS) {
             throw new ForbiddenError(
                 'SQL Runner is unavailable for managed analytics projects',
             );
@@ -13718,7 +13718,8 @@ export class ProjectService extends BaseService {
                 ).filter(
                     (project) =>
                         project.type === ProjectType.PREVIEW &&
-                        project.provisioningSource === 'training' &&
+                        project.provisioningSource ===
+                            ProvisioningSource.TRAINING &&
                         project.upstreamProjectUuid === trainingProjectUuid &&
                         project.createdByUserUuid === user.userUuid,
                 );
@@ -13791,7 +13792,7 @@ export class ProjectService extends BaseService {
                     ProjectService.TRAINING_PREVIEW_EXPIRES_IN_HOURS,
             },
             RequestMethod.BACKEND,
-            { source: 'training' },
+            { source: ProvisioningSource.TRAINING },
             { mode: 'sync' },
         );
         await this.throwIfPreviewCopyFailed(creation);
@@ -13942,7 +13943,7 @@ export class ProjectService extends BaseService {
         const copies = projects.filter(
             (project) =>
                 project.type === ProjectType.PREVIEW &&
-                project.provisioningSource === 'training' &&
+                project.provisioningSource === ProvisioningSource.TRAINING &&
                 project.upstreamProjectUuid === trainingProjectUuid &&
                 project.createdByUserUuid === user.userUuid,
         );

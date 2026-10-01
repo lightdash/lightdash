@@ -5,6 +5,7 @@ import {
     ForbiddenError,
     isUserWithOrg,
     NotFoundError,
+    ProvisioningSource,
     SessionUser,
 } from '@lightdash/common';
 import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
@@ -51,7 +52,7 @@ export class AnalyticsProjectService extends BaseService {
             user,
             {
                 organizationUuid: user.organizationUuid,
-                provisioningSource: 'analytics',
+                provisioningSource: ProvisioningSource.ANALYTICS,
             },
         );
         return user.organizationUuid;
@@ -64,7 +65,8 @@ export class AnalyticsProjectService extends BaseService {
                 organizationUuid,
             );
         const project = projects.find(
-            (candidate) => candidate.provisioningSource === 'analytics',
+            (candidate) =>
+                candidate.provisioningSource === ProvisioningSource.ANALYTICS,
         );
         if (!project) return { project: null };
 
@@ -115,7 +117,9 @@ export class AnalyticsProjectService extends BaseService {
                         organizationUuid,
                     );
                 const project = projects.find(
-                    (candidate) => candidate.provisioningSource === 'analytics',
+                    (candidate) =>
+                        candidate.provisioningSource ===
+                        ProvisioningSource.ANALYTICS,
                 );
                 if (!project)
                     throw new NotFoundError('Analytics project not found');
@@ -205,7 +209,8 @@ export class AnalyticsProjectService extends BaseService {
                 const project = projects.find(
                     (candidate) =>
                         candidate.projectUuid === projectUuid &&
-                        candidate.provisioningSource === 'analytics',
+                        candidate.provisioningSource ===
+                            ProvisioningSource.ANALYTICS,
                 );
                 if (!project) {
                     throw new NotFoundError('Analytics project not found');

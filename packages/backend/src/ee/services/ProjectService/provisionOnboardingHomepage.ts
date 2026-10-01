@@ -3,6 +3,7 @@ import {
     CommercialFeatureFlags,
     FeatureFlags,
     ProjectType,
+    ProvisioningSource,
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -22,7 +23,7 @@ export type ProvisionOnboardingHomepageArguments = {
     user: SessionUser;
     projectUuid: string;
     projectType: ProjectType;
-    provisioningSource?: 'playground' | 'training' | 'analytics';
+    provisioningSource?: ProvisioningSource;
     featureFlagService: Pick<
         FeatureFlagService,
         'get' | 'ensureOrganizationOverrideEnabled'
@@ -82,7 +83,8 @@ export const provisionOnboardingHomepage = async ({
     try {
         const organizationProjects =
             await projectModel.getAllByOrganizationUuid(organizationUuid);
-        const isPlayground = provisioningSource === 'playground';
+        const isPlayground =
+            provisioningSource === ProvisioningSource.PLAYGROUND;
         if (
             !isPlayground &&
             (organizationProjects.length !== 1 ||

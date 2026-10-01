@@ -76,6 +76,7 @@ import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectComp
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
+import { provisionPlaygroundProject } from './ProjectService/provisionPlaygroundProject';
 import { provisionTrainingProject } from './ProjectService/provisionTrainingProject';
 import { ProjectSetupService } from './ProjectSetupService/ProjectSetupService';
 import { PromoteService } from './PromoteService/PromoteService';
@@ -1037,6 +1038,46 @@ export class ServiceRepository
                         customDimensions: new Set(),
                         additionalMetrics: new Set(),
                     }),
+                    provisionPlaygroundProject: ({
+                        user,
+                        projectService,
+                        canViewProject,
+                        trigger,
+                    }) =>
+                        provisionPlaygroundProject({
+                            user,
+                            projectService,
+                            canViewProject,
+                            isPlaygroundEnabled:
+                                this.context.lightdashConfig.playground.enabled,
+                            trigger,
+                            featureFlagService: this.getFeatureFlagService(),
+                            projectModel: this.models.getProjectModel(),
+                            onboardingModel: this.models.getOnboardingModel(),
+                            catalogService: this.getCatalogService(),
+                            seedPlaygroundContent: ({
+                                projectUuid,
+                                user: seedUser,
+                                content,
+                                publicSpace,
+                            }) =>
+                                seedPlaygroundContent({
+                                    projectUuid,
+                                    user: seedUser,
+                                    content,
+                                    publicSpace,
+                                    spaceModel: this.models.getSpaceModel(),
+                                    savedChartModel:
+                                        this.models.getSavedChartModel(),
+                                    dashboardModel:
+                                        this.models.getDashboardModel(),
+                                    pinnedListModel:
+                                        this.models.getPinnedListModel(),
+                                    commentModel: this.models.getCommentModel(),
+                                    tagsModel: this.models.getTagsModel(),
+                                }),
+                            analytics: this.context.lightdashAnalytics,
+                        }),
                     // Enable Learn (CS-257). Core seeds the space, charts,
                     // dashboard, pins, comment and categories; EE overrides
                     // this to add the data app, agent and research run.

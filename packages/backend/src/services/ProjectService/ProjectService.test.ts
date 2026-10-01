@@ -42,10 +42,12 @@ import {
     NotImplementedError,
     OrganizationMemberRole,
     ParameterError,
+    PLAYGROUND_CONNECTION_LOCKED_MESSAGE,
     PreAggregateMissReason,
     ProjectSetupStepName,
     ProjectSetupStepStatus,
     ProjectType,
+    ProvisioningSource,
     QueryExecutionContext,
     RedshiftAuthenticationType,
     RequestMethod,
@@ -937,7 +939,7 @@ describe('ProjectService', () => {
                 {
                     ...defaultProject,
                     projectUuid: 'existing',
-                    provisioningSource: 'analytics',
+                    provisioningSource: ProvisioningSource.ANALYTICS,
                 },
             ]);
             projectModel.getSummary.mockResolvedValueOnce({
@@ -988,7 +990,7 @@ describe('ProjectService', () => {
                     }),
                 }),
                 RequestMethod.BACKEND,
-                { source: 'analytics' },
+                { source: ProvisioningSource.ANALYTICS },
             );
         });
 
@@ -1014,7 +1016,7 @@ describe('ProjectService', () => {
                         ]),
                     },
                     {
-                        provisioningSource: 'analytics',
+                        provisioningSource: ProvisioningSource.ANALYTICS,
                         organizationUuid: 'other-org',
                     },
                 ),
@@ -1062,7 +1064,7 @@ describe('ProjectService', () => {
                 await expect(
                     service.assertAnalyticsProjectAccess(admin, {
                         organizationUuid: 'analytics-org',
-                        provisioningSource: 'analytics',
+                        provisioningSource: ProvisioningSource.ANALYTICS,
                     }),
                 ).rejects.toThrow(/not enabled/);
 
@@ -1085,7 +1087,10 @@ describe('ProjectService', () => {
 
         test('allows an authorized production org enabled through Console without ENV and binds its storage source', async () => {
             projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
-                { ...defaultProject, provisioningSource: 'analytics' },
+                {
+                    ...defaultProject,
+                    provisioningSource: ProvisioningSource.ANALYTICS,
+                },
             ]);
             vi.mocked(
                 analyticsClient.assertAnalyticsProjectEnabled,
@@ -3012,7 +3017,7 @@ describe('ProjectService', () => {
         const trainingProject = {
             ...projectWithSensitiveFields,
             type: ProjectType.TRAINING,
-            provisioningSource: 'training',
+            provisioningSource: ProvisioningSource.TRAINING,
         };
         const snowflakeConnection: CreateWarehouseCredentials = {
             type: WarehouseTypes.SNOWFLAKE,
@@ -3094,12 +3099,47 @@ describe('ProjectService', () => {
                     developerAccount,
                     {
                         organizationUuid: trainingProject.organizationUuid,
-                        provisioningSource: 'training',
+                        provisioningSource: ProvisioningSource.TRAINING,
                     },
                     { warehouseConnection: snowflakeConnection },
                 ),
             ).toThrow(managedMessage);
         });
+
+        test.each([
+            ['a real warehouse', snowflakeConnection],
+            [
+                'the embedded sample data',
+                {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.EMBEDDED,
+                    dataset: 'jaffle_shop',
+                } as CreateWarehouseCredentials,
+            ],
+        ])(
+            'refuses to point the Playground at %s with a message a user can act on',
+            async (_label, warehouseConnection) => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                    ...trainingProject,
+                    type: ProjectType.DEFAULT,
+                    provisioningSource: ProvisioningSource.PLAYGROUND,
+                });
+                await expect(
+                    service.updateAndScheduleAsyncWork(
+                        trainingProject.projectUuid,
+                        developerAccount,
+                        {
+                            name: trainingProject.name,
+                            dbtConnection: trainingProject.dbtConnection,
+                            dbtVersion: trainingProject.dbtVersion,
+                            warehouseConnection,
+                        },
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(PLAYGROUND_CONNECTION_LOCKED_MESSAGE);
+                expect(jobModel.create).not.toHaveBeenCalled();
+            },
+        );
 
         test.each([
             {
@@ -3161,7 +3201,7 @@ describe('ProjectService', () => {
             const upstream = {
                 ...projectWithSensitiveFields,
                 type: ProjectType.DEFAULT,
-                provisioningSource: 'analytics',
+                provisioningSource: ProvisioningSource.ANALYTICS,
             };
             const getProject = vi
                 .spyOn(projectModel, 'get')
@@ -3319,7 +3359,7 @@ describe('ProjectService', () => {
                             copyContent: true,
                         },
                         RequestMethod.BACKEND,
-                        { source: 'training' },
+                        { source: ProvisioningSource.TRAINING },
                     ),
                 ).resolves.toMatchObject({
                     project: preview,
@@ -3576,7 +3616,7 @@ describe('ProjectService', () => {
                         },
                     },
                     RequestMethod.WEB_APP,
-                    { source: 'playground' },
+                    { source: ProvisioningSource.PLAYGROUND },
                 );
 
                 expect(provisionDefaultAgent).toHaveBeenCalledWith(
@@ -3686,7 +3726,7 @@ describe('ProjectService', () => {
         );
     });
 
-    test('deletes a playground and records its tombstone in the provisioning lock transaction', async () => {
+    test('deletes a playground in the provisioning lock without blocking a new one', async () => {
         const transaction = {};
         const deletingUser = {
             ...user,
@@ -3696,7 +3736,7 @@ describe('ProjectService', () => {
         };
         projectModel.getWithSensitiveFields.mockResolvedValueOnce({
             ...projectWithSensitiveFields,
-            provisioningSource: 'playground',
+            provisioningSource: ProvisioningSource.PLAYGROUND,
         });
         onboardingModel.runInPlaygroundProvisioningLock.mockImplementationOnce(
             async (_organizationUuid, callback) => callback(transaction),
@@ -3710,17 +3750,10 @@ describe('ProjectService', () => {
             projectWithSensitiveFields.organizationUuid,
             expect.any(Function),
         );
-        expect(onboardingModel.update).toHaveBeenCalledWith(
-            projectWithSensitiveFields.organizationUuid,
-            { playgroundProjectDeletedAt: expect.any(Date) },
-            transaction,
-        );
+        expect(onboardingModel.update).not.toHaveBeenCalled();
         expect(projectModel.delete).toHaveBeenCalledWith(
             projectUuid,
             transaction,
-        );
-        expect(onboardingModel.update.mock.invocationCallOrder[0]).toBeLessThan(
-            projectModel.delete.mock.invocationCallOrder[0],
         );
         expect(projectModel.deleteContentInBatches).toHaveBeenCalledWith(
             projectUuid,
@@ -3825,7 +3858,7 @@ describe('ProjectService', () => {
         vi.spyOn(analyticsMock, 'track');
         projectModel.getSummary.mockResolvedValueOnce({
             ...projectSummary,
-            provisioningSource: 'analytics',
+            provisioningSource: ProvisioningSource.ANALYTICS,
         });
         await expect(
             service.runSqlQuery(user, projectUuid, 'SELECT 1', {

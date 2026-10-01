@@ -200,6 +200,29 @@ describe('health', () => {
                 .hasPlaygroundProjects,
         ).toBe(true);
     });
+
+    it('turns the playground off when the instance config disables it', async () => {
+        const disabledService = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                license: {
+                    licenseKey: 'test-license-key',
+                    licenseCertificate: null,
+                },
+                playground: { enabled: false },
+            },
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+            learnSandboxService: learnSandboxServiceMock,
+        });
+        const state = await disabledService.getHealthState(undefined);
+        expect(state.hasPlaygroundProjects).toBe(false);
+        expect(state.isPlaygroundEnabled).toBe(false);
+    });
     it('returns the enterprise license validation result', async () => {
         expect((await healthService.getHealthState(undefined)).license).toEqual(
             {

@@ -251,7 +251,10 @@ export class HealthService extends BaseService {
             // undefined` against a string|null config value, so it is true
             // even without a license. Existing consumers rely on that
             // behaviour; this new field must not (see PROD-9154).
-            hasPlaygroundProjects: !!this.lightdashConfig.license.licenseKey,
+            hasPlaygroundProjects:
+                this.lightdashConfig.playground.enabled &&
+                !!this.lightdashConfig.license.licenseKey,
+            isPlaygroundEnabled: this.lightdashConfig.playground.enabled,
             hasEmailWhitelabel: !!this.lightdashConfig.postmark.accountToken,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
