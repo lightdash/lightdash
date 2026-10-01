@@ -606,6 +606,10 @@ import {
     AiSlackArtifactDeliveriesTableName,
 } from '../ee/database/entities/aiSlackArtifactDeliveries';
 import {
+    AiThreadFileTable,
+    AiThreadFileTableName,
+} from '../ee/database/entities/aiThreadFile';
+import {
     DataAppAnalysesTable,
     DataAppAnalysesTableName,
     DataAppAnalysisDailyCountersTable,
@@ -836,6 +840,7 @@ declare module 'knex/types/tables' {
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
+        [AiThreadFileTableName]: AiThreadFileTable;
         [AiAgentSkillTableName]: AiAgentSkillTable;
         [AiAgentSkillVersionTableName]: AiAgentSkillVersionTable;
         [AiAgentSkillAccessTableName]: AiAgentSkillAccessTable;

@@ -92,6 +92,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             listKnowledgeDocuments: IconBooks,
             getKnowledgeDocumentContent: IconFileText,
             readPinnedThread: IconMessages,
+            readAttachments: IconFileText,
             submitResearchReport: IconFileText,
             delegateResearchTask: IconListDetails,
             submitWorkerFindings: IconFileText,

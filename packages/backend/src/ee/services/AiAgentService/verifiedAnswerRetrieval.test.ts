@@ -211,6 +211,7 @@ describe('verified examples in conversation history', () => {
         projectUuid: 'project',
         agentUuid: 'agent',
         currentPromptUuid: 'current',
+        threadUuid: 'thread-uuid',
         userUuid: 'user',
         retrieveRelevantArtifacts: true,
     };

@@ -924,6 +924,13 @@ const toOptimisticContextItem = (
                 sourceType: null,
                 tables: [],
             };
+        case 'thread_file':
+            return {
+                type: 'thread_file',
+                fileUuid: item.fileUuid,
+                fileName: 'Attachment',
+                sizeBytes: 0,
+            };
         case 'pull_request':
             return {
                 type: 'pull_request',

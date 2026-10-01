@@ -37,6 +37,7 @@ type ItemMeta = {
         | 'file'
         | 'repository'
         | 'external_source'
+        | 'thread_file'
         | 'data_app_element';
     label: string;
     href: string | null;
@@ -51,6 +52,7 @@ const getItemMeta = (
                 | 'file'
                 | 'repository'
                 | 'external_source'
+                | 'thread_file'
                 | 'data_app_element';
         }
     >,
@@ -74,6 +76,9 @@ const getItemMeta = (
                 label: item.displayName,
                 href: null,
             };
+        // No download route by design; the file is read through the agent.
+        case 'thread_file':
+            return { kind: 'thread_file', label: item.fileName, href: null };
         // The app's source is not browsable from the thread, so no link.
         case 'data_app_element':
             return {
@@ -205,6 +210,7 @@ export const PinnedContextCard: FC<Props> = ({
         case 'file':
         case 'repository':
         case 'external_source':
+        case 'thread_file':
         case 'data_app_element': {
             const meta = getItemMeta(item);
             return (
