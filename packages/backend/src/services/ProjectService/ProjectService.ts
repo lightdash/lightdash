@@ -461,6 +461,7 @@ import {
     getBigquerySsoCredentials,
     getPreviewOwnsBigquerySsoCredentials,
     getPushedPreviewCredentials,
+    recheckGoogleRefreshToken,
     repairStalePreviewBigquerySso,
     type CheckGoogleRefreshToken,
 } from './previewBigquerySsoCredentials';
@@ -1817,6 +1818,9 @@ export class ProjectService extends BaseService {
     protected checkGoogleRefreshToken: CheckGoogleRefreshToken =
         checkGoogleRefreshTokenCached;
 
+    protected recheckGoogleRefreshToken: CheckGoogleRefreshToken =
+        recheckGoogleRefreshToken;
+
     private async isPreviewSsoCredentialSyncEnabled(
         organizationUuid: string,
     ): Promise<boolean> {
@@ -1916,6 +1920,8 @@ export class ProjectService extends BaseService {
     protected async repairStalePreviewSsoCredentials(
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
+        checkRefreshToken: CheckGoogleRefreshToken = this
+            .checkGoogleRefreshToken,
     ): Promise<CreateWarehouseCredentials> {
         if (!getBigquerySsoCredentials(credentials)) return credentials;
         const preview = await this.projectModel.getSummary(projectUuid);
@@ -1951,7 +1957,7 @@ export class ProjectService extends BaseService {
         const repair = await repairStalePreviewBigquerySso({
             previewCredentials: credentials,
             upstreamCredentials,
-            checkRefreshToken: this.checkGoogleRefreshToken,
+            checkRefreshToken,
         });
         switch (repair.kind) {
             case 'unchanged':
@@ -1993,6 +1999,44 @@ export class ProjectService extends BaseService {
             default:
                 return assertUnreachable(repair, 'Unknown preview repair');
         }
+    }
+
+    protected async repairPreviewSsoCredentialsAfterRejection({
+        projectUuid,
+        organizationUuid,
+        rejectedCredentials,
+    }: {
+        projectUuid: string;
+        organizationUuid: string;
+        rejectedCredentials: CreateWarehouseCredentials;
+    }): Promise<boolean> {
+        const rejectedRefreshToken =
+            getBigquerySsoCredentials(rejectedCredentials)?.refreshToken;
+        if (
+            !rejectedRefreshToken ||
+            !(await this.isPreviewSsoCredentialSyncEnabled(organizationUuid))
+        ) {
+            return false;
+        }
+        const { organizationWarehouseCredentialsUuid } =
+            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+        if (organizationWarehouseCredentialsUuid) return false;
+        const storedCredentials =
+            await this.projectModel.getWarehouseCredentialsForBinding(
+                projectUuid,
+                { kind: 'original' },
+            );
+        const repairedCredentials = await this.repairStalePreviewSsoCredentials(
+            projectUuid,
+            storedCredentials,
+            this.recheckGoogleRefreshToken,
+        );
+        const repairedRefreshToken =
+            getBigquerySsoCredentials(repairedCredentials)?.refreshToken;
+        return (
+            repairedRefreshToken !== undefined &&
+            repairedRefreshToken !== rejectedRefreshToken
+        );
     }
 
     private async findUserCredentialsForExtraConnection({

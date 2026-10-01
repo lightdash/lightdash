@@ -6,11 +6,44 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import {
+    checkGoogleRefreshTokenCached,
     getPreviewOwnsBigquerySsoCredentials,
     getPushedPreviewCredentials,
+    recheckGoogleRefreshToken,
     repairStalePreviewBigquerySso,
     type CheckGoogleRefreshToken,
 } from './previewBigquerySsoCredentials';
+
+const google = vi.hoisted(() => ({
+    rejectedTokens: new Set<string>(),
+    getAccessToken: vi.fn(),
+}));
+
+vi.mock('google-auth-library', () => ({
+    UserRefreshClient: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockUserRefreshClient({
+            refreshToken,
+        }: {
+            refreshToken: string;
+        }) {
+            return {
+                getAccessToken: async () => {
+                    google.getAccessToken(refreshToken);
+                    if (google.rejectedTokens.has(refreshToken)) {
+                        throw Object.assign(new Error('invalid_grant'), {
+                            response: {
+                                status: 400,
+                                data: { error: 'invalid_grant' },
+                            },
+                        });
+                    }
+                    return { token: 'access-token' };
+                },
+            };
+        },
+    ),
+}));
 
 const LIGHTDASH_CLIENT = 'lightdash-client.apps.googleusercontent.com';
 
@@ -273,5 +306,28 @@ describe('getPreviewOwnsBigquerySsoCredentials', () => {
                 upstreamCredentials: bigquerySso('token-a'),
             }),
         ).toBeNull();
+    });
+});
+
+describe('checkGoogleRefreshTokenCached and recheckGoogleRefreshToken', () => {
+    it('rechecks a token the cache still holds as valid', async () => {
+        const { keyfileContents } = bigquerySso('recheck-token');
+
+        await expect(
+            checkGoogleRefreshTokenCached(keyfileContents),
+        ).resolves.toBe('valid');
+        google.rejectedTokens.add('recheck-token');
+        await expect(
+            checkGoogleRefreshTokenCached(keyfileContents),
+        ).resolves.toBe('valid');
+        expect(google.getAccessToken).toHaveBeenCalledTimes(1);
+
+        await expect(recheckGoogleRefreshToken(keyfileContents)).resolves.toBe(
+            'rejected',
+        );
+        await expect(
+            checkGoogleRefreshTokenCached(keyfileContents),
+        ).resolves.toBe('rejected');
+        expect(google.getAccessToken).toHaveBeenCalledTimes(3);
     });
 });
