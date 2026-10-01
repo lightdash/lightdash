@@ -578,6 +578,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getExternalConnectionModel(),
                     sandboxRegistryModel:
                         models.getSandboxRegistryModel<SandboxRegistryModel>(),
+                    aiCreditService:
+                        repository.getAiCreditService<AiCreditService>(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
@@ -753,6 +755,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     documentService: repository.getDocumentService(),
                     savedChartService: repository.getSavedChartService(),
                     contentService: repository.getContentService(),
+                    aiCreditService:
+                        repository.getAiCreditService<AiCreditService>(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
@@ -903,7 +907,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentReviewNotificationService:
                         repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                 }),
-            aiCreditService: ({ models }) =>
+            aiCreditService: ({ models, context }) =>
                 new AiCreditService({
                     featureFlagModel: models.getFeatureFlagModel(),
                     aiCreditUsageModel:
@@ -912,6 +916,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiCreditContractModel<AiCreditContractModel>(),
                     aiCreditHoldModel:
                         models.getAiCreditHoldModel<AiCreditHoldModel>(),
+                    siteUrl: context.lightdashConfig.siteUrl,
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({

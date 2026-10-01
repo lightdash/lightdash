@@ -14,6 +14,7 @@ const contract: AiCreditContract = {
     endsAt: null,
     resetIntervalMonths: 1,
     allowanceCredits: 5000,
+    allowanceMode: 'warn',
 };
 
 const alert = (

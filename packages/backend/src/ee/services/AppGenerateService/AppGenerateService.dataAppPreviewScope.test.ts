@@ -79,6 +79,7 @@ type AssertFn = (
 
 const buildService = () =>
     new AppGenerateService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {} as never,
         analytics: {} as never,
         analyticsModel: {} as never,

@@ -41,6 +41,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
     };
 
     const service = new AppGenerateService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {
                 dependencyRegistryHosts: ['registry.npmjs.org'],

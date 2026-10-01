@@ -7,6 +7,8 @@ import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
+import { findBlockingAiCreditHold } from './aiCreditHolds';
+import { AiCreditsPausedCallout } from './AiCreditsPausedCallout';
 import { AiCreditsUsageBar } from './AiCreditsUsageBar';
 import { AiCreditsUsageBreakdown } from './AiCreditsUsageBreakdown';
 import { useAiCreditUsage } from './hooks/useAiCreditUsage';
@@ -77,6 +79,10 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
 const AllowanceUsedBanner: FC<{ usage: AiCreditUsageSummary }> = ({
     usage,
 }) => {
+    const blockingHold = findBlockingAiCreditHold(usage);
+    if (blockingHold !== null) {
+        return <AiCreditsPausedCallout hold={blockingHold} />;
+    }
     const isAllowanceUsed = usage.activeHolds.some(
         (hold) => hold.reason === 'allowance_exhausted',
     );

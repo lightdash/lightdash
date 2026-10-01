@@ -21,6 +21,7 @@ const toContract = (row: DbAiCreditContract): AiCreditContract => ({
     resetIntervalMonths: row.reset_interval_months,
     allowanceCredits:
         row.allowance_credits === null ? null : Number(row.allowance_credits),
+    allowanceMode: row.allowance_mode,
 });
 
 export const hasAllowance = (

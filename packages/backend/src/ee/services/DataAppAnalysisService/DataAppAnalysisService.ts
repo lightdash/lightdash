@@ -1549,6 +1549,7 @@ export class DataAppAnalysisService extends BaseService {
             let partial = false;
             const explanation =
                 await this.aiAgentService.generateAgentThreadResponse(user, {
+                    aiCreditCheck: { isEmbedViewer: false },
                     agentUuid: payload.agentUuid,
                     threadUuid: thread.uuid,
                     execution: {

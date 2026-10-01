@@ -138,6 +138,7 @@ const buildService = (role: SpaceMemberRole) => {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(buildUser()),
     };
     const service = new AppGenerateService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             lightdashSecrets: {
                 active: 'test-secret',

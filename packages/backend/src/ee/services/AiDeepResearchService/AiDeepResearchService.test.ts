@@ -305,6 +305,7 @@ const buildService = (
     const aiAgentService = {
         assertDeepResearchAccess: vi.fn().mockResolvedValue(undefined),
         getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
+        assertAgentCreditsAvailable: vi.fn().mockResolvedValue(undefined),
         resolveDeepResearchExecutionContext: vi
             .fn()
             .mockResolvedValue(executionContextSnapshot),

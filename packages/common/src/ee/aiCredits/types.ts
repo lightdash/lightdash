@@ -7,6 +7,11 @@ export const AI_CREDIT_HOLD_REASONS = [
 
 export type AiCreditHoldReason = (typeof AI_CREDIT_HOLD_REASONS)[number];
 
+// warn keeps AI available past the allowance; enforce pauses billable AI once it is used up.
+export const AI_CREDIT_ALLOWANCE_MODES = ['warn', 'enforce'] as const;
+
+export type AiCreditAllowanceMode = (typeof AI_CREDIT_ALLOWANCE_MODES)[number];
+
 export type AiCreditPeriod = {
     periodStart: Date;
     periodEnd: Date;
@@ -21,6 +26,7 @@ export type AiCreditContract = {
     resetIntervalMonths: number;
     // Credits per window. Null means no allowance is agreed yet.
     allowanceCredits: number | null;
+    allowanceMode: AiCreditAllowanceMode;
 };
 
 export type AiCreditHold = {

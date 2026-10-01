@@ -80,6 +80,7 @@ function buildService(
     } = {},
 ) {
     const service = new AppGenerateService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             lightdashSecret: 'test-secret',
             lightdashSecrets: testLightdashSecrets,

@@ -315,6 +315,7 @@ type Dependencies = {
         AiAgentService,
         | 'assertDeepResearchAccess'
         | 'getIsCopilotEnabled'
+        | 'assertAgentCreditsAvailable'
         | 'resolveDeepResearchExecutionContext'
     >;
     aiOrganizationSettingsModel: Pick<
@@ -555,6 +556,7 @@ export class AiDeepResearchService extends BaseService {
         AiAgentService,
         | 'assertDeepResearchAccess'
         | 'getIsCopilotEnabled'
+        | 'assertAgentCreditsAvailable'
         | 'resolveDeepResearchExecutionContext'
     >;
 
@@ -817,6 +819,11 @@ export class AiDeepResearchService extends BaseService {
         if (!(await this.aiAgentService.getIsCopilotEnabled(args.user))) {
             throw new ForbiddenError('AI Copilot is not enabled');
         }
+        // Checked once here; the run's later steps are never interrupted.
+        await this.aiAgentService.assertAgentCreditsAvailable(args.user, {
+            modelConfig: null,
+            aiCreditCheck: { isEmbedViewer: false },
+        });
         const organizationSettings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 args.user.organizationUuid,

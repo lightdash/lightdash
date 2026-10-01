@@ -250,6 +250,7 @@ function buildService(overrides: {
     };
 
     const svc = new AppGenerateService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {} as never,
         analytics: { track: analyticsTrackSpy } as never,
         analyticsModel: {} as never,

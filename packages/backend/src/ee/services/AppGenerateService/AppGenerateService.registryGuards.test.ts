@@ -152,6 +152,7 @@ function buildService(
     };
 
     const svc = new AppGenerateService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             softDelete: { enabled: true },
             appRuntime: {},

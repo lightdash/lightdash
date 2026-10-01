@@ -2857,6 +2857,7 @@ export class AiAgentAdminService extends BaseService {
                     await this.aiAgentService.generateAgentThreadResponse(
                         user,
                         {
+                            aiCreditCheck: { isEmbedViewer: false },
                             agentUuid,
                             threadUuid: workThreadUuid,
                             autoApproveSql: true,

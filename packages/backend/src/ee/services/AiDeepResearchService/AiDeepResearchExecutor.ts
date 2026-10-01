@@ -568,6 +568,7 @@ export class AiDeepResearchExecutor {
                 await this.dependencies.aiAgentService.generateAgentThreadResponse(
                     user,
                     {
+                        aiCreditCheck: null,
                         agentUuid: run.agent_uuid,
                         threadUuid: run.ai_thread_uuid,
                         promptUuid: run.prompt_uuid,
@@ -622,6 +623,7 @@ export class AiDeepResearchExecutor {
         let resumeContext: string | null = null;
         const runCoordinator = () =>
             this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
+                aiCreditCheck: null,
                 agentUuid: run.agent_uuid,
                 threadUuid: run.ai_thread_uuid,
                 promptUuid: run.prompt_uuid,

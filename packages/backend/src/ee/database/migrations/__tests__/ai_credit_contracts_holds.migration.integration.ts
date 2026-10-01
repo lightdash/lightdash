@@ -80,7 +80,11 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
     // Console writes the contract row directly, so the tests do too.
     const saveContract = async (
         allowanceCredits: number | null,
-        overrides: { resetIntervalMonths?: number; endsAt?: Date | null } = {},
+        overrides: {
+            resetIntervalMonths?: number;
+            endsAt?: Date | null;
+            allowanceMode?: 'warn' | 'enforce';
+        } = {},
     ): Promise<string> => {
         const values = {
             organization_uuid: organizationUuid,
@@ -88,6 +92,7 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
             ends_at: overrides.endsAt ?? null,
             reset_interval_months: overrides.resetIntervalMonths ?? 1,
             allowance_credits: allowanceCredits,
+            allowance_mode: overrides.allowanceMode ?? 'warn',
         };
         const [{ ai_credit_contract_uuid: uuid }] = await transaction(
             'ai_credit_contracts',
@@ -587,6 +592,76 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
                     credits: expect.closeTo(2 * SONNET_INPUT_MTOK_CREDITS, 6),
                 },
             ]);
+        });
+    });
+
+    describe('pausing billable AI', () => {
+        const blockingReason = async (at: Date = now) =>
+            (await holds.findBlocking(organizationUuid, at))?.reason ?? null;
+
+        test('a used-up allowance keeps AI working on a warn-only contract', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS);
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            expect(await holds.findActive(organizationUuid, now)).toHaveLength(
+                1,
+            );
+            expect(await blockingReason()).toBeNull();
+        });
+
+        test('a used-up allowance pauses AI on an enforced contract', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS, {
+                allowanceMode: 'enforce',
+            });
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            expect(await blockingReason()).toBe('allowance_exhausted');
+        });
+
+        test('switching the contract to warn-only or raising the allowance lifts the pause straight away', async () => {
+            await saveContract(SONNET_INPUT_MTOK_CREDITS, {
+                allowanceMode: 'enforce',
+            });
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            await saveContract(SONNET_INPUT_MTOK_CREDITS, {
+                allowanceMode: 'warn',
+            });
+            expect(await blockingReason()).toBeNull();
+
+            await saveContract(10 * SONNET_INPUT_MTOK_CREDITS, {
+                allowanceMode: 'enforce',
+            });
+            expect(await blockingReason()).toBeNull();
+        });
+
+        test('a manual pause pauses AI whatever the contract says, until it is released', async () => {
+            await saveContract(null);
+            const uuid = await insertHold({ reason: 'manual_pause' });
+            expect(await blockingReason()).toBe('manual_pause');
+
+            await transaction('ai_credit_holds')
+                .where({ ai_credit_hold_uuid: uuid })
+                .update({ released_at: now });
+            expect(await blockingReason()).toBeNull();
+        });
+
+        test('a pause stops applying once it expires', async () => {
+            await insertHold({
+                reason: 'trial_ended',
+                expires_at: period.periodEnd,
+            });
+            expect(await blockingReason()).toBe('trial_ended');
+            expect(await blockingReason(period.periodEnd)).toBeNull();
+        });
+
+        test('rejects an allowance mode outside warn and enforce', async () => {
+            await saveContract(null);
+            await expect(
+                transaction('ai_credit_contracts')
+                    .where({ organization_uuid: organizationUuid })
+                    .update({ allowance_mode: 'grace' as never }),
+            ).rejects.toThrow(/ai_credit_contracts_allowance_mode_check/);
         });
     });
 

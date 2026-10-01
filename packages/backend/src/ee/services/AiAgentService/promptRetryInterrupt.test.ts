@@ -14,6 +14,7 @@ type PreparationOptions = {
     agentUuid: string;
     threadUuid: string;
     resetErrorForStreamRetry?: boolean;
+    aiCreditCheck: null;
 };
 
 type PrivateService = {
@@ -39,6 +40,7 @@ const buildService = (promptState: {
     const resetPromptResponseForRetry = vi.fn().mockResolvedValue(true);
     const deleteAiPromptInterrupt = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
+        aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             ai: { copilot: { embeddingEnabled: false } },
         },
@@ -92,6 +94,7 @@ const prepare = (
         agentUuid: 'agent-uuid',
         threadUuid: 'thread-uuid',
         resetErrorForStreamRetry,
+        aiCreditCheck: null,
     });
 
 describe('prepareAgentThreadResponse interrupt clearing', () => {
