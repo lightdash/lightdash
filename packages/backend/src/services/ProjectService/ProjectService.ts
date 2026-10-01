@@ -274,6 +274,7 @@ import {
     WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseDatabaseListing,
+    WarehouseQueryError,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -6311,7 +6312,12 @@ export class ProjectService extends BaseService {
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.ERROR,
             });
-            if (!warehouseTestPassed) {
+            const isWarehouseFailure =
+                !warehouseTestPassed &&
+                (error instanceof WarehouseConnectionError ||
+                    error instanceof WarehouseQueryError ||
+                    error instanceof SshTunnelError);
+            if (isWarehouseFailure) {
                 await this.recordProjectSetupStep(
                     projectUuid,
                     ProjectSetupStepName.WAREHOUSE_CONNECTION,
