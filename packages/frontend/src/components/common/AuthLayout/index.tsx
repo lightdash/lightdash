@@ -1,5 +1,7 @@
 import { Box, Card, Stack, Text, Title } from '@mantine/core';
 import {
+    useCallback,
+    useMemo,
     useRef,
     type FC,
     type FocusEvent,
@@ -11,6 +13,7 @@ import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import classes from './AuthLayout.module.css';
+import { AuthPanelContext } from './AuthPanelContext';
 import CustomerLogos from './CustomerLogos';
 import LightdashWordmark from './LightdashWordmark';
 import ListeningBlocks from './ListeningBlocks';
@@ -63,6 +66,15 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
     const brandPanelRef = useRef<HTMLDivElement>(null);
+
+    const flashError = useCallback(() => {
+        const panel = brandPanelRef.current;
+        if (!panel) return;
+        panel.dataset.stage = 'idle';
+        void panel.offsetWidth;
+        panel.dataset.stage = 'error';
+    }, []);
+    const authPanel = useMemo(() => ({ flashError }), [flashError]);
 
     const handleFormFocus = (event: FocusEvent<HTMLDivElement>) => {
         const panel = brandPanelRef.current;
@@ -142,7 +154,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     }
 
     return (
-        <>
+        <AuthPanelContext.Provider value={authPanel}>
             <DocumentTitle title={pageTitle} />
 
             <Box className={classes.root}>
@@ -194,7 +206,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     </Stack>
                 </Box>
             </Box>
-        </>
+        </AuthPanelContext.Provider>
     );
 };
 

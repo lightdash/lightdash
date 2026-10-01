@@ -27,6 +27,21 @@
     pointer-events: none;
 }
 
+[data-stage='error'] .stage1 .fill,
+[data-stage='error'] .stage2 .fill {
+    opacity: 1;
+}
+
+[data-stage='error'] .cell::before {
+    background-color: #ff2d55;
+    mix-blend-mode: color;
+    animation: errorPulse 0.9s steps(6, jump-none) both;
+}
+
+[data-stage='error'] .grid {
+    animation: shake 0.42s steps(7, jump-none) both;
+}
+
 [data-stage='valid'] .cell::before {
     animation: shimmer 0.5s steps(4, jump-none) both;
     animation-delay: calc(0.2s + var(--wave-delay) * 1.5);
@@ -193,6 +208,43 @@
     }
     to {
         opacity: 1;
+    }
+}
+
+@keyframes errorPulse {
+    0% {
+        opacity: 0;
+    }
+    20% {
+        opacity: 0.9;
+    }
+    45% {
+        opacity: 0.35;
+    }
+    65% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    20% {
+        transform: translateX(rem(-8px));
+    }
+    40% {
+        transform: translateX(rem(8px));
+    }
+    60% {
+        transform: translateX(rem(-5px));
+    }
+    80% {
+        transform: translateX(rem(5px));
     }
 }
 

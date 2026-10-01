@@ -10,6 +10,7 @@ import {
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { useAuthPanel } from '../common/AuthLayout/AuthPanelContext';
 import Callout from '../common/Callout';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import VerifyEmailCodeForm from './VerifyEmailCodeForm';
@@ -53,6 +54,15 @@ const VerifyEmailForm: FC<{
     const expirationTime = data?.otp?.expiresAt || new Date();
     const loadingState =
         statusLoading || emailLoading || health.isInitialLoading || isLoading;
+
+    const { flashError } = useAuthPanel();
+    const attemptsRef = useRef(data?.otp?.numberOfAttempts ?? 0);
+
+    useEffect(() => {
+        const attempts = data?.otp?.numberOfAttempts ?? 0;
+        if (attempts > attemptsRef.current) flashError();
+        attemptsRef.current = attempts;
+    }, [data, flashError]);
 
     useEffect(() => {
         if (data?.otp && data?.otp.numberOfAttempts > 0) {
