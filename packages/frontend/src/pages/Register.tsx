@@ -10,7 +10,7 @@ import {
 import { Anchor, Divider, Stack, Text } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
-import { useLocation } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { lightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
@@ -19,6 +19,7 @@ import PageSpinner from '../components/PageSpinner';
 import CreateEmailOnlyUserForm from '../components/RegisterForms/CreateEmailOnlyUserForm';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
+import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
@@ -91,6 +92,7 @@ const RegisterTermsFooter: FC<{ isNewLayout: boolean }> = ({ isNewLayout }) =>
 const Register: FC = () => {
     const location = useLocation();
     const { health } = useApp();
+    const emailStatus = useEmailStatus(!!health.data?.isAuthenticated);
     const { isNewLayout } = useAuthLayoutVariant();
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
@@ -133,8 +135,21 @@ const Register: FC = () => {
         },
     });
 
-    if (health.isInitialLoading || emailOnlySignupFlag.isInitialLoading) {
+    if (
+        health.isInitialLoading ||
+        emailOnlySignupFlag.isInitialLoading ||
+        emailStatus.isInitialLoading
+    ) {
         return <PageSpinner />;
+    }
+
+    if (
+        health.data?.isAuthenticated &&
+        health.data.hasEmailClient &&
+        emailStatus.data &&
+        !emailStatus.data.isVerified
+    ) {
+        return <Navigate to="/verify-email" replace />;
     }
 
     const isEmailOnlySignup =
