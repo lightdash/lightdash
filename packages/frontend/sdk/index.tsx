@@ -92,7 +92,7 @@ type DashboardBuilderProps = DashboardProps & {
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
 };
 
-type ChartProps = Omit<BaseProps, 'filters' | 'onExplore'> & {
+type ChartProps = Omit<BaseProps, 'filters'> & {
     id: string;
     isEditMode?: boolean;
 };
@@ -765,10 +765,13 @@ const Chart: FC<ChartProps> = ({
     theme,
     contentOverrides,
     uiOverrides,
+    onExplore,
     id,
     isEditMode,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const { exploreChart, handleExplore, handleBackToDashboard } =
+        useEmbedExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -796,11 +799,23 @@ const Chart: FC<ChartProps> = ({
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
                 savedQueryUuid={id}
+                onExplore={handleExplore}
+                onBackToDashboard={
+                    exploreChart ? handleBackToDashboard : undefined
+                }
             >
-                <ChartContent
-                    containerStyles={containerStyles}
-                    isEditMode={isEditMode}
-                />
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={containerStyles}
+                    />
+                ) : (
+                    <ChartContent
+                        containerStyles={containerStyles}
+                        isEditMode={isEditMode}
+                    />
+                )}
             </EmbedProvider>
         </SdkProviders>
     );

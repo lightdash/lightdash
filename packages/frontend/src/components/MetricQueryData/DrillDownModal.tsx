@@ -18,6 +18,7 @@ import { Button } from '@mantine/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useEmbedDrillDownExplore from '../../ee/providers/Embed/useEmbedDrillDownExplore';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -108,6 +109,7 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
     customSqlProvenanceChartUuid,
 }) => {
     const projectUuid = useProjectUuid();
+    const isEmbedded = useIsEmbedded();
     const onEmbedExplore = useEmbedDrillDownExplore(
         customSqlProvenanceChartUuid,
     );
@@ -206,7 +208,7 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
                     >
                         Drill down
                     </Button>
-                ) : (
+                ) : isEmbedded ? undefined : (
                     <Button
                         component="a"
                         target="_blank"
