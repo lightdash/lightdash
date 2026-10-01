@@ -10,10 +10,22 @@ export const getOrganizationDisplayName = (name: string): string =>
 export const formatMemberCount = (count: number): string =>
     `${count} ${count === 1 ? 'member' : 'members'}`;
 
-export const getRequestCardContext = (landing: OrganizationLanding): string =>
-    landing.canCreateOrganization
-        ? `People at ${landing.emailDomain} use this organization. An admin approves new members.`
-        : 'This Lightdash instance has this organization. An admin approves new members.';
+export const getRequestListIntro = (landing: OrganizationLanding): string => {
+    const organizations =
+        landing.requestable.length === 1
+            ? 'this organization'
+            : 'these organizations';
+    return landing.canCreateOrganization
+        ? `People at ${landing.emailDomain} use ${organizations}. An admin approves new members.`
+        : `This Lightdash instance has ${organizations}. An admin approves new members.`;
+};
+
+export const getLandingTitle = (landing: OrganizationLanding | undefined) =>
+    landing?.canCreateOrganization &&
+    landing.joinable.length === 0 &&
+    landing.requestable.length === 0
+        ? 'Create your organization'
+        : 'Choose your organization';
 
 export const getCreateOrganizationWarning = (
     landing: OrganizationLanding,

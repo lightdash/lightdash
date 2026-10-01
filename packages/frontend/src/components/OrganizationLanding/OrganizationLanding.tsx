@@ -11,7 +11,8 @@ import { CreateOrganizationForm } from './CreateOrganizationForm';
 import { JoinableOrganizationCard } from './JoinableOrganizationCard';
 import {
     getCreateOrganizationWarning,
-    getRequestCardContext,
+    getLandingTitle,
+    getRequestListIntro,
     getSuggestedOrganizationName,
     hasNoWayIn,
 } from './organizationLandingCopy';
@@ -46,13 +47,10 @@ export const OrganizationLanding: FC = () => {
     if (landing.isInitialLoading) {
         return <PageSpinner />;
     }
+    const title = getLandingTitle(landing.data);
 
     return (
-        <AuthLayout
-            pageTitle="Choose your organization"
-            title="Choose your organization"
-            legacyTitle="Choose your organization"
-        >
+        <AuthLayout pageTitle={title} title={title} legacyTitle={title}>
             {landing.error || !landing.data ? (
                 <Callout
                     variant="danger"
@@ -69,11 +67,15 @@ export const OrganizationLanding: FC = () => {
                             organization={organization}
                         />
                     ))}
+                    {landing.data.requestable.length > 0 && (
+                        <Text size="sm" c="dimmed">
+                            {getRequestListIntro(landing.data)}
+                        </Text>
+                    )}
                     {landing.data.requestable.map((match) => (
                         <RequestToJoinCard
                             key={match.organizationUuid}
                             match={match}
-                            context={getRequestCardContext(landing.data)}
                         />
                     ))}
                     {landing.data.canCreateOrganization && (
