@@ -1,3 +1,10 @@
+# [2.409.0](https://github.com/lightdash/lightdash/compare/2.408.1...2.409.0) (2026-10-01)
+
+
+### Features
+
+* add Agent Requests usage model ([#30326](https://github.com/lightdash/lightdash/issues/30326)) ([53138c5](https://github.com/lightdash/lightdash/commit/53138c5cf7c741e912b2de0217245435c9333c57))
+
 ## [2.408.1](https://github.com/lightdash/lightdash/compare/2.408.0...2.408.1) (2026-10-01)
 
 
