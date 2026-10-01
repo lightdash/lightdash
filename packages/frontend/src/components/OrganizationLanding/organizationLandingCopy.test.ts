@@ -2,6 +2,7 @@ import { type OrganizationLanding } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     formatMemberCount,
+    getOrganizationDisplayName,
     getCreateOrganizationWarning,
     getRequestCardContext,
     getSuggestedOrganizationName,
@@ -94,5 +95,15 @@ describe('formatMemberCount', () => {
     it('uses the plural for other counts', () => {
         expect(formatMemberCount(0)).toBe('0 members');
         expect(formatMemberCount(7)).toBe('7 members');
+    });
+});
+
+describe('getOrganizationDisplayName', () => {
+    it('keeps a real name', () => {
+        expect(getOrganizationDisplayName('Acme')).toBe('Acme');
+    });
+
+    it('labels an organization without a name', () => {
+        expect(getOrganizationDisplayName('  ')).toBe('Unnamed organization');
     });
 });
