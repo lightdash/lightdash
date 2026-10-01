@@ -628,6 +628,8 @@ type RenderedModel = {
     metricCount: number;
     requiredFilterCount: number;
     defaultFilterCount: number;
+    // Field refs of model filters left out because their value is not a list.
+    skippedFilterRefs: string[];
     hasSqlFilter: boolean;
 };
 
@@ -3481,6 +3483,11 @@ export class AppGenerateService extends BaseService {
             dimensionCount = catalog.dimensionCount;
             metricCount = catalog.metricCount;
             totalBytes = catalog.totalBytes;
+            if (catalog.skippedFilters.length > 0) {
+                this.logger.warn(
+                    `App ${appUuid}: left ${catalog.skippedFilters.length} model filter(s) out of the catalog because their value is not a list: ${catalog.skippedFilters.join(', ')}`,
+                );
+            }
 
             const globalParameters =
                 await this.projectParametersModel.find(projectUuid);
@@ -11666,11 +11673,20 @@ export class AppGenerateService extends BaseService {
             (d) => !d.hidden,
         );
         const parameterEntries = parameters ? Object.entries(parameters) : [];
+        // A cached explore can carry a non-list value from a YAML map, which
+        // has no SDK filter equivalent, so leave that filter out.
+        const hasListValues = (f: ModelRequiredFilterRule) =>
+            f.values === undefined || Array.isArray(f.values);
+        const renderableFilters =
+            modelFilters.requiredFilters.filter(hasListValues);
+        const skippedFilterRefs = modelFilters.requiredFilters
+            .filter((f) => !hasListValues(f))
+            .map((f) => f.target.fieldRef);
         // Same predicate MetricQueryBuilder uses to decide enforcement.
-        const requiredFilters = modelFilters.requiredFilters.filter(
+        const requiredFilters = renderableFilters.filter(
             (f) => f.required !== false,
         );
-        const defaultFilters = modelFilters.requiredFilters.filter(
+        const defaultFilters = renderableFilters.filter(
             (f) => f.required === false,
         );
         const { sqlFilter } = modelFilters;
@@ -11798,6 +11814,7 @@ export class AppGenerateService extends BaseService {
             metricCount: metrics.length,
             requiredFilterCount: requiredFilters.length,
             defaultFilterCount: defaultFilters.length,
+            skippedFilterRefs,
             hasSqlFilter: sqlFilter !== null,
         };
     }
@@ -12016,6 +12033,7 @@ export class AppGenerateService extends BaseService {
         dimensionCount: number;
         metricCount: number;
         totalBytes: number;
+        skippedFilters: string[];
     } {
         const models = AppGenerateService.exploresToRenderedModels(explores);
         const filenames = AppGenerateService.modelFilenames(models);
@@ -12124,6 +12142,9 @@ export class AppGenerateService extends BaseService {
             totalBytes: files.reduce(
                 (n, f) => n + Buffer.byteLength(f.contents),
                 0,
+            ),
+            skippedFilters: models.flatMap((m) =>
+                m.skippedFilterRefs.map((fieldRef) => `${m.name}.${fieldRef}`),
             ),
         };
     }
