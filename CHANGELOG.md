@@ -1,3 +1,10 @@
+## [2.405.7](https://github.com/lightdash/lightdash/compare/2.405.6...2.405.7) (2026-10-01)
+
+
+### Bug Fixes
+
+* make bulk model rename discovery cache-independent ([#29102](https://github.com/lightdash/lightdash/issues/29102)) ([babbcae](https://github.com/lightdash/lightdash/commit/babbcaefc7cad39dc516c385bf240b5167484cf0))
+
 ## [2.405.6](https://github.com/lightdash/lightdash/compare/2.405.5...2.405.6) (2026-10-01)
 
 
