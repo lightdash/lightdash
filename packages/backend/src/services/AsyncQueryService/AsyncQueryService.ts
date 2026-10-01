@@ -151,6 +151,7 @@ import {
     type PreAggregateFallbackReason,
     type Project,
     type QueryHistory,
+    type QueryUsageMetadata,
     type ReadyQueryResultsPage,
     type RegisteredAccount,
     type ResultColumns,
@@ -189,7 +190,11 @@ import {
 } from '../../ee/services/ai/utils/sqlScope';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
-import { getAppContext, getSchedulerContext } from '../../logging/winston';
+import {
+    getAppContext,
+    getQueryRequestContext,
+    getSchedulerContext,
+} from '../../logging/winston';
 import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
@@ -319,6 +324,7 @@ import {
     type PreAggregationRoutingDecision,
 } from './PreAggregateStrategy';
 import { canReuseQueryResult } from './queryResultReuse';
+import { queryUsageProperties } from './queryUsage';
 import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
@@ -3072,6 +3078,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseQuery,
         preAggregateExecution,
         queryCreatedAt,
+        queryUsage,
         displayTimezone,
         isPreviewProject,
         warehouseConnectionUuid,
@@ -3104,6 +3111,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration,
                 originalColumns,
                 queryCreatedAt,
+                queryUsage,
                 displayTimezone,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -3140,6 +3148,7 @@ export class AsyncQueryService extends ProjectService {
                     onboardingFlow,
                     queryTags,
                     queryCreatedAt,
+                    queryUsage,
                     errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
                         preAggregateError,
                     )}`,
@@ -3226,6 +3235,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration,
                 originalColumns,
                 queryCreatedAt,
+                queryUsage,
                 displayTimezone,
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -3252,6 +3262,43 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    private async createQueryHistory(
+        account: Account,
+        history: Parameters<QueryHistoryModel['create']>[1],
+        binding?: Parameters<QueryHistoryModel['create']>[2],
+    ) {
+        const context = getQueryRequestContext();
+        let actorType = 'anonymous';
+        if (account.isServiceAccount()) actorType = 'service_account';
+        else if (account.isRegisteredUser()) actorType = 'registered_user';
+        const queryUsage: QueryUsageMetadata = {
+            startedAtMs: context.query_request?.startedAtMs ?? Date.now(),
+            timingBasis: context.query_request ? 'request' : 'query_submission',
+            requestId: context.query_request?.requestId ?? null,
+            parentOperationId:
+                context.scheduler?.job_id ??
+                context.job?.id ??
+                context.query_request?.traceId ??
+                null,
+            actorType,
+            appId: context.app_uuid ?? null,
+            appVersion: context.app_version ?? null,
+            schedulerId: context.scheduler?.scheduler_uuid ?? null,
+            dashboardTileId:
+                'tileUuid' in history.requestParameters
+                    ? (history.requestParameters.tileUuid ?? null)
+                    : null,
+        };
+        const enriched = {
+            ...history,
+            requestParameters: { ...history.requestParameters, queryUsage },
+        };
+        const result = binding
+            ? await this.queryHistoryModel.create(account, enriched, binding)
+            : await this.queryHistoryModel.create(account, enriched);
+        return { ...result, queryUsage };
+    }
+
     // Shared terminal-error path for async queries: analytics, query history
     // status, and prometheus stay consistent across every errored execution.
     private async markAsyncQueryErrored({
@@ -3264,6 +3311,7 @@ export class AsyncQueryService extends ProjectService {
         onboardingFlow,
         queryTags,
         queryCreatedAt,
+        queryUsage,
         errorMessage,
         executionSource,
         warehouseType,
@@ -3281,6 +3329,7 @@ export class AsyncQueryService extends ProjectService {
         | 'onboardingFlow'
         | 'queryTags'
         | 'queryCreatedAt'
+        | 'queryUsage'
     > & {
         errorMessage: string;
         executionSource:
@@ -3312,10 +3361,21 @@ export class AsyncQueryService extends ProjectService {
                 ...(isRegisteredUser ? undefined : { externalId: userUuid }),
             },
         });
+
+        await this.queryHistoryModel.updateStatusToError(
+            queryUuid,
+            projectUuid,
+            errorMessage,
+            {
+                isRegisteredUser: () => isRegisteredUser,
+                user: { id: userUuid },
+            },
+        );
         this.analytics.track({
             ...analyticsIdentity,
             event: 'query.completed',
             properties: {
+                ...queryUsageProperties(queryTags, queryUsage),
                 ...connectionAnalytics,
                 connectionWarehouseType: connectionWarehouseType ?? null,
                 queryId: queryUuid,
@@ -3340,15 +3400,6 @@ export class AsyncQueryService extends ProjectService {
             },
         });
 
-        await this.queryHistoryModel.updateStatusToError(
-            queryUuid,
-            projectUuid,
-            errorMessage,
-            {
-                isRegisteredUser: () => isRegisteredUser,
-                user: { id: userUuid },
-            },
-        );
         this.prometheusMetrics?.trackQueryStateTransition(
             QueryHistoryStatus.EXECUTING,
             QueryHistoryStatus.ERROR,
@@ -3493,6 +3544,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         originalColumns,
         queryCreatedAt,
+        queryUsage,
         displayTimezone,
         warehouseConnectionUuid: resolvedConnectionUuid,
         connectionRoute: resolvedConnectionRoute,
@@ -3747,41 +3799,6 @@ export class AsyncQueryService extends ProjectService {
                 },
             });
 
-            this.analytics.track({
-                ...analyticsIdentity,
-                event: 'query.completed',
-                properties: {
-                    ...this.getQueryConnectionAnalyticsProperties({
-                        warehouseConnectionUuid,
-                        warehouseType: connectionWarehouseType,
-                        connectionRoute,
-                    }),
-                    connectionWarehouseType,
-                    queryId: queryUuid,
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    isPreviewProject,
-                    status: 'success',
-                    context: queryTags.query_context,
-                    onboardingFlow,
-                    exploreName: queryTags.explore_name ?? null,
-                    chartId: queryTags.chart_uuid ?? null,
-                    dashboardId: queryTags.dashboard_uuid ?? null,
-                    cacheHit: false,
-                    executionSource,
-                    warehouseType: warehouseClient.credentials.type,
-                    warehouseExecutionTimeMs: Math.round(durationMs),
-                    warehousePhaseTimings,
-                    totalRowCount: pivotDetails?.totalRows ?? totalRows,
-                    columnsCount:
-                        pivotDetails?.totalColumnCount ??
-                        Object.keys(fieldsMap).length,
-                    ...(isRegisteredUser
-                        ? undefined
-                        : { externalId: userUuid }),
-                },
-            });
-
             const queryExecMs = Date.now() - queryStartTime;
 
             if (stream) {
@@ -3872,6 +3889,42 @@ export class AsyncQueryService extends ProjectService {
                 },
                 queryHistoryAccount,
             );
+            this.analytics.track({
+                ...analyticsIdentity,
+                event: 'query.completed',
+                properties: {
+                    ...queryUsageProperties(queryTags, queryUsage),
+                    ...this.getQueryConnectionAnalyticsProperties({
+                        warehouseConnectionUuid,
+                        warehouseType: connectionWarehouseType,
+                        connectionRoute,
+                    }),
+                    connectionWarehouseType,
+                    queryId: queryUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    isPreviewProject,
+                    status: 'success',
+                    context: queryTags.query_context,
+                    onboardingFlow,
+                    exploreName: queryTags.explore_name ?? null,
+                    chartId: queryTags.chart_uuid ?? null,
+                    dashboardId: queryTags.dashboard_uuid ?? null,
+                    cacheHit: false,
+                    executionSource,
+                    warehouseType: warehouseClient.credentials.type,
+                    warehouseExecutionTimeMs: Math.round(durationMs),
+                    warehousePhaseTimings,
+                    totalRowCount: pivotDetails?.totalRows ?? totalRows,
+                    columnsCount:
+                        pivotDetails?.totalColumnCount ??
+                        Object.keys(fieldsMap).length,
+                    ...(isRegisteredUser
+                        ? undefined
+                        : { externalId: userUuid }),
+                },
+            });
+
             const dbUpdateMs = Date.now() - dbUpdateStart;
 
             const totalMs = Date.now() - t0;
@@ -3942,6 +3995,7 @@ export class AsyncQueryService extends ProjectService {
                 onboardingFlow,
                 queryTags,
                 queryCreatedAt,
+                queryUsage,
                 errorMessage: getErrorMessage(e),
                 executionSource,
                 warehouseType: warehouseCredentialsType ?? null,
@@ -4053,6 +4107,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration: query.pivotConfiguration ?? undefined,
             originalColumns: query.originalColumns ?? undefined,
             queryCreatedAt: query.createdAt,
+            queryUsage: query.requestParameters.queryUsage,
             query: query.compiledSql,
             displayTimezone,
         };
@@ -4115,6 +4170,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration: query.pivotConfiguration ?? undefined,
             originalColumns: query.originalColumns ?? undefined,
             queryCreatedAt: query.createdAt,
+            queryUsage: query.requestParameters.queryUsage,
             preAggregateQuery: query.preAggregateCompiledSql,
             // Default to duckdb for rows written before the column existed
             preAggregateExecution: query.preAggregateExecution ?? 'duckdb',
@@ -4758,14 +4814,14 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration: pivotConfiguration ?? null,
                         originalColumns: originalColumns ?? null,
                     };
-                    const { queryUuid: queryHistoryUuid } =
+                    const { queryUuid: queryHistoryUuid, queryUsage } =
                         warehouseConnectionUuid
-                            ? await this.queryHistoryModel.create(
+                            ? await this.createQueryHistory(
                                   account,
                                   queryHistory,
                                   { warehouseConnectionUuid },
                               )
-                            : await this.queryHistoryModel.create(
+                            : await this.createQueryHistory(
                                   account,
                                   queryHistory,
                               );
@@ -4832,6 +4888,7 @@ export class AsyncQueryService extends ProjectService {
                         this.analytics.trackAccount(account, {
                             event: 'query.completed',
                             properties: {
+                                ...queryUsageProperties(queryTags, queryUsage),
                                 ...connectionAnalytics,
                                 connectionWarehouseType:
                                     connectionAnalytics.warehouseType,
@@ -4867,14 +4924,6 @@ export class AsyncQueryService extends ProjectService {
 
                     if (resultsCache.cacheHit) {
                         trackQueryExecuted();
-                        trackQueryCompleted({
-                            status: 'success',
-                            cacheHit: true,
-                            totalRowCount: resultsCache.totalRowCount,
-                            columnsCount: resultsCache.columns
-                                ? Object.keys(resultsCache.columns).length
-                                : null,
-                        });
                         if (this.lightdashConfig.natsWorker.enabled) {
                             await this.queryHistoryModel.updateStatusToExecuting(
                                 queryHistoryUuid,
@@ -4906,6 +4955,14 @@ export class AsyncQueryService extends ProjectService {
                             account,
                         );
 
+                        trackQueryCompleted({
+                            status: 'success',
+                            cacheHit: true,
+                            totalRowCount: resultsCache.totalRowCount,
+                            columnsCount: resultsCache.columns
+                                ? Object.keys(resultsCache.columns).length
+                                : null,
+                        });
                         // Track successful query in Prometheus
                         this.prometheusMetrics?.trackQueryStateTransition(
                             QueryHistoryStatus.PENDING,
@@ -4930,16 +4987,16 @@ export class AsyncQueryService extends ProjectService {
 
                     if (missingParameterReferences.length > 0) {
                         trackQueryExecuted();
-                        trackQueryCompleted({
-                            status: 'error',
-                            cacheHit: false,
-                        });
                         await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
                             `Missing parameters: ${missingParameterReferences.join(', ')}`,
                             account,
                         );
+                        trackQueryCompleted({
+                            status: 'error',
+                            cacheHit: false,
+                        });
                         this.prometheusMetrics?.trackQueryStateTransition(
                             QueryHistoryStatus.PENDING,
                             QueryHistoryStatus.ERROR,
@@ -5017,16 +5074,16 @@ export class AsyncQueryService extends ProjectService {
 
                     if (executionPlan.target === 'error') {
                         trackQueryExecuted();
-                        trackQueryCompleted({
-                            status: 'error',
-                            cacheHit: false,
-                        });
                         await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
                             executionPlan.error,
                             account,
                         );
+                        trackQueryCompleted({
+                            status: 'error',
+                            cacheHit: false,
+                        });
                         this.prometheusMetrics?.trackQueryStateTransition(
                             QueryHistoryStatus.PENDING,
                             QueryHistoryStatus.ERROR,
@@ -5077,6 +5134,7 @@ export class AsyncQueryService extends ProjectService {
                         cacheKey,
                         originalColumns,
                         queryCreatedAt,
+                        queryUsage,
                         displayTimezone,
                         warehouseConnectionUuid,
                         connectionRoute,
@@ -6096,7 +6154,7 @@ export class AsyncQueryService extends ProjectService {
                     forceRefresh,
                     parameters: combinedParameters,
                 };
-            const { queryUuid } = await this.queryHistoryModel.create(account, {
+            const { queryUuid } = await this.createQueryHistory(account, {
                 projectUuid,
                 organizationUuid,
                 context,
@@ -8270,7 +8328,7 @@ export class AsyncQueryService extends ProjectService {
         });
 
         const queryCreatedAt = new Date();
-        const { queryUuid } = await this.queryHistoryModel.create(account, {
+        const { queryUuid } = await this.createQueryHistory(account, {
             projectUuid,
             organizationUuid,
             context,
@@ -8527,6 +8585,7 @@ export class AsyncQueryService extends ProjectService {
             queryTags:
                 queryTagsOverride ?? AsyncQueryService.buildQueryTags(query),
             queryCreatedAt: query.createdAt,
+            queryUsage: query.requestParameters.queryUsage,
             cacheKey: query.cacheKey,
             context: query.context,
         };
@@ -8927,19 +8986,22 @@ export class AsyncQueryService extends ProjectService {
         };
 
         const queryCreatedAt = new Date();
-        const { queryUuid } = await this.queryHistoryModel.create(account, {
-            projectUuid,
-            organizationUuid,
-            context,
-            fields: {},
-            compiledSql: sql,
-            requestParameters,
-            usedParameters: placeholderComposer.getUsedParameters(),
-            metricQuery: placeholderComposer.getMetricQuery(),
-            cacheKey,
-            pivotConfiguration: null,
-            originalColumns: {},
-        });
+        const { queryUuid, queryUsage } = await this.createQueryHistory(
+            account,
+            {
+                projectUuid,
+                organizationUuid,
+                context,
+                fields: {},
+                compiledSql: sql,
+                requestParameters,
+                usedParameters: placeholderComposer.getUsedParameters(),
+                metricQuery: placeholderComposer.getMetricQuery(),
+                cacheKey,
+                pivotConfiguration: null,
+                originalColumns: {},
+            },
+        );
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',
             QueryHistoryStatus.PENDING,
@@ -8987,6 +9049,7 @@ export class AsyncQueryService extends ProjectService {
             engine: { kind: 'client', warehouseClient },
             queryTags,
             queryCreatedAt,
+            queryUsage,
             cacheKey,
             context,
         }).catch((e) => {
@@ -9056,6 +9119,7 @@ export class AsyncQueryService extends ProjectService {
         engine,
         queryTags,
         queryCreatedAt,
+        queryUsage,
         cacheKey,
         context,
     }: RunDuckdbQueryArgs): Promise<void> {
@@ -9128,6 +9192,7 @@ export class AsyncQueryService extends ProjectService {
                         cached,
                         queryTags,
                         queryCreatedAt,
+                        queryUsage,
                         context,
                         warehouseType: warehouseClient.credentials.type,
                     });
@@ -9177,6 +9242,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration: execution.pivotConfiguration,
                 originalColumns: execution.originalColumns,
                 queryCreatedAt,
+                queryUsage,
                 displayTimezone: null,
                 warehouseClientOverride: warehouseClient,
                 warehouseCredentialsTypeOverride:
@@ -9225,6 +9291,7 @@ export class AsyncQueryService extends ProjectService {
         cached,
         queryTags,
         queryCreatedAt,
+        queryUsage,
         context,
         warehouseType,
     }: {
@@ -9244,6 +9311,7 @@ export class AsyncQueryService extends ProjectService {
         cached: CacheHitCacheResult;
         queryTags: RunQueryTags;
         queryCreatedAt: Date;
+        queryUsage?: QueryUsageMetadata;
         context: QueryExecutionContext;
         warehouseType: WarehouseTypes;
     }): Promise<void> {
@@ -9294,6 +9362,7 @@ export class AsyncQueryService extends ProjectService {
                 : { anonymousId: 'embed' }),
             event: 'query.completed',
             properties: {
+                ...queryUsageProperties(queryTags, queryUsage),
                 ...this.getQueryConnectionAnalyticsProperties({
                     warehouseConnectionUuid: null,
                     warehouseType: null,

@@ -10,6 +10,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { getActiveSpan } from '@sentry/node';
+import { randomUUID } from 'crypto';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
 import ExecutionContext from 'node-execution-context';
@@ -69,6 +70,12 @@ export type ExecutionContextInfo = {
     organization_uuid?: string;
     organization_name?: string;
     app_uuid?: string;
+    app_version?: number;
+    query_request?: {
+        startedAtMs: number;
+        requestId: string;
+        traceId: string | null;
+    };
     scheduler?: {
         scheduler_uuid?: string;
         scheduler_name?: string;
@@ -101,6 +108,19 @@ export const getSchedulerContext = ():
 export const getAppContext = (): Pick<ExecutionContextInfo, 'app_uuid'> => {
     if (!ExecutionContext.exists()) return {};
     return { app_uuid: ExecutionContext.get<ExecutionContextInfo>().app_uuid };
+};
+
+// Server-generated request timing survives asynchronous query submission via history.
+export const getQueryRequestContext = (): ExecutionContextInfo =>
+    ExecutionContext.exists()
+        ? ExecutionContext.get<ExecutionContextInfo>()
+        : {};
+
+/** Attribution only: called after existing signed app-version access checks. */
+export const setQueryAppVersion = (appUuid: string, version: number): void => {
+    if (ExecutionContext.exists()) {
+        ExecutionContext.update({ app_uuid: appUuid, app_version: version });
+    }
 };
 
 const ALIAS_RESPONSE_TIME_AS_DURATION = winston.format((info) => {
@@ -396,6 +416,11 @@ export const requestExecutionContextMiddleware: express.RequestHandler = (
         return;
     }
     const context: ExecutionContextInfo = {
+        query_request: {
+            startedAtMs: Date.now(),
+            requestId: randomUUID(),
+            traceId: getActiveSpan()?.spanContext().traceId ?? null,
+        },
         organization_uuid: organizationUuid,
         organization_name: organizationName,
         ...(appUuid ? { app_uuid: appUuid } : {}),

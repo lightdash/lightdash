@@ -247,6 +247,65 @@ describe('internal Parquet projects', () => {
         expect(views.some((view) => view.includes('"ai_usage"'))).toBe(false);
     });
 
+    it.each(
+        [
+            [{ name: 'response_time_ms', type: 'BIGINT); SELECT 1' }],
+            [{ name: 'bad; SELECT 1', type: 'VARCHAR' }],
+            [
+                { name: 'name', type: 'VARCHAR' },
+                { name: 'name', type: 'VARCHAR' },
+            ],
+            [],
+        ].map((columns) => ({ columns })),
+    )(
+        'rejects invalid schema padding for populated tables: %j',
+        async ({ columns }) => {
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource: async () => ({
+                    ...source(),
+                    tables: [
+                        {
+                            name: 'query_events',
+                            urls: [url],
+                            columns: columns as never,
+                        },
+                    ],
+                }),
+            });
+            await expect(
+                client.runQuery('SELECT count(*) FROM query_events'),
+            ).rejects.toThrow();
+            expect(
+                run.mock.calls.some(([sql]) =>
+                    String(sql).startsWith('CREATE VIEW'),
+                ),
+            ).toBe(false);
+        },
+    );
+
+    it('pads additive columns without adding rows to populated views', async () => {
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => ({
+                ...source(),
+                tables: [
+                    {
+                        name: 'query_events',
+                        urls: [url],
+                        columns: [{ name: 'response_time_ms', type: 'BIGINT' }],
+                    },
+                ],
+            }),
+        });
+        await client.runQuery('SELECT response_time_ms FROM query_events');
+        expect(run).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'UNION ALL BY NAME SELECT NULL::BIGINT AS "response_time_ms" WHERE false',
+            ),
+        );
+    });
+
     it('honors explicit thread limits during metadata binding and execution', async () => {
         const client = new DuckdbWarehouseClient(
             { type: 'duckdb_parquet', resolveSource: async () => source() },

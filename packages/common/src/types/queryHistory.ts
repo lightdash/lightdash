@@ -38,6 +38,19 @@ export type PreAggregateFallbackReason =
     | 'duckdb_execution_error'
     | 'external_execution_error';
 
+/** Server-owned attribution persisted with a query for background workers. */
+export type QueryUsageMetadata = {
+    startedAtMs: number;
+    timingBasis: 'request' | 'query_submission';
+    requestId: string | null;
+    parentOperationId: string | null;
+    actorType: string;
+    appId: string | null;
+    appVersion?: number | null;
+    dashboardTileId: string | null;
+    schedulerId: string | null;
+};
+
 export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
@@ -54,7 +67,10 @@ export type QueryHistory = {
     compiledSql: string;
     metricQuery: MetricQuery;
     fields: ItemsMap;
-    requestParameters: ExecuteAsyncQueryRequestParams;
+    requestParameters: ExecuteAsyncQueryRequestParams & {
+        /** Internal metadata, never trusted from request bodies or used in cache keys. */
+        queryUsage?: QueryUsageMetadata;
+    };
     /** Resolved parameter values in effect for this execution (request values
      *  merged with defaults). Null on rows written before the column existed. */
     usedParameters: ParametersValuesMap | null;

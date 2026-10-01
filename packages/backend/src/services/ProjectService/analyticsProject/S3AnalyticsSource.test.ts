@@ -3,6 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { ParameterError } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
+import { queryEventsCompactedColumns } from '../../../analytics/eventStream/queryEventsStream';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
@@ -123,7 +124,11 @@ describe('signed analytics file manifests', () => {
             },
         })();
         expect(source.tables).toEqual([
-            { name: 'query_events', urls: [signedUrl] },
+            {
+                name: 'query_events',
+                urls: [signedUrl],
+                columns: queryEventsCompactedColumns,
+            },
         ]);
         expect(gcsSign).toHaveBeenCalledWith(config.storage.bucket, key(), {
             version: 'v4',

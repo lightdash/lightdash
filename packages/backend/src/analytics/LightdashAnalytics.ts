@@ -672,6 +672,16 @@ export type QueryCompletedEvent = BaseTrack & {
         warehouseConnectionId: string | null;
         connectionKind: 'primary' | 'extra' | null;
         connectionCount: number | null;
+        responseTimeMs?: number | null;
+        responseTimingBasis?: 'request' | 'query_submission' | null;
+        workloadOrigin?: string;
+        dashboardTileId?: string | null;
+        appId?: string | null;
+        appVersion?: number | null;
+        requestId?: string | null;
+        parentOperationId?: string | null;
+        initiatingActorType?: string | null;
+        schedulerId?: string | null;
         warehouseExecutionTimeMs: number | null;
         // Phase breakdown of warehouseExecutionTimeMs. Absent phases mean the
         // adapter does not report them.
