@@ -1334,6 +1334,7 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiAiThreadFileResponse['results']
     | ApiDbtSourceBindingsResponse['results']
     | ApiWarehouseConnectionSwitchAvailabilityResponse['results']
     | ApiWarehouseConnectionSwitchPlanResponse['results']

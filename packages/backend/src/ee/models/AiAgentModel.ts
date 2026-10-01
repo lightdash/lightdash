@@ -49,6 +49,7 @@ import {
     AiPromptExternalSourceSnapshot,
     AiPromptProposedChangePayload,
     AiPromptSteer,
+    AiPromptThreadFileSnapshot,
     AiResultType,
     AiThread,
     AiThreadCompaction,
@@ -255,6 +256,7 @@ import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeep
 import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 import { AiSlackArtifactDeliveryModel } from './AiSlackArtifactDeliveryModel';
+import { AiThreadFileModel } from './AiThreadFileModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
 
 export type AiPromptResponseState = {
@@ -6801,7 +6803,11 @@ export class AiAgentModel {
             if (data.context && data.context.length > 0) {
                 await AiAgentModel.insertPromptContext(
                     trx,
-                    row.ai_prompt_uuid,
+                    {
+                        promptUuid: row.ai_prompt_uuid,
+                        threadUuid: data.threadUuid,
+                        createdByUserUuid: data.createdByUserUuid,
+                    },
                     data.context,
                 );
             }
@@ -6833,9 +6839,38 @@ export class AiAgentModel {
 
     private static async insertPromptContext(
         trx: Knex.Transaction,
-        promptUuid: string,
+        {
+            promptUuid,
+            threadUuid,
+            createdByUserUuid,
+        }: {
+            promptUuid: string;
+            threadUuid: string;
+            createdByUserUuid: string;
+        },
         context: AiPromptContextInput,
     ): Promise<void> {
+        // Claim-on-send: attaching files is the same transaction that creates
+        // the prompt, and the conditional update is the ownership check. One
+        // generic error covers not-found, not-owner and already-sent alike.
+        const threadFileUuids = context.flatMap((c) =>
+            c.type === 'thread_file' ? [c.fileUuid] : [],
+        );
+        const claimedFiles = await AiThreadFileModel.claimForPrompt(trx, {
+            fileUuids: threadFileUuids,
+            userUuid: createdByUserUuid,
+            threadUuid,
+            promptUuid,
+        });
+        if (claimedFiles.length !== threadFileUuids.length) {
+            throw new ParameterError(
+                'One or more attached files are unavailable. Remove them and upload again.',
+            );
+        }
+        const claimedFileByUuid = new Map(
+            claimedFiles.map((file) => [file.ai_thread_file_uuid, file]),
+        );
+
         const chartUuids = context.flatMap((c) =>
             c.type === 'chart' ? [c.chartUuid] : [],
         );
@@ -7137,6 +7172,25 @@ export class AiAgentModel {
                         entity_ref: ctx.fullName,
                         display_name: ctx.fullName,
                     };
+                case 'thread_file': {
+                    const file = claimedFileByUuid.get(ctx.fileUuid);
+                    if (!file) {
+                        throw new ParameterError(
+                            'One or more attached files are unavailable. Remove them and upload again.',
+                        );
+                    }
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'thread_file' as AiPromptContextEntityType,
+                        entity_uuid: ctx.fileUuid,
+                        entity_ref: null,
+                        pinned_version_uuid: null,
+                        display_name: file.file_name,
+                        runtime_overrides: {
+                            sizeBytes: file.size_bytes,
+                        } satisfies AiPromptThreadFileSnapshot,
+                    };
+                }
                 case 'external_source': {
                     const externalSource = externalSourceLookup.get(
                         ctx.sourceUuid,
@@ -7629,6 +7683,16 @@ export class AiAgentModel {
                     versionNumber: snapshot?.versionNumber ?? null,
                     builtIn: snapshot?.builtIn ?? row.entity_uuid === null,
                     displayName: row.display_name,
+                };
+            }
+            case 'thread_file': {
+                const snapshot =
+                    row.runtime_overrides as AiPromptThreadFileSnapshot | null;
+                return {
+                    type: 'thread_file',
+                    fileUuid: requireEntityUuid(),
+                    fileName: row.display_name ?? 'Attachment',
+                    sizeBytes: snapshot?.sizeBytes ?? 0,
                 };
             }
             case 'external_source': {

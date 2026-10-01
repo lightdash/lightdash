@@ -7,6 +7,7 @@ import {
     type AiOrgModelVisibility,
     type AiPromptExternalSourceSnapshot,
     type AiPromptResponseTiming,
+    type AiPromptThreadFileSnapshot,
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
@@ -534,6 +535,7 @@ export type AiPromptContextEntityType =
     | 'file'
     | 'repository'
     | 'external_source'
+    | 'thread_file'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
@@ -590,6 +592,7 @@ export type DbAiPromptContext = {
         | AiChartRuntimeOverrides
         | AiDashboardRuntimeOverrides
         | AiPromptExternalSourceSnapshot
+        | AiPromptThreadFileSnapshot
         | AiPromptDataAppElementSnapshot
         | AiPromptDataAppRestoreSnapshot
         | AiPromptDataAppSnapshot

@@ -52,6 +52,8 @@ export const getPromptContextItemKey = (
             return `repository:${item.fullName}`;
         case 'external_source':
             return `external_source:${item.sourceUuid}`;
+        case 'thread_file':
+            return `thread_file:${item.fileUuid}`;
         case 'pull_request':
             return `pull_request:${item.prUrl}`;
         case 'proposed_change':
@@ -116,6 +118,8 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.fullName;
         case 'external_source':
             return item.displayName;
+        case 'thread_file':
+            return item.fileName;
         case 'pull_request':
             return item.title ?? `PR #${item.prNumber ?? ''}`.trim();
         case 'proposed_change':
@@ -151,6 +155,7 @@ export const getPromptContextItemHref = (
         case 'file':
         case 'repository':
         case 'external_source':
+        case 'thread_file':
             return null;
         case 'pull_request':
             return item.prUrl;

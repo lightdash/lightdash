@@ -74,6 +74,7 @@ export const DISTILL_TOOL_POLICIES = {
     },
     listKnowledgeDocuments: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     readPinnedThread: { result: omitResult('cross-thread transcript') },
+    readAttachments: { result: omitResult('user-uploaded document') },
     getProjectInfo: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     listProjects: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     grepFields: { result: keep },

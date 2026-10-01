@@ -79,6 +79,7 @@ import {
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
+    ReadAttachmentsFn,
     ReadContentFn,
     ReadPinnedThreadFn,
     RecordMcpToolCallFn,
@@ -270,6 +271,9 @@ export type AiAgentArgs = AnyAiModel & {
     writebackAttribution: AiWritebackAttribution | null;
     enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
+    // The thread owns at least one attached document, so readAttachments is
+    // registered.
+    enableReadAttachments: boolean;
     enableMergeQueries: boolean;
     enableFilterExpressions: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
@@ -374,6 +378,7 @@ export type AiAgentDependencies = {
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
     readPinnedThread: ReadPinnedThreadFn;
+    readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;

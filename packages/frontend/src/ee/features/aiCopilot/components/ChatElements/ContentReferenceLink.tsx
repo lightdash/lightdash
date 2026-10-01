@@ -42,6 +42,7 @@ type ContentReferenceKind =
     | 'file'
     | 'repository'
     | 'external_source'
+    | 'thread_file'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
@@ -139,6 +140,12 @@ const getIconMeta = ({
                 color: 'teal.7',
                 fill: 'teal.4',
                 icon: IconFileSpreadsheet,
+            };
+        case 'thread_file':
+            return {
+                color: 'ldGray.7',
+                fill: 'ldGray.4',
+                icon: IconFileText,
             };
         case 'pull_request':
             return {

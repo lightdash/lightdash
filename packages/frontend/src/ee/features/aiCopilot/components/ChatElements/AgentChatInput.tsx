@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AI_THREAD_FILE_PICKER_EXTENSIONS,
     ContentType,
     FeatureFlags,
     getExternalSourceDisplayName,
@@ -27,6 +28,7 @@ import {
     IconArrowUp,
     IconBolt,
     IconCheck,
+    IconFileText,
     IconPaperclip,
     IconPlayerStop,
     IconPlus,
@@ -78,6 +80,10 @@ import {
     useInterruptAiAgentThreadMessageMutation,
     useProjectAiAgent,
 } from '../../hooks/useProjectAiAgents';
+import {
+    useThreadFileAttachment,
+    type ThreadFileAttachment,
+} from '../../hooks/useThreadFileAttachment';
 import {
     clearThreadElementReferences,
     removeThreadElementReference,
@@ -137,11 +143,13 @@ const mergeSubmitContexts = (...contexts: SubmitContext[]): SubmitContext => ({
 const buildSubmitContext = ({
     mentionContext,
     externalSources,
+    threadFiles,
     elementReferences,
     theme,
 }: {
     mentionContext: SubmitContext;
     externalSources: ExternalSourceAttachment[];
+    threadFiles: ThreadFileAttachment[];
     elementReferences: ThreadElementReference[];
     theme: ComposerTheme | null;
 }): SubmitContext => {
@@ -150,6 +158,10 @@ const buildSubmitContext = ({
         ...externalSources.map(({ sourceUuid }) => ({
             type: 'external_source' as const,
             sourceUuid,
+        })),
+        ...threadFiles.map(({ fileUuid }) => ({
+            type: 'thread_file' as const,
+            fileUuid,
         })),
         ...elementReferences.map(({ appUuid, version, tag, text, loc }) => ({
             type: 'data_app_element' as const,
@@ -166,6 +178,7 @@ const buildSubmitContext = ({
     const optimisticContext: AiPromptContextItem[] = [
         ...(mentionContext.optimisticContext ?? []),
         ...externalSources,
+        ...threadFiles,
         ...elementReferences.map(
             ({
                 appUuid,
@@ -399,6 +412,29 @@ export const AgentChatInput = ({
         projectUuid,
         onReady: handleExternalSourceReady,
     });
+    const [threadFileAttachments, setThreadFileAttachments] = useState<
+        ThreadFileAttachment[]
+    >([]);
+    const handleThreadFileReady = useCallback(
+        (attachment: ThreadFileAttachment) => {
+            setThreadFileAttachments((attachments) => [
+                ...attachments.filter(
+                    ({ fileUuid }) => fileUuid !== attachment.fileUuid,
+                ),
+                attachment,
+            ]);
+        },
+        [],
+    );
+    const {
+        attachFiles: attachThreadFiles,
+        discardFile: discardThreadFile,
+        isUploading: isUploadingThreadFile,
+        pendingFiles: pendingThreadFiles,
+        retainFiles: retainThreadFiles,
+    } = useThreadFileAttachment({ onReady: handleThreadFileReady });
+    const isPreparingAttachments = isPreparingCsv || isUploadingThreadFile;
+    const resetDocumentFileInputRef = useRef<() => void>(null);
     const [hasClickedInput, setHasClickedInput] = useState(
         !revealControlsOnFocus,
     );
@@ -694,10 +730,17 @@ export const AgentChatInput = ({
                 return;
             }
 
-            if (loadingRef.current || disabledRef.current || isPreparingCsv)
+            if (
+                loadingRef.current ||
+                disabledRef.current ||
+                isPreparingAttachments
+            )
                 return;
             retainCsvSources(
                 externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
+            );
+            retainThreadFiles(
+                threadFileAttachments.map(({ fileUuid }) => fileUuid),
             );
             onSubmitRef.current({
                 message: chip.label,
@@ -705,6 +748,7 @@ export const AgentChatInput = ({
                 ...buildSubmitContext({
                     mentionContext: {},
                     externalSources: externalSourceAttachments,
+                    threadFiles: threadFileAttachments,
                     elementReferences,
                     theme: selectedTheme,
                 }),
@@ -714,6 +758,7 @@ export const AgentChatInput = ({
                 editor?.commands.clearContent();
                 setValueState('');
                 setExternalSourceAttachments([]);
+                setThreadFileAttachments([]);
                 clearElementReferences();
                 setSelectedTheme(null);
             }
@@ -730,11 +775,13 @@ export const AgentChatInput = ({
             emptyStateMode,
             navigate,
             externalSourceAttachments,
+            threadFileAttachments,
             elementReferences,
             clearElementReferences,
             disableElementPicker,
-            isPreparingCsv,
+            isPreparingAttachments,
             retainCsvSources,
+            retainThreadFiles,
             selectedTheme,
         ],
     );
@@ -813,8 +860,11 @@ export const AgentChatInput = ({
             }),
         ),
     );
+    const canAttachThreadFile = Boolean(projectUuid && !isEmbedAiAgentRoute());
     const showAttachControl = Boolean(
-        canAttachExternalSource && !disabled && !canSteer,
+        (canAttachExternalSource || canAttachThreadFile) &&
+        !disabled &&
+        !canSteer,
     );
     const canUseAttachControl = showAttachControl && composerMode === 'ask';
     const showDeepResearchInComposerMenu = canStartDeepResearch && !disabled;
@@ -850,7 +900,7 @@ export const AgentChatInput = ({
         const ed = editorRef.current;
         if (!ed) return;
         const text = ed.getText().trim();
-        if (!text || disabled || isPreparingCsv) return;
+        if (!text || disabled || isPreparingAttachments) return;
         if (composerMode === 'deep_research' && canStartDeepResearch) {
             void handleStartDeepResearch();
             return;
@@ -870,6 +920,9 @@ export const AgentChatInput = ({
         retainCsvSources(
             externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
         );
+        retainThreadFiles(
+            threadFileAttachments.map(({ fileUuid }) => fileUuid),
+        );
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
@@ -879,6 +932,7 @@ export const AgentChatInput = ({
                     extractSkillMentionContext(ed, text),
                 ),
                 externalSources: externalSourceAttachments,
+                threadFiles: threadFileAttachments,
                 elementReferences,
                 theme: selectedTheme,
             }),
@@ -888,6 +942,7 @@ export const AgentChatInput = ({
             ed.commands.clearContent();
             setValueState('');
             setExternalSourceAttachments([]);
+            setThreadFileAttachments([]);
             clearElementReferences();
             setSelectedTheme(null);
         }
@@ -1110,40 +1165,81 @@ export const AgentChatInput = ({
                 <Menu.Dropdown>
                     {showAttachControl && (
                         <>
-                            <FileButton
-                                accept=".csv,.tsv,text/csv,text/tab-separated-values"
-                                multiple
-                                resetRef={resetCsvFileInputRef}
-                                onChange={(files) => {
-                                    resetCsvFileInputRef.current?.();
-                                    if (files.length > 0) {
-                                        void attachCsvFiles(files);
-                                    }
-                                }}
-                            >
-                                {(fileButtonProps) => (
-                                    <Menu.Item
-                                        {...fileButtonProps}
-                                        aria-label={
-                                            canUseAttachControl
-                                                ? 'Attach a CSV'
-                                                : 'Attach a CSV unavailable in deep research'
+                            {canAttachExternalSource && (
+                                <FileButton
+                                    accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                                    multiple
+                                    resetRef={resetCsvFileInputRef}
+                                    onChange={(files) => {
+                                        resetCsvFileInputRef.current?.();
+                                        if (files.length > 0) {
+                                            void attachCsvFiles(files);
                                         }
-                                        disabled={
-                                            isPreparingCsv ||
-                                            !canUseAttachControl
+                                    }}
+                                >
+                                    {(fileButtonProps) => (
+                                        <Menu.Item
+                                            {...fileButtonProps}
+                                            aria-label={
+                                                canUseAttachControl
+                                                    ? 'Attach a CSV'
+                                                    : 'Attach a CSV unavailable in deep research'
+                                            }
+                                            disabled={
+                                                isPreparingCsv ||
+                                                !canUseAttachControl
+                                            }
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPaperclip}
+                                                    size={14}
+                                                />
+                                            }
+                                        >
+                                            Attach a CSV
+                                        </Menu.Item>
+                                    )}
+                                </FileButton>
+                            )}
+                            {canAttachThreadFile && (
+                                <FileButton
+                                    accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
+                                        (ext) =>
+                                            ext !== '.csv' && ext !== '.tsv',
+                                    ).join(',')}
+                                    multiple
+                                    resetRef={resetDocumentFileInputRef}
+                                    onChange={(files) => {
+                                        resetDocumentFileInputRef.current?.();
+                                        if (files.length > 0) {
+                                            void attachThreadFiles(files);
                                         }
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconPaperclip}
-                                                size={14}
-                                            />
-                                        }
-                                    >
-                                        Attach a CSV
-                                    </Menu.Item>
-                                )}
-                            </FileButton>
+                                    }}
+                                >
+                                    {(fileButtonProps) => (
+                                        <Menu.Item
+                                            {...fileButtonProps}
+                                            aria-label={
+                                                canUseAttachControl
+                                                    ? 'Attach a document'
+                                                    : 'Attach a document unavailable in deep research'
+                                            }
+                                            disabled={
+                                                isUploadingThreadFile ||
+                                                !canUseAttachControl
+                                            }
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconFileText}
+                                                    size={14}
+                                                />
+                                            }
+                                        >
+                                            Attach a document
+                                        </Menu.Item>
+                                    )}
+                                </FileButton>
+                            )}
                             {(showSqlModeControl ||
                                 showDeepResearchInComposerMenu ||
                                 showThemeControl) && (
@@ -1237,10 +1333,14 @@ export const AgentChatInput = ({
     const renderedAttachments =
         externalSourceAttachments.length > 0 ||
         pendingCsvFiles.length > 0 ||
+        threadFileAttachments.length > 0 ||
+        pendingThreadFiles.length > 0 ||
         elementReferences.length > 0 ? (
             <PromptAttachments
                 externalSources={externalSourceAttachments}
                 pendingCsvFiles={pendingCsvFiles}
+                threadFiles={threadFileAttachments}
+                pendingThreadFiles={pendingThreadFiles}
                 elementRefs={elementReferences}
                 onRemoveExternalSource={(sourceUuid) => {
                     setExternalSourceAttachments((attachments) =>
@@ -1250,6 +1350,14 @@ export const AgentChatInput = ({
                         ),
                     );
                     void discardCsvSource(sourceUuid);
+                }}
+                onRemoveThreadFile={(fileUuid) => {
+                    setThreadFileAttachments((attachments) =>
+                        attachments.filter(
+                            (attachment) => attachment.fileUuid !== fileUuid,
+                        ),
+                    );
+                    void discardThreadFile(fileUuid);
                 }}
                 onRemoveElementRef={(reference) => {
                     if (!threadUuid) return;
@@ -1313,7 +1421,7 @@ export const AgentChatInput = ({
                     disabled ||
                     !hasValue ||
                     loading ||
-                    isPreparingCsv ||
+                    isPreparingAttachments ||
                     (isDeepResearch && isStartingDeepResearch)
                 }
                 loading={isDeepResearch ? isStartingDeepResearch : loading}
@@ -1327,7 +1435,8 @@ export const AgentChatInput = ({
         defaultValue,
         autoFocus: true,
         disabled,
-        submitDisabled: disabled || isPreparingCsv || (loading && !canSteer),
+        submitDisabled:
+            disabled || isPreparingAttachments || (loading && !canSteer),
         extensions: composerExtensions,
         onEditorReady: setEditor,
         onValueChange: handleComposerValueChange,

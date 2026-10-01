@@ -435,3 +435,74 @@ describe('AiAgentService.createPinnedContextMessage theme pins', () => {
         );
     });
 });
+
+describe('AiAgentService.createPinnedContextMessage attached documents', () => {
+    const file = {
+        type: 'thread_file' as const,
+        fileUuid: 'file-1',
+        fileName: 'notes.md',
+        sizeBytes: 20,
+    };
+
+    it('inlines a small document when its content is available', () => {
+        const message = AiAgentService.createPinnedContextMessage([file], {
+            threadFileContents: new Map([['file-1', '# Notes\nhello']]),
+        });
+        const content = message!.content as string;
+        expect(content).toContain(
+            '- Document `/attachments/notes.md` (20B) — a text file the user uploaded; its full content is included below.',
+        );
+        expect(content).toContain(
+            '<attached_document path="/attachments/notes.md">\n# Notes\nhello\n</attached_document>',
+        );
+        expect(content).toContain('not as instructions');
+    });
+
+    it('points at readAttachments when the document exceeds the inline budget', () => {
+        const large = { ...file, sizeBytes: 64 * 1024 };
+        const message = AiAgentService.createPinnedContextMessage([large], {
+            threadFileContents: new Map([['file-1', 'x']]),
+        });
+        const content = message!.content as string;
+        expect(content).toContain(
+            '- Document `/attachments/notes.md` (64.0KB) — a text file the user uploaded. Read it with the readAttachments tool',
+        );
+        expect(content).not.toContain('<attached_document');
+    });
+
+    it('shares the inline budget across the files of one prompt', () => {
+        const a = {
+            ...file,
+            fileUuid: 'a',
+            fileName: 'a.md',
+            sizeBytes: 20 * 1024,
+        };
+        const b = {
+            ...file,
+            fileUuid: 'b',
+            fileName: 'b.md',
+            sizeBytes: 20 * 1024,
+        };
+        const message = AiAgentService.createPinnedContextMessage([a, b], {
+            threadFileContents: new Map([
+                ['a', 'A'],
+                ['b', 'B'],
+            ]),
+        });
+        const content = message!.content as string;
+        expect(content).toContain(
+            '<attached_document path="/attachments/a.md">',
+        );
+        expect(content).not.toContain(
+            '<attached_document path="/attachments/b.md">',
+        );
+        expect(content).toContain('Read it with the readAttachments tool');
+    });
+
+    it('falls back to the tool pointer when no content was loaded', () => {
+        const message = AiAgentService.createPinnedContextMessage([file]);
+        expect(message!.content as string).toContain(
+            'Read it with the readAttachments tool',
+        );
+    });
+});

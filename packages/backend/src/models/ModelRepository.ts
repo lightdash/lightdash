@@ -209,6 +209,7 @@ export type ModelManifest = {
     homepageRecommendedActionSkipsModel: unknown;
     projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
+    aiThreadFileModel: unknown;
     aiAgentSkillModel: unknown;
     aiWritebackThreadModel: unknown;
     aiWritebackRunModel: unknown;
@@ -1139,6 +1140,10 @@ export class ModelRepository
 
     public getAiAgentDocumentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentDocumentModel');
+    }
+
+    public getAiThreadFileModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiThreadFileModel');
     }
 
     public getAiAgentSkillModel<ModelImplT>(): ModelImplT {

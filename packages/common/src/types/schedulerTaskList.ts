@@ -224,6 +224,7 @@ export const EE_SCHEDULER_TASKS = {
     INGEST_EXTERNAL_SOURCE: 'ingestExternalSource',
     INGEST_EXTERNAL_SOURCE_ATTACHMENT: 'ingestExternalSourceAttachment',
     MAINTAIN_EXTERNAL_SOURCES: 'maintainExternalSources',
+    SWEEP_UNCLAIMED_AI_THREAD_FILES: 'sweepUnclaimedAiThreadFiles',
     MOBILE_PUSH_LIVE_ACTIVITY_START: 'mobilePushLiveActivityStart',
     MOBILE_PUSH_LIVE_ACTIVITY: 'mobilePushLiveActivity',
     SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES: 'sweepMobilePushLiveActivities',
@@ -364,6 +365,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: Record<string, never>;
     [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: MobilePushLiveActivityStartJobPayload;
     [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: MobilePushLiveActivityJobPayload;
     [SCHEDULER_TASKS.SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES]: Record<string, never>;
@@ -416,6 +418,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: Record<string, never>;
     [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: MobilePushLiveActivityStartJobPayload;
     [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: MobilePushLiveActivityJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES]: Record<

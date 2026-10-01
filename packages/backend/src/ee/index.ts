@@ -49,6 +49,7 @@ import { AiCreditUsageModel } from './models/AiCreditUsageModel';
 import { AiDeepResearchRunModel } from './models/AiDeepResearchRunModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
+import { AiThreadFileModel } from './models/AiThreadFileModel';
 import { AiWritebackRunModel } from './models/AiWritebackRunModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
@@ -94,6 +95,7 @@ import { AiDeepResearchService } from './services/AiDeepResearchService/AiDeepRe
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiRouterService } from './services/AiRouterService/AiRouterService';
 import { AiService } from './services/AiService/AiService';
+import { AiThreadFileService } from './services/AiThreadFileService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
@@ -722,6 +724,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getMcpToolCallModel<McpToolCallModel>(),
                     externalSourceModel:
                         models.getExternalSourceModel<ExternalSourceModel>(),
+                    aiThreadFileModel:
+                        models.getAiThreadFileModel<AiThreadFileModel>(),
                     aiDeepResearchRunModel:
                         models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
                     projectContextModel:
@@ -866,6 +870,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getAiOrganizationSettingsModel(),
                         aiModelCatalog,
                     }),
+                }),
+            aiThreadFileService: ({ models, repository }) =>
+                new AiThreadFileService({
+                    aiThreadFileModel:
+                        models.getAiThreadFileModel<AiThreadFileModel>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                 }),
             aiAgentSkillService: ({ models, repository, context }) =>
                 new AiAgentSkillService({
@@ -1538,6 +1549,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentMemoryModel({ database }),
             aiAgentDocumentModel: ({ database }) =>
                 new AiAgentDocumentModel({ database }),
+            aiThreadFileModel: ({ database }) =>
+                new AiThreadFileModel({ database }),
             aiAgentSkillModel: ({ database }) =>
                 new AiAgentSkillModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
@@ -1721,6 +1734,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getProjectHomepageService<ProjectHomepageService>(),
                 externalSourceService:
                     context.serviceRepository.getExternalSourceService<ExternalSourceService>(),
+                aiThreadFileService:
+                    context.serviceRepository.getAiThreadFileService<AiThreadFileService>(),
                 mobilePushNotificationService:
                     context.serviceRepository.getMobilePushNotificationService<MobilePushNotificationService>(),
                 contentReviewRequestModel:
