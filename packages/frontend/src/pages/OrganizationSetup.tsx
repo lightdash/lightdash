@@ -1,7 +1,6 @@
 import {
     CompleteUserSchema,
     describeInvalidOrganizationName,
-    FeatureFlags,
     getEmailDomain,
     LightdashMode,
     sanitizeOrganizationName,
@@ -34,26 +33,24 @@ import {
     useRef,
     useState,
 } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
 import Callout from '../components/common/Callout';
 import { DocumentTitle } from '../components/common/DocumentTitle';
-import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
-import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
     useSaveOrganizationBrand,
 } from '../hooks/organization/useOrganizationBrand';
 import { type UserWithAbility } from '../hooks/user/useUser';
 import { useUserCompleteMutation } from '../hooks/user/useUserCompleteMutation';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import { inferOrganizationName } from '../utils/organizationName';
+import { JoinerSetup } from './JoinerSetup';
 import classes from './OrganizationSetup.module.css';
 import { OrganizationSetupPreview } from './OrganizationSetupPreview';
+import { useOrganizationSetupGate } from './useOrganizationSetupGate';
 
 const PRESET_COLORS = ['#4c6ef5', '#7950f2', '#40c057', '#f59f00', '#fa5252'];
 const DEFAULT_COLOR = PRESET_COLORS[0];
@@ -136,6 +133,7 @@ type OrganizationSetupContentProps = {
     user: UserWithAbility;
     health: HealthState;
     organizationHasName: boolean;
+    isCreator: boolean;
     completeMutation: ReturnType<typeof useUserCompleteMutation>;
 };
 
@@ -143,10 +141,11 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     user,
     health,
     organizationHasName,
+    isCreator,
     completeMutation,
 }) => {
     const canEnterOrganizationName =
-        user.organizationName === '' && !organizationHasName;
+        isCreator || (user.organizationName === '' && !organizationHasName);
     const emailDomain = user.email ? getEmailDomain(user.email) : '';
     const isCompanyDomain =
         !!user.email && !validateOrganizationEmailDomains([emailDomain]);
@@ -156,9 +155,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const form = useForm<OrganizationSetupFormValues>({
         initialValues: {
             organizationName:
-                canEnterOrganizationName && isCompanyDomain
+                user.organizationName ||
+                (canEnterOrganizationName && isCompanyDomain
                     ? inferOrganizationName(emailDomain)
-                    : '',
+                    : ''),
             jobTitle: '',
             howDidYouHearAboutUs: '',
             enableEmailDomainAccess: canEnableEmailDomainAccess,
@@ -630,7 +630,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 };
 
 const OrganizationSetup: FC = () => {
-    const { health, user } = useApp();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const redirectParam = searchParams.get('redirect');
@@ -641,54 +640,35 @@ const OrganizationSetup: FC = () => {
         !redirectParam.startsWith('/organization-setup')
             ? redirectParam
             : '/';
-    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
-    const organization = useOrganization({
-        enabled: !!user.data?.organizationUuid,
-    });
     const completeMutation = useUserCompleteMutation({
         onSuccess: () => void navigate(redirectTo),
     });
-    const isCompletingSetup =
-        completeMutation.isLoading || completeMutation.isSuccess;
+    const gate = useOrganizationSetupGate(
+        redirectTo,
+        completeMutation.isLoading || completeMutation.isSuccess,
+    );
 
-    if (health.isInitialLoading || health.error) {
-        return <PageSpinner />;
+    if (gate.status === 'blocked') {
+        return gate.element;
     }
 
-    if (!health.data?.isAuthenticated) {
-        return <Navigate to="/login" />;
-    }
-
-    if (user.isInitialLoading || orgSetupPageFlag.isLoading) {
-        return <PageSpinner />;
-    }
-
-    if (!user.data) {
-        return <PageSpinner />;
-    }
-
-    if (!user.data.organizationUuid) {
-        return <Navigate to="/join-organization" />;
-    }
-
-    if (user.data.isSetupComplete && !isCompletingSetup) {
-        return <Navigate to={redirectTo} />;
-    }
-
-    if (!orgSetupPageFlag.data?.enabled) {
-        return <Navigate to="/" />;
-    }
-
-    if (organization.isInitialLoading) {
-        return <PageSpinner />;
+    if (gate.role === 'joiner') {
+        return (
+            <JoinerSetup
+                key={gate.user.userUuid}
+                user={gate.user}
+                completeMutation={completeMutation}
+            />
+        );
     }
 
     return (
         <OrganizationSetupContent
-            key={user.data.userUuid}
-            user={user.data}
-            health={health.data}
-            organizationHasName={!!organization.data?.name}
+            key={gate.user.userUuid}
+            user={gate.user}
+            health={gate.health}
+            organizationHasName={gate.organizationHasName}
+            isCreator={gate.role === 'creator'}
             completeMutation={completeMutation}
         />
     );

@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
+import { EmailTableName } from '../database/entities/emails';
 import {
     DbOrganizationColorPalette,
     OrganizationColorPaletteTableName,
@@ -204,6 +205,7 @@ export class OrganizationModel {
                 ? data.default_project_uuid
                 : undefined,
             createdAt: data.created_at,
+            createdByUserUuid: data.created_by_user_uuid ?? null,
         };
     }
 
@@ -265,11 +267,15 @@ export class OrganizationModel {
         );
     }
 
-    async create(data: CreateOrganization): Promise<Organization> {
+    async create(
+        data: CreateOrganization,
+        createdByUserUuid: string | null = null,
+    ): Promise<Organization> {
         return this.database.transaction(async (trx) => {
             const [org] = await trx(OrganizationTableName)
                 .insert({
                     organization_name: data.name,
+                    created_by_user_uuid: createdByUserUuid,
                 })
                 .returning('*');
             // seed with default color palettes
@@ -395,6 +401,83 @@ export class OrganizationModel {
             organizationUuid: o.organization_uuid,
             name: o.organization_name,
             membersCount: o.members_count,
+        }));
+    }
+
+    /**
+     * Organizations with a member whose verified primary email is on the
+     * domain, excluding the given organizations.
+     */
+    async getOrganizationsWithMemberDomain(
+        domain: string,
+        excludeOrganizationUuids: string[],
+    ): Promise<{ organizationUuid: string; name: string; hasAdmin: boolean }[]> {
+        const rows = await this.database(OrganizationTableName)
+            .join(
+                OrganizationMembershipsTableName,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .join(
+                EmailTableName,
+                `${EmailTableName}.user_id`,
+                `${OrganizationMembershipsTableName}.user_id`,
+            )
+            .where(`${EmailTableName}.is_primary`, true)
+            .where(`${EmailTableName}.is_verified`, true)
+            .whereRaw(
+                `lower(split_part(${EmailTableName}.email, '@', 2)) = ?`,
+                [domain.toLowerCase()],
+            )
+            .whereNotIn(
+                `${OrganizationTableName}.organization_uuid`,
+                excludeOrganizationUuids,
+            )
+            .groupBy(
+                `${OrganizationTableName}.organization_id`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${OrganizationTableName}.organization_name`,
+            )
+            .select<
+                {
+                    organization_uuid: string;
+                    organization_name: string;
+                    has_admin: boolean;
+                }[]
+            >(
+                `${OrganizationTableName}.organization_uuid`,
+                `${OrganizationTableName}.organization_name`,
+                this.database.raw(
+                    `EXISTS (SELECT 1 FROM ${OrganizationMembershipsTableName} admins WHERE admins.organization_id = ${OrganizationTableName}.organization_id AND admins.role = 'admin') AS has_admin`,
+                ),
+            );
+        return rows.map((row) => ({
+            organizationUuid: row.organization_uuid,
+            name: row.organization_name,
+            hasAdmin: row.has_admin,
+        }));
+    }
+
+    async getAllOrganizationsWithAdminFlag(): Promise<
+        { organizationUuid: string; name: string; hasAdmin: boolean }[]
+    > {
+        const rows = await this.database(OrganizationTableName).select<
+            {
+                organization_uuid: string;
+                organization_name: string;
+                has_admin: boolean;
+            }[]
+        >(
+            `${OrganizationTableName}.organization_uuid`,
+            `${OrganizationTableName}.organization_name`,
+            this.database.raw(
+                `EXISTS (SELECT 1 FROM ${OrganizationMembershipsTableName} admins WHERE admins.organization_id = ${OrganizationTableName}.organization_id AND admins.role = 'admin') AS has_admin`,
+            ),
+        );
+        return rows.map((row) => ({
+            organizationUuid: row.organization_uuid,
+            name: row.organization_name,
+            hasAdmin: row.has_admin,
         }));
     }
 

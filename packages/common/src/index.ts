@@ -379,6 +379,7 @@ export * from './types/userAttributes';
 export * from './types/projectSetup';
 export * from './types/warehouseConnectionFailure';
 export * from './types/gitHostDiscovery';
+export * from './types/organizationLanding';
 export * from './types/userOnboarding';
 export * from './types/learnProgress';
 export * from './types/userWarehouseCredentials';
