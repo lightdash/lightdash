@@ -183,24 +183,39 @@ const TILE_LABEL_CAPABILITIES: readonly GitHostCapability[] = [
     GitHostCapability.NATIVE_YAML,
 ];
 
+const toListItem = (label: string) =>
+    label.charAt(0).toLowerCase() + label.slice(1);
+
 export const getGitHostTileLabels = (host: GitHost): string[] => {
     const cloud = GIT_HOST_CAPABILITY_MATRIX[host][GitHostDeployment.CLOUD];
-    return TILE_LABEL_CAPABILITIES.flatMap((capability) => {
-        const label = GIT_HOST_CAPABILITY_LABELS[capability];
+    const notOnHost: string[] = [];
+    const notYet: string[] = [];
+    TILE_LABEL_CAPABILITIES.forEach((capability) => {
+        const label = toListItem(GIT_HOST_CAPABILITY_LABELS[capability]);
         switch (cloud[capability]) {
             case GitHostCapabilityStatus.SUPPORTED:
-                return [];
+                return;
             case GitHostCapabilityStatus.PLANNED:
-                return [`${label}: not available yet`];
+                notYet.push(label);
+                return;
             case GitHostCapabilityStatus.NOT_SUPPORTED:
-                return [`${label}: not available on ${GIT_HOST_LABELS[host]}`];
+                notOnHost.push(label);
+                return;
             default:
-                return assertUnreachable(
+                assertUnreachable(
                     cloud[capability],
                     'Unknown capability status',
                 );
         }
     });
+    return [
+        ...(notOnHost.length > 0
+            ? [`Not on ${GIT_HOST_LABELS[host]}: ${notOnHost.join(', ')}`]
+            : []),
+        ...(notYet.length > 0
+            ? [`Not available yet: ${notYet.join(', ')}`]
+            : []),
+    ];
 };
 
 const BITBUCKET_CLOUD_HOST = 'bitbucket.org';

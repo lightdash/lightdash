@@ -10,7 +10,6 @@ import {
     Code,
     Collapse,
     Group,
-    List,
     Paper,
     SimpleGrid,
     Stack,
@@ -21,6 +20,7 @@ import {
     IconBrandBitbucket,
     IconBrandGithub,
     IconBrandGitlab,
+    IconChevronRight,
     type Icon,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -56,6 +56,26 @@ export const SectionHeader: FC<{ title: string; description: string }> = ({
     </Stack>
 );
 
+const HostTileLimits: FC<{ host: GitHost }> = ({ host }) => {
+    const labels = getGitHostTileLabels(host);
+    if (labels.length === 0) {
+        return (
+            <Text size="xs" c="dimmed">
+                Every feature is available.
+            </Text>
+        );
+    }
+    return (
+        <Stack gap={2}>
+            {labels.map((label) => (
+                <Text key={label} size="xs" c="dimmed">
+                    {label}
+                </Text>
+            ))}
+        </Stack>
+    );
+};
+
 export const GitHostTiles: FC<{ onPick: (host: GitHost) => void }> = ({
     onPick,
 }) => (
@@ -74,15 +94,14 @@ export const GitHostTiles: FC<{ onPick: (host: GitHost) => void }> = ({
                     className={classes.hostTile}
                     onClick={() => onPick(host)}
                 >
-                    <Group gap="xs">
-                        <MantineIcon icon={HOST_ICONS[host]} size="lg" />
-                        <Text fw={600}>{GIT_HOST_LABELS[host]}</Text>
+                    <Group justify="space-between" wrap="nowrap">
+                        <Group gap="xs">
+                            <MantineIcon icon={HOST_ICONS[host]} size="lg" />
+                            <Text fw={600}>{GIT_HOST_LABELS[host]}</Text>
+                        </Group>
+                        <MantineIcon icon={IconChevronRight} color="dimmed" />
                     </Group>
-                    <List size="xs" c="dimmed" spacing={2}>
-                        {getGitHostTileLabels(host).map((label) => (
-                            <List.Item key={label}>{label}</List.Item>
-                        ))}
-                    </List>
+                    <HostTileLimits host={host} />
                 </Paper>
             ))}
         </SimpleGrid>
@@ -151,9 +170,7 @@ export const SkipOption: FC<{
     onSkip: () => void;
     isSkipping: boolean;
 }> = ({ onSkip, isSkipping }) => (
-    <Group justify="flex-end">
-        <Button variant="subtle" loading={isSkipping} onClick={onSkip}>
-            Skip for now
-        </Button>
-    </Group>
+    <Button variant="default" loading={isSkipping} onClick={onSkip}>
+        Skip for now
+    </Button>
 );

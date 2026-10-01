@@ -6,10 +6,11 @@ import {
     type GitHost,
     type Project,
 } from '@lightdash/common';
-import { Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Button, Group, Stack, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useUpdateMutation } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
+import Callout from '../../common/Callout';
 import { useGithubConfig } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import { FormatCheck, type SemanticLayerChoice } from './FormatCheck';
 import { GitHostCredentialsFields } from './GitHostCredentialsFields';
@@ -106,9 +107,7 @@ export const GitHostConnectForm: FC<{
                 onChange={setSemanticLayer}
             />
             {update.error && (
-                <Text size="sm" c="red">
-                    {update.error.error.message}
-                </Text>
+                <Callout variant="danger">{update.error.error.message}</Callout>
             )}
             <Group justify="space-between">
                 <Button variant="subtle" onClick={onBack}>

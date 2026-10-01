@@ -5,6 +5,7 @@ import {
 import { Button, SegmentedControl, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useSemanticLayerFormat } from '../../../hooks/useGitHostDiscovery';
+import Callout from '../../common/Callout';
 import { type RepositorySelection } from './semanticLayerStepState';
 
 export type SemanticLayerChoice = 'dbt' | 'lightdash';
@@ -82,9 +83,9 @@ export const FormatCheck: FC<{
                 <Text size="sm">{FORMAT_MESSAGES[detection.data]}</Text>
             )}
             {detection.error && (
-                <Text size="sm" c="red">
+                <Callout variant="danger">
                     {detection.error.error.message}
-                </Text>
+                </Callout>
             )}
             {needsChoice && (
                 <SegmentedControl

@@ -16,6 +16,7 @@ import {
     useGitHostBranches,
     useGitHostRepositories,
 } from '../../../hooks/useGitHostDiscovery';
+import Callout from '../../common/Callout';
 import {
     EMPTY_REPOSITORY_SELECTION,
     type RepositorySelection,
@@ -97,9 +98,9 @@ const ListedFields: FC<{
                 List repositories
             </Button>
             {repositories.error && (
-                <Text size="sm" c="red">
+                <Callout variant="danger">
                     {repositories.error.error.message}
-                </Text>
+                </Callout>
             )}
             {repositories.data?.length === 0 && (
                 <Text size="sm" c="dimmed">
