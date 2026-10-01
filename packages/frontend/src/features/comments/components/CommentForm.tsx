@@ -2,7 +2,7 @@ import { type Comment } from '@lightdash/common';
 import { Button, Grid, Group, Skeleton, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type Editor, type JSONContent } from '@tiptap/react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useState, type FC, type FocusEvent } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import { useSearchSpaceAccess } from '../../../hooks/useSpaceAccess';
 import useApp from '../../../providers/App/useApp';
@@ -71,18 +71,24 @@ export const CommentForm: FC<Props> = ({
 
     const namePrompt = useNamePrompt('comment');
 
-    const handleSubmit = commentForm.onSubmit(() => {
+    const handleSubmit = commentForm.onSubmit(async () => {
         if (editor === null || editor.getText().trim() === '') return;
-        const text = editor.getText();
-        const html = editor.getHTML();
-        const mentions = parseMentions(editor.getJSON());
 
-        namePrompt.withName(() => {
-            void onSubmit(text, html, mentions).then(() =>
-                setShouldClearEditor(true),
-            );
-        });
+        await onSubmit(
+            editor.getText(),
+            editor.getHTML(),
+            parseMentions(editor.getJSON()),
+        );
+        setShouldClearEditor(true);
     });
+
+    const handleEditorFocus = (event: FocusEvent<HTMLDivElement>) => {
+        if (!namePrompt.isNameNeeded || !(event.target instanceof HTMLElement))
+            return;
+        const field = event.target;
+        field.blur();
+        namePrompt.withName(() => field.focus());
+    };
 
     return (
         <form className={styles.form} onSubmit={handleSubmit}>
@@ -101,6 +107,7 @@ export const CommentForm: FC<Props> = ({
                     <Grid.Col
                         span={18}
                         miw={0}
+                        onFocusCapture={handleEditorFocus}
                         // Walkthrough anchor: the typed step of
                         // create:DashboardComments, with a suggestion the
                         // learner can use as written. Only the new-comment

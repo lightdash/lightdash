@@ -5,34 +5,39 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { type NamePromptTrigger } from '../../providers/Tracking/types';
 import { NamePromptContext } from './context';
-import { hasSkippedNamePrompt, isNameMissing } from './namePrompt';
+import { isNameMissing } from './namePrompt';
 
-export const useNamePrompt = (trigger: NamePromptTrigger) => {
-    const context = useContext(NamePromptContext);
+export const useIsNameNeeded = (): boolean => {
     const { user } = useApp();
     const isEmbedded = useIsEmbedded();
     const connectJourneyFlag = useServerFeatureFlag(
         FeatureFlags.ConnectJourney,
     );
-    const currentUser = user.data;
-    const shouldAsk =
-        context !== null &&
+    return (
         connectJourneyFlag.data?.enabled === true &&
         !isEmbedded &&
-        !!currentUser &&
-        isNameMissing(currentUser) &&
-        !hasSkippedNamePrompt(window.localStorage, currentUser.userUuid);
+        !!user.data &&
+        isNameMissing(user.data)
+    );
+};
+
+export const useNamePrompt = (trigger: NamePromptTrigger) => {
+    const context = useContext(NamePromptContext);
+    const isNameNeeded = useIsNameNeeded() && context !== null;
 
     const withName = useCallback(
-        (action: () => void) => {
-            if (!shouldAsk || !context) {
-                action();
+        (onSaved: () => void) => {
+            if (!isNameNeeded || !context) {
+                onSaved();
                 return;
             }
-            context.prompt(trigger, action);
+            context.prompt(trigger, onSaved);
         },
-        [context, shouldAsk, trigger],
+        [context, isNameNeeded, trigger],
     );
 
-    return { withName };
+    return { isNameNeeded, withName };
 };
+
+export const useIsNamePromptOpen = (): boolean =>
+    useContext(NamePromptContext)?.isPrompting ?? false;

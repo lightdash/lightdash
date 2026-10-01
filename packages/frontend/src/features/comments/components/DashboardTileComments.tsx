@@ -28,6 +28,7 @@ import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { useIsNamePromptOpen } from '../../namePrompt/useNamePrompt';
 import { useGetNotifications } from '../../notifications';
 import { useUpdateNotification } from '../../notifications/hooks/useNotifications';
 import { useCreateComment, useGetResolvedComments } from '../hooks/useComments';
@@ -56,6 +57,7 @@ export const DashboardTileComments: FC<
     const { track } = useTracking();
 
     const [openedComments, setOpenedComments] = useState(opened);
+    const isNamePromptOpen = useIsNamePromptOpen();
     const [showResolved, { toggle: toggleShowResolved }] = useDisclosure(false);
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
@@ -211,7 +213,7 @@ export const DashboardTileComments: FC<
             onClose={() => {
                 onClose?.();
             }}
-            closeOnClickOutside
+            closeOnClickOutside={!isNamePromptOpen}
             onChange={setOpenedComments}
         >
             <Popover.Dropdown
