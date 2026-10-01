@@ -25,7 +25,12 @@ export const RequestNewInvite: FC<{
     }
     return (
         <Stack gap="sm">
+            <Text>
+                Ask the person who invited you to send a new one. We email them
+                for you.
+            </Text>
             <Button
+                fullWidth
                 onClick={() => request.mutate()}
                 loading={request.isLoading}
                 disabled={request.isSuccess}
