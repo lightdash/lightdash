@@ -222,7 +222,7 @@ const Parameter: FC<Props> = ({
                     parameter={parameter}
                     value={value}
                     onParameterChange={onParameterChange}
-                    size="sm"
+                    size="xs"
                     projectUuid={projectUuid}
                     parameterValues={parameterValues}
                 />

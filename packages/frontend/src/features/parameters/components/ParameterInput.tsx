@@ -407,7 +407,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 const query = option.label.match(/^Add "(.+)"$/)?.[1] || '';
                 return (
                     <Box className={styles.createItem} miw={0} w="100%">
-                        <Group gap="xxs" c="blue" fz="sm" wrap="nowrap">
+                        <Group gap="xxs" c="blue" fz="inherit" wrap="nowrap">
                             <MantineIcon
                                 icon={IconPlus}
                                 color="blue"
