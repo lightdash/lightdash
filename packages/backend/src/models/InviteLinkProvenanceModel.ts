@@ -13,7 +13,6 @@ import { InviteLinkModel } from './InviteLinkModel';
 
 export type InviteLinkProvenance = DbInviteLinkProvenance & {
     organizationName: string;
-    inviterName: string | null;
     inviterEmail: string | null;
 };
 
@@ -69,19 +68,12 @@ export class InviteLinkProvenanceModel {
             .select(
                 `${InviteLinkProvenanceTableName}.*`,
                 'organizations.organization_name as organizationName',
-                'users.first_name',
-                'users.last_name',
                 'emails.email as inviterEmail',
             )
             .first();
         return row
             ? {
                   ...row,
-                  inviterName: row.inviter_user_uuid
-                      ? [row.first_name, row.last_name]
-                            .filter(Boolean)
-                            .join(' ') || null
-                      : null,
                   inviterEmail: row.inviterEmail ?? null,
               }
             : undefined;

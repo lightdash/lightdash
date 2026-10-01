@@ -60,24 +60,16 @@ export const InviteFailurePage: FC<{
                 {failure.isInitialLoading ? (
                     <PageSpinner />
                 ) : failure.data ? (
-                    <Stack gap="sm">
-                        {failure.data.organizationName && (
-                            <Text>
-                                This invite is for{' '}
-                                {failure.data.organizationName}.
-                            </Text>
-                        )}
-                        <RequestNewInvite
-                            inviteCode={inviteCode}
-                            failure={failure.data}
-                        />
-                    </Stack>
+                    <RequestNewInvite
+                        inviteCode={inviteCode}
+                        failure={failure.data}
+                    />
                 ) : (
                     <Callout variant="warning">
                         <Stack gap="sm">
                             <Text>
-                                We could not load the sender details. Ask the
-                                person who shared the link for a new invite.
+                                We could not load this invite. Ask the person
+                                who invited you for a new invite.
                             </Text>
                             <Button
                                 variant="default"

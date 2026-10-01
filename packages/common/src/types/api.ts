@@ -1339,9 +1339,6 @@ export enum InviteLinkFailureReason {
 
 export type InviteLinkFailure = {
     reason: InviteLinkFailureReason | null;
-    organizationName: string | null;
-    inviterName: string | null;
-    canSendEmail: boolean;
     canRequestNewInvite: boolean;
 };
 

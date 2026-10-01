@@ -74,9 +74,6 @@ export class InviteLinkFailureService extends BaseService {
         }
         return {
             reason,
-            organizationName: provenance?.organizationName ?? null,
-            inviterName: provenance?.inviterName ?? null,
-            canSendEmail: !!this.dependencies.lightdashConfig.smtp,
             canRequestNewInvite:
                 !!this.dependencies.lightdashConfig.smtp &&
                 !!provenance?.inviterEmail,

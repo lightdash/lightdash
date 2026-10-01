@@ -30,7 +30,6 @@ const record: InviteLinkProvenance = {
     expires_at: new Date(now.getTime() + dayMs),
     last_requested_at: null,
     organizationName: 'Example organization',
-    inviterName: 'Alex Smith',
     inviterEmail: 'alex@example.com',
 };
 
@@ -89,9 +88,6 @@ describe('invite failure lookup', () => {
         provenanceModel.findByCode.mockResolvedValue(undefined);
         expect(await createService().getFailure('unknown', null)).toEqual({
             reason: InviteLinkFailureReason.NotFound,
-            organizationName: null,
-            inviterName: null,
-            canSendEmail: true,
             canRequestNewInvite: false,
         });
         expect(featureFlagModel.get).toHaveBeenCalledWith({
@@ -99,12 +95,9 @@ describe('invite failure lookup', () => {
         });
     });
 
-    it('reports a used invite with provenance', async () => {
+    it('reports a used invite without naming the inviter or organization', async () => {
         expect(await createService().getFailure('used', null)).toEqual({
             reason: InviteLinkFailureReason.AlreadyUsed,
-            organizationName: record.organizationName,
-            inviterName: record.inviterName,
-            canSendEmail: true,
             canRequestNewInvite: true,
         });
         expect(analytics.track).not.toHaveBeenCalled();
@@ -134,18 +127,16 @@ describe('invite failure lookup', () => {
     it('has no request button without SMTP', async () => {
         expect(
             await createService(false).getFailure('used', null),
-        ).toMatchObject({ canSendEmail: false, canRequestNewInvite: false });
+        ).toMatchObject({ canRequestNewInvite: false });
     });
 
     it('handles a deleted inviter', async () => {
         provenanceModel.findByCode.mockResolvedValue({
             ...record,
-            inviterName: null,
             inviterEmail: null,
             inviter_user_uuid: null,
         });
         expect(await createService().getFailure('used', null)).toMatchObject({
-            inviterName: null,
             canRequestNewInvite: false,
         });
     });
