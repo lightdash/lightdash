@@ -1894,12 +1894,26 @@ export class ProjectService extends BaseService {
             return credentials;
         }
         const { upstreamProjectUuid } = preview;
-        const repair = await repairStalePreviewBigquerySso({
-            previewCredentials: credentials,
-            upstreamCredentials:
+        let upstreamCredentials: CreateWarehouseCredentials;
+        try {
+            upstreamCredentials =
                 await this.projectModel.getWarehouseCredentialsForProject(
                     upstreamProjectUuid,
-                ),
+                );
+        } catch (error) {
+            this.logger.warn(
+                'Could not load upstream credentials for a preview',
+                {
+                    projectUuid,
+                    upstreamProjectUuid,
+                    error: getErrorMessage(error),
+                },
+            );
+            return credentials;
+        }
+        const repair = await repairStalePreviewBigquerySso({
+            previewCredentials: credentials,
+            upstreamCredentials,
             checkRefreshToken: this.checkGoogleRefreshToken,
         });
         switch (repair.kind) {
