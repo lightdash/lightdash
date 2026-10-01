@@ -49,6 +49,7 @@ import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmail
 import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationDomainVerificationModel } from './OrganizationDomainVerificationModel';
 import { OrganizationEmailDomainModel } from './OrganizationEmailDomainModel';
+import { OrganizationJoinRequestModel } from './OrganizationJoinRequestModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationSettingsModel } from './OrganizationSettingsModel';
@@ -139,6 +140,7 @@ export type ModelManifest = {
     oauthModel: OAuth2Model;
     onboardingModel: OnboardingModel;
     projectSetupModel: ProjectSetupModel;
+    organizationJoinRequestModel: OrganizationJoinRequestModel;
     openIdIdentityModel: OpenIdIdentityModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationDesignModel: OrganizationDesignModel;
@@ -616,6 +618,13 @@ export class ModelRepository
         return this.getModel(
             'onboardingModel',
             () => new OnboardingModel({ database: this.database }),
+        );
+    }
+
+    public getOrganizationJoinRequestModel(): OrganizationJoinRequestModel {
+        return this.getModel(
+            'organizationJoinRequestModel',
+            () => new OrganizationJoinRequestModel({ database: this.database }),
         );
     }
 

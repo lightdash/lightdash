@@ -980,7 +980,11 @@ export class UserService extends BaseService {
         inviteCode: string | undefined,
         email: string,
     ) {
+        const { enabled: isConnectJourney } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.ConnectJourney,
+        });
         if (
+            !isConnectJourney &&
             inviteCode === undefined &&
             !this.lightdashConfig.allowMultiOrgs &&
             (await this.userModel.hasUsers()) &&

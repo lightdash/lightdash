@@ -182,6 +182,7 @@ const emailClient = {
 const organizationModel = {
     get: vi.fn(async () => organisation),
     getAllowedOrgsForDomain: vi.fn(async () => []),
+    hasOrgs: vi.fn(async () => true),
 };
 
 const projectModel = {
@@ -918,6 +919,34 @@ describe('UserService', () => {
                 enabled,
             })),
         });
+
+        test.each([
+            [false, true],
+            [true, false],
+        ])(
+            'with connect-journey %s, a single-org instance refuses a new user: %s',
+            async (isConnectJourney, refuses) => {
+                const service = createUserService(
+                    { ...lightdashConfigMock, allowMultiOrgs: false },
+                    {
+                        featureFlagModel:
+                            createFeatureFlagModel(isConnectJourney),
+                    },
+                );
+                if (!isConnectJourney) {
+                    userModel.hasUsers.mockResolvedValueOnce(true);
+                }
+                const check = service.checkNewUserRegistrationAllowed(
+                    undefined,
+                    'new@example.com',
+                );
+                if (refuses) {
+                    await expect(check).rejects.toThrow(ForbiddenError);
+                } else {
+                    await expect(check).resolves.toBeUndefined();
+                }
+            },
+        );
 
         test('rejects HTML in a user name before registration', async () => {
             await expect(

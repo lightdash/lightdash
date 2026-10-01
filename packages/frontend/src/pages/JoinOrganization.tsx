@@ -1,4 +1,4 @@
-import { getEmailDomain } from '@lightdash/common';
+import { FeatureFlags, getEmailDomain } from '@lightdash/common';
 import {
     Anchor,
     Avatar,
@@ -16,11 +16,13 @@ import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import { OrganizationLanding } from '../components/OrganizationLanding/OrganizationLanding';
 import PageSpinner from '../components/PageSpinner';
 import { useOrganizationCreateMutation } from '../hooks/organization/useOrganizationCreateMutation';
 import useAllowedOrganizations from '../hooks/user/useAllowedOrganizations';
 import { useJoinOrganizationMutation } from '../hooks/user/useJoinOrganizationMutation';
 import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import styles from './JoinOrganization.module.css';
 
@@ -175,4 +177,18 @@ const JoinOrganizationPage: FC = () => {
     );
 };
 
-export default JoinOrganizationPage;
+const JoinOrganization: FC = () => {
+    const connectJourneyFlag = useServerFeatureFlag(
+        FeatureFlags.ConnectJourney,
+    );
+    if (connectJourneyFlag.isLoading) {
+        return <PageSpinner />;
+    }
+    return connectJourneyFlag.data?.enabled ? (
+        <OrganizationLanding />
+    ) : (
+        <JoinOrganizationPage />
+    );
+};
+
+export default JoinOrganization;

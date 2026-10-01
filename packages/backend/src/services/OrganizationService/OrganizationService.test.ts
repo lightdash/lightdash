@@ -215,6 +215,23 @@ describe('organization service', () => {
         });
     });
 
+    it('records the creator and refuses an unnamed organization', async () => {
+        await organizationService.createAndJoinOrg(
+            { ...user, organizationUuid: undefined },
+            { name: '  Organization  ' },
+        );
+        expect(organizationModel.create).toHaveBeenCalledWith(
+            { name: 'Organization' },
+            user.userUuid,
+        );
+        await expect(
+            organizationService.createAndJoinOrg(
+                { ...user, organizationUuid: undefined },
+                { name: '   ' },
+            ),
+        ).rejects.toThrow('Enter a name for the new organization');
+    });
+
     it('groups the user with the created organization', async () => {
         await organizationService.createAndJoinOrg(
             { ...user, organizationUuid: undefined },

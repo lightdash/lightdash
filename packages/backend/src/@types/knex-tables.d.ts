@@ -232,6 +232,10 @@ import {
     OrganizationEmailDomainsTableName,
 } from '../database/entities/organizationEmailDomains';
 import {
+    OrganizationJoinRequestsTable,
+    OrganizationJoinRequestsTableName,
+} from '../database/entities/organizationJoinRequests';
+import {
     OrganizationMembershipCustomRolesTable,
     OrganizationMembershipCustomRolesTableName,
 } from '../database/entities/organizationMembershipCustomRoles';
@@ -757,6 +761,7 @@ declare module 'knex/types/tables' {
         [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
         [OnboardingTableName]: OnboardingTable;
         [ProjectSetupsTableName]: ProjectSetupsTable;
+        [OrganizationJoinRequestsTableName]: OrganizationJoinRequestsTable;
         [ProjectSetupStepsTableName]: ProjectSetupStepsTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;

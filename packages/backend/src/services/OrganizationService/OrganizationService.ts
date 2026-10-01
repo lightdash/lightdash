@@ -922,7 +922,17 @@ export class OrganizationService extends BaseService {
         if (isUserWithOrg(user)) {
             throw new ForbiddenError('User already has an organization');
         }
-        const org = await this.organizationModel.create(data);
+        const { enabled: isConnectJourney } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ConnectJourney,
+        });
+        if (isConnectJourney && !data.name.trim()) {
+            throw new ParameterError('Enter a name for the new organization');
+        }
+        const org = await this.organizationModel.create(
+            isConnectJourney ? { ...data, name: data.name.trim() } : data,
+            user.userUuid,
+        );
         const { enabled: newOnboardingEnabled } =
             await this.featureFlagModel.get({
                 user,
