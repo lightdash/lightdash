@@ -154,18 +154,10 @@ const VisualizationProvider: FC<
             }
         };
     }, [setEchartsRef]);
-    const [lastValidResultsData, setLastValidResultsData] = useState<
-        InfiniteQueryResults & {
-            metricQuery?: MetricQuery;
-            fields?: ItemsMap;
-            resolvedTimezone?: string;
-            fieldOrigins?: MergeFieldOrigins;
-        }
-    >();
 
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
-        unsavedMetricQuery ?? lastValidResultsData?.metricQuery,
+        unsavedMetricQuery ?? resultsData.metricQuery,
         onPivotDimensionsChange,
     );
 
@@ -210,11 +202,6 @@ const VisualizationProvider: FC<
         },
         [onChartConfigChange, chartConfig?.config],
     );
-
-    useEffect(() => {
-        if (!resultsData) return;
-        setLastValidResultsData(resultsData);
-    }, [resultsData]);
 
     const { data: calculateSeriesColorFlag } = useServerFeatureFlag(
         FeatureFlags.CalculateSeriesColor,
@@ -286,7 +273,7 @@ const VisualizationProvider: FC<
         pivotDimensions: validPivotDimensions,
         chartRef,
         leafletMapRef,
-        resultsData: lastValidResultsData,
+        resultsData,
         isLoading,
         apiErrorDetail,
         columnOrder: defaultColumnOrder,
@@ -310,7 +297,7 @@ const VisualizationProvider: FC<
         embeddedDashboardInteractivity,
         hasExplorerStore,
         isTouchDevice,
-        resolvedTimezone: lastValidResultsData?.resolvedTimezone,
+        resolvedTimezone: resultsData.resolvedTimezone,
         dateZoom,
     };
 
@@ -319,7 +306,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationCartesianConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     validPivotDimensions={validPivotDimensions}
                     columnOrder={defaultColumnOrder}
                     initialChartConfig={chartConfig.config}
@@ -345,7 +332,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationPieConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
@@ -366,7 +353,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationConfigFunnel
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
@@ -386,7 +373,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationBigNumberConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     tableCalculationsMetadata={tableCalculationsMetadata}
@@ -405,7 +392,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationTreemapConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     parameters={parameters}
@@ -423,7 +410,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationGaugeConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     parameters={parameters}
@@ -441,7 +428,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationMapConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     parameters={parameters}
@@ -459,7 +446,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationTableConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     columnOrder={defaultColumnOrder}
                     validPivotDimensions={validPivotDimensions}
                     initialPivotRows={initialPivotRows}
@@ -484,7 +471,7 @@ const VisualizationProvider: FC<
         case ChartType.CUSTOM:
             return (
                 <VisualizationCustomConfig
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     itemsMap={itemsMap}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
@@ -502,7 +489,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationConfigSankey
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
@@ -522,7 +509,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationDataAppVizConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={resultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                 >

@@ -1,6 +1,7 @@
 import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import LoadingChart from '../../../../../components/common/LoadingChart';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
@@ -18,8 +19,18 @@ const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
         projectUuid,
     });
 
+    const containerStyle: React.CSSProperties = containerStyles ?? {
+        height: '100vh',
+        overflowY: 'auto',
+        margin: '16px',
+    };
+
     if (isInitialLoading) {
-        return null;
+        return (
+            <div style={containerStyle}>
+                <LoadingChart />
+            </div>
+        );
     }
 
     if (isError) {
@@ -47,15 +58,7 @@ const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
     }
 
     return (
-        <div
-            style={
-                containerStyles ?? {
-                    height: '100vh',
-                    overflowY: 'auto',
-                    margin: '16px',
-                }
-            }
-        >
+        <div style={containerStyle}>
             <MinimalSavedExplorer savedQueryUuid={savedQueryUuid} />
         </div>
     );
