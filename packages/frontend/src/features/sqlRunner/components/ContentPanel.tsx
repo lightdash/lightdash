@@ -7,6 +7,7 @@ import {
     type VizTableConfig,
     type VizTableHeaderSortConfig,
     formatSql,
+    type ApiErrorDetail,
 } from '@lightdash/common';
 import {
     Box,
@@ -28,6 +29,7 @@ import {
     type SplitterPaneSize,
 } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import type { SerializedError } from '@reduxjs/toolkit';
 import {
     IconAlertCircle,
     IconChartHistogram,
@@ -87,6 +89,34 @@ import { SqlQueryHistory } from './SqlQueryHistory';
 import { SqlRunnerChart } from './SqlRunnerChart';
 import { SqlRunnerEditor } from './SqlRunnerEditor';
 
+const isPreviewWarehouseSignInExpiredError = (
+    error: ApiErrorDetail | SerializedError | Error,
+): error is ApiErrorDetail =>
+    'statusCode' in error &&
+    'data' in error &&
+    error.name === 'PreviewWarehouseSignInExpiredError';
+
+const useQueryErrorToast = (
+    queryError: ApiErrorDetail | SerializedError | Error | undefined,
+) => {
+    const { showToastError, showToastApiError } = useToaster();
+    useEffect(() => {
+        if (queryError && isPreviewWarehouseSignInExpiredError(queryError)) {
+            showToastApiError({
+                title: 'Could not fetch SQL query results',
+                apiError: queryError,
+            });
+        } else if (queryError) {
+            showToastError({
+                title: 'Could not fetch SQL query results',
+                subtitle: queryError.message,
+            });
+        } else {
+            notifications.clean();
+        }
+    }, [queryError, showToastError, showToastApiError]);
+};
+
 export const ContentPanel: FC = () => {
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
@@ -117,8 +147,6 @@ export const ContentPanel: FC = () => {
     const chartColors =
         savedSqlChart?.resolvedColorPalette.colors ?? organization?.chartColors;
     const { health } = useApp();
-
-    const { showToastError } = useToaster();
 
     // State tracked by this component
     const [panelSizes, setPanelSizes] = useState<SplitterPaneSize[]>([60, 40]);
@@ -205,16 +233,7 @@ export const ContentPanel: FC = () => {
         ],
     );
 
-    useEffect(() => {
-        if (queryError) {
-            showToastError({
-                title: 'Could not fetch SQL query results',
-                subtitle: queryError.message,
-            });
-        } else {
-            notifications.clean();
-        }
-    }, [queryError, showToastError]);
+    useQueryErrorToast(queryError);
 
     const handleFormatSql = useCallback(() => {
         if (!sql) return;
