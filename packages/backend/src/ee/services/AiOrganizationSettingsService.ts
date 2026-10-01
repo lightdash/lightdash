@@ -284,8 +284,12 @@ export class AiOrganizationSettingsService extends BaseService {
         effectiveModelVisibility: AiOrgModelVisibility | null;
         bedrockModelOptions: AiModelOption[];
     }> {
+        // Display-only: this read path must survive an unreadable credential,
+        // because the screen it renders is where that credential is replaced.
         const [copilotConfig, overrides] = await Promise.all([
-            this.orgAiCopilotConfigResolver.getCopilotConfig(organizationUuid),
+            this.orgAiCopilotConfigResolver.getCopilotConfigForDisplay(
+                organizationUuid,
+            ),
             this.orgAiCopilotConfigResolver.getOrgModelOverrides(
                 organizationUuid,
             ),

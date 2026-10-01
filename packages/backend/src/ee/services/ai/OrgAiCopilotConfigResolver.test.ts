@@ -1,11 +1,17 @@
-import type {
-    AiOrganizationSettings,
-    AiOrgModelVisibility,
+import {
+    MissingConfigError,
+    type AiOrganizationSettings,
+    type AiOrgModelVisibility,
 } from '@lightdash/common';
 import { vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
+import {
+    AiOrganizationProviderCredentialModel,
+    DecryptedAiProviderCredential,
+    type AiProviderCredentialResolution,
+} from '../../models/AiOrganizationProviderCredentialModel';
 import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
@@ -326,9 +332,22 @@ describe('resolveEffectiveModelVisibility', () => {
     });
 });
 
+/** Builds the resolution a credential lookup returns for a test's setup. */
+const resolutionFor = (
+    credential: DecryptedAiProviderCredential | null,
+    unreadable: { uuid: string; label: string } | null,
+): AiProviderCredentialResolution => {
+    if (unreadable) return { status: 'unreadable', ...unreadable };
+    if (credential) return { status: 'ok', credential };
+    return { status: 'none' };
+};
+
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
         orgKeys?: AiOrgProviderApiKeys | null;
+        defaultCredential?: DecryptedAiProviderCredential | null;
+        /** Overrides defaultCredential; models a row that cannot be decrypted. */
+        unreadableDefault?: { uuid: string; label: string } | null;
         modelVisibility?: AiOrgModelVisibility | null;
         accessibleModelIds?: string[] | null;
         instanceConfig?: CopilotConfig;
@@ -336,6 +355,8 @@ describe('OrgAiCopilotConfigResolver', () => {
 
     const makeResolver = ({
         orgKeys = { openai: 'org-openai-key' },
+        defaultCredential = null,
+        unreadableDefault = null,
         modelVisibility = null,
         accessibleModelIds = null,
         instanceConfig = baseConfig,
@@ -355,6 +376,16 @@ describe('OrgAiCopilotConfigResolver', () => {
                 AiOrganizationSettingsModel,
                 'findDecryptedProviderApiKeys' | 'findByOrganizationUuid'
             > as AiOrganizationSettingsModel,
+            aiOrganizationProviderCredentialModel: {
+                findDefaultDecrypted: vi
+                    .fn()
+                    .mockResolvedValue(
+                        resolutionFor(defaultCredential, unreadableDefault),
+                    ),
+            } as Pick<
+                AiOrganizationProviderCredentialModel,
+                'findDefaultDecrypted'
+            > as AiOrganizationProviderCredentialModel,
             aiModelCatalog: {
                 getAccessibleModelIds: vi
                     .fn()
@@ -368,6 +399,200 @@ describe('OrgAiCopilotConfigResolver', () => {
     it('overlays org keys onto the instance config', async () => {
         const result = await makeResolver().getCopilotConfig('org-uuid');
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    });
+
+    describe('named provider credentials', () => {
+        const bedrockApiKey = (config: CopilotConfig): string | undefined => {
+            const { bedrock } = config.providers;
+            return bedrock && 'apiKey' in bedrock ? bedrock.apiKey : undefined;
+        };
+
+        const credential = (
+            overrides: Partial<DecryptedAiProviderCredential> = {},
+        ): DecryptedAiProviderCredential => ({
+            uuid: 'cred-tokyo',
+            organizationUuid: 'org-uuid',
+            provider: 'bedrock',
+            label: 'Japan (Tokyo)',
+            isDefault: true,
+            config: {
+                apiKey: 'cred-bedrock-key',
+                region: 'ap-northeast-1',
+                allowedModels: ['claude-sonnet-4-5'],
+            },
+            ...overrides,
+        });
+
+        it('serves the default credential when the org has no legacy keys', async () => {
+            const result = await makeResolver({
+                orgKeys: null,
+                defaultCredential: credential(),
+            }).getCopilotConfig('org-uuid');
+
+            expect(result.defaultProvider).toBe('bedrock');
+            expect(bedrockApiKey(result)).toBe('cred-bedrock-key');
+            expect(result.providers.bedrock?.region).toBe('ap-northeast-1');
+        });
+
+        // The whole point of migrating to credentials: the old single-blob
+        // region must stop being used once a credential is the default.
+        it('wins over a legacy Bedrock blob', async () => {
+            const result = await makeResolver({
+                orgKeys: {
+                    bedrock: {
+                        apiKey: 'legacy-bedrock-key',
+                        region: 'us-east-1',
+                        allowedModels: ['claude-sonnet-4-5'],
+                    },
+                },
+                defaultCredential: credential(),
+            }).getCopilotConfig('org-uuid');
+
+            expect(result.providers.bedrock?.region).toBe('ap-northeast-1');
+            expect(bedrockApiKey(result)).toBe('cred-bedrock-key');
+        });
+
+        it('falls back to the legacy blob when no credential is default', async () => {
+            const result = await makeResolver({
+                orgKeys: {
+                    bedrock: {
+                        apiKey: 'legacy-bedrock-key',
+                        region: 'us-east-1',
+                        allowedModels: ['claude-sonnet-4-5'],
+                    },
+                },
+                defaultCredential: null,
+            }).getCopilotConfig('org-uuid');
+
+            expect(result.providers.bedrock?.region).toBe('us-east-1');
+            expect(bedrockApiKey(result)).toBe('legacy-bedrock-key');
+        });
+
+        it('keeps the other BYO providers from the legacy blob', async () => {
+            const result = await makeResolver({
+                orgKeys: { anthropic: 'org-anthropic-key' },
+                defaultCredential: credential(),
+                instanceConfig: bothProvidersConfig,
+            }).getCopilotConfig('org-uuid');
+
+            // Bedrock replaces the provider set outright, so a pinned agent
+            // cannot send prompts outside the credential's region.
+            expect(Object.keys(result.providers)).toEqual(['bedrock']);
+            expect(result.byoProviders).toEqual(['bedrock']);
+        });
+
+        it('pins the jp inference profile for a Tokyo credential', async () => {
+            const result = await makeResolver({
+                orgKeys: null,
+                defaultCredential: credential(),
+            }).getCopilotConfig('org-uuid');
+
+            expect(result.providers.bedrock?.inferenceProfilePrefix).toBe('jp');
+        });
+
+        // The whole point of the resolution type: an unreadable credential must
+        // not degrade to the legacy key or the instance provider, because both
+        // can be a different region than the one the org pinned.
+        it('fails the request when the default credential cannot be decrypted', async () => {
+            await expect(
+                makeResolver({
+                    orgKeys: null,
+                    unreadableDefault: {
+                        uuid: 'cred-tokyo',
+                        label: 'Japan (Tokyo)',
+                    },
+                }).getCopilotConfig('org-uuid'),
+            ).rejects.toThrow(MissingConfigError);
+        });
+
+        it('does not fall back to a legacy Bedrock blob when the credential is unreadable', async () => {
+            await expect(
+                makeResolver({
+                    orgKeys: {
+                        bedrock: {
+                            apiKey: 'legacy-bedrock-key',
+                            region: 'us-east-1',
+                            allowedModels: ['claude-sonnet-4-5'],
+                        },
+                    },
+                    unreadableDefault: {
+                        uuid: 'cred-tokyo',
+                        label: 'Japan (Tokyo)',
+                    },
+                }).getCopilotConfig('org-uuid'),
+            ).rejects.toThrow(/cannot be read/);
+        });
+
+        // The repair screen must load while the credential is broken, or the
+        // fix sits behind the fault. Display tolerates; execution does not.
+        it('still resolves a display config when the default is unreadable', async () => {
+            const result = await makeResolver({
+                orgKeys: null,
+                unreadableDefault: {
+                    uuid: 'cred-tokyo',
+                    label: 'Japan (Tokyo)',
+                },
+            }).getCopilotConfigForDisplay('org-uuid');
+
+            expect(result.providers.openai?.apiKey).toBe('instance-openai-key');
+            expect(result.byoProviders).toEqual([]);
+        });
+
+        it('shows the legacy keys for display rather than the broken credential', async () => {
+            const result = await makeResolver({
+                orgKeys: { openai: 'org-openai-key' },
+                unreadableDefault: {
+                    uuid: 'cred-tokyo',
+                    label: 'Japan (Tokyo)',
+                },
+            }).getCopilotConfigForDisplay('org-uuid');
+
+            expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+        });
+
+        it('lists model options for an org whose default is unreadable', async () => {
+            const overrides = await makeResolver({
+                orgKeys: null,
+                unreadableDefault: {
+                    uuid: 'cred-tokyo',
+                    label: 'Japan (Tokyo)',
+                },
+            }).getOrgModelOverrides('org-uuid');
+
+            expect(overrides).toEqual({
+                modelVisibility: null,
+                keyAccessibleModelIds: null,
+            });
+        });
+
+        it('names the credential so an admin knows which key to replace', async () => {
+            await expect(
+                makeResolver({
+                    orgKeys: null,
+                    unreadableDefault: {
+                        uuid: 'cred-tokyo',
+                        label: 'Japan (Tokyo)',
+                    },
+                }).getCopilotConfig('org-uuid'),
+            ).rejects.toThrow(/Japan \(Tokyo\)/);
+        });
+
+        it('leaves the region-derived profile for a non-Japan credential', async () => {
+            const result = await makeResolver({
+                orgKeys: null,
+                defaultCredential: credential({
+                    config: {
+                        apiKey: 'cred-bedrock-key',
+                        region: 'us-east-1',
+                        allowedModels: ['claude-sonnet-4-5'],
+                    },
+                }),
+            }).getCopilotConfig('org-uuid');
+
+            expect(
+                result.providers.bedrock?.inferenceProfilePrefix,
+            ).toBeUndefined();
+        });
     });
 
     it('uses configured Anthropic models without probing a gateway catalog', async () => {
