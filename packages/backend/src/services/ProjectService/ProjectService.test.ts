@@ -12538,6 +12538,28 @@ describe('preview BigQuery SSO credentials', () => {
         expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
     });
 
+    test('save and test on the parent pushes the new token too', async () => {
+        Object.assign(service, {
+            schedulerClient: {
+                testAndCompileProject: vi.fn(async () => undefined),
+            },
+        });
+
+        await service.updateAndScheduleAsyncWork(
+            upstreamProjectUuid,
+            account,
+            {
+                name: 'Production',
+                dbtConnection: { type: DbtProjectType.NONE },
+                dbtVersion: DefaultSupportedDbtVersion,
+                warehouseConnection: bigquerySso('token-b'),
+            },
+            RequestMethod.WEB_APP,
+        );
+
+        expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe('token-b');
+    });
+
     test('a preview with its own different credential is untouched', async () => {
         stored.set(previewProjectUuid, bigquerySso('own-token'));
 

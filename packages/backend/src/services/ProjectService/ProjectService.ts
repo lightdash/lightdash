@@ -1897,8 +1897,9 @@ export class ProjectService extends BaseService {
         let upstreamCredentials: CreateWarehouseCredentials;
         try {
             upstreamCredentials =
-                await this.projectModel.getWarehouseCredentialsForProject(
+                await this.projectModel.getWarehouseCredentialsForBinding(
                     upstreamProjectUuid,
+                    { kind: 'original' },
                 );
         } catch (error) {
             this.logger.warn(
