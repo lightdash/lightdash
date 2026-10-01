@@ -15799,6 +15799,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                canViewDebugInfo: { dataType: 'boolean' },
                 canExplore: { dataType: 'boolean' },
                 agentUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string' },
