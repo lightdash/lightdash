@@ -7,6 +7,7 @@ import { LightdashUserAvatar } from '../../../components/Avatar';
 import { useSearchSpaceAccess } from '../../../hooks/useSpaceAccess';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { useNamePrompt } from '../../namePrompt/useNamePrompt';
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
 import styles from './CommentForm.module.css';
@@ -68,15 +69,19 @@ export const CommentForm: FC<Props> = ({
         },
     });
 
-    const handleSubmit = commentForm.onSubmit(async () => {
-        if (editor === null || editor.getText().trim() === '') return;
+    const namePrompt = useNamePrompt('comment');
 
-        await onSubmit(
-            editor.getText(),
-            editor.getHTML(),
-            parseMentions(editor.getJSON()),
-        );
-        setShouldClearEditor(true);
+    const handleSubmit = commentForm.onSubmit(() => {
+        if (editor === null || editor.getText().trim() === '') return;
+        const text = editor.getText();
+        const html = editor.getHTML();
+        const mentions = parseMentions(editor.getJSON());
+
+        namePrompt.withName(() => {
+            void onSubmit(text, html, mentions).then(() =>
+                setShouldClearEditor(true),
+            );
+        });
     });
 
     return (

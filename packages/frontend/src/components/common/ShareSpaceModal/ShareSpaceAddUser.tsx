@@ -28,6 +28,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useNamePrompt } from '../../../features/namePrompt/useNamePrompt';
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
@@ -501,6 +502,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         [groupUuidsSet],
     );
 
+    const namePrompt = useNamePrompt('share_space');
+
     const handleShare = useCallback(async () => {
         if (isSpaceAccessLoading || isSpaceAccessError) return;
 
@@ -569,7 +572,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     isSpaceAccessLoading ||
                     isSpaceAccessError
                 }
-                onClick={handleShare}
+                onClick={() => namePrompt.withName(() => void handleShare())}
             >
                 Share
             </Button>
