@@ -301,8 +301,8 @@ function registerPivotQueryTests(
             metricOverrides: {},
         };
 
-        // customers_customer_id is numeric; warehouses that restrict PARTITION
-        // BY types (e.g. BigQuery FLOAT64) must still pivot on it.
+        // Existing fixtures only pivot on boolean/date columns; cover a
+        // numeric group-by column so PARTITION BY type restrictions surface.
         const pivotConfiguration = {
             indexColumn: {
                 reference: 'orders_is_completed',
