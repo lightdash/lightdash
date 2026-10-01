@@ -1,3 +1,10 @@
+## [2.405.9](https://github.com/lightdash/lightdash/compare/2.405.8...2.405.9) (2026-10-01)
+
+
+### Bug Fixes
+
+* **frontend:** link the SQL runner's preview sign-in error to the parent ([#30342](https://github.com/lightdash/lightdash/issues/30342)) ([34e3c29](https://github.com/lightdash/lightdash/commit/34e3c299251e9fc9bc6724944b2497ab90195fab))
+
 ## [2.405.8](https://github.com/lightdash/lightdash/compare/2.405.7...2.405.8) (2026-10-01)
 
 
