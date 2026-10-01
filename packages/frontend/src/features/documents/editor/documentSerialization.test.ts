@@ -1,16 +1,25 @@
-import { ChartType, type DocumentCell } from '@lightdash/common';
+import {
+    ChartType,
+    fromDocumentChartBlocks,
+    getDocumentChartBlocks,
+    type DocumentChartBlock,
+} from '@lightdash/common';
 import { Editor } from '@tiptap/core';
 import { GapCursor } from '@tiptap/pm/gapcursor';
 import { TextSelection } from '@tiptap/pm/state';
-import { getDocumentCells, getTopLevelInsertPosition } from './documentCells';
 import { DOCUMENT_CHART_NODE } from './documentChartNode';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
+import {
+    getDocumentContent,
+    getTopLevelInsertPosition,
+} from './documentSerialization';
 import { moveTopLevelNode } from './moveTopLevelNode';
 
-const chart = (name: string): DocumentCell => ({
+const chart = (name: string, id = 'c1'): DocumentChartBlock => ({
     type: 'chart',
-    content: {
+    id,
+    chart: {
         source: 'semantic',
         chart: {
             name,
@@ -30,58 +39,74 @@ const chart = (name: string): DocumentCell => ({
     },
 });
 
-const markdown = (text: string): DocumentCell => ({
+const markdown = (text: string): DocumentChartBlock => ({
     type: 'markdown',
-    content: { markdown: text },
+    markdown: text,
 });
 
-const load = (cells: DocumentCell[]) => {
+const chartContent = (block: DocumentChartBlock) => {
+    if (block.type !== 'chart') throw new Error('Not a chart block');
+    return block.chart;
+};
+
+/** The saved content of the editor, read back as blocks in reading order. */
+const getBlocks = (editor: Editor) =>
+    getDocumentChartBlocks(getDocumentContent(editor));
+
+const load = (blocks: DocumentChartBlock[]) => {
     const editor = new Editor({
         extensions: createDocumentEditorExtensions({
             projectUuid: 'project',
             editing: { onInsertChart: null, onEditChart: null },
         }),
     });
-    editor.commands.setContent(buildDocumentContent(editor, cells), {
-        emitUpdate: false,
-    });
+    editor.commands.setContent(
+        buildDocumentContent(editor, fromDocumentChartBlocks(blocks)),
+        {
+            emitUpdate: false,
+        },
+    );
     return editor;
 };
 
-describe('getDocumentCells', () => {
-    it('round-trips markdown and chart cells in order', () => {
+describe('getDocumentContent', () => {
+    it('round-trips markdown and charts in order', () => {
         const cells = [
             markdown('# Findings\n\nSome **bold** text.\n\n- one\n- two'),
             chart('Orders'),
             markdown(
                 '## Detail\n\n| Status | Orders |\n| --- | --- |\n| completed | 97 |',
             ),
-            chart('Returns'),
+            chart('Returns', 'c2'),
         ];
         const editor = load(cells);
-        expect(getDocumentCells(editor)).toStrictEqual(cells);
+        expect(getBlocks(editor)).toStrictEqual(cells);
         editor.destroy();
     });
 
-    it('merges adjacent markdown cells and drops empty trailing paragraphs', () => {
+    it('merges adjacent markdown and drops empty trailing paragraphs', () => {
         const editor = load([markdown('Intro'), markdown('# Findings')]);
         editor.commands.insertContentAt(editor.state.doc.content.size, {
             type: 'paragraph',
         });
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             markdown('Intro\n\n# Findings'),
         ]);
         editor.destroy();
     });
 
-    it('serialises an inserted chart node with its content and no markdown', () => {
+    it('serialises an inserted chart node under a temporary key', () => {
         const editor = load([markdown('Before'), markdown('After')]);
-        const inserted = chart('Inserted');
+        const inserted = chart('Inserted', 'new-1');
         editor.commands.insertContentAt(editor.state.doc.firstChild!.nodeSize, {
             type: DOCUMENT_CHART_NODE,
-            attrs: { content: inserted.content, sourceIndex: null },
+            attrs: {
+                content: chartContent(inserted),
+                chartId: null,
+                isSaved: false,
+            },
         });
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             markdown('Before'),
             inserted,
             markdown('After'),
@@ -96,18 +121,58 @@ describe('getDocumentCells', () => {
         'Price is $5 and 100% and a # not heading',
     ])('keeps %s stable across a second round-trip', (text) => {
         const first = load([markdown(text)]);
-        const once = getDocumentCells(first);
+        const once = getBlocks(first);
         first.destroy();
         const second = load(once);
-        const twice = getDocumentCells(second);
+        const twice = getBlocks(second);
         second.destroy();
         expect(twice).toStrictEqual(once);
         expect(second.state.doc.textContent).toBe(first.state.doc.textContent);
     });
 
-    it('returns no cells for an empty document', () => {
+    it('returns no blocks for an empty document', () => {
         const editor = load([]);
-        expect(getDocumentCells(editor)).toStrictEqual([]);
+        expect(getBlocks(editor)).toStrictEqual([]);
+        expect(getDocumentContent(editor)).toStrictEqual({
+            markdown: '',
+            charts: {},
+        });
+        editor.destroy();
+    });
+
+    it('keeps the chart id of a chart edited in place', () => {
+        const editor = load([markdown('Intro'), chart('Orders', 'c3')]);
+        let position = -1;
+        editor.state.doc.forEach((node, offset) => {
+            if (node.type.name === DOCUMENT_CHART_NODE) position = offset;
+        });
+        const edited = chart('Edited orders', 'c3');
+        editor.view.dispatch(
+            editor.state.tr.setNodeMarkup(position, undefined, {
+                content: chartContent(edited),
+                chartId: 'c3',
+                isSaved: false,
+            }),
+        );
+        expect(getBlocks(editor)).toStrictEqual([markdown('Intro'), edited]);
+        editor.destroy();
+    });
+
+    it('gives a duplicated chart id a temporary key', () => {
+        const orders = chart('Orders', 'c3');
+        const editor = load([orders]);
+        editor.commands.insertContentAt(editor.state.doc.content.size, {
+            type: DOCUMENT_CHART_NODE,
+            attrs: {
+                content: chartContent(orders),
+                chartId: 'c3',
+                isSaved: true,
+            },
+        });
+        expect(getBlocks(editor)).toStrictEqual([
+            orders,
+            { ...orders, id: 'new-1' },
+        ]);
         editor.destroy();
     });
 });
@@ -127,7 +192,7 @@ describe('writing around charts', () => {
         const first = chart('First');
         const editor = load([first, markdown('After')]);
         typeAt(editor, 0, 'Intro');
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             markdown('Intro'),
             first,
             markdown('After'),
@@ -137,10 +202,10 @@ describe('writing around charts', () => {
 
     it('writes between two adjacent charts', () => {
         const first = chart('First');
-        const second = chart('Second');
+        const second = chart('Second', 'c2');
         const editor = load([first, second]);
         typeAt(editor, editor.state.doc.firstChild!.nodeSize, 'Between');
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             first,
             markdown('Between'),
             second,
@@ -155,7 +220,7 @@ describe('writing around charts', () => {
         const end = editor.state.doc.content.size - 1;
         editor.commands.setTextSelection(end);
         editor.commands.insertContent('After');
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             markdown('Before'),
             last,
             markdown('After'),
@@ -186,30 +251,34 @@ describe('moving charts', () => {
         editor.view.dispatch(tr);
     };
 
-    it('reorders cells and keeps the saved cell index so the chart keeps its query', () => {
+    it('reorders blocks and keeps the chart id so the chart keeps its query', () => {
         const orders = chart('Orders');
         const editor = load([markdown('# Intro'), orders, markdown('Outro')]);
         moveTopLevel(editor, 1, 2);
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             markdown('# Intro\n\nOutro'),
             orders,
         ]);
-        let movedIndex: unknown = null;
+        let movedId: unknown = null;
         editor.state.doc.forEach((node) => {
             if (node.type.name === 'documentChart') {
-                movedIndex = node.attrs.sourceIndex;
+                movedId = node.attrs.chartId;
             }
         });
-        expect(movedIndex).toBe(1);
+        expect(movedId).toBe('c1');
         editor.destroy();
     });
 
     it('serialises identically after a move back to the start position', () => {
-        const cells = [markdown('# Intro'), chart('Orders'), markdown('Outro')];
-        const editor = load(cells);
+        const blocks = [
+            markdown('# Intro'),
+            chart('Orders'),
+            markdown('Outro'),
+        ];
+        const editor = load(blocks);
         moveTopLevel(editor, 1, 2);
         moveTopLevel(editor, 2, 1);
-        expect(getDocumentCells(editor)).toStrictEqual(cells);
+        expect(getBlocks(editor)).toStrictEqual(blocks);
         editor.destroy();
     });
 });
@@ -232,7 +301,7 @@ describe('moving charts with the keyboard', () => {
             -1,
         );
         editor.view.dispatch(up!.tr);
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             markdown('# Intro'),
             orders,
             markdown('Body'),
@@ -243,7 +312,7 @@ describe('moving charts with the keyboard', () => {
         ).toBe(DOCUMENT_CHART_NODE);
         const down = moveTopLevelNode(editor.state, up!.position, 1);
         editor.view.dispatch(down!.tr);
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             markdown('# Intro\n\nBody'),
             orders,
         ]);
@@ -268,10 +337,10 @@ describe('moving charts with the keyboard', () => {
 
     it('swaps two adjacent charts', () => {
         const first = chart('First');
-        const second = chart('Second');
+        const second = chart('Second', 'c2');
         const editor = load([first, second]);
         editor.view.dispatch(moveTopLevelNode(editor.state, 0, 1)!.tr);
-        expect(getDocumentCells(editor)).toStrictEqual([second, first]);
+        expect(getBlocks(editor)).toStrictEqual([second, first]);
         editor.destroy();
     });
 
@@ -289,7 +358,7 @@ describe('moving charts with the keyboard', () => {
                 bubbles: true,
             }),
         );
-        expect(getDocumentCells(editor)[0]).toStrictEqual(orders);
+        expect(getBlocks(editor)[0]).toStrictEqual(orders);
         editor.destroy();
     });
 });
@@ -320,7 +389,11 @@ describe('top-level charts', () => {
         const inList = 4;
         editor.commands.insertContentAt(inList, {
             type: 'documentChart',
-            attrs: { content: chart('Orders').content, sourceIndex: null },
+            attrs: {
+                content: chartContent(chart('Orders')),
+                chartId: null,
+                isSaved: false,
+            },
         });
         let nested = false;
         editor.state.doc.forEach((top) =>
@@ -363,7 +436,7 @@ describe('markdown tables', () => {
 
     it('keeps column alignment across a save', () => {
         const editor = load([markdown(table)]);
-        expect(getDocumentCells(editor)).toStrictEqual([markdown(table)]);
+        expect(getBlocks(editor)).toStrictEqual([markdown(table)]);
         editor.destroy();
     });
 
@@ -372,7 +445,7 @@ describe('markdown tables', () => {
         caretAfter(editor, 'completed');
         editor.commands.keyboardShortcut('Enter');
         editor.commands.insertContent('late');
-        expect(getDocumentCells(editor)).toStrictEqual([
+        expect(getBlocks(editor)).toStrictEqual([
             markdown(
                 '| Status | Orders | Note |\n| :--- | ---: | :---: |\n| completed late | 97 | ok |',
             ),
@@ -385,8 +458,8 @@ describe('markdown tables', () => {
         caretAfter(editor, 'ok');
         editor.commands.setHardBreak();
         editor.commands.insertContent('checked');
-        const [cell] = getDocumentCells(editor);
-        expect(cell).toStrictEqual(
+        const [block] = getBlocks(editor);
+        expect(block).toStrictEqual(
             markdown(
                 '| Status | Orders | Note |\n| :--- | ---: | :---: |\n| completed | 97 | ok checked |',
             ),
@@ -399,9 +472,9 @@ describe('markdown tables', () => {
         caretAfter(editor, 'ok');
         editor.commands.keyboardShortcut('Enter');
         editor.commands.insertContent('- first');
-        const [cell] = getDocumentCells(editor);
-        expect(cell.type).toBe('markdown');
-        const text = cell.type === 'markdown' ? cell.content.markdown : '';
+        const [block] = getBlocks(editor);
+        expect(block.type).toBe('markdown');
+        const text = block.type === 'markdown' ? block.markdown : '';
         expect(text).not.toContain('[table]');
         expect(text).toContain('| completed | 97 | ok first |');
         editor.destroy();
@@ -411,7 +484,7 @@ describe('markdown tables', () => {
         const editor = load([markdown('| A | B |\n| --- | --- |\n| x |  |')]);
         caretAfter(editor, 'x');
         editor.commands.insertContent('|y');
-        const reloaded = load(getDocumentCells(editor));
+        const reloaded = load(getBlocks(editor));
         const cells: string[] = [];
         reloaded.state.doc.descendants((node) => {
             if (node.type.name === 'tableCell') cells.push(node.textContent);
@@ -419,5 +492,39 @@ describe('markdown tables', () => {
         expect(cells).toStrictEqual(['x|y', '']);
         editor.destroy();
         reloaded.destroy();
+    });
+});
+
+describe('getDocumentContent tag-like text', () => {
+    test('keeps a typed chart tag as text across saves', () => {
+        const editor = load([markdown('Intro')]);
+        editor.commands.setContent({
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'text', text: '<document-chart id="c1">' },
+                    ],
+                },
+                {
+                    type: 'codeBlock',
+                    content: [
+                        { type: 'text', text: '<document-chart id="c2">' },
+                    ],
+                },
+            ],
+        });
+        const saved = getDocumentContent(editor);
+        expect(saved.charts).toEqual({});
+        expect(getDocumentChartBlocks(saved)).toEqual([
+            {
+                type: 'markdown',
+                markdown:
+                    '&lt;document-chart id="c1"&gt;\n\n```\n<document-chart id="c2">\n```',
+            },
+        ]);
+        const reloaded = load(getDocumentChartBlocks(saved));
+        expect(getDocumentContent(reloaded)).toEqual(saved);
     });
 });

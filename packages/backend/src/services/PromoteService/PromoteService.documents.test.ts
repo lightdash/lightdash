@@ -7,7 +7,7 @@ import {
     OrganizationMemberRole,
     PromotionAction,
     type Document,
-    type DocumentCell,
+    type DocumentChartContent,
     type DocumentContent,
     type RegisteredAccount,
     type SpaceSummaryBase,
@@ -25,37 +25,39 @@ const upstreamSpaceUuid = 'upstream-space';
 const sourceAppUuid = 'preview-chart-type';
 const upstreamAppUuid = 'upstream-chart-type';
 
-const markdown = (text: string): DocumentCell => ({
-    type: 'markdown',
-    content: { markdown: text },
+const markdown = (text: string): DocumentContent => ({
+    markdown: text,
+    charts: {},
+});
+
+const withChart = (chart: DocumentChartContent): DocumentContent => ({
+    markdown: '<document-chart id="c1">',
+    charts: { c1: chart },
 });
 
 const customChart = (
     dataAppVizUuid: string,
     version: number,
-): DocumentCell => ({
-    type: 'chart',
-    content: {
-        source: 'semantic',
-        chart: {
-            name: 'Statuses',
-            tableName: 'orders',
-            metricQuery: {
-                exploreName: 'orders',
-                dimensions: ['orders_status'],
-                metrics: [],
-                filters: {},
-                sorts: [],
-                limit: 100,
-                tableCalculations: [],
-            },
-            chartConfig: {
-                type: ChartType.DATA_APP_VIZ,
-                config: {
-                    dataAppVizUuid,
-                    dataAppVizVersion: version,
-                    fieldMapping: { status: 'orders_status' },
-                },
+): DocumentChartContent => ({
+    source: 'semantic',
+    chart: {
+        name: 'Statuses',
+        tableName: 'orders',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 100,
+            tableCalculations: [],
+        },
+        chartConfig: {
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid,
+                dataAppVizVersion: version,
+                fieldMapping: { status: 'orders_status' },
             },
         },
     },
@@ -65,7 +67,7 @@ const makeDocument = (
     documentUuid: string,
     projectUuid: string,
     spaceUuid: string,
-    content: DocumentContent = { cells: [markdown('# Findings')] },
+    content: DocumentContent = markdown('# Findings'),
 ): Document => ({
     pinnedListUuid: null,
     createdBy: null,
@@ -84,7 +86,7 @@ const makeDocument = (
     version: {
         versionUuid: `${documentUuid}-version`,
         versionNumber: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
         content,
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-01'),
@@ -324,7 +326,7 @@ describe('Document promotion', () => {
             ...source,
             version: {
                 ...source.version,
-                content: { cells: [markdown('# Findings'), markdown('More')] },
+                content: markdown('# Findings\n\nMore'),
             },
         };
         const { service, documentService } = setup({ sourceDocument: edited });
@@ -371,10 +373,10 @@ describe('Document promotion', () => {
             'preview-document',
             previewProjectUuid,
             previewSpaceUuid,
-            { cells: [customChart(sourceAppUuid, 2)] },
+            withChart(customChart(sourceAppUuid, 2)),
         );
 
-        it('promotes a chart type with no upstream link and binds the cell to it', async () => {
+        it('promotes a chart type with no upstream link and binds the chart to it', async () => {
             const { service, documentService, appGenerateService } = setup({
                 sourceDocument: withCustomChart,
                 upstreamDocument: null,
@@ -395,7 +397,7 @@ describe('Document promotion', () => {
                 developer,
                 upstreamProjectUuid,
                 expect.objectContaining({
-                    content: { cells: [customChart(upstreamAppUuid, 1)] },
+                    content: withChart(customChart(upstreamAppUuid, 1)),
                 }),
                 { source: 'promotion' },
             );
@@ -421,13 +423,13 @@ describe('Document promotion', () => {
                 developer,
                 upstreamProjectUuid,
                 expect.objectContaining({
-                    content: { cells: [customChart(upstreamAppUuid, 4)] },
+                    content: withChart(customChart(upstreamAppUuid, 4)),
                 }),
                 { source: 'promotion' },
             );
         });
 
-        it('fails instead of leaving a cell bound to a deleted chart type', async () => {
+        it('fails instead of leaving a chart bound to a deleted chart type', async () => {
             const { service, documentService, appGenerateService } = setup({
                 sourceDocument: withCustomChart,
                 upstreamDocument: null,

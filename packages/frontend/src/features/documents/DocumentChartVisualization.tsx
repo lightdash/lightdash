@@ -62,18 +62,18 @@ const DocumentChartVisualization = ({
         error?.error.message ?? '',
     );
     const exportStatus = useDocumentExportStatus();
-    const exportCellIndex = exportStatus ? renderTarget?.cellIndex : undefined;
+    const exportChartId = exportStatus ? renderTarget?.chartId : undefined;
     const screenshotCallbacks = useMemo(
         () =>
-            exportStatus && exportCellIndex !== undefined
+            exportStatus && exportChartId !== undefined
                 ? {
                       onScreenshotReady: () =>
-                          exportStatus.markReady(exportCellIndex),
+                          exportStatus.markReady(exportChartId),
                       onScreenshotError: () =>
-                          exportStatus.markErrored(exportCellIndex),
+                          exportStatus.markErrored(exportChartId),
                   }
                 : {},
-        [exportStatus, exportCellIndex],
+        [exportStatus, exportChartId],
     );
     const hasError = !!error;
     useEffect(() => {

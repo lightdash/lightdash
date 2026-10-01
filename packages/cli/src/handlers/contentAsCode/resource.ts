@@ -41,7 +41,22 @@ export type CodeResourceDefinition<Document> = {
     parse: (value: unknown, source: string) => Document;
     serialize?: (document: Document) => unknown;
     sort?: (left: Document, right: Document) => number;
+    /** Keys written first, in this order; the rest stay alphabetical. */
+    leadingKeys?: readonly string[];
 };
+
+const getKeyComparator =
+    (leadingKeys: readonly string[]) =>
+    (left: string, right: string): number => {
+        const leftRank = leadingKeys.indexOf(left);
+        const rightRank = leadingKeys.indexOf(right);
+        if (leftRank !== -1 || rightRank !== -1) {
+            if (leftRank === -1) return 1;
+            if (rightRank === -1) return -1;
+            return leftRank - rightRank;
+        }
+        return left.localeCompare(right);
+    };
 
 export type CodeFileFailure = {
     message: string;
@@ -220,7 +235,9 @@ export const writeCodeResourceDocuments = async <Document>({
                 path.join(folder, fileNames[index]),
                 yaml.dump(definition.serialize?.(document) ?? document, {
                     quotingType: '"',
-                    sortKeys: true,
+                    sortKeys: definition.leadingKeys
+                        ? getKeyComparator(definition.leadingKeys)
+                        : true,
                 }),
             ),
         ),

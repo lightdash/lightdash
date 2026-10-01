@@ -39,12 +39,10 @@ const document: Document = {
     version: {
         versionUuid,
         versionNumber: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-15'),
-        content: {
-            cells: [{ type: 'markdown', content: { markdown: '# Findings' } }],
-        },
+        content: { markdown: '# Findings', charts: {} },
     },
 };
 
@@ -53,8 +51,8 @@ const asCode: DocumentAsCode = {
     slug: document.slug,
     description: document.description,
     spaceSlug: 'reports',
-    schemaVersion: 1,
-    content: document.version.content,
+    schemaVersion: 2,
+    ...document.version.content,
 };
 
 const spaces = [
@@ -176,26 +174,19 @@ describe('DocumentService.upsertAsCode', () => {
                 slug: 'review',
                 spaceUuid,
                 name: 'Review',
-                content: asCode.content,
+                content: document.version.content,
             }),
         );
     });
 
     it('saves changed content as a new version of the version it read', async () => {
         const { service, documentModel } = setup();
-        const content = {
-            cells: [
-                {
-                    type: 'markdown' as const,
-                    content: { markdown: 'Updated' },
-                },
-            ],
-        };
+        const content = { markdown: 'Updated', charts: {} };
 
         await expect(
             service.upsertAsCode(makeAccount(), projectUuid, 'review', {
                 ...asCode,
-                content,
+                ...content,
             }),
         ).resolves.toBe(PromotionAction.UPDATE);
 
@@ -254,7 +245,7 @@ describe('DocumentService.upsertAsCode', () => {
             service.upsertAsCode(makeAccount(), projectUuid, 'review', {
                 ...asCode,
                 spaceSlug: 'archive',
-                content: { cells: [] },
+                markdown: '',
             }),
         ).rejects.toThrow(ForbiddenError);
 
@@ -274,7 +265,7 @@ describe('DocumentService.upsertAsCode', () => {
             service.upsertAsCode(makeAccount(), projectUuid, 'review', {
                 ...asCode,
                 name: 'Renamed',
-                content: { cells: [] },
+                markdown: '',
             }),
         ).rejects.toThrow(ConflictError);
 
@@ -310,7 +301,24 @@ describe('DocumentService.upsertAsCode', () => {
         [
             'an unsupported schema version',
             'review',
-            { ...asCode, schemaVersion: 2 },
+            { ...asCode, schemaVersion: 3 },
+        ],
+        [
+            'a schema version 1 file with cells',
+            'review',
+            {
+                name: asCode.name,
+                slug: asCode.slug,
+                description: asCode.description,
+                spaceSlug: asCode.spaceSlug,
+                schemaVersion: 1,
+                content: { cells: [] },
+            },
+        ],
+        [
+            'a chart tag without a chart',
+            'review',
+            { ...asCode, markdown: '<document-chart id="c1">' },
         ],
     ])('rejects %s', async (_label, slug, input) => {
         const { service, documentModel } = setup();

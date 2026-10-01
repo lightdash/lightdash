@@ -1,11 +1,16 @@
-import { ChartType, type DocumentCell } from '@lightdash/common';
+import {
+    ChartType,
+    fromDocumentChartBlocks,
+    type DocumentChartBlock,
+} from '@lightdash/common';
 import { Editor } from '@tiptap/core';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
 
-const chart: DocumentCell = {
+const chartBlock = (id: string): DocumentChartBlock => ({
     type: 'chart',
-    content: {
+    id,
+    chart: {
         source: 'semantic',
         chart: {
             name: 'Orders',
@@ -23,14 +28,16 @@ const chart: DocumentCell = {
             chartConfig: { type: ChartType.TABLE },
         },
     },
-};
-
-const markdown = (text: string): DocumentCell => ({
-    type: 'markdown',
-    content: { markdown: text },
 });
 
-const load = (cells: DocumentCell[], editable = true) => {
+const chart = chartBlock('c1');
+
+const markdown = (text: string): DocumentChartBlock => ({
+    type: 'markdown',
+    markdown: text,
+});
+
+const load = (blocks: DocumentChartBlock[], editable = true) => {
     const editor = new Editor({
         editable,
         extensions: createDocumentEditorExtensions({
@@ -40,9 +47,10 @@ const load = (cells: DocumentCell[], editable = true) => {
                 : undefined,
         }),
     });
-    editor.commands.setContent(buildDocumentContent(editor, cells), {
-        emitUpdate: false,
-    });
+    editor.commands.setContent(
+        buildDocumentContent(editor, fromDocumentChartBlocks(blocks)),
+        { emitUpdate: false },
+    );
     return editor;
 };
 
@@ -69,7 +77,7 @@ const insideBlock = (editor: Editor, index: number) => {
 
 describe('empty line cleanup', () => {
     it('removes an empty line between charts once the cursor leaves it', () => {
-        const editor = load([chart, chart, markdown('After')]);
+        const editor = load([chart, chartBlock('c2'), markdown('After')]);
         editor.commands.insertContentAt(editor.state.doc.firstChild!.nodeSize, {
             type: 'paragraph',
         });

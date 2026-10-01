@@ -26,7 +26,7 @@ const document = {
     slug: 'private-report',
     pinnedListUuid,
     // DocumentModel.getBySlug returns the full Document, content included.
-    version: { content: { cells: [] } },
+    version: { content: { markdown: '', charts: {} } },
 };
 const pinnedDocument: ResourceViewDocumentItem = {
     type: ResourceViewItemType.DOCUMENT,

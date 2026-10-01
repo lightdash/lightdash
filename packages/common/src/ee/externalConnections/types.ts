@@ -196,11 +196,11 @@ export type ExternalFetchSavedChartContext = {
     chartVersionUuid?: UUID;
 };
 
-/** A chart cell of a specific Document version rendering a chart type. */
+/** A chart of a specific Document version rendering a chart type. */
 export type ExternalFetchDocumentContext = {
     documentUuid: UUID;
     documentVersionUuid: UUID;
-    cellIndex: number;
+    chartId: string;
 };
 
 export const isExternalFetchDocumentContext = (

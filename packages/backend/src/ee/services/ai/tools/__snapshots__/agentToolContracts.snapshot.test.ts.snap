@@ -10913,7 +10913,7 @@ Parameters:
                   "properties": {
                     "content": {
                       "additionalProperties": {},
-                      "description": "Document as code JSON (schema version 1), exactly as shown in \`result\`.",
+                      "description": "The Document with charts as short tags (schema version 2), or one chart in full, exactly as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
                       },

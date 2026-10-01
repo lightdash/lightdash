@@ -1,4 +1,5 @@
 import {
+    assignDocumentChartIds,
     ConflictError,
     Document,
     DOCUMENT_SCHEMA_VERSION,
@@ -8,6 +9,7 @@ import {
     DocumentVersionSummary,
     getUserAvatarUrl,
     isUserAvatarColorValue,
+    matchDocumentChartKeys,
     NotFoundError,
     parseDocumentContent,
     UpdateDocumentContentRequest,
@@ -539,10 +541,10 @@ export class DocumentModel {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
                 schemaVersion: DOCUMENT_SCHEMA_VERSION,
-                content: parseDocumentContent(
-                    version.schema_version,
-                    version.content,
-                ),
+                content: parseDocumentContent(version.schema_version, {
+                    markdown: version.markdown,
+                    charts: version.chart_data,
+                }),
                 createdByUserUuid: version.created_by_user_uuid,
                 createdAt: version.created_at,
             },
@@ -550,9 +552,9 @@ export class DocumentModel {
     }
 
     async create(input: CreateDocument): Promise<Document> {
-        const content = parseDocumentContent(
-            DOCUMENT_SCHEMA_VERSION,
-            input.content,
+        const { content, nextChartNumber } = assignDocumentChartIds(
+            parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content),
+            1,
         );
         return this.database.transaction(async (transaction) => {
             const space = await transaction(SpaceTableName)
@@ -604,11 +606,15 @@ export class DocumentModel {
                     document_owner_user_uuid: input.ownerUserUuid ?? null,
                 })
                 .returning(['document_id', 'document_uuid']);
+            await transaction(DocumentsTableName)
+                .where('document_id', document.document_id)
+                .update({ next_chart_number: nextChartNumber });
             await transaction(DocumentVersionsTableName).insert({
                 document_id: document.document_id,
                 version_number: 1,
                 schema_version: DOCUMENT_SCHEMA_VERSION,
-                content,
+                markdown: content.markdown,
+                chart_data: JSON.stringify(content.charts),
                 created_by_user_uuid: input.createdByUserUuid,
             });
             return this.getWithDatabase(
@@ -650,20 +656,30 @@ export class DocumentModel {
                     'Document has changed. Reload the latest version before editing.',
                 );
             }
-            const content = parseDocumentContent(
-                DOCUMENT_SCHEMA_VERSION,
-                input.content,
+            const { content, nextChartNumber } = assignDocumentChartIds(
+                matchDocumentChartKeys(
+                    parseDocumentContent(
+                        DOCUMENT_SCHEMA_VERSION,
+                        input.content,
+                    ),
+                    document.version.content,
+                ),
+                row.next_chart_number,
             );
             await transaction(DocumentVersionsTableName).insert({
                 document_id: row.document_id,
                 version_number: document.version.versionNumber + 1,
                 schema_version: DOCUMENT_SCHEMA_VERSION,
-                content,
+                markdown: content.markdown,
+                chart_data: JSON.stringify(content.charts),
                 created_by_user_uuid: createdByUserUuid,
             });
             await transaction(DocumentsTableName)
                 .where('document_id', row.document_id)
-                .update({ updated_at: new Date() });
+                .update({
+                    updated_at: new Date(),
+                    next_chart_number: nextChartNumber,
+                });
             return this.getWithDatabase(transaction, projectUuid, documentUuid);
         });
     }

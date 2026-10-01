@@ -40,7 +40,7 @@ const renderModal = () => {
     const keys = [
         ['documents', 'project'],
         ['document', 'project', 'doc'],
-        ['document-cell-query', 'project', 'doc'],
+        ['document-chart-query', 'project', 'doc'],
         ['deletedContent'],
         ['content'],
         ['space', 'project'],

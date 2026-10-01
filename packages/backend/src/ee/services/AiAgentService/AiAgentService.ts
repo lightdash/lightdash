@@ -11397,7 +11397,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
         getExplore: AiAgentDependencies['getExplore'];
         runtimeOptions?: EmbedAiAgentRuntimeOptions;
     }): NonNullable<AiAgentDependencies['chartExportArtifacts']> {
-        return {
+        const access: Omit<
+            NonNullable<AiAgentDependencies['chartExportArtifacts']>,
+            'prepareVersion'
+        > = {
             list: async () => {
                 const artifacts =
                     await this.aiAgentModel.findArtifactsByThreadUuid(
@@ -11480,6 +11483,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 runtimeOptions?.userAttributeOverrides,
                         }),
                 });
+            },
+        };
+        return {
+            ...access,
+            prepareVersion: async (versionUuid) => {
+                const artifactUuid =
+                    await this.aiAgentModel.findArtifactUuidByVersionUuid(
+                        versionUuid,
+                    );
+                if (artifactUuid === undefined) {
+                    throw new NotFoundError(
+                        `No chart with versionUuid ${versionUuid} in this conversation`,
+                    );
+                }
+                return access.prepare({ artifactUuid, versionUuid });
             },
         };
     }

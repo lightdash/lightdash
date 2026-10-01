@@ -388,7 +388,7 @@ const getMockedAsyncQueryService = (
                             new NotFoundError('Document not found'),
                         ),
                 }),
-                getChartCell: DocumentService.prototype.getChartCell,
+                getChart: DocumentService.prototype.getChart,
             }) as DocumentService,
         getQuerySourceService: () => {
             querySourceService ??= new QuerySourceService({
@@ -8716,7 +8716,7 @@ describe('saved Document chart queries', () => {
     const reference: DocumentQueryReference = {
         documentUuid: 'document-uuid',
         versionUuid: 'version-uuid',
-        cellIndex: 0,
+        chartId: 'c1',
     };
     const document = {
         documentUuid: reference.documentUuid,
@@ -8724,23 +8724,21 @@ describe('saved Document chart queries', () => {
         version: {
             versionUuid: reference.versionUuid,
             content: {
-                cells: [
-                    {
-                        type: 'chart',
-                        content: {
-                            source: 'semantic',
-                            chart: {
-                                name: 'Document chart',
-                                tableName: metricQueryMock.exploreName,
-                                metricQuery: metricQueryMock,
-                                chartConfig: { type: ChartType.TABLE },
-                            },
+                markdown: '<document-chart id="c1">',
+                charts: {
+                    c1: {
+                        source: 'semantic',
+                        chart: {
+                            name: 'Document chart',
+                            tableName: metricQueryMock.exploreName,
+                            metricQuery: metricQueryMock,
+                            chartConfig: { type: ChartType.TABLE },
                         },
                     },
-                ],
+                },
             },
         },
-    } as Document;
+    } as unknown as Document;
     const viewer = () => {
         const account = buildAccount() as RegisteredAccount;
         account.user.ability = new Ability<PossibleAbilities>([
@@ -8795,7 +8793,7 @@ describe('saved Document chart queries', () => {
                 cacheMetadata: { cacheHit: false },
             });
 
-        const result = await service.executeAsyncDocumentCellQuery({
+        const result = await service.executeAsyncDocumentChartQuery({
             account,
             projectUuid,
             reference,
@@ -10827,7 +10825,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         const reference = {
             documentUuid: 'saved-doc',
             versionUuid: 'saved-version',
-            cellIndex: 0,
+            chartId: 'c1',
         };
         const { sources } = attributeScopedMergeQuery;
         if (!('metricQuery' in sources[0]) || !('metricQuery' in sources[1])) {
@@ -10839,38 +10837,33 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             version: {
                 versionUuid: reference.versionUuid,
                 content: {
-                    cells: [
-                        {
-                            type: 'chart',
-                            content: {
-                                source: 'merge',
-                                chart: {
-                                    name: 'Saved merge',
-                                    tableName:
-                                        sources[0].metricQuery.exploreName,
-                                    metricQuery: sources[0].metricQuery,
-                                    chartConfig: { type: ChartType.TABLE },
-                                    merge: {
-                                        primarySourceId: 'a',
-                                        sources: [
-                                            { id: 'a', kind: 'chart' },
-                                            {
-                                                id: 'b',
-                                                kind: 'query',
-                                                metricQuery:
-                                                    sources[1].metricQuery,
-                                            },
-                                        ],
-                                        joinKey:
-                                            attributeScopedMergeQuery.joinKey,
-                                        joinType:
-                                            attributeScopedMergeQuery.joinType,
-                                        tableCalculations: [],
-                                    },
+                    markdown: '<document-chart id="c1">',
+                    charts: {
+                        c1: {
+                            source: 'merge',
+                            chart: {
+                                name: 'Saved merge',
+                                tableName: sources[0].metricQuery.exploreName,
+                                metricQuery: sources[0].metricQuery,
+                                chartConfig: { type: ChartType.TABLE },
+                                merge: {
+                                    primarySourceId: 'a',
+                                    sources: [
+                                        { id: 'a', kind: 'chart' },
+                                        {
+                                            id: 'b',
+                                            kind: 'query',
+                                            metricQuery: sources[1].metricQuery,
+                                        },
+                                    ],
+                                    joinKey: attributeScopedMergeQuery.joinKey,
+                                    joinType:
+                                        attributeScopedMergeQuery.joinType,
+                                    tableCalculations: [],
                                 },
                             },
                         },
-                    ],
+                    },
                 },
             },
         } as unknown as Document;
@@ -10879,9 +10872,9 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             'getDocumentService',
         ).mockReturnValue({
             getVersion: vi.fn().mockResolvedValue(document),
-            getChartCell: DocumentService.prototype.getChartCell,
+            getChart: DocumentService.prototype.getChart,
         } as unknown as DocumentService);
-        const result = await service.executeAsyncDocumentCellQuery({
+        const result = await service.executeAsyncDocumentChartQuery({
             account,
             projectUuid,
             reference,

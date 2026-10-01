@@ -10369,7 +10369,7 @@ export class AppGenerateService extends BaseService {
                 {
                     documentUuid: chartContext.documentUuid,
                     versionUuid: chartContext.documentVersionUuid,
-                    cellIndex: chartContext.cellIndex,
+                    chartId: chartContext.chartId,
                 },
                 dataAppVizUuid,
             );
@@ -10416,7 +10416,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid: account.organization.organizationUuid,
         });
 
-        const { chart } = await this.documentService.getChartCell(
+        const { chart } = await this.documentService.getChart(
             account,
             projectUuid,
             reference,

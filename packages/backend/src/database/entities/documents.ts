@@ -20,6 +20,7 @@ export type DbDocument = {
     deleted_with_space: boolean;
     document_views_count: number;
     document_first_viewed_at: Date | null;
+    next_chart_number: number;
 };
 
 export type DocumentsTable = Knex.CompositeTableType<
@@ -48,6 +49,7 @@ export type DocumentsTable = Knex.CompositeTableType<
             | 'deleted_with_space'
             | 'document_views_count'
             | 'document_first_viewed_at'
+            | 'next_chart_number'
         >
     >
 >;
@@ -58,7 +60,8 @@ export type DbDocumentVersion = {
     document_id: number;
     version_number: number;
     schema_version: number;
-    content: unknown;
+    markdown: string;
+    chart_data: unknown;
     created_by_user_uuid: string | null;
     created_at: Date;
 };
@@ -70,7 +73,8 @@ export type DocumentVersionsTable = Knex.CompositeTableType<
         | 'document_id'
         | 'version_number'
         | 'schema_version'
-        | 'content'
+        | 'markdown'
+        | 'chart_data'
         | 'created_by_user_uuid'
     >,
     never

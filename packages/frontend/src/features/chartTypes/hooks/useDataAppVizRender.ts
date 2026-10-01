@@ -33,7 +33,7 @@ const getRenderBaseUrl = (
     { isEmbedded, savedChartUuid, document }: DataAppVizRenderTarget,
 ): string => {
     if (!isEmbedded && document) {
-        return `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/documents/${document.documentUuid}/cells/${document.cellIndex}`;
+        return `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/documents/${document.documentUuid}/charts/${encodeURIComponent(document.chartId)}`;
     }
     if (isEmbedded) {
         return savedChartUuid

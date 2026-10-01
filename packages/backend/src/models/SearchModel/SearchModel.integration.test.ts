@@ -699,13 +699,10 @@ describe('SearchModel.searchDocuments', () => {
         await database('document_versions').insert({
             document_id: document.document_id,
             version_number: 1,
-            schema_version: 1,
+            schema_version: 2,
             created_by_user_uuid: creatorUuid,
-            content: JSON.stringify({
-                cells: [
-                    { type: 'markdown', content: { markdown: 'ultraviolet' } },
-                ],
-            }),
+            markdown: 'ultraviolet',
+            chart_data: JSON.stringify({}),
         });
         const results = await model.searchDocuments(projectUuid, 'revenue');
         expect(results).toEqual([

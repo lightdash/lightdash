@@ -2,6 +2,8 @@ import {
     ChartType,
     type Document,
     type SemanticChartAsCode,
+    getDocumentChartBlocks,
+    type DocumentContent,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -43,13 +45,11 @@ vi.mock('./DocumentChartEditorModal', () => ({
             <output data-testid="editing-chart">{chart?.name ?? ''}</output>
             <button
                 onClick={() => {
-                    const original = report.version.content.cells[1];
-                    if (original.type === 'chart') {
-                        onApply({
-                            ...(chart ?? original.content.chart),
-                            name: chart ? 'Edited chart' : 'New chart',
-                        });
-                    }
+                    const original = report.version.content.charts.c1;
+                    onApply({
+                        ...(chart ?? original.chart),
+                        name: chart ? 'Edited chart' : 'New chart',
+                    });
                 }}
             >
                 Apply to Document
@@ -74,13 +74,13 @@ vi.mock('./DocumentDraftChart', () => ({
 }));
 vi.mock('./DocumentChart', () => ({
     default: (props: {
-        cell: { content: { chart: { name: string } } };
+        content: { chart: { name: string } };
         actions: ReactNode;
     }) => {
         mocks.chart(props);
         return (
             <div>
-                Live chart: {props.cell.content.chart.name}
+                Live chart: {props.content.chart.name}
                 {props.actions}
             </div>
         );
@@ -121,43 +121,31 @@ const report: Document = {
     version: {
         versionUuid: 'version',
         versionNumber: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
         createdByUserUuid: null,
         createdAt: new Date(),
         content: {
-            cells: [
-                {
-                    type: 'markdown',
-                    content: {
-                        markdown:
-                            '# Findings\n\n| Metric | Value |\n| --- | --- |\n| Orders | 10 |',
-                    },
-                },
-                {
-                    type: 'chart',
-                    content: {
-                        source: 'semantic',
-                        chart: {
-                            name: 'Orders',
-                            tableName: 'orders',
-                            metricQuery: {
-                                exploreName: 'orders',
-                                dimensions: [],
-                                metrics: ['orders_count'],
-                                filters: {},
-                                sorts: [],
-                                limit: 100,
-                                tableCalculations: [],
-                            },
-                            chartConfig: { type: ChartType.TABLE },
+            markdown:
+                '# Findings\n\n| Metric | Value |\n| --- | --- |\n| Orders | 10 |\n\n<document-chart id="c1">\n\n# Recommendations\n\nShip it.',
+            charts: {
+                c1: {
+                    source: 'semantic',
+                    chart: {
+                        name: 'Orders',
+                        tableName: 'orders',
+                        metricQuery: {
+                            exploreName: 'orders',
+                            dimensions: [],
+                            metrics: ['orders_count'],
+                            filters: {},
+                            sorts: [],
+                            limit: 100,
+                            tableCalculations: [],
                         },
+                        chartConfig: { type: ChartType.TABLE },
                     },
                 },
-                {
-                    type: 'markdown',
-                    content: { markdown: '# Recommendations\n\nShip it.' },
-                },
-            ],
+            },
         },
     },
 };
@@ -217,8 +205,9 @@ const renderEditor = (document = report, newerVersionSaved = false) => {
     };
 };
 
-const savedCells = () =>
-    JSON.parse(mocks.api.mock.calls[0][0].body).content.cells;
+const savedContent = (): DocumentContent =>
+    JSON.parse(mocks.api.mock.calls[0][0].body).content;
+const savedBlocks = () => getDocumentChartBlocks(savedContent());
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -249,7 +238,7 @@ it('renders the saved document in one editable body with the contents rail', asy
     ).toBeDisabled();
 });
 
-it('applies chart edits in place, keeps the surrounding text, and saves them as cells', async () => {
+it('applies chart edits in place, keeps the surrounding text and chart id, and saves them', async () => {
     renderEditor();
     fireEvent.click(
         await screen.findByRole('button', { name: 'Edit chart Orders' }),
@@ -274,16 +263,21 @@ it('applies chart edits in place, keeps the surrounding text, and saves them as 
     expect(mocks.api).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
     await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
-    const cells = savedCells();
-    expect(cells.map((cell: { type: string }) => cell.type)).toEqual([
-        'markdown',
-        'chart',
-        'markdown',
-    ]);
-    expect(cells[0].content.markdown).toContain('# Findings');
-    expect(cells[0].content.markdown).toContain('| Orders | 10 |');
-    expect(cells[1].content.chart.name).toBe('Edited chart');
-    expect(cells[2].content.markdown).toBe('# Recommendations\n\nShip it.');
+    const [findings, edited, recommendations] = savedBlocks();
+    expect(findings.type === 'markdown' && findings.markdown).toContain(
+        '# Findings',
+    );
+    expect(findings.type === 'markdown' && findings.markdown).toContain(
+        '| Orders | 10 |',
+    );
+    expect(edited.type === 'chart' && edited.id).toBe('c1');
+    expect(edited.type === 'chart' && edited.chart.chart.name).toBe(
+        'Edited chart',
+    );
+    expect(recommendations).toStrictEqual({
+        type: 'markdown',
+        markdown: '# Recommendations\n\nShip it.',
+    });
     expect(JSON.parse(mocks.api.mock.calls[0][0].body).baseVersionUuid).toBe(
         'version',
     );
@@ -331,12 +325,10 @@ it('adds a chart as a draft node without touching saved charts', async () => {
     expect(screen.getByText('Live chart: Orders')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
     await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
-    expect(
-        savedCells().filter((cell: { type: string }) => cell.type === 'chart'),
-    ).toHaveLength(2);
+    expect(Object.keys(savedContent().charts)).toStrictEqual(['c1', 'new-1']);
 });
 
-it('removes a chart from the body and the saved cells', async () => {
+it('removes a chart from the body and the saved content', async () => {
     renderEditor();
     fireEvent.click(
         await screen.findByRole('button', { name: 'Remove chart Orders' }),
@@ -348,15 +340,11 @@ it('removes a chart from the body and the saved cells', async () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
     await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
-    expect(savedCells()).toStrictEqual([
-        {
-            type: 'markdown',
-            content: {
-                markdown:
-                    '# Findings\n\n| Metric | Value |\n| --- | --- |\n| Orders | 10 |\n\n# Recommendations\n\nShip it.',
-            },
-        },
-    ]);
+    expect(savedContent()).toStrictEqual({
+        markdown:
+            '# Findings\n\n| Metric | Value |\n| --- | --- |\n| Orders | 10 |\n\n# Recommendations\n\nShip it.',
+        charts: {},
+    });
 });
 
 it('hides chart authoring without independent Explore permission', async () => {
@@ -541,7 +529,10 @@ it('moves focus to Cancel when editing an existing document', async () => {
 it('puts the caret in the body of an empty document', async () => {
     renderEditor({
         ...report,
-        version: { ...report.version, content: { cells: [] } },
+        version: {
+            ...report.version,
+            content: { markdown: '', charts: {} },
+        },
     });
     await waitFor(() =>
         expect(document.activeElement).toHaveClass('ProseMirror'),

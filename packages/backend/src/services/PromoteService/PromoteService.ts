@@ -12,6 +12,7 @@ import {
     isDashboardChartTileType,
     isDashboardDataAppTileType,
     isSubPath,
+    mapDocumentCharts,
     NotFoundError,
     ParameterError,
     PromotedChart as PromotedChangeChart,
@@ -27,7 +28,7 @@ import {
     UnexpectedServerError,
     UpdateSqlChart,
     type Document,
-    type DocumentCell,
+    type DocumentChartContent,
     type DocumentContent,
     type RegisteredAccount,
     type SpaceSummaryBase,
@@ -153,56 +154,51 @@ const isChartWithinDashboard = (chart: Pick<SavedChartDAO, 'dashboardUuid'>) =>
 
 type DataAppVizBinding = { appUuid: string; version: number };
 
-const getDataAppVizUuid = (cell: DocumentCell): string | undefined =>
-    cell.type === 'chart' &&
-    cell.content.chart.chartConfig.type === ChartType.DATA_APP_VIZ
-        ? cell.content.chart.chartConfig.config?.dataAppVizUuid
+const getDataAppVizUuid = ({
+    chart,
+}: DocumentChartContent): string | undefined =>
+    chart.chartConfig.type === ChartType.DATA_APP_VIZ
+        ? chart.chartConfig.config?.dataAppVizUuid
         : undefined;
 
 /**
- * Point custom chart cells at the given chart types. Reads add a portable
- * slug that names a different app upstream, so it is always dropped.
+ * Point custom charts at the given chart types. Reads add a portable slug
+ * that names a different app upstream, so it is always dropped.
  */
 const bindDataAppVizs = (
     content: DocumentContent,
     bindings: ReadonlyMap<string, DataAppVizBinding>,
-): DocumentContent => ({
-    ...content,
-    cells: content.cells.map((cell) => {
+): DocumentContent =>
+    mapDocumentCharts(content, (chartContent) => {
+        const { chart } = chartContent;
         if (
-            cell.type !== 'chart' ||
-            cell.content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
-            cell.content.chart.chartConfig.config === undefined
+            chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chart.chartConfig.config === undefined
         ) {
-            return cell;
+            return chartContent;
         }
-        const { dataAppVizSlug, ...config } =
-            cell.content.chart.chartConfig.config;
+        const { dataAppVizSlug, ...config } = chart.chartConfig.config;
         const binding =
             config.dataAppVizUuid === undefined
                 ? undefined
                 : bindings.get(config.dataAppVizUuid);
         return {
-            ...cell,
-            content: {
-                ...cell.content,
-                chart: {
-                    ...cell.content.chart,
-                    chartConfig: {
-                        type: ChartType.DATA_APP_VIZ,
-                        config: binding
-                            ? {
-                                  ...config,
-                                  dataAppVizUuid: binding.appUuid,
-                                  dataAppVizVersion: binding.version,
-                              }
-                            : config,
-                    },
+            ...chartContent,
+            chart: {
+                ...chart,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: binding
+                        ? {
+                              ...config,
+                              dataAppVizUuid: binding.appUuid,
+                              dataAppVizVersion: binding.version,
+                          }
+                        : config,
                 },
             },
-        } as DocumentCell;
-    }),
-});
+        } as DocumentChartContent;
+    });
 
 export class PromoteService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -3190,7 +3186,9 @@ export class PromoteService extends BaseService {
     }> {
         const appUuids = [
             ...new Set(
-                content.cells.flatMap((cell) => getDataAppVizUuid(cell) ?? []),
+                Object.values(content.charts).flatMap(
+                    (chart) => getDataAppVizUuid(chart) ?? [],
+                ),
             ),
         ];
         const resolved = await Promise.all(
@@ -3263,7 +3261,7 @@ export class PromoteService extends BaseService {
                 sourceProjectUuid,
                 appUuids,
             );
-        // Chart types deleted meanwhile are skipped; their cells would dangle.
+        // Chart types deleted meanwhile are skipped; their charts would dangle.
         if (promoted.length !== appUuids.length) {
             throw new ConflictError(
                 'A custom chart type used by this Document was deleted. Reload the Document and promote again.',

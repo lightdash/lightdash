@@ -48,7 +48,7 @@ const documentRequest: ExternalFetchRequest = {
     chartContext: {
         documentUuid: 'doc-1',
         documentVersionUuid: 'doc-version-1',
-        cellIndex: 1,
+        chartId: 'c1',
     },
 };
 
@@ -187,7 +187,7 @@ function buildService({
         spacePermissionService,
     } as never);
     const documentService = {
-        getChartCell: vi.fn(
+        getChart: vi.fn(
             async (
                 _account: unknown,
                 _projectUuid: string,
@@ -309,18 +309,18 @@ describe('custom chart type external connection authorization', () => {
                 documentRequest,
             ),
         ).resolves.toMatchObject({ body: { ok: true } });
-        expect(documentService.getChartCell).toHaveBeenCalledWith(
+        expect(documentService.getChart).toHaveBeenCalledWith(
             expect.anything(),
             'proj-1',
             {
                 documentUuid: 'doc-1',
                 versionUuid: 'doc-version-1',
-                cellIndex: 1,
+                chartId: 'c1',
             },
         );
     });
 
-    it('rejects a Document cell that renders a different chart type', async () => {
+    it('rejects a Document chart that renders a different chart type', async () => {
         const { service, externalConnectionModel } = buildService({
             documentAppUuid: 'another-app',
         });
@@ -345,7 +345,7 @@ describe('custom chart type external connection authorization', () => {
                 chartContext: {
                     documentUuid: 'other-doc',
                     documentVersionUuid: 'doc-version-1',
-                    cellIndex: 1,
+                    chartId: 'c1',
                 },
             }),
         ).rejects.toThrow(ForbiddenError);

@@ -39,15 +39,8 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 1,
-        content: {
-            cells: [
-                {
-                    type: 'markdown',
-                    content: { markdown: '# Findings' },
-                },
-            ],
-        },
+        schemaVersion: 2,
+        content: { markdown: '# Findings', charts: {} },
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-15'),
     },
@@ -172,8 +165,8 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
 const historicalVersion: Document['version'] = {
     versionUuid: 'historical-version',
     versionNumber: 1,
-    schemaVersion: 1,
-    content: { cells: [{ type: 'markdown', content: { markdown: 'Old' } }] },
+    schemaVersion: 2,
+    content: { markdown: 'Old', charts: {} },
     createdByUserUuid: null,
     createdAt: new Date('2026-09-01'),
 };
@@ -420,11 +413,14 @@ describe('DocumentService', () => {
                 slug: document.slug,
                 description: document.description,
                 spaceSlug: 'reports/weekly-review',
-                schemaVersion: 1,
-                content: document.version.content,
+                schemaVersion: 2,
+                ...document.version.content,
             });
             expect(
-                parseDocumentContent(result.schemaVersion, result.content),
+                parseDocumentContent(result.schemaVersion, {
+                    markdown: result.markdown,
+                    charts: result.charts,
+                }),
             ).toEqual(document.version.content);
             expect(spaceModel.find).toHaveBeenCalledWith({
                 projectUuid,

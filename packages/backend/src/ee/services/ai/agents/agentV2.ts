@@ -1667,6 +1667,7 @@ export const getAgentTools = (
 
     const generateVisualization = getRunQuery({
         purpose: 'visualization',
+        documentsEnabled,
         agentContext,
         decisions: args.decisions,
         question: getAgentQuestion(args),
@@ -1706,6 +1707,7 @@ export const getAgentTools = (
         args.execution.mode === 'standard'
             ? getRunQuery({
                   purpose: 'answer',
+                  documentsEnabled,
                   enableFastResponse: args.enableDataAnswerFastResponse,
                   agentContext,
                   decisions: args.decisions,
@@ -1826,10 +1828,12 @@ export const getAgentTools = (
     const editContent = getEditContent({
         editContent: dependencies.editContent,
         documentsEnabled,
+        artifacts: dependencies.chartExportArtifacts,
     });
     const createContent = getCreateContent({
         createContent: dependencies.createContent,
         documentsEnabled,
+        artifacts: dependencies.chartExportArtifacts,
     });
     const createScheduledDelivery = getCreateScheduledDelivery({
         createScheduledDelivery: dependencies.createScheduledDelivery,

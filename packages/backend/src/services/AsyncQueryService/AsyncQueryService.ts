@@ -5365,7 +5365,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     // execute
-    async executeAsyncDocumentCellQuery({
+    async executeAsyncDocumentChartQuery({
         account,
         projectUuid,
         reference,

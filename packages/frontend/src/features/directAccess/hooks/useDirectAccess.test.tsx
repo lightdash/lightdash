@@ -156,14 +156,14 @@ describe('direct access resource permission refresh', () => {
         {
             resourceType: DirectAccessResourceType.DOCUMENT,
             key: [
-                'document-cell-query',
+                'document-chart-query',
                 'project',
                 'document-uuid',
                 'version',
                 'cell',
             ],
             otherKey: [
-                'document-cell-query',
+                'document-chart-query',
                 'other-project',
                 'document-uuid',
                 'version',

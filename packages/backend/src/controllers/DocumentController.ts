@@ -5,7 +5,7 @@ import {
     ParameterError,
     RequestMethod,
     type ApiDocumentAsCodeResponse,
-    type ApiDocumentCellQueryResponse,
+    type ApiDocumentChartQueryResponse,
     type ApiDocumentListResponse,
     type ApiDocumentResponse,
     type ApiDocumentVersionListResponse,
@@ -16,7 +16,7 @@ import {
     type ApiTogglePinnedItem,
     type CreateDocumentRequest,
     type DuplicateDocumentRequest,
-    type ExecuteDocumentCellQueryRequest,
+    type ExecuteDocumentChartQueryRequest,
     type UpdateDocumentContentRequest,
     type UpdateDocumentMetadataRequest,
     type UUID,
@@ -58,16 +58,16 @@ const getDocumentChange = (req: express.Request): DocumentChangeContext => ({
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Documents')
 export class DocumentController extends BaseController {
-    @Post('{documentUuid}/cells/{cellIndex}/query')
-    @OperationId('ExecuteDocumentCellQuery')
+    @Post('{documentUuid}/charts/{chartId}/query')
+    @OperationId('ExecuteDocumentChartQuery')
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    async executeCellQuery(
+    async executeChartQuery(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() documentUuid: UUID,
-        @Path() cellIndex: number,
-        @Body() body: ExecuteDocumentCellQueryRequest,
-    ): Promise<ApiDocumentCellQueryResponse> {
+        @Path() chartId: string,
+        @Body() body: ExecuteDocumentChartQueryRequest,
+    ): Promise<ApiDocumentChartQueryResponse> {
         assertRegisteredAccount(req.account);
         if (Object.keys(req.body).some((key) => key !== 'versionUuid')) {
             throw new ParameterError(
@@ -78,12 +78,12 @@ export class DocumentController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getAsyncQueryService()
-                .executeAsyncDocumentCellQuery({
+                .executeAsyncDocumentChartQuery({
                     account: req.account,
                     projectUuid,
                     reference: {
                         documentUuid,
-                        cellIndex,
+                        chartId,
                         versionUuid: body.versionUuid,
                     },
                 }),

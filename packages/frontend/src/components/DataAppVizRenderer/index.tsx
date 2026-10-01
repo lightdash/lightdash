@@ -233,7 +233,7 @@ const DataAppVizRenderer: FC<Props> = ({
         [embedToken, renderSavedChartUuid, chartVersionUuid, documentTarget],
     );
     // External connections authorize through whatever renders the chart, in
-    // the same order as the render target: a Document cell, then a saved chart.
+    // the same order as the render target: a Document chart, then a saved chart.
     const chartContext = useMemo<
         ExternalFetchRequest['chartContext'] | undefined
     >(() => {
@@ -241,7 +241,7 @@ const DataAppVizRenderer: FC<Props> = ({
             return {
                 documentUuid: documentTarget.documentUuid,
                 documentVersionUuid: documentTarget.versionUuid,
-                cellIndex: documentTarget.cellIndex,
+                chartId: documentTarget.chartId,
             };
         }
         return renderSavedChartUuid

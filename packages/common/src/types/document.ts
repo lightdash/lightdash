@@ -27,11 +27,15 @@ export type DocumentChartContent =
     | { source: 'semantic'; chart: SemanticChartAsCode }
     | { source: 'merge'; chart: MergeChartAsCode };
 
-export type DocumentCell =
-    | { type: 'markdown'; content: { markdown: string } }
-    | { type: 'chart'; content: DocumentChartContent };
+/** Charts by id. Stored ids are sequential per Document (`c1`, `c2`, …). */
+export type DocumentCharts = Record<string, DocumentChartContent>;
 
-export type DocumentContent = { cells: DocumentCell[] };
+/**
+ * Markdown with a `<document-chart id="…">` block wherever a chart sits, and
+ * the charts those blocks reference. On writes, ids that are not `c<n>` are
+ * temporary keys the server replaces with the next free id.
+ */
+export type DocumentContent = { markdown: string; charts: DocumentCharts };
 
 /** Assignable owner, independent of the immutable creator and version authors. */
 export type DocumentOwner = DashboardOwner;
@@ -55,7 +59,7 @@ export type DocumentSummary = {
 export type DocumentVersion = {
     versionUuid: string;
     versionNumber: number;
-    schemaVersion: 1;
+    schemaVersion: 2;
     content: DocumentContent;
     createdByUserUuid: string | null;
     createdAt: Date;
@@ -76,9 +80,8 @@ export type DocumentAsCode = Pick<
     'name' | 'slug' | 'description'
 > & {
     spaceSlug: string;
-    schemaVersion: 1;
-    content: DocumentContent;
-};
+    schemaVersion: 2;
+} & DocumentContent;
 
 export type ApiDocumentResponse = ApiSuccess<Document>;
 export type ApiDocumentAsCodeResponse = ApiSuccess<DocumentAsCode>;
@@ -119,7 +122,7 @@ export type CreateDocumentRequest = {
     slug?: string;
     description: string;
     spaceUuid: string;
-    schemaVersion: 1;
+    schemaVersion: 2;
     content: DocumentContent;
     /** Organization member to assign as owner; omitted or null leaves the Document unowned. */
     ownerUserUuid?: string | null;
@@ -144,13 +147,13 @@ export type UpdateDocumentContentRequest = {
     content: DocumentContent;
 };
 
-export type ExecuteDocumentCellQueryRequest = { versionUuid: string };
+export type ExecuteDocumentChartQueryRequest = { versionUuid: string };
 
 export type DocumentQueryReference = {
     documentUuid: string;
     versionUuid: string;
-    cellIndex: number;
+    chartId: string;
 };
 
-export type ApiDocumentCellQueryResponse =
+export type ApiDocumentChartQueryResponse =
     ApiSuccess<ApiExecuteAsyncMetricQueryResults>;

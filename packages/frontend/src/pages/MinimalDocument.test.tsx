@@ -40,11 +40,11 @@ vi.mock('../features/documents/DocumentByline', () => ({
     default: () => null,
 }));
 // Stands in for the chart node views, which report through the context
-const ChartCells = () => {
+const ChartNodes = () => {
     mocks.exportStatus = useDocumentExportStatus();
     return null;
 };
-vi.mock('@tiptap/react', () => ({ EditorContent: () => <ChartCells /> }));
+vi.mock('@tiptap/react', () => ({ EditorContent: () => <ChartNodes /> }));
 
 const document = {
     projectUuid: 'project',
@@ -54,11 +54,9 @@ const document = {
     version: {
         versionUuid: 'version',
         content: {
-            cells: [
-                { type: 'markdown', content: { markdown: '# Findings' } },
-                { type: 'chart', content: {} },
-                { type: 'chart', content: {} },
-            ],
+            markdown:
+                '# Findings\n\n<document-chart id="c1">\n\n<document-chart id="c2">',
+            charts: { c1: {}, c2: {} },
         },
     },
 } as unknown as Document;
@@ -93,9 +91,9 @@ describe('MinimalDocument', () => {
     it('signals ready only once every chart has drawn or failed', () => {
         renderPage();
         expect(getIndicator()).toBeNull();
-        act(() => mocks.exportStatus?.markReady(1));
+        act(() => mocks.exportStatus?.markReady('c1'));
         expect(getIndicator()).toBeNull();
-        act(() => mocks.exportStatus?.markErrored(2));
+        act(() => mocks.exportStatus?.markErrored('c2'));
         expect(getIndicator()).toHaveAttribute(
             'data-status',
             'completed-with-errors',
@@ -108,9 +106,9 @@ describe('MinimalDocument', () => {
     it('keeps a chart failed when it later reports ready', () => {
         renderPage();
         act(() => {
-            mocks.exportStatus?.markErrored(1);
-            mocks.exportStatus?.markReady(1);
-            mocks.exportStatus?.markReady(2);
+            mocks.exportStatus?.markErrored('c1');
+            mocks.exportStatus?.markReady('c1');
+            mocks.exportStatus?.markReady('c2');
         });
         expect(getIndicator()).toHaveAttribute('data-tiles-errored', '1');
     });

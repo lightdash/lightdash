@@ -88,7 +88,10 @@ describe('Document change source', () => {
         [undefined, 'api'],
     ])('request method %s is recorded as source %s', async (method, source) => {
         const { controller, request, service } = setup(method);
-        const content = { baseVersionUuid: 'version', content: { cells: [] } };
+        const content = {
+            baseVersionUuid: 'version',
+            content: { markdown: '', charts: {} },
+        };
         await controller.create(request, 'project', {} as never);
         await controller.updateMetadata(request, 'project', 'document', {
             name: 'Renamed',
@@ -119,38 +122,38 @@ describe('Document change source', () => {
 
 describe('Document chart query boundary', () => {
     const setup = (body: Record<string, unknown>) => {
-        const executeAsyncDocumentCellQuery = vi.fn().mockResolvedValue({
+        const executeAsyncDocumentChartQuery = vi.fn().mockResolvedValue({
             queryUuid: 'query',
             cacheMetadata: { cacheHit: false },
         });
         const controller = new DocumentController({
-            getAsyncQueryService: () => ({ executeAsyncDocumentCellQuery }),
+            getAsyncQueryService: () => ({ executeAsyncDocumentChartQuery }),
         } as unknown as ConstructorParameters<typeof DocumentController>[0]);
         const request = {
             account: { user: { type: 'registered' } },
             body,
         } as unknown as express.Request;
-        return { controller, request, executeAsyncDocumentCellQuery };
+        return { controller, request, executeAsyncDocumentChartQuery };
     };
 
-    test('forwards only persisted cell identity', async () => {
-        const { controller, request, executeAsyncDocumentCellQuery } = setup({
+    test('forwards only persisted chart identity', async () => {
+        const { controller, request, executeAsyncDocumentChartQuery } = setup({
             versionUuid: 'version',
         });
         await expect(
-            controller.executeCellQuery(request, 'project', 'document', 0, {
+            controller.executeChartQuery(request, 'project', 'document', 'c1', {
                 versionUuid: 'version',
             }),
         ).resolves.toMatchObject({
             status: 'ok',
             results: { queryUuid: 'query' },
         });
-        expect(executeAsyncDocumentCellQuery).toHaveBeenCalledWith({
+        expect(executeAsyncDocumentChartQuery).toHaveBeenCalledWith({
             account: request.account,
             projectUuid: 'project',
             reference: {
                 documentUuid: 'document',
-                cellIndex: 0,
+                chartId: 'c1',
                 versionUuid: 'version',
             },
         });
@@ -165,14 +168,20 @@ describe('Document chart query boundary', () => {
     ])(
         'rejects a caller-supplied %s even when generated validation strips it',
         async (key) => {
-            const { controller, request, executeAsyncDocumentCellQuery } =
+            const { controller, request, executeAsyncDocumentChartQuery } =
                 setup({ versionUuid: 'version', [key]: {} });
             await expect(
-                controller.executeCellQuery(request, 'project', 'document', 0, {
-                    versionUuid: 'version',
-                }),
+                controller.executeChartQuery(
+                    request,
+                    'project',
+                    'document',
+                    'c1',
+                    {
+                        versionUuid: 'version',
+                    },
+                ),
             ).rejects.toThrow(ParameterError);
-            expect(executeAsyncDocumentCellQuery).not.toHaveBeenCalled();
+            expect(executeAsyncDocumentChartQuery).not.toHaveBeenCalled();
         },
     );
 });
