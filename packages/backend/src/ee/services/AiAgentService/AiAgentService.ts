@@ -14095,17 +14095,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
         }
 
-        // A write-up reuses analysis from earlier turns, so it plans without reasoning.
-        const documentWriteModel: AiAgentArgs['documentWriteModel'] =
-            decisions && responseExecution.mode === 'standard'
-                ? getModel(copilotConfig, {
-                      enableReasoning: false,
-                      disableThinking: true,
-                      modelName: prompt.modelConfig?.modelName,
-                      provider: prompt.modelConfig?.modelProvider as AnyType,
-                  })
-                : undefined;
-
         const simpleDataAnswer =
             canUseFastToolModel &&
             !compactionSummary &&
@@ -14240,7 +14229,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       })
                 : undefined,
             toolCallModel,
-            documentWriteModel,
             enableDataAnswerFastResponse,
             forceChartMutationRouting,
             chartMutationContext,
