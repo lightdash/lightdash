@@ -21,7 +21,7 @@ export const CreateOrganizationForm: FC<{
 
     return (
         <Stack gap="sm">
-            <Text fw={600}>Create a new organization</Text>
+            {warning && <Text fw={600}>Create a new organization</Text>}
             {warning && (
                 <Text size="sm" c="dimmed">
                     {warning}
