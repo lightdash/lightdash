@@ -18,15 +18,15 @@ describe('getPlaygroundSetupFailure', () => {
         ).toBe('unavailable');
     });
 
-    it('detects a playground that was deleted', () => {
+    it('detects an instance that turned sample data off', () => {
         expect(
             getPlaygroundSetupFailure(
                 apiError(
                     'NotFoundError',
-                    'Playground project was previously removed',
+                    'Sample data is turned off on this instance',
                 ),
             ),
-        ).toBe('previously-removed');
+        ).toBe('turned-off');
     });
 
     it('detects a permission failure', () => {

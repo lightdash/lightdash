@@ -99,6 +99,7 @@ import {
     PivotConfiguration,
     PreviewWarehouseSignInExpiredError,
     ProjectType,
+    ProvisioningSource,
     QueryExecutionContext,
     QueryHistoryListFilters,
     QueryHistoryStatus,
@@ -1924,7 +1925,7 @@ export class AsyncQueryService extends ProjectService {
         assertIsAccountWithOrg(account);
         const project = await this.projectModel.getSummary(payload.projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
-        if (project.provisioningSource === 'analytics') {
+        if (project.provisioningSource === ProvisioningSource.ANALYTICS) {
             throw new ForbiddenError(
                 'Scheduled downloads are unavailable for internal analytics',
             );
@@ -2118,7 +2119,7 @@ export class AsyncQueryService extends ProjectService {
         const project = await this.projectModel.getSummary(projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
         // Do not issue a signed export URL that outlives the feature/admin check.
-        if (project.provisioningSource === 'analytics') {
+        if (project.provisioningSource === ProvisioningSource.ANALYTICS) {
             throw new ForbiddenError(
                 'Downloads are unavailable for internal analytics',
             );
@@ -4231,7 +4232,7 @@ export class AsyncQueryService extends ProjectService {
         const summary = await this.projectModel.getSummary(projectUuid);
         return (
             summary.type === ProjectType.PREVIEW ||
-            summary.provisioningSource === 'playground'
+            summary.provisioningSource === ProvisioningSource.PLAYGROUND
         );
     }
 
@@ -5439,7 +5440,7 @@ export class AsyncQueryService extends ProjectService {
         // stream while the query.completed product analytics event is retained.
         const isPreviewProject =
             projectSummary.type === ProjectType.PREVIEW ||
-            projectSummary.provisioningSource === 'playground';
+            projectSummary.provisioningSource === ProvisioningSource.PLAYGROUND;
 
         const exploreName = args.queryComposer.getExplore().name;
         const auditedAbility = this.createAuditedAbility(args.account);
@@ -7971,7 +7972,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (provisioningSource === 'analytics') {
+        if (provisioningSource === ProvisioningSource.ANALYTICS) {
             throw new ForbiddenError(
                 'SQL Runner is unavailable for managed analytics projects',
             );
@@ -9153,7 +9154,8 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             isPreviewProject:
                 projectSummary.type === ProjectType.PREVIEW ||
-                projectSummary.provisioningSource === 'playground',
+                projectSummary.provisioningSource ===
+                    ProvisioningSource.PLAYGROUND,
             onboardingFlow,
             queryUuid,
             sql,

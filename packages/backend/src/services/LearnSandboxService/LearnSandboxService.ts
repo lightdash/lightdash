@@ -8,6 +8,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    ProvisioningSource,
     RequestMethod,
     TooManyRequestsError,
     type Account,
@@ -68,7 +69,7 @@ const PARTIAL_PARSE_RETRY_MS = 10 * 60 * 1000;
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 // Set by provisionTrainingProject on both the shared TRAINING project and
 // every learner's PREVIEW copy of it.
-const TRAINING_PROVISIONING_SOURCE = 'training';
+const TRAINING_PROVISIONING_SOURCE = ProvisioningSource.TRAINING;
 export const ACTIVE_COMMAND_CONFLICT_MESSAGE =
     'A command is already running in this workspace';
 

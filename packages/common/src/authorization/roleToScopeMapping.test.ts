@@ -8,6 +8,7 @@ import { PROJECT_EDITOR } from './projectMemberAbility.mock';
 import {
     getAllScopesForRole,
     getNonEnterpriseScopesForRole,
+    getPlaygroundProjectMemberScopes,
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
     isSystemRole,
@@ -800,5 +801,16 @@ describe('roleToScopeMapping', () => {
                 });
             });
         });
+    });
+});
+
+describe('getPlaygroundProjectMemberScopes', () => {
+    it("is an interactive viewer's project scopes", () => {
+        const scopes = getPlaygroundProjectMemberScopes();
+        expect(scopes).toContain('view:Project');
+        expect(scopes).toContain('manage:Explore');
+        expect(scopes).not.toContain('update:Project');
+        expect(scopes).not.toContain('manage:SqlRunner');
+        expect(scopes).not.toContain('delete:Project');
     });
 });

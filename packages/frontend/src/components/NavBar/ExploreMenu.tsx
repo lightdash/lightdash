@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, ProvisioningSource } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine/core';
 import {
     IconAppWindow,
@@ -120,7 +120,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                         )}
 
                         {contentAuthoringEnabled &&
-                            project?.provisioningSource !== 'analytics' && (
+                            project?.provisioningSource !==
+                                ProvisioningSource.ANALYTICS && (
                                 <Can
                                     I="manage"
                                     this={subject('SqlRunner', {

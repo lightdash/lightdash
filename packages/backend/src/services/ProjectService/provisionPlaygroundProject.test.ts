@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     OrganizationMemberRole,
     ProjectType,
+    ProvisioningSource,
     type OrganizationProject,
     type PossibleAbilities,
     type SessionUser,
@@ -16,7 +17,7 @@ import {
 
 const playgroundDataDirectory = path.resolve(
     __dirname,
-    '../../../../assets/playground',
+    '../../../assets/playground',
 );
 const currentVersion = readEmbeddedBundle(
     playgroundDataDirectory,
@@ -54,7 +55,9 @@ const user = {
     timezone: null,
 } satisfies SessionUser;
 
-const project = (source: string | null = null): OrganizationProject => ({
+const project = (
+    source: ProvisioningSource | null = null,
+): OrganizationProject => ({
     projectUuid,
     slug: 'project',
     name: 'Project',
@@ -68,9 +71,13 @@ const project = (source: string | null = null): OrganizationProject => ({
 });
 
 const buildArguments = () => {
-    const get = vi.fn(async () => ({
-        id: FeatureFlags.NewOnboarding,
-        enabled: true,
+    const flags: Record<string, boolean> = {
+        [FeatureFlags.NewOnboarding]: true,
+        [FeatureFlags.ConnectJourney]: false,
+    };
+    const get = vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        id: featureFlagId,
+        enabled: flags[featureFlagId] ?? false,
     }));
     const getAllByOrganizationUuid = vi.fn(
         async () => [] as OrganizationProject[],
@@ -93,13 +100,6 @@ const buildArguments = () => {
         catalogFieldMap: {},
         numberOfCategoriesApplied: 0,
     }));
-    const getByOrganizationUuid = vi.fn<
-        ProvisionPlaygroundProjectArguments['onboardingModel']['getByOrganizationUuid']
-    >(async () => ({
-        ranQueryAt: null,
-        shownSuccessAt: null,
-        playgroundProjectDeletedAt: null,
-    }));
     const getPlaygroundContentSeedVersion = vi.fn<
         ProvisionPlaygroundProjectArguments['onboardingModel']['getPlaygroundContentSeedVersion']
     >(async () => null);
@@ -107,7 +107,6 @@ const buildArguments = () => {
         ProvisionPlaygroundProjectArguments['onboardingModel']['setPlaygroundContentSeedVersion']
     >(async () => undefined);
     const onboardingModel = {
-        getByOrganizationUuid,
         getPlaygroundContentSeedVersion,
         setPlaygroundContentSeedVersion,
         runInPlaygroundProvisioningLock: vi.fn(
@@ -142,11 +141,13 @@ const buildArguments = () => {
             seedPlaygroundContent,
             analytics: { track },
             canViewProject,
+            isPlaygroundEnabled: true,
             hasActiveAgentOnboardingRun,
             playgroundDataDirectory,
             validatePlaygroundDatabase,
             now,
         } satisfies ProvisionPlaygroundProjectArguments,
+        flags,
         get,
         getAllByOrganizationUuid,
         deleteProject,
@@ -170,10 +171,7 @@ const buildArguments = () => {
 describe('provisionPlaygroundProject', () => {
     it('rejects when the new onboarding flag is disabled', async () => {
         const mocks = buildArguments();
-        mocks.get.mockResolvedValue({
-            id: FeatureFlags.NewOnboarding,
-            enabled: false,
-        });
+        mocks.flags[FeatureFlags.NewOnboarding] = false;
         await expect(provisionPlaygroundProject(mocks.args)).rejects.toThrow(
             'Playground projects are not available',
         );
@@ -191,10 +189,83 @@ describe('provisionPlaygroundProject', () => {
         });
     });
 
+    it('rejects when the instance turns the playground off', async () => {
+        const mocks = buildArguments();
+        await expect(
+            provisionPlaygroundProject({
+                ...mocks.args,
+                isPlaygroundEnabled: false,
+            }),
+        ).rejects.toThrow('Sample data is turned off on this instance');
+        expect(mocks.getAllByOrganizationUuid).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                event: 'playground_project.skipped',
+                properties: expect.objectContaining({
+                    reason: 'instance_disabled',
+                }),
+            }),
+        );
+    });
+
+    describe('with connect-journey on', () => {
+        it('creates a playground beside an existing real project', async () => {
+            const mocks = buildArguments();
+            mocks.flags[FeatureFlags.ConnectJourney] = true;
+            mocks.getAllByOrganizationUuid.mockResolvedValue([project()]);
+
+            await expect(
+                provisionPlaygroundProject({
+                    ...mocks.args,
+                    trigger: 'project_list',
+                }),
+            ).resolves.toEqual({ projectUuid, created: true });
+            expect(mocks.createWithoutCompile).toHaveBeenCalledOnce();
+            expect(mocks.seedPlaygroundContent).toHaveBeenCalledWith(
+                expect.objectContaining({ publicSpace: true }),
+            );
+        });
+
+        it('refuses a playground the user cannot view instead of creating a second one', async () => {
+            const mocks = buildArguments();
+            mocks.flags[FeatureFlags.ConnectJourney] = true;
+            mocks.getAllByOrganizationUuid.mockResolvedValue([
+                project(ProvisioningSource.PLAYGROUND),
+            ]);
+            mocks.canViewProject.mockReturnValue(false);
+
+            await expect(
+                provisionPlaygroundProject(mocks.args),
+            ).rejects.toThrow(
+                'User does not have permission to view the Playground',
+            );
+            expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+        });
+
+        it('indexes the catalog again after it refills an empty cache', async () => {
+            const mocks = buildArguments();
+            mocks.flags[FeatureFlags.ConnectJourney] = true;
+            mocks.getAllByOrganizationUuid.mockResolvedValue([
+                project(ProvisioningSource.PLAYGROUND),
+            ]);
+            mocks.getPlaygroundContentSeedVersion.mockResolvedValue(1);
+            mocks.hasCachedExplores.mockResolvedValue(false);
+            mocks.getPlaygroundBundleVersion.mockResolvedValue(null);
+
+            await expect(
+                provisionPlaygroundProject(mocks.args),
+            ).resolves.toEqual({ projectUuid, created: false });
+            expect(mocks.indexCatalog).toHaveBeenCalledExactlyOnceWith(
+                projectUuid,
+                user.userUuid,
+            );
+        });
+    });
+
     it('leaves a cache on the current version alone and still seeds content', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
-            project('playground'),
+            project(ProvisioningSource.PLAYGROUND),
         ]);
         await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
             projectUuid,
@@ -206,6 +277,7 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             user,
             content: expect.objectContaining({ version: 1 }),
+            publicSpace: false,
         });
         expect(mocks.setPlaygroundContentSeedVersion).toHaveBeenCalledWith(
             organizationUuid,
@@ -253,7 +325,7 @@ describe('provisionPlaygroundProject', () => {
     ])('$case', async ({ projectVersion, firstSeenMinutesAgo, adopts }) => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
-            project('playground'),
+            project(ProvisioningSource.PLAYGROUND),
         ]);
         mocks.getPlaygroundContentSeedVersion.mockResolvedValue(1);
         mocks.getPlaygroundBundleVersion.mockResolvedValue(projectVersion);
@@ -281,7 +353,7 @@ describe('provisionPlaygroundProject', () => {
     it('repairs an empty cache left by an interrupted provisioning at once', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
-            project('playground'),
+            project(ProvisioningSource.PLAYGROUND),
         ]);
         mocks.getPlaygroundContentSeedVersion.mockResolvedValue(1);
         mocks.getPlaygroundBundleVersion.mockResolvedValue(null);
@@ -304,7 +376,7 @@ describe('provisionPlaygroundProject', () => {
     it('does not reseed an existing playground after content was seeded', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
-            project('playground'),
+            project(ProvisioningSource.PLAYGROUND),
         ]);
         mocks.getPlaygroundContentSeedVersion.mockResolvedValue(1);
 
@@ -322,7 +394,7 @@ describe('provisionPlaygroundProject', () => {
     it('still returns an existing playground when repair seeding fails', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
-            project('playground'),
+            project(ProvisioningSource.PLAYGROUND),
         ]);
         mocks.seedPlaygroundContent.mockRejectedValue(
             new TypeError('Content unavailable'),
@@ -380,31 +452,6 @@ describe('provisionPlaygroundProject', () => {
         });
     });
 
-    it('skips provisioning when the playground was previously removed', async () => {
-        const mocks = buildArguments();
-        mocks.args.onboardingModel.getByOrganizationUuid.mockResolvedValue({
-            ranQueryAt: null,
-            shownSuccessAt: null,
-            playgroundProjectDeletedAt: now,
-        });
-
-        await expect(provisionPlaygroundProject(mocks.args)).rejects.toThrow(
-            'Playground project was previously removed',
-        );
-        expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
-        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-            event: 'playground_project.skipped',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: null,
-                trigger: 'invite_expert',
-                onboardingFlow: 'new',
-                reason: 'playground_previously_removed',
-            },
-        });
-    });
-
     it('creates the playground and caches bundled explores', async () => {
         const mocks = buildArguments();
         await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
@@ -419,7 +466,7 @@ describe('provisionPlaygroundProject', () => {
                 }),
             }),
             expect.any(String),
-            { source: 'playground' },
+            { source: ProvisioningSource.PLAYGROUND },
         );
         expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
             projectUuid,
@@ -436,6 +483,7 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             user,
             content: expect.objectContaining({ version: 1 }),
+            publicSpace: false,
         });
         expect(mocks.setPlaygroundContentSeedVersion).toHaveBeenCalledWith(
             organizationUuid,
@@ -492,7 +540,7 @@ describe('provisionPlaygroundProject', () => {
                 }),
             }),
             expect.any(String),
-            { source: 'playground' },
+            { source: ProvisioningSource.PLAYGROUND },
         );
     });
 
@@ -589,7 +637,7 @@ describe('provisionPlaygroundProject', () => {
                     }),
                 }),
                 expect.any(String),
-                { source: 'playground' },
+                { source: ProvisioningSource.PLAYGROUND },
             );
             expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
                 event: 'playground_project.provisioned',
@@ -609,7 +657,7 @@ describe('provisionPlaygroundProject', () => {
             const mocks = buildArguments();
             mocks.getAllByOrganizationUuid.mockResolvedValue([
                 project(),
-                project('playground'),
+                project(ProvisioningSource.PLAYGROUND),
             ]);
 
             await expect(
@@ -653,35 +701,6 @@ describe('provisionPlaygroundProject', () => {
                     trigger: 'agent_onboarding_wait',
                     onboardingFlow: 'new',
                     reason: 'organization_has_project',
-                },
-            });
-        });
-
-        it('does not recreate a playground that was previously removed', async () => {
-            const mocks = buildArguments();
-            mocks.getAllByOrganizationUuid.mockResolvedValue([project()]);
-            mocks.args.onboardingModel.getByOrganizationUuid.mockResolvedValue({
-                ranQueryAt: null,
-                shownSuccessAt: null,
-                playgroundProjectDeletedAt: now,
-            });
-
-            await expect(
-                provisionPlaygroundProject({
-                    ...mocks.args,
-                    trigger: 'agent_onboarding_wait',
-                }),
-            ).rejects.toThrow('Playground project was previously removed');
-            expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
-            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-                event: 'playground_project.skipped',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: null,
-                    trigger: 'agent_onboarding_wait',
-                    onboardingFlow: 'new',
-                    reason: 'playground_previously_removed',
                 },
             });
         });

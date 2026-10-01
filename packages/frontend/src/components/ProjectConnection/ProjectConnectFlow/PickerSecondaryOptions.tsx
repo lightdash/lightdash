@@ -12,24 +12,17 @@ import { IconDatabase, IconTerminal2, IconUsers } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
+import { usePlaygroundAvailability } from '../../../hooks/usePlaygroundAvailability';
 import useApp from '../../../providers/App/useApp';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './PickerSecondaryOptions.module.css';
 import {
     getPlaygroundSetupFailure,
-    type PlaygroundSetupFailure,
+    SAMPLE_DATA_FAILURE_MESSAGES,
 } from './playgroundSetupFailure';
 
 const CLI_COMMAND = 'lightdash deploy --create';
-
-const SAMPLE_DATA_FAILURE_MESSAGES: Record<PlaygroundSetupFailure, string> = {
-    unavailable: 'Sample data is not available on this instance.',
-    'previously-removed':
-        'Your organization removed its sample data project, so it cannot be set up again yet.',
-    forbidden: 'You do not have permission to add sample data.',
-    unknown: 'Something went wrong while preparing sample data. Try again.',
-};
 
 const OptionCard: FC<{
     icon: typeof IconDatabase;
@@ -91,7 +84,8 @@ const SampleDataOption: FC = () => {
 
 export const PickerSecondaryOptions: FC = () => {
     const { pathname } = useLocation();
-    const { user, health } = useApp();
+    const { user } = useApp();
+    const { isAvailable: canAddSampleData } = usePlaygroundAvailability();
     const canInviteUsers =
         user.data?.ability?.can(
             'manage',
@@ -106,7 +100,7 @@ export const PickerSecondaryOptions: FC = () => {
                 Other ways to start
             </Text>
             <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-                {health.data?.hasPlaygroundProjects && <SampleDataOption />}
+                {canAddSampleData && <SampleDataOption />}
                 {canInviteUsers && (
                     <OptionCard
                         icon={IconUsers}

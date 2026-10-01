@@ -685,6 +685,8 @@ export type HealthState = {
      * builds only).
      */
     hasPlaygroundProjects: boolean;
+    /** The instance allows the Playground. Applies when connect-journey is on. */
+    isPlaygroundEnabled: boolean;
     /**
      * Instance has a Postmark account token, so email whitelabelling can be
      * offered (the org still needs the EmailWhitelabel feature flag).

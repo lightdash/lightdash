@@ -2,6 +2,7 @@ import {
     ConflictError,
     ForbiddenError,
     NotFoundError,
+    ProvisioningSource,
 } from '@lightdash/common';
 import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
 import * as analyticsExplores from '../ProjectService/analyticsProject/createAnalyticsExplores';
@@ -22,7 +23,7 @@ describe('AnalyticsProjectService', () => {
         ...defaultProject,
         projectUuid: 'analytics-project',
         slug: 'lightdash-analytics-1',
-        provisioningSource: 'analytics',
+        provisioningSource: ProvisioningSource.ANALYTICS,
         createdAt: new Date('2026-09-10T00:00:00Z'),
     };
     const getAllByOrganizationUuid = vi.fn();
@@ -84,7 +85,7 @@ describe('AnalyticsProjectService', () => {
         const result = await service.getStatus(user);
         expect(assertAnalyticsProjectAccess).toHaveBeenCalledWith(user, {
             organizationUuid: user.organizationUuid,
-            provisioningSource: 'analytics',
+            provisioningSource: ProvisioningSource.ANALYTICS,
         });
         expect(getAllByOrganizationUuid).toHaveBeenCalledWith(
             user.organizationUuid,

@@ -10,6 +10,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    ProvisioningSource,
     type MemberAbility,
     type PossibleAbilities,
     type SessionUser,
@@ -105,7 +106,7 @@ describe('LearnSandboxService', () => {
         type: ProjectType;
         upstreamProjectUuid: string | undefined;
         createdByUserUuid: string | null;
-        provisioningSource: string | null;
+        provisioningSource: ProvisioningSource | null;
         name: string;
         slug: string;
     };
@@ -117,7 +118,7 @@ describe('LearnSandboxService', () => {
                 type: ProjectType.PREVIEW,
                 upstreamProjectUuid: 'training',
                 createdByUserUuid: user.userUuid,
-                provisioningSource: 'training',
+                provisioningSource: ProvisioningSource.TRAINING,
                 name: 'copy',
                 slug: 'copy',
             }),
@@ -514,7 +515,7 @@ describe('LearnSandboxService', () => {
             type: ProjectType.PREVIEW,
             upstreamProjectUuid: 'training',
             createdByUserUuid: 'someone-else-uuid',
-            provisioningSource: 'training',
+            provisioningSource: ProvisioningSource.TRAINING,
             name: 'copy',
             slug: 'copy',
         });
@@ -581,7 +582,7 @@ describe('LearnSandboxService', () => {
             type: ProjectType.TRAINING,
             upstreamProjectUuid: undefined,
             createdByUserUuid: null,
-            provisioningSource: 'training',
+            provisioningSource: ProvisioningSource.TRAINING,
             name: 'Training',
             slug: 'training',
         });
@@ -795,7 +796,7 @@ describe('LearnSandboxService.runCommand', () => {
             type: ProjectType.PREVIEW,
             upstreamProjectUuid: 'training',
             createdByUserUuid: user.userUuid,
-            provisioningSource: 'training',
+            provisioningSource: ProvisioningSource.TRAINING,
             name: 'copy',
             slug: 'copy',
         })),

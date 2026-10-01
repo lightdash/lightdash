@@ -1939,6 +1939,9 @@ export type LightdashConfig = {
     customRoles: {
         enabled: boolean;
     };
+    playground: {
+        enabled: boolean;
+    };
     analyticsEmbedSecret?: string;
 
     editYamlInUi: {
@@ -3953,6 +3956,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         customRoles: {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
+        },
+        playground: {
+            enabled: process.env.PLAYGROUND_ENABLED !== 'false',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
         editYamlInUi: {
