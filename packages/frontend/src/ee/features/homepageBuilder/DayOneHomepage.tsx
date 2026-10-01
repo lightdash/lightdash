@@ -121,6 +121,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
             {/* Same favourites strip the published homepage puts above its
                 blocks — day-0 opens the same way */}
             <PersonalFavoritesBar projectUuid={projectUuid} />
+            <PlaygroundHomeNotice projectUuid={projectUuid} />
             {/* Body rows always follow — Recently viewed and Pinned are the
                 point of day-0 — so the hero stays compact and they're on
                 screen. Same shell for both the AI and non-AI openings. */}
@@ -153,7 +154,6 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
 
             <div className={classes.secondary}>
                 <Stack gap="xl">
-                    <PlaygroundHomeNotice projectUuid={projectUuid} />
                     {/* Spaces lead the body: they're the one section that has
                         content in any real project. Recently viewed is empty
                         for a first-time viewer and Pinned is empty until
