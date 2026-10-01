@@ -130,12 +130,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return;
         }
 
+        // Pivot and flat tables both show total cells as skeletons while totals load.
+        if (isCalculatingAnyTotals) {
+            return;
+        }
+
         if (rendersPivotTable) {
-            if (
-                pivotTableData.data &&
-                resultsData?.hasFetchedAllRows &&
-                !isCalculatingAnyTotals
-            ) {
+            if (pivotTableData.data && resultsData?.hasFetchedAllRows) {
                 onScreenshotReady?.();
                 hasSignaledScreenshotReady.current = true;
             }

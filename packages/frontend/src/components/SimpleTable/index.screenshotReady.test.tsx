@@ -11,6 +11,10 @@ vi.mock('../common/PivotTable', () => ({
     default: () => null,
 }));
 
+vi.mock('../common/Table', () => ({
+    default: () => null,
+}));
+
 vi.mock('../LightdashVisualization/types', () => ({
     isTableVisualizationConfig: () => true,
 }));
@@ -36,6 +40,8 @@ const buildContext = (
     chartConfigOverrides: Partial<Record<TotalLoadingFlag, boolean>> & {
         columnTotalsError?: Error;
         isPivotTableEnabled?: boolean;
+        rendersPivotTable?: boolean;
+        showSubtotals?: boolean;
         pivotTableData?: {
             data: { rowsCount: number } | undefined;
             loading: boolean;
@@ -78,6 +84,17 @@ const buildContext = (
     parameters: undefined,
     hasExplorerStore: false,
 });
+
+const buildFlatTableContext = (
+    chartConfigOverrides: Parameters<typeof buildContext>[0] = {},
+) =>
+    buildContext({
+        isPivotTableEnabled: false,
+        rendersPivotTable: false,
+        showSubtotals: true,
+        pivotTableData: { data: undefined, loading: false, error: undefined },
+        ...chartConfigOverrides,
+    });
 
 describe('SimpleTable screenshot readiness', () => {
     beforeEach(() => {
@@ -153,6 +170,43 @@ describe('SimpleTable screenshot readiness', () => {
 
         mockContext.current = buildContext({ isPivotTableEnabled: false });
         rerender(renderTable());
+
+        expect(onScreenshotReady).toHaveBeenCalledOnce();
+    });
+
+    it.each(['isCalculatingColumnTotals', 'isCalculatingSubtotals'] as const)(
+        'waits on a flat table while %s is true, then signals once',
+        (totalLoadingFlag) => {
+            const onScreenshotReady = vi.fn();
+            const renderTable = () => (
+                <SimpleTable
+                    isDashboard
+                    onScreenshotReady={onScreenshotReady}
+                />
+            );
+
+            mockContext.current = buildFlatTableContext({
+                [totalLoadingFlag]: true,
+            });
+            const { rerender } = renderWithProviders(renderTable());
+
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+
+            mockContext.current = buildFlatTableContext();
+            rerender(renderTable());
+            rerender(renderTable());
+
+            expect(onScreenshotReady).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('signals on a flat table without pending totals', () => {
+        mockContext.current = buildFlatTableContext();
+        const onScreenshotReady = vi.fn();
+
+        renderWithProviders(
+            <SimpleTable isDashboard onScreenshotReady={onScreenshotReady} />,
+        );
 
         expect(onScreenshotReady).toHaveBeenCalledOnce();
     });
