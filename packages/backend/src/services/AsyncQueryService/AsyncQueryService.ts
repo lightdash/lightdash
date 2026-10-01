@@ -95,6 +95,7 @@ import {
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
+    projectAbilitySubject,
     ProjectType,
     QueryExecutionContext,
     QueryHistoryListFilters,
@@ -5336,9 +5337,9 @@ export class AsyncQueryService extends ProjectService {
         const isForbidden =
             auditedAbility.cannot(
                 'view',
-                subject('Project', {
+                projectAbilitySubject({
+                    ...projectSummary,
                     organizationUuid,
-                    projectUuid: args.projectUuid,
                 }),
             ) &&
             auditedAbility.cannot(
