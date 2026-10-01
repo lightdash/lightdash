@@ -1,3 +1,15 @@
+# [2.401.0](https://github.com/lightdash/lightdash/compare/2.400.0...2.401.0) (2026-10-01)
+
+
+### Bug Fixes
+
+* **projects:** coalesce membership counts for project ordering ([#30313](https://github.com/lightdash/lightdash/issues/30313)) ([3957a96](https://github.com/lightdash/lightdash/commit/3957a96040cf1ea64d1a594c84e128ab1ac31b15))
+
+
+### Features
+
+* restrict managed analytics project features ([#30279](https://github.com/lightdash/lightdash/issues/30279)) ([c5c852d](https://github.com/lightdash/lightdash/commit/c5c852d0a5e899902d7841e9823976ddb2309a55))
+
 # [2.400.0](https://github.com/lightdash/lightdash/compare/2.399.4...2.400.0) (2026-10-01)
 
 
