@@ -8,10 +8,12 @@ import {
     type WarehouseConnectionInputIssue,
 } from '@lightdash/common';
 import { Box, Button, List, Stack, Text } from '@mantine/core';
+import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import Callout from '../common/Callout';
+import MantineIcon from '../common/MantineIcon';
 import { useFormContext } from './formContext';
 
 type ConfirmationIssue = WarehouseConnectionInputIssue & {
@@ -117,11 +119,19 @@ export const WarehouseConnectionInputReview: FC<{ children: ReactNode }> = ({
                 gap="sm"
                 mt={issues.length + appliedChanges.length > 0 ? 'md' : 0}
             >
-                {appliedChanges.map((change) => (
-                    <Text key={change} size="sm" c="dimmed">
-                        {change}
-                    </Text>
-                ))}
+                {appliedChanges.length > 0 && (
+                    <Callout
+                        variant="neutral"
+                        icon={<MantineIcon icon={IconCheck} size="lg" />}
+                        title="We tidied what you typed"
+                    >
+                        <List size="sm">
+                            {appliedChanges.map((change) => (
+                                <List.Item key={change}>{change}</List.Item>
+                            ))}
+                        </List>
+                    </Callout>
+                )}
                 {confirmations.map((issue) => (
                     <ConfirmationCallout
                         key={issue.field}

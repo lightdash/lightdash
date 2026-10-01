@@ -62,6 +62,20 @@ describe('parseHostInput', () => {
         });
     });
 
+    it('words every change as a proposal when it asks first', () => {
+        expect(
+            parseHostInput(' postgresql://db.example.com:6543/ ', cloud),
+        ).toMatchObject({
+            kind: ConnectionInputParseKind.NEEDS_CONFIRMATION,
+            changes: [
+                'Remove spaces around the host',
+                'Remove the trailing /',
+                'Remove postgresql:// from the host',
+                'Move port 6543 to the port field',
+            ],
+        });
+    });
+
     it('asks before splitting host and port', () => {
         expect(parseHostInput('db.example.com:6543', cloud)).toMatchObject({
             kind: ConnectionInputParseKind.NEEDS_CONFIRMATION,
