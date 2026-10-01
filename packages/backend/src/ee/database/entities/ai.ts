@@ -541,6 +541,7 @@ export type AiPromptContextEntityType =
     | 'data_app_element'
     | 'data_app_restore'
     | 'data_app'
+    | 'document'
     | 'design'
     | 'skill';
 

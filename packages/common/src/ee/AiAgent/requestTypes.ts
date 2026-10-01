@@ -335,6 +335,13 @@ export type AiPromptContextItemInput =
           appSlug?: string | null;
       }
     | {
+          // A Document the user pinned, e.g. the one open when the launcher
+          // started the thread; the server snapshots its name and version.
+          type: 'document';
+          documentUuid: string;
+          documentSlug?: string | null;
+      }
+    | {
           // The organization theme picked in the composer for a data app
           // build; the server snapshots its name at attach time.
           type: 'design';
@@ -462,6 +469,13 @@ export type AiPromptContextItem =
           pinnedVersion: number | null;
           // Personal apps have no space; space-restricted agents cannot read them.
           isPersonal: boolean;
+      }
+    | {
+          type: 'document';
+          documentUuid: string;
+          documentSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
       }
     | {
           type: 'design';

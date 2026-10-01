@@ -227,6 +227,17 @@ export const PinnedContextCard: FC<Props> = ({
                     previewScope={previewScope}
                 />
             );
+        case 'document':
+            return (
+                <ContentReferenceLink
+                    kind="document"
+                    rel="noreferrer"
+                    to={`/projects/${projectUuid}/documents/${item.documentUuid}`}
+                    target="_blank"
+                >
+                    {item.displayName ?? item.documentSlug ?? 'Document'}
+                </ContentReferenceLink>
+            );
         case 'pull_request':
         case 'proposed_change':
         case 'review_finding':

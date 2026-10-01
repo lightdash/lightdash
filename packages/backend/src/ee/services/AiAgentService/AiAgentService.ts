@@ -283,6 +283,7 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { CoderService } from '../../../services/CoderService/CoderService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
+import { DocumentService } from '../../../services/DocumentService/DocumentService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
@@ -782,6 +783,7 @@ type AiAgentServiceDependencies = {
     projectModel: ProjectModel;
     coderService: CoderService;
     dashboardService: DashboardService;
+    documentService: DocumentService;
     savedChartService: SavedChartService;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -1131,6 +1133,8 @@ export class AiAgentService extends BaseService {
 
     private readonly dashboardService: DashboardService;
 
+    private readonly documentService: DocumentService;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly contentService: ContentService;
@@ -1277,6 +1281,9 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'data_app':
                     key = dataAppContextKey(item.appUuid);
+                    break;
+                case 'document':
+                    key = `document:${item.documentUuid}`;
                     break;
                 case 'design':
                     key = designContextKey(item.designUuid);
@@ -1478,6 +1485,31 @@ export class AiAgentService extends BaseService {
                     );
                 }
 
+                if (item.type === 'document') {
+                    const { enabled } = await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.Documents,
+                    });
+                    if (!enabled) {
+                        throw new ForbiddenError('Documents are not enabled');
+                    }
+                    // Checks project and space access for this user.
+                    const document = await this.documentService.get(
+                        fromSession(user),
+                        agent.projectUuid,
+                        item.documentUuid,
+                    );
+                    if (
+                        allowedSpaces &&
+                        !allowedSpaces.has(document.spaceUuid)
+                    ) {
+                        throw new ForbiddenError(
+                            'Pinned Document is outside the embedded space',
+                        );
+                    }
+                    return;
+                }
+
                 // pull_request / preview_environment have no extra access gate
                 // beyond the agent's project membership the request already has.
                 if (
@@ -1584,6 +1616,7 @@ export class AiAgentService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.coderService = dependencies.coderService;
         this.dashboardService = dependencies.dashboardService;
+        this.documentService = dependencies.documentService;
         this.savedChartService = dependencies.savedChartService;
         this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -10233,6 +10266,12 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Data app "${name}" (dataAppSlug: ${slugText})`;
+                }
+                case 'document': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    return `- Document "${name}" (documentUuid: ${item.documentUuid}${
+                        item.documentSlug ? `, slug: ${item.documentSlug}` : ''
+                    }) — the Document open in the user's view. When the user says "this" or asks for a change without naming content, they mean this Document. Read it with readContent (type document, documentUuid) before answering or editing, and save changes with editContent.`;
                 }
                 case 'data_app_element': {
                     const name = item.displayName ?? '(name unavailable)';

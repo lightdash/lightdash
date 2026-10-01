@@ -236,6 +236,8 @@ export class Compaction {
                 }${item.status ? ` — ${item.status}` : ''}`;
             case 'data_app':
                 return `data app ${item.displayName ?? item.appUuid} (${item.appSlug ?? item.appUuid})`;
+            case 'document':
+                return `Document ${item.displayName ?? item.documentUuid} (${item.documentUuid}; read it with readContent)`;
             case 'data_app_element':
                 return `element reference ${elementReferenceToWireString(item)} in data app ${item.displayName ?? item.appUuid} (${item.appUuid}, version ${item.version}; copy it verbatim into the iterateDataApp brief)`;
             case 'data_app_restore':

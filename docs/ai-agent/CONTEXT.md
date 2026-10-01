@@ -16,8 +16,8 @@ _Avoid_: ask agent, open copilot, AI button
 
 **Pinned context**:
 The set of content a user attaches to one AI agent prompt: charts,
-dashboards, data apps, previous conversations, dbt files, repositories,
-external sources, and a theme picked for a data app build. Stored with the
+dashboards, data apps, Documents, previous conversations, dbt files,
+repositories, external sources, and a theme picked for a data app build. Stored with the
 prompt and shown to the agent as names and slugs; the agent reads the content
 itself with its tools. Outside this context, qualify as "AI agent pinned
 context"; it is not data-app **Context**, which is what the coding agent

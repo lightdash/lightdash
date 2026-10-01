@@ -961,6 +961,14 @@ const toOptimisticContextItem = (
                 pinnedVersion: null,
                 isPersonal: false,
             };
+        case 'document':
+            return {
+                type: 'document',
+                documentUuid: item.documentUuid,
+                documentSlug: item.documentSlug ?? null,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
         case 'design':
             return {
                 type: 'design',
