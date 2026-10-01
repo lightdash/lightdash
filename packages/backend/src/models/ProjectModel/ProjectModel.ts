@@ -221,6 +221,16 @@ import { normalizeStoredDbtConnection } from './normalizeStoredDbtConnection';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
+export type PushToPreview = (args: {
+    previewCredentials: CreateWarehouseCredentials;
+    previousUpstreamCredentials: CreateWarehouseCredentials;
+}) => CreateWarehouseCredentials | null;
+
+export type PreviewCredentialsPush =
+    | { kind: 'skipped' }
+    | { kind: 'pushed'; previewProjectUuids: string[] }
+    | { kind: 'failed'; error: unknown };
+
 export type BoundExplore = {
     explore: Explore | ExploreError;
     warehouseConnectionUuid: string | null;
@@ -1190,6 +1200,30 @@ export class ProjectModel {
     }
 
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
+        await this.updateProject(projectUuid, data, null);
+    }
+
+    /** Saves a project and, in the same transaction, rewrites each preview's credentials where `pushToPreview` returns new ones. The project's previous credentials are read under a row lock, so concurrent saves see each other's writes. */
+    async updateAndPushToPreviews(
+        projectUuid: string,
+        data: UpdateProject,
+        pushToPreview: PushToPreview,
+    ): Promise<PreviewCredentialsPush> {
+        const push = await this.updateProject(projectUuid, data, pushToPreview);
+        warehouseCredentialsCache?.del(projectUuid);
+        if (push.kind === 'pushed') {
+            push.previewProjectUuids.forEach((previewProjectUuid) =>
+                warehouseCredentialsCache?.del(previewProjectUuid),
+            );
+        }
+        return push;
+    }
+
+    private async updateProject(
+        projectUuid: string,
+        data: UpdateProject,
+        pushToPreview: PushToPreview | null,
+    ): Promise<PreviewCredentialsPush> {
         let previousConnectionString: string | undefined;
         try {
             previousConnectionString = getMotherduckConnectionString(
@@ -1206,7 +1240,11 @@ export class ProjectModel {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
 
-        await this.database.transaction(async (trx) => {
+        const push = await this.database.transaction(async (trx) => {
+            const previousUpstreamCredentials = pushToPreview
+                ? await this.lockStoredWarehouseCredentials(trx, projectUuid)
+                : null;
+
             let encryptedCredentials: Buffer;
             try {
                 encryptedCredentials = this.encryptionUtil.encrypt(
@@ -1247,6 +1285,32 @@ export class ProjectModel {
                 project.project_id,
                 data.warehouseConnection,
             );
+
+            if (!pushToPreview || !previousUpstreamCredentials) {
+                return { kind: 'skipped' } satisfies PreviewCredentialsPush;
+            }
+            try {
+                const previewProjectUuids = await trx.transaction((savepoint) =>
+                    this.rewritePreviewWarehouseCredentials(
+                        savepoint,
+                        projectUuid,
+                        (previewCredentials) =>
+                            pushToPreview({
+                                previewCredentials,
+                                previousUpstreamCredentials,
+                            }),
+                    ),
+                );
+                return {
+                    kind: 'pushed',
+                    previewProjectUuids,
+                } satisfies PreviewCredentialsPush;
+            } catch (error) {
+                return {
+                    kind: 'failed',
+                    error,
+                } satisfies PreviewCredentialsPush;
+            }
         });
 
         if (
@@ -1258,6 +1322,51 @@ export class ProjectModel {
                 'credentials_updated',
             );
         }
+        return push;
+    }
+
+    private async lockStoredWarehouseCredentials(
+        trx: Transaction,
+        projectUuid: string,
+    ): Promise<CreateWarehouseCredentials | null> {
+        const project = await trx(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .select<
+                {
+                    project_id: number;
+                    organization_warehouse_credentials_uuid: string | null;
+                    organization_uuid: string;
+                }[]
+            >([
+                `${ProjectTableName}.project_id`,
+                `${ProjectTableName}.organization_warehouse_credentials_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+            ])
+            .forUpdate(ProjectTableName)
+            .first();
+        if (!project) return null;
+        const row = await trx(WarehouseCredentialTableName)
+            .where('project_id', project.project_id)
+            .select<{ encrypted_credentials: Buffer }[]>(
+                'encrypted_credentials',
+            )
+            .forUpdate()
+            .first();
+        if (project.organization_warehouse_credentials_uuid) {
+            return this.getOrganizationWarehouseCredentials(
+                project.organization_warehouse_credentials_uuid,
+                project.organization_uuid,
+                trx,
+            );
+        }
+        return row
+            ? this.decryptWarehouseCredentials(row.encrypted_credentials)
+            : null;
     }
 
     async updateDetails(
@@ -2045,8 +2154,9 @@ export class ProjectModel {
     private async getOrganizationWarehouseCredentials(
         organizationWarehouseCredentialsUuid: string,
         organizationUuid: string, // Extra filter value to ensure we are getting the credentials from the correct organization
+        database: Knex = this.database,
     ): Promise<CreateWarehouseCredentials> {
-        const [orgCredentials] = await this.database(
+        const [orgCredentials] = await database(
             'organization_warehouse_credentials',
         )
             .where(
@@ -4829,65 +4939,57 @@ export class ProjectModel {
         }
     }
 
-    /** Rewrites the stored credentials of each preview of a project where `update` returns new credentials. Returns the updated preview uuids. */
-    async updatePreviewWarehouseCredentials(
+    private async rewritePreviewWarehouseCredentials(
+        trx: Transaction,
         upstreamProjectUuid: string,
         update: (
             credentials: CreateWarehouseCredentials,
         ) => CreateWarehouseCredentials | null,
     ): Promise<string[]> {
-        const updatedProjectUuids = await this.database.transaction(
-            async (trx) => {
-                const rows = await trx('warehouse_credentials')
-                    .innerJoin(
-                        'projects',
-                        'warehouse_credentials.project_id',
-                        'projects.project_id',
-                    )
-                    .where(
-                        'projects.copied_from_project_uuid',
-                        upstreamProjectUuid,
-                    )
-                    .where('projects.project_type', ProjectType.PREVIEW)
-                    .whereNull(
-                        'projects.organization_warehouse_credentials_uuid',
-                    )
-                    .select<
-                        {
-                            project_uuid: string;
-                            project_id: number;
-                            encrypted_credentials: Buffer;
-                        }[]
-                    >([
-                        'projects.project_uuid',
-                        'warehouse_credentials.project_id',
-                        'warehouse_credentials.encrypted_credentials',
-                    ])
-                    .forUpdate();
-                const updated: string[] = [];
-                await rows.reduce<Promise<void>>(async (previous, row) => {
-                    await previous;
-                    const credentials = this.decryptWarehouseCredentials(
-                        row.encrypted_credentials,
-                    );
-                    const next = credentials ? update(credentials) : null;
-                    if (!next) return;
-                    await trx('warehouse_credentials')
-                        .update({
-                            encrypted_credentials: this.encryptionUtil.encrypt(
-                                JSON.stringify(next),
-                            ),
-                        })
-                        .where('project_id', row.project_id);
-                    updated.push(row.project_uuid);
-                }, Promise.resolve());
-                return updated;
-            },
-        );
-        updatedProjectUuids.forEach((projectUuid) =>
-            warehouseCredentialsCache?.del(projectUuid),
-        );
-        return updatedProjectUuids;
+        const rows = await trx(WarehouseCredentialTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${WarehouseCredentialTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .where(
+                `${ProjectTableName}.copied_from_project_uuid`,
+                upstreamProjectUuid,
+            )
+            .where(`${ProjectTableName}.project_type`, ProjectType.PREVIEW)
+            .whereNull(
+                `${ProjectTableName}.organization_warehouse_credentials_uuid`,
+            )
+            .select<
+                {
+                    project_uuid: string;
+                    project_id: number;
+                    encrypted_credentials: Buffer;
+                }[]
+            >([
+                `${ProjectTableName}.project_uuid`,
+                `${WarehouseCredentialTableName}.project_id`,
+                `${WarehouseCredentialTableName}.encrypted_credentials`,
+            ])
+            .forUpdate(WarehouseCredentialTableName);
+        const updated: string[] = [];
+        await rows.reduce<Promise<void>>(async (previous, row) => {
+            await previous;
+            const credentials = this.decryptWarehouseCredentials(
+                row.encrypted_credentials,
+            );
+            const next = credentials ? update(credentials) : null;
+            if (!next) return;
+            await trx(WarehouseCredentialTableName)
+                .update({
+                    encrypted_credentials: this.encryptionUtil.encrypt(
+                        JSON.stringify(next),
+                    ),
+                })
+                .where('project_id', row.project_id);
+            updated.push(row.project_uuid);
+        }, Promise.resolve());
+        return updated;
     }
 
     async getPreviewOwnsCredentials(

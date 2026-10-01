@@ -1,14 +1,28 @@
-import { ExploreType } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
+    ExploreType,
+    ProjectType,
+    WarehouseTypes,
+    type CreateBigqueryCredentials,
+    type CreateWarehouseCredentials,
+    type UpdateProject,
+} from '@lightdash/common';
 import { trace } from '@opentelemetry/api';
 import { type Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import {
     CachedExploreTableName,
+    ProjectTableName,
     type CachedExploreTable,
 } from '../../database/entities/projects';
+import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
+import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { getTestContext } from '../../vitest.setup.integration';
-import { ProjectModel } from './ProjectModel';
+import { ProjectModel, type PushToPreview } from './ProjectModel';
 import { encryptionUtilMock } from './ProjectModel.mock';
 
 describe('ProjectModel cached explore summary projection', () => {
@@ -430,5 +444,193 @@ describe('ProjectModel cached explore read metrics', () => {
                 serverVersion: expect.any(String),
             }),
         );
+    });
+});
+
+describe('ProjectModel preview credential push', () => {
+    const plainEncryption = {
+        encrypt: (value: string) => Buffer.from(value),
+        decrypt: (value: Buffer) => value.toString(),
+    } as unknown as EncryptionUtil;
+    const bigquerySso = (refreshToken: string): CreateBigqueryCredentials => ({
+        type: WarehouseTypes.BIGQUERY,
+        authenticationType: BigqueryAuthenticationType.SSO,
+        project: 'analytics',
+        dataset: 'prod',
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+        keyfileContents: {
+            type: 'authorized_user',
+            client_id: 'lightdash-client',
+            client_secret: 'secret',
+            refresh_token: refreshToken,
+        },
+    });
+    const refreshTokenOf = (credentials: CreateWarehouseCredentials) =>
+        credentials.type === WarehouseTypes.BIGQUERY
+            ? credentials.keyfileContents.refresh_token
+            : null;
+    const pushToken =
+        (refreshToken: string): PushToPreview =>
+        ({ previewCredentials, previousUpstreamCredentials }) =>
+            refreshTokenOf(previewCredentials) ===
+            refreshTokenOf(previousUpstreamCredentials)
+                ? bigquerySso(refreshToken)
+                : null;
+    const parentUpdate = (refreshToken: string): UpdateProject => ({
+        name: 'Preview push parent',
+        dbtConnection: { type: DbtProjectType.NONE },
+        dbtVersion: DefaultSupportedDbtVersion,
+        warehouseConnection: bigquerySso(refreshToken),
+    });
+
+    let organizationId: number;
+    let parentUuid: string;
+    let previewUuid: string;
+
+    const insertProject = async (
+        name: string,
+        projectType: ProjectType,
+        copiedFromProjectUuid: string | null,
+    ): Promise<string> => {
+        const { db } = getTestContext();
+        const [project] = await db(ProjectTableName)
+            .insert({
+                name,
+                slug: `${name}-${organizationId}`,
+                organization_id: organizationId,
+                project_type: projectType,
+                copied_from_project_uuid: copiedFromProjectUuid,
+                dbt_connection_type: DbtProjectType.NONE,
+                dbt_connection: plainEncryption.encrypt(
+                    JSON.stringify({ type: DbtProjectType.NONE }),
+                ),
+                dbt_version: DefaultSupportedDbtVersion,
+                created_by_user_uuid: null,
+                organization_warehouse_credentials_uuid: null,
+            })
+            .returning(['project_id', 'project_uuid']);
+        await db(WarehouseCredentialTableName).insert({
+            project_id: project.project_id,
+            warehouse_type: WarehouseTypes.BIGQUERY,
+            encrypted_credentials: plainEncryption.encrypt(
+                JSON.stringify(bigquerySso('token-a')),
+            ),
+        });
+        return project.project_uuid;
+    };
+
+    const storedRefreshToken = async (projectUuid: string) => {
+        const { db } = getTestContext();
+        const row = await db(WarehouseCredentialTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${WarehouseCredentialTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .first(`${WarehouseCredentialTableName}.encrypted_credentials`);
+        return refreshTokenOf(
+            JSON.parse(
+                plainEncryption.decrypt(row.encrypted_credentials),
+            ) as CreateWarehouseCredentials,
+        );
+    };
+
+    const waitForLockWaiters = async (count: number) => {
+        const { db } = getTestContext();
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+            // eslint-disable-next-line no-await-in-loop
+            const { rows } = await db.raw<{ rows: { waiting: number }[] }>(
+                `SELECT count(*)::int AS waiting FROM pg_stat_activity
+                 WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+            );
+            if (rows[0].waiting >= count) return;
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((resolve) => {
+                setTimeout(resolve, 20);
+            });
+        }
+        throw new Error(`Expected ${count} saves to wait on a lock`);
+    };
+
+    const getModel = () =>
+        new ProjectModel({
+            database: getTestContext().db,
+            lightdashConfig: lightdashConfigMock,
+            encryptionUtil: plainEncryption,
+        });
+
+    beforeEach(async () => {
+        const { db } = getTestContext();
+        const [organization] = await db(OrganizationTableName)
+            .insert({ organization_name: 'Preview push test' })
+            .returning('organization_id');
+        organizationId = organization.organization_id;
+        parentUuid = await insertProject(
+            'preview-push-parent',
+            ProjectType.DEFAULT,
+            null,
+        );
+        previewUuid = await insertProject(
+            'preview-push-preview',
+            ProjectType.PREVIEW,
+            parentUuid,
+        );
+    });
+
+    afterEach(async () => {
+        const { db } = getTestContext();
+        await db(ProjectTableName)
+            .where('organization_id', organizationId)
+            .delete();
+        await db(OrganizationTableName)
+            .where('organization_id', organizationId)
+            .delete();
+    });
+
+    test('concurrent saves leave the preview on the parent token', async () => {
+        const { db } = getTestContext();
+        const model = getModel();
+        const blocker = await db.transaction();
+        await blocker(ProjectTableName)
+            .where('project_uuid', parentUuid)
+            .forUpdate()
+            .first();
+
+        const saves = Promise.all(
+            ['token-b', 'token-c'].map((token) =>
+                model.updateAndPushToPreviews(
+                    parentUuid,
+                    parentUpdate(token),
+                    pushToken(token),
+                ),
+            ),
+        );
+        await waitForLockWaiters(2);
+        await blocker.commit();
+        await saves;
+
+        const parentToken = await storedRefreshToken(parentUuid);
+        expect(['token-b', 'token-c']).toContain(parentToken);
+        expect(await storedRefreshToken(previewUuid)).toBe(parentToken);
+    });
+
+    test('a failed push keeps the parent save and the preview credential', async () => {
+        const push = await getModel().updateAndPushToPreviews(
+            parentUuid,
+            parentUpdate('token-b'),
+            () => {
+                throw new Error('preview push failed');
+            },
+        );
+
+        expect(push.kind).toBe('failed');
+        expect(await storedRefreshToken(parentUuid)).toBe('token-b');
+        expect(await storedRefreshToken(previewUuid)).toBe('token-a');
     });
 });

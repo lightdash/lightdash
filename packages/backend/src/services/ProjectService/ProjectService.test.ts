@@ -115,7 +115,11 @@ import { OrganizationSettingsModel } from '../../models/OrganizationSettingsMode
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import {
+    ProjectModel,
+    type PreviewCredentialsPush,
+    type PushToPreview,
+} from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -12470,12 +12474,33 @@ describe('preview BigQuery SSO credentials', () => {
         updateWarehouseCredentialsIf: vi.fn(async (projectUuid, update) =>
             updateIf(projectUuid, update),
         ),
-        updatePreviewWarehouseCredentials: vi.fn(
-            async (projectUuid: string, update) =>
-                projectUuid === upstreamProjectUuid &&
-                updateIf(previewProjectUuid, update)
-                    ? [previewProjectUuid]
-                    : [],
+        updateAndPushToPreviews: vi.fn(
+            async (
+                projectUuid: string,
+                data: UpdateProject,
+                pushToPreview: PushToPreview,
+            ): Promise<PreviewCredentialsPush> => {
+                const previousUpstreamCredentials = stored.get(projectUuid);
+                stored.set(projectUuid, data.warehouseConnection);
+                if (
+                    !previousUpstreamCredentials ||
+                    projectUuid !== upstreamProjectUuid
+                ) {
+                    return { kind: 'skipped' };
+                }
+                const pushed = updateIf(
+                    previewProjectUuid,
+                    (previewCredentials) =>
+                        pushToPreview({
+                            previewCredentials,
+                            previousUpstreamCredentials,
+                        }),
+                );
+                return {
+                    kind: 'pushed',
+                    previewProjectUuids: pushed ? [previewProjectUuid] : [],
+                };
+            },
         ),
         getWithSensitiveFields: vi.fn(async (projectUuid: string) => ({
             ...projectWithSensitiveFields,
@@ -12497,6 +12522,8 @@ describe('preview BigQuery SSO credentials', () => {
             stored.set(projectUuid, data.warehouseConnection);
         }),
     };
+    const readProjectWithSensitiveFields =
+        model.getWithSensitiveFields.getMockImplementation()!;
     const service = getMockedProjectService(lightdashConfigMock, {
         featureFlagModel: {
             get: vi.fn(async ({ featureFlagId }) => ({
@@ -12534,6 +12561,9 @@ describe('preview BigQuery SSO credentials', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        model.getWithSensitiveFields.mockImplementation(
+            readProjectWithSensitiveFields,
+        );
         syncEnabled = true;
         stored.clear();
         previewOwns.clear();
@@ -12571,6 +12601,51 @@ describe('preview BigQuery SSO credentials', () => {
         );
 
         expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe('token-b');
+    });
+
+    test('two saves that both started from token A leave the preview on the parent token', async () => {
+        let releaseReads = () => {};
+        const bothSavesRead = new Promise<void>((resolve) => {
+            releaseReads = resolve;
+        });
+        let reads = 0;
+        model.getWithSensitiveFields.mockImplementation(
+            async (projectUuid: string) => {
+                const project =
+                    await readProjectWithSensitiveFields(projectUuid);
+                reads += 1;
+                if (reads === 2) releaseReads();
+                await bothSavesRead;
+                return project;
+            },
+        );
+
+        await Promise.all([
+            reconnectUpstream('token-b'),
+            reconnectUpstream('token-c'),
+        ]);
+
+        const parentToken = refreshTokenOf(stored.get(upstreamProjectUuid)!);
+        expect(['token-b', 'token-c']).toContain(parentToken);
+        expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe(
+            parentToken,
+        );
+    });
+
+    test('a failed push to previews keeps the parent save', async () => {
+        model.updateAndPushToPreviews.mockImplementationOnce(
+            async (projectUuid: string, data: UpdateProject) => {
+                stored.set(projectUuid, data.warehouseConnection);
+                return { kind: 'failed', error: new Error('preview locked') };
+            },
+        );
+
+        await expect(reconnectUpstream('token-b')).resolves.not.toThrow();
+
+        expect(refreshTokenOf(stored.get(upstreamProjectUuid)!)).toBe(
+            'token-b',
+        );
+        expect(refreshTokenOf(stored.get(previewProjectUuid)!)).toBe('token-a');
     });
 
     test('a preview with its own different credential is untouched', async () => {
@@ -12672,7 +12747,8 @@ describe('preview BigQuery SSO credentials', () => {
         await reconnectUpstream('token-b');
 
         expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-a');
-        expect(model.updatePreviewWarehouseCredentials).not.toHaveBeenCalled();
+        expect(model.updateAndPushToPreviews).not.toHaveBeenCalled();
+        expect(model.update).toHaveBeenCalledTimes(1);
         expect(checkRefreshToken).not.toHaveBeenCalled();
     });
 });
