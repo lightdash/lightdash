@@ -4,13 +4,12 @@ import {
     type ApiError,
     type InviteLinkFailure,
 } from '@lightdash/common';
-import { Button, Stack, Text, Title } from '@mantine/core';
+import { Button, Loader, Stack, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { type FC } from 'react';
 import { lightdashApi } from '../../api';
 import AuthLayout from '../common/AuthLayout';
 import Callout from '../common/Callout';
-import PageSpinner from '../PageSpinner';
 import { InviteFailureActions } from './InviteFailureActions';
 import { RequestNewInvite } from './RequestNewInvite';
 
@@ -48,17 +47,19 @@ export const InviteFailurePage: FC<{
             ? reason
             : (failure.data?.reason ?? reason);
     return (
-        <AuthLayout pageTitle="Invite unavailable">
+        <AuthLayout
+            pageTitle="Invite unavailable"
+            title={getTitle(resolvedReason)}
+            legacyTitle={getTitle(resolvedReason)}
+            subtitle={
+                resolvedReason === InviteLinkFailureReason.WrongEmail
+                    ? 'Sign in with the email address that received this invite, or ask for a new invite.'
+                    : undefined
+            }
+        >
             <Stack gap="lg">
-                <Title order={3}>{getTitle(resolvedReason)}</Title>
-                {resolvedReason === InviteLinkFailureReason.WrongEmail && (
-                    <Text>
-                        Sign in with the email address that received this
-                        invite, or ask for a new invite.
-                    </Text>
-                )}
                 {failure.isInitialLoading ? (
-                    <PageSpinner />
+                    <Loader size="sm" />
                 ) : failure.data ? (
                     <RequestNewInvite
                         inviteCode={inviteCode}

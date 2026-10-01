@@ -1,4 +1,4 @@
-import { Anchor, Stack, Text } from '@mantine/core';
+import { Anchor, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import useApp from '../../providers/App/useApp';
@@ -11,23 +11,26 @@ export const InviteFailureActions: FC = () => {
         !user.data.organizationUuid
     ) {
         return (
-            <Anchor component={Link} to="/join-organization">
-                Find an organization for your email domain
-            </Anchor>
+            <Text size="sm" c="dimmed">
+                You can also{' '}
+                <Anchor component={Link} to="/join-organization" inherit>
+                    find an organization for your email domain
+                </Anchor>
+                .
+            </Text>
         );
     }
     return (
-        <Stack gap="xs">
-            <Text>
-                Sign in or register to find an organization for your email
-                domain.
-            </Text>
-            <Anchor component={Link} to="/login">
-                Sign in
-            </Anchor>
-            <Anchor component={Link} to="/register">
-                Register
-            </Anchor>
-        </Stack>
+        <Text size="sm" c="dimmed">
+            You can also{' '}
+            <Anchor component={Link} to="/login" inherit>
+                sign in
+            </Anchor>{' '}
+            or{' '}
+            <Anchor component={Link} to="/register" inherit>
+                register
+            </Anchor>{' '}
+            to find an organization for your email domain.
+        </Text>
     );
 };
