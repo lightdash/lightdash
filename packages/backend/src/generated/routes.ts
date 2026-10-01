@@ -64053,6 +64053,10 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                hasContentUpdates: {
+                                    dataType: 'boolean',
+                                    required: true,
+                                },
                                 createdAt: {
                                     dataType: 'string',
                                     required: true,

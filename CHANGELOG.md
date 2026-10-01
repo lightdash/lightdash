@@ -1,3 +1,15 @@
+# [2.403.0](https://github.com/lightdash/lightdash/compare/2.402.0...2.403.0) (2026-10-01)
+
+
+### Bug Fixes
+
+* match parameter input sizing to filters ([#30273](https://github.com/lightdash/lightdash/issues/30273)) ([5c2a855](https://github.com/lightdash/lightdash/commit/5c2a855cc26c4d59402c753e9e1e08bad579d178))
+
+
+### Features
+
+* indicate available analytics content on sync ([#30268](https://github.com/lightdash/lightdash/issues/30268)) ([d8fab4e](https://github.com/lightdash/lightdash/commit/d8fab4e19ef8506e85104faa4ef3149deeeb0e60))
+
 # [2.402.0](https://github.com/lightdash/lightdash/compare/2.401.0...2.402.0) (2026-10-01)
 
 
