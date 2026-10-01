@@ -499,16 +499,18 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                 <SuboptimalState
                     title="No metrics defined in this project"
                     action={
-                        <Text>
-                            To learn how to define metrics, check out our{' '}
-                            <Anchor
-                                inherit
-                                target="_blank"
-                                href="https://docs.lightdash.com/references/metrics/"
-                            >
-                                documentation
-                            </Anchor>
-                        </Text>
+                        isEmbed ? undefined : (
+                            <Text>
+                                To learn how to define metrics, check out our{' '}
+                                <Anchor
+                                    inherit
+                                    target="_blank"
+                                    href="https://docs.lightdash.com/references/metrics/"
+                                >
+                                    documentation
+                                </Anchor>
+                            </Text>
+                        )
                     }
                 />
             ) : (

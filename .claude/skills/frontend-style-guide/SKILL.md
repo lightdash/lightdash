@@ -42,6 +42,7 @@ When creating/updating components:
 - [ ] Check Mantine docs/types for available component props
 - [ ] Use inline-style component props for styling when available (and follow <=3 props rule)
 - [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
+- [ ] No Lightdash branding or docs links in embeds: gate them with `useIsEmbedded()` (see "Embeds are white-label" in `packages/frontend/CLAUDE.md`)
 - [ ] Theme values ('md', 'lg', 'xl', or 'ldGray.1', 'ldGray.2', 'ldDark.1', 'ldDark.2', etc) instead of magic numbers
 - [ ] When using mantine colors in css modules, always use the theme awared variables:
     - `--mantine-color-${color}-text`: for text on filled background

@@ -5,6 +5,7 @@ import {
 import { Anchor, Text } from '@mantine/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
+import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { LD_FIELD_COLORS } from '../../../theme';
@@ -177,32 +178,36 @@ export const ExploreErrorState = ({
     errorDetail,
 }: {
     errorDetail?: ApiErrorDetail | null;
-}) => (
-    <EmptyState
-        icon={<MantineIcon icon={IconTableOff} />}
-        title="Error loading results"
-        description={
-            <Fragment>
-                <Text className={classes.errorMessage}>
-                    {errorDetail?.message ||
-                        'There was an error loading the results'}
-                </Text>
-                {errorDetail?.data.documentationUrl && (
-                    <Fragment>
-                        <br />
-                        <Anchor
-                            href={errorDetail.data.documentationUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            Learn how to resolve this in our documentation
-                        </Anchor>
-                    </Fragment>
-                )}
-            </Fragment>
-        }
-    />
-);
+}) => {
+    const isEmbedded = useIsEmbedded();
+
+    return (
+        <EmptyState
+            icon={<MantineIcon icon={IconTableOff} />}
+            title="Error loading results"
+            description={
+                <Fragment>
+                    <Text className={classes.errorMessage}>
+                        {errorDetail?.message ||
+                            'There was an error loading the results'}
+                    </Text>
+                    {errorDetail?.data.documentationUrl && !isEmbedded && (
+                        <Fragment>
+                            <br />
+                            <Anchor
+                                href={errorDetail.data.documentationUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                Learn how to resolve this in our documentation
+                            </Anchor>
+                        </Fragment>
+                    )}
+                </Fragment>
+            }
+        />
+    );
+};
 
 export const MissingRequiredParameters = ({
     missingRequiredParameters,

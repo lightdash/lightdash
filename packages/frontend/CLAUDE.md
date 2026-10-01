@@ -33,6 +33,22 @@ The theme lives in `src/theme/`: `colors.ts` (neutral ramps, `primary` is the in
 -   **Shared controls**: `CopyActionIcon`, `FavoriteActionIcon`, `ConfirmDeleteButton` and `FilterFacet` in `components/common` replace the hand-rolled copy, star, two-click delete and faceted-filter patterns.
 -   **Number inputs**: Always use `NumberInput` from `components/common/NumberInput`. Prefer `onNumberChange` (fires `number`, or `undefined` on clear; never transient strings). Integer-only by default; decimal fields opt in via `decimalScale={n}` or `decimalScale="unlimited"`. Raw `onChange` only for `form.getInputProps()` spreads.
 
+## 🏷️ Embeds are white-label
+
+Customers embed Lightdash (iframe or SDK) inside their own product, so their end users must never see the Lightdash name or be sent to a Lightdash site. Any component can end up in an embed: Explore, dashboards, charts, the metrics catalog, data apps, the AI agent, and every shared component those render.
+
+-   **Detect an embed with `useIsEmbedded()`** from `src/ee/providers/Embed/useIsEmbedded.ts`. It is true for both iframe and SDK embeds and false in the main app. Do not detect embeds from the URL, `window`, or a new prop threaded from a page.
+-   **Hide these when `useIsEmbedded()` is true**:
+    -   links to `docs.lightdash.com`, `lightdash.com`, the changelog, community, support or any other Lightdash-owned URL, including ones opened with `window.open` and `documentationUrl` values returned by the API
+    -   help icons and "Learn more" / "Read the docs" affordances whose only purpose is to open those links
+    -   the Lightdash name, logo and product names (for example "Built by Lightdash", "Lightdash Spotlight") in labels, tooltips, empty states and aria-labels
+    -   upsell, onboarding, tour and feedback prompts
+-   **Hide, don't disable.** Render nothing in the embed and keep the surrounding sentence readable without the link. If the copy only makes sense with the brand in it, write a neutral variant for the embed.
+-   **Use `DocumentationHelpButton` for docs help icons.** It already returns `null` in an embed, so prefer it over a hand-rolled `Anchor` + icon. An inline docs `Anchor` needs its own `useIsEmbedded()` gate.
+-   **New pages and components**: before finishing, grep your change for `lightdash.com` and `Lightdash` in user-visible strings, then decide for each whether an embed can reach it. Settings, project connection and admin pages are not embed-reachable and need no gate.
+-   **This is not authorization.** `useIsEmbedded()` only removes branding. What an embedded user may do is decided by abilities and the JWT, never by this flag.
+-   Translating embed-visible strings is a separate mechanism (`uiOverrides`, see `src/components/common/Filters/CLAUDE.md`).
+
 ## 🎓 Learn walkthroughs (`data-tour-*` attributes)
 
 Attributes named `data-tour-*` are steps in Learn walkthroughs, the in-app training generated from the product (`docs/learn/architecture.md`). They are not test ids and not dead code.

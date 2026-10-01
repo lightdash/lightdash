@@ -18,6 +18,7 @@ import {
 import { useToggle } from '@mantine/hooks';
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
+import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { getExploreIcon } from '../../../features/externalSources/utils/exploreIcons';
 import ConnectionBadge from '../../common/ConnectionBadge';
 import MantineIcon from '../../common/MantineIcon';
@@ -56,6 +57,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     onClick,
 }: ExploreNavLinkProps) => {
     const [isHover, toggleHover] = useToggle();
+    const isEmbedded = useIsEmbedded();
 
     const isError = isSummaryExploreError(explore);
     const warnings =
@@ -89,18 +91,27 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     // Determine rightSection
     let rightSection;
     if (isError) {
-        rightSection = showNoDimensionsIcon ? (
-            <Anchor
-                role="button"
-                href="https://docs.lightdash.com/guides/how-to-create-dimensions"
-                target="_blank"
-                rel="noreferrer"
-            >
-                <MantineIcon icon={IconInfoCircle} color="ldGray.7" size="lg" />
-            </Anchor>
-        ) : (
-            <MantineIcon icon={IconAlertTriangle} size="lg" color="yellow.9" />
-        );
+        rightSection =
+            showNoDimensionsIcon && !isEmbedded ? (
+                <Anchor
+                    role="button"
+                    href="https://docs.lightdash.com/guides/how-to-create-dimensions"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    <MantineIcon
+                        icon={IconInfoCircle}
+                        color="ldGray.7"
+                        size="lg"
+                    />
+                </Anchor>
+            ) : (
+                <MantineIcon
+                    icon={IconAlertTriangle}
+                    size="lg"
+                    color="yellow.9"
+                />
+            );
     } else if (hasWarnings) {
         rightSection = (
             <MantineIcon icon={IconAlertTriangle} size="lg" color="yellow.9" />
