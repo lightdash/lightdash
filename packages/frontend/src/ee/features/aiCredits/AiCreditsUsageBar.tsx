@@ -6,7 +6,7 @@ const BLEND_FROM = 50;
 const ACCENT_FROM = 80;
 const MARKERS = [BLEND_FROM, ACCENT_FROM] as const;
 
-const PIXEL_SIZE = 2;
+const PIXEL_SIZE = 3;
 // Higher values keep the accent sparse until usage nears the accent marker.
 const BLEND_CURVE = 4;
 const SHIMMER_INTERVAL_MS = 125;
