@@ -1,5 +1,4 @@
 import { OrganizationJoinRequestStatus } from '@lightdash/common';
-import { Divider, Stack, Text } from '@mantine/core';
 import { useEffect, type FC } from 'react';
 import { Navigate } from 'react-router';
 import { useOrganizationLanding } from '../../hooks/organization/useOrganizationLanding';
@@ -7,16 +6,8 @@ import useApp from '../../providers/App/useApp';
 import AuthLayout from '../common/AuthLayout';
 import Callout from '../common/Callout';
 import PageSpinner from '../PageSpinner';
-import { CreateOrganizationForm } from './CreateOrganizationForm';
-import { JoinableOrganizationCard } from './JoinableOrganizationCard';
-import {
-    getCreateOrganizationWarning,
-    getLandingTitle,
-    getRequestListIntro,
-    getSuggestedOrganizationName,
-    hasNoWayIn,
-} from './organizationLandingCopy';
-import { RequestToJoinCard } from './RequestToJoinCard';
+import { LandingChoices } from './LandingChoices';
+import { getLandingTitle } from './organizationLandingCopy';
 
 const APPROVAL_POLL_MS = 15_000;
 
@@ -60,47 +51,7 @@ export const OrganizationLanding: FC = () => {
                         'Reload the page to try again.'}
                 </Callout>
             ) : (
-                <Stack gap="lg">
-                    {landing.data.joinable.map((organization) => (
-                        <JoinableOrganizationCard
-                            key={organization.organizationUuid}
-                            organization={organization}
-                        />
-                    ))}
-                    {landing.data.requestable.length > 0 && (
-                        <Text size="sm" c="dimmed">
-                            {getRequestListIntro(landing.data)}
-                        </Text>
-                    )}
-                    {landing.data.requestable.map((match) => (
-                        <RequestToJoinCard
-                            key={match.organizationUuid}
-                            match={match}
-                        />
-                    ))}
-                    {landing.data.canCreateOrganization && (
-                        <>
-                            {(landing.data.joinable.length > 0 ||
-                                landing.data.requestable.length > 0) && (
-                                <Divider label="or" />
-                            )}
-                            <CreateOrganizationForm
-                                warning={getCreateOrganizationWarning(
-                                    landing.data,
-                                )}
-                                suggestedName={getSuggestedOrganizationName(
-                                    landing.data,
-                                )}
-                            />
-                        </>
-                    )}
-                    {hasNoWayIn(landing.data) && (
-                        <Text c="dimmed">
-                            You need an invite to join this Lightdash instance.
-                            Ask the person who runs it.
-                        </Text>
-                    )}
-                </Stack>
+                <LandingChoices landing={landing.data} />
             )}
         </AuthLayout>
     );

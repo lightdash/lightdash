@@ -73,6 +73,28 @@ type RequestTarget = {
     organizationUuid: string;
     name: string;
     hasAdmin: boolean;
+    membersCount: number;
+};
+
+const byMembersThenName = (
+    a: { name: string; membersCount: number },
+    b: { name: string; membersCount: number },
+) => b.membersCount - a.membersCount || a.name.localeCompare(b.name);
+
+export const sortJoinableOrganizations = (
+    organizations: UserAllowedOrganization[],
+): UserAllowedOrganization[] => [...organizations].sort(byMembersThenName);
+
+export const sortRequestableOrganizations = (
+    matches: OrganizationLandingMatch[],
+): OrganizationLandingMatch[] => {
+    const isPending = (match: OrganizationLandingMatch) =>
+        match.joinRequest?.status === OrganizationJoinRequestStatus.PENDING;
+    return [...matches].sort(
+        (a, b) =>
+            Number(isPending(b)) - Number(isPending(a)) ||
+            byMembersThenName(a, b),
+    );
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -175,6 +197,7 @@ export class OrganizationLandingService extends BaseService {
                     organizationUuid: target.organizationUuid,
                     name: target.name,
                     hasAdmin: target.hasAdmin,
+                    membersCount: target.membersCount,
                     joinRequest: latest ? toSummary(latest, now) : null,
                 };
             },
@@ -183,8 +206,8 @@ export class OrganizationLandingService extends BaseService {
             emailDomain,
             isEmailVerified: emailStatus.isVerified,
             canCreateOrganization: !(await this.isSingleOrganizationInstance()),
-            joinable,
-            requestable,
+            joinable: sortJoinableOrganizations(joinable),
+            requestable: sortRequestableOrganizations(requestable),
         };
     }
 
