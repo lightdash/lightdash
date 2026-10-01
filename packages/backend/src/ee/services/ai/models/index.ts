@@ -376,7 +376,7 @@ export const getModel = (
         enableReasoning?: boolean;
         /** Anthropic and Bedrock only; other providers keep their preset effort. */
         reasoningEffort?: ReasoningEffort;
-        /** Anthropic only: send thinking disabled rather than omitting it. */
+        /** Anthropic only: disable thinking where supported, otherwise use low effort. */
         disableThinking?: boolean;
         modelName?: string;
         provider?: typeof config.defaultProvider;

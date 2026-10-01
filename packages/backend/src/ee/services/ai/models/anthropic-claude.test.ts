@@ -14,6 +14,7 @@ const preset: ModelPreset<'anthropic'> = {
     description: '',
     contextWindowTokens: 200_000,
     supportsReasoning: true,
+    supportsDisablingThinking: true,
     callOptions: {},
     providerOptions: undefined,
 };

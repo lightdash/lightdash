@@ -19,7 +19,7 @@ export const getAnthropicModel = (
     options?: {
         enableReasoning?: boolean;
         reasoningEffort?: ReasoningEffort;
-        /** Sends thinking disabled, so a per-step override turns off thinking the model would otherwise choose. */
+        /** Disables thinking where supported; otherwise uses low-effort adaptive thinking. */
         disableThinking?: boolean;
     },
 ): AiModel<typeof PROVIDER> => {
@@ -103,9 +103,13 @@ export const getAnthropicModel = (
                               },
                           })),
                 ...(!reasoningEnabled &&
-                    options?.disableThinking && {
-                        thinking: { type: 'disabled' as const },
-                    }),
+                    options?.disableThinking &&
+                    (preset.supportsDisablingThinking
+                        ? { thinking: { type: 'disabled' as const } }
+                        : {
+                              thinking: { type: 'adaptive' as const },
+                              effort: 'low' as const,
+                          })),
             },
         },
     };

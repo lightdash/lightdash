@@ -26,6 +26,8 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     // `thinking.type: 'enabled'` + `budgetTokens` API; 'adaptive' uses the newer
     // `effort` API (required by Claude Opus 4.7+). Ignored unless supportsReasoning.
     reasoningStyle?: ReasoningStyle;
+    // Anthropic models must explicitly opt into thinking.type: disabled.
+    supportsDisablingThinking?: boolean;
     // Excluded from model pickers unless the org's own provider key can access it
     hiddenUnlessKeyAccess?: boolean;
     // Kept resolvable for existing configurations, but hidden from new selections
@@ -218,6 +220,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Sonnet for daily tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
             callOptions: {},
@@ -231,6 +234,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Opus for complex tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
             callOptions: {},
@@ -244,6 +248,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Opus for complex tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             reasoningStyle: 'adaptive',
             hiddenUnlessKeyAccess: true,
             deprecated: true,
@@ -258,6 +263,7 @@ export const MODEL_PRESETS: {
             description: 'Most intelligent model for complex tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
             callOptions: {},
@@ -271,6 +277,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Opus for complex tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
@@ -283,6 +290,7 @@ export const MODEL_PRESETS: {
             description: 'Balanced model for daily tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
@@ -295,6 +303,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Opus for complex tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
@@ -307,6 +316,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Sonnet for daily tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
@@ -319,6 +329,7 @@ export const MODEL_PRESETS: {
             description: 'Fastest model with near-frontier AI capabilities',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -330,6 +341,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation model with reasoning',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            supportsDisablingThinking: true,
             deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
