@@ -1,3 +1,10 @@
+## [2.412.1](https://github.com/lightdash/lightdash/compare/2.412.0...2.412.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **ci:** probe updateProject for the original-type guard ([#30379](https://github.com/lightdash/lightdash/issues/30379)) ([7d507ec](https://github.com/lightdash/lightdash/commit/7d507ec7c15b4026c890d2dea6edf145185c61e7)), closes [#30346](https://github.com/lightdash/lightdash/issues/30346)
+
 # [2.412.0](https://github.com/lightdash/lightdash/compare/2.411.0...2.412.0) (2026-10-01)
 
 
