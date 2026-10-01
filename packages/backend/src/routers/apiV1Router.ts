@@ -7,6 +7,7 @@ import express, { type Router } from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
+    allowApiKeyAuthenticationIfPresent,
     getLoginHint,
     getOidcRedirectURL,
     initiateOktaOpenIdLogin,
@@ -390,19 +391,28 @@ const authenticateDatabricks = (
         }
     };
 
-apiV1Router.get('/health', async (req, res, next) => {
-    const skipMigrationCheck = req.query.skipMigrationCheck === 'true';
-    req.services
-        .getHealthService()
-        .getHealthState(req.user, { skipMigrationCheck })
-        .then((state) =>
-            res.json({
-                status: 'ok',
-                results: state,
-            }),
-        )
-        .catch(next);
-});
+// The web app reads `isAuthenticated` off health to decide between the app
+// and the login page. Anonymous callers (the login page itself) pass as
+// before; a caller that sends a token (Lightdash Desktop's in-app browser,
+// which signs its API calls with the user's OAuth or personal access token)
+// is recognised as that user, as it is on the API routes the app then calls.
+apiV1Router.get(
+    '/health',
+    allowApiKeyAuthenticationIfPresent,
+    async (req, res, next) => {
+        const skipMigrationCheck = req.query.skipMigrationCheck === 'true';
+        req.services
+            .getHealthService()
+            .getHealthState(req.user, { skipMigrationCheck })
+            .then((state) =>
+                res.json({
+                    status: 'ok',
+                    results: state,
+                }),
+            )
+            .catch(next);
+    },
+);
 
 apiV1Router.get('/flash', (req, res) => {
     res.json({
