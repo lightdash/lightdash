@@ -1,38 +1,28 @@
-import { subject } from '@casl/ability';
-import {
-    FeatureFlags,
-    type Organization,
-    ProjectType,
-} from '@lightdash/common';
+import { type Organization } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { useNoProjectLanding } from '../hooks/useNoProjectLanding';
 import useApp from '../providers/App/useApp';
 import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
 
 const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
-    const { health, user } = useApp();
+    const { health } = useApp();
     const location = useLocation();
     const queryClient = useQueryClient();
 
-    const mustConfirmNoProjectRef = useRef<boolean | undefined>(undefined);
-    if (mustConfirmNoProjectRef.current === undefined) {
-        mustConfirmNoProjectRef.current =
+    const [mustConfirmNoProject] = useState(
+        () =>
             queryClient.getQueryData<Organization>(['organization'])
-                ?.needsProject === true;
-    }
+                ?.needsProject === true,
+    );
 
     const orgRequest = useOrganization(
-        mustConfirmNoProjectRef.current
-            ? { refetchOnMount: 'always' }
-            : undefined,
+        mustConfirmNoProject ? { refetchOnMount: 'always' } : undefined,
     );
-    const homepageBuilderFlag = useHomepageBuilderFlag();
-    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const noProjectLanding = useNoProjectLanding();
 
     if (health.isInitialLoading || orgRequest.isInitialLoading) {
         return <PageSpinner />;
@@ -46,35 +36,17 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
         );
     }
 
-    if (orgRequest?.data?.needsProject) {
-        if (
-            homepageBuilderFlag.isLoading ||
-            orgSetupPageFlag.isLoading ||
-            user.isInitialLoading
-        ) {
+    if (orgRequest.data?.needsProject) {
+        if (noProjectLanding.isLoading) {
             return <PageSpinner />;
         }
-
-        const canCreateProject =
-            user.data?.ability.can(
-                'create',
-                subject('Project', {
-                    organizationUuid: user.data.organizationUuid,
-                    type: ProjectType.DEFAULT,
-                }),
-            ) ?? false;
-
-        if (canCreateProject) {
-            const isNewOnboardingEnabled =
-                orgSetupPageFlag.data?.enabled ?? false;
-            const showGetStarted =
-                homepageBuilderFlag.isEnabled && isNewOnboardingEnabled;
-            const pathname = showGetStarted
-                ? '/get-started'
-                : isNewOnboardingEnabled
-                  ? '/onboarding/data-source'
-                  : '/createProject';
-            return <Navigate to={{ pathname }} state={{ from: location }} />;
+        if (noProjectLanding.pathname) {
+            return (
+                <Navigate
+                    to={{ pathname: noProjectLanding.pathname }}
+                    state={{ from: location }}
+                />
+            );
         }
     }
 
