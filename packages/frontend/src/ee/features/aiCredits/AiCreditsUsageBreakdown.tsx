@@ -1,6 +1,7 @@
 import {
     AI_CREDIT_USAGE_BREAKDOWNS,
     type AiCreditDailyUsage,
+    type AiCreditDailyUsageSeries,
     type AiCreditUsageBreakdown,
 } from '@lightdash/common';
 import {
@@ -17,6 +18,7 @@ import { useMemo, useState, type FC } from 'react';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import EChartsReact from '../../../components/EChartsReactWrapper';
+import { AiCreditSeriesIcon } from './AiCreditSeriesIcon';
 import classes from './AiCreditsUsageBreakdown.module.css';
 import {
     findTopSeriesIndex,
@@ -37,6 +39,7 @@ const BAR_TOP_RADIUS: [number, number, number, number] = [4, 4, 0, 0];
 
 type LabelledSeries = {
     id: string;
+    series: AiCreditDailyUsageSeries;
     label: string;
     color: string;
     credits: number;
@@ -45,6 +48,7 @@ type LabelledSeries = {
 const toLabelledSeries = (usage: AiCreditDailyUsage): LabelledSeries[] =>
     usage.series.map((series, index) => ({
         id: series.type === 'value' ? `value:${series.key}` : series.type,
+        series,
         label: getAiCreditSeriesLabel(usage.breakdown, series),
         color: getAiCreditSeriesColor(series, index),
         credits: series.credits,
@@ -133,16 +137,21 @@ const UsageChart: FC<{
 };
 
 const UsageRows: FC<{
+    breakdown: AiCreditUsageBreakdown;
     series: LabelledSeries[];
     allowanceCredits: number | null;
     usedCredits: number;
-}> = ({ series, allowanceCredits, usedCredits }) => (
+}> = ({ breakdown, series, allowanceCredits, usedCredits }) => (
     <Stack gap="sm">
         {series.map((item) => (
             <Box key={item.id}>
                 <Group justify="space-between" gap="xs" mb={4}>
                     <Group gap="xs" wrap="nowrap">
-                        <Box className={classes.dot} bg={item.color} />
+                        <AiCreditSeriesIcon
+                            breakdown={breakdown}
+                            series={item.series}
+                            color={item.color}
+                        />
                         <Text fz="sm">{item.label}</Text>
                     </Group>
                     <Text fz="sm" c="dimmed">
@@ -223,6 +232,7 @@ export const AiCreditsUsageBreakdown: FC<{
                     <>
                         <UsageChart usage={usage} series={series} />
                         <UsageRows
+                            breakdown={usage.breakdown}
                             series={series}
                             allowanceCredits={allowanceCredits}
                             usedCredits={usedCredits}
