@@ -1,3 +1,10 @@
+## [2.407.1](https://github.com/lightdash/lightdash/compare/2.407.0...2.407.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **data-apps:** skip model filters with non-list values in the app catalog ([#30352](https://github.com/lightdash/lightdash/issues/30352)) ([11dbbdb](https://github.com/lightdash/lightdash/commit/11dbbdbaebc83e53808dd54949c67652b5a2f2dc)), closes [#30308](https://github.com/lightdash/lightdash/issues/30308) [#30353](https://github.com/lightdash/lightdash/issues/30353)
+
 # [2.407.0](https://github.com/lightdash/lightdash/compare/2.406.2...2.407.0) (2026-10-01)
 
 
