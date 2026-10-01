@@ -1,3 +1,10 @@
+# [2.406.0](https://github.com/lightdash/lightdash/compare/2.405.9...2.406.0) (2026-10-01)
+
+
+### Features
+
+* **frontend:** show customer logos and a pixel pyramid on the auth pages ([#30331](https://github.com/lightdash/lightdash/issues/30331)) ([2f5ecd3](https://github.com/lightdash/lightdash/commit/2f5ecd3753a9eb467b82a119af8bcda2df93d608))
+
 ## [2.405.9](https://github.com/lightdash/lightdash/compare/2.405.8...2.405.9) (2026-10-01)
 
 
