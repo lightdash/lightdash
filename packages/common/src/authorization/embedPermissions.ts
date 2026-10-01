@@ -11,6 +11,9 @@ type EmbedPermissionContext = {
     embedWriteUserAbility?: MemberAbility;
 };
 
+// In default mode the JWT flag decides these, so the actor's grant is not imported.
+const ROLES_MODE_ONLY_EMBED_SCOPES = new Set(['view:EmbedAiAgentDebug']);
+
 /** Project only embed capabilities, never the actor's regular-app abilities. */
 export const applyEmbedScopeAbilities = ({
     embedUser,
@@ -33,8 +36,13 @@ export const applyEmbedScopeAbilities = ({
         projectUuid: embed.projectUuid,
     };
 
+    const isRolesMode = embedUser.writeActions.permissionsMode === 'roles';
     getScopes({ isEnterprise: true })
-        .filter((scope) => scope.group === ScopeGroup.EMBED)
+        .filter(
+            (scope) =>
+                scope.group === ScopeGroup.EMBED &&
+                (isRolesMode || !ROLES_MODE_ONLY_EMBED_SCOPES.has(scope.name)),
+        )
         .forEach((scope) => {
             const [action, resource] = parseScope(scope.name);
             if (

@@ -44,6 +44,8 @@ import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
@@ -1042,8 +1044,11 @@ export const AssistantBubble: FC<Props> = memo(
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
+        const ability = useAbilityContext();
+        const canViewDebugInfo =
+            !isEmbedAiAgentRoute() || ability.can('view', 'EmbedAiAgentDebug');
         const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
-            useDisclosure(debug);
+            useDisclosure(debug && canViewDebugInfo);
         const battle = useBattleMessage(message.uuid);
 
         const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
@@ -1372,7 +1377,7 @@ export const AssistantBubble: FC<Props> = memo(
                             </Tooltip>
                         )}
 
-                        {isArtifactAvailable && (
+                        {isArtifactAvailable && canViewDebugInfo && (
                             <ActionIcon
                                 color="ldGray.9"
                                 aria-label="Debug information"
@@ -1432,16 +1437,18 @@ export const AssistantBubble: FC<Props> = memo(
                     />
                 )}
 
-                <AgentChatDebugDrawer
-                    agentUuid={agentUuid}
-                    projectUuid={projectUuid}
-                    artifacts={message.artifacts}
-                    toolCalls={message.toolCalls}
-                    toolResults={message.toolResults}
-                    isVisualizationAvailable={isArtifactAvailable}
-                    isDrawerOpen={isDrawerOpen}
-                    onClose={closeDrawer}
-                />
+                {canViewDebugInfo && (
+                    <AgentChatDebugDrawer
+                        agentUuid={agentUuid}
+                        projectUuid={projectUuid}
+                        artifacts={message.artifacts}
+                        toolCalls={message.toolCalls}
+                        toolResults={message.toolResults}
+                        isVisualizationAvailable={isArtifactAvailable}
+                        isDrawerOpen={isDrawerOpen}
+                        onClose={closeDrawer}
+                    />
+                )}
             </Stack>
         );
     },

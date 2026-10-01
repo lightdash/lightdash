@@ -961,6 +961,91 @@ describe('Embedded AI agent abilities', () => {
         ).toBe(true);
     });
 
+    it.each([undefined, false])(
+        'does not grant view:EmbedAiAgentDebug when canViewDebugInfo is %s',
+        (canViewDebugInfo) => {
+            const ability = defineAbilityForAiAgentEmbedUser(
+                {
+                    ...aiAgentEmbedUser,
+                    content: { type: 'aiAgent', agentUuid, canViewDebugInfo },
+                },
+                agentUuid,
+            );
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('EmbedAiAgentDebug', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+        },
+    );
+
+    it('grants view:EmbedAiAgentDebug for the embed project when the token enables canViewDebugInfo', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            {
+                ...aiAgentEmbedUser,
+                content: {
+                    type: 'aiAgent',
+                    agentUuid,
+                    canViewDebugInfo: true,
+                },
+            },
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('EmbedAiAgentDebug', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+        expect(
+            ability.can(
+                'view',
+                subject('EmbedAiAgentDebug', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: 'different-project-uuid',
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('ignores canViewDebugInfo in roles mode', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            {
+                ...aiAgentEmbedUser,
+                content: {
+                    type: 'aiAgent',
+                    agentUuid,
+                    canViewDebugInfo: true,
+                },
+                writeActions: {
+                    userUuid: 'actor',
+                    spaceUuid: 'space',
+                    permissionsMode: 'roles',
+                },
+            },
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('EmbedAiAgentDebug', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(false);
+    });
+
     it('does not grant access to a different project', () => {
         const ability = defineAbilityForAiAgentEmbedUser(
             aiAgentEmbedUser,

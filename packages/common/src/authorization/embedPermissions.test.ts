@@ -104,6 +104,50 @@ describe('embed scope abilities', () => {
         ).toBe(false);
     });
 
+    describe('view:EmbedAiAgentDebug', () => {
+        const target = {
+            projectUuid: embed.projectUuid,
+            organizationUuid: embed.organization.organizationUuid,
+        };
+        const aiAgentUser = (
+            permissionsMode: 'default' | 'roles',
+        ): CreateEmbedJwt => ({
+            content: { type: 'aiAgent', agentUuid: 'agent' },
+            writeActions: { ...writeActions, permissionsMode },
+        });
+
+        it('is imported from the actor role in roles mode', () => {
+            expect(
+                projectScopes(
+                    customAbility(['EmbedAiAgent', 'EmbedAiAgentDebug']),
+                    aiAgentUser('roles'),
+                ).can('view', subject('EmbedAiAgentDebug', { ...target })),
+            ).toBe(true);
+            expect(
+                projectScopes(
+                    customAbility(['EmbedAiAgent']),
+                    aiAgentUser('roles'),
+                ).can('view', subject('EmbedAiAgentDebug', { ...target })),
+            ).toBe(false);
+        });
+
+        it('is not imported from the actor role in default mode', () => {
+            const ability = projectScopes(
+                customAbility(['EmbedAiAgent', 'EmbedAiAgentDebug']),
+                aiAgentUser('default'),
+            );
+            expect(
+                ability.can(
+                    'view',
+                    subject('EmbedAiAgentDebug', { ...target }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can('view', subject('EmbedAiAgent', { ...target })),
+            ).toBe(true);
+        });
+    });
+
     it.each([
         { projectUuid: 'another-project' },
         { organizationUuid: 'another-org' },

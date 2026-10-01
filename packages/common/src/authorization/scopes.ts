@@ -1420,6 +1420,20 @@ const scopes: Scope[] = [
         dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
+    {
+        name: 'view:EmbedAiAgentDebug',
+        description:
+            'View debug information on embedded AI agent answers, including raw tool output',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [
+            {
+                name: 'view:EmbedAiAgent',
+                description: 'Use embedded AI agents',
+            },
+        ],
+        getConditions: addDefaultUuidCondition,
+    },
 
     // AI Agent
     {

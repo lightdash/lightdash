@@ -73,6 +73,7 @@ const checkRoleCoveredByScopes = (
  */
 const ENTERPRISE_SUBJECTS = new Set([
     'EmbedAiAgent',
+    'EmbedAiAgentDebug',
     'EmbedDashboardFilters',
     'EmbedDashboardFilterAddition',
     'EmbedDashboardParameters',

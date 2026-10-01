@@ -65,6 +65,7 @@ type FormValues = {
     }>;
     externalId?: string;
     canExplore: boolean;
+    canViewDebugInfo: boolean;
 } & IntrinsicUserAttributes;
 
 const EmbedPreviewAiAgentForm: FC<{
@@ -91,6 +92,7 @@ const EmbedPreviewAiAgentForm: FC<{
             }>,
             email: user?.email,
             canExplore: false,
+            canViewDebugInfo: false,
         },
         validate: {
             agentUuid: (value: undefined | string) => {
@@ -117,6 +119,7 @@ const EmbedPreviewAiAgentForm: FC<{
                     projectUuid,
                     agentUuid: values.agentUuid!,
                     canExplore: values.canExplore,
+                    canViewDebugInfo: values.canViewDebugInfo,
                 },
                 writeActions,
                 userAttributes: values.userAttributes.reduce<
@@ -327,13 +330,22 @@ const EmbedPreviewAiAgentForm: FC<{
                 {writeActionsPanel}
 
                 <Paper p="md">
-                    <Switch
-                        label="Explore from here"
-                        description="Allow embedded users to open generated charts in Explore."
-                        {...form.getInputProps('canExplore', {
-                            type: 'checkbox',
-                        })}
-                    />
+                    <Stack gap="md">
+                        <Switch
+                            label="Explore from here"
+                            description="Allow embedded users to open generated charts in Explore."
+                            {...form.getInputProps('canExplore', {
+                                type: 'checkbox',
+                            })}
+                        />
+                        <Switch
+                            label="Debug information"
+                            description="Allow embedded users to open the Debug panel on agent answers. It shows query configuration, field IDs and tool calls."
+                            {...form.getInputProps('canViewDebugInfo', {
+                                type: 'checkbox',
+                            })}
+                        />
+                    </Stack>
                 </Paper>
 
                 <Flex justify="flex-end" gap="sm">

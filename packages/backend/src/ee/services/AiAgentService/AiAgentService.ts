@@ -538,6 +538,10 @@ import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
 import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
 import {
+    redactStreamToolOutputs,
+    redactThreadToolResults,
+} from './embedDebugRedaction';
+import {
     responseMatchesPromptInputRequestGate,
     runPromptInputRequestClassification,
     shouldClassifyPromptInputRequestForUpdate,
@@ -2453,6 +2457,19 @@ export class AiAgentService extends BaseService {
         const agent = await this.getAgent(user, agentUuid, projectUuid);
         AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
         return { user, agent, runtimeOptions };
+    }
+
+    private canViewEmbedAiAgentDebug(
+        account: AnonymousAccount,
+        agent: AiAgent,
+    ): boolean {
+        return this.createAuditedAbility(account).can(
+            'view',
+            subject('EmbedAiAgentDebug', {
+                organizationUuid: agent.organizationUuid,
+                projectUuid: agent.projectUuid,
+            }),
+        );
     }
 
     private async assertEmbedThreadInSpace(
@@ -7387,6 +7404,7 @@ export class AiAgentService extends BaseService {
             autoApproveSql,
             toolHints,
             runtimeOptions,
+            redactToolOutputs = false,
         }: {
             agentUuid: string;
             threadUuid: string;
@@ -7395,6 +7413,7 @@ export class AiAgentService extends BaseService {
             autoApproveSql?: boolean;
             toolHints: string[];
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            redactToolOutputs?: boolean;
         },
     ): Promise<AgentResponseStream> {
         let isPreparing = false;
@@ -7491,6 +7510,7 @@ export class AiAgentService extends BaseService {
                         autoApproveSql,
                         toolHints,
                         runtimeOptions,
+                        redactToolOutputs,
                     },
                 );
             } catch (error) {
@@ -7845,13 +7865,16 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         threadUuid: string,
     ) {
-        const { user, runtimeOptions } = await this.getEmbedAgent(
+        const { user, agent, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
         );
         await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
-        return this.getAgentThread(user, agentUuid, threadUuid);
+        const thread = await this.getAgentThread(user, agentUuid, threadUuid);
+        return this.canViewEmbedAiAgentDebug(account, agent)
+            ? thread
+            : redactThreadToolResults(thread);
     }
 
     async listEmbedAgentThreads(
@@ -8012,7 +8035,7 @@ export class AiAgentService extends BaseService {
             toolHints: string[];
         },
     ) {
-        const { user, runtimeOptions } = await this.getEmbedAgent(
+        const { user, agent, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
@@ -8024,6 +8047,7 @@ export class AiAgentService extends BaseService {
             enableSqlMode: false,
             toolHints,
             runtimeOptions,
+            redactToolOutputs: !this.canViewEmbedAiAgentDebug(account, agent),
         });
     }
 
@@ -13187,6 +13211,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            redactToolOutputs?: boolean;
         },
     ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
@@ -13267,6 +13292,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            redactToolOutputs?: boolean;
             execution?: GenerateAgentExecutionOptions;
         } & (
             | {
@@ -14740,7 +14766,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     );
                 }
 
-                writer.merge(result.toUIMessageStream());
+                writer.merge(
+                    options.redactToolOutputs
+                        ? redactStreamToolOutputs(result.toUIMessageStream())
+                        : result.toUIMessageStream(),
+                );
             },
             onFinish: () => {
                 clearKeepalive();

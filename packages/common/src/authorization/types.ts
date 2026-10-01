@@ -24,6 +24,7 @@ export const VIEWER_EMBED_SUBJECTS = [
 
 export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
     'EmbedAiAgent',
+    'EmbedAiAgentDebug',
     'EmbedExplore',
     'EmbedUnderlyingData',
     'EmbedDataApps',
@@ -62,6 +63,7 @@ export type CaslSubjectNames =
     | 'DashboardComments'
     | 'DeletedContent'
     | 'EmbedAiAgent'
+    | 'EmbedAiAgentDebug'
     | 'EmbedDashboardFilters'
     | 'EmbedDashboardFilterAddition'
     | 'EmbedDashboardParameters'

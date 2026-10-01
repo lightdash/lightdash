@@ -43,6 +43,7 @@ describe('walkthrough catalogue', () => {
         'view:EmbedUnderlyingData',
         'view:EmbedDataApps',
         'view:EmbedAiAgent',
+        'view:EmbedAiAgentDebug',
         'manage:DeletedContent',
     ])('keeps %s visible as coming soon', (scope) => {
         const module = buildLearnCatalogue().find((m) => m.scope === scope)!;
@@ -59,7 +60,7 @@ describe('walkthrough catalogue', () => {
         const modules = buildLearnCatalogue();
         const scopes = modules.filter((m) => m.kind === 'scope');
         expect(scopes.filter((m) => m.available)).toHaveLength(42);
-        expect(scopes.filter((m) => !m.available)).toHaveLength(25);
+        expect(scopes.filter((m) => !m.available)).toHaveLength(26);
         expect(modules.filter((m) => m.kind === 'docs')).toHaveLength(
             SANDBOX_LESSONS.length,
         );

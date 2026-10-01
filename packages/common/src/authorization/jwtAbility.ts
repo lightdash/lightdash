@@ -187,6 +187,17 @@ const aiAgentAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
+    if (
+        embedUser.content.type === 'aiAgent' &&
+        embedUser.writeActions?.permissionsMode !== 'roles' &&
+        embedUser.content.canViewDebugInfo === true
+    ) {
+        can('view', 'EmbedAiAgentDebug', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+        });
+    }
+
     return { embedUser, content, embed, builder, externalId };
 };
 
