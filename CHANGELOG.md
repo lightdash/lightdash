@@ -1,3 +1,10 @@
+# [2.411.0](https://github.com/lightdash/lightdash/compare/2.410.0...2.411.0) (2026-10-01)
+
+
+### Features
+
+* **ai:** report an organization's daily AI credit usage by feature, channel, user, project or agent ([#30302](https://github.com/lightdash/lightdash/issues/30302)) ([1754835](https://github.com/lightdash/lightdash/commit/175483537646f8e685a52e62ba64ee3b502a6113))
+
 # [2.410.0](https://github.com/lightdash/lightdash/compare/2.409.0...2.410.0) (2026-10-01)
 
 

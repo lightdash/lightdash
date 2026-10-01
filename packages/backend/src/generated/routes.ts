@@ -42387,6 +42387,156 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiCreditUsageSummary_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiCreditUsageBreakdown: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['user'] },
+                { dataType: 'enum', enums: ['agent'] },
+                { dataType: 'enum', enums: ['project'] },
+                { dataType: 'enum', enums: ['feature'] },
+                { dataType: 'enum', enums: ['channel'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiCreditDailyUsageSeries: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        credits: { dataType: 'double', required: true },
+                        name: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        key: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['value'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        credits: { dataType: 'double', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['other'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        credits: { dataType: 'double', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['deleted'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        credits: { dataType: 'double', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['embeddedViewers'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        credits: { dataType: 'double', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['unattributed'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiCreditDailyUsageDay: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                credits: {
+                    dataType: 'array',
+                    array: { dataType: 'double' },
+                    required: true,
+                },
+                date: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiCreditDailyUsage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                days: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiCreditDailyUsageDay',
+                    },
+                    required: true,
+                },
+                series: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiCreditDailyUsageSeries',
+                    },
+                    required: true,
+                },
+                breakdown: { ref: 'AiCreditUsageBreakdown', required: true },
+                period: { ref: 'AiCreditPeriod', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_AiCreditDailyUsage_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'AiCreditDailyUsage', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiCreditDailyUsageResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_AiCreditDailyUsage_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentUserMemoryItem: {
         dataType: 'refAlias',
         type: {
@@ -98885,6 +99035,65 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getUsage',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiCreditController_getDailyUsage: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        breakdown: {
+            in: 'query',
+            name: 'breakdown',
+            required: true,
+            ref: 'AiCreditUsageBreakdown',
+        },
+    };
+    app.get(
+        '/api/v1/org/ai-credits/usage/daily',
+        ...fetchMiddlewares<RequestHandler>(AiCreditController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiCreditController.prototype.getDailyUsage,
+        ),
+
+        async function AiCreditController_getDailyUsage(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiCreditController_getDailyUsage,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiCreditController>(AiCreditController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDailyUsage',
                     controller,
                     response,
                     next,

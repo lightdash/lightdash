@@ -41224,6 +41224,153 @@
             "ApiAiCreditUsageResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiCreditUsageSummary_"
             },
+            "AiCreditUsageBreakdown": {
+                "type": "string",
+                "enum": ["user", "agent", "project", "feature", "channel"]
+            },
+            "AiCreditDailyUsageSeries": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "credits": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "name": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "key": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["value"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credits", "name", "key", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "credits": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["other"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credits", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "credits": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["deleted"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credits", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "credits": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["embeddedViewers"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credits", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "credits": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["unattributed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credits", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiCreditDailyUsageDay": {
+                "properties": {
+                    "credits": {
+                        "items": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "array"
+                    },
+                    "date": {
+                        "type": "string"
+                    }
+                },
+                "required": ["credits", "date"],
+                "type": "object"
+            },
+            "AiCreditDailyUsage": {
+                "properties": {
+                    "days": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiCreditDailyUsageDay"
+                        },
+                        "type": "array"
+                    },
+                    "series": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiCreditDailyUsageSeries"
+                        },
+                        "type": "array"
+                    },
+                    "breakdown": {
+                        "$ref": "#/components/schemas/AiCreditUsageBreakdown"
+                    },
+                    "period": {
+                        "$ref": "#/components/schemas/AiCreditPeriod"
+                    }
+                },
+                "required": ["days", "series", "breakdown", "period"],
+                "type": "object"
+            },
+            "ApiSuccess_AiCreditDailyUsage_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiCreditDailyUsage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiCreditDailyUsageResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiCreditDailyUsage_"
+            },
             "AiAgentUserMemoryItem": {
                 "properties": {
                     "generatedAt": {
@@ -68652,7 +68799,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.410.0",
+        "version": "2.411.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -83931,6 +84078,47 @@
                 "summary": "Get AI credit usage",
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/ai-credits/usage/daily": {
+            "get": {
+                "operationId": "getOrganizationAiCreditDailyUsage",
+                "responses": {
+                    "200": {
+                        "description": "Retrieved daily AI credit usage",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiCreditDailyUsageResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Billable AI credits per day of the current period, split by feature,\nchannel, user, project or agent. Organization admins only.",
+                "summary": "Get daily AI credit usage",
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "what to split each day's credits by",
+                        "in": "query",
+                        "name": "breakdown",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/AiCreditUsageBreakdown"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgentMemories": {
