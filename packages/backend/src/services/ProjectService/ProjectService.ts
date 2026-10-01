@@ -965,7 +965,7 @@ export class ProjectService extends BaseService {
                             user,
                             {
                                 name: 'Lightdash analytics',
-                                type: ProjectType.PREVIEW,
+                                type: ProjectType.DEFAULT,
                                 dbtConnection: { type: DbtProjectType.NONE },
                                 dbtVersion: DefaultSupportedDbtVersion,
                                 warehouseConnection: {

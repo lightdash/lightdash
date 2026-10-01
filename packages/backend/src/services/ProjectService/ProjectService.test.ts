@@ -955,7 +955,7 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        test('creates an internal preview, not a user-configured connection', async () => {
+        test('creates a managed analytics project with the standard project type', async () => {
             projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
             const create = vi
                 .spyOn(service, 'createWithoutCompile')
@@ -970,7 +970,7 @@ describe('ProjectService', () => {
                 admin,
                 expect.objectContaining({
                     name: 'Lightdash analytics',
-                    type: ProjectType.PREVIEW,
+                    type: ProjectType.DEFAULT,
                     warehouseConnection: expect.objectContaining({
                         connectionType: DuckdbConnectionType.ANALYTICS,
                     }),
