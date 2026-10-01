@@ -70,6 +70,8 @@ export class FeatureFlagModel {
             // On by default on Lightdash Cloud; self-hosted opts in through
             // LIGHTDASH_ENABLE_FEATURE_FLAGS. An organization override (or a
             // stored flag default) still wins, so one org can be turned off.
+            [FeatureFlags.NewOnboarding]:
+                this.getNewOnboardingEnabled.bind(this),
             [FeatureFlags.EnableLearn]: (flagArgs, options) =>
                 this.getWithEnvFallback(
                     flagArgs,
@@ -174,6 +176,21 @@ export class FeatureFlagModel {
             };
         }
         return this.getWithEnvFallback(args, true, options);
+    }
+
+    // The connect journey is built on the new onboarding experience, so it
+    // turns new-onboarding on wherever it is on.
+    private async getNewOnboardingEnabled(
+        args: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions = {},
+    ): Promise<FeatureFlag> {
+        const dbResult = await this.tryGetFromDatabase(args, options);
+        if (dbResult?.enabled) return dbResult;
+        const connectJourney = await this.resolve(
+            { ...args, featureFlagId: FeatureFlags.ConnectJourney },
+            options,
+        );
+        return { id: args.featureFlagId, enabled: connectJourney.enabled };
     }
 
     private async getEnableDataAppsEnabled(

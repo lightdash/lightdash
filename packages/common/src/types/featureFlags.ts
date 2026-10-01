@@ -249,11 +249,11 @@ export enum FeatureFlags {
     NewOnboarding = 'new-onboarding',
 
     /**
-     * Delivery one of the connect-your-data journey redesign: server-side
-     * setup state per project, idempotent first-run project creation, and
-     * first projects named after the organization. One flag for the whole
-     * delivery until the rollout decision settles grouping. Off by default;
-     * resolved per user and organization.
+     * Delivery one of the connect-your-data journey redesign, built on the
+     * new onboarding experience: wherever this flag is on, `new-onboarding`
+     * resolves on too. One flag for the whole delivery until the rollout
+     * decision settles grouping. Off by default; resolved per user and
+     * organization.
      */
     ConnectJourney = 'connect-journey',
 
