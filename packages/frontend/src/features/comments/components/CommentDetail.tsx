@@ -26,6 +26,7 @@ import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { getNameInitials } from '../utils';
+import { getCommentAuthorName } from '../utils/commentAuthorName';
 import styles from './CommentDetail.module.css';
 import { CommentTimestamp } from './CommentTimestamp';
 
@@ -90,7 +91,7 @@ export const CommentDetail: FC<Props> = ({
                     <Group justify="space-between">
                         <Group gap="xs">
                             <Text fz="xs" fw={600}>
-                                {comment.user.name}
+                                {getCommentAuthorName(comment.user.name)}
                             </Text>
                             <CommentTimestamp timestamp={comment.createdAt} />
                         </Group>
