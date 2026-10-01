@@ -1,3 +1,15 @@
+# [2.413.0](https://github.com/lightdash/lightdash/compare/2.412.3...2.413.0) (2026-10-01)
+
+
+### Bug Fixes
+
+* **explore:** stop drill-down nesting existing filters in an extra group ([#30385](https://github.com/lightdash/lightdash/issues/30385)) ([6b1eb9d](https://github.com/lightdash/lightdash/commit/6b1eb9df897ed9fe8dcb92ed41fd6494690513df))
+
+
+### Features
+
+* **ai:** chart daily AI credit usage on the AI Credits page by feature, channel, user, project or agent ([#30364](https://github.com/lightdash/lightdash/issues/30364)) ([7752e51](https://github.com/lightdash/lightdash/commit/7752e519288142e1e3e899e0e6bb9751adb93533))
+
 ## [2.412.3](https://github.com/lightdash/lightdash/compare/2.412.2...2.412.3) (2026-10-01)
 
 
