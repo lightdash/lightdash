@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import escape from 'lodash/escape';
 
 dayjs.extend(utc);
 
@@ -93,3 +94,30 @@ export const getAiCreditRowShare = ({
 /** The series drawn on top of a stacked bar: the last one with credits that day, or -1 when the day is empty. */
 export const findTopSeriesIndex = (credits: number[]): number =>
     credits.reduce((top, value, index) => (value > 0 ? index : top), -1);
+
+export type AiCreditTooltipRow = {
+    label: string;
+    color: string;
+    credits: number;
+};
+
+// Labels include user, project and agent names, so everything interpolated is escaped.
+export const renderAiCreditTooltip = (
+    title: string,
+    rows: AiCreditTooltipRow[],
+    formatCredits: (credits: number) => string,
+): string => {
+    const items = rows
+        .filter((row) => row.credits > 0)
+        .sort((a, b) => b.credits - a.credits)
+        .map(
+            (row) =>
+                `<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">` +
+                `<span style="display:flex;align-items:center;gap:6px">` +
+                `<span style="width:8px;height:8px;border-radius:50%;background:${escape(row.color)}"></span>` +
+                `${escape(row.label)}</span>` +
+                `<b>${escape(formatCredits(row.credits))} credits</b></div>`,
+        )
+        .join('');
+    return `<div style="margin-bottom:4px">${escape(title)}</div>${items}`;
+};

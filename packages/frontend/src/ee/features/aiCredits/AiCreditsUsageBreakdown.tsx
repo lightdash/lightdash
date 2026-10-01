@@ -22,6 +22,7 @@ import {
     findTopSeriesIndex,
     getAiCreditRowShare,
     getAiCreditSeriesColor,
+    renderAiCreditTooltip,
     toAiCreditChartBuckets,
 } from './dailyUsageChart';
 import { useAiCreditDailyUsage } from './hooks/useAiCreditDailyUsage';
@@ -81,10 +82,24 @@ const UsageChart: FC<{
                 backgroundColor: 'var(--mantine-color-body)',
                 borderColor: 'var(--mantine-color-default-border)',
                 textStyle: { color: 'var(--mantine-color-text)' },
-                valueFormatter: (value) =>
-                    typeof value === 'number'
-                        ? `${creditFormat.format(value)} credits`
-                        : '',
+                formatter: (params) => {
+                    const points = Array.isArray(params) ? params : [params];
+                    return renderAiCreditTooltip(
+                        points[0] && 'axisValueLabel' in points[0]
+                            ? String(points[0].axisValueLabel)
+                            : '',
+                        points.flatMap((point) => {
+                            const item =
+                                point.seriesIndex === undefined
+                                    ? undefined
+                                    : series[point.seriesIndex];
+                            return item === undefined
+                                ? []
+                                : [{ ...item, credits: Number(point.value) }];
+                        }),
+                        (credits) => creditFormat.format(credits),
+                    );
+                },
             },
             series: series.map((item, index) => ({
                 type: 'bar',

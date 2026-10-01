@@ -4,6 +4,7 @@ import {
     findTopSeriesIndex,
     getAiCreditRowShare,
     getAiCreditSeriesColor,
+    renderAiCreditTooltip,
     toAiCreditChartBuckets,
 } from './dailyUsageChart';
 
@@ -88,5 +89,32 @@ describe('findTopSeriesIndex', () => {
 
     it('finds nothing to round on a day without usage', () => {
         expect(findTopSeriesIndex([0, 0])).toBe(-1);
+    });
+});
+
+describe('renderAiCreditTooltip', () => {
+    const render = (rows: { label: string; credits: number }[]) =>
+        renderAiCreditTooltip(
+            '15 Sep',
+            rows.map((row) => ({ ...row, color: 'var(--c)' })),
+            (credits) => String(credits),
+        );
+
+    it('lists a day highest first and leaves out series with no credits', () => {
+        const html = render([
+            { label: 'Ask AI', credits: 2 },
+            { label: 'Data App', credits: 9 },
+            { label: 'Compaction', credits: 0 },
+        ]);
+        expect(html.indexOf('Data App')).toBeLessThan(html.indexOf('Ask AI'));
+        expect(html).not.toContain('Compaction');
+    });
+
+    it('never renders a name as markup', () => {
+        const html = render([
+            { label: '<img src=x onerror=alert(1)>', credits: 1 },
+        ]);
+        expect(html).not.toContain('<img');
+        expect(html).toContain('&lt;img');
     });
 });
