@@ -39,6 +39,9 @@ import {
 } from './playgroundBundle';
 import { type ProjectService } from './ProjectService';
 
+export const getPlaygroundProjectName = (isConnectJourney: boolean) =>
+    isConnectJourney ? 'Playground' : 'Playground (sample data)';
+
 export type ProvisionPlaygroundProjectArguments = {
     user: SessionUser;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
@@ -309,7 +312,7 @@ export const provisionPlaygroundProject = async ({
                 const creation = await projectService.createWithoutCompile(
                     user,
                     {
-                        name: 'Playground (sample data)',
+                        name: getPlaygroundProjectName(isConnectJourney),
                         type: ProjectType.DEFAULT,
                         dbtConnection: { type: DbtProjectType.NONE },
                         dbtVersion: DefaultSupportedDbtVersion,

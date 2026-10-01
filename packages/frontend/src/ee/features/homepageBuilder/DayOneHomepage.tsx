@@ -2,6 +2,7 @@ import { type PinnedItems } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { PlaygroundHomeNotice } from '../../../components/ProjectConnection/PlaygroundHomeNotice';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
@@ -152,6 +153,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
 
             <div className={classes.secondary}>
                 <Stack gap="xl">
+                    <PlaygroundHomeNotice projectUuid={projectUuid} />
                     {/* Spaces lead the body: they're the one section that has
                         content in any real project. Recently viewed is empty
                         for a first-time viewer and Pinned is empty until

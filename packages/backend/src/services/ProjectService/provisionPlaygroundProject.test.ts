@@ -11,6 +11,7 @@ import {
 import { readEmbeddedBundle } from '@lightdash/warehouses';
 import path from 'path';
 import {
+    getPlaygroundProjectName,
     provisionPlaygroundProject,
     type ProvisionPlaygroundProjectArguments,
 } from './provisionPlaygroundProject';
@@ -727,5 +728,17 @@ describe('provisionPlaygroundProject', () => {
                 errorType: 'Error',
             },
         });
+    });
+});
+
+describe('getPlaygroundProjectName', () => {
+    it('lets the Sample data badge carry the hint when connect-journey is on', () => {
+        expect(getPlaygroundProjectName(true)).toBe('Playground');
+    });
+
+    it('keeps the hint in the name when connect-journey is off', () => {
+        expect(getPlaygroundProjectName(false)).toBe(
+            'Playground (sample data)',
+        );
     });
 });
