@@ -5,6 +5,10 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { contentInventoryColumns } from '../eventStream/contentInventory';
+import {
+    contentViewsProjections,
+    type CapturedContentView,
+} from '../eventStream/contentViewsStream';
 import { compactedStreamSchemas } from '../eventStream/registry';
 import type { CompactedStreamColumn } from '../eventStream/types';
 
@@ -41,15 +45,24 @@ const schemas: Record<string, CompactedStreamColumn[]> = {
 describe('Content health', () => {
     let instance: DuckDBInstance;
     let db: DuckDBConnection;
-    const insert = async (
-        table: string,
-        row: Record<string, string | number | boolean | null>,
-    ) => {
+    const insert = async (table: string, row: Record<string, unknown>) => {
         const columns = schemas[table];
         const statement = await db.prepare(
             `INSERT INTO ${table} VALUES (${columns.map(() => '?').join(',')})`,
         );
-        statement.bind(columns.map(({ name }) => row[name] ?? null));
+        statement.bind(
+            columns.map(({ name }) => {
+                const value = row[name] ?? null;
+                if (
+                    value === null ||
+                    typeof value === 'string' ||
+                    typeof value === 'number' ||
+                    typeof value === 'boolean'
+                )
+                    return value;
+                throw new Error(`Unsupported fixture value for ${name}`);
+            }),
+        );
         await statement.run();
         statement.destroySync();
     };
@@ -212,6 +225,111 @@ describe('Content health', () => {
                 ?.content_health_observed_viewers,
         ).toBe('1');
     });
+
+    it.each([
+        ['saved_chart.view', 'chart', 'saved_chart'],
+        ['dashboard.view', 'dashboard', 'dashboard'],
+        ['sql_chart.view', 'sql_chart', 'sql_chart'],
+    ] as const)(
+        'joins projected %s events to inventory without losing views or duplicating items',
+        async (event, capturedType, inventoryType) => {
+            await insert('lightdash_content', {
+                org_id: 'org',
+                project_id: 'project',
+                content_id: 'viewed',
+                content_type: inventoryType,
+                dashboard_references: 0,
+                enabled_schedules: 0,
+            });
+            const payload: CapturedContentView = {
+                event,
+                userId: 'reader',
+                properties: {
+                    organizationId: 'org',
+                    projectId: 'project',
+                    contentView: {
+                        eventId: 'first',
+                        occurredAt: '2026-09-20T12:00:00.000Z',
+                        contentId: 'viewed',
+                        contentType: capturedType,
+                        contentName: 'Viewed content',
+                        projectName: null,
+                        spaceId: null,
+                        spaceName: null,
+                        createdAt: null,
+                        isVerified: null,
+                        context: 'backend',
+                        actorType: 'user',
+                    },
+                },
+            };
+            const view = contentViewsProjections[event](payload)!.row;
+            await insert('content_views', view);
+            await insert('content_views', view);
+            await insert('content_views', {
+                ...view,
+                event_id: 'second',
+                user_id: 'another-reader',
+                event_ts: '2026-09-21T12:00:00.000Z',
+            });
+            for (const excluded of [
+                { org_id: 'other-org' },
+                { project_id: 'other-project' },
+                {
+                    content_type:
+                        capturedType === 'dashboard' ? 'chart' : 'dashboard',
+                },
+                { is_qualifying: false },
+                { actor_type: 'embed' },
+                { user_id: null },
+            ]) {
+                await insert('content_views', {
+                    ...view,
+                    event_id: 'excluded',
+                    event_ts: '2026-09-22T12:00:00.000Z',
+                    ...excluded,
+                });
+            }
+            const rows = (
+                await db.runAndReadAll(
+                    compile(
+                        [
+                            'content_id',
+                            'content_type',
+                            'observed_viewers',
+                            'last_viewed_at',
+                            'last_observed_activity_at',
+                            'activity_status',
+                        ],
+                        ['total_content', 'total_observed_views'],
+                    ),
+                )
+            ).getRowObjectsJson();
+            expect(rows).toHaveLength(6);
+            expect(
+                rows.find((r) => r.content_health_content_id === 'viewed'),
+            ).toMatchObject({
+                content_health_content_type: inventoryType,
+                content_health_total_content: '1',
+                content_health_total_observed_views: '2',
+                content_health_observed_viewers: '2',
+                content_health_last_viewed_at: '2026-09-21 12:00:00',
+                content_health_last_observed_activity_at: '2026-09-21 12:00:00',
+                content_health_activity_status: 'Activity observed',
+            });
+            const totals = (
+                await db.runAndReadAll(
+                    compile([], ['total_content', 'total_observed_views']),
+                )
+            ).getRowObjectsJson();
+            expect(totals).toEqual([
+                {
+                    content_health_total_content: '6',
+                    content_health_total_observed_views: '2',
+                },
+            ]);
+        },
+    );
 
     it('supports missing inventory during rollout', async () => {
         await db.run('DELETE FROM lightdash_content');
