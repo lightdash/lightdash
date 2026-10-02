@@ -184,6 +184,17 @@ export const overlayOrgProviderApiKeys = (
     };
 };
 
+/**
+ * Which organization and project a config resolution is for. `projectUuid` is
+ * required rather than optional: a caller must state that it has no project,
+ * because that case falls back to the organization default credential, which
+ * may be a different region than the data in play.
+ */
+export type AiConfigScope = {
+    organizationUuid: string | null | undefined;
+    projectUuid: string | null;
+};
+
 type Dependencies = {
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
@@ -225,24 +236,39 @@ export class OrgAiCopilotConfigResolver {
      */
     private async resolveOrgProviderKeys(
         organizationUuid: string,
-        /**
-         * `fail-closed` throws when the selected credential cannot be read —
-         * correct for anything that will serve a prompt.
-         *
-         * `tolerate-unreadable` ignores the broken credential and resolves the
-         * legacy or instance keys instead. ONLY for admin read paths, which
-         * must load in order to repair that credential: failing them closed
-         * would hide the screen that fixes the problem behind the problem.
-         */
-        onUnreadable: 'fail-closed' | 'tolerate-unreadable' = 'fail-closed',
+        // Named rather than positional: `projectUuid` is a nullable string and
+        // `onUnreadable` a string union, so a positional mix-up between them
+        // type-checks silently.
+        {
+            projectUuid,
+            onUnreadable = 'fail-closed',
+        }: {
+            projectUuid: string | null;
+            /**
+             * `fail-closed` throws when the selected credential cannot be read
+             * — correct for anything that will serve a prompt.
+             *
+             * `tolerate-unreadable` ignores the broken credential and resolves
+             * the legacy or instance keys instead. ONLY for admin read paths,
+             * which must load in order to repair that credential: failing them
+             * closed would hide the screen that fixes the problem behind the
+             * problem.
+             */
+            onUnreadable?: 'fail-closed' | 'tolerate-unreadable';
+        },
     ): Promise<AiOrgProviderApiKeys | null> {
         const [legacyKeys, resolution] = await Promise.all([
             this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
             ),
-            this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
-                organizationUuid,
-            ),
+            projectUuid
+                ? this.aiOrganizationProviderCredentialModel.findForProjectDecrypted(
+                      organizationUuid,
+                      projectUuid,
+                  )
+                : this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
+                      organizationUuid,
+                  ),
         ]);
 
         if (resolution.status === 'unreadable') {
@@ -260,13 +286,16 @@ export class OrgAiCopilotConfigResolver {
         };
     }
 
-    async getCopilotConfig(
-        organizationUuid: string | null | undefined,
-    ): Promise<ResolvedCopilotConfig> {
+    async getCopilotConfig({
+        organizationUuid,
+        projectUuid,
+    }: AiConfigScope): Promise<ResolvedCopilotConfig> {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid);
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid,
+        });
         if (!orgKeys) return managed;
         return overlayOrgProviderApiKeys(base, orgKeys);
     }
@@ -289,10 +318,10 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        const orgKeys = await this.resolveOrgProviderKeys(
-            organizationUuid,
-            'tolerate-unreadable',
-        );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid: null,
+            onUnreadable: 'tolerate-unreadable',
+        });
         if (!orgKeys) return managed;
         return overlayOrgProviderApiKeys(base, orgKeys);
     }
@@ -314,7 +343,9 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid);
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid: null,
+        });
         if (!orgKeys) return managed;
         const overlaid = overlayOrgProviderApiKeys(base, orgKeys);
         return {
@@ -340,7 +371,9 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid);
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid: null,
+        });
         if (!orgKeys) return managed;
         const overlaid = overlayOrgProviderApiKeys(base, orgKeys);
         return {
@@ -367,10 +400,10 @@ export class OrgAiCopilotConfigResolver {
             keyAccessibleModelIds: null,
         };
         if (!organizationUuid) return none;
-        const orgKeys = await this.resolveOrgProviderKeys(
-            organizationUuid,
-            'tolerate-unreadable',
-        );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid: null,
+            onUnreadable: 'tolerate-unreadable',
+        });
         if (!orgKeys) return none;
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
@@ -409,10 +442,10 @@ export class OrgAiCopilotConfigResolver {
         organizationUuid: string,
         submitted: AiOrgModelVisibility | null,
     ): Promise<AiOrgModelVisibility | null> {
-        const orgKeys = await this.resolveOrgProviderKeys(
-            organizationUuid,
-            'tolerate-unreadable',
-        );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid: null,
+            onUnreadable: 'tolerate-unreadable',
+        });
         if (!orgKeys) return submitted;
         return resolveEffectiveModelVisibility(orgKeys, submitted);
     }
@@ -430,10 +463,10 @@ export class OrgAiCopilotConfigResolver {
         organizationUuid: string | null | undefined,
     ): Promise<DataAppModelVisibility | null> {
         if (!organizationUuid) return null;
-        const orgKeys = await this.resolveOrgProviderKeys(
-            organizationUuid,
-            'tolerate-unreadable',
-        );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid: null,
+            onUnreadable: 'tolerate-unreadable',
+        });
         if (!orgKeys?.anthropic) return null;
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
@@ -507,7 +540,9 @@ export class OrgAiCopilotConfigResolver {
         organizationUuid: string | null | undefined,
     ): Promise<boolean> {
         if (!organizationUuid) return false;
-        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid);
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid: null,
+        });
         return Boolean(orgKeys?.bedrock);
     }
 
@@ -526,10 +561,10 @@ export class OrgAiCopilotConfigResolver {
             byoJudgeProvider: null,
         };
         if (!organizationUuid) return none;
-        const orgKeys = await this.resolveOrgProviderKeys(
-            organizationUuid,
-            'tolerate-unreadable',
-        );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid: null,
+            onUnreadable: 'tolerate-unreadable',
+        });
         if (!orgKeys) return none;
         const hasActiveByoKey = BYO_AI_PROVIDERS.some(
             (provider) => orgKeys[provider],

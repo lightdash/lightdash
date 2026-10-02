@@ -4678,10 +4678,10 @@ export class AppGenerateService extends BaseService {
         description: string;
         icon: ChartTypeIcon | null;
     }> {
-        const copilot =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                organizationUuid,
-            );
+        const copilot = await this.orgAiCopilotConfigResolver.getCopilotConfig({
+            organizationUuid,
+            projectUuid,
+        });
         let modelOptions;
         try {
             modelOptions =
@@ -6911,10 +6911,10 @@ export class AppGenerateService extends BaseService {
             throw new ParameterError('Prompt is required');
         }
 
-        const copilot =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                organizationUuid,
-            );
+        const copilot = await this.orgAiCopilotConfigResolver.getCopilotConfig({
+            organizationUuid,
+            projectUuid,
+        });
 
         let modelOptions;
         try {

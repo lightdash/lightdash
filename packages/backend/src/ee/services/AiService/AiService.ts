@@ -142,9 +142,10 @@ export class AiService extends BaseService {
     async isAmbientAiEnabled(user: SessionUser): Promise<boolean> {
         try {
             const config =
-                await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                    user.organizationUuid ?? null,
-                );
+                await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                    organizationUuid: user.organizationUuid ?? null,
+                    projectUuid: null,
+                });
             // Configuration only: cached review submissions must not contact providers.
             if (config.providers.anthropic?.apiKey) return true;
             const flag = await this.featureFlagService.get({
@@ -228,9 +229,10 @@ export class AiService extends BaseService {
         organizationUuid: string,
     ): Promise<AiKeyManagement> {
         const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
                 organizationUuid,
-            );
+                projectUuid: null,
+            });
         return resolveKeyManagement(
             copilotConfig,
             AiService.pickAmbientProvider(copilotConfig),
@@ -269,9 +271,10 @@ export class AiService extends BaseService {
         };
 
         const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                user.organizationUuid ?? null,
-            );
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid: user.organizationUuid ?? null,
+                projectUuid: telemetry?.projectUuid ?? null,
+            });
 
         const anthropicConfig = copilotConfig.providers.anthropic;
 

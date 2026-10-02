@@ -1640,10 +1640,10 @@ export class ExternalConnectionService extends BaseService {
             );
         }
 
-        const copilot =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                organizationUuid,
-            );
+        const copilot = await this.orgAiCopilotConfigResolver.getCopilotConfig({
+            organizationUuid,
+            projectUuid,
+        });
         const provider: 'anthropic' | 'bedrock' =
             copilot.defaultProvider === 'bedrock' ? 'bedrock' : 'anthropic';
 
