@@ -6,7 +6,6 @@ import type {
     ByoAiApiKeyProvider,
     ByoAiProvider,
     DataAppModelVisibility,
-    OrgBedrockConfig,
     UpdateAiProviderApiKeys,
 } from '@lightdash/common';
 import {
@@ -37,7 +36,7 @@ import AnthropicIcon from '../../../../../../svgs/anthropic.svg?react';
 import GeminiIcon from '../../../../../../svgs/gemini.svg?react';
 import OpenAiIcon from '../../../../../../svgs/openai.svg?react';
 import { AiDataAppModelToggles } from './AiDataAppModelToggles';
-import { BedrockProviderForm } from './BedrockProviderForm';
+import { AiProviderCredentialsCard } from './AiProviderCredentialsCard';
 
 const PROVIDER_META: Record<
     ByoAiApiKeyProvider,
@@ -235,7 +234,6 @@ type AiProvidersCardProps = {
     // under Anthropic — the Claude CLI takes no other BYO provider.
     dataAppModelVisibility: DataAppModelVisibility | null;
     showDataAppModels: boolean;
-    bedrockConfig: OrgBedrockConfig | null;
     bedrockModelOptions: AiModelOption[];
     disabled: boolean;
     onUpdateKeys: (providerApiKeys: UpdateAiProviderApiKeys) => void;
@@ -250,7 +248,6 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     configurableModelOptions,
     dataAppModelVisibility,
     showDataAppModels,
-    bedrockConfig,
     bedrockModelOptions,
     disabled,
     onUpdateKeys,
@@ -370,14 +367,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                     </Stack>
                 ))}
                 <Divider />
-                <BedrockProviderForm
-                    config={bedrockConfig}
-                    hint={providerApiKeyHints.bedrock}
-                    models={bedrockModelOptions}
-                    disabled={disabled}
-                    onSave={(bedrock) => onUpdateKeys({ bedrock })}
-                    onRemove={() => onUpdateKeys({ bedrock: null })}
-                />
+                <AiProviderCredentialsCard models={bedrockModelOptions} />
             </Stack>
         </SettingsCard>
     );
