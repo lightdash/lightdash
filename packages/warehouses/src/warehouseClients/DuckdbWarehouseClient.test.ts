@@ -159,7 +159,7 @@ describe('internal Parquet projects', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         run = vi.fn();
-        createInstanceMock.mockResolvedValue(
+        createInstanceMock.mockImplementation(async () =>
             createMockConnection(
                 vi.fn(async () => getMockStreamResult([[{ count: 2 }]], [5])),
                 run,
@@ -176,7 +176,7 @@ describe('internal Parquet projects', () => {
         await client.runQuery('SELECT count(*) FROM query_events');
         await client.runQuery('SELECT count(*) FROM query_events');
         expect(resolveSource).toHaveBeenCalledTimes(2);
-        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        expect(createInstanceMock).toHaveBeenCalledTimes(4);
         expect(run).toHaveBeenCalledWith(`SET allowed_paths = ['${url}'];`);
         expect(run).toHaveBeenCalledWith('SET enable_external_access = false;');
         expect(run).toHaveBeenCalledWith("SET temp_directory = '';");
@@ -201,7 +201,7 @@ describe('internal Parquet projects', () => {
         expect(run).toHaveBeenCalledWith('SET threads = 4;');
         expect(statements[bind]).toContain('union_by_name = true');
         const instance = await createInstanceMock.mock.results[0].value;
-        expect(instance.closeSync).toHaveBeenCalledTimes(2);
+        expect(instance.closeSync).toHaveBeenCalledTimes(1);
     });
 
     it('binds only the queried model and its joined lookup tables', async () => {
@@ -213,27 +213,39 @@ describe('internal Parquet projects', () => {
                 { getTableNames },
             ),
         );
+        const resolveSource = vi.fn(async () => ({
+            ...source(),
+            tables: [
+                ...source().tables,
+                {
+                    name: 'lightdash_users',
+                    urls: [`${scope}dim=users/users.parquet`],
+                },
+                {
+                    name: 'ai_usage',
+                    urls: [`${scope}stream=ai_usage/part.parquet`],
+                },
+            ],
+        }));
         const client = new DuckdbWarehouseClient({
             type: 'duckdb_parquet',
-            resolveSource: async () => ({
-                ...source(),
-                tables: [
-                    ...source().tables,
-                    {
-                        name: 'lightdash_users',
-                        urls: [`${scope}dim=users/users.parquet`],
-                    },
-                    {
-                        name: 'ai_usage',
-                        urls: [`${scope}stream=ai_usage/part.parquet`],
-                    },
-                ],
-            }),
+            resolveSource,
         });
         const sql =
             'SELECT count(*) FROM query_events LEFT JOIN lightdash_users ON query_events.user_id = lightdash_users.user_id';
         await client.runQuery(sql);
         expect(getTableNames).toHaveBeenCalledWith(sql, false);
+        expect(resolveSource).toHaveBeenCalledWith([
+            'query_events',
+            'lightdash_users',
+        ]);
+        expect(createInstanceMock).toHaveBeenCalledWith(':memory:', {
+            enable_external_access: 'false',
+            autoload_known_extensions: 'false',
+            autoinstall_known_extensions: 'false',
+            threads: '1',
+            memory_limit: '32MB',
+        });
         const views = run.mock.calls
             .map(([statement]) => statement as string)
             .filter((statement) => statement.startsWith('CREATE VIEW'));
@@ -246,6 +258,44 @@ describe('internal Parquet projects', () => {
         );
         expect(views.some((view) => view.includes('"ai_usage"'))).toBe(false);
     });
+
+    it.each(['empty', 'error'])(
+        'keeps the full source and closes the parser on %s dependency resolution',
+        async (outcome) => {
+            createInstanceMock.mockImplementation(async () =>
+                createMockConnection(
+                    vi.fn(async () =>
+                        getMockStreamResult([[{ count: 2 }]], [5]),
+                    ),
+                    run,
+                    {
+                        getTableNames: vi.fn(() => {
+                            if (outcome === 'error')
+                                throw new Error('Cannot resolve dependencies');
+                            return [];
+                        }),
+                    },
+                ),
+            );
+            const resolveSource = vi.fn(async () => source());
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource,
+            });
+            await client.runQuery('SELECT count(*) FROM query_events');
+            expect(resolveSource).toHaveBeenCalledWith(undefined);
+            expect(run).toHaveBeenCalledWith(
+                expect.stringContaining('CREATE VIEW "query_events"'),
+            );
+            const instances = await Promise.all(
+                createInstanceMock.mock.results.map((result) => result.value),
+            );
+            expect(instances).toHaveLength(2);
+            instances.forEach((instance) => {
+                expect(instance.closeSync).toHaveBeenCalledTimes(1);
+            });
+        },
+    );
 
     it.each(
         [

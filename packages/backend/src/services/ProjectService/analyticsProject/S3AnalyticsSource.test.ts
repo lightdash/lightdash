@@ -85,6 +85,61 @@ describe('signed analytics file manifests', () => {
         );
     });
 
+    it('signs only requested tables while preserving every retained date', async () => {
+        const queryKey = key('query_events');
+        const oldExport = key('export_events', '2025-09-07');
+        const newExport = key('export_events');
+        send.mockResolvedValueOnce({
+            Contents: [{ Key: queryKey }, { Key: oldExport }],
+            IsTruncated: true,
+            NextContinuationToken: 'next',
+        }).mockResolvedValueOnce({ Contents: [{ Key: newExport }] });
+        const source = await createS3AnalyticsSourceResolver(config)([
+            'export_events',
+        ]);
+        expect(source.tables.map(({ name }) => name)).toEqual([
+            'export_events',
+        ]);
+        expect(
+            vi
+                .mocked(getSignedUrl)
+                .mock.calls.map(
+                    ([, command]) => (command as GetObjectCommand).input.Key,
+                ),
+        ).toEqual([oldExport, newExport]);
+        expect(source.emptyTables?.map(({ name }) => name)).toContain(
+            'query_events',
+        );
+    });
+
+    it.each([undefined, []])(
+        'keeps full discovery when references are unresolved: %s',
+        async (tables) => {
+            send.mockResolvedValue({
+                Contents: [
+                    { Key: key('query_events') },
+                    { Key: key('export_events') },
+                ],
+            });
+            const source =
+                await createS3AnalyticsSourceResolver(config)(tables);
+            expect(source.tables).toHaveLength(2);
+            expect(getSignedUrl).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it('keeps a missing requested stream empty without dropping the organization data-availability check', async () => {
+        send.mockResolvedValue({ Contents: [{ Key: key('query_events') }] });
+        const source = await createS3AnalyticsSourceResolver(config)([
+            'export_events',
+        ]);
+        expect(source.tables).toEqual([]);
+        expect(source.emptyTables?.map(({ name }) => name)).toContain(
+            'export_events',
+        );
+        expect(getSignedUrl).not.toHaveBeenCalled();
+    });
+
     it('uses writer config only for prefix listing and signing exact GETs', async () => {
         const resolve = createS3AnalyticsSourceResolver(config);
         expect(createS3ClientFromConfig).not.toHaveBeenCalled();
@@ -458,8 +513,9 @@ describe('signed analytics file manifests', () => {
             );
             expect(getSignedUrl).not.toHaveBeenCalled();
             expect(destroy).toHaveBeenCalledOnce();
-            expect(connection.closeSync).toHaveBeenCalledOnce();
-            expect(closeInstance).toHaveBeenCalledOnce();
+            // The dependency parser and query session are both disposed.
+            expect(connection.closeSync).toHaveBeenCalledTimes(2);
+            expect(closeInstance).toHaveBeenCalledTimes(2);
         },
     );
 

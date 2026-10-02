@@ -89,10 +89,12 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                         ),
                     ),
                 );
-                const resolveSource = createS3AnalyticsSourceResolver({
-                    storage,
-                    organizationUuid: org,
-                });
+                const resolveSource = vi.fn(
+                    createS3AnalyticsSourceResolver({
+                        storage,
+                        organizationUuid: org,
+                    }),
+                );
                 const reader = new DuckdbWarehouseClient({
                     type: 'duckdb_parquet',
                     resolveSource,
@@ -104,6 +106,63 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                         )
                     ).rows,
                 ).toEqual([{ total: '84' }]);
+                expect(resolveSource).toHaveBeenLastCalledWith([
+                    'query_events',
+                ]);
+                const resolved: Awaited<ReturnType<typeof resolveSource>> =
+                    await resolveSource.mock.results[0].value;
+                expect(resolved.tables.map(({ name }) => name)).toEqual([
+                    'query_events',
+                ]);
+                expect(resolved.tables[0].urls).toHaveLength(2);
+                // Nested CTEs/unions must retain both streams and old partitions.
+                expect(
+                    (
+                        await reader.runQuery(`WITH combined AS (
+                    SELECT tokens FROM query_events UNION ALL SELECT tokens FROM ai_usage
+                ) SELECT sum(tokens) AS total FROM combined`)
+                    ).rows,
+                ).toEqual([{ total: '126' }]);
+                expect(
+                    resolveSource.mock.lastCall?.[0]?.slice().sort(),
+                ).toEqual(['ai_usage', 'query_events']);
+                expect(
+                    (
+                        await reader.runQuery(`SELECT count(*) AS total FROM query_events q
+                    JOIN ai_usage a ON q.tokens = a.tokens`)
+                    ).rows,
+                ).toEqual([{ total: '2' }]);
+                expect(
+                    resolveSource.mock.lastCall?.[0]?.slice().sort(),
+                ).toEqual(['ai_usage', 'query_events']);
+                // Native dependency extraction returns [] for an unbound USING.
+                expect(
+                    (
+                        await reader.runQuery(`SELECT count(*) AS total FROM query_events
+                    JOIN ai_usage USING (tokens)`)
+                    ).rows,
+                ).toEqual([{ total: '2' }]);
+                expect(resolveSource).toHaveBeenLastCalledWith(undefined);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT sum(tokens) AS total FROM "QUERY_EVENTS"',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '84' }]);
+                expect(resolveSource).toHaveBeenLastCalledWith([
+                    'query_events',
+                ]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT count(*) AS total FROM export_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '0' }]);
+                expect(resolveSource).toHaveBeenLastCalledWith([
+                    'export_events',
+                ]);
                 // Historical files may predate fields added to the stream.
                 expect(
                     (

@@ -47,12 +47,12 @@ export const createAnalyticsClient = async (
     });
     return new DuckdbWarehouseClient({
         type: 'duckdb_parquet',
-        resolveSource: async () => {
+        resolveSource: async (referencedTables) => {
             await assertAnalyticsProjectEnabled(
                 featureFlagModel,
                 organizationUuid,
             );
-            return resolveSource();
+            return resolveSource(referencedTables);
         },
     });
 };
