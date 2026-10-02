@@ -129,6 +129,16 @@ describe('isPublicEmailProviderDomain', () => {
         expect(isPublicEmailProviderDomain('acme.com')).toBe(false);
         expect(isPublicEmailProviderDomain('lightdash.com')).toBe(false);
     });
+
+    it('does not flag corporate domains the package list wrongly includes', () => {
+        expect(isPublicEmailProviderDomain('telekom.de')).toBe(false);
+        expect(isPublicEmailProviderDomain('  Telekom.DE ')).toBe(false);
+        expect(
+            validateOrganizationEmailDomains(['telekom.de']),
+        ).toBeUndefined();
+        // Consumer domains of the same provider stay blocked
+        expect(isPublicEmailProviderDomain('t-online.de')).toBe(true);
+    });
 });
 
 describe('validateOrganizationEmailDomains', () => {
