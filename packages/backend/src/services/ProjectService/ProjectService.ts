@@ -129,6 +129,7 @@ import {
     GroupType,
     hasConnectionChanges,
     hasIntersection,
+    hasServiceCredential,
     hasWarehouseCredentials,
     isAdditionalMetric,
     isCartesianChartConfig,
@@ -249,6 +250,7 @@ import {
     SshTunnelError,
     SummaryExplore,
     SupportedDbtAdapter,
+    supportsOptionalUserCredentials,
     TablesConfiguration,
     TableSelectionType,
     TooManyRequestsError,
@@ -321,6 +323,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
+import { Knex } from 'knex';
 import { uniq } from 'lodash';
 import fetch from 'node-fetch';
 import { Readable } from 'stream';
@@ -362,6 +365,7 @@ import {
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
+import { getSchedulerContext } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -2021,6 +2025,16 @@ export class ProjectService extends BaseService {
         if (!getBigquerySsoCredentials(credentials)) return credentials;
         const preview = await this.projectModel.getSummary(projectUuid);
         if (
+            (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid: preview.organizationUuid },
+                    featureFlagId: FeatureFlags.PersonalSignInSetup,
+                })
+            ).enabled
+        ) {
+            return credentials;
+        }
+        if (
             preview.type !== ProjectType.PREVIEW ||
             !preview.upstreamProjectUuid ||
             !(await this.isPreviewSsoCredentialSyncEnabled(
@@ -2219,6 +2233,7 @@ export class ProjectService extends BaseService {
         userId,
         isRegisteredUser,
         isServiceAccount = false,
+        useServiceCredential: requestedServiceCredential = false,
         purpose = 'query',
     }: {
         projectUuid: string;
@@ -2226,6 +2241,7 @@ export class ProjectService extends BaseService {
         userId: string;
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
+        useServiceCredential?: boolean;
         purpose?: 'query' | 'compile';
     }) {
         const project =
@@ -2261,6 +2277,38 @@ export class ProjectService extends BaseService {
             ),
         } as CreateWarehouseCredentials;
         let userWarehouseCredentialsUuid: string | undefined;
+
+        const useServiceCredential = await this.shouldUseServiceCredential({
+            requestedServiceCredential,
+            isRegisteredUser,
+            isServiceAccount,
+            organizationUuid: project.organizationUuid,
+        });
+        if (useServiceCredential) {
+            if (!hasServiceCredential(credentials)) {
+                if (isRegisteredUser) {
+                    throw new ParameterError(
+                        'Add a service account to run scheduled work.',
+                    );
+                }
+                throw new ForbiddenError(
+                    "This embed needs a service account. Ask an admin to add one in the project's connection settings.",
+                );
+            }
+            return {
+                ...(await this.refreshCredentialsAndPersistRotation(
+                    credentials,
+                    userId,
+                    organizationWarehouseCredentialsUuid
+                        ? {
+                              kind: 'organization' as const,
+                              organizationWarehouseCredentialsUuid,
+                          }
+                        : connectionRotationSource,
+                )),
+                userWarehouseCredentialsUuid,
+            };
+        }
 
         if (purpose === 'compile') {
             return {
@@ -2414,7 +2462,12 @@ export class ProjectService extends BaseService {
             warehouseConnection: CreateWarehouseCredentials;
             organizationWarehouseCredentialsUuid?: string;
         },
-    >(rawArgs: T, userUuid: string, organizationUuid: string): Promise<T> {
+    >(
+        rawArgs: T,
+        userUuid: string,
+        organizationUuid: string,
+        preservePersonSignIn = false,
+    ): Promise<T> {
         // Normalize submitted credentials so in-flight connection tests and
         // compiles never see legacy values that violate the credentials types
         const args: T = {
@@ -2499,6 +2552,7 @@ export class ProjectService extends BaseService {
             args.warehouseConnection.type === WarehouseTypes.BIGQUERY &&
             args.warehouseConnection.authenticationType ===
                 BigqueryAuthenticationType.SSO &&
+            !preservePersonSignIn &&
             args.warehouseConnection.keyfileContents.type !== 'authorized_user'
         ) {
             const refreshToken =
@@ -2531,6 +2585,7 @@ export class ProjectService extends BaseService {
         if (
             args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
             args.warehouseConnection.authenticationType === 'sso' &&
+            !preservePersonSignIn &&
             !organizationWarehouseCredentialsUuid
         ) {
             const refreshToken =
@@ -2560,6 +2615,7 @@ export class ProjectService extends BaseService {
             args.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
             args.warehouseConnection.authenticationType ===
                 DatabricksAuthenticationType.OAUTH_U2M &&
+            !preservePersonSignIn &&
             !organizationWarehouseCredentialsUuid
         ) {
             // Use refresh token from request body first (e.g. CLI flow).
@@ -2770,6 +2826,7 @@ export class ProjectService extends BaseService {
                             userId: args.userId,
                             isRegisteredUser: args.isRegisteredUser,
                             isServiceAccount: args.isServiceAccount,
+                            useServiceCredential: args.useServiceCredential,
                         }),
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
                     connectionRoute,
@@ -2777,6 +2834,38 @@ export class ProjectService extends BaseService {
             default:
                 return assertUnreachable(target, 'Unknown credential target');
         }
+    }
+
+    private async shouldUseServiceCredential({
+        requestedServiceCredential,
+        isRegisteredUser,
+        isServiceAccount,
+        organizationUuid,
+        projectUuid,
+    }: {
+        requestedServiceCredential: boolean;
+        isRegisteredUser: boolean;
+        isServiceAccount: boolean;
+        organizationUuid?: string;
+        projectUuid?: string;
+    }): Promise<boolean> {
+        if (requestedServiceCredential) return true;
+        if (
+            isRegisteredUser &&
+            !isServiceAccount &&
+            !getSchedulerContext()?.job_id
+        ) {
+            return false;
+        }
+        const resolvedOrganizationUuid =
+            organizationUuid ??
+            (await this.projectModel.getSummary(projectUuid!)).organizationUuid;
+        return (
+            await this.featureFlagModel.get({
+                user: { organizationUuid: resolvedOrganizationUuid },
+                featureFlagId: FeatureFlags.PersonalSignInSetup,
+            })
+        ).enabled;
     }
 
     protected async getConnectionAnalyticsProperties({
@@ -2928,12 +3017,14 @@ export class ProjectService extends BaseService {
         userId,
         isRegisteredUser,
         isServiceAccount = false,
+        useServiceCredential: requestedServiceCredential = false,
         preloadedOrgWarehouseCredentialsUuid,
     }: {
         projectUuid: string;
         userId: string;
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
+        useServiceCredential?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
     }) {
         // Use preloaded config if available, otherwise fetch it
@@ -2952,6 +3043,39 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
+
+        const useServiceCredential = await this.shouldUseServiceCredential({
+            requestedServiceCredential,
+            isRegisteredUser,
+            isServiceAccount,
+            projectUuid,
+        });
+
+        if (useServiceCredential) {
+            if (!hasServiceCredential(credentials)) {
+                if (isRegisteredUser) {
+                    throw new ParameterError(
+                        'Add a service account to run scheduled work.',
+                    );
+                }
+                throw new ForbiddenError(
+                    "This embed needs a service account. Ask an admin to add one in the project's connection settings.",
+                );
+            }
+            return {
+                ...(await this.refreshCredentialsAndPersistRotation(
+                    credentials,
+                    userId,
+                    organizationWarehouseCredentialsUuid
+                        ? {
+                              kind: 'organization' as const,
+                              organizationWarehouseCredentialsUuid,
+                          }
+                        : { kind: 'project' as const, projectUuid },
+                )),
+                userWarehouseCredentialsUuid,
+            };
+        }
 
         if (
             credentials.type === WarehouseTypes.DUCKDB &&
@@ -3112,11 +3236,29 @@ export class ProjectService extends BaseService {
         account: AnonymousAccount;
         binding: ConnectionBinding;
     }) {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: project.organizationUuid },
+            featureFlagId: FeatureFlags.PersonalSignInSetup,
+        });
+        if (enabled) {
+            const credentials =
+                await this.projectModel.getWarehouseCredentialsForBinding(
+                    projectUuid,
+                    binding,
+                );
+            if (!hasServiceCredential(credentials)) {
+                throw new ForbiddenError(
+                    "This embed needs a service account. Ask an admin to add one in the project's connection settings.",
+                );
+            }
+        }
         return this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: false,
             binding,
+            useServiceCredential: enabled,
         });
     }
 
@@ -3363,6 +3505,12 @@ export class ProjectService extends BaseService {
             expired,
             canReconnect:
                 provider === PersonSignInProvider.GOOGLE &&
+                !(
+                    await this.featureFlagModel.get({
+                        user: { organizationUuid: project.organizationUuid },
+                        featureFlagId: FeatureFlags.PersonalSignInSetup,
+                    })
+                ).enabled &&
                 ability.can('update', resource) &&
                 this.canReconnectSharedSignIn(owner, basis, account.user.id),
         };
@@ -3419,6 +3567,18 @@ export class ProjectService extends BaseService {
             )
         )
             throw new ForbiddenError();
+        if (
+            (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid: project.organizationUuid },
+                    featureFlagId: FeatureFlags.PersonalSignInSetup,
+                })
+            ).enabled
+        ) {
+            throw new ParameterError(
+                'A shared connection can only use a service account. Sign in with your own account under your warehouse connections, or add a service account.',
+            );
+        }
         const credentials = project.warehouseConnection;
         const signIn = credentials ? getPersonSignIn(credentials) : null;
         if (
@@ -4108,13 +4268,6 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<WarehouseCredentialSummary> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.SharedSignInOwnership,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('This feature is not enabled');
-        }
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(user);
@@ -4126,7 +4279,24 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return this.projectModel.getWarehouseCredentialSummary(projectUuid);
+        const [{ enabled: ownershipEnabled }, { enabled: setupEnabled }] =
+            await Promise.all([
+                this.featureFlagModel.get({
+                    user: { organizationUuid },
+                    featureFlagId: FeatureFlags.SharedSignInOwnership,
+                }),
+                this.featureFlagModel.get({
+                    user: { organizationUuid },
+                    featureFlagId: FeatureFlags.PersonalSignInSetup,
+                }),
+            ]);
+        if (!ownershipEnabled && !setupEnabled) {
+            throw new ForbiddenError('This feature is not enabled');
+        }
+        return this.projectModel.getWarehouseCredentialSummary(
+            projectUuid,
+            setupEnabled,
+        );
     }
 
     async getProject(projectUuid: string, account: Account): Promise<Project> {
@@ -4404,6 +4574,15 @@ export class ProjectService extends BaseService {
             data,
             internalProvisioning,
         );
+        if (
+            data.type === ProjectType.PREVIEW &&
+            data.upstreamProjectUuid &&
+            (method === RequestMethod.CLI || method === RequestMethod.CLI_CI)
+        ) {
+            await this.assertServiceCredentialForUnattendedCompile(
+                data.upstreamProjectUuid,
+            );
+        }
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
             internalProvisioning,
@@ -4418,6 +4597,12 @@ export class ProjectService extends BaseService {
             data,
         );
 
+        const previewSubmittedCredential =
+            data.type === ProjectType.PREVIEW &&
+            data.upstreamProjectUuid &&
+            !data.copyWarehouseConnectionFromUpstreamProject
+                ? data.warehouseConnection
+                : undefined;
         const newProjectData = data;
         if (newProjectData.warehouseConnection && !internalProvisioning) {
             newProjectData.warehouseConnection =
@@ -4494,11 +4679,104 @@ export class ProjectService extends BaseService {
                   )
                 : newProjectData;
 
+        const personalSetupEnabled = (
+            await this.featureFlagModel.get({
+                user: { organizationUuid: user.organizationUuid },
+                featureFlagId: FeatureFlags.PersonalSignInSetup,
+            })
+        ).enabled;
+        const previewPersonalCredential =
+            personalSetupEnabled &&
+            previewSubmittedCredential &&
+            (getPersonSignIn(previewSubmittedCredential) ||
+                createProject.snowflakeExternalBrowserTemporaryPassword ===
+                    true ||
+                (previewSubmittedCredential.type === WarehouseTypes.REDSHIFT &&
+                    previewSubmittedCredential.authenticationType ===
+                        RedshiftAuthenticationType.IAM_BROWSER) ||
+                (previewSubmittedCredential.type === WarehouseTypes.SNOWFLAKE &&
+                    previewSubmittedCredential.authenticationType ===
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER))
+                ? previewSubmittedCredential
+                : undefined;
+        let storedWarehouseConnection = createProject.warehouseConnection;
+        if (storedWarehouseConnection) {
+            storedWarehouseConnection = await this.personalSetupConnection(
+                user,
+                storedWarehouseConnection,
+                (method === RequestMethod.CLI ||
+                    method === RequestMethod.CLI_CI) &&
+                    createProject.snowflakeExternalBrowserTemporaryPassword ===
+                        true,
+            );
+        }
+        if (previewPersonalCredential && createProject.upstreamProjectUuid) {
+            const upstreamCredentials =
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    createProject.upstreamProjectUuid,
+                );
+            if (
+                hasServiceCredential(upstreamCredentials) &&
+                upstreamCredentials.type === previewPersonalCredential.type &&
+                !(
+                    upstreamCredentials.type === WarehouseTypes.SNOWFLAKE &&
+                    previewPersonalCredential.type ===
+                        WarehouseTypes.SNOWFLAKE &&
+                    upstreamCredentials.warehouse.toLowerCase().trim() !==
+                        previewPersonalCredential.warehouse.toLowerCase().trim()
+                ) &&
+                !(
+                    upstreamCredentials.type === WarehouseTypes.DATABRICKS &&
+                    previewPersonalCredential.type ===
+                        WarehouseTypes.DATABRICKS &&
+                    upstreamCredentials.serverHostName !==
+                        previewPersonalCredential.serverHostName
+                )
+            ) {
+                storedWarehouseConnection = upstreamCredentials;
+            }
+        }
+
+        const originalWarehouseConnection = createProject.warehouseConnection;
+        const temporaryExternalBrowserPassword =
+            (method === RequestMethod.CLI || method === RequestMethod.CLI_CI) &&
+            createProject.snowflakeExternalBrowserTemporaryPassword === true;
+        const personalCredentialToImport =
+            previewPersonalCredential ??
+            (originalWarehouseConnection &&
+            storedWarehouseConnection !== originalWarehouseConnection &&
+            (getPersonSignIn(originalWarehouseConnection) ||
+                temporaryExternalBrowserPassword ||
+                (originalWarehouseConnection.type === WarehouseTypes.REDSHIFT &&
+                    originalWarehouseConnection.authenticationType ===
+                        RedshiftAuthenticationType.IAM_BROWSER) ||
+                (originalWarehouseConnection.type ===
+                    WarehouseTypes.SNOWFLAKE &&
+                    originalWarehouseConnection.authenticationType ===
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER))
+                ? originalWarehouseConnection
+                : undefined);
+        const onCreated =
+            personalCredentialToImport && storedWarehouseConnection
+                ? async (createdProjectUuid: string, trx: Knex.Transaction) =>
+                      this.savePersonalSetupCredential(
+                          user,
+                          createdProjectUuid,
+                          personalCredentialToImport,
+                          storedWarehouseConnection,
+                          temporaryExternalBrowserPassword,
+                          trx,
+                      )
+                : undefined;
+
         const projectUuid =
             await this.projectModel.createWithOptionalCredentials(
                 user.userUuid,
                 user.organizationUuid,
-                createProject,
+                {
+                    ...createProject,
+                    warehouseConnection: storedWarehouseConnection,
+                },
                 internalProvisioning?.source === ProvisioningSource.ANALYTICS
                     ? null
                     : await this.getPreviewExpiresAt(
@@ -4507,6 +4785,7 @@ export class ProjectService extends BaseService {
                           createProject.expiresInHours,
                       ),
                 internalProvisioning?.source,
+                ...(onCreated ? ([onCreated] as const) : []),
             );
 
         if (
@@ -4523,6 +4802,7 @@ export class ProjectService extends BaseService {
                 warehouseConnectionUuidMap: connectionMap?.uuids ?? new Map(),
             });
             if (
+                !personalSetupEnabled &&
                 createProject.warehouseConnection &&
                 !createProject.organizationWarehouseCredentialsUuid
             ) {
@@ -4560,9 +4840,15 @@ export class ProjectService extends BaseService {
         // For preview projects: if the upstream requires user warehouse credentials
         // and the request includes CLI-obtained tokens, create user warehouse
         // credentials so the user doesn't have to re-authenticate in the UI
+        const personalSetupFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.PersonalSignInSetup,
+        });
         if (
+            !personalSetupFlag.enabled &&
             createProject.type === ProjectType.PREVIEW &&
-            createProject.warehouseConnection?.requireUserCredentials
+            createProject.warehouseConnection?.requireUserCredentials &&
+            storedWarehouseConnection === createProject.warehouseConnection
         ) {
             try {
                 const { warehouseConnection } = createProject;
@@ -5157,6 +5443,15 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
             );
+            const storedWarehouseConnection =
+                await this.personalSetupConnection(
+                    user,
+                    createProject.warehouseConnection,
+                    (method === RequestMethod.CLI ||
+                        method === RequestMethod.CLI_CI) &&
+                        createProject.snowflakeExternalBrowserTemporaryPassword ===
+                            true,
+                );
 
             await this.jobModel.update(jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
@@ -5238,12 +5533,27 @@ export class ProjectService extends BaseService {
                         const newProjectUuid = await this.projectModel.create(
                             user.userUuid,
                             user.organizationUuid,
-                            createProject,
+                            {
+                                ...createProject,
+                                warehouseConnection: storedWarehouseConnection,
+                            },
                             await this.getPreviewExpiresAt(
                                 createProject.type,
                                 createProject.upstreamProjectUuid,
                                 createProject.expiresInHours,
                             ),
+                            async (createdProjectUuid, trx) =>
+                                this.savePersonalSetupCredential(
+                                    user,
+                                    createdProjectUuid,
+                                    createProject.warehouseConnection,
+                                    storedWarehouseConnection,
+                                    (method === RequestMethod.CLI ||
+                                        method === RequestMethod.CLI_CI) &&
+                                        createProject.snowflakeExternalBrowserTemporaryPassword ===
+                                            true,
+                                    trx,
+                                ),
                         );
                         if (setupAttemptUuid) {
                             await this.projectSetupModel.linkProject(
@@ -5640,7 +5950,543 @@ export class ProjectService extends BaseService {
         }
     }
 
-    validateConfigSecrets(project: UpdateProject) {
+    private async assertSharedCredentialSaveAllowed(
+        actor: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        incoming: CreateWarehouseCredentials,
+        previous: CreateWarehouseCredentials | undefined,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: actor,
+            featureFlagId: FeatureFlags.PersonalSignInSetup,
+        });
+        if (!enabled) return false;
+        const signIn = getPersonSignIn(incoming);
+        if (
+            signIn &&
+            (signIn.refreshToken !==
+                (previous
+                    ? getPersonSignIn(previous)?.refreshToken
+                    : undefined) ||
+                previous?.type !== incoming.type ||
+                ('authenticationType' in incoming &&
+                    'authenticationType' in previous &&
+                    incoming.authenticationType !==
+                        previous.authenticationType))
+        ) {
+            throw new ParameterError(
+                'A shared connection can only use a service account. Sign in with your own account under your warehouse connections, or add a service account.',
+            );
+        }
+        if (
+            incoming.type === WarehouseTypes.REDSHIFT &&
+            incoming.authenticationType ===
+                RedshiftAuthenticationType.IAM_BROWSER &&
+            !(
+                previous?.type === WarehouseTypes.REDSHIFT &&
+                previous.authenticationType ===
+                    RedshiftAuthenticationType.IAM_BROWSER &&
+                incoming.accessKeyId === previous.accessKeyId &&
+                incoming.secretAccessKey === previous.secretAccessKey &&
+                incoming.sessionToken === previous.sessionToken
+            )
+        ) {
+            throw new ParameterError(
+                'A shared connection can only use a service account. Sign in with your own account under your warehouse connections, or add a service account.',
+            );
+        }
+        if (
+            (!previous || !hasServiceCredential(previous)) &&
+            hasServiceCredential(incoming)
+        ) {
+            if (
+                !supportsOptionalUserCredentials(incoming.type) &&
+                incoming.requireUserCredentials === false
+            ) {
+                throw new ParameterError(
+                    'Everyone signs in with their own account.',
+                );
+            }
+        }
+        return true;
+    }
+
+    private static keepsSharedPersonSignIn(
+        incoming: CreateWarehouseCredentials,
+        previous: CreateWarehouseCredentials | undefined,
+    ): boolean {
+        if (!previous || incoming.type !== previous.type) return false;
+        if (
+            incoming.type === WarehouseTypes.BIGQUERY &&
+            previous.type === WarehouseTypes.BIGQUERY &&
+            incoming.authenticationType === BigqueryAuthenticationType.SSO &&
+            previous.authenticationType === BigqueryAuthenticationType.SSO
+        ) {
+            return !incoming.keyfileContents.refresh_token;
+        }
+        if (
+            incoming.type === WarehouseTypes.SNOWFLAKE &&
+            previous.type === WarehouseTypes.SNOWFLAKE &&
+            incoming.authenticationType === SnowflakeAuthenticationType.SSO &&
+            previous.authenticationType === SnowflakeAuthenticationType.SSO
+        ) {
+            return !incoming.refreshToken;
+        }
+        if (
+            incoming.type === WarehouseTypes.DATABRICKS &&
+            previous.type === WarehouseTypes.DATABRICKS &&
+            incoming.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_U2M &&
+            previous.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_U2M
+        ) {
+            return !incoming.refreshToken;
+        }
+        return false;
+    }
+
+    private static withKeptSharedPersonSignIn(
+        incoming: CreateWarehouseCredentials,
+        previous: CreateWarehouseCredentials,
+    ): CreateWarehouseCredentials {
+        if (
+            incoming.type === WarehouseTypes.BIGQUERY &&
+            previous.type === WarehouseTypes.BIGQUERY
+        ) {
+            return {
+                ...incoming,
+                keyfileContents: previous.keyfileContents,
+            };
+        }
+        if (
+            incoming.type === WarehouseTypes.SNOWFLAKE &&
+            previous.type === WarehouseTypes.SNOWFLAKE
+        ) {
+            return {
+                ...incoming,
+                refreshToken: previous.refreshToken,
+                token: previous.token,
+            };
+        }
+        if (
+            incoming.type === WarehouseTypes.DATABRICKS &&
+            previous.type === WarehouseTypes.DATABRICKS
+        ) {
+            return {
+                ...incoming,
+                refreshToken: previous.refreshToken,
+                token: previous.token,
+            };
+        }
+        return incoming;
+    }
+
+    private static withDefaultServiceCredentialChoice(
+        previous: CreateWarehouseCredentials | undefined,
+        incoming: CreateWarehouseCredentials,
+        enabled: boolean,
+    ): CreateWarehouseCredentials {
+        if (
+            incoming.type === WarehouseTypes.DUCKDB &&
+            incoming.connectionType === DuckdbConnectionType.ANALYTICS
+        ) {
+            return incoming;
+        }
+        if (
+            enabled &&
+            (!previous || !hasServiceCredential(previous)) &&
+            hasServiceCredential(incoming) &&
+            incoming.type === WarehouseTypes.BIGQUERY &&
+            incoming.requireUserCredentials === false
+        ) {
+            return { ...incoming, allowUserCredentials: true };
+        }
+        return enabled &&
+            (!previous || !hasServiceCredential(previous)) &&
+            hasServiceCredential(incoming) &&
+            incoming.requireUserCredentials === undefined
+            ? { ...incoming, requireUserCredentials: true }
+            : incoming;
+    }
+
+    private static withoutPreviousPersonSecret(
+        previous: CreateWarehouseCredentials | undefined,
+        incoming: CreateWarehouseCredentials,
+        enabled: boolean,
+    ): CreateWarehouseCredentials {
+        if (!enabled) return incoming;
+        if (
+            previous?.type === WarehouseTypes.SNOWFLAKE &&
+            previous.authenticationType === SnowflakeAuthenticationType.SSO &&
+            incoming.type === WarehouseTypes.SNOWFLAKE &&
+            incoming.authenticationType !== SnowflakeAuthenticationType.SSO
+        ) {
+            const { refreshToken, token, ...settings } = incoming;
+            return settings;
+        }
+        if (
+            previous?.type === WarehouseTypes.DATABRICKS &&
+            previous.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_U2M &&
+            incoming.type === WarehouseTypes.DATABRICKS &&
+            incoming.authenticationType !==
+                DatabricksAuthenticationType.OAUTH_U2M &&
+            incoming.refreshToken === previous.refreshToken
+        ) {
+            const { refreshToken, token, ...settings } = incoming;
+            return settings;
+        }
+        if (
+            previous?.type === WarehouseTypes.REDSHIFT &&
+            previous.authenticationType ===
+                RedshiftAuthenticationType.IAM_BROWSER &&
+            incoming.type === WarehouseTypes.REDSHIFT &&
+            incoming.authenticationType !==
+                RedshiftAuthenticationType.IAM_BROWSER &&
+            incoming.accessKeyId === previous.accessKeyId
+        ) {
+            const { accessKeyId, secretAccessKey, sessionToken, ...settings } =
+                incoming;
+            return settings;
+        }
+        return incoming;
+    }
+
+    private async personalSetupConnection(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        credentials: CreateWarehouseCredentials,
+        temporaryExternalBrowserPassword: boolean,
+    ): Promise<CreateWarehouseCredentials> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.PersonalSignInSetup,
+        });
+        if (!enabled) return credentials;
+        if (
+            credentials.type === WarehouseTypes.REDSHIFT &&
+            credentials.authenticationType ===
+                RedshiftAuthenticationType.IAM_BROWSER
+        ) {
+            const available =
+                await this.userWarehouseCredentialsModel.getAllByUserUuid(
+                    user.userUuid,
+                );
+            if (
+                !available.some(
+                    (item) =>
+                        item.project === null &&
+                        item.credentials.type === WarehouseTypes.REDSHIFT &&
+                        item.credentials.authenticationType ===
+                            RedshiftAuthenticationType.IAM_BROWSER,
+                )
+            ) {
+                throw new ParameterError(
+                    'Sign in with AWS before creating this project.',
+                );
+            }
+            const { accessKeyId, secretAccessKey, sessionToken, ...settings } =
+                credentials;
+            return { ...settings, requireUserCredentials: true };
+        }
+        if (
+            temporaryExternalBrowserPassword &&
+            credentials.type === WarehouseTypes.SNOWFLAKE &&
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.PASSWORD &&
+            credentials.password
+        ) {
+            const { password, ...settings } = credentials;
+            return { ...settings, requireUserCredentials: true };
+        }
+        if (
+            credentials.type === WarehouseTypes.SNOWFLAKE &&
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER &&
+            credentials.requireUserCredentials
+        ) {
+            const available =
+                await this.userWarehouseCredentialsModel.getAllByUserUuid(
+                    user.userUuid,
+                );
+            const existing = available.find(
+                (item) =>
+                    item.project === null &&
+                    item.credentials.type === WarehouseTypes.SNOWFLAKE &&
+                    item.credentials.authenticationType ===
+                        SnowflakeAuthenticationType.SSO,
+            );
+            if (!existing) {
+                throw new ParameterError(
+                    'Sign in with Snowflake before creating this project.',
+                );
+            }
+            return { ...credentials, requireUserCredentials: true };
+        }
+        if (!getPersonSignIn(credentials)) {
+            if (
+                credentials.type === WarehouseTypes.DUCKDB &&
+                credentials.connectionType === DuckdbConnectionType.ANALYTICS
+            ) {
+                return credentials;
+            }
+            if (!hasServiceCredential(credentials)) {
+                return { ...credentials, requireUserCredentials: true };
+            }
+            if (
+                hasServiceCredential(credentials) &&
+                !supportsOptionalUserCredentials(credentials.type) &&
+                credentials.requireUserCredentials === false
+            ) {
+                throw new ParameterError(
+                    'Everyone signs in with their own account.',
+                );
+            }
+            return ProjectService.withDefaultServiceCredentialChoice(
+                undefined,
+                credentials,
+                true,
+            );
+        }
+        switch (credentials.type) {
+            case WarehouseTypes.BIGQUERY:
+                return {
+                    ...credentials,
+                    keyfileContents: {},
+                    requireUserCredentials: true,
+                };
+            case WarehouseTypes.SNOWFLAKE: {
+                const { refreshToken, token, ...settings } = credentials;
+                return { ...settings, requireUserCredentials: true };
+            }
+            case WarehouseTypes.DATABRICKS: {
+                const { refreshToken, token, ...settings } = credentials;
+                return { ...settings, requireUserCredentials: true };
+            }
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.ATHENA:
+            case WarehouseTypes.DUCKDB:
+                return credentials;
+            default:
+                return assertUnreachable(credentials, 'Unknown warehouse type');
+        }
+    }
+
+    private async savePersonalSetupCredential(
+        user: SessionUser,
+        projectUuid: string,
+        original: CreateWarehouseCredentials,
+        stored: CreateWarehouseCredentials,
+        temporaryExternalBrowserPassword: boolean,
+        trx?: Knex.Transaction,
+    ): Promise<void> {
+        if (original === stored) return;
+        if (
+            original.type === WarehouseTypes.REDSHIFT &&
+            original.authenticationType ===
+                RedshiftAuthenticationType.IAM_BROWSER
+        ) {
+            const personal =
+                await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                    projectUuid,
+                    user.userUuid,
+                    WarehouseTypes.REDSHIFT,
+                );
+            if (
+                personal?.credentials.type !== WarehouseTypes.REDSHIFT ||
+                !('authenticationType' in personal.credentials) ||
+                personal.credentials.authenticationType !==
+                    RedshiftAuthenticationType.IAM_BROWSER
+            ) {
+                throw new ParameterError(
+                    'Sign in with AWS before creating this project.',
+                );
+            }
+            await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+                user.userUuid,
+                projectUuid,
+                personal.uuid,
+                trx,
+            );
+            return;
+        }
+        if (
+            temporaryExternalBrowserPassword &&
+            original.type === WarehouseTypes.SNOWFLAKE &&
+            original.authenticationType ===
+                SnowflakeAuthenticationType.PASSWORD &&
+            original.password
+        ) {
+            const credentialUuid =
+                await this.userWarehouseCredentialsModel.create(
+                    user.userUuid,
+                    {
+                        name: 'Default',
+                        credentials: {
+                            type: WarehouseTypes.SNOWFLAKE,
+                            user: original.user,
+                            authenticationType:
+                                SnowflakeAuthenticationType.PASSWORD,
+                            password: original.password,
+                        },
+                    },
+                    projectUuid,
+                    trx,
+                );
+            await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+                user.userUuid,
+                projectUuid,
+                credentialUuid,
+                trx,
+            );
+            return;
+        }
+        if (
+            original.type === WarehouseTypes.SNOWFLAKE &&
+            original.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER &&
+            original.requireUserCredentials
+        ) {
+            const personal =
+                await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                    projectUuid,
+                    user.userUuid,
+                    WarehouseTypes.SNOWFLAKE,
+                );
+            if (
+                personal?.credentials.type !== WarehouseTypes.SNOWFLAKE ||
+                personal.credentials.authenticationType !==
+                    SnowflakeAuthenticationType.SSO
+            ) {
+                throw new ParameterError(
+                    'Sign in with Snowflake before creating this project.',
+                );
+            }
+            await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+                user.userUuid,
+                projectUuid,
+                personal.uuid,
+                trx,
+            );
+            return;
+        }
+        const signIn = getPersonSignIn(original);
+        if (!signIn) return;
+        const existing = await this.userWarehouseCredentialsModel
+            .findForProjectWithSecrets(
+                projectUuid,
+                user.userUuid,
+                original.type,
+            )
+            .catch((error: unknown) => {
+                if (isWarehouseTokenError(error)) return undefined;
+                throw error;
+            });
+        let existingRefreshToken: string | undefined;
+        if (existing?.credentials.type === WarehouseTypes.BIGQUERY) {
+            existingRefreshToken =
+                existing.credentials.keyfileContents.refresh_token;
+        } else if (
+            existing?.credentials &&
+            'refreshToken' in existing.credentials
+        ) {
+            existingRefreshToken = existing.credentials.refreshToken;
+        }
+        if (
+            existing &&
+            existingRefreshToken === signIn.refreshToken &&
+            (original.type !== WarehouseTypes.DATABRICKS ||
+                (existing.credentials.type === WarehouseTypes.DATABRICKS &&
+                    existing.credentials.serverHostName ===
+                        original.serverHostName))
+        ) {
+            await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+                user.userUuid,
+                projectUuid,
+                existing.uuid,
+                trx,
+            );
+            return;
+        }
+        let credentialUuid: string;
+        switch (original.type) {
+            case WarehouseTypes.BIGQUERY:
+                credentialUuid =
+                    await this.userWarehouseCredentialsModel.create(
+                        user.userUuid,
+                        {
+                            name: 'Default',
+                            credentials: {
+                                type: WarehouseTypes.BIGQUERY,
+                                authenticationType:
+                                    BigqueryAuthenticationType.SSO,
+                                keyfileContents: original.keyfileContents,
+                            },
+                        },
+                        projectUuid,
+                        trx,
+                    );
+                break;
+            case WarehouseTypes.SNOWFLAKE:
+                credentialUuid =
+                    await this.userWarehouseCredentialsModel.create(
+                        user.userUuid,
+                        {
+                            name: 'Default',
+                            credentials: {
+                                type: WarehouseTypes.SNOWFLAKE,
+                                user: original.user,
+                                authenticationType:
+                                    SnowflakeAuthenticationType.SSO,
+                                refreshToken: signIn.refreshToken,
+                            },
+                        },
+                        projectUuid,
+                        trx,
+                    );
+                break;
+            case WarehouseTypes.DATABRICKS:
+                credentialUuid =
+                    await this.userWarehouseCredentialsModel.create(
+                        user.userUuid,
+                        {
+                            name: `Databricks (${original.serverHostName})`,
+                            credentials: {
+                                type: WarehouseTypes.DATABRICKS,
+                                authenticationType:
+                                    DatabricksAuthenticationType.OAUTH_U2M,
+                                refreshToken: signIn.refreshToken,
+                                serverHostName: original.serverHostName,
+                                oauthClientId: original.oauthClientId,
+                            },
+                        },
+                        projectUuid,
+                        trx,
+                    );
+                break;
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.ATHENA:
+            case WarehouseTypes.DUCKDB:
+                return;
+            default:
+                return assertUnreachable(original, 'Unknown warehouse type');
+        }
+        await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+            user.userUuid,
+            projectUuid,
+            credentialUuid,
+            trx,
+        );
+    }
+
+    validateConfigSecrets(
+        project: UpdateProject,
+        personalSignInSetupEnabled: boolean = false,
+    ) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.SNOWFLAKE:
                 ProjectService.assertPersistableSnowflakeAuthentication(
@@ -5662,14 +6508,29 @@ export class ProjectService extends BaseService {
                         const hasUserRefreshToken =
                             keyFileContents?.type === 'authorized_user' &&
                             keyFileContents.refresh_token !== undefined;
-                        if (!hasPrivateKey && !hasUserRefreshToken) {
+                        if (
+                            !hasPrivateKey &&
+                            !hasUserRefreshToken &&
+                            !(
+                                personalSignInSetupEnabled &&
+                                project.warehouseConnection
+                                    .requireUserCredentials
+                            )
+                        ) {
                             throw new ParameterError(
                                 'Bigquery key file is required for private key authentication',
                             );
                         }
                         break;
                     case BigqueryAuthenticationType.SSO:
-                        if (keyFileContents?.refresh_token === undefined) {
+                        if (
+                            keyFileContents?.refresh_token === undefined &&
+                            !(
+                                personalSignInSetupEnabled &&
+                                project.warehouseConnection
+                                    .requireUserCredentials
+                            )
+                        ) {
                             throw new ParameterError(
                                 'Bigquery refresh token is required for SSO authentication',
                             );
@@ -5772,10 +6633,29 @@ export class ProjectService extends BaseService {
                     : [{ stepType: JobStepType.COMPILING }]),
             ],
         };
+        const preservePersonSignIn =
+            (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid: savedProject.organizationUuid },
+                    featureFlagId: FeatureFlags.PersonalSignInSetup,
+                })
+            ).enabled &&
+            ProjectService.keepsSharedPersonSignIn(
+                input.warehouseConnection,
+                savedProject.warehouseConnection,
+            );
+        if (preservePersonSignIn && savedProject.warehouseConnection) {
+            input.warehouseConnection =
+                ProjectService.withKeptSharedPersonSignIn(
+                    input.warehouseConnection,
+                    savedProject.warehouseConnection,
+                );
+        }
         const createProject = await this._resolveWarehouseClientCredentials(
             this.mergeMissingDatabricksM2MSecrets(input, savedProject),
             account.user.id,
             savedProject.organizationUuid,
+            preservePersonSignIn,
         );
         const mergedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             createProject,
@@ -5789,7 +6669,26 @@ export class ProjectService extends BaseService {
             ),
         };
 
-        this.validateConfigSecrets(updatedProject);
+        const personalSignInSetupEnabled =
+            await this.assertSharedCredentialSaveAllowed(
+                {
+                    userUuid: account.user.id,
+                    organizationUuid: savedProject.organizationUuid,
+                },
+                updatedProject.warehouseConnection,
+                savedProject.warehouseConnection,
+            );
+        updatedProject.warehouseConnection =
+            ProjectService.withoutPreviousPersonSecret(
+                savedProject.warehouseConnection,
+                ProjectService.withDefaultServiceCredentialChoice(
+                    savedProject.warehouseConnection,
+                    updatedProject.warehouseConnection,
+                    personalSignInSetupEnabled,
+                ),
+                personalSignInSetupEnabled,
+            );
+        this.validateConfigSecrets(updatedProject, personalSignInSetupEnabled);
         ProjectService.validateDbtEnvironmentVariables(
             updatedProject.dbtConnection,
         );
@@ -5950,6 +6849,24 @@ export class ProjectService extends BaseService {
             ),
         };
 
+        const preservePersonSignIn =
+            (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid: savedProject.organizationUuid },
+                    featureFlagId: FeatureFlags.PersonalSignInSetup,
+                })
+            ).enabled &&
+            ProjectService.keepsSharedPersonSignIn(
+                updatedProjectData.warehouseConnection,
+                savedProject.warehouseConnection,
+            );
+        if (preservePersonSignIn && savedProject.warehouseConnection) {
+            updatedProjectData.warehouseConnection =
+                ProjectService.withKeptSharedPersonSignIn(
+                    updatedProjectData.warehouseConnection,
+                    savedProject.warehouseConnection,
+                );
+        }
         const resolvedData = await this._resolveWarehouseClientCredentials(
             this.mergeMissingDatabricksM2MSecrets(
                 updatedProjectData,
@@ -5957,12 +6874,34 @@ export class ProjectService extends BaseService {
             ),
             account.user.id,
             savedProject.organizationUuid,
+            preservePersonSignIn,
         );
 
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             resolvedData,
             savedProject,
         );
+
+        const personalSignInSetupEnabled =
+            await this.assertSharedCredentialSaveAllowed(
+                {
+                    userUuid: account.user.id,
+                    organizationUuid: savedProject.organizationUuid,
+                },
+                updatedProject.warehouseConnection,
+                savedProject.warehouseConnection,
+            );
+
+        updatedProject.warehouseConnection =
+            ProjectService.withoutPreviousPersonSecret(
+                savedProject.warehouseConnection,
+                ProjectService.withDefaultServiceCredentialChoice(
+                    savedProject.warehouseConnection,
+                    updatedProject.warehouseConnection,
+                    personalSignInSetupEnabled,
+                ),
+                personalSignInSetupEnabled,
+            );
 
         // extra security measure, let's remove all sensitive credentials when authentication type is NONE on Snowflake
         if (
@@ -5977,7 +6916,7 @@ export class ProjectService extends BaseService {
                 ) as CreateWarehouseCredentials;
         }
 
-        this.validateConfigSecrets(updatedProject);
+        this.validateConfigSecrets(updatedProject, personalSignInSetupEnabled);
 
         await this.updateAndPushSsoCredentialsToPreviews({
             projectUuid,
@@ -7005,10 +7944,56 @@ export class ProjectService extends BaseService {
         const cachedWarehouseCatalog =
             await this.projectModel.getWarehouseFromCache(projectUuid);
 
+        let personalSnowflakeCredential = false;
+        if (
+            project.warehouseConnection.requireUserCredentials &&
+            !hasServiceCredential(project.warehouseConnection) &&
+            (project.warehouseConnection.type === WarehouseTypes.BIGQUERY ||
+                project.warehouseConnection.type === WarehouseTypes.SNOWFLAKE)
+        ) {
+            const { enabled } = await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.PersonalSignInSetup,
+            });
+            if (enabled) {
+                const personal =
+                    await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                        projectUuid,
+                        user.userUuid,
+                        project.warehouseConnection.type,
+                    );
+                if (!personal) {
+                    throw new MissingWarehouseCredentialsError(
+                        'Sign in to your warehouse connection before compiling this project.',
+                    );
+                }
+                project.warehouseConnection = mergePersonalWarehouseCredentials(
+                    project.warehouseConnection,
+                    personal,
+                );
+                if (
+                    project.warehouseConnection.type ===
+                    WarehouseTypes.SNOWFLAKE
+                ) {
+                    project.warehouseConnection =
+                        await this.refreshCredentialsAndPersistRotation(
+                            project.warehouseConnection,
+                            user.userUuid,
+                            {
+                                kind: 'user',
+                                userWarehouseCredentialsUuid: personal.uuid,
+                            },
+                        );
+                    personalSnowflakeCredential = true;
+                }
+            }
+        }
+
         if (
             project.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
             project.warehouseConnection.authenticationType === 'sso' &&
-            project.warehouseConnection.refreshToken
+            project.warehouseConnection.refreshToken &&
+            !personalSnowflakeCredential
         ) {
             this.logger.debug(
                 `Refreshing snowflake warehouse credentials from refresh token on buildAdapter`,
@@ -11695,6 +12680,7 @@ export class ProjectService extends BaseService {
         validateAfterCompile: boolean = false,
         syncContentAfterCompile: boolean = false,
         existingJobUuid?: string,
+        unattendedCredentialRequired: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -11715,6 +12701,14 @@ export class ProjectService extends BaseService {
                 ))
         ) {
             throw new ForbiddenError();
+        }
+        if (
+            requestMethod === RequestMethod.CLI ||
+            requestMethod === RequestMethod.CLI_CI ||
+            requestMethod === RequestMethod.BACKEND ||
+            unattendedCredentialRequired
+        ) {
+            await this.assertServiceCredentialForUnattendedCompile(projectUuid);
         }
 
         // This job is the job model we use to compile projects
@@ -11752,6 +12746,26 @@ export class ProjectService extends BaseService {
         });
 
         return { jobUuid: job.jobUuid };
+    }
+
+    private async assertServiceCredentialForUnattendedCompile(
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: project.organizationUuid },
+            featureFlagId: FeatureFlags.PersonalSignInSetup,
+        });
+        if (!enabled) return;
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        if (!hasServiceCredential(credentials)) {
+            throw new ParameterError(
+                'Add a service account to refresh on a schedule or from the CLI.',
+            );
+        }
     }
 
     // afterCompile runs as its own job step inside the project lock, before

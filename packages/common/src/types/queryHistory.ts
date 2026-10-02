@@ -40,6 +40,7 @@ export type PreAggregateFallbackReason =
 
 /** Server-owned attribution persisted with a query for background workers. */
 export type QueryUsageMetadata = {
+    credentialPurpose?: 'scheduled' | null;
     startedAtMs: number;
     timingBasis: 'request' | 'query_submission';
     requestId: string | null;

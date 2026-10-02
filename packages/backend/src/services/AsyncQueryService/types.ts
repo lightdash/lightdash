@@ -285,6 +285,7 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 };
 
 export type RunAsyncWarehouseQueryArgs = {
+    useServiceCredential?: boolean;
     projectUuid: string;
     isEmbedOrigin?: boolean;
     userUuid: string;

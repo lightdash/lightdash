@@ -5402,6 +5402,89 @@ describe('AsyncQueryService', () => {
                 }),
             );
         });
+
+        test('carries server-owned scheduled purpose into a queued warehouse run', async () => {
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                natsWorker: {
+                    ...lightdashConfigMock.natsWorker,
+                    enabled: true,
+                },
+            });
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue({
+                ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
+                requestParameters: {
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    queryUsage: { credentialPurpose: 'scheduled' },
+                } as never,
+            });
+            const run = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+            await service.runAsyncWarehouseQueryFromHistory(
+                'test-query-uuid',
+                'worker-1',
+            );
+            expect(run).toHaveBeenCalledWith(
+                expect.objectContaining({ useServiceCredential: true }),
+            );
+        });
+
+        test('carries scheduler purpose through an inline warehouse run', async () => {
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                natsWorker: {
+                    ...lightdashConfigMock.natsWorker,
+                    enabled: false,
+                },
+            });
+            vi.mocked(service.queryHistoryModel.create).mockResolvedValue({
+                queryUuid: 'inline-scheduled',
+            } as never);
+            vi.spyOn(service, 'findResultsCache').mockResolvedValue({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            });
+            const run = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+            await ExecutionContext.run(
+                () =>
+                    service['executeAsyncQuery'](
+                        {
+                            account: sessionAccount,
+                            projectUuid,
+                            context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                            queryTags: {
+                                query_context:
+                                    QueryExecutionContext.SCHEDULED_DELIVERY,
+                            },
+                            invalidateCache: false,
+                            queryComposer: createQueryComposerMock(),
+                            warehouseCredentials: warehouseCredentialsMock,
+                            warehouseConnectionUuid: null,
+                        },
+                        { query: metricQueryMock },
+                    ),
+                { scheduler: { job_id: 'trusted-job' } },
+            );
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    requestParameters: expect.objectContaining({
+                        queryUsage: expect.objectContaining({
+                            credentialPurpose: 'scheduled',
+                        }),
+                    }),
+                }),
+            );
+            expect(run).toHaveBeenCalledWith(
+                expect.objectContaining({ useServiceCredential: true }),
+            );
+        });
     });
 
     describe('executeAsyncQuery with originalColumns', () => {
@@ -12748,4 +12831,263 @@ describe('chart embed token query history access', () => {
             );
         },
     );
+});
+
+describe('scheduled Google Sheets credential selection', () => {
+    test.each([false, true])(
+        'keeps trusted scheduled purpose through submission with NATS enabled=%s',
+        async (natsEnabled) => {
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                natsWorker: {
+                    ...lightdashConfigMock.natsWorker,
+                    enabled: natsEnabled,
+                },
+            });
+            vi.mocked(service.queryHistoryModel.create).mockResolvedValueOnce({
+                queryUuid: 'scheduled-query',
+            });
+            const run = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            await ExecutionContext.run(
+                () =>
+                    service['executeAsyncQuery'](
+                        {
+                            account: sessionAccount,
+                            projectUuid,
+                            context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                            queryTags: {
+                                query_context:
+                                    QueryExecutionContext.SCHEDULED_DELIVERY,
+                            },
+                            invalidateCache: false,
+                            queryComposer: createQueryComposerMock(),
+                            warehouseCredentials: warehouseCredentialsMock,
+                            warehouseConnectionUuid: null,
+                        },
+                        { query: metricQueryMock },
+                    ),
+                { scheduler: { job_id: 'scheduler-job' } },
+            );
+
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    requestParameters: expect.objectContaining({
+                        queryUsage: expect.objectContaining({
+                            credentialPurpose: 'scheduled',
+                        }),
+                    }),
+                }),
+            );
+            if (natsEnabled) {
+                expect(
+                    service.natsClient.enqueueWarehouseQuery,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({ queryUuid: 'scheduled-query' }),
+                );
+                expect(run).not.toHaveBeenCalled();
+            } else {
+                expect(run).toHaveBeenCalledWith(
+                    expect.objectContaining({ useServiceCredential: true }),
+                );
+            }
+        },
+    );
+
+    test('does not trust scheduled context or query usage on a public submission', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.queryHistoryModel.create).mockResolvedValueOnce({
+            queryUuid: 'public-query',
+        });
+        const run = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockResolvedValue(undefined);
+
+        await service['executeAsyncQuery'](
+            {
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                queryTags: {
+                    query_context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                },
+                invalidateCache: false,
+                queryComposer: createQueryComposerMock(),
+                warehouseCredentials: warehouseCredentialsMock,
+                warehouseConnectionUuid: null,
+            },
+            {
+                query: metricQueryMock,
+                queryUsage: { credentialPurpose: 'scheduled' },
+            } as never,
+        );
+
+        expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+            sessionAccount,
+            expect.objectContaining({
+                requestParameters: expect.objectContaining({
+                    queryUsage: expect.objectContaining({
+                        credentialPurpose: null,
+                    }),
+                }),
+            }),
+        );
+        expect(run).toHaveBeenCalledWith(
+            expect.objectContaining({ useServiceCredential: false }),
+        );
+    });
+
+    test('passes the service credential to the warehouse for a scheduled owner with personal access', async () => {
+        const serviceCredential: CreateBigqueryCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'analytics',
+            dataset: 'marts',
+            timeoutSeconds: 300,
+            priority: 'interactive',
+            retries: 3,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            keyfileContents: {
+                type: 'service_account',
+                private_key: 'scheduled-service-key',
+            },
+            requireUserCredentials: false,
+            allowUserCredentials: true,
+        };
+        const mockProjectModel = {
+            ...projectModel,
+            ...singleRouteProjectModelMethods,
+            getWarehouseCredentialsForProject: vi.fn(
+                async () => serviceCredential,
+            ),
+        };
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            projectModel: mockProjectModel as unknown as ProjectModel,
+            featureFlagModel: {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.PersonalSignInSetup,
+                    }),
+                ),
+            } as unknown as FeatureFlagModel,
+        });
+        const findPersonal = vi.fn();
+        Object.assign(service, {
+            userWarehouseCredentialsModel: {
+                findForProjectWithSecrets: findPersonal,
+            },
+        });
+        const connect = vi
+            .spyOn(service, '_getWarehouseClient')
+            .mockRejectedValueOnce(
+                new Error('stop after credential selection'),
+            );
+        await service.runAsyncWarehouseQuery({
+            userUuid: 'scheduler-owner',
+            organizationUuid: 'org',
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            useServiceCredential: true,
+            onboardingFlow: 'legacy',
+            projectUuid,
+            queryUuid: 'scheduled-query',
+            queryTags: {
+                query_context: QueryExecutionContext.SCHEDULED_DELIVERY,
+            },
+            query: 'SELECT 1',
+            fieldsMap: {},
+            usedParameters: null,
+            cacheKey: 'scheduled-query',
+            queryCreatedAt: new Date(),
+            displayTimezone: null,
+        });
+        expect(connect).toHaveBeenCalledWith(
+            projectUuid,
+            expect.objectContaining({
+                keyfileContents: {
+                    private_key: 'scheduled-service-key',
+                    type: 'service_account',
+                },
+            }),
+            undefined,
+        );
+        expect(findPersonal).not.toHaveBeenCalled();
+    });
+
+    test('runs a queued sync with the service credential flag', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.PersonalSignInSetup,
+                    }),
+                ),
+            } as unknown as FeatureFlagModel,
+        });
+        vi.mocked(
+            service.queryHistoryModel.getByQueryUuid,
+        ).mockResolvedValueOnce({
+            queryUuid: 'google-sheets-sync',
+            projectUuid,
+            organizationUuid: 'org',
+            createdByActorType: 'session',
+            createdByUserUuid: 'scheduler-owner',
+            metricQuery: { ...metricQueryMock, exploreName: '' },
+            requestParameters: {
+                context: QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+                isEmbedOrigin: false,
+                queryUsage: {
+                    credentialPurpose: 'scheduled',
+                },
+            },
+            fields: {},
+            compiledSql: 'SELECT 1',
+            usedParameters: null,
+            cacheKey: 'sync',
+            pivotConfiguration: null,
+            originalColumns: null,
+        } as QueryHistory);
+
+        const args = await service['buildWarehouseQueryArgs'](
+            'google-sheets-sync',
+            {} as never,
+        );
+        expect(args.isServiceAccount).toBe(false);
+        expect(args.useServiceCredential).toBe(true);
+        expect(args.userUuid).toBe('scheduler-owner');
+    });
+
+    test('ignores scheduled context without scheduler provenance', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(
+            service.queryHistoryModel.getByQueryUuid,
+        ).mockResolvedValueOnce({
+            queryUuid: 'public-query',
+            projectUuid,
+            organizationUuid: 'org',
+            createdByActorType: 'session',
+            createdByUserUuid: 'person',
+            metricQuery: { ...metricQueryMock, exploreName: '' },
+            requestParameters: {
+                context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                isEmbedOrigin: false,
+            },
+            fields: {},
+            compiledSql: 'SELECT 1',
+            usedParameters: null,
+            cacheKey: 'public-query',
+            pivotConfiguration: null,
+            originalColumns: null,
+        } as QueryHistory);
+        const args = await service['buildWarehouseQueryArgs']('public-query');
+        expect(args.useServiceCredential).toBe(false);
+    });
 });

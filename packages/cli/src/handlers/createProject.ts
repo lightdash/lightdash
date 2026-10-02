@@ -153,13 +153,16 @@ const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
 
 const applySnowflakeSsoHandling = async (
     credentials: CreateWarehouseCredentials,
-): Promise<CreateWarehouseCredentials> => {
+): Promise<{
+    credentials: CreateWarehouseCredentials;
+    temporaryExternalBrowserPassword: boolean;
+}> => {
     if (
         credentials.type !== WarehouseTypes.SNOWFLAKE ||
         credentials.authenticationType !==
             SnowflakeAuthenticationType.EXTERNAL_BROWSER
     ) {
-        return credentials;
+        return { credentials, temporaryExternalBrowserPassword: false };
     }
 
     const snowflakeSsoEnabled = await isSnowflakeSsoEnabled();
@@ -172,8 +175,8 @@ We will ask for user credentials again on the Lightdash UI.\n`,
             ),
         );
         return {
-            ...credentials,
-            requireUserCredentials: true,
+            credentials: { ...credentials, requireUserCredentials: true },
+            temporaryExternalBrowserPassword: false,
         };
     }
 
@@ -186,9 +189,12 @@ For a better user experience, we recommend enabling Snowflake OAuth authenticati
     );
     const patToken = await createProgramaticallySnowflakePat(credentials);
     return {
-        ...credentials,
-        authenticationType: SnowflakeAuthenticationType.PASSWORD,
-        password: patToken,
+        credentials: {
+            ...credentials,
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            password: patToken,
+        },
+        temporaryExternalBrowserPassword: true,
     };
 };
 
@@ -204,6 +210,7 @@ type LoadWarehouseCredentialsOptions = {
 
 type LoadWarehouseCredentialsResult = {
     credentials: CreateWarehouseCredentials;
+    temporaryExternalBrowserPassword: boolean;
     targetName: string;
     dbtVersionOption: DbtVersionOption;
     isDbtCloudCLI: boolean;
@@ -297,7 +304,9 @@ export const loadWarehouseCredentialsFromProfiles = async (
     const finalCredentials = await applySnowflakeSsoHandling(credentials);
 
     return {
-        credentials: finalCredentials,
+        credentials: finalCredentials.credentials,
+        temporaryExternalBrowserPassword:
+            finalCredentials.temporaryExternalBrowserPassword,
         targetName,
         dbtVersionOption,
         isDbtCloudCLI,
@@ -325,6 +334,7 @@ export const createProject = async (
 
     let targetName: string | undefined;
     let credentials: CreateWarehouseCredentials | undefined;
+    let temporaryExternalBrowserPassword = false;
     let isDbtCloudCLI = false;
     let dbtVersionOption: DbtVersionOption = getLatestSupportDbtVersion();
 
@@ -379,6 +389,8 @@ export const createProject = async (
             return undefined;
         }
         credentials = loaded.credentials;
+        temporaryExternalBrowserPassword =
+            loaded.temporaryExternalBrowserPassword;
         targetName = loaded.targetName;
         isDbtCloudCLI = loaded.isDbtCloudCLI;
         dbtVersionOption = loaded.dbtVersionOption;
@@ -398,6 +410,8 @@ export const createProject = async (
         name: options.name,
         type: options.type,
         warehouseConnection: credentials,
+        snowflakeExternalBrowserTemporaryPassword:
+            temporaryExternalBrowserPassword || undefined,
         copyWarehouseConnectionFromUpstreamProject:
             isDbtCloudCLI ||
             (options.warehouseCredentials === false &&

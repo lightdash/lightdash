@@ -987,6 +987,7 @@ export type CreateProject = Omit<
     asyncCopyContent?: boolean;
     expiresInHours?: number;
     setupAttemptUuid?: string;
+    snowflakeExternalBrowserTemporaryPassword?: boolean;
 };
 
 export type CreateProjectOptionalCredentials = Omit<

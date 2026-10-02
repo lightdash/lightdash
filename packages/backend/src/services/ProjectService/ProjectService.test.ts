@@ -13274,6 +13274,27 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         );
     });
 
+    test('refuses reconnect before reading a new person token when enabled', async () => {
+        flag.get.mockResolvedValueOnce({
+            id: FeatureFlags.SharedSignInReconnect,
+            enabled: true,
+        });
+        flag.get.mockResolvedValueOnce({
+            id: FeatureFlags.PersonalSignInSetup,
+            enabled: true,
+        });
+        await expect(
+            service.reconnectSharedSignIn(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow(
+            'A shared connection can only use a service account.',
+        );
+        expect(grant.getRefreshToken).not.toHaveBeenCalled();
+        expect(projectModel.reconnectSharedSignIn).not.toHaveBeenCalled();
+    });
+
     test('resolves the keyfile and leaves other project fields to the locked write', async () => {
         await service.reconnectSharedSignIn(
             developerAccount,
@@ -13505,9 +13526,9 @@ describe('ProjectService.getSharedSignInStatus', () => {
         getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
     };
     const flag = {
-        get: vi.fn(async () => ({
-            id: FeatureFlags.SharedSignInReconnect,
-            enabled: true,
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId === FeatureFlags.SharedSignInReconnect,
         })),
     };
     const service = getMockedProjectService(lightdashConfigMock, {
@@ -13550,6 +13571,23 @@ describe('ProjectService.getSharedSignInStatus', () => {
                 projectSummary.projectUuid,
             ),
         ).resolves.toMatchObject({ canReconnect: false });
+    });
+
+    test('does not offer reconnect when personal sign-in setup is enabled', async () => {
+        flag.get.mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: true,
+        }));
+        await expect(
+            service.getSharedSignInStatus(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toMatchObject({ expired: true, canReconnect: false });
+        flag.get.mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId === FeatureFlags.SharedSignInReconnect,
+        }));
     });
 
     test('allows the creator and an admin for a guessed creator, but not a viewer', async () => {
@@ -13708,5 +13746,817 @@ describe('ProjectService.getWarehouseCredentialSummary', () => {
                 projectSummary.projectUuid,
             ),
         ).resolves.toEqual(summary);
+    });
+
+    test('is available when only personal sign-in setup is enabled', async () => {
+        const featureFlagModel = {
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.PersonalSignInSetup,
+                }),
+            ),
+        } as unknown as FeatureFlagModel;
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        await expect(
+            service.getWarehouseCredentialSummary(
+                user,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toEqual(summary);
+    });
+});
+
+describe('personal sign-in setup service requirements', () => {
+    const featureFlagModel = {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId === FeatureFlags.PersonalSignInSetup,
+        })),
+    } as unknown as FeatureFlagModel;
+
+    const googleLogin: CreateBigqueryCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'analytics',
+        dataset: 'marts',
+        authenticationType: BigqueryAuthenticationType.SSO,
+        keyfileContents: {
+            type: 'authorized_user',
+            refresh_token: 'personal-token',
+        },
+        location: undefined,
+        timeoutSeconds: 300,
+        priority: 'interactive',
+        retries: 3,
+        maximumBytesBilled: undefined,
+    };
+
+    test.each([true, false])(
+        'creates a project with personal setup enabled=%s through the service entry point',
+        async (enabled) => {
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                enabled &&
+                                featureFlagId ===
+                                    FeatureFlags.PersonalSignInSetup,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
+            });
+            const creator = {
+                ...user,
+                organizationUuid: projectSummary.organizationUuid,
+                organizationName: 'Test organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'create', subject: 'Project' },
+                ]),
+            };
+            const createPersonal = vi.fn(async () => 'new-personal');
+            const savePreference = vi.fn(async () => undefined);
+            Object.assign(service, {
+                userWarehouseCredentialsModel: {
+                    findForProjectWithSecrets: vi.fn(async () => undefined),
+                    create: createPersonal,
+                    upsertUserCredentialsPreference: savePreference,
+                },
+            });
+            const stored = vi.fn(
+                async (
+                    _userUuid: string,
+                    _organizationUuid: string,
+                    project: {
+                        warehouseConnection?: CreateWarehouseCredentials;
+                    },
+                    _expiresAt: Date | null,
+                    _source?: string,
+                    onCreated?: (
+                        projectUuid: string,
+                        trx: never,
+                    ) => Promise<void>,
+                ) => {
+                    await onCreated?.('created-project', {} as never);
+                    return 'created-project';
+                },
+            );
+            projectModel.createWithOptionalCredentials.mockImplementationOnce(
+                stored as never,
+            );
+            vi.spyOn(
+                service as unknown as {
+                    runPostProjectCreationProvisioning: () => Promise<void>;
+                },
+                'runPostProjectCreationProvisioning',
+            ).mockResolvedValue(undefined);
+            await service.createWithoutCompile(
+                creator,
+                {
+                    name: 'Created project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    warehouseConnection: googleLogin,
+                },
+                RequestMethod.CLI,
+            );
+            const savedConnection = stored.mock.calls[0][2].warehouseConnection;
+            if (enabled) {
+                expect(savedConnection).toMatchObject({
+                    keyfileContents: {},
+                    requireUserCredentials: true,
+                });
+                expect(createPersonal).toHaveBeenCalledWith(
+                    creator.userUuid,
+                    expect.objectContaining({
+                        credentials: expect.objectContaining({
+                            keyfileContents: googleLogin.keyfileContents,
+                        }),
+                    }),
+                    'created-project',
+                    expect.anything(),
+                );
+                expect(savePreference).toHaveBeenCalledWith(
+                    creator.userUuid,
+                    'created-project',
+                    'new-personal',
+                    expect.anything(),
+                );
+            } else {
+                expect(savedConnection).toMatchObject({
+                    keyfileContents: googleLogin.keyfileContents,
+                });
+                expect(createPersonal).not.toHaveBeenCalled();
+                expect(savePreference).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    test('imports a CLI preview sign-in while keeping the upstream service credential shared', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        const upstreamProjectUuid = 'upstream-service-project';
+        const sharedServiceCredential: CreateBigqueryCredentials = {
+            ...googleLogin,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            keyfileContents: {
+                type: 'service_account',
+                private_key: 'upstream-service-key',
+            },
+            requireUserCredentials: false,
+            allowUserCredentials: true,
+        };
+        const creator = {
+            ...user,
+            organizationUuid: projectSummary.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { action: ['create', 'view'], subject: 'Project' },
+            ]),
+        };
+        const createPersonal = vi.fn(async () => 'preview-personal');
+        const savePreference = vi.fn(async () => undefined);
+        Object.assign(service, {
+            userWarehouseCredentialsModel: {
+                findForProjectWithSecrets: vi.fn(async () => undefined),
+                create: createPersonal,
+                upsertUserCredentialsPreference: savePreference,
+            },
+        });
+        projectModel.get.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            projectUuid: upstreamProjectUuid,
+        });
+        vi.spyOn(
+            projectModel,
+            'getWarehouseCredentialsForBinding',
+        ).mockResolvedValueOnce(sharedServiceCredential);
+        projectModel.getWarehouseCredentialsForProject
+            .mockResolvedValueOnce(sharedServiceCredential)
+            .mockResolvedValueOnce(sharedServiceCredential);
+        const stored = vi.fn(
+            async (
+                _userUuid: string,
+                _organizationUuid: string,
+                project: { warehouseConnection?: CreateWarehouseCredentials },
+                _expiresAt: Date | null,
+                _source?: string,
+                onCreated?: (projectUuid: string, trx: never) => Promise<void>,
+            ) => {
+                await onCreated?.('preview-project', {} as never);
+                return 'preview-project';
+            },
+        );
+        projectModel.createWithOptionalCredentials.mockImplementationOnce(
+            stored as never,
+        );
+        vi.spyOn(service, 'copyUserAccessOnPreview').mockResolvedValueOnce();
+        vi.spyOn(service, 'getPreviewExpiresAt').mockResolvedValueOnce(null);
+        vi.spyOn(
+            service as unknown as {
+                runPostProjectCreationProvisioning: () => Promise<void>;
+            },
+            'runPostProjectCreationProvisioning',
+        ).mockResolvedValue(undefined);
+        await service.createWithoutCompile(
+            creator,
+            {
+                name: 'Preview',
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid,
+                copyContent: false,
+                dbtConnection: { type: DbtProjectType.NONE },
+                dbtVersion: projectWithSensitiveFields.dbtVersion,
+                warehouseConnection: googleLogin,
+            },
+            RequestMethod.CLI,
+        );
+        expect(stored.mock.calls[0][2].warehouseConnection).toMatchObject({
+            keyfileContents: sharedServiceCredential.keyfileContents,
+            requireUserCredentials: false,
+        });
+        expect(createPersonal).toHaveBeenCalledWith(
+            creator.userUuid,
+            expect.objectContaining({
+                credentials: expect.objectContaining({
+                    keyfileContents: googleLogin.keyfileContents,
+                }),
+            }),
+            'preview-project',
+            expect.anything(),
+        );
+        expect(savePreference).toHaveBeenCalledWith(
+            creator.userUuid,
+            'preview-project',
+            'preview-personal',
+            expect.anything(),
+        );
+    });
+
+    test('moves setup sign-in to the creator and leaves no shared secret', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        const create = vi.fn(async () => 'personal-credential');
+        const preference = vi.fn(async () => undefined);
+        Object.assign(
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+                }
+            ).userWarehouseCredentialsModel,
+            { create, upsertUserCredentialsPreference: preference },
+        );
+        const shared = await service['personalSetupConnection'](
+            user,
+            googleLogin,
+            false,
+        );
+        await service['savePersonalSetupCredential'](
+            user,
+            projectSummary.projectUuid,
+            googleLogin,
+            shared,
+            false,
+        );
+
+        expect(shared).toMatchObject({
+            keyfileContents: {},
+            requireUserCredentials: true,
+        });
+        expect(create).toHaveBeenCalledWith(
+            user.userUuid,
+            expect.objectContaining({
+                credentials: expect.objectContaining({
+                    keyfileContents: googleLogin.keyfileContents,
+                }),
+            }),
+            projectSummary.projectUuid,
+            undefined,
+        );
+        expect(preference).toHaveBeenCalledWith(
+            user.userUuid,
+            projectSummary.projectUuid,
+            'personal-credential',
+            undefined,
+        );
+    });
+
+    test('keeps legacy creation when the flag is off', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        await expect(
+            service['personalSetupConnection'](user, googleLogin, false),
+        ).resolves.toBe(googleLogin);
+    });
+
+    test('prefers the credential already saved by Google sign-in', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        const create = vi.fn();
+        const preference = vi.fn(async () => undefined);
+        Object.assign(
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+                }
+            ).userWarehouseCredentialsModel,
+            {
+                create,
+                upsertUserCredentialsPreference: preference,
+                findForProjectWithSecrets: vi.fn(async () => ({
+                    uuid: 'existing-google-sign-in',
+                    credentials: {
+                        type: WarehouseTypes.BIGQUERY,
+                        authenticationType: BigqueryAuthenticationType.SSO,
+                        keyfileContents: googleLogin.keyfileContents,
+                    },
+                })),
+            },
+        );
+        await service['savePersonalSetupCredential'](
+            user,
+            projectSummary.projectUuid,
+            googleLogin,
+            {
+                ...googleLogin,
+                keyfileContents: {},
+                requireUserCredentials: true,
+            },
+            false,
+        );
+        expect(create).not.toHaveBeenCalled();
+        expect(preference).toHaveBeenCalledWith(
+            user.userUuid,
+            projectSummary.projectUuid,
+            'existing-google-sign-in',
+            undefined,
+        );
+    });
+
+    test('treats a CLI external-browser temporary password as personal', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        const create = vi.fn(async () => 'cli-personal-credential');
+        const preference = vi.fn(async () => undefined);
+        Object.assign(
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+                }
+            ).userWarehouseCredentialsModel,
+            { create, upsertUserCredentialsPreference: preference },
+        );
+        const temporaryPassword: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            password: 'temporary-token',
+            account: 'account',
+            user: 'developer',
+            database: 'db',
+            warehouse: 'wh',
+            schema: 'public',
+        };
+        const shared = await service['personalSetupConnection'](
+            user,
+            temporaryPassword,
+            true,
+        );
+        await service['savePersonalSetupCredential'](
+            user,
+            projectSummary.projectUuid,
+            temporaryPassword,
+            shared,
+            true,
+        );
+        expect(shared).toMatchObject({ requireUserCredentials: true });
+        expect(shared).not.toHaveProperty('password');
+        expect(create).toHaveBeenCalledWith(
+            user.userUuid,
+            expect.objectContaining({
+                credentials: expect.objectContaining({
+                    password: 'temporary-token',
+                }),
+            }),
+            projectSummary.projectUuid,
+            undefined,
+        );
+        expect(preference).toHaveBeenCalledWith(
+            user.userUuid,
+            projectSummary.projectUuid,
+            'cli-personal-credential',
+            undefined,
+        );
+    });
+
+    test('refuses a new shared person sign-in but permits an unchanged one', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        await expect(
+            service['assertSharedCredentialSaveAllowed'](
+                user,
+                googleLogin,
+                undefined,
+            ),
+        ).rejects.toThrow(
+            'A shared connection can only use a service account.',
+        );
+        await expect(
+            service['assertSharedCredentialSaveAllowed'](
+                user,
+                { ...googleLogin, dataset: 'new_marts' },
+                googleLogin,
+            ),
+        ).resolves.toBe(true);
+    });
+
+    test.each([
+        [{}, 'secret-free'],
+        [googleLogin.keyfileContents, 'legacy'],
+    ])(
+        'saves a %s shared sign-in settings edit without the editor token',
+        async (keyfileContents) => {
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel,
+            });
+            const getRefreshToken = vi.fn();
+            Object.assign(service, {
+                userOAuthGrantsModel: { getRefreshToken },
+            });
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    ...googleLogin,
+                    keyfileContents,
+                    requireUserCredentials: true,
+                },
+            } as never);
+            await service.updateWarehouseCredentials(
+                projectSummary.projectUuid,
+                developerAccount,
+                {
+                    warehouseConnection: {
+                        ...googleLogin,
+                        dataset: 'edited',
+                        keyfileContents: {},
+                        requireUserCredentials: true,
+                    },
+                },
+            );
+            expect(getRefreshToken).not.toHaveBeenCalled();
+            expect(projectModel.update).toHaveBeenCalledWith(
+                projectSummary.projectUuid,
+                expect.objectContaining({
+                    warehouseConnection: expect.objectContaining({
+                        dataset: 'edited',
+                        keyfileContents,
+                    }),
+                }),
+                developerAccount.user.id,
+            );
+        },
+    );
+
+    test('does not let a Redshift browser sign-in replace a shared one', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        const redshiftBrowser: CreateRedshiftCredentials = {
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
+            host: 'redshift.example',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'public',
+            user: 'developer',
+            accessKeyId: 'old-key',
+            secretAccessKey: 'old-secret',
+            sessionToken: 'old-session',
+        };
+        await expect(
+            service['assertSharedCredentialSaveAllowed'](
+                user,
+                { ...redshiftBrowser, accessKeyId: 'new-key' },
+                redshiftBrowser,
+            ),
+        ).rejects.toThrow(
+            'A shared connection can only use a service account.',
+        );
+        await expect(
+            service['assertSharedCredentialSaveAllowed'](
+                user,
+                { ...redshiftBrowser, schema: 'new_schema' },
+                redshiftBrowser,
+            ),
+        ).resolves.toBe(true);
+    });
+
+    test('drops the old person token when switching to a service method', () => {
+        const oldSignIn: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            account: 'account',
+            user: 'developer',
+            database: 'db',
+            warehouse: 'wh',
+            schema: 'public',
+            refreshToken: 'old-person-token',
+        };
+        const replacement = ProjectService['withoutPreviousPersonSecret'](
+            oldSignIn,
+            {
+                ...oldSignIn,
+                authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                privateKey: 'service-key',
+            },
+            true,
+        );
+        expect(replacement).toMatchObject({ privateKey: 'service-key' });
+        expect(replacement).not.toHaveProperty('refreshToken');
+    });
+
+    test('uses the service credential for scheduled work under personal only', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        const findPersonal = vi.fn(async () => ({
+            uuid: 'scheduler-personal',
+            credentials: {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents: googleLogin.keyfileContents,
+            },
+        }));
+        Object.assign(
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+                }
+            ).userWarehouseCredentialsModel,
+            { findForProjectWithSecrets: findPersonal },
+        );
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce({
+            ...googleLogin,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            keyfileContents: {
+                type: 'service_account',
+                private_key: 'service-key',
+            },
+            requireUserCredentials: true,
+        });
+
+        const credentials = await service['getSingleRouteWarehouseCredentials'](
+            {
+                projectUuid: projectSummary.projectUuid,
+                userId: user.userUuid,
+                isRegisteredUser: true,
+                isServiceAccount: true,
+            },
+        );
+        expect(credentials).toMatchObject({
+            keyfileContents: { private_key: 'service-key' },
+        });
+        expect(findPersonal).not.toHaveBeenCalled();
+    });
+
+    test('uses the service credential for async embed resolution and refuses a legacy person sign-in', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        const serviceCredential: CreateBigqueryCredentials = {
+            ...googleLogin,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            keyfileContents: {
+                type: 'service_account',
+                private_key: 'embed-service',
+            },
+            requireUserCredentials: true,
+        };
+        projectModel.getWarehouseCredentialsForProject
+            .mockResolvedValueOnce(serviceCredential)
+            .mockResolvedValueOnce(googleLogin);
+        const args = {
+            projectUuid: projectSummary.projectUuid,
+            binding: { kind: 'original' } as const,
+            userId: 'embed-viewer',
+            isRegisteredUser: false,
+        };
+        const result =
+            await service['getWarehouseCredentialsWithConnection'](args);
+        expect(result.warehouseCredentials).toMatchObject({
+            keyfileContents: { private_key: 'embed-service' },
+        });
+        await expect(
+            service['getWarehouseCredentialsWithConnection'](args),
+        ).rejects.toThrow(
+            "This embed needs a service account. Ask an admin to add one in the project's connection settings.",
+        );
+    });
+
+    test('keeps legacy shared credentials for embeds when setup is disabled', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce({
+            ...googleLogin,
+            requireUserCredentials: false,
+        });
+        const result = await service['getWarehouseCredentialsWithConnection']({
+            projectUuid: projectSummary.projectUuid,
+            binding: { kind: 'original' },
+            userId: 'embed-viewer',
+            isRegisteredUser: false,
+        });
+        expect(result.warehouseCredentials).toMatchObject({
+            keyfileContents: { refresh_token: 'personal-token' },
+        });
+    });
+
+    test('does not read setup policy for an ordinary credential read', async () => {
+        const getFlag = vi.fn();
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: { get: getFlag } as unknown as FeatureFlagModel,
+        });
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce({
+            ...googleLogin,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            keyfileContents: { type: 'service_account', private_key: 'key' },
+            requireUserCredentials: false,
+        });
+        projectModel.getSummary.mockClear();
+
+        await service['getWarehouseCredentialsWithConnection']({
+            projectUuid: projectSummary.projectUuid,
+            binding: { kind: 'original' },
+            userId: user.userUuid,
+            isRegisteredUser: true,
+        });
+
+        expect(projectModel.getSummary).not.toHaveBeenCalled();
+        expect(getFlag).not.toHaveBeenCalled();
+    });
+
+    test('preserves a missing binding error before reading setup policy', async () => {
+        const getFlag = vi.fn();
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: { get: getFlag } as unknown as FeatureFlagModel,
+        });
+        const resolve = vi
+            .spyOn(projectModel, 'resolveWarehouseCredentialReadWithRoute')
+            .mockRejectedValueOnce(new NotFoundError('Connection not found'));
+        projectModel.getSummary.mockClear();
+
+        await expect(
+            service['getWarehouseCredentialsWithConnection']({
+                projectUuid: projectSummary.projectUuid,
+                binding: { kind: 'original' },
+                userId: 'embed-viewer',
+                isRegisteredUser: false,
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(projectModel.getSummary).not.toHaveBeenCalled();
+        expect(getFlag).not.toHaveBeenCalled();
+        resolve.mockRestore();
+    });
+
+    test('uses personal BigQuery credentials with a service fallback', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        const serviceCredential: CreateBigqueryCredentials = {
+            ...googleLogin,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            keyfileContents: {
+                type: 'service_account',
+                private_key: 'fallback-service',
+            },
+            requireUserCredentials: false,
+            allowUserCredentials: true,
+        };
+        const findPersonal = vi
+            .fn()
+            .mockResolvedValueOnce({
+                uuid: 'personal',
+                credentials: {
+                    type: WarehouseTypes.BIGQUERY,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents: googleLogin.keyfileContents,
+                },
+            })
+            .mockResolvedValueOnce(undefined);
+        Object.assign(service, {
+            userWarehouseCredentialsModel: {
+                findForProjectWithSecrets: findPersonal,
+            },
+        });
+        projectModel.getWarehouseCredentialsForProject
+            .mockResolvedValueOnce(serviceCredential)
+            .mockResolvedValueOnce(serviceCredential);
+        const args = {
+            projectUuid: projectSummary.projectUuid,
+            binding: { kind: 'original' } as const,
+            userId: 'person',
+            isRegisteredUser: true,
+        };
+        const personal =
+            await service['getWarehouseCredentialsWithConnection'](args);
+        const fallback =
+            await service['getWarehouseCredentialsWithConnection'](args);
+        expect(personal.warehouseCredentials).toMatchObject({
+            keyfileContents: { refresh_token: 'personal-token' },
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        expect(fallback.warehouseCredentials).toMatchObject({
+            keyfileContents: { private_key: 'fallback-service' },
+        });
+    });
+
+    test('refuses unattended compile without a service credential', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce({
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            account: 'acct',
+            user: 'u',
+            database: 'db',
+            warehouse: 'wh',
+            schema: 's',
+            requireUserCredentials: true,
+        });
+        await expect(
+            service['assertServiceCredentialForUnattendedCompile'](
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow(
+            'Add a service account to refresh on a schedule or from the CLI.',
+        );
+    });
+
+    test('checks compile permission before the organization flag or credential', async () => {
+        projectModel.getWarehouseCredentialsForProject.mockClear();
+        const get = vi.fn(
+            async ({ featureFlagId }: { featureFlagId: string }) => ({
+                id: featureFlagId,
+                enabled: true,
+            }),
+        );
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: { get } as unknown as FeatureFlagModel,
+        });
+        await expect(
+            service.scheduleCompileProject(
+                { ...user, ability: new Ability<PossibleAbilities>([]) },
+                projectSummary.projectUuid,
+                RequestMethod.CLI,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(get).not.toHaveBeenCalled();
+        expect(
+            projectModel.getWarehouseCredentialsForProject,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('refuses an embed without a service credential', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+        });
+        vi.spyOn(
+            projectModel,
+            'getWarehouseCredentialsForBinding',
+        ).mockResolvedValueOnce({
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            account: 'acct',
+            user: 'u',
+            database: 'db',
+            warehouse: 'wh',
+            schema: 's',
+            requireUserCredentials: true,
+        });
+        await expect(
+            service.getWarehouseCredentialsForEmbed({
+                projectUuid: projectSummary.projectUuid,
+                account: buildAccount({
+                    accountType: 'jwt',
+                    userType: 'anonymous',
+                }) as never,
+                binding: { kind: 'original' },
+            }),
+        ).rejects.toThrow(
+            "This embed needs a service account. Ask an admin to add one in the project's connection settings.",
+        );
     });
 });

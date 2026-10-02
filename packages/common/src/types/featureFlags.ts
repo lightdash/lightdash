@@ -277,6 +277,7 @@ export enum FeatureFlags {
      * shows it. Off by default; resolved per user and organization.
      */
     SharedSignInOwnership = 'shared-sign-in-ownership',
+    PersonalSignInSetup = 'personal-sign-in-setup',
 
     /**
      * Cloud-only: let an organization send report/notification emails from

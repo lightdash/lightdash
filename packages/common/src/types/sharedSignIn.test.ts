@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    DuckdbConnectionType,
+    RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateBigqueryCredentials,
@@ -12,6 +15,7 @@ import {
 import {
     getExpiredSharedSignInMessage,
     getPersonSignIn,
+    hasServiceCredential,
     PersonSignInProvider,
     resolveSignInSubject,
     SignInSubjectBasis,
@@ -33,11 +37,11 @@ const bigquery = (
     maximumBytesBilled: undefined,
 });
 
-const snowflake = (
+function snowflake(
     authenticationType: SnowflakeAuthenticationType,
     refreshToken?: string,
-): CreateSnowflakeCredentials =>
-    ({
+): CreateSnowflakeCredentials {
+    return {
         type: WarehouseTypes.SNOWFLAKE,
         account: 'acct',
         user: 'u',
@@ -47,20 +51,136 @@ const snowflake = (
         schema: 's',
         authenticationType,
         refreshToken,
-    }) as CreateSnowflakeCredentials;
+    } as CreateSnowflakeCredentials;
+}
 
-const databricks = (
+function databricks(
     authenticationType: DatabricksAuthenticationType,
     refreshToken?: string,
-): CreateDatabricksCredentials =>
-    ({
+): CreateDatabricksCredentials {
+    return {
         type: WarehouseTypes.DATABRICKS,
         serverHostName: 'h',
         httpPath: '/p',
         database: 'db',
         authenticationType,
         refreshToken,
-    }) as CreateDatabricksCredentials;
+    } as CreateDatabricksCredentials;
+}
+
+describe('hasServiceCredential', () => {
+    it('distinguishes Google user OAuth from private keys and ADC', () => {
+        expect(
+            hasServiceCredential(
+                bigquery({ type: 'authorized_user', refresh_token: 'r' }),
+            ),
+        ).toBe(false);
+        expect(
+            hasServiceCredential(
+                bigquery({ type: 'service_account', private_key: 'k' }),
+            ),
+        ).toBe(true);
+        expect(
+            hasServiceCredential(bigquery({}, BigqueryAuthenticationType.ADC)),
+        ).toBe(true);
+    });
+
+    it('distinguishes Snowflake and Databricks service methods from person sign-ins', () => {
+        expect(
+            hasServiceCredential(
+                snowflake(SnowflakeAuthenticationType.SSO, 'r'),
+            ),
+        ).toBe(false);
+        expect(
+            hasServiceCredential({
+                ...snowflake(SnowflakeAuthenticationType.PASSWORD),
+                password: 'p',
+            }),
+        ).toBe(true);
+        expect(
+            hasServiceCredential(
+                databricks(DatabricksAuthenticationType.OAUTH_U2M, 'r'),
+            ),
+        ).toBe(false);
+        expect(
+            hasServiceCredential({
+                ...databricks(DatabricksAuthenticationType.OAUTH_M2M),
+                oauthClientId: 'i',
+                oauthClientSecret: 's',
+            }),
+        ).toBe(true);
+    });
+
+    it.each([
+        [{ type: WarehouseTypes.POSTGRES, password: 'p' }, true],
+        [{ type: WarehouseTypes.TRINO, password: 'p' }, true],
+        [{ type: WarehouseTypes.CLICKHOUSE, password: 'p' }, true],
+        [
+            {
+                type: WarehouseTypes.REDSHIFT,
+                authenticationType: RedshiftAuthenticationType.PASSWORD,
+                password: 'p',
+            },
+            true,
+        ],
+        [
+            {
+                type: WarehouseTypes.REDSHIFT,
+                authenticationType: RedshiftAuthenticationType.IAM,
+            },
+            true,
+        ],
+        [
+            {
+                type: WarehouseTypes.REDSHIFT,
+                authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
+                accessKeyId: 'temporary',
+                secretAccessKey: 'temporary',
+            },
+            false,
+        ],
+        [
+            {
+                type: WarehouseTypes.ATHENA,
+                authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+                accessKeyId: 'a',
+                secretAccessKey: 's',
+            },
+            true,
+        ],
+        [
+            {
+                type: WarehouseTypes.ATHENA,
+                authenticationType: AthenaAuthenticationType.IAM_ROLE,
+            },
+            true,
+        ],
+        [
+            {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.MOTHERDUCK,
+                token: 't',
+            },
+            true,
+        ],
+        [
+            {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.EMBEDDED,
+            },
+            true,
+        ],
+    ] as const)(
+        'classifies the remaining warehouse credential %j',
+        (credentials, expected) => {
+            expect(
+                hasServiceCredential(
+                    credentials as unknown as CreateWarehouseCredentials,
+                ),
+            ).toBe(expected);
+        },
+    );
+});
 
 describe('getPersonSignIn', () => {
     it('finds a Google sign-in saved at setup or by the CLI', () => {

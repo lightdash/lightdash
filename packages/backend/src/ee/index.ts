@@ -1090,6 +1090,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationWarehouseCredentialsModel:
                         models.getOrganizationWarehouseCredentialsModel(),
                     userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({

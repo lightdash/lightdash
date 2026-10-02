@@ -1,7 +1,10 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import {
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    DuckdbConnectionType,
+    RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -99,6 +102,107 @@ export const getPersonSignIn = (
         case WarehouseTypes.ATHENA:
         case WarehouseTypes.DUCKDB:
             return null;
+        default:
+            return assertUnreachable(credentials, 'Unknown warehouse type');
+    }
+};
+
+export const hasServiceCredential = (
+    credentials: CreateWarehouseCredentials,
+): boolean => {
+    switch (credentials.type) {
+        case WarehouseTypes.BIGQUERY:
+            return (
+                credentials.authenticationType ===
+                    BigqueryAuthenticationType.ADC ||
+                (credentials.keyfileContents?.type !== 'authorized_user' &&
+                    !!credentials.keyfileContents?.private_key)
+            );
+        case WarehouseTypes.SNOWFLAKE:
+            switch (credentials.authenticationType) {
+                case SnowflakeAuthenticationType.PASSWORD:
+                case undefined:
+                    return !!credentials.password;
+                case SnowflakeAuthenticationType.PRIVATE_KEY:
+                    return !!credentials.privateKey;
+                case SnowflakeAuthenticationType.SSO:
+                case SnowflakeAuthenticationType.EXTERNAL_BROWSER:
+                case SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE:
+                case SnowflakeAuthenticationType.NONE:
+                    return false;
+                default:
+                    return assertUnreachable(
+                        credentials,
+                        'Unknown Snowflake authentication type',
+                    );
+            }
+        case WarehouseTypes.DATABRICKS:
+            switch (credentials.authenticationType) {
+                case DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN:
+                case undefined:
+                    return !!credentials.personalAccessToken;
+                case DatabricksAuthenticationType.OAUTH_M2M:
+                    return (
+                        !!credentials.oauthClientId &&
+                        !!credentials.oauthClientSecret
+                    );
+                case DatabricksAuthenticationType.OAUTH_U2M:
+                    return false;
+                default:
+                    return assertUnreachable(
+                        credentials,
+                        'Unknown Databricks authentication type',
+                    );
+            }
+        case WarehouseTypes.ATHENA:
+            switch (credentials.authenticationType) {
+                case AthenaAuthenticationType.ACCESS_KEY:
+                    return (
+                        !!credentials.accessKeyId &&
+                        !!credentials.secretAccessKey
+                    );
+                case AthenaAuthenticationType.IAM_ROLE:
+                case undefined:
+                    return true;
+                default:
+                    return assertUnreachable(
+                        credentials,
+                        'Unknown Athena authentication type',
+                    );
+            }
+        case WarehouseTypes.REDSHIFT:
+            switch (credentials.authenticationType) {
+                case RedshiftAuthenticationType.PASSWORD:
+                case undefined:
+                    return !!credentials.password;
+                case RedshiftAuthenticationType.IAM:
+                    return true;
+                case RedshiftAuthenticationType.IAM_BROWSER:
+                    return false;
+                default:
+                    return assertUnreachable(
+                        credentials,
+                        'Unknown Redshift authentication type',
+                    );
+            }
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.TRINO:
+        case WarehouseTypes.CLICKHOUSE:
+            return !!credentials.password;
+        case WarehouseTypes.DUCKDB:
+            switch (credentials.connectionType) {
+                case DuckdbConnectionType.MOTHERDUCK:
+                    return !!credentials.token;
+                case DuckdbConnectionType.DUCKLAKE:
+                case DuckdbConnectionType.EMBEDDED:
+                case DuckdbConnectionType.ANALYTICS:
+                    return true;
+                default:
+                    return assertUnreachable(
+                        credentials,
+                        'Unknown DuckDB connection type',
+                    );
+            }
         default:
             return assertUnreachable(credentials, 'Unknown warehouse type');
     }
