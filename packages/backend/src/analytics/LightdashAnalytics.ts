@@ -1296,6 +1296,27 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
     };
 };
 
+type OrganizationJoinRequestCreatedEvent = BaseTrack & {
+    event: 'organization_join_request.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        hasAdmin: boolean;
+        isEmailVerified: boolean;
+    };
+};
+
+type OrganizationJoinRequestDecidedEvent = BaseTrack & {
+    event: 'organization_join_request.decided';
+    userId: string;
+    properties: {
+        organizationId: string;
+        joinRequestId: string;
+        decision: 'approved' | 'declined';
+        role: string | null;
+    };
+};
+
 export type PlaygroundProjectSkippedReason =
     | 'new_onboarding_flag_disabled'
     | 'playground_already_exists'
@@ -4542,6 +4563,8 @@ type TypedEvent =
     | HomepagePublishedEvent
     | OnboardingOrgFlagsProvisionedEvent
     | PlaygroundProjectProvisionedEvent
+    | OrganizationJoinRequestCreatedEvent
+    | OrganizationJoinRequestDecidedEvent
     | PlaygroundProjectSkippedEvent
     | PlaygroundProjectFailedEvent
     | TrainingProjectProvisionedEvent

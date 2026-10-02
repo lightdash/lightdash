@@ -64,6 +64,7 @@ import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
 import { OrganizationDomainVerificationService } from './OrganizationDomainVerificationService/OrganizationDomainVerificationService';
+import { OrganizationLandingService } from './OrganizationLandingService/OrganizationLandingService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { OrganizationSettingsService } from './OrganizationSettingsService/OrganizationSettingsService';
 import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
@@ -192,6 +193,7 @@ interface ServiceManifest {
     warehouseConnectionBindingService: WarehouseConnectionBindingService;
     projectCompileLogService: ProjectCompileLogService;
     projectSetupService: ProjectSetupService;
+    organizationLandingService: OrganizationLandingService;
     gitHostDiscoveryService: GitHostDiscoveryService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
@@ -2230,6 +2232,26 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                }),
+        );
+    }
+
+    public getOrganizationLandingService(): OrganizationLandingService {
+        return this.getService(
+            'organizationLandingService',
+            () =>
+                new OrganizationLandingService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    emailModel: this.models.getEmailModel(),
+                    organizationModel: this.models.getOrganizationModel(),
+                    organizationJoinRequestModel:
+                        this.models.getOrganizationJoinRequestModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
+                    userModel: this.models.getUserModel(),
+                    emailClient: this.clients.getEmailClient(),
                 }),
         );
     }

@@ -1,1 +1,6 @@
-[]
+[
+    {
+        "column": "organizations.created_by_user_uuid",
+        "reason": "Uses the standard column name for the user who created a row"
+    }
+]

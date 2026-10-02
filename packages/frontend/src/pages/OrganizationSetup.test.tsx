@@ -22,6 +22,10 @@ const toasterMocks = vi.hoisted(() => ({
     addToastError: vi.fn(),
 }));
 
+vi.mock('../components/UserCompletionModal/useOrganizationSetupRole', () => ({
+    useOrganizationSetupRole: () => ({ isLoading: false, role: 'legacy' }),
+}));
+
 vi.mock('../hooks/toaster/useToaster', () => ({
     default: () => toasterMocks,
 }));

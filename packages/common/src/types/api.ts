@@ -318,6 +318,11 @@ import {
     type VerifiedDomain,
 } from './organizationDomainVerification';
 import {
+    type OrganizationJoinRequest,
+    type OrganizationJoinRequestSummary,
+    type OrganizationLanding,
+} from './organizationLanding';
+import {
     type ApiOrganizationMemberProfiles,
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
@@ -1392,6 +1397,9 @@ type ApiResults =
     | null
     | GitHostRepository[]
     | SemanticLayerFormat
+    | OrganizationLanding
+    | OrganizationJoinRequestSummary
+    | OrganizationJoinRequest[]
     | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess

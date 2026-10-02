@@ -34,6 +34,7 @@ import {
     getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
+    InvalidUser,
     InviteLink,
     InviteLinkPurpose,
     InviteLinkWithAuthenticationOptions,
@@ -980,7 +981,11 @@ export class UserService extends BaseService {
         inviteCode: string | undefined,
         email: string,
     ) {
+        const { enabled: isConnectJourney } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.ConnectJourney,
+        });
         if (
+            !isConnectJourney &&
             inviteCode === undefined &&
             !this.lightdashConfig.allowMultiOrgs &&
             (await this.userModel.hasUsers()) &&
@@ -2963,6 +2968,12 @@ export class UserService extends BaseService {
             'Passport.deserializeUser',
             {},
             async (span) => {
+                if (!passportUser.organization) {
+                    span.setAttribute('cacheHit', false);
+                    return this.findSessionUserForSessionWithoutOrganization(
+                        passportUser.id,
+                    );
+                }
                 const { sessionUser, cacheHit } =
                     await this.userModel.getSessionUserFromCacheOrDB(
                         passportUser.id,
@@ -2973,6 +2984,19 @@ export class UserService extends BaseService {
                 return sessionUser;
             },
         );
+    }
+
+    private async findSessionUserForSessionWithoutOrganization(
+        userUuid: string,
+    ): Promise<SessionUser> {
+        try {
+            return await this.userModel.findSessionUserByUUID(userUuid);
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                throw new InvalidUser(`Cannot find user with uuid ${userUuid}`);
+            }
+            throw error;
+        }
     }
 
     async onLogin(user: {

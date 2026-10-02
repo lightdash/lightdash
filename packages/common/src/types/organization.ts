@@ -41,6 +41,10 @@ export type Organization = {
      */
     defaultProjectUuid?: string;
     createdAt?: Date;
+    /**
+     * The user who created the organization, when it was recorded
+     */
+    createdByUserUuid?: string | null;
 
     /**
      * Postgres wire protocol connection details for the semantic layer, only

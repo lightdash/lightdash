@@ -10,6 +10,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getUserAbilityBuilder,
+    InvalidUser,
     InviteLinkPurpose,
     LightdashUser,
     LocalIssuerTypes,
@@ -182,6 +183,7 @@ const emailClient = {
 const organizationModel = {
     get: vi.fn(async () => organisation),
     getAllowedOrgsForDomain: vi.fn(async () => []),
+    hasOrgs: vi.fn(async () => true),
 };
 
 const projectModel = {
@@ -341,6 +343,46 @@ describe('UserService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('findSessionUser', () => {
+        it('reads a session without an organization by user uuid', async () => {
+            await expect(
+                userService.findSessionUser({
+                    id: sessionUser.userUuid,
+                    organization: null as unknown as string,
+                }),
+            ).resolves.toBe(sessionUser);
+            expect(userModel.findSessionUserByUUID).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+            );
+            expect(
+                userModel.getSessionUserFromCacheOrDB,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('ends a session without an organization for a missing user', async () => {
+            userModel.findSessionUserByUUID.mockRejectedValueOnce(
+                new NotFoundError('missing'),
+            );
+            await expect(
+                userService.findSessionUser({
+                    id: 'missing-user',
+                    organization: null as unknown as string,
+                }),
+            ).rejects.toBeInstanceOf(InvalidUser);
+        });
+
+        it('reads a session with an organization from the cache', async () => {
+            await userService.findSessionUser({
+                id: sessionUser.userUuid,
+                organization: 'org-uuid',
+            });
+            expect(userModel.getSessionUserFromCacheOrDB).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'org-uuid',
+            );
+        });
     });
 
     describe('joinOrg by allowed email domain', () => {
@@ -918,6 +960,34 @@ describe('UserService', () => {
                 enabled,
             })),
         });
+
+        test.each([
+            [false, true],
+            [true, false],
+        ])(
+            'with connect-journey %s, a single-org instance refuses a new user: %s',
+            async (isConnectJourney, refuses) => {
+                const service = createUserService(
+                    { ...lightdashConfigMock, allowMultiOrgs: false },
+                    {
+                        featureFlagModel:
+                            createFeatureFlagModel(isConnectJourney),
+                    },
+                );
+                if (!isConnectJourney) {
+                    userModel.hasUsers.mockResolvedValueOnce(true);
+                }
+                const check = service.checkNewUserRegistrationAllowed(
+                    undefined,
+                    'new@example.com',
+                );
+                if (refuses) {
+                    await expect(check).rejects.toThrow(ForbiddenError);
+                } else {
+                    await expect(check).resolves.toBeUndefined();
+                }
+            },
+        );
 
         test('rejects HTML in a user name before registration', async () => {
             await expect(
