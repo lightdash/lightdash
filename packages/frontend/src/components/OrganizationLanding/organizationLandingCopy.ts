@@ -48,7 +48,7 @@ export const getSuggestedOrganizationName = (
         ? inferOrganizationName(landing.emailDomain)
         : '';
 
-export const LANDING_VISIBLE_MATCHES = 5;
+const LANDING_VISIBLE_MATCHES = 5;
 
 export const isPendingRequest = (
     match: OrganizationLanding['requestable'][number],
