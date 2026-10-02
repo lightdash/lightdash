@@ -12,10 +12,10 @@ type ParsedTableReference = {
     fullReference: string;
 };
 
-const isValidTableReference = (
+const hasSchema = (
     tableRef: ParsedTableReference,
-): tableRef is Required<ParsedTableReference> => {
-    return !!(tableRef.database && tableRef.schema);
+): tableRef is ParsedTableReference & { schema: string } => {
+    return !!tableRef.schema;
 };
 
 const parseTableReferencesFromSQL = (
@@ -41,7 +41,10 @@ const parseTableReferencesFromSQL = (
 
     // Parse quoted identifiers
     while ((match = quotedIdentifierRegex.exec(sql)) !== null) {
-        const parts = [match[1], match[2], match[3]].filter(Boolean);
+        // Backtick warehouses allow a whole path in one quote: `dataset.table`
+        const parts = [match[1], match[2], match[3]]
+            .filter(Boolean)
+            .flatMap((part) => (quoteChar === '`' ? part.split('.') : [part]));
         const fullReference = match[0];
 
         if (parts.length === 3) {
@@ -128,19 +131,21 @@ export const useDetectedTableFields = ({
 
         return detectedTables.reduce<TableReference[]>((acc, tableRef) => {
             // Only include tables that exist in our catalog
-            if (!isValidTableReference(tableRef)) {
+            if (!hasSchema(tableRef)) {
                 return acc;
             }
 
+            // `schema.table` resolves against the default database
             const matchesCurrentDatabase =
-                tableRef.database?.toLowerCase() ===
-                transformedData.database.toLowerCase();
+                !tableRef.database ||
+                tableRef.database.toLowerCase() ===
+                    transformedData.database.toLowerCase();
 
             // Find the matching schema (case-insensitive) - do this once
             const matchingSchema = transformedData.tablesBySchema?.find(
                 (s) =>
                     s.schema.toString().toLowerCase() ===
-                    tableRef.schema?.toLowerCase(),
+                    tableRef.schema.toLowerCase(),
             );
 
             if (!matchingSchema || !matchesCurrentDatabase) {

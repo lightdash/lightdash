@@ -8,7 +8,13 @@ import type { languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import type { SqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
 import type { WarehouseTableFieldWithContext } from '../hooks/useTableFields';
-import type { TablesBySchema } from '../hooks/useTables';
+import {
+    applyCasePreference,
+    formatIdentifier,
+    getCatalogScopeSuggestions,
+    parseQualifiedPrefix,
+    type SqlCatalog,
+} from './sqlCompletionScope';
 
 export const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
@@ -168,7 +174,7 @@ export const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
     quoteChar: string,
-    tables: string[],
+    catalog: SqlCatalog | undefined,
     fields?: WarehouseTableFieldWithContext[],
     settings?: SqlEditorPreferences,
     availableParameters?: Record<
@@ -196,6 +202,111 @@ export const registerCustomCompletionProvider = (
                 endLineNumber: position.lineNumber,
                 endColumn: position.column,
             });
+
+            const prefix = parseQualifiedPrefix(textUntilPosition, quoteChar);
+            const closesQuote =
+                model
+                    .getLineContent(position.lineNumber)
+                    .charAt(position.column - 1) === quoteChar;
+
+            // Builds a catalog item that replaces the typed path segment,
+            // including an unclosed opening quote and its auto-closed pair
+            const buildCatalogItem = ({
+                label,
+                segments,
+                kind,
+                sortText,
+                detail,
+                isTerminal,
+            }: {
+                label: string;
+                segments: string[];
+                kind: languages.CompletionItemKind;
+                sortText: string;
+                detail: string;
+                isTerminal: boolean;
+            }): languages.CompletionItem => {
+                const itemRange = (startOffset: number, endColumn: number) => ({
+                    startLineNumber: position.lineNumber,
+                    endLineNumber: position.lineNumber,
+                    startColumn: startOffset + 1,
+                    endColumn,
+                });
+                if (prefix.isQuotedPath) {
+                    const insertText = segments
+                        .map((s) => applyCasePreference(s, settings))
+                        .join('.');
+                    return {
+                        label,
+                        kind,
+                        sortText,
+                        detail,
+                        insertText:
+                            isTerminal && !closesQuote
+                                ? `${insertText}${quoteChar}`
+                                : insertText,
+                        range: itemRange(prefix.partialStart, position.column),
+                    };
+                }
+                const insertText = segments
+                    .map((s) => formatIdentifier(s, quoteChar, settings))
+                    .join('.');
+                if (prefix.openQuoteStart !== null) {
+                    return {
+                        label,
+                        kind,
+                        sortText,
+                        detail,
+                        insertText,
+                        filterText: `${quoteChar}${segments.join('.')}`,
+                        range: itemRange(
+                            prefix.openQuoteStart,
+                            position.column + (closesQuote ? 1 : 0),
+                        ),
+                    };
+                }
+                return {
+                    label,
+                    kind,
+                    sortText,
+                    detail,
+                    insertText,
+                    range: itemRange(prefix.partialStart, position.column),
+                };
+            };
+
+            // `dataset.` / `project.dataset.` → only what lives at that level
+            const scoped = getCatalogScopeSuggestions(
+                catalog,
+                prefix.qualifiers,
+            );
+            if (scoped) {
+                return {
+                    suggestions: [
+                        ...scoped.schemas.map((schema) =>
+                            buildCatalogItem({
+                                label: schema,
+                                segments: [schema],
+                                kind: monaco.languages.CompletionItemKind
+                                    .Module,
+                                sortText: `0${schema}`,
+                                detail: 'Schema',
+                                isTerminal: false,
+                            }),
+                        ),
+                        ...scoped.tables.map((table) =>
+                            buildCatalogItem({
+                                label: table,
+                                segments: [table],
+                                kind: monaco.languages.CompletionItemKind.Class,
+                                sortText: `1${table}`,
+                                detail: 'Table',
+                                isTerminal: true,
+                            }),
+                        ),
+                    ],
+                };
+            }
 
             const suggestions: languages.CompletionItem[] = [];
 
@@ -337,10 +448,24 @@ export const registerCustomCompletionProvider = (
             };
 
             // Add field suggestions first (top priority)
-            if (fields && fields.length > 0) {
+            // `table.` narrows to that table's columns; unknown qualifiers
+            // (e.g. aliases) keep every column
+            const qualifier = prefix.qualifiers[prefix.qualifiers.length - 1];
+            const qualifiedFields = qualifier
+                ? fields?.filter(
+                      (field) =>
+                          field.table.toLowerCase() === qualifier.toLowerCase(),
+                  )
+                : undefined;
+            const fieldsInScope =
+                qualifiedFields && qualifiedFields.length > 0
+                    ? qualifiedFields
+                    : fields;
+
+            if (fieldsInScope && fieldsInScope.length > 0) {
                 const fieldSuggestions: languages.CompletionItem[] = [];
 
-                fields.forEach((field) => {
+                fieldsInScope.forEach((field) => {
                     // Check if field has table context information
                     const hasTableContext =
                         'table' in field && 'schema' in field;
@@ -374,93 +499,46 @@ export const registerCustomCompletionProvider = (
                 suggestions.push(...fieldMap.values());
             }
 
-            // Add table suggestions (lower priority)
-            const tableSuggestions = tables.map((table) => {
-                const parts = table.split('.');
-                const typedParts = textUntilPosition.split('.');
-                const insertParts = parts.slice(typedParts.length - 1);
-
-                // Check if the last typed part is already quoted
-                const lastTypedPart = typedParts[typedParts.length - 1];
-                const isLastPartQuoted =
-                    lastTypedPart.startsWith(`${quoteChar}`) &&
-                    !lastTypedPart.endsWith(`${quoteChar}`);
-
-                let insertText = insertParts.join('.');
-                if (isLastPartQuoted) {
-                    // Remove the opening quote from the first part to insert
-                    insertText = insertText.replace(
-                        new RegExp(`^${quoteChar}`),
-                        '',
+            // Unqualified: offer schemas to drill into and full table paths
+            if (catalog?.tablesBySchema && prefix.qualifiers.length === 0) {
+                catalog.tablesBySchema.forEach(({ schema, tables }) => {
+                    const schemaName = schema.toString();
+                    suggestions.push(
+                        buildCatalogItem({
+                            label: schemaName,
+                            segments: [schemaName],
+                            kind: monaco.languages.CompletionItemKind.Module,
+                            sortText: `1${schemaName}`,
+                            detail: 'Schema',
+                            isTerminal: false,
+                        }),
                     );
-                }
-
-                return {
-                    label: table,
-                    kind: monaco.languages.CompletionItemKind.Class,
-                    insertText,
-                    range,
-                    sortText: `1${table}`, // Lower priority with '1' prefix
-                    detail: 'Table',
-                };
-            });
-            suggestions.push(...tableSuggestions);
+                    Object.keys(tables).forEach((table) => {
+                        const segments = [catalog.database, schemaName, table];
+                        suggestions.push(
+                            buildCatalogItem({
+                                label: segments
+                                    .map((s) =>
+                                        formatIdentifier(
+                                            s,
+                                            quoteChar,
+                                            settings,
+                                        ),
+                                    )
+                                    .join('.'),
+                                segments,
+                                kind: monaco.languages.CompletionItemKind.Class,
+                                sortText: `2${schemaName}.${table}`,
+                                detail: 'Table',
+                                isTerminal: true,
+                            }),
+                        );
+                    });
+                });
+            }
 
             return { suggestions };
         },
         triggerCharacters: ['.', '{'],
     });
-};
-
-export const generateTableCompletions = (
-    quoteChar: string,
-    data: { database: string; tablesBySchema: TablesBySchema },
-    settings?: SqlEditorPreferences,
-) => {
-    if (!data) return;
-
-    const database = data.database;
-
-    // Helper function to format table names based on settings
-    const formatTableName = (
-        db: string,
-        schema: string,
-        table: string,
-    ): string => {
-        let formattedDb = db;
-        let formattedSchema = schema;
-        let formattedTable = table;
-
-        if (!settings) {
-            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
-        }
-
-        // Apply case preference (only lowercase or uppercase)
-        if (settings.casePreference === 'lowercase') {
-            formattedDb = formattedDb.toLowerCase();
-            formattedSchema = formattedSchema.toLowerCase();
-            formattedTable = formattedTable.toLowerCase();
-        } else if (settings.casePreference === 'uppercase') {
-            formattedDb = formattedDb.toUpperCase();
-            formattedSchema = formattedSchema.toUpperCase();
-            formattedTable = formattedTable.toUpperCase();
-        }
-
-        // Apply quote preference (only always or never)
-        if (settings.quotePreference === 'always') {
-            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
-        }
-
-        return `${formattedDb}.${formattedSchema}.${formattedTable}`;
-    };
-
-    const tablesList = data.tablesBySchema
-        ?.map((s) =>
-            Object.keys(s.tables).map((t) =>
-                formatTableName(database, s.schema.toString(), t),
-            ),
-        )
-        .flat();
-
-    return tablesList;
 };
