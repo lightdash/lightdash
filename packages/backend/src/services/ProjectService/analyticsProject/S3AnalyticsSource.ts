@@ -25,6 +25,7 @@ type S3AnalyticsSourceConfig = {
 
 const SIGNED_URL_LIFETIME_SECONDS = 900;
 const MAX_FILES = 10_000;
+const SIGNING_CONCURRENCY = 8;
 
 /** Server-only: the caller must authorize the persisted project org first. */
 export const createS3AnalyticsSourceResolver = ({
@@ -85,6 +86,7 @@ export const createS3AnalyticsSourceResolver = ({
                     }),
                     { abortSignal: AbortSignal.timeout(30_000) },
                 );
+                const files: { key: string; tableName: string }[] = [];
                 // eslint-disable-next-line no-restricted-syntax
                 for (const { Key: key } of page.Contents ?? []) {
                     if (!key || !key.startsWith(prefix)) {
@@ -115,12 +117,32 @@ export const createS3AnalyticsSourceResolver = ({
                             throw new Error(
                                 'Analytics manifest exceeds file limit',
                             );
-                        // eslint-disable-next-line no-await-in-loop
-                        const url = await urlSigner.getSignedDownloadUrl(
-                            bucket,
-                            key,
-                            SIGNED_URL_LIFETIME_SECONDS,
-                        );
+                        files.push({ key, tableName });
+                    }
+                }
+                // GCS workload identity signs each URL remotely. Bound each
+                // batch, and drain all started requests before destroying the
+                // client on failure. Never return a partial manifest.
+                for (let i = 0; i < files.length; i += SIGNING_CONCURRENCY) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const signed = await Promise.allSettled(
+                        files
+                            .slice(i, i + SIGNING_CONCURRENCY)
+                            .map(async ({ key, tableName }) => ({
+                                tableName,
+                                url: await urlSigner.getSignedDownloadUrl(
+                                    bucket,
+                                    key,
+                                    SIGNED_URL_LIFETIME_SECONDS,
+                                ),
+                            })),
+                    );
+                    for (const result of signed) {
+                        if (result.status === 'rejected') {
+                            // The outer handler sanitizes all storage failures.
+                            throw new Error('Analytics URL signing failed');
+                        }
+                        const { tableName, url } = result.value;
                         const urls = tables.get(tableName) ?? [];
                         urls.push(url);
                         tables.set(tableName, urls);
