@@ -9,6 +9,7 @@ import {
 describe('getSharedSignInExpiry', () => {
     it('reads the attributed sign-in from an API error', () => {
         const sharedSignIn = {
+            projectUuid: 'project-uuid',
             provider: PersonSignInProvider.GOOGLE,
             subjectUserUuid: 'u',
             subjectName: 'Sam Rivera',

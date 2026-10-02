@@ -110,6 +110,7 @@ export const resolveSignInSubject = ({
 };
 
 export type SharedSignInExpiry = {
+    projectUuid: string;
     provider: PersonSignInProvider;
     subjectUserUuid: string | null;
     subjectName: string | null;
@@ -117,7 +118,7 @@ export type SharedSignInExpiry = {
 };
 
 export const getExpiredSharedSignInMessage = (
-    expiry: SharedSignInExpiry,
+    expiry: Omit<SharedSignInExpiry, 'projectUuid'>,
     viewerUserUuid: string | null,
 ): string => {
     const signIn = PERSON_SIGN_IN_LABELS[expiry.provider];

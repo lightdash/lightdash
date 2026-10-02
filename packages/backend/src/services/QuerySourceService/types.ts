@@ -21,7 +21,6 @@ export type ScanSchemaArgs = {
  * required so a caller decides it explicitly; none of them defaults.
  */
 export type SourceQueryExecutionContext = {
-    isEmbedOrigin?: boolean;
     /** Parameter values every node resolves its references against. */
     parameters: ParametersValuesMap;
     /**

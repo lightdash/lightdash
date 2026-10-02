@@ -3315,7 +3315,6 @@ export class AiAgentService extends BaseService {
         // the builtin groupBy path.
         customChartType?: DataAppVizChart,
         userAttributeOverrides?: UserAttributeValueMap,
-        isEmbedOrigin?: boolean,
     ) {
         const explore = await this.getExplore(
             user,
@@ -3384,7 +3383,6 @@ export class AiAgentService extends BaseService {
                 pivotConfiguration,
                 parameters: parameters ?? undefined,
                 userAttributeOverrides,
-                isEmbedOrigin,
             },
         );
 
@@ -3425,7 +3423,6 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
         userAttributeOverrides?: UserAttributeValueMap,
-        isEmbedOrigin?: boolean,
     ) {
         const mergeQuery = await this.buildAiMergeQuery(
             user,
@@ -3440,7 +3437,6 @@ export class AiAgentService extends BaseService {
             parameters: toolArgs.queryConfig.parameters ?? undefined,
             mode: { type: 'interactive' },
             userAttributeOverrides,
-            isEmbedOrigin,
         });
         if (outcome.outcome === 'refused') {
             throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
@@ -8731,7 +8727,6 @@ export class AiAgentService extends BaseService {
                 projectUuid,
                 parsed,
                 runtimeOptions?.userAttributeOverrides,
-                runtimeOptions !== undefined,
             );
             this.analytics.track({
                 event: 'ai_agent.artifact_viz_query',
@@ -8844,7 +8839,6 @@ export class AiAgentService extends BaseService {
             parsedVizConfig.parameters,
             customChartType,
             runtimeOptions?.userAttributeOverrides,
-            runtimeOptions !== undefined,
         );
 
         const metadata = {
@@ -8985,7 +8979,6 @@ export class AiAgentService extends BaseService {
             parsedVizConfig.parameters,
             undefined,
             runtimeOptions?.userAttributeOverrides,
-            runtimeOptions !== undefined,
         );
 
         const metadata = {
@@ -11747,7 +11740,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             sqlScope,
             userAttributeOverrides:
                 options?.runtimeOptions?.userAttributeOverrides,
-            isEmbedOrigin: options?.runtimeOptions !== undefined,
             agentUuid: runtimeAgentSettings.uuid,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,

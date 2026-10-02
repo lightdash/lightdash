@@ -211,3 +211,16 @@ export const addLimitChangeListener = (
         },
     });
 };
+
+export const addAutomaticPivotFailureListener = (
+    startListening: typeof startAppListening,
+    projectUuid: string,
+    onFailure: () => void,
+) =>
+    startListening({
+        actionCreator: prepareAndFetchChartData.rejected,
+        effect: (_, listenerApi) => {
+            if (listenerApi.getState().sqlRunner.projectUuid === projectUuid)
+                onFailure();
+        },
+    });
