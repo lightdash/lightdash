@@ -1437,6 +1437,15 @@ const scopes: Scope[] = [
 
     // AI Agent
     {
+        name: 'view:AiAccess',
+        description:
+            'Use AI access: MCP and the in-app and Slack agents can query data for this user',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'view:AiAgent',
         description: 'View AI agents in a project',
         isEnterprise: true,

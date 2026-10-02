@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
     filterScopesByDependencyStatus,
+    formatScopeName,
     getScopeDependencyStatusCounts,
     getScopeDependencies,
     getScopeNamesWithDependencies,
     getScopesByGroup,
     type DependencyStatus,
 } from './scopeUtils';
+
+it('labels the AI access scope as a role permission', () => {
+    expect(formatScopeName('view:AiAccess')).toBe('Use AI access');
+});
 
 describe('getScopeDependencies', () => {
     it('returns direct and indirect scope dependencies with descriptions once', () => {

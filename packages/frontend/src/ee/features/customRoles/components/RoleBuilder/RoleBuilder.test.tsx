@@ -4,8 +4,18 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RoleBuilder } from './RoleBuilder';
+
+const aiAccessFlag = vi.hoisted(() => ({ enabled: false }));
+
+vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: aiAccessFlag.enabled } }),
+}));
+
+afterEach(() => {
+    aiAccessFlag.enabled = false;
+});
 
 type OnSubmit = ComponentProps<typeof RoleBuilder>['onSubmit'];
 
@@ -46,6 +56,21 @@ const selectPreset = async (title: string) => {
 };
 
 describe('RoleBuilder presets', () => {
+    it.each([false, true])(
+        'shows AI access only when its flag is %s',
+        async (enabled) => {
+            aiAccessFlag.enabled = enabled;
+            renderRoleBuilder();
+            await userEvent.setup().click(screen.getByText('AI Features'));
+            if (enabled) {
+                expect(screen.getByText('Use AI access')).toBeInTheDocument();
+            } else {
+                expect(
+                    screen.queryByText('Use AI access'),
+                ).not.toBeInTheDocument();
+            }
+        },
+    );
     it('does not render a preset picker unless presets are explicitly provided', () => {
         renderRoleBuilder();
 

@@ -40,6 +40,7 @@ interface Organization {
 }
 
 export type CaslSubjectNames =
+    | 'AiAccess'
     | 'AiAgent'
     | 'AiAgentDocument'
     | 'AiAgentSkill'

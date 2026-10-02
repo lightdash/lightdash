@@ -1,4 +1,8 @@
-import { getOrganizationOnlyScopes, type RoleLevel } from '@lightdash/common';
+import {
+    FeatureFlags,
+    getOrganizationOnlyScopes,
+    type RoleLevel,
+} from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -28,6 +32,7 @@ import {
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import {
     filterScopes,
     filterScopesByDependencyStatus,
@@ -386,6 +391,9 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
     level,
     dependencyStatus,
 }) => {
+    const aiAccessRolePermission = useServerFeatureFlag(
+        FeatureFlags.AiAccessRolePermission,
+    );
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
     // Store the selected group's key, not the object. The group objects are
@@ -396,8 +404,16 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
     >(null);
 
     const allGroupedScopes = useMemo(
-        () => getScopesByGroup(true, level),
-        [level],
+        () =>
+            getScopesByGroup(true, level).map((group) => ({
+                ...group,
+                scopes: group.scopes.filter(
+                    (scope) =>
+                        scope.name !== 'view:AiAccess' ||
+                        aiAccessRolePermission.data?.enabled === true,
+                ),
+            })),
+        [level, aiAccessRolePermission.data?.enabled],
     );
 
     const dependencyFilteredScopes = useMemo(

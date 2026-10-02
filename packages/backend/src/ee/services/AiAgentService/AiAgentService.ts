@@ -143,6 +143,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QueryRefusalReason,
     QuerySurface,
     ReadinessScore,
     serializeDashboardFiltersForAiContext,
@@ -7259,6 +7260,15 @@ export class AiAgentService extends BaseService {
             });
         }
 
+        if (aiCreditCheck?.isEmbedViewer !== true) {
+            await this.assertPromptAiAccess(
+                user,
+                agent.organizationUuid,
+                agent.projectUuid,
+                QuerySurface.AI_AGENT,
+            );
+        }
+
         const targetThreadMessages = threadMessages.slice(
             0,
             targetPromptIndex + 1,
@@ -7690,6 +7700,12 @@ export class AiAgentService extends BaseService {
                 }
             }
             Logger.error('Failed to generate agent thread response:', e);
+            if (
+                e instanceof ForbiddenError &&
+                e.message === AiAgentService.AI_ACCESS_REFUSAL
+            ) {
+                throw new ParameterError(e.message);
+            }
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
     }
@@ -8355,6 +8371,12 @@ export class AiAgentService extends BaseService {
             return response;
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
+            if (
+                e instanceof ForbiddenError &&
+                e.message === AiAgentService.AI_ACCESS_REFUSAL
+            ) {
+                throw new ParameterError(e.message);
+            }
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
     }
@@ -16700,6 +16722,31 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 slackPrompt.organizationUuid,
             );
 
+            try {
+                await this.assertPromptAiAccess(
+                    user,
+                    slackPrompt.organizationUuid,
+                    slackPrompt.projectUuid,
+                    QuerySurface.SLACK_AGENT,
+                );
+            } catch (error) {
+                if (
+                    error instanceof ForbiddenError &&
+                    error.message === AiAgentService.AI_ACCESS_REFUSAL
+                ) {
+                    await this.slackClient.postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts:
+                            slackPrompt.slackThreadTs ??
+                            slackPrompt.promptSlackTs,
+                        text: AiAgentService.AI_ACCESS_REFUSAL,
+                    });
+                    return;
+                }
+                throw error;
+            }
+
             const auditedAbility = this.createAuditedAbility(user);
             const canManageAgent = auditedAbility.can(
                 'manage',
@@ -16823,6 +16870,48 @@ Use your existing tools to inspect them when relevant to the user's question (re
             Logger.error('Failed to generate response:', e);
             throw new Error('Failed to generate response');
         }
+    }
+
+    private static readonly AI_ACCESS_REFUSAL =
+        'Your role does not include AI access for this project. Ask an admin to add the "Use AI access" permission.';
+
+    private async assertPromptAiAccess(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        surface: QuerySurface.AI_AGENT | QuerySurface.SLACK_AGENT,
+    ): Promise<void> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiAccessRolePermission,
+        });
+        if (!enabled) return;
+
+        if (
+            this.createAuditedAbility(user).can(
+                'view',
+                subject('AiAccess', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            return;
+        }
+        await this.asyncQueryService.recordQueryRefusal({
+            account: fromSession(user),
+            organizationUuid,
+            projectUuid,
+            context: QueryExecutionContext.AI,
+            aiSurface: surface,
+            aiClient: null,
+            reason: QueryRefusalReason.AI_ACCESS_OFF,
+            sql: null,
+        });
+        throw new ForbiddenError(AiAgentService.AI_ACCESS_REFUSAL);
     }
 
     async getUserAgentPreferences(

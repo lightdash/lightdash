@@ -69,6 +69,9 @@ export const projectMemberAbilities: Record<
         can('view', 'Project', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'AiAccess', {
+            projectUuid: member.projectUuid,
+        });
         can('view', 'PinnedItems', {
             projectUuid: member.projectUuid,
         });

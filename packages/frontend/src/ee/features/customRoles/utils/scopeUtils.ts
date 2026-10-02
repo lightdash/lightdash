@@ -68,6 +68,7 @@ export const getScopesByGroup = (
  * e.g., "manage:Dashboard" -> "Manage Dashboard"
  */
 export const formatScopeName = (scopeName: string): string => {
+    if (scopeName === 'view:AiAccess') return 'Use AI access';
     return startCase(scopeName.replace(':', ' '));
 };
 

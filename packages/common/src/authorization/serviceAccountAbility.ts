@@ -70,6 +70,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'Project', {
             organizationUuid,
         });
+        can('view', 'AiAccess', {
+            organizationUuid,
+        });
         can('view', 'Organization', {
             organizationUuid,
         });

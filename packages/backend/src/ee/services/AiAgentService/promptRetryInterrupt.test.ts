@@ -40,6 +40,9 @@ const buildService = (promptState: {
     const resetPromptResponseForRetry = vi.fn().mockResolvedValue(true);
     const deleteAiPromptInterrupt = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
+        featureFlagService: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             ai: { copilot: { embeddingEnabled: false } },

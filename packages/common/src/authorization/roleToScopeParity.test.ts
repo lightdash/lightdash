@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
+import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { type OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
@@ -21,6 +22,7 @@ import {
 import { getAllScopesForRole } from './roleToScopeMapping';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { getScopes } from './scopes';
+import { applyServiceAccountAbilities } from './serviceAccountAbility';
 import { type MemberAbility } from './types';
 
 type CASLRule = {
@@ -72,6 +74,7 @@ const checkRoleCoveredByScopes = (
  * List of enterprise-only subject names that should be filtered in non-enterprise mode
  */
 const ENTERPRISE_SUBJECTS = new Set([
+    'AiAccess',
     'EmbedAiAgent',
     'EmbedAiAgentDebug',
     'EmbedDashboardFilters',
@@ -420,6 +423,84 @@ describe('Role to Scope Parity', () => {
             };
             expectBuilderLinkingCondition(roleBuilder.build(), context);
             expectBuilderLinkingCondition(scopeBuilder.build(), context);
+        });
+    });
+
+    describe('AI access', () => {
+        it.each(systemProjectRoles)(
+            'grants %s AI access to its project',
+            (role) => {
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                projectMemberAbilities[role](
+                    { ...PROJECT_VIEWER, role },
+                    builder,
+                );
+                expect(
+                    builder.build().can(
+                        'view',
+                        subject('AiAccess', {
+                            projectUuid: PROJECT_VIEWER.projectUuid,
+                        }),
+                    ),
+                ).toBe(true);
+            },
+        );
+
+        it('does not grant AI access to a custom role without the scope', () => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    userUuid: PROJECT_VIEWER.userUuid,
+                    projectUuid: PROJECT_VIEWER.projectUuid,
+                    scopes: ['view:Project'],
+                    isEnterprise: true,
+                },
+                builder,
+            );
+            expect(
+                builder.build().can(
+                    'view',
+                    subject('AiAccess', {
+                        projectUuid: PROJECT_VIEWER.projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('grants organization viewers AI access across their organization', () => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            applyOrganizationMemberStaticAbilities.viewer(
+                ORGANIZATION_VIEWER,
+                builder,
+            );
+            expect(
+                builder.build().can(
+                    'view',
+                    subject('AiAccess', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        projectUuid: 'project-uuid',
+                    }),
+                ),
+            ).toBe(true);
+        });
+
+        it('grants read service accounts AI access across their organization', () => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            applyServiceAccountAbilities({
+                organizationUuid: 'organization-uuid',
+                userUuid: 'service-account-uuid',
+                scopes: [ServiceAccountScope.ORG_READ],
+                builder,
+            });
+            expect(
+                builder.build().can(
+                    'view',
+                    subject('AiAccess', {
+                        organizationUuid: 'organization-uuid',
+                        projectUuid: 'project-uuid',
+                    }),
+                ),
+            ).toBe(true);
         });
     });
 
