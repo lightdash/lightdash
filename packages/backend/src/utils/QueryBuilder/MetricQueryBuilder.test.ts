@@ -44,6 +44,7 @@ import {
     EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
+    EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE,
     EXPLORE_WITH_CROSS_TABLE_UNKNOWN_REFERENCE,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
@@ -62,6 +63,7 @@ import {
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
     METRIC_QUERY_CROSS_TABLE_DIMENSION_REFERENCE,
+    METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
     METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
     METRIC_QUERY_NESTED_AGG_COMPLEX,
     METRIC_QUERY_NESTED_AGG_CONDITIONAL,
@@ -2059,6 +2061,23 @@ LIMIT 10`;
 
             expect(result.query).toContain(
                 'SUM("orders".amount) / NULLIF(COUNT(CASE WHEN "customers".customer_tier = \'Premium\' THEN 1 END), 0) AS "orders_premium_order_rate"',
+            );
+            expect(result.query).toContain(
+                'LEFT OUTER JOIN orders AS "orders"',
+            );
+        });
+
+        test('Should handle a non-aggregate metric mixing ${TABLE} with a dimension on a joined table', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE,
+                compiledMetricQuery: METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'SUM(CASE WHEN "customers".customer_tier = \'Premium\' THEN "orders".amount END) AS "orders_premium_order_amount"',
             );
             expect(result.query).toContain(
                 'LEFT OUTER JOIN orders AS "orders"',

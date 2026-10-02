@@ -2845,6 +2845,10 @@ export class MetricQueryBuilder {
                         metricObject.table,
                     );
                     metricReferences.forEach((metricReference) => {
+                        // ${TABLE} is the metric's own table, not a field
+                        if (metricReference.refName === 'TABLE') {
+                            return;
+                        }
                         const referenceId = getItemId({
                             table: metricReference.refTable,
                             name: metricReference.refName,
