@@ -246,6 +246,10 @@ import {
 import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
 import {
+    type GitHostRepository,
+    type SemanticLayerFormat,
+} from './gitHostDiscovery';
+import {
     type ApiGitFileContent,
     type ApiPullRequestsResponse,
     type GitBranch,
@@ -360,6 +364,7 @@ import {
     type Project,
     type WarehouseCredentials,
 } from './projects';
+import { type ProjectSetupState } from './projectSetup';
 import { type ApiPromotionChangesResponse } from './promotion';
 import {
     type PreAggregateExecutionEngine,
@@ -1381,6 +1386,10 @@ type ApiResults =
     | ApiDataTimezonePreviewResults
     | WarehouseConnectionTestResults
     | WarehouseConnectionStagedTestResults
+    | ProjectSetupState
+    | null
+    | GitHostRepository[]
+    | SemanticLayerFormat
     | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess
