@@ -2,11 +2,12 @@ import { type Comment } from '@lightdash/common';
 import { Button, Grid, Group, Skeleton, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type Editor, type JSONContent } from '@tiptap/react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useState, type FC, type FocusEvent } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import { useSearchSpaceAccess } from '../../../hooks/useSpaceAccess';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { useNamePrompt } from '../../namePrompt/useNamePrompt';
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
 import styles from './CommentForm.module.css';
@@ -68,6 +69,8 @@ export const CommentForm: FC<Props> = ({
         },
     });
 
+    const namePrompt = useNamePrompt('comment');
+
     const handleSubmit = commentForm.onSubmit(async () => {
         if (editor === null || editor.getText().trim() === '') return;
 
@@ -78,6 +81,14 @@ export const CommentForm: FC<Props> = ({
         );
         setShouldClearEditor(true);
     });
+
+    const handleEditorFocus = (event: FocusEvent<HTMLDivElement>) => {
+        if (!namePrompt.isNameNeeded || !(event.target instanceof HTMLElement))
+            return;
+        const field = event.target;
+        field.blur();
+        namePrompt.withName(() => field.focus());
+    };
 
     return (
         <form className={styles.form} onSubmit={handleSubmit}>
@@ -96,6 +107,7 @@ export const CommentForm: FC<Props> = ({
                     <Grid.Col
                         span={18}
                         miw={0}
+                        onFocusCapture={handleEditorFocus}
                         // Walkthrough anchor: the typed step of
                         // create:DashboardComments, with a suggestion the
                         // learner can use as written. Only the new-comment

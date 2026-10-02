@@ -10,6 +10,7 @@ import { IconUser } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
+import { NameStep } from '../../../features/namePrompt/NameStep';
 import { useOrganizationSettings } from '../../../hooks/organization/useOrganizationSettings';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import useApp from '../../../providers/App/useApp';
@@ -67,87 +68,93 @@ const InvitesModal: FC<{
     };
 
     return (
-        <MantineModal
-            opened={opened}
-            onClose={onClose}
-            title="Add user"
-            icon={IconUser}
-            size="lg"
-            cancelLabel={false}
-            actions={
-                <Button
-                    disabled={isSubmitting}
-                    loading={isSubmitting}
-                    type="submit"
-                    form="invite_user"
-                >
-                    {health.data?.hasEmailClient
-                        ? 'Send invite'
-                        : 'Generate invite'}
-                </Button>
-            }
-        >
-            <TrackPage
-                name={PageName.INVITE_MANAGEMENT_SETTINGS}
-                type={PageType.MODAL}
-                category={CategoryName.SETTINGS}
+        <NameStep trigger="invite" opened={opened} onClose={onClose}>
+            <MantineModal
+                opened={opened}
+                onClose={onClose}
+                title="Add user"
+                icon={IconUser}
+                size="lg"
+                cancelLabel={false}
+                actions={
+                    <Button
+                        disabled={isSubmitting}
+                        loading={isSubmitting}
+                        type="submit"
+                        form="invite_user"
+                    >
+                        {health.data?.hasEmailClient
+                            ? 'Send invite'
+                            : 'Generate invite'}
+                    </Button>
+                }
             >
-                <form
-                    id="invite_user"
-                    name="invite_user"
-                    onSubmit={form.onSubmit((values: SendInviteFormProps) =>
-                        handleSubmit(values),
-                    )}
+                <TrackPage
+                    name={PageName.INVITE_MANAGEMENT_SETTINGS}
+                    type={PageType.MODAL}
+                    category={CategoryName.SETTINGS}
                 >
-                    <Stack gap="md">
-                        <Group gap="xs" align="start" wrap="nowrap">
-                            <TextInput
-                                name="email"
-                                label="Enter user email address"
-                                placeholder="example@gmail.com"
-                                required
-                                disabled={isSubmitting}
-                                flex={1}
-                                {...form.getInputProps('email')}
-                            />
-                            {canManageOrganization && (
-                                <Select
-                                    data={Object.values(
-                                        OrganizationMemberRole,
-                                    ).map((orgMemberRole) => ({
-                                        value: orgMemberRole,
-                                        label: orgMemberRole.replace('_', ' '),
-                                    }))}
-                                    disabled={isSubmitting}
+                    <form
+                        id="invite_user"
+                        name="invite_user"
+                        onSubmit={form.onSubmit((values: SendInviteFormProps) =>
+                            handleSubmit(values),
+                        )}
+                    >
+                        <Stack gap="md">
+                            <Group gap="xs" align="start" wrap="nowrap">
+                                <TextInput
+                                    name="email"
+                                    label="Enter user email address"
+                                    placeholder="example@gmail.com"
                                     required
-                                    placeholder="Select role"
-                                    comboboxProps={{
-                                        position: 'bottom',
-                                        withinPortal: true,
-                                    }}
-                                    mt={20}
-                                    w={180}
-                                    {...form.getInputProps('role')}
+                                    disabled={isSubmitting}
+                                    flex={1}
+                                    {...form.getInputProps('email')}
                                 />
-                            )}
-                        </Group>
-                        {canManageOrganization && organizationSettings.data ? (
-                            <Text c="dimmed" fz="sm">
-                                New invite links expire after{' '}
-                                {inviteLinkExpirationDays}{' '}
-                                {inviteLinkExpirationDays === 1
-                                    ? 'day'
-                                    : 'days'}
-                                . You can change this in General settings.
-                            </Text>
-                        ) : null}
-                    </Stack>
-                </form>
-                {inviteLink && (
-                    <InviteSuccess invite={inviteLink} hasMarginTop />
-                )}
-            </TrackPage>
-        </MantineModal>
+                                {canManageOrganization && (
+                                    <Select
+                                        data={Object.values(
+                                            OrganizationMemberRole,
+                                        ).map((orgMemberRole) => ({
+                                            value: orgMemberRole,
+                                            label: orgMemberRole.replace(
+                                                '_',
+                                                ' ',
+                                            ),
+                                        }))}
+                                        disabled={isSubmitting}
+                                        required
+                                        placeholder="Select role"
+                                        comboboxProps={{
+                                            position: 'bottom',
+                                            withinPortal: true,
+                                        }}
+                                        mt={20}
+                                        w={180}
+                                        {...form.getInputProps('role')}
+                                    />
+                                )}
+                            </Group>
+                            {canManageOrganization &&
+                            organizationSettings.data ? (
+                                <Text c="dimmed" fz="sm">
+                                    New invite links expire after{' '}
+                                    {inviteLinkExpirationDays}{' '}
+                                    {inviteLinkExpirationDays === 1
+                                        ? 'day'
+                                        : 'days'}
+                                    . You can change this in General settings.
+                                </Text>
+                            ) : null}
+                        </Stack>
+                    </form>
+                    {inviteLink && (
+                        <InviteSuccess invite={inviteLink} hasMarginTop />
+                    )}
+                </TrackPage>
+            </MantineModal>
+        </NameStep>
     );
 };
 
