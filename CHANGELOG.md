@@ -1,3 +1,10 @@
+## [2.415.2](https://github.com/lightdash/lightdash/compare/2.415.1...2.415.2) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ai:** describe runSql rows as [] for empty results ([#30404](https://github.com/lightdash/lightdash/issues/30404)) ([ee51707](https://github.com/lightdash/lightdash/commit/ee51707c9bf2f7b68da3d38a16cfd517884d4f33))
+
 ## [2.415.1](https://github.com/lightdash/lightdash/compare/2.415.0...2.415.1) (2026-10-02)
 
 
