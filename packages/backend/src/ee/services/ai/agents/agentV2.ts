@@ -1758,6 +1758,7 @@ export const getAgentTools = (
                   enableDataAccess: args.enableDataAccess,
                   slackLinksOnly: args.slackLinksOnly,
                   sqlScope: args.sqlScope,
+                  hyphenatedIdentifiers: args.hyphenatedIdentifiers,
                   autoApproveSql: args.autoApproveSql,
                   autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                   useSlackStreamCard: args.useSlackStreamCard,
