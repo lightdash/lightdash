@@ -230,7 +230,7 @@ function Board({
                                                 className={classes.ticketIcon}
                                             />
                                             <Tooltip
-                                                label="Only followed tickets are shown individually."
+                                                label="Only tickets linked to your organization are shown individually."
                                                 events={{
                                                     hover: true,
                                                     focus: true,
@@ -428,9 +428,8 @@ function ProjectCard({
                             <Text fz="xs" c="dimmed">
                                 {group.ownRequestCount}{' '}
                                 {group.ownRequestCount === 1
-                                    ? 'ticket'
-                                    : 'tickets'}{' '}
-                                followed
+                                    ? 'linked ticket'
+                                    : 'linked tickets'}
                             </Text>
                         </Group>
                     )}
@@ -529,7 +528,7 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Priority</Table.Th>
                         <Table.Th>Progress</Table.Th>
-                        <Table.Th>Following</Table.Th>
+                        <Table.Th>Organization interest</Table.Th>
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -612,7 +611,7 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                         {entry.following
                                             ? `${entry.following} ${entry.following === 1 ? 'ticket' : 'tickets'}`
                                             : entry.type === 'ticket'
-                                              ? 'Following'
+                                              ? 'Linked ticket'
                                               : entry.hasDirectNeed
                                                 ? 'Interested'
                                                 : ''}
@@ -950,7 +949,7 @@ export function RoadmapProjects({
             description={
                 projectBoard
                     ? selectedProject?.project.description.trim() ||
-                      'Tickets your organization follows in this project.'
+                      'Tickets linked to your organization in this project.'
                     : 'Explore the Lightdash roadmap and track your organization’s feature requests.'
             }
             actions={
@@ -997,7 +996,10 @@ export function RoadmapProjects({
                                 setOnlyInterested(value === 'following')
                             }
                             data={[
-                                { value: 'following', label: 'Following' },
+                                {
+                                    value: 'following',
+                                    label: 'Organization interests',
+                                },
                                 { value: 'all', label: 'All' },
                             ]}
                         />
@@ -1115,7 +1117,7 @@ export function RoadmapProjects({
                                 projectBoard
                                     ? hasFilters
                                         ? 'No matching tickets'
-                                        : 'No followed tickets in this project'
+                                        : 'No linked tickets in this project'
                                     : requestsForbidden && !showProjects
                                       ? 'No feature requests yet'
                                       : hasFilters
@@ -1127,7 +1129,7 @@ export function RoadmapProjects({
                                     ? 'Only your organization’s visible requests in this project appear here.'
                                     : requestsForbidden && !showProjects
                                       ? 'Your organization has no feature requests yet.'
-                                      : 'Projects and tickets you follow will appear here.'
+                                      : 'Your organization’s project interests and feature requests will appear here.'
                             }
                             action={
                                 hasFilters ? (

@@ -32,7 +32,7 @@ export function FollowProjectButton({
             disabled={isSubmitted}
             onClick={onFollow}
         >
-            {isSubmitted ? 'Request sent' : 'Follow'}
+            {isSubmitted ? 'Request sent' : 'Register interest'}
         </Button>
     );
 }
