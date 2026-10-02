@@ -21,6 +21,7 @@ import {
     FilterGroupItem,
     FilterOperator,
     FilterRule,
+    getAllReferences,
     getCustomMetricDimensionId,
     getDimensionMapFromTables,
     getDimensions,
@@ -2819,6 +2820,7 @@ export class MetricQueryBuilder {
         const nonAggReferencingDd =
             this.getNonAggregateMetricsReferencingDistinct();
         const metricsWithCteReferences: Array<CompiledMetric> = [];
+        const metricsWithTableReference: Array<CompiledMetric> = [];
         const skippedDimensionReferences: Array<CompiledDimension> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -2840,10 +2842,16 @@ export class MetricQueryBuilder {
                     if (!nonAggReferencingDd.has(getItemId(metricObject))) {
                         metricsWithCteReferences.push(metricObject);
                     }
-                    const metricReferences = parseAllReferences(
-                        metricObject.sql,
-                        metricObject.table,
-                    );
+                    const references = getAllReferences(metricObject.sql);
+                    if (references.includes('TABLE')) {
+                        metricsWithTableReference.push(metricObject);
+                    }
+                    // ${TABLE} is the metric's own table, not a field
+                    const metricReferences = references
+                        .filter((reference) => reference !== 'TABLE')
+                        .map((reference) =>
+                            getParsedReference(reference, metricObject.table),
+                        );
                     metricReferences.forEach((metricReference) => {
                         const referenceId = getItemId({
                             table: metricReference.refTable,
@@ -2899,6 +2907,25 @@ export class MetricQueryBuilder {
                 );
             }
         });
+
+        // ${TABLE} only resolves in the raw scan. Fail loudly where the metric
+        // would be projected from CTEs that no longer have its table in scope.
+        const throwTableReferenceError = (metric: CompiledMetric) => {
+            throw new FieldReferenceError(
+                `Tried to reference \${TABLE} from metric "${getItemId(
+                    metric,
+                )}" in a query that aggregates tables separately. Reference a metric on "${
+                    metric.table
+                }" instead.`,
+            );
+        };
+        metricsWithTableReference
+            .filter(
+                (metric) =>
+                    nonAggReferencingDd.has(getItemId(metric)) ||
+                    nestedAggOuterIds.has(getItemId(metric)),
+            )
+            .forEach(throwTableReferenceError);
 
         // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];
@@ -3256,6 +3283,7 @@ export class MetricQueryBuilder {
             }
         });
         if (ctes.length > 0) {
+            metricsWithTableReference.forEach(throwTableReferenceError);
             const unaffectedMetrics = [
                 ...metricsObjects,
                 ...referencedMetricObjects,

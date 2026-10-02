@@ -2204,6 +2204,52 @@ export const EXPLORE_WITH_CROSS_TABLE_UNKNOWN_REFERENCE: Explore = {
     },
 };
 
+// Non-aggregate metric mixing ${TABLE}.column with a dimension on a joined table
+export const EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE: Explore = {
+    ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE,
+    tables: {
+        ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE.tables,
+        orders: {
+            ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE.tables.orders,
+            metrics: {
+                ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE.tables.orders
+                    .metrics,
+                premium_order_amount: {
+                    type: MetricType.NUMBER,
+                    name: 'premium_order_amount',
+                    label: 'Premium Order Amount',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.METRIC,
+                    sql: "SUM(CASE WHEN ${customers.customer_tier} = 'Premium' THEN ${TABLE}.amount END)",
+                    compiledSql:
+                        'SUM(CASE WHEN "customers".customer_tier = \'Premium\' THEN "orders".amount END)',
+                    tablesReferences: ['orders', 'customers'],
+                    hidden: false,
+                },
+                raw_revenue_per_customer: {
+                    type: MetricType.NUMBER,
+                    name: 'raw_revenue_per_customer',
+                    label: 'Raw Revenue Per Customer',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.METRIC,
+                    sql: 'SUM(${TABLE}.amount) / NULLIF(${customers.total_customers}, 0)',
+                    compiledSql:
+                        'SUM("orders".amount) / NULLIF(COUNT("customers".customer_id), 0)',
+                    tablesReferences: ['orders', 'customers'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+};
+
+export const METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE: CompiledMetricQuery = {
+    ...METRIC_QUERY_CROSS_TABLE,
+    metrics: ['orders_premium_order_amount'],
+};
+
 // Expected SQL for cross-table metric references with CTEs
 export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS (
     SELECT DISTINCT
