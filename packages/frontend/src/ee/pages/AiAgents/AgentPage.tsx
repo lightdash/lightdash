@@ -21,6 +21,7 @@ import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector
 import { AgentPageHeader } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentPageHeader';
 import { AgentSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
+import { NewThreadButton } from '../../features/aiCopilot/components/AiAgentPageLayout/NewThreadButton';
 import { launcherSession } from '../../features/aiCopilot/components/Launcher/launcherSession';
 import { useLauncherDock } from '../../features/aiCopilot/components/Launcher/useLauncherDock';
 import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
@@ -246,6 +247,14 @@ const AgentPage = () => {
             isEmbed={isEmbed}
             setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
             isAgentSidebarCollapsed={isAgentSidebarCollapsed}
+            SidebarHeader={
+                isEmbed ? undefined : (
+                    <NewThreadButton
+                        to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
+                        isCollapsed={isAgentSidebarCollapsed}
+                    />
+                )
+            }
             Sidebar={
                 isEmbed ? undefined : (
                     <AgentSidebar

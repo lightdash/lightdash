@@ -113,8 +113,10 @@
     }
 
     .threadNavLink:hover &,
+    .threadNavLink[data-active] &,
+    .threadNavLink:focus-within &,
     &:focus-visible,
-    &[data-expanded] {
+    &:has([aria-expanded='true']) {
         opacity: 1;
         pointer-events: auto;
     }

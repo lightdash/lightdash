@@ -4,7 +4,7 @@ import {
     type AiArtifact,
     type ApiError,
 } from '@lightdash/common';
-import { Box, Drawer, Flex, Group, Text } from '@mantine/core';
+import { Box, Drawer, Group, Text, Tooltip } from '@mantine/core';
 import {
     useDisclosure,
     useMediaQuery,
@@ -68,6 +68,7 @@ const renderPreviewPanel = (preview: AiPreview) => {
 
 interface Props extends PropsWithChildren {
     Sidebar?: React.ReactNode;
+    SidebarHeader?: React.ReactNode;
     Header?: React.ReactNode;
     MobileSidebarHeader?: React.ReactNode;
     isAgentSidebarCollapsed?: boolean;
@@ -77,6 +78,7 @@ interface Props extends PropsWithChildren {
 
 export const AiAgentPageLayout: React.FC<Props> = ({
     Sidebar,
+    SidebarHeader,
     Header,
     MobileSidebarHeader,
     children,
@@ -187,33 +189,59 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         }
                     >
                         <ErrorBoundary>
-                            <Flex
+                            <Group
                                 align="center"
-                                justify="flex-end"
+                                justify="space-between"
+                                gap={0}
+                                wrap="nowrap"
                                 className={styles.sidebarHeader}
+                                data-collapsed={
+                                    isAgentSidebarCollapsed ? true : undefined
+                                }
                             >
-                                <SidebarButton
-                                    aria-label={
+                                {SidebarHeader && (
+                                    <Box
+                                        flex={
+                                            isAgentSidebarCollapsed
+                                                ? undefined
+                                                : 1
+                                        }
+                                        miw={0}
+                                    >
+                                        {SidebarHeader}
+                                    </Box>
+                                )}
+                                <Tooltip
+                                    label={
                                         isAgentSidebarCollapsed
-                                            ? 'Expand Ask AI sidebar'
-                                            : 'Collapse Ask AI sidebar'
+                                            ? 'Expand sidebar'
+                                            : 'Collapse sidebar'
                                     }
-                                    size="sm"
-                                    leftSection={
-                                        <MantineIcon
-                                            size="md"
-                                            icon={
-                                                isAgentSidebarCollapsed
-                                                    ? IconLayoutSidebarLeftExpand
-                                                    : IconLayoutSidebarLeftCollapse
-                                            }
-                                            stroke={1.8}
-                                            color="ldGray.7"
-                                        />
-                                    }
-                                    onClick={toggleSidebar}
-                                />
-                            </Flex>
+                                    position="right"
+                                >
+                                    <SidebarButton
+                                        aria-label={
+                                            isAgentSidebarCollapsed
+                                                ? 'Expand Ask AI sidebar'
+                                                : 'Collapse Ask AI sidebar'
+                                        }
+                                        size="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                size="md"
+                                                icon={
+                                                    isAgentSidebarCollapsed
+                                                        ? IconLayoutSidebarLeftExpand
+                                                        : IconLayoutSidebarLeftCollapse
+                                                }
+                                                stroke={1.8}
+                                                color="ldGray.7"
+                                            />
+                                        }
+                                        onClick={toggleSidebar}
+                                    />
+                                </Tooltip>
+                            </Group>
 
                             {Sidebar}
                         </ErrorBoundary>
@@ -308,6 +336,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             {MobileSidebarHeader}
                         </Box>
                     )}
+                    {SidebarHeader && <Box mb="sm">{SidebarHeader}</Box>}
                     {Sidebar}
                 </Drawer>
             )}
