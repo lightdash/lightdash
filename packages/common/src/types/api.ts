@@ -420,7 +420,10 @@ import {
 import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
 import { type ShareUrl } from './share';
-import { type SharedSignInStatus } from './sharedSignIn';
+import {
+    type ApiWarehouseCredentialSummaryResponse,
+    type SharedSignInStatus,
+} from './sharedSignIn';
 import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
 import {
@@ -1368,6 +1371,7 @@ export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
     | SharedSignInStatus
+    | ApiWarehouseCredentialSummaryResponse['results']
     | ApiDbtSourceBindingsResponse['results']
     | ApiWarehouseConnectionSwitchAvailabilityResponse['results']
     | ApiWarehouseConnectionSwitchPlanResponse['results']

@@ -1,7 +1,14 @@
-import { PersonSignInProvider, SignInSubjectBasis } from '@lightdash/common';
+import {
+    PersonSignInProvider,
+    SignInSubjectBasis,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    getRunsAsLabel,
+    getServiceMethods,
     getSharedSignInExpiry,
+    getStopsWorkingLabel,
     isSharedSignInModalError,
     shouldOpenSharedSignInReconnectModal,
 } from './sharedSignInCopy';
@@ -124,4 +131,67 @@ describe('isSharedSignInModalError', () => {
             ).toBe(false);
         },
     );
+});
+
+describe('getRunsAsLabel', () => {
+    it('names a recorded subject', () => {
+        expect(
+            getRunsAsLabel({
+                provider: PersonSignInProvider.GOOGLE,
+                subject: { userUuid: 'u', name: 'Fran Founder' },
+                subjectBasis: SignInSubjectBasis.RECORDED,
+            }),
+        ).toBe("Runs as Fran Founder's Google sign-in.");
+    });
+
+    it('describes a creator guess without assigning ownership', () => {
+        expect(
+            getRunsAsLabel({
+                provider: PersonSignInProvider.SNOWFLAKE,
+                subject: { userUuid: 'u', name: 'Fran Founder' },
+                subjectBasis: SignInSubjectBasis.PROJECT_CREATOR,
+            }),
+        ).toBe(
+            "Runs as a person's Snowflake sign-in. Fran Founder created this project.",
+        );
+    });
+
+    it('still says it is a person when nobody is known', () => {
+        expect(
+            getRunsAsLabel({
+                provider: PersonSignInProvider.DATABRICKS,
+                subject: null,
+                subjectBasis: null,
+            }),
+        ).toBe("Runs as a person's Databricks sign-in.");
+    });
+});
+
+describe('getStopsWorkingLabel', () => {
+    it('gives the date when there is one', () => {
+        expect(getStopsWorkingLabel('2026-12-31T00:00:00.000Z')).toBe(
+            'This stops working on 31 December 2026.',
+        );
+    });
+
+    it('says it will stop without a date', () => {
+        expect(getStopsWorkingLabel(null)).toBe(
+            'This will stop working. A shared credential can only be a service account.',
+        );
+    });
+});
+
+describe('getServiceMethods', () => {
+    it('lists a method without a long-lived key first', () => {
+        expect(
+            getServiceMethods(WarehouseTypes.ATHENA).map(({ label }) => label),
+        ).toEqual(['IAM role with assume-role', 'Access keys']);
+    });
+
+    it("offers each sign-in warehouse's existing service method", () => {
+        expect(getServiceMethods(WarehouseTypes.BIGQUERY)).toHaveLength(1);
+        expect(getServiceMethods(WarehouseTypes.SNOWFLAKE)).toHaveLength(1);
+        expect(getServiceMethods(WarehouseTypes.DATABRICKS)).toHaveLength(1);
+        expect(getServiceMethods(WarehouseTypes.POSTGRES)).toEqual([]);
+    });
 });

@@ -269,6 +269,16 @@ export enum FeatureFlags {
     ConnectJourney = 'connect-journey',
 
     /**
+     * Warn that a shared person sign-in will stop working: the "Runs as
+     * <name>'s sign-in" warning with Add a service account, the setup line
+     * under each sign-in button and the schedule prompt on a connection
+     * with no service account. The credential's subject (whose sign-in it
+     * is) is recorded whatever the flag says; the flag gates what reads and
+     * shows it. Off by default; resolved per user and organization.
+     */
+    SharedSignInOwnership = 'shared-sign-in-ownership',
+
+    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a
