@@ -8,6 +8,7 @@ import {
     BigqueryTokenError,
     ChartType,
     CreateWarehouseCredentials,
+    DashboardTileTypes,
     DimensionType,
     DownloadFileType,
     DuckdbExecutionSpec,
@@ -12701,4 +12702,190 @@ describe('chart embed token query history access', () => {
             );
         },
     );
+});
+
+describe('embedded field value search dashboard scoping', () => {
+    const buildDashboardEmbedAccount = () =>
+        fromJwt({
+            decodedToken: defaultJwtToken,
+            embed: {
+                projectUuid,
+                organization: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    name: 'Test Organization',
+                    createdAt: new Date('2024-01-01'),
+                },
+                encodedSecret: 'test-encoded-secret',
+                dashboardUuids: [],
+                allowAllDashboards: true,
+                chartUuids: [],
+                allowAllCharts: false,
+                allowAllApps: false,
+                appUuids: [],
+                createdAt: '2024-01-01',
+                user: null,
+            },
+            source: 'test-jwt-token',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'embedded-dashboard-uuid',
+                chartUuids: [],
+                explores: [],
+            },
+            userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+        });
+
+    const buildFieldValueSearchService = () => {
+        const getByIdOrSlug = vi.fn(async () => ({
+            tiles: [
+                {
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { savedChartUuid: 'tile-chart-uuid' },
+                },
+            ],
+        }));
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            dashboardModel: { getByIdOrSlug } as unknown as DashboardModel,
+            savedChartModel: {
+                getInfoForAvailableFilters: vi.fn(async () => [
+                    { tableName: validExplore.name },
+                ]),
+            } as unknown as SavedChartModel,
+        });
+        const internals = service as AnyType;
+        internals.getWarehouseCredentialsWithConnection = vi
+            .fn()
+            .mockResolvedValue({
+                warehouseCredentials: {
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                },
+                warehouseConnectionUuid: 'connection-uuid',
+            });
+        service.combineParameters = vi.fn().mockResolvedValue(undefined);
+        internals.prepareMetricQueryAsyncQueryArgs = vi
+            .fn()
+            .mockImplementation(async () =>
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
+        const execute = vi.fn().mockResolvedValue({
+            queryUuid: 'queryUuid',
+            cacheMetadata: { cacheHit: false },
+        });
+        service['executeAsyncQuery'] = execute;
+        return { service, execute, getByIdOrSlug };
+    };
+
+    const runSearch = (
+        service: AsyncQueryService,
+        account: Account,
+        { table, fieldId }: { table: string; fieldId: string },
+    ) =>
+        service.executeAsyncFieldValueSearch({
+            account,
+            projectUuid,
+            table,
+            fieldId,
+            search: '',
+            limit: 10,
+            filters: undefined,
+            forceRefresh: false,
+            invalidateCache: false,
+            parameters: undefined,
+        } as never);
+
+    test('allows an embed account to search a field reachable from the dashboard explores', async () => {
+        const { service, execute } = buildFieldValueSearchService();
+        await expect(
+            runSearch(service, buildDashboardEmbedAccount(), {
+                table: 'a',
+                fieldId: 'a_dim1',
+            }),
+        ).resolves.toEqual(expect.objectContaining({ queryUuid: 'queryUuid' }));
+        expect(execute).toHaveBeenCalled();
+    });
+
+    test('refuses a table that is not reachable from the dashboard explores', async () => {
+        const { service, execute } = buildFieldValueSearchService();
+        await expect(
+            runSearch(service, buildDashboardEmbedAccount(), {
+                table: 'not_on_dashboard',
+                fieldId: 'not_on_dashboard_dim1',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    test('refuses a field id missing from the dashboard explores', async () => {
+        const { service, execute } = buildFieldValueSearchService();
+        await expect(
+            runSearch(service, buildDashboardEmbedAccount(), {
+                table: 'a',
+                fieldId: 'a_not_a_dimension',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    test('refuses an embed account without dashboard content', async () => {
+        const { service, execute } = buildFieldValueSearchService();
+        const chartEmbedAccount = fromJwt({
+            decodedToken: {
+                user: { externalId: 'external-user-123' },
+                content: { type: 'chart', contentId: 'source-chart-uuid' },
+            },
+            embed: {
+                projectUuid,
+                organization: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    name: 'Test Organization',
+                    createdAt: new Date('2024-01-01'),
+                },
+                encodedSecret: 'test-encoded-secret',
+                dashboardUuids: [],
+                allowAllDashboards: false,
+                chartUuids: ['source-chart-uuid'],
+                allowAllCharts: true,
+                allowAllApps: false,
+                appUuids: [],
+                createdAt: '2024-01-01',
+                user: null,
+            },
+            source: 'test-jwt-token',
+            content: {
+                type: 'chart',
+                dashboardUuid: undefined,
+                chartUuids: ['source-chart-uuid'],
+                explores: ['a'],
+            },
+            userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+        });
+        await expect(
+            runSearch(service, chartEmbedAccount, {
+                table: 'a',
+                fieldId: 'a_dim1',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    test('does not dashboard-scope session accounts', async () => {
+        const { service, execute, getByIdOrSlug } =
+            buildFieldValueSearchService();
+        await expect(
+            runSearch(service, sessionAccount, {
+                table: 'a',
+                fieldId: 'a_dim1',
+            }),
+        ).resolves.toEqual(expect.objectContaining({ queryUuid: 'queryUuid' }));
+        expect(getByIdOrSlug).not.toHaveBeenCalled();
+        expect(execute).toHaveBeenCalled();
+    });
 });

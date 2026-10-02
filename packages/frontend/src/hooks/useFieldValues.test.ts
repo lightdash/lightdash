@@ -590,4 +590,58 @@ describe('useFieldValues', () => {
             );
         });
     });
+
+    it('uses the async field-values search for embedded dashboards', async () => {
+        vi.mocked(useEmbed).mockReturnValue({
+            embedToken: 'embed-token',
+            content: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
+        } as unknown as ReturnType<typeof useEmbed>);
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce({
+                queryUuid: 'query-uuid',
+                cacheMetadata: { cacheHit: false },
+                valueFieldId: 'orders_status',
+                labelFieldId: null,
+            } as never)
+            .mockResolvedValueOnce({
+                status: QueryHistoryStatus.READY,
+                rows: [
+                    {
+                        orders_status: {
+                            value: { raw: 'active', formatted: 'active' },
+                        },
+                    },
+                ],
+                columns: {
+                    orders_status: {
+                        reference: 'orders_status',
+                        type: DimensionType.STRING,
+                    },
+                },
+            } as never);
+
+        const { result } = renderHookWithProviders(() =>
+            useFieldValues(
+                '',
+                [],
+                'project-uuid',
+                warehouseField,
+                'filter-uuid',
+                undefined,
+                false,
+            ),
+        );
+
+        await waitFor(() => {
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: '/projects/project-uuid/query/field-values',
+                    version: 'v2',
+                }),
+            );
+        });
+        await waitFor(() => {
+            expect(result.current.results).toEqual([{ value: 'active' }]);
+        });
+    });
 });

@@ -311,7 +311,7 @@ export const useFieldValues = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
 ) => {
-    const { embedToken } = useEmbed();
+    const { embedToken, content: embedContent } = useEmbed();
     const sessionTimezone = useSessionTimezone();
     const { data: resultsCacheFlag } = useServerFeatureFlag(
         FeatureFlags.ResultsCacheEnabled,
@@ -413,6 +413,21 @@ export const useFieldValues = (
     const query = useQuery<FieldValueSearchResult, ApiError>(
         cachekey,
         () => {
+            // Dashboard embeds use async execute+poll: the sync embed search
+            // runs the warehouse query inside one HTTP request and dies at
+            // the gateway when a cold warehouse scan is slow.
+            if (embedToken && embedContent?.type === 'dashboard' && projectId) {
+                return getFieldValuesAsync(
+                    projectId,
+                    tableName,
+                    fieldId,
+                    debouncedSearch,
+                    forceRefresh,
+                    filters,
+                    undefined,
+                    parameterValues,
+                );
+            }
             if (embedToken && filterId && projectId) {
                 return getEmbedFilterValues({
                     embedToken,
