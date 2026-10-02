@@ -1,3 +1,10 @@
+## [2.415.6](https://github.com/lightdash/lightdash/compare/2.415.5...2.415.6) (2026-10-02)
+
+
+### Bug Fixes
+
+* allow corporate domains wrongly flagged as public providers ([#30416](https://github.com/lightdash/lightdash/issues/30416)) ([8ed581f](https://github.com/lightdash/lightdash/commit/8ed581ffd93a5140744089fa1cfd1f13a150845c))
+
 ## [2.415.5](https://github.com/lightdash/lightdash/compare/2.415.4...2.415.5) (2026-10-02)
 
 
