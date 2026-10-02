@@ -1399,6 +1399,8 @@ type ProjectCompiledEvent = BaseTrack & {
         modelsWithSqlFiltersCount: number;
         columnAccessFiltersCount: number;
         additionalDimensionsCount: number;
+        nestedFieldsCount: number;
+        hasProjectContext: boolean;
         dbtSourceCount: number;
     };
 };
@@ -3149,6 +3151,7 @@ export type AiAgentCreatedEvent = BaseTrack & {
         modelProvider: string | null;
         modelName: string | null;
         reasoningEnabled: boolean | null;
+        contentToolsEnabled: boolean;
         autoProvisioned?: boolean;
     };
 };
@@ -3250,6 +3253,7 @@ export type AiAgentUpdatedEvent = BaseTrack & {
         modelProvider: string | null;
         modelName: string | null;
         reasoningEnabled: boolean | null;
+        contentToolsEnabled: boolean;
     };
 };
 
