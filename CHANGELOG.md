@@ -1,3 +1,10 @@
+## [2.423.2](https://github.com/lightdash/lightdash/compare/2.423.1...2.423.2) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ai-agents:** render uploaded agent avatars in embedded sessions ([#30442](https://github.com/lightdash/lightdash/issues/30442)) ([6a06efb](https://github.com/lightdash/lightdash/commit/6a06efb3cd1a53fe369f6beb0de3e3a29f70410d))
+
 ## [2.423.1](https://github.com/lightdash/lightdash/compare/2.423.0...2.423.1) (2026-10-02)
 
 
