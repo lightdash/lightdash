@@ -1,4 +1,8 @@
-import type { ApiErrorDetail } from '@lightdash/common';
+import {
+    FeatureFlags,
+    isPersonalSignInExpiredMessage,
+    type ApiErrorDetail,
+} from '@lightdash/common';
 import { Box, Button, Stack, type MantineColor } from '@mantine/core';
 import {
     notifications,
@@ -18,6 +22,7 @@ import { v4 as uuid } from 'uuid';
 import MantineIcon, {
     type MantineIconSize,
 } from '../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
 import {
@@ -63,6 +68,9 @@ const TOAST_VARIANTS: Record<
 };
 
 const useToaster = () => {
+    const expiredSignInFlag = useServerFeatureFlag(
+        FeatureFlags.ExpiredSignInState,
+    );
     const openedKeys = useRef(new Set<string>());
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
 
@@ -81,7 +89,9 @@ const useToaster = () => {
             if (
                 variant === 'error' &&
                 rest.apiError &&
-                shouldSuppressSharedSignInToast(rest.apiError, projectUuid)
+                (shouldSuppressSharedSignInToast(rest.apiError, projectUuid) ||
+                    (expiredSignInFlag.data?.enabled === true &&
+                        isPersonalSignInExpiredMessage(rest.apiError.message)))
             )
                 return;
             const variantConfig = TOAST_VARIANTS[variant];
@@ -172,7 +182,7 @@ const useToaster = () => {
                 ...rest,
             });
         },
-        [],
+        [expiredSignInFlag.data?.enabled],
     );
 
     const showToastSuccess = useCallback(

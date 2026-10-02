@@ -2,7 +2,7 @@ import { allowsOptionalUserCredentials } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { matchRoutes, useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
@@ -11,6 +11,7 @@ import {
     useProjectUserWarehouseCredentialsPreferenceMutation,
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
 import { useProjectUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { warehouseSignInStatusQueryKey } from '../../hooks/useWarehouseSignInStatus';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
@@ -18,18 +19,16 @@ import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPa
 import AppColorSchemeScope from './AppColorSchemeScope';
 import { useNavBarMenuProps } from './NavBarPortalContext';
 import { routesThatNeedWarehouseCredentials } from './routesThatNeedWarehouseCredentials';
+import { usePersonalSignInPrompt } from './usePersonalSignInPrompt';
 
 const UserCredentialsSwitcher = () => {
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
     const location = useLocation();
-    const [showCreateModalOnPageLoad, setShowCreateModalOnPageLoad] =
-        useState(false);
     const isRouteThatNeedsWarehouseCredentials = !!matchRoutes(
         routesThatNeedWarehouseCredentials.map((path) => ({ path })),
         location,
     );
-    const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const queryClient = useQueryClient();
 
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
@@ -42,15 +41,6 @@ const UserCredentialsSwitcher = () => {
     } = useProjectUserWarehouseCredentials(activeProjectUuid);
     const { data: preferredCredentials } =
         useProjectUserWarehouseCredentialsPreference(activeProjectUuid);
-    const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
-        onSuccess: () => {
-            if (isRouteThatNeedsWarehouseCredentials) {
-                // reload page because we can't invalidate the results mutation
-                window.location.reload();
-            }
-        },
-    });
-
     const compatibleCredentials = useMemo(() => {
         return userWarehouseCredentials?.filter(
             ({ credentials }) =>
@@ -58,104 +48,41 @@ const UserCredentialsSwitcher = () => {
         );
     }, [userWarehouseCredentials, activeProject]);
 
-    // Listen for SnowflakeTokenError in query client
-    useEffect(() => {
-        const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-            if (event.type === 'updated') {
-                const query = event.query;
-
-                if (query.state.error) {
-                    const error = query.state.error as any;
-                    // Re-open the credentials modal whenever a query fails
-                    // because the user has no warehouse credentials
-                    if (
-                        error?.error?.name ===
-                            'MissingWarehouseCredentialsError' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
-                    ) {
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                    // Check if this is a SnowflakeTokenError and we have a Snowflake project
-                    if (
-                        error?.error?.name === 'SnowflakeTokenError' &&
-                        activeProject?.warehouseConnection?.type ===
-                            'snowflake' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
-                    ) {
-                        console.info('Triggering reauth modal for Snowflake');
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                    if (
-                        error?.error?.name === 'DatabricksTokenError' &&
-                        activeProject?.warehouseConnection?.type ===
-                            'databricks' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
-                    ) {
-                        console.info('Triggering reauth modal for Databricks');
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                    if (
-                        error?.error?.name === 'BigqueryTokenError' &&
-                        activeProject?.warehouseConnection?.type ===
-                            'bigquery' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
-                    ) {
-                        console.info('Triggering reauth modal for BigQuery');
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                    if (
-                        error?.error?.name === 'RedshiftIamTokenError' &&
-                        activeProject?.warehouseConnection?.type ===
-                            'redshift' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
-                    ) {
-                        console.info('Triggering reauth modal for Redshift');
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                }
-            }
-        });
-
-        return unsubscribe;
-    }, [
-        queryClient,
-        activeProject?.warehouseConnection?.type,
-        activeProject?.warehouseConnection?.requireUserCredentials,
-    ]);
-
-    useEffect(() => {
-        // reset state when page changes
-        setShowCreateModalOnPageLoad(false);
-    }, [location.pathname]);
-
-    useEffect(() => {
-        // open create modal on page load if there are no compatible credentials
-        if (
-            isRouteThatNeedsWarehouseCredentials &&
-            !showCreateModalOnPageLoad &&
-            activeProject?.warehouseConnection?.requireUserCredentials &&
-            !!compatibleCredentials &&
-            compatibleCredentials.length === 0
-        ) {
-            setShowCreateModalOnPageLoad(true);
-            setIsCreatingCredentials(true);
-        }
-    }, [
-        isRouteThatNeedsWarehouseCredentials,
+    const {
         showCreateModalOnPageLoad,
-        activeProject,
-        compatibleCredentials,
-    ]);
+        isCreatingCredentials,
+        setIsCreatingCredentials,
+        isExpiredSignIn,
+        setIsExpiredSignIn,
+    } = usePersonalSignInPrompt({
+        activeProjectUuid,
+        warehouseType: activeProject?.warehouseConnection?.type,
+        requireUserCredentials:
+            activeProject?.warehouseConnection?.requireUserCredentials,
+        pathname: location.pathname,
+        isRouteThatNeedsWarehouseCredentials,
+        compatibleCredentialsCount: compatibleCredentials?.length,
+    });
+
+    const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
+        onSuccess: () => {
+            if (isExpiredSignIn && activeProjectUuid) {
+                queryClient.removeQueries({
+                    queryKey: warehouseSignInStatusQueryKey(activeProjectUuid),
+                });
+                void queryClient.invalidateQueries().then(() => {
+                    window.dispatchEvent(
+                        new CustomEvent('warehouse-sign-in-reconnected', {
+                            detail: activeProjectUuid,
+                        }),
+                    );
+                });
+            } else if (isRouteThatNeedsWarehouseCredentials) {
+                // reload page because we can't invalidate the results mutation
+                window.location.reload();
+            }
+        },
+    });
 
     // Show the switcher when personal credentials are mandatory, or when they
     // are optional for this warehouse type and the user already has some
@@ -221,6 +148,7 @@ const UserCredentialsSwitcher = () => {
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={() => {
+                            setIsExpiredSignIn(false);
                             setIsCreatingCredentials(true);
                         }}
                     >
@@ -232,6 +160,7 @@ const UserCredentialsSwitcher = () => {
                 <AppColorSchemeScope>
                     <CreateCredentialsModal
                         opened={isCreatingCredentials}
+                        expiredSignIn={isExpiredSignIn}
                         title={
                             showCreateModalOnPageLoad
                                 ? `Login to ${getWarehouseLabel(

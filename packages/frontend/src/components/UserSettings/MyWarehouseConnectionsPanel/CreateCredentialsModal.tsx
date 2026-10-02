@@ -25,6 +25,7 @@ import {
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
+    expiredSignIn?: boolean;
     title?: string;
     description?: React.ReactNode;
     nameValue?: string;
@@ -102,6 +103,7 @@ const FORM_ID = 'create-credentials-form';
 
 export const CreateCredentialsModal: FC<Props> = ({
     opened,
+    expiredSignIn,
     onClose,
     title,
     description,
@@ -149,7 +151,11 @@ export const CreateCredentialsModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={title ?? 'Add new credentials'}
+            title={
+                expiredSignIn
+                    ? `Your ${getWarehouseLabel(warehouseType)} sign-in has expired`
+                    : (title ?? 'Add new credentials')
+            }
             icon={IconPlus}
             actions={
                 showSaveButton ? (
@@ -176,7 +182,9 @@ export const CreateCredentialsModal: FC<Props> = ({
                 })}
             >
                 <Stack gap="xs">
-                    {description}
+                    {expiredSignIn
+                        ? 'Sign in again to keep querying with your own account.'
+                        : description}
 
                     {!nameValue && (
                         <TextInput

@@ -63,6 +63,7 @@ import {
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getMetricsWithValidParameters,
+    getPersonalSignInExpiredMessage,
     getPivotValueColumnName,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
@@ -78,6 +79,7 @@ import {
     isMergeMetricSource,
     isMergeResultSource,
     isMetric,
+    isPersonalSignInExpiredMessage,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -103,6 +105,7 @@ import {
     QueryHistoryListFilters,
     QueryHistoryStatus,
     QuerySourceType,
+    RedshiftIamTokenError,
     resolveQueryTimezone,
     ResultRow,
     ResultsExpiredError,
@@ -252,7 +255,10 @@ import {
     hasBlockingTotalFilters,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
-import { personaliseSharedSignInError } from '../../utils/sharedSignInExpiry';
+import {
+    isWarehouseTokenError,
+    personaliseSharedSignInError,
+} from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import type { ICacheService } from '../CacheService/ICacheService';
@@ -3144,6 +3150,12 @@ export class AsyncQueryService extends ProjectService {
                 this.logger.warn(
                     `Pre-aggregate execution (${preAggregateExecution}) failed for ${queryUuid} and execution fallback is disabled. Marking query as errored`,
                 );
+                const failureMessage = getErrorMessage(
+                    personaliseSharedSignInError(
+                        preAggregateError,
+                        isRegisteredUser && !isEmbedOrigin ? userUuid : null,
+                    ),
+                );
                 await this.markAsyncQueryErrored({
                     queryUuid,
                     projectUuid,
@@ -3155,14 +3167,9 @@ export class AsyncQueryService extends ProjectService {
                     queryTags,
                     queryCreatedAt,
                     queryUsage,
-                    errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
-                        personaliseSharedSignInError(
-                            preAggregateError,
-                            isRegisteredUser && !isEmbedOrigin
-                                ? userUuid
-                                : null,
-                        ),
-                    )}`,
+                    errorMessage: isPersonalSignInExpiredMessage(failureMessage)
+                        ? failureMessage
+                        : `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${failureMessage}`,
                     executionSource:
                         preAggregateExecution === 'duckdb'
                             ? 'pre_aggregate_duckdb'
@@ -3631,6 +3638,8 @@ export class AsyncQueryService extends ProjectService {
         let warehouseConnectionUuid = resolvedConnectionUuid;
         let connectionRoute = resolvedConnectionRoute;
         let connectionWarehouseType = resolvedConnectionWarehouseType ?? null;
+        let personalWarehouseType: CreateWarehouseCredentials['type'] | null =
+            null;
 
         const analyticsIdentity = isRegisteredUser
             ? { userId: userUuid }
@@ -3661,6 +3670,12 @@ export class AsyncQueryService extends ProjectService {
                     isServiceAccount,
                 });
             const { warehouseCredentials } = resolvedCredentials;
+            if (
+                'userWarehouseCredentialsUuid' in warehouseCredentials &&
+                warehouseCredentials.userWarehouseCredentialsUuid
+            ) {
+                personalWarehouseType = warehouseCredentials.type;
+            }
 
             warehouseConnectionUuid =
                 resolvedCredentials.warehouseConnectionUuid;
@@ -4098,12 +4113,14 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 queryCreatedAt,
                 queryUsage,
-                errorMessage: getErrorMessage(
-                    personaliseSharedSignInError(
-                        e,
-                        isRegisteredUser && !isEmbedOrigin ? userUuid : null,
-                    ),
-                ),
+                errorMessage: await this.getQuerySignInErrorMessage({
+                    error: e,
+                    personalWarehouseType,
+                    organizationUuid,
+                    userUuid,
+                    isRegisteredUser,
+                    isEmbedOrigin: isEmbedOrigin === true,
+                }),
                 executionSource,
                 warehouseType: warehouseCredentialsType ?? null,
                 warehouseConnectionUuid,
@@ -4127,6 +4144,54 @@ export class AsyncQueryService extends ProjectService {
             // Throw the error again so that it can be added to the span
             throw e;
         }
+    }
+
+    private async getQuerySignInErrorMessage({
+        error,
+        personalWarehouseType,
+        organizationUuid,
+        userUuid,
+        isRegisteredUser,
+        isEmbedOrigin,
+    }: {
+        error: unknown;
+        personalWarehouseType: CreateWarehouseCredentials['type'] | null;
+        organizationUuid: string;
+        userUuid: string;
+        isRegisteredUser: boolean;
+        isEmbedOrigin: boolean;
+    }): Promise<string> {
+        if (isPersonalSignInExpiredMessage(getErrorMessage(error))) {
+            return getErrorMessage(error);
+        }
+        if (
+            personalWarehouseType !== null &&
+            (isWarehouseTokenError(error) ||
+                error instanceof RedshiftIamTokenError) &&
+            error.data.rejection !== null
+        ) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid, userUuid },
+                featureFlagId: FeatureFlags.ExpiredSignInState,
+            });
+            if (enabled) {
+                switch (personalWarehouseType) {
+                    case WarehouseTypes.BIGQUERY:
+                    case WarehouseTypes.SNOWFLAKE:
+                    case WarehouseTypes.DATABRICKS:
+                    case WarehouseTypes.REDSHIFT:
+                        return `${getPersonalSignInExpiredMessage(personalWarehouseType)}\n\n${getErrorMessage(error)}`;
+                    default:
+                        break;
+                }
+            }
+        }
+        return getErrorMessage(
+            personaliseSharedSignInError(
+                error,
+                isRegisteredUser && !isEmbedOrigin ? userUuid : null,
+            ),
+        );
     }
 
     /**

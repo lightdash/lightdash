@@ -213,6 +213,7 @@ describe('FeatureFlagModel', () => {
     describe.each([
         FeatureFlags.PreviewSsoCredentialSync,
         FeatureFlags.WarehouseSignInMark,
+        FeatureFlags.ExpiredSignInState,
         FeatureFlags.WarehouseSignInCheck,
         FeatureFlags.LightGoogleReconnect,
     ])('%s', (featureFlagId) => {

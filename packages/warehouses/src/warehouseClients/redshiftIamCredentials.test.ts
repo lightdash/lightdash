@@ -2,8 +2,8 @@
 import {
     CreateRedshiftCredentials,
     RedshiftAuthenticationType,
-    RedshiftIamTokenError,
     WarehouseConnectionError,
+    WarehouseSignInRejection,
     WarehouseTypes,
 } from '@lightdash/common';
 
@@ -241,7 +241,10 @@ describe('mintRedshiftIamCredentials', () => {
 
         await expect(
             mintRedshiftIamCredentials(provisionedCredentials),
-        ).rejects.toThrow(RedshiftIamTokenError);
+        ).rejects.toMatchObject({
+            name: 'RedshiftIamTokenError',
+            data: { rejection: WarehouseSignInRejection.INVALID_GRANT },
+        });
     });
 });
 

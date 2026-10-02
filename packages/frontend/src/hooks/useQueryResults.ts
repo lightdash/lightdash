@@ -3,6 +3,7 @@ import {
     DEFAULT_RESULTS_PAGE_SIZE,
     DownloadFileType,
     isBigqueryTokenErrorMessage,
+    getPersonalSignInExpiredWarehouse,
     isPreviewWarehouseSignInExpiredMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
     MAX_SAFE_INTEGER,
@@ -69,22 +70,40 @@ const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
 
 const getAsyncQueryErrorType = (
     message: string,
-): Pick<ApiError['error'], 'name' | 'statusCode'> => {
+): Pick<ApiError['error'], 'name' | 'statusCode' | 'data'> => {
+    const personalWarehouse = getPersonalSignInExpiredWarehouse(message);
+    if (personalWarehouse !== null) {
+        const names = {
+            bigquery: 'BigqueryTokenError',
+            snowflake: 'SnowflakeTokenError',
+            databricks: 'DatabricksTokenError',
+            redshift: 'RedshiftIamTokenError',
+        } as const;
+        return {
+            name: names[personalWarehouse],
+            statusCode: 401,
+            data: { personalSignInExpired: true },
+        };
+    }
     if (isRedshiftIamTokenErrorMessage(message)) {
-        return { name: 'RedshiftIamTokenError', statusCode: 401 };
+        return { name: 'RedshiftIamTokenError', statusCode: 401, data: {} };
     }
     if (isPreviewWarehouseSignInExpiredMessage(message)) {
-        return { name: 'PreviewWarehouseSignInExpiredError', statusCode: 401 };
+        return {
+            name: 'PreviewWarehouseSignInExpiredError',
+            statusCode: 401,
+            data: {},
+        };
     }
     if (isBigqueryTokenErrorMessage(message)) {
-        return { name: 'BigqueryTokenError', statusCode: 401 };
+        return { name: 'BigqueryTokenError', statusCode: 401, data: {} };
     }
-    return { name: 'Error', statusCode: 500 };
+    return { name: 'Error', statusCode: 500, data: {} };
 };
 
 export const getAsyncQueryError = (message: string | null): ApiError => {
     const errorMessage = message || 'Query failed';
-    const { name, statusCode } = getAsyncQueryErrorType(errorMessage);
+    const { name, statusCode, data } = getAsyncQueryErrorType(errorMessage);
 
     return {
         status: 'error',
@@ -92,7 +111,7 @@ export const getAsyncQueryError = (message: string | null): ApiError => {
             name,
             statusCode,
             message: errorMessage,
-            data: {},
+            data: data ?? {},
         },
     };
 };

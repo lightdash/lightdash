@@ -8,6 +8,7 @@ import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
 import { Link } from 'react-router';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
+import { useIsPersonalSignInExpired } from '../../../hooks/useIsPersonalSignInExpired';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
@@ -17,6 +18,7 @@ import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
+import { SignInExpiredState } from '../../common/SignInExpiredState';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
 import classes from './ExplorerResultsNonIdealStates.module.css';
@@ -201,6 +203,11 @@ export const ExploreErrorState = ({
     errorDetail?: ApiErrorDetail | null;
 }) => {
     const isEmbedded = useIsEmbedded();
+    const isExpiredSignIn = useIsPersonalSignInExpired(errorDetail?.message);
+
+    if (isExpiredSignIn) {
+        return <SignInExpiredState details={errorDetail?.message ?? ''} />;
+    }
 
     return (
         <EmptyState

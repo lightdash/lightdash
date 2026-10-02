@@ -33,6 +33,7 @@ import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboar
 import { getConnectionName } from '../common/connectionName';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
+import { QueryErrorMessageState } from '../common/QueryErrorState';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import BigNumberView from '../DataViz/visualizations/BigNumberView';
 import ChartView from '../DataViz/visualizations/ChartView';
@@ -315,14 +316,18 @@ const SqlChartTile: FC<Props> = ({
                 }
             >
                 {chartResultsError && (
-                    <SuboptimalState
-                        icon={IconAlertCircle}
-                        title={tile.properties.chartName}
-                        description={
-                            chartResultsError?.error?.message ||
-                            'Error running query'
-                        }
-                    />
+                    <QueryErrorMessageState
+                        message={chartResultsError.error?.message}
+                    >
+                        <SuboptimalState
+                            icon={IconAlertCircle}
+                            title={tile.properties.chartName}
+                            description={
+                                chartResultsError.error?.message ||
+                                'Error running query'
+                            }
+                        />
+                    </QueryErrorMessageState>
                 )}
             </TileBase>
         );

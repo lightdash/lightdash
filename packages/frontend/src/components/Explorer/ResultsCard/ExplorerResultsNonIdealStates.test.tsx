@@ -1,5 +1,7 @@
 import {
     getPreviewWarehouseSignInExpiredMessage,
+    getPersonalSignInExpiredMessage,
+    WarehouseTypes,
     type ApiErrorDetail,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
@@ -65,6 +67,21 @@ describe('ExploreErrorState in a preview', () => {
 });
 
 describe('getAsyncQueryError', () => {
+    it.each([
+        [WarehouseTypes.BIGQUERY, 'BigqueryTokenError'],
+        [WarehouseTypes.SNOWFLAKE, 'SnowflakeTokenError'],
+        [WarehouseTypes.DATABRICKS, 'DatabricksTokenError'],
+        [WarehouseTypes.REDSHIFT, 'RedshiftIamTokenError'],
+    ] as const)('maps %s personal expiry to %s', (warehouse, name) => {
+        expect(
+            getAsyncQueryError(getPersonalSignInExpiredMessage(warehouse))
+                .error,
+        ).toMatchObject({
+            name,
+            statusCode: 401,
+            data: { personalSignInExpired: true },
+        });
+    });
     it('names the preview sign-in error so the browser can tell it apart', () => {
         expect(
             getAsyncQueryError(

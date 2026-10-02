@@ -11,8 +11,10 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useIsPersonalSignInExpired } from '../../hooks/useIsPersonalSignInExpired';
 import { EmptyState } from '../common/EmptyState';
 import MantineIcon from '../common/MantineIcon';
+import { QueryErrorState } from '../common/QueryErrorState';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CustomVisualization from '../CustomVisualization';
 import DataAppVizRenderer from '../DataAppVizRenderer';
@@ -106,6 +108,9 @@ const LightdashVisualization = memo(
         ) => {
             const { visualizationConfig, minimal, apiErrorDetail } =
                 useVisualizationContext();
+            const isExpiredSignIn = useIsPersonalSignInExpired(
+                apiErrorDetail?.message,
+            );
 
             const { sentinelRef, isVisible } = useDeferredVisibility(
                 isDashboard && !minimal,
@@ -117,50 +122,56 @@ const LightdashVisualization = memo(
 
             if (apiErrorDetail) {
                 return (
-                    <div
-                        ref={ref}
-                        className={className}
-                        data-testid={props['data-testid']}
+                    <QueryErrorState
+                        isExpiredSignIn={isExpiredSignIn}
+                        details={apiErrorDetail.message}
                     >
-                        <EmptyState
-                            icon={
-                                // Icon consistent with SuboptimalState in charts
-                                <MantineIcon
-                                    color="ldGray.5"
-                                    size="xxl"
-                                    icon={IconChartBarOff}
-                                />
-                            }
-                            h="100%"
-                            w="100%"
-                            justify="center"
-                            title="Unable to load visualization"
-                            description={
-                                <Fragment>
-                                    <Text className={classes.errorMessage}>
-                                        {apiErrorDetail.message || ''}
-                                    </Text>
-                                    {apiErrorDetail.data.documentationUrl && (
-                                        <Fragment>
-                                            <Anchor
-                                                href={
-                                                    apiErrorDetail.data
-                                                        .documentationUrl
-                                                }
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                fz="xs"
-                                                fw="bold"
-                                            >
-                                                Learn how to resolve this in our
-                                                documentation →
-                                            </Anchor>
-                                        </Fragment>
-                                    )}
-                                </Fragment>
-                            }
-                        ></EmptyState>
-                    </div>
+                        <div
+                            ref={ref}
+                            className={className}
+                            data-testid={props['data-testid']}
+                        >
+                            <EmptyState
+                                icon={
+                                    // Icon consistent with SuboptimalState in charts
+                                    <MantineIcon
+                                        color="ldGray.5"
+                                        size="xxl"
+                                        icon={IconChartBarOff}
+                                    />
+                                }
+                                h="100%"
+                                w="100%"
+                                justify="center"
+                                title="Unable to load visualization"
+                                description={
+                                    <Fragment>
+                                        <Text className={classes.errorMessage}>
+                                            {apiErrorDetail.message || ''}
+                                        </Text>
+                                        {apiErrorDetail.data
+                                            .documentationUrl && (
+                                            <Fragment>
+                                                <Anchor
+                                                    href={
+                                                        apiErrorDetail.data
+                                                            .documentationUrl
+                                                    }
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    fz="xs"
+                                                    fw="bold"
+                                                >
+                                                    Learn how to resolve this in
+                                                    our documentation →
+                                                </Anchor>
+                                            </Fragment>
+                                        )}
+                                    </Fragment>
+                                }
+                            ></EmptyState>
+                        </div>
+                    </QueryErrorState>
                 );
             }
 

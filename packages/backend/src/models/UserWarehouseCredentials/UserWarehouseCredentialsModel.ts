@@ -204,6 +204,7 @@ export class UserWarehouseCredentialsModel {
                 needs_sign_in_at: new Date(),
                 needs_sign_in_reason: reason,
             });
+        clearCachedWarehouseSignInStatus(uuid);
     }
 
     async clearNeedsSignIn(uuid: string): Promise<void> {

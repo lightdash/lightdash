@@ -117,6 +117,7 @@ import {
     getMetrics,
     getModelsFromManifest,
     getParameterReferences,
+    getPersonalSignInExpiredMessage,
     getPersonSignIn,
     getPreAggregateExploreName,
     getRequestMethod,
@@ -210,6 +211,7 @@ import {
     ProjectType,
     QueryExecutionContext,
     RedshiftAuthenticationType,
+    RedshiftIamTokenError,
     RegisteredAccount,
     ReplaceableCustomFields,
     ReplaceCustomFields,
@@ -286,6 +288,7 @@ import {
     type ParameterDefinitions,
     type ParameterFallbackSources,
     type ParametersValuesMap,
+    type PersonalSignInWarehouse,
     type RunQueryTags,
     type SharedSignInStatus,
     type SignInSubject,
@@ -3357,17 +3360,63 @@ export class ProjectService extends BaseService {
         }
     }
 
+    private async isExpiredSignInStateEnabled(
+        projectUuid: string,
+    ): Promise<boolean> {
+        try {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            return (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid },
+                    featureFlagId: FeatureFlags.ExpiredSignInState,
+                })
+            ).enabled;
+        } catch (flagError) {
+            this.logger.warn(
+                `Could not resolve expired sign-in flag: ${getErrorMessage(flagError)}`,
+            );
+            return false;
+        }
+    }
+
     private async markPersonalCredentialOnRejection(
         projectUuid: string,
         uuid: string,
         error: unknown,
     ): Promise<void> {
-        if (!isWarehouseTokenError(error)) return;
+        if (
+            !(
+                isWarehouseTokenError(error) ||
+                error instanceof RedshiftIamTokenError
+            )
+        )
+            return;
         const rejection = error.data.rejection as
             | WarehouseSignInRejection
             | null
             | undefined;
         if (rejection == null) return;
+        const expiredStateEnabled =
+            await this.isExpiredSignInStateEnabled(projectUuid);
+        if (expiredStateEnabled) {
+            let warehouseType: PersonalSignInWarehouse;
+            if (error instanceof BigqueryTokenError) {
+                warehouseType = WarehouseTypes.BIGQUERY;
+            } else if (error instanceof SnowflakeTokenError) {
+                warehouseType = WarehouseTypes.SNOWFLAKE;
+            } else if (error instanceof DatabricksTokenError) {
+                warehouseType = WarehouseTypes.DATABRICKS;
+            } else {
+                warehouseType = WarehouseTypes.REDSHIFT;
+            }
+            Object.assign(error, {
+                message: `${getPersonalSignInExpiredMessage(warehouseType)}\n\n${error.message}`,
+            });
+            Object.assign(error.data, { personalSignInExpired: true });
+        }
+        if (error instanceof RedshiftIamTokenError && !expiredStateEnabled)
+            return;
         try {
             if (!(await this.isPersonalSignInMarkEnabled(projectUuid))) return;
             await this.userWarehouseCredentialsModel.markNeedsSignIn(
@@ -3404,10 +3453,7 @@ export class ProjectService extends BaseService {
             userWarehouseCredentialsUuid?: string;
             userWarehouseCredentialsNeedsSignIn?: boolean;
         };
-        if (
-            credentials.type !== WarehouseTypes.BIGQUERY ||
-            !personal.userWarehouseCredentialsUuid
-        ) {
+        if (!personal.userWarehouseCredentialsUuid) {
             return client;
         }
         const uuid = personal.userWarehouseCredentialsUuid;
@@ -3421,7 +3467,13 @@ export class ProjectService extends BaseService {
                     if (!(result instanceof Promise)) return result;
                     return result.then(
                         async (answer: unknown) => {
-                            if (needsSignIn) {
+                            if (
+                                needsSignIn &&
+                                (credentials.type === WarehouseTypes.BIGQUERY ||
+                                    (await this.isExpiredSignInStateEnabled(
+                                        projectUuid,
+                                    )))
+                            ) {
                                 needsSignIn = false;
                                 await this.clearPersonalCredentialAfterSuccess(
                                     projectUuid,
@@ -3432,8 +3484,13 @@ export class ProjectService extends BaseService {
                         },
                         async (error: unknown) => {
                             if (
-                                isWarehouseTokenError(error) &&
-                                error.data.rejection != null
+                                (isWarehouseTokenError(error) ||
+                                    error instanceof RedshiftIamTokenError) &&
+                                error.data.rejection != null &&
+                                (credentials.type === WarehouseTypes.BIGQUERY ||
+                                    (await this.isExpiredSignInStateEnabled(
+                                        projectUuid,
+                                    )))
                             ) {
                                 await this.markPersonalCredentialOnRejection(
                                     projectUuid,
@@ -3574,6 +3631,13 @@ export class ProjectService extends BaseService {
             featureFlagId: FeatureFlags.WarehouseSignInCheck,
         });
         if (!flag.enabled) return { signIn: null };
+        const expiredSignInState = await this.featureFlagModel.get({
+            user: {
+                organizationUuid: project.organizationUuid,
+                userUuid: account.user.id,
+            },
+            featureFlagId: FeatureFlags.ExpiredSignInState,
+        });
 
         const credentials =
             await this.projectModel.getWarehouseCredentialsForProject(
@@ -3585,6 +3649,22 @@ export class ProjectService extends BaseService {
             credentials,
         );
         if (!personal) return { signIn: null };
+        if (
+            credentials.type === WarehouseTypes.REDSHIFT &&
+            credentials.authenticationType ===
+                RedshiftAuthenticationType.IAM_BROWSER &&
+            expiredSignInState.enabled &&
+            personal.needsSignIn !== null
+        ) {
+            return {
+                signIn: {
+                    provider: 'aws',
+                    warehouseType: WarehouseTypes.REDSHIFT,
+                    userWarehouseCredentialsUuid: personal.uuid,
+                    expired: true,
+                },
+            };
+        }
         const effective = mergePersonalWarehouseCredentials(
             credentials,
             personal,
@@ -3594,7 +3674,9 @@ export class ProjectService extends BaseService {
 
         const cached = getCachedWarehouseSignInStatus(personal.uuid);
         let expired: boolean;
-        if (cached !== null) {
+        if (expiredSignInState.enabled && personal.needsSignIn !== null) {
+            expired = true;
+        } else if (cached !== null) {
             expired = cached;
         } else if (signIn.provider === PersonSignInProvider.GOOGLE) {
             const result = await this.checkGoogleSignIn(

@@ -14,6 +14,14 @@ import {
 } from '../store/sqlRunnerSlice';
 import { useSqlQueryRun } from './useSqlQueryRun';
 
+const expiredStateFlag = vi.hoisted(() => ({ enabled: true }));
+
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: expiredStateFlag.enabled },
+    }),
+}));
+
 vi.mock('../../queryRunner/executeQuery', () => ({
     executeSqlQuery: vi.fn(async () => ({ columns: [] })),
 }));
@@ -29,6 +37,7 @@ const wrapper: FC<PropsWithChildren> = ({ children }) => (
 describe('useSqlQueryRun', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        expiredStateFlag.enabled = true;
         store.dispatch(resetState());
     });
 
@@ -65,10 +74,44 @@ describe('useSqlQueryRun', () => {
         },
     );
 
-    it('replays the last failed mutation after reconnect', async () => {
-        vi.mocked(executeSqlQuery)
-            .mockRejectedValueOnce(new Error('expired'))
-            .mockResolvedValueOnce({ columns: [] } as never);
+    it.each([SHARED_SIGN_IN_RECONNECTED, 'warehouse-sign-in-reconnected'])(
+        'replays the last failed mutation after %s',
+        async (eventName) => {
+            vi.mocked(executeSqlQuery)
+                .mockRejectedValueOnce(new Error('expired'))
+                .mockResolvedValueOnce({ columns: [] } as never);
+            const { result } = renderHook(
+                () => useSqlQueryRun('project-uuid'),
+                {
+                    wrapper,
+                },
+            );
+            await act(async () => {
+                await expect(
+                    result.current.mutateAsync({ sql: 'select 1', limit: 1 }),
+                ).rejects.toThrow('expired');
+            });
+
+            act(() => {
+                window.dispatchEvent(
+                    new CustomEvent(eventName, {
+                        detail: 'project-uuid',
+                    }),
+                );
+            });
+
+            await waitFor(() =>
+                expect(executeSqlQuery).toHaveBeenCalledTimes(2),
+            );
+            expect(vi.mocked(executeSqlQuery).mock.calls[1][1]).toBe(
+                'select 1',
+            );
+        },
+    );
+
+    it('does not replay a personal reconnect event with the flag off', async () => {
+        expiredStateFlag.enabled = false;
+        vi.mocked(executeSqlQuery).mockRejectedValueOnce(new Error('expired'));
         const { result } = renderHook(() => useSqlQueryRun('project-uuid'), {
             wrapper,
         });
@@ -77,16 +120,13 @@ describe('useSqlQueryRun', () => {
                 result.current.mutateAsync({ sql: 'select 1', limit: 1 }),
             ).rejects.toThrow('expired');
         });
-
         act(() => {
             window.dispatchEvent(
-                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                new CustomEvent('warehouse-sign-in-reconnected', {
                     detail: 'project-uuid',
                 }),
             );
         });
-
-        await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledTimes(2));
-        expect(vi.mocked(executeSqlQuery).mock.calls[1][1]).toBe('select 1');
+        expect(executeSqlQuery).toHaveBeenCalledTimes(1);
     });
 });

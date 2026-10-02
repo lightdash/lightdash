@@ -19,6 +19,7 @@ import {
     FilterOperator,
     ForbiddenError,
     getFilterRulesFromGroup,
+    getPersonalSignInExpiredMessage,
     isMergeMetricSource,
     MergeJoinType,
     MergeQueryErrorKind,
@@ -45,6 +46,7 @@ import {
     VizAggregationOptions,
     VizIndexType,
     WarehouseClient,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type Document,
@@ -708,6 +710,50 @@ describe('underlying data dimension selection', () => {
 });
 
 describe('AsyncQueryService', () => {
+    test('stores a personal rejection with provider details and keeps other errors unchanged', async () => {
+        const flag = vi.fn(async () => ({
+            id: FeatureFlags.ExpiredSignInState,
+            enabled: true,
+        }));
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: { get: flag } as never,
+        });
+        const format = (
+            error: unknown,
+            personalWarehouseType: WarehouseTypes | null,
+        ) =>
+            (
+                service as unknown as {
+                    getQuerySignInErrorMessage: (
+                        args: Record<string, unknown>,
+                    ) => Promise<string>;
+                }
+            ).getQuerySignInErrorMessage({
+                error,
+                personalWarehouseType,
+                organizationUuid: 'org',
+                userUuid: 'user',
+                isRegisteredUser: true,
+                isEmbedOrigin: false,
+            });
+        const rejection = new BigqueryTokenError('provider denied', {
+            rejection: WarehouseSignInRejection.INVALID_GRANT,
+        });
+        expect(await format(rejection, WarehouseTypes.BIGQUERY)).toBe(
+            `${getPersonalSignInExpiredMessage(WarehouseTypes.BIGQUERY)}\n\nprovider denied`,
+        );
+        expect(await format(rejection, null)).toBe('provider denied');
+        expect(
+            await format(new Error('network failure'), WarehouseTypes.BIGQUERY),
+        ).toBe('network failure');
+        flag.mockResolvedValueOnce({
+            id: FeatureFlags.ExpiredSignInState,
+            enabled: false,
+        });
+        expect(await format(rejection, WarehouseTypes.BIGQUERY)).toBe(
+            'provider denied',
+        );
+    });
     test('terminal query error carries explicit single-connection dimensions', async () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         const track = vi.spyOn(analyticsMock, 'track');
