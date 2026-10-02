@@ -69,6 +69,13 @@ vi.mock('../../providers/App/useApp', () => ({
     }),
 }));
 
+vi.mock('../../hooks/usePlaygroundAvailability', () => ({
+    usePlaygroundAvailability: () => ({
+        isConnectJourney: false,
+        isAvailable: false,
+    }),
+}));
+
 vi.mock('../../hooks/organization/useOrganization', () => ({
     useOrganization: () => ({
         data: { needsProject: false },
