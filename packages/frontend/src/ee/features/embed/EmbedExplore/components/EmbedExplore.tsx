@@ -4,7 +4,7 @@ import {
     type SavedChart,
 } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
-import { useEffect, useLayoutEffect, useState, type FC } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import Page from '../../../../../components/common/Page/Page';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -20,6 +20,8 @@ import { MergeProvider } from '../../../../../features/mergeQuery/context/MergeC
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEffects';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
+import EmbedProviderContext from '../../../../providers/Embed/context';
+import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedExploreKey } from '../useEmbedExploreKey';
 
@@ -81,6 +83,7 @@ const EmbedExploreContent: FC<{
     allowChartUpdate?: boolean;
     isEditMode: boolean;
     chartView?: boolean;
+    runQueryOnLoad?: boolean;
 }> = ({
     exploreId,
     savedChart,
@@ -90,6 +93,7 @@ const EmbedExploreContent: FC<{
     allowChartUpdate,
     isEditMode,
     chartView,
+    runQueryOnLoad,
 }) => {
     // The store initializes once; the parent key remounts it when inputs change.
     const [store] = useState(() => {
@@ -112,7 +116,8 @@ const EmbedExploreContent: FC<{
                         : undefined,
                 // An explored saved chart still runs its query on load
                 isExploreFromHere:
-                    savedChart !== undefined && 'uuid' in savedChart,
+                    runQueryOnLoad ||
+                    (savedChart !== undefined && 'uuid' in savedChart),
                 unsavedChartVersion: {
                     tableName: exploreId,
                     metricQuery: savedChart?.metricQuery || {
@@ -176,17 +181,37 @@ const EmbedExploreContent: FC<{
         }
     }, [allowChartUpdate, savedChart, store]);
 
+    // Hand the current query to the host so it can be restored on back
+    const embedContext = useEmbed();
+    const { onExplore } = embedContext;
+    const exploreContext = useMemo(
+        () => ({
+            ...embedContext,
+            onExplore: onExplore
+                ? (options: EmbedExploreOptions) =>
+                      onExplore({
+                          ...options,
+                          sourceChart:
+                              store.getState().explorer.unsavedChartVersion,
+                      })
+                : undefined,
+        }),
+        [embedContext, onExplore, store],
+    );
+
     return (
-        <Provider store={store}>
-            <EmbedExploreView
-                exploreId={exploreId}
-                onExploreSelect={onExploreSelect}
-                onBackToTables={onBackToTables}
-                fitContainerHeight={fitContainerHeight}
-                isEditMode={isEditMode}
-                chartView={chartView}
-            />
-        </Provider>
+        <EmbedProviderContext.Provider value={exploreContext}>
+            <Provider store={store}>
+                <EmbedExploreView
+                    exploreId={exploreId}
+                    onExploreSelect={onExploreSelect}
+                    onBackToTables={onBackToTables}
+                    fitContainerHeight={fitContainerHeight}
+                    isEditMode={isEditMode}
+                    chartView={chartView}
+                />
+            </Provider>
+        </EmbedProviderContext.Provider>
     );
 };
 
@@ -206,6 +231,8 @@ type Props = {
     isEditMode?: boolean;
     // Render the saved-chart surface without read-only query-builder cards.
     chartView?: boolean;
+    // Run the chart's query on load even when it is not a saved chart
+    runQueryOnLoad?: boolean;
 };
 
 const EmbedExplore: FC<Props> = ({
@@ -218,6 +245,7 @@ const EmbedExplore: FC<Props> = ({
     allowChartUpdate,
     isEditMode = true,
     chartView,
+    runQueryOnLoad,
 }) => {
     const { projectUuid } = useEmbed();
     const { error: exploreError } = useExplore(exploreId);
@@ -263,6 +291,7 @@ const EmbedExplore: FC<Props> = ({
                 allowChartUpdate={allowChartUpdate}
                 isEditMode={isEditMode}
                 chartView={chartView}
+                runQueryOnLoad={runQueryOnLoad}
             />
         </div>
     );

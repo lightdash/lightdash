@@ -22,6 +22,7 @@ const EmbedExplorePage: FC<{
     allowChartUpdate?: boolean;
     isEditMode?: boolean;
     chartView?: boolean;
+    runQueryOnLoad?: boolean;
 }> = ({
     containerStyles,
     exploreId: exploreIdProps,
@@ -29,6 +30,7 @@ const EmbedExplorePage: FC<{
     allowChartUpdate,
     isEditMode,
     chartView,
+    runQueryOnLoad,
 }) => {
     const {
         content,
@@ -101,6 +103,7 @@ const EmbedExplorePage: FC<{
             allowChartUpdate={allowChartUpdate}
             isEditMode={isEditMode}
             chartView={chartView}
+            runQueryOnLoad={runQueryOnLoad}
         />
     );
 };

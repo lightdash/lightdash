@@ -66,12 +66,14 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
             allowChartUpdate,
             isEditMode,
             chartView,
+            runQueryOnLoad,
         }: {
             exploreId?: string;
-            savedChart?: { uuid?: string };
+            savedChart?: { uuid?: string; metricQuery?: { metrics: string[] } };
             allowChartUpdate?: boolean;
             isEditMode?: boolean;
             chartView?: boolean;
+            runQueryOnLoad?: boolean;
         }) {
             const { onExplore, onBackToDashboard } = useEmbed();
             return (
@@ -83,15 +85,33 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
                     }
                     data-explore-id={exploreId}
                     data-saved-chart-uuid={savedChart?.uuid}
+                    data-metrics={savedChart?.metricQuery?.metrics.join(',')}
                     data-allow-chart-update={allowChartUpdate}
                     data-edit-mode={isEditMode}
                     data-chart-view={chartView}
+                    data-run-query-on-load={runQueryOnLoad}
                 >
                     <button
                         data-testid="explore-drill-down"
                         onClick={() =>
                             onExplore({
                                 chart: { tableName: 'orders' } as never,
+                            })
+                        }
+                    />
+                    <button
+                        data-testid="explore-drill-down-unsaved"
+                        onClick={() =>
+                            onExplore({
+                                chart: {
+                                    tableName: `${exploreId}_drill`,
+                                } as never,
+                                sourceChart: {
+                                    tableName: exploreId,
+                                    metricQuery: {
+                                        metrics: [`${exploreId}_unsaved`],
+                                    },
+                                } as never,
                             })
                         }
                     />
@@ -530,6 +550,67 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
                 'payments',
             );
         });
+        expect(queryByTestId('explore-back')).toBeNull();
+    });
+
+    it('restores the unsaved query of each drill-down source on back', async () => {
+        const { getByTestId, queryByTestId } = render(
+            <Explore
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId="payments"
+                savedChart={
+                    { uuid: 'saved-chart-uuid', tableName: 'payments' } as never
+                }
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-drill-down-unsaved'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments_drill',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-drill-down-unsaved'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments_drill_drill',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-back'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.metrics).toBe(
+                'payments_drill_unsaved',
+            );
+        });
+        expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+            'payments_drill',
+        );
+        expect(getByTestId('embed-explore').dataset.runQueryOnLoad).toBe(
+            'false',
+        );
+
+        fireEvent.click(getByTestId('explore-back'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.metrics).toBe(
+                'payments_unsaved',
+            );
+        });
+        expect(getByTestId('embed-explore').dataset.exploreId).toBe('payments');
+        expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+            undefined,
+        );
+        expect(getByTestId('embed-explore').dataset.runQueryOnLoad).toBe(
+            'true',
+        );
         expect(queryByTestId('explore-back')).toBeNull();
     });
 });
