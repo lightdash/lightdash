@@ -150,7 +150,9 @@ const makeMcpService = ({
         asyncQueryService: {},
         catalogService: {},
         contentVerificationService: {},
-        featureFlagService: {},
+        featureFlagService: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         lightdashConfig: {
             ai: {
                 copilot: {

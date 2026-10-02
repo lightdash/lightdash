@@ -103,6 +103,8 @@ export enum FeatureFlags {
      * earlier results and pre-aggregates. Off by default; organization scope.
      */
     AiAccessSkipResultsCache = 'ai-access-skip-results-cache',
+    /** Use role permissions for MCP and agents; off by default at organization scope. */
+    AiAccessRolePermission = 'ai-access-role-permission',
 
     /**
      * Per-organization gate for declaring custom npm dependencies in data

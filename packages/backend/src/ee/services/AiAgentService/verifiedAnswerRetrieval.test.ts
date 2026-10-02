@@ -487,6 +487,9 @@ describe('battle profile response preparation', () => {
                 }),
             };
             const service = new AiAgentService({
+                featureFlagService: {
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                },
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,
                 },

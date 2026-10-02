@@ -88,7 +88,9 @@ const makeMcpService = (createRuntime: () => unknown) =>
         asyncQueryService: {},
         catalogService: {},
         contentVerificationService: {},
-        featureFlagService: {},
+        featureFlagService: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         lightdashConfig: {
             mcp: { runSqlMaxLimit: 500 },
             siteUrl: 'https://lightdash.example',

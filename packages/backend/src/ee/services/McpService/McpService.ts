@@ -659,6 +659,11 @@ export class McpService extends BaseService {
 
     private async getAccessibleProjects(context: McpProtocolContext) {
         const { user, organizationUuid } = McpService.getAccount(context);
+        const { enabled: aiAccessRolePermissionEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAccessRolePermission,
+            });
         const allProjects = await wrapSentryTransaction(
             'McpService.getAccessibleProjects.getAllByOrganizationUuid',
             { organizationUuid },
@@ -667,15 +672,36 @@ export class McpService extends BaseService {
         );
         const auditedAbility = this.createAuditedAbility(user);
 
-        return allProjects
-            .filter((project) =>
-                auditedAbility.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid,
-                        projectUuid: project.projectUuid,
-                    }),
-                ),
+        const viewableProjects = allProjects.filter((project) =>
+            auditedAbility.can(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            ),
+        );
+        const aiAccessibleProjectUuids = aiAccessRolePermissionEnabled
+            ? new Set(
+                  viewableProjects
+                      .filter((project) =>
+                          auditedAbility.can(
+                              'view',
+                              subject('AiAccess', {
+                                  organizationUuid,
+                                  projectUuid: project.projectUuid,
+                              }),
+                          ),
+                      )
+                      .map((project) => project.projectUuid),
+              )
+            : null;
+
+        return viewableProjects
+            .filter(
+                (project) =>
+                    aiAccessibleProjectUuids === null ||
+                    aiAccessibleProjectUuids.has(project.projectUuid),
             )
             .map((project) => ({
                 name: project.name,
@@ -5151,6 +5177,26 @@ export class McpService extends BaseService {
                 cbArgs.length > 1 ? [cbArgs[0], cbArgs[1]] : [{}, cbArgs[0]];
             const startedAt = Date.now();
             try {
+                const accessError = await this.checkToolAiAccess(
+                    toolName,
+                    toolArgs,
+                    extra,
+                );
+                if (accessError !== null) {
+                    const response = {
+                        content: [{ type: 'text' as const, text: accessError }],
+                        isError: true as const,
+                    };
+                    this.recordToolCall({
+                        toolName,
+                        toolArgs,
+                        extra,
+                        durationMs: Date.now() - startedAt,
+                        status: 'error',
+                        errorMessage: accessError,
+                    });
+                    return response;
+                }
                 const result = await handler(...cbArgs);
                 const legacyContextInjected =
                     getMcpContext(extra).authInfo?.extra
@@ -5203,6 +5249,66 @@ export class McpService extends BaseService {
             }
         };
         return wrapped as Callback;
+    }
+
+    private async checkToolAiAccess(
+        toolName: string,
+        toolArgs: unknown,
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): Promise<string | null> {
+        const context = getMcpContext(extra);
+        const { user, account, organizationUuid } =
+            McpService.getAccount(context);
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiAccessRolePermission,
+        });
+        if (!enabled) return null;
+        if (
+            toolName === McpToolName.GET_LIGHTDASH_VERSION ||
+            toolName === McpToolName.GENERATE_HASHES ||
+            toolName === McpToolName.LIST_PROJECTS ||
+            toolName === McpToolName.GET_CONTEXT
+        ) {
+            return null;
+        }
+
+        const explicitScope = mcpToolScopeArgsSchema.safeParse(toolArgs);
+        const projectUuid = explicitScope.success
+            ? explicitScope.data.projectUuid
+            : (context.authInfo?.extra.headerProjectUuid ??
+              (
+                  await this.mcpContextModel.getContext(
+                      user.userUuid,
+                      organizationUuid,
+                  )
+              )?.context.projectUuid);
+        if (!projectUuid) return null;
+
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).can(
+                'view',
+                subject('AiAccess', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            )
+        ) {
+            return null;
+        }
+
+        await this.asyncQueryService.recordQueryRefusal({
+            account,
+            organizationUuid: project.organizationUuid,
+            projectUuid: project.projectUuid,
+            context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            aiSurface: null,
+            aiClient: null,
+            reason: QueryRefusalReason.AI_ACCESS_OFF,
+            sql: null,
+        });
+        return 'Your role does not include AI access for this project. Ask an admin to add the "Use AI access" permission.';
     }
 
     private static getResultErrorText(result: AnyType): string | null {

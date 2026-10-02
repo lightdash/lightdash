@@ -22,6 +22,7 @@ const BASE_ROLE_SCOPES = {
         'view:SavedChart',
         'view:Space',
         'view:Project',
+        'view:AiAccess',
         'view:PinnedItems',
         'view:DashboardComments',
         'view:Tags',
