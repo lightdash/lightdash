@@ -52,23 +52,24 @@ export const MultiConnectionSqlEditor: FC<SqlEditorProps> = (props) => {
     const listing = activeConnectionUuid
         ? databases.listings.get(activeConnectionUuid)
         : undefined;
-    const database = (
+    const listedDatabase =
         listing?.databases.find((candidate) => candidate.isDefault) ??
-        listing?.databases[0]
-    )?.database;
+        listing?.databases[0];
+    const listedDatabaseName = listedDatabase?.name;
+    const database = listedDatabase?.database;
 
     const units = useMemo(
         () =>
-            activeConnectionUuid && database
+            activeConnectionUuid && listedDatabaseName
                 ? [
                       {
                           connectionId: activeConnectionUuid,
                           warehouseConnectionUuid: activeConnectionUuid,
-                          database,
+                          database: listedDatabaseName,
                       },
                   ]
                 : [],
-        [activeConnectionUuid, database],
+        [activeConnectionUuid, listedDatabaseName],
     );
     const enabledUnitIds = useMemo(
         () => new Set(units.map(tableUnitId)),
