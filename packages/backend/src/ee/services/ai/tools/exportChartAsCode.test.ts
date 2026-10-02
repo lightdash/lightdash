@@ -14,6 +14,7 @@ describe('exportChartAsCode', () => {
                 },
             ]),
             prepare: vi.fn(),
+            prepareVersion: vi.fn(),
         };
         const exportTool = getExportChartAsCode(
             new AgentContext([validExplore]),

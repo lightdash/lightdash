@@ -9,13 +9,16 @@ import {
 import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { EditContentFn } from '../types/aiAgentDependencies';
+import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
+import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     editContent: EditContentFn;
     documentsEnabled?: boolean;
+    artifacts?: ArtifactChartExportAccess;
 };
 
 type EditedContent = Awaited<ReturnType<EditContentFn>>;
@@ -65,6 +68,7 @@ const toStructuredContent = (
 export const getEditContent = ({
     editContent,
     documentsEnabled = false,
+    artifacts,
 }: Dependencies) => {
     const definition = documentsEnabled
         ? mcpEditContentToolDefinition.for('agent')
@@ -82,14 +86,29 @@ export const getEditContent = ({
                     ? mcpEditContentArgsSchema
                     : toolEditContentArgsSchema
                 ).parse(args);
-                const getEditArgs = (): Parameters<EditContentFn>[0] => {
+                const getEditArgs = async (): Promise<
+                    Parameters<EditContentFn>[0]
+                > => {
                     if (type === 'document') {
                         if (patch !== undefined || documentEdit === undefined) {
                             throw new ParameterError(
                                 'Documents require documentEdit instead of patch.',
                             );
                         }
-                        return { slug, type, documentEdit };
+                        return {
+                            slug,
+                            type,
+                            documentEdit:
+                                documentEdit.type === 'content'
+                                    ? {
+                                          ...documentEdit,
+                                          ...(await resolveDocumentConversationTags(
+                                              documentEdit,
+                                              artifacts,
+                                          )),
+                                      }
+                                    : documentEdit,
+                        };
                     }
                     if (documentEdit !== undefined || patch === undefined) {
                         throw new ParameterError(
@@ -98,7 +117,7 @@ export const getEditContent = ({
                     }
                     return { slug, type, patch };
                 };
-                const result = await editContent(getEditArgs());
+                const result = await editContent(await getEditArgs());
                 const warnings = getContentWarnings(result);
                 const metadata = {
                     status: 'success' as const,

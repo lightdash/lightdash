@@ -39,6 +39,7 @@ export type ArtifactChartExportAccess = {
         artifactUuid: string;
         versionUuid: string;
     }) => Promise<PreparedChartAsCode>;
+    prepareVersion: (versionUuid: string) => Promise<PreparedChartAsCode>;
 };
 
 /** Metadata-only replay of an already authorized, exact artifact version. */

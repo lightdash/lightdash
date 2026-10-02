@@ -70,6 +70,7 @@ const metadata = {
     schemaVersion: 2 as const,
 };
 const content = { ...metadata, markdown, charts: {} };
+const readContent = { ...metadata, markdown, chart: null };
 const withChart = {
     ...document,
     version: {
@@ -194,7 +195,7 @@ describe('MCP Document runtime', () => {
             };
             if (operation === 'read') {
                 await expect(
-                    runtime.readDocumentContent({ slug }),
+                    runtime.readDocumentContent({ slug }, null),
                 ).resolves.toMatchObject(expected);
             } else if (operation === 'list') {
                 await expect(
@@ -224,7 +225,7 @@ describe('MCP Document runtime', () => {
             const href = `/projects/${projectUuid}/documents/${document.slug}`;
             if (operation === 'read') {
                 await expect(
-                    runtime.readDocumentContent({ slug: document.slug }),
+                    runtime.readDocumentContent({ slug: document.slug }, null),
                 ).resolves.toMatchObject({ href });
             } else if (operation === 'list') {
                 await expect(
@@ -329,10 +330,11 @@ describe('MCP Document runtime', () => {
         const read = await runtime.readContent({
             type: 'document',
             documentUuid: document.documentUuid,
+            chartId: null,
         });
         expect(read).toMatchObject({
             type: 'document',
-            content,
+            content: readContent,
             href: documentUrl,
         });
         const edited = await runtime.editContent({
@@ -407,6 +409,7 @@ describe('MCP Document runtime', () => {
             runtime.readContent({
                 type: 'document',
                 slug: document.slug,
+                chartId: null,
             }),
         ).rejects.toThrow(NotFoundError);
         await expect(
@@ -541,13 +544,13 @@ describe('MCP Document runtime', () => {
     test('reads authorized content with its stable version and dedicated URL', async () => {
         const { runtime, documentService } = setup();
         await expect(
-            runtime.readDocumentContent({ slug: document.slug }),
+            runtime.readDocumentContent({ slug: document.slug }, null),
         ).resolves.toEqual({
             type: 'document',
             uuid: document.documentUuid,
             href: documentUrl,
             versionUuid,
-            content,
+            content: readContent,
         });
         expect(documentService.getBySlug).toHaveBeenCalledWith(
             account,
@@ -563,12 +566,13 @@ describe('MCP Document runtime', () => {
         const saved = { ...document, documentUuid };
         documentService.get.mockResolvedValue(saved);
         documentService.getBySlug.mockResolvedValue(saved);
-        const bySlug = await runtime.readDocumentContent({
-            slug: document.slug,
-        });
+        const bySlug = await runtime.readDocumentContent(
+            { slug: document.slug },
+            null,
+        );
         documentService.getBySlug.mockClear();
         await expect(
-            runtime.readDocumentContent({ documentUuid }),
+            runtime.readDocumentContent({ documentUuid }, null),
         ).resolves.toEqual(bySlug);
         expect(documentService.get).toHaveBeenCalledWith(
             account,
@@ -582,12 +586,12 @@ describe('MCP Document runtime', () => {
         const { runtime, documentService } = setup(['different-space']);
         const documentUuid = '7b923cd0-371b-4d99-94ef-515267bfae57';
         await expect(
-            runtime.readDocumentContent({ documentUuid }),
+            runtime.readDocumentContent({ documentUuid }, null),
         ).rejects.toThrow(NotFoundError);
         const error = new NotFoundError('Document not found');
         documentService.get.mockRejectedValue(error);
         await expect(
-            runtime.readDocumentContent({ documentUuid }),
+            runtime.readDocumentContent({ documentUuid }, null),
         ).rejects.toBe(error);
         expect(documentService.get).toHaveBeenCalledWith(
             account,
@@ -609,7 +613,10 @@ describe('MCP Document runtime', () => {
             documentUuid: identifier,
             slug: 'different-document',
         });
-        const bySlug = await runtime.readDocumentContent({ slug: identifier });
+        const bySlug = await runtime.readDocumentContent(
+            { slug: identifier },
+            null,
+        );
         expect(bySlug.uuid).toBe(document.documentUuid);
         expect(bySlug.content.slug).toBe(identifier);
         expect(documentService.getBySlug).toHaveBeenCalledWith(
@@ -618,9 +625,10 @@ describe('MCP Document runtime', () => {
             identifier,
         );
         expect(documentService.get).not.toHaveBeenCalled();
-        const byUuid = await runtime.readDocumentContent({
-            documentUuid: identifier,
-        });
+        const byUuid = await runtime.readDocumentContent(
+            { documentUuid: identifier },
+            null,
+        );
         expect(byUuid.uuid).toBe(identifier);
         expect(byUuid.content.slug).toBe('different-document');
     });
@@ -654,7 +662,7 @@ describe('MCP Document runtime', () => {
             const { runtime, documentService } = setup(['different-space']);
             const request =
                 operation === 'read'
-                    ? runtime.readDocumentContent({ slug: document.slug })
+                    ? runtime.readDocumentContent({ slug: document.slug }, null)
                     : runtime.editDocumentContent(
                           document.slug,
                           operation === 'metadata'
@@ -722,14 +730,14 @@ describe('MCP Document runtime', () => {
         expect(documentService.create).not.toHaveBeenCalled();
     });
 
-    test('content edits forward the replacement, version and Space scope', async () => {
+    test('content edits keep charts placed by tag and forward version and Space scope', async () => {
         const { runtime, documentService } = setup([spaceUuid]);
         documentService.getBySlug.mockResolvedValue(withChart);
         await runtime.editDocumentContent(document.slug, {
             type: 'content',
             baseVersionUuid: versionUuid,
             markdown: '<document-chart id="c1">\n\n# Changed narrative',
-            charts: { c1: chart },
+            charts: {},
         });
         expect(documentService.updateContent).toHaveBeenCalledWith(
             account,
@@ -760,6 +768,72 @@ describe('MCP Document runtime', () => {
             markdown: 'Only new\n\n<document-chart id="fresh">',
             charts: { fresh: chart },
         });
+    });
+
+    test('chart edits patch one chart and keep the rest of the Document', async () => {
+        const { runtime, documentService } = setup();
+        documentService.getBySlug.mockResolvedValue(withChart);
+        await runtime.editDocumentContent(document.slug, {
+            type: 'chart',
+            baseVersionUuid: versionUuid,
+            chartId: 'c1',
+            patch: [{ op: 'replace', path: '/chart/name', value: 'Renamed' }],
+        });
+        const saved = documentService.updateContent.mock.calls[0][3].content;
+        expect(saved.markdown).toBe(withChart.version.content.markdown);
+        expect(saved.charts.c1.chart.name).toBe('Renamed');
+    });
+
+    test('chart edits reject an unknown chart id', async () => {
+        const { runtime, documentService } = setup();
+        documentService.getBySlug.mockResolvedValue(withChart);
+        await expect(
+            runtime.editDocumentContent(document.slug, {
+                type: 'chart',
+                baseVersionUuid: versionUuid,
+                chartId: 'c9',
+                patch: [],
+            }),
+        ).rejects.toThrow('Document chart "c9" not found');
+        expect(documentService.updateContent).not.toHaveBeenCalled();
+    });
+
+    test('reads charts as short tags, or one chart in full', async () => {
+        const { runtime, documentService } = setup();
+        documentService.getBySlug.mockResolvedValue(withChart);
+        const summary = await runtime.readDocumentContent(
+            { slug: document.slug },
+            null,
+        );
+        expect(summary.content).toMatchObject({
+            markdown: `${markdown}\n\n<document-chart id="c1" title="Orders" type="table" explore="orders">`,
+            chart: null,
+        });
+        const single = await runtime.readDocumentContent(
+            { slug: document.slug },
+            'c1',
+        );
+        expect(single.content).toMatchObject({
+            markdown: null,
+            chart: { id: 'c1', ...chart },
+        });
+        await expect(
+            runtime.readDocumentContent({ slug: document.slug }, 'c9'),
+        ).rejects.toThrow('Chart ids: c1');
+    });
+
+    test('rejects conversation tags outside an AI agent conversation', async () => {
+        const { runtime, documentService } = setup();
+        await expect(
+            runtime.createDocumentContent({
+                ...content,
+                markdown:
+                    '<artifact-chart version="0b4f6c2e-55a7-4f0e-9f1e-0d3c3b9e8a11">',
+            }),
+        ).rejects.toThrow(
+            'only available inside a Lightdash AI agent conversation',
+        );
+        expect(documentService.create).not.toHaveBeenCalled();
     });
 
     test('metadata edits remain separate from version writes and forward Space scope', async () => {
@@ -807,7 +881,7 @@ describe('MCP Document runtime', () => {
         const error = new ForbiddenError('Documents are not enabled');
         documentService.getBySlug.mockRejectedValue(error);
         await expect(
-            runtime.readDocumentContent({ slug: document.slug }),
+            runtime.readDocumentContent({ slug: document.slug }, null),
         ).rejects.toBe(error);
     });
 

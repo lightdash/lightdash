@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { DocumentChartContent } from '../../../../types/document';
 import {
     toolChartAsCodeMetricQuerySchema,
     toolCreateContentArgsSchema,
@@ -63,12 +64,12 @@ export const mcpDocumentChartSchema = z.discriminatedUnion('source', [
 ]);
 
 const DOCUMENT_MARKDOWN_DESCRIPTION =
-    'Document body in Markdown. Place each chart as its own block: a line with only <document-chart id="KEY">, separated from text by blank lines. KEY is a key of `charts`: an existing chart id (c1, c2, …) or a new key. Charts not placed are removed.';
+    'Document body in Markdown. Place each chart as its own block: a line with only <document-chart id="KEY">, separated from text by blank lines. KEY is an existing chart id (c1, c2, …) to keep that chart, or a key of `charts` for a new one. Charts not placed are removed.';
 
 const documentChartsSchema = z
     .record(z.string(), mcpDocumentChartSchema)
     .describe(
-        'Full chart definitions for every placed chart, by key. Keep existing charts under their id (c1, c2, …); use a new key (e.g. "revenue") for a new chart and the server assigns it the next cN id. Use {} when there are none.',
+        'Full chart definitions by key. Use a new key (e.g. "revenue") for a new chart; the server assigns it the next cN id. Pass an existing id to replace that chart. Omit charts you keep unchanged. Use {} when there are none.',
     );
 
 export const documentAsCodeSchema = z
@@ -99,9 +100,26 @@ export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
             markdown: z
                 .string()
                 .describe(
-                    `Complete replacement Markdown. ${DOCUMENT_MARKDOWN_DESCRIPTION}`,
+                    `Complete replacement Markdown. ${DOCUMENT_MARKDOWN_DESCRIPTION} Keep unchanged charts by their tag alone.`,
                 ),
             charts: documentChartsSchema,
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal('chart'),
+            baseVersionUuid: z
+                .string()
+                .uuid()
+                .describe(
+                    'Version UUID from read_content. Stale edits fail; reload and retry.',
+                ),
+            chartId: z.string().min(1).describe('Stored chart id, e.g. c3.'),
+            patch: z
+                .array(z.unknown())
+                .describe(
+                    'RFC6902 operations applied to that chart ({ source, chart }), e.g. [{ "op": "replace", "path": "/chart/name", "value": "Revenue" }]. Read the chart first with readContent and chartId.',
+                ),
         })
         .strict(),
     z
@@ -138,6 +156,13 @@ export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
             'For Documents only: UUID from a canonical Document URL, instead of slug.',
         ),
     type: z.enum(['dashboard', 'chart', 'data_app', 'document']),
+    chartId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+            'For Documents only: return this chart (e.g. c3) in full instead of the Document.',
+        ),
 });
 
 export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
@@ -150,9 +175,22 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
     documentEdit: mcpDocumentEditSchema
         .optional()
         .describe(
-            'Required for Documents instead of patch. Replace the Markdown and charts with baseVersionUuid, or update metadata separately.',
+            'Required for Documents instead of patch. Replace the Markdown, patch one chart, or update metadata.',
         ),
 });
 
 export type McpDocumentEdit = z.infer<typeof mcpDocumentEditSchema>;
 export type McpDocumentAsCode = z.infer<typeof documentAsCodeSchema>;
+
+/**
+ * A Document as an agent reads it: Markdown whose chart tags are short
+ * descriptions, or a single chart in full when one was asked for.
+ */
+export type McpDocumentRead = Omit<McpDocumentAsCode, 'markdown' | 'charts'> &
+    (
+        | { markdown: string; chart: null }
+        | {
+              markdown: null;
+              chart: { id: string } & DocumentChartContent;
+          }
+    );

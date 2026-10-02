@@ -72,7 +72,7 @@ export const getReadContent = ({
         ...definition,
         inputSchema,
         execute: async (args) => {
-            const { slug, type, documentUuid } = args;
+            const { slug, type, documentUuid, chartId } = args;
             try {
                 (documentsEnabled
                     ? mcpReadContentArgsSchema
@@ -85,11 +85,23 @@ export const getReadContent = ({
                                 'Documents require exactly one of slug or documentUuid.',
                             );
                         }
-                        return { type, documentUuid };
+                        return {
+                            type,
+                            documentUuid,
+                            chartId: chartId ?? null,
+                        };
                     }
                     if (slug === undefined || documentUuid !== undefined) {
                         throw new ParameterError(
                             'Reading content requires a slug, or documentUuid for Documents.',
+                        );
+                    }
+                    if (type === 'document') {
+                        return { type, slug, chartId: chartId ?? null };
+                    }
+                    if (chartId !== undefined) {
+                        throw new ParameterError(
+                            'chartId is only available when reading Documents.',
                         );
                     }
                     return { slug, type };
