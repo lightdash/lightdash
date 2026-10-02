@@ -1434,6 +1434,32 @@ const scopes: Scope[] = [
         ],
         getConditions: addDefaultUuidCondition,
     },
+    {
+        name: 'view:EmbedAiAgentSql',
+        description: 'View the SQL behind embedded AI agent chart answers',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [
+            {
+                name: 'view:EmbedAiAgent',
+                description: 'Use embedded AI agents',
+            },
+        ],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedAiAgentDownload',
+        description: 'Download results from embedded AI agent chart answers',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [
+            {
+                name: 'view:EmbedAiAgent',
+                description: 'Use embedded AI agents',
+            },
+        ],
+        getConditions: addDefaultUuidCondition,
+    },
 
     // AI Agent
     {

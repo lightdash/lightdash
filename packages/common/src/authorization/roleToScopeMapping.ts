@@ -49,6 +49,7 @@ const BASE_ROLE_SCOPES = {
         'view:EmbedImageExport',
         'view:EmbedPagePdfExport',
         'view:EmbedDateZoom',
+        'view:EmbedAiAgentDownload',
     ],
 
     [ProjectMemberRole.INTERACTIVE_VIEWER]: [
@@ -136,6 +137,7 @@ const BASE_ROLE_SCOPES = {
         'manage:CustomSql',
         'manage:CustomFields',
         'view:CompiledSql',
+        'view:EmbedAiAgentSql',
         'manage:CustomSqlTableCalculations',
         'manage:SqlRunner',
         'manage:Validation',

@@ -7,6 +7,7 @@ import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { getPermissionsFromAbilityRules } from './abilityPermissions';
 import {
+    DEVELOPER_EMBED_SUBJECTS,
     INTERACTIVE_VIEWER_EMBED_SUBJECTS,
     VIEWER_EMBED_SUBJECTS,
     type MemberAbility,
@@ -334,6 +335,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     developer(member, { can }) {
         applyOrganizationMemberStaticAbilities.editor(member, { can });
+        DEVELOPER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                organizationUuid: member.organizationUuid,
+            });
+        });
         can('manage', 'PreAggregation', {
             organizationUuid: member.organizationUuid,
         });

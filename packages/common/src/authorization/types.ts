@@ -20,6 +20,7 @@ export const VIEWER_EMBED_SUBJECTS = [
     'EmbedImageExport',
     'EmbedPagePdfExport',
     'EmbedDateZoom',
+    'EmbedAiAgentDownload',
 ] as const satisfies readonly CaslSubjectNames[];
 
 export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
@@ -28,6 +29,10 @@ export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
     'EmbedExplore',
     'EmbedUnderlyingData',
     'EmbedDataApps',
+] as const satisfies readonly CaslSubjectNames[];
+
+export const DEVELOPER_EMBED_SUBJECTS = [
+    'EmbedAiAgentSql',
 ] as const satisfies readonly CaslSubjectNames[];
 
 interface Project {
@@ -64,6 +69,8 @@ export type CaslSubjectNames =
     | 'DeletedContent'
     | 'EmbedAiAgent'
     | 'EmbedAiAgentDebug'
+    | 'EmbedAiAgentDownload'
+    | 'EmbedAiAgentSql'
     | 'EmbedDashboardFilters'
     | 'EmbedDashboardFilterAddition'
     | 'EmbedDashboardParameters'

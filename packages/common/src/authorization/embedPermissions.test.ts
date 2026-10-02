@@ -1,13 +1,16 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type CreateEmbedJwt } from '../ee';
+import { ProjectMemberRole } from '../types/projectMemberRole';
 import { ScopeGroup, type ScopeContext } from '../types/scopes';
 import { applyEmbedScopeAbilities } from './embedPermissions';
 import { applyEmbeddedAbility } from './jwtAbility';
 import { ORGANIZATION_EDITOR } from './organizationMemberAbility.mock';
+import { projectMemberAbilities } from './projectMemberAbility';
 import { PROJECT_EDITOR } from './projectMemberAbility.mock';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import * as scopeRegistry from './scopes';
 import {
+    DEVELOPER_EMBED_SUBJECTS,
     INTERACTIVE_VIEWER_EMBED_SUBJECTS,
     VIEWER_EMBED_SUBJECTS,
     type CaslSubjectNames,
@@ -17,6 +20,7 @@ import {
 const EMBED_SUBJECTS = [
     ...VIEWER_EMBED_SUBJECTS,
     ...INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+    ...DEVELOPER_EMBED_SUBJECTS,
 ];
 
 const embed = {
@@ -147,6 +151,40 @@ describe('embed scope abilities', () => {
             ).toBe(true);
         });
     });
+
+    describe.each(['EmbedAiAgentSql', 'EmbedAiAgentDownload'] as const)(
+        'view:%s',
+        (resource) => {
+            const target = {
+                projectUuid: embed.projectUuid,
+                organizationUuid: embed.organization.organizationUuid,
+            };
+            const aiAgentUser = (
+                permissionsMode: 'default' | 'roles',
+            ): CreateEmbedJwt => ({
+                content: { type: 'aiAgent', agentUuid: 'agent' },
+                writeActions: { ...writeActions, permissionsMode },
+            });
+
+            it.each(['default', 'roles'] as const)(
+                'is imported from the actor role in %s mode',
+                (mode) => {
+                    expect(
+                        projectScopes(
+                            customAbility(['EmbedAiAgent', resource]),
+                            aiAgentUser(mode),
+                        ).can('view', subject(resource, { ...target })),
+                    ).toBe(true);
+                    expect(
+                        projectScopes(
+                            customAbility(['EmbedAiAgent']),
+                            aiAgentUser(mode),
+                        ).can('view', subject(resource, { ...target })),
+                    ).toBe(false);
+                },
+            );
+        },
+    );
 
     it.each([
         { projectUuid: 'another-project' },
@@ -352,3 +390,31 @@ describe.each([undefined, 'default', 'roles'] as const)(
         );
     },
 );
+
+describe('built-in role grants for embedded AI quick actions', () => {
+    const can = (role: ProjectMemberRole, resource: CaslSubjectNames) => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        projectMemberAbilities[role](
+            {
+                role,
+                projectUuid: embed.projectUuid,
+                userUuid: 'actor',
+            },
+            builder,
+        );
+        return builder
+            .build()
+            .can('view', subject(resource, { projectUuid: embed.projectUuid }));
+    };
+
+    it.each([
+        [ProjectMemberRole.VIEWER, false, true],
+        [ProjectMemberRole.INTERACTIVE_VIEWER, false, true],
+        [ProjectMemberRole.EDITOR, false, true],
+        [ProjectMemberRole.DEVELOPER, true, true],
+        [ProjectMemberRole.ADMIN, true, true],
+    ])('%s: sql=%s download=%s', (role, sql, download) => {
+        expect(can(role, 'EmbedAiAgentSql')).toBe(sql);
+        expect(can(role, 'EmbedAiAgentDownload')).toBe(download);
+    });
+});
