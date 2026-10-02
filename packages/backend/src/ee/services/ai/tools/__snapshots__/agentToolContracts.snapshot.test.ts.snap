@@ -15209,7 +15209,7 @@ Do not invent SQL Runner links.",
                       "type": "null",
                     },
                   ],
-                  "description": "Raw values of the preview rows rendered as CSV in the result (first 50 at most). Null when data access is disabled and no row values are exposed.",
+                  "description": "Raw values of the preview rows rendered as CSV in the result (first 50 at most); [] when the query returned no rows. Null when data access is disabled and the rows were withheld.",
                 },
                 "truncated": {
                   "description": "True when \`rows\` holds only the first rows of a larger result; \`rowCount\` is the full count.",
