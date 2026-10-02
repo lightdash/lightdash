@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.415.3",
-  "previousVersion": "2.415.2",
-  "releaseDate": "2026-10-02T09:59:36.161Z",
+  "version": "2.415.4",
+  "previousVersion": "2.415.3",
+  "releaseDate": "2026-10-02T11:49:30.188Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261001190000_add_credential_subject_to_warehouse_credentials.ts",
+        "edition": "core",
+        "tables": [
+          "warehouse_credentials"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

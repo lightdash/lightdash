@@ -1,3 +1,10 @@
+## [2.415.4](https://github.com/lightdash/lightdash/compare/2.415.3...2.415.4) (2026-10-02)
+
+
+### Bug Fixes
+
+* **connections:** name whose sign-in it is when a project's shared sign-in expires ([#30405](https://github.com/lightdash/lightdash/issues/30405)) ([18b640c](https://github.com/lightdash/lightdash/commit/18b640c42bd114d96f289c6f8bd70ca8767ddd8b))
+
 ## [2.415.3](https://github.com/lightdash/lightdash/compare/2.415.2...2.415.3) (2026-10-02)
 
 

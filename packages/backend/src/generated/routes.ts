@@ -66280,6 +66280,7 @@ const models: TsoaRoute.Models = {
                 parameters: { ref: 'ParametersValuesMap' },
                 usePreAggregateCache: { dataType: 'boolean' },
                 invalidateCache: { dataType: 'boolean' },
+                isEmbedOrigin: { dataType: 'boolean' },
                 context: { ref: 'QueryExecutionContext' },
             },
             validators: {},
@@ -67614,6 +67615,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'QueryExecutionContext' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    isEmbedOrigin: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
                             { dataType: 'undefined' },
                         ],
                     },
