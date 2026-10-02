@@ -63,7 +63,6 @@
 
 .sidebarHeader {
     flex-shrink: 0;
-    min-height: rem(32px);
     margin-bottom: var(--mantine-spacing-xs);
 
     &[data-collapsed] {

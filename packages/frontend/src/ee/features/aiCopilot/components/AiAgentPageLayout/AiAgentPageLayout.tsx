@@ -225,7 +225,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                                 ? 'Expand Ask AI sidebar'
                                                 : 'Collapse Ask AI sidebar'
                                         }
-                                        size="sm"
+                                        size="xs"
                                         leftSection={
                                             <MantineIcon
                                                 size="md"
