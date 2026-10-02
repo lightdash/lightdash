@@ -4126,9 +4126,7 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return {
-            sharedSignIn: await this.projectModel.getSharedSignIn(projectUuid),
-        };
+        return this.projectModel.getWarehouseCredentialSummary(projectUuid);
     }
 
     async getProject(projectUuid: string, account: Account): Promise<Project> {

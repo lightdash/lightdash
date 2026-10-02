@@ -34,6 +34,7 @@ export type SharedSignIn = {
 
 export type WarehouseCredentialSummary = {
     sharedSignIn: SharedSignIn | null;
+    hasServiceAccount: boolean;
 };
 
 export type ApiWarehouseCredentialSummaryResponse = {

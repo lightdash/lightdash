@@ -6,12 +6,84 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     getRunsAsLabel,
+    getSchedulePrompt,
+    getSetupLine,
     getServiceMethods,
     getSharedSignInExpiry,
     getStopsWorkingLabel,
     isSharedSignInModalError,
     shouldOpenSharedSignInReconnectModal,
 } from './sharedSignInCopy';
+
+describe('getSetupLine', () => {
+    it.each([
+        [PersonSignInProvider.GOOGLE, 'Google'],
+        [PersonSignInProvider.SNOWFLAKE, 'Snowflake'],
+        [PersonSignInProvider.DATABRICKS, 'Databricks'],
+    ])('names the %s sign-in each teammate uses', (provider, label) => {
+        expect(getSetupLine(provider)).toBe(
+            `Teammates sign in with their own ${label} account. Add a service account for schedules and shared work.`,
+        );
+    });
+});
+
+describe('getSchedulePrompt', () => {
+    const recorded = {
+        provider: PersonSignInProvider.GOOGLE,
+        subject: { userUuid: 'sam', name: 'Sam Rivera' },
+        subjectBasis: SignInSubjectBasis.RECORDED,
+    };
+    const ending =
+        'If it expires, the schedule stops. Add a service account to keep it running.';
+
+    it('uses your own sign-in for a personal-only connection', () => {
+        expect(getSchedulePrompt(null, 'alex')).toBe(
+            `This schedule runs on your own sign-in. ${ending}`,
+        );
+    });
+
+    it('uses your own sign-in for a recorded current user', () => {
+        expect(getSchedulePrompt(recorded, 'sam')).toBe(
+            `This schedule runs on your own sign-in. ${ending}`,
+        );
+    });
+
+    it('names a recorded other person', () => {
+        expect(getSchedulePrompt(recorded, 'alex')).toBe(
+            `This schedule runs on Sam Rivera's Google sign-in. ${ending}`,
+        );
+    });
+
+    it('does not attribute a creator guess to that person', () => {
+        expect(
+            getSchedulePrompt(
+                {
+                    ...recorded,
+                    subjectBasis: SignInSubjectBasis.PROJECT_CREATOR,
+                },
+                'alex',
+            ),
+        ).toBe(
+            `This schedule runs on this project's shared Google sign-in. ${ending}`,
+        );
+    });
+
+    it('uses neutral copy when nobody is known', () => {
+        expect(
+            getSchedulePrompt(
+                { ...recorded, subject: null, subjectBasis: null },
+                'alex',
+            ),
+        ).toBe(
+            `This schedule runs on this project's shared Google sign-in. ${ending}`,
+        );
+        expect(
+            getSchedulePrompt({ ...recorded, subject: null }, undefined),
+        ).toBe(
+            `This schedule runs on this project's shared Google sign-in. ${ending}`,
+        );
+    });
+});
 
 describe('getSharedSignInExpiry', () => {
     it('reads the attributed sign-in from an API error', () => {

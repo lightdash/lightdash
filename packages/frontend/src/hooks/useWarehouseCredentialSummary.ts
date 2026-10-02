@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
-const useIsSharedSignInOwnershipEnabled = () => {
+export const useIsSharedSignInOwnershipEnabled = () => {
     const flag = useServerFeatureFlag(FeatureFlags.SharedSignInOwnership);
     return flag.data?.enabled === true;
 };

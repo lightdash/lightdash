@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
@@ -6,6 +6,8 @@ import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { ScheduleSignInPrompt } from '../../../components/ProjectConnection/SharedSignIn/ScheduleSignInPrompt';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSyncModalForm } from '../hooks/useSyncModalForm';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
@@ -23,6 +25,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
     onClose,
 }) => {
     const { setAction } = useSyncModal();
+    const projectUuid = useProjectUuid();
     const {
         form,
         handleSubmit,
@@ -68,12 +71,17 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
                     </Button>
                 }
             >
-                <SyncModalForm
-                    id={formId}
-                    onSubmit={handleSubmit}
-                    isApp={resource.type === 'app'}
-                    supportsFilters={resource.type !== 'sqlChart'}
-                />
+                <Stack gap="md">
+                    {!isEditing && projectUuid && (
+                        <ScheduleSignInPrompt projectUuid={projectUuid} />
+                    )}
+                    <SyncModalForm
+                        id={formId}
+                        onSubmit={handleSubmit}
+                        isApp={resource.type === 'app'}
+                        supportsFilters={resource.type !== 'sqlChart'}
+                    />
+                </Stack>
             </MantineModal>
         </SyncModalFormProvider>
     );

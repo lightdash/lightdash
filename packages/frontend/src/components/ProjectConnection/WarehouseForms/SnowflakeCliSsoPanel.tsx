@@ -1,4 +1,5 @@
 import {
+    PersonSignInProvider,
     WarehouseTypes,
     type DepositSnowflakeCredentials,
     type WarehouseConnectInventory,
@@ -32,6 +33,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
+import { SharedSignInSetupLine } from '../SharedSignIn/SharedSignInSetupLine';
 import {
     buildSnowflakeConnectCommand,
     largestDatabaseName,
@@ -495,6 +497,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                     )}
                 </Stack>
             )}
+            <SharedSignInSetupLine provider={PersonSignInProvider.SNOWFLAKE} />
         </Stack>
     );
 };

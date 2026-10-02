@@ -4,6 +4,7 @@ import {
     DatabricksAuthenticationType,
     getExpiredSharedSignInMessage,
     PERSON_SIGN_IN_LABELS,
+    type PersonSignInProvider,
     SignInSubjectBasis,
     SnowflakeAuthenticationType,
     WarehouseTypes,
@@ -12,6 +13,9 @@ import {
     type SharedSignInExpiry,
     type SharedSignInStatus,
 } from '@lightdash/common';
+
+export const getSetupLine = (provider: PersonSignInProvider) =>
+    `Teammates sign in with their own ${PERSON_SIGN_IN_LABELS[provider]} account. Add a service account for schedules and shared work.`;
 
 const getSubjectName = (subject: SharedSignIn['subject']) =>
     subject?.name.trim() || null;
@@ -93,6 +97,24 @@ export const getServiceMethods = (
     [...(SERVICE_METHODS[warehouseType] ?? [])].sort(
         (a, b) => Number(a.needsLongLivedKey) - Number(b.needsLongLivedKey),
     );
+
+export const getSchedulePrompt = (
+    sharedSignIn: SharedSignIn | null,
+    currentUserUuid: string | undefined,
+) => {
+    const subject = sharedSignIn?.subject ?? null;
+    const runsOn =
+        !sharedSignIn ||
+        (sharedSignIn.subjectBasis === SignInSubjectBasis.RECORDED &&
+            !!subject?.userUuid &&
+            subject?.userUuid === currentUserUuid)
+            ? 'your own sign-in'
+            : sharedSignIn.subjectBasis === SignInSubjectBasis.RECORDED &&
+                getSubjectName(subject)
+              ? `${getSubjectName(subject)}'s ${PERSON_SIGN_IN_LABELS[sharedSignIn.provider]} sign-in`
+              : `this project's shared ${PERSON_SIGN_IN_LABELS[sharedSignIn.provider]} sign-in`;
+    return `This schedule runs on ${runsOn}. If it expires, the schedule stops. Add a service account to keep it running.`;
+};
 
 export const getSharedSignInExpiry = (
     apiError: Pick<ApiErrorDetail, 'data'>,

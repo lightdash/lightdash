@@ -261,7 +261,9 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
-    getSharedSignIn: vi.fn<ProjectModel['getSharedSignIn']>(async () => null),
+    getWarehouseCredentialSummary: vi.fn<
+        ProjectModel['getWarehouseCredentialSummary']
+    >(async () => ({ sharedSignIn: null, hasServiceAccount: false })),
     reconnectSharedSignIn: vi.fn<ProjectModel['reconnectSharedSignIn']>(
         async () => ({ kind: 'skipped' }),
     ),
@@ -13644,10 +13646,13 @@ describe('ProjectService.getSharedSignInStatus', () => {
 });
 
 describe('ProjectService.getWarehouseCredentialSummary', () => {
-    const sharedSignIn = {
-        provider: PersonSignInProvider.GOOGLE,
-        subject: { userUuid: 'founder-uuid', name: 'Fran Founder' },
-        subjectBasis: SignInSubjectBasis.RECORDED,
+    const summary = {
+        sharedSignIn: {
+            provider: PersonSignInProvider.GOOGLE,
+            subject: { userUuid: 'founder-uuid', name: 'Fran Founder' },
+            subjectBasis: SignInSubjectBasis.RECORDED,
+        },
+        hasServiceAccount: false,
     };
     const flagged = (enabled: boolean) =>
         ({
@@ -13660,7 +13665,7 @@ describe('ProjectService.getWarehouseCredentialSummary', () => {
         }) as unknown as FeatureFlagModel;
 
     beforeEach(() => {
-        projectModel.getSharedSignIn.mockResolvedValue(sharedSignIn);
+        projectModel.getWarehouseCredentialSummary.mockResolvedValue(summary);
     });
 
     test('is not available while the flag is off', async () => {
@@ -13673,7 +13678,9 @@ describe('ProjectService.getWarehouseCredentialSummary', () => {
                 projectSummary.projectUuid,
             ),
         ).rejects.toThrow('This feature is not enabled');
-        expect(projectModel.getSharedSignIn).not.toHaveBeenCalled();
+        expect(
+            projectModel.getWarehouseCredentialSummary,
+        ).not.toHaveBeenCalled();
     });
 
     test('needs view access to the project', async () => {
@@ -13686,10 +13693,12 @@ describe('ProjectService.getWarehouseCredentialSummary', () => {
                 projectSummary.projectUuid,
             ),
         ).rejects.toThrow(ForbiddenError);
-        expect(projectModel.getSharedSignIn).not.toHaveBeenCalled();
+        expect(
+            projectModel.getWarehouseCredentialSummary,
+        ).not.toHaveBeenCalled();
     });
 
-    test('returns whose sign-in the project runs on', async () => {
+    test('returns whose sign-in the project runs on and whether it has a service account', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: flagged(true),
         });
@@ -13698,6 +13707,6 @@ describe('ProjectService.getWarehouseCredentialSummary', () => {
                 user,
                 projectSummary.projectUuid,
             ),
-        ).resolves.toEqual({ sharedSignIn });
+        ).resolves.toEqual(summary);
     });
 });

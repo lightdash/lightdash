@@ -215,10 +215,13 @@ describe('warehouse credential subject', () => {
         );
 
         expect(await storedSubject(projectUuid)).toBe(founder);
-        expect(await model.getSharedSignIn(projectUuid)).toEqual({
-            provider: PersonSignInProvider.GOOGLE,
-            subject: { userUuid: founder, name: 'Fran Person' },
-            subjectBasis: SignInSubjectBasis.RECORDED,
+        expect(await model.getWarehouseCredentialSummary(projectUuid)).toEqual({
+            sharedSignIn: {
+                provider: PersonSignInProvider.GOOGLE,
+                subject: { userUuid: founder, name: 'Fran Person' },
+                subjectBasis: SignInSubjectBasis.RECORDED,
+            },
+            hasServiceAccount: false,
         });
         expect(
             await model.getSharedSignInSubjectForToken(
@@ -319,7 +322,10 @@ describe('warehouse credential subject', () => {
         await model.update(projectUuid, projectData(serviceAccount), founder);
 
         expect(await storedSubject(projectUuid)).toBeNull();
-        expect(await model.getSharedSignIn(projectUuid)).toBeNull();
+        expect(await model.getWarehouseCredentialSummary(projectUuid)).toEqual({
+            sharedSignIn: null,
+            hasServiceAccount: true,
+        });
         expect(
             await model.getSharedSignInSubjectForToken(
                 projectUuid,
@@ -405,6 +411,15 @@ describe('warehouse credential subject', () => {
 
         await database('users').where('user_uuid', founder).delete();
 
+        expect(await model.getWarehouseCredentialSummary(projectUuid)).toEqual({
+            sharedSignIn: {
+                provider: PersonSignInProvider.GOOGLE,
+                subject: null,
+                subjectBasis: null,
+            },
+            hasServiceAccount: false,
+        });
+
         expect(
             await model.getSharedSignInSubjectForToken(
                 projectUuid,
@@ -414,6 +429,37 @@ describe('warehouse credential subject', () => {
             provider: PersonSignInProvider.GOOGLE,
             subject: null,
             basis: null,
+        });
+    });
+
+    test('does not count an organization credential as a project service account', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Fran');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData(serviceAccount),
+        );
+        const [credential] = await database(
+            'organization_warehouse_credentials',
+        )
+            .insert({
+                organization_uuid: organization,
+                name: 'Organization credential',
+                warehouse_type: WarehouseTypes.BIGQUERY,
+                warehouse_connection: encryptionUtil.encrypt(
+                    JSON.stringify(serviceAccount),
+                ),
+            } as never)
+            .returning('organization_warehouse_credentials_uuid');
+        await database('projects').where('project_uuid', projectUuid).update({
+            organization_warehouse_credentials_uuid:
+                credential.organization_warehouse_credentials_uuid,
+        });
+
+        expect(await model.getWarehouseCredentialSummary(projectUuid)).toEqual({
+            sharedSignIn: null,
+            hasServiceAccount: false,
         });
     });
 
