@@ -374,6 +374,23 @@ type UseDeepResearchThreadRunRegistrationsOptions = {
     threadUuid: string;
 };
 
+// The server keeps one run per prompt, so a local start for a prompt it already
+// tracks is stale even when the start request never returned to this page.
+const getUntrackedRegistrations = (
+    localRegistrations: DeepResearchRunRegistration[],
+    serverRuns: AiDeepResearchRun[],
+): DeepResearchRunRegistration[] => {
+    const serverRunUuids = new Set(
+        serverRuns.map((run) => run.aiDeepResearchRunUuid),
+    );
+    const serverPromptUuids = new Set(serverRuns.map((run) => run.promptUuid));
+    return localRegistrations.filter(
+        (registration) =>
+            !serverRunUuids.has(registration.runUuid) &&
+            !serverPromptUuids.has(registration.promptUuid),
+    );
+};
+
 export const useDeepResearchThreadRunRegistrationState = ({
     projectUuid,
     threadUuid,
@@ -394,13 +411,11 @@ export const useDeepResearchThreadRunRegistrationState = ({
                 userUuid: userUuid ?? '',
             }),
         );
-        const serverRunUuids = new Set(
-            fromServer.map((registration) => registration.runUuid),
-        );
         return [
             ...fromServer,
-            ...localRegistrations.filter(
-                (registration) => !serverRunUuids.has(registration.runUuid),
+            ...getUntrackedRegistrations(
+                localRegistrations,
+                serverRuns.data ?? [],
             ),
         ];
     }, [serverRuns.data, localRegistrations, threadUuid, userUuid]);
@@ -436,14 +451,13 @@ export const useHasActiveDeepResearchRun = ({
             return false;
         }
 
-        const serverRunUuids = new Set(
-            serverRuns.data?.map((run) => run.aiDeepResearchRunUuid),
-        );
-        const hasLocalActiveRun = localRegistrations.some(
+        const hasLocalActiveRun = getUntrackedRegistrations(
+            localRegistrations,
+            serverRuns.data ?? [],
+        ).some(
             (registration) =>
                 registration.state === 'starting' ||
-                (registration.state === 'started' &&
-                    !serverRunUuids.has(registration.runUuid)),
+                registration.state === 'started',
         );
 
         return (
