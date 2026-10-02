@@ -3277,6 +3277,7 @@ export class ProjectService extends BaseService {
             throw withSharedSignInExpiry(
                 error,
                 {
+                    projectUuid,
                     provider: stored.provider,
                     subjectUserUuid: stored.subject?.userUuid ?? null,
                     subjectName: stored.subject?.name || null,

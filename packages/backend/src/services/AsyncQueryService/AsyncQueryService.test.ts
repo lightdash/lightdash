@@ -3655,6 +3655,53 @@ describe('AsyncQueryService', () => {
             processingStartedAt: null,
         });
 
+        test('personalises a stored error when a member polls it', async () => {
+            const generic =
+                "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.";
+            serviceWithCache.queryHistoryModel.get = vi.fn().mockResolvedValue({
+                ...buildPendingAiQueryHistory(sessionAccount.user.id),
+                status: QueryHistoryStatus.ERROR,
+                error: generic,
+            });
+            vi.spyOn(
+                serviceWithCache.projectModel,
+                'getWarehouseCredentialsForProject',
+            ).mockResolvedValue({
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    refresh_token: 'token',
+                },
+            } as unknown as CreateWarehouseCredentials);
+            serviceWithCache.projectModel.getSharedSignInSubjectForToken = vi
+                .fn()
+                .mockResolvedValue({
+                    provider: PersonSignInProvider.GOOGLE,
+                    subject: {
+                        userUuid: sessionAccount.user.id,
+                        name: 'Sam Rivera',
+                    },
+                    basis: SignInSubjectBasis.RECORDED,
+                });
+            vi.spyOn(
+                serviceWithCache.featureFlagModel,
+                'get',
+            ).mockResolvedValue({
+                enabled: true,
+            } as never);
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+            });
+            expect(result).toMatchObject({
+                status: QueryHistoryStatus.ERROR,
+                error: "Your Google sign-in for this project's connection has expired. Reconnect it in the project's connection settings.",
+            });
+        });
+
         test('allows embedded AI agent JWTs to poll AI queries created by the embed write user', async () => {
             const embedWriteUserUuid = 'embed-write-user-uuid';
             const embedAiAccount = buildEmbedAiAccount(embedWriteUserUuid);
@@ -6019,6 +6066,7 @@ describe('AsyncQueryService', () => {
                 sharedSignIn
                     ? {
                           sharedSignIn: {
+                              projectUuid,
                               provider: PersonSignInProvider.GOOGLE,
                               subjectUserUuid: 'another-member',
                               subjectName: 'Sam Rivera',
@@ -6044,13 +6092,13 @@ describe('AsyncQueryService', () => {
             projectType = ProjectType.PREVIEW,
             userWarehouseCredentials,
             sharedSignIn = false,
-            isEmbedOrigin = false,
+            queryContext = QueryExecutionContext.EXPLORE,
         }: {
             syncEnabled?: boolean;
             isPreviewProject?: boolean;
             projectType?: ProjectType;
             sharedSignIn?: boolean;
-            isEmbedOrigin?: boolean;
+            queryContext?: QueryExecutionContext;
             userWarehouseCredentials?: {
                 uuid: string;
                 credentials: CreateWarehouseCredentials;
@@ -6163,14 +6211,16 @@ describe('AsyncQueryService', () => {
                         sessionAccount.organization.organizationUuid!,
                     isPreviewProject,
                     isRegisteredUser: true,
-                    isEmbedOrigin,
                     onboardingFlow: 'legacy',
                     projectUuid,
                     query: 'SELECT 1',
                     fieldsMap: {},
                     usedParameters: null,
                     queryTags: {
-                        query_context: QueryExecutionContext.EXPLORE,
+                        query_context: queryContext,
+                        ...(queryContext === QueryExecutionContext.AI
+                            ? { chart_uuid: 'saved-chart-uuid' }
+                            : {}),
                     },
                     queryUuid: 'preview-query-uuid',
                     cacheKey: 'preview-cache-key',
@@ -6232,30 +6282,21 @@ describe('AsyncQueryService', () => {
             ]);
         });
 
-        test.each([
-            {
-                isEmbedOrigin: true,
-                expected:
-                    "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
-            },
-            {
-                isEmbedOrigin: false,
-                expected:
-                    "This project's connection uses Sam Rivera's sign-in, which has expired. Ask Sam Rivera or an admin to reconnect.",
-            },
-        ])(
-            'stores the correct sign-in message for embed origin $isEmbedOrigin',
-            async ({ isEmbedOrigin, expected }) => {
+        test.each([QueryExecutionContext.EXPLORE, QueryExecutionContext.AI])(
+            'stores the generic sign-in message for a %s runner',
+            async (queryContext) => {
                 const { service, run } = setup({
                     isPreviewProject: false,
                     projectType: ProjectType.DEFAULT,
                     sharedSignIn: true,
-                    isEmbedOrigin,
+                    queryContext,
                 });
 
                 await run();
 
-                expect(recordedErrors(service)).toEqual([expected]);
+                expect(recordedErrors(service)).toEqual([
+                    "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
+                ]);
             },
         );
 

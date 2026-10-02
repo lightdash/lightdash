@@ -1,10 +1,16 @@
 import {
     BigqueryTokenError,
     DatabricksTokenError,
+    FeatureFlags,
     getExpiredSharedSignInMessage,
+    getPersonSignIn,
+    PersonSignInProvider,
     SnowflakeTokenError,
+    type Account,
     type SharedSignInExpiry,
 } from '@lightdash/common';
+import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
+import type { ProjectModel } from '../models/ProjectModel/ProjectModel';
 
 export type WarehouseTokenError =
     | BigqueryTokenError
@@ -49,6 +55,79 @@ export const personaliseSharedSignInError = <T>(
             : sharedSignIn,
         viewerUserUuid,
     ) as unknown as T;
+};
+
+export const personaliseStoredSharedSignInError = async ({
+    account,
+    projectUuid,
+    error,
+    projectModel,
+    featureFlagModel,
+}: {
+    account: Account;
+    projectUuid: string;
+    error: string | null;
+    projectModel: ProjectModel;
+    featureFlagModel: FeatureFlagModel;
+}): Promise<string | null> => {
+    if (
+        !error ||
+        !account.isRegisteredUser() ||
+        (!account.isSessionUser() && !account.isPatUser())
+    )
+        return error;
+    if (
+        !Object.values(PersonSignInProvider).some(
+            (provider) =>
+                error ===
+                getExpiredSharedSignInMessage(
+                    {
+                        provider,
+                        subjectUserUuid: null,
+                        subjectName: null,
+                        subjectBasis: null,
+                    },
+                    null,
+                ),
+        )
+    )
+        return error;
+    const { enabled } = await featureFlagModel.get({
+        user: { organizationUuid: account.organization.organizationUuid },
+        featureFlagId: FeatureFlags.SharedSignInExpiryMessage,
+    });
+    if (!enabled) return error;
+    try {
+        const credentials =
+            await projectModel.getWarehouseCredentialsForProject(projectUuid);
+        const signIn = getPersonSignIn(credentials);
+        if (!signIn) return error;
+        const genericExpiry: SharedSignInExpiry = {
+            projectUuid,
+            provider: signIn.provider,
+            subjectUserUuid: null,
+            subjectName: null,
+            subjectBasis: null,
+        };
+        if (error !== getExpiredSharedSignInMessage(genericExpiry, null))
+            return error;
+        const stored = await projectModel.getSharedSignInSubjectForToken(
+            projectUuid,
+            signIn.refreshToken,
+        );
+        if (!stored) return error;
+        return getExpiredSharedSignInMessage(
+            {
+                provider: stored.provider,
+                subjectUserUuid: stored.subject?.userUuid ?? null,
+                subjectName: stored.subject?.name ?? null,
+                subjectBasis: stored.basis,
+            },
+            account.user.id,
+        );
+    } catch {
+        return error;
+    }
 };
 
 export const attributeClientErrors = <T extends object>(

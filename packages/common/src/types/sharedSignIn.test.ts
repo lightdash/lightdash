@@ -186,6 +186,7 @@ describe('resolveSignInSubject', () => {
 
 describe('getExpiredSharedSignInMessage', () => {
     const expiry = {
+        projectUuid: 'project-uuid',
         provider: PersonSignInProvider.GOOGLE,
         subjectUserUuid: 'subject',
         subjectName: 'Sam Rivera',

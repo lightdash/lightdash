@@ -18,6 +18,7 @@ import {
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -290,7 +291,6 @@ export class QuerySourceService extends BaseService {
         projectUuid,
         queries,
         context,
-        isEmbedOrigin,
         parameters,
         userAttributeOverrides,
         invalidateCache,
@@ -308,7 +308,6 @@ export class QuerySourceService extends BaseService {
             projectUuid,
             queries,
             context,
-            isEmbedOrigin,
             parameters,
             userAttributeOverrides,
             invalidateCache,
@@ -336,7 +335,6 @@ export class QuerySourceService extends BaseService {
         projectUuid,
         queries,
         context,
-        isEmbedOrigin,
         parameters,
         userAttributeOverrides,
         invalidateCache,
@@ -364,7 +362,6 @@ export class QuerySourceService extends BaseService {
                 account,
                 projectUuid,
                 context,
-                isEmbedOrigin,
                 query: entry.query,
                 resolvedReferences: { ...resolvedReferences },
                 parameters,
@@ -431,7 +428,13 @@ export class QuerySourceService extends BaseService {
                 return {
                     queryUuid: queryHistory.queryUuid,
                     status: queryHistory.status,
-                    error: queryHistory.error,
+                    error: await personaliseStoredSharedSignInError({
+                        account,
+                        projectUuid,
+                        error: queryHistory.error,
+                        projectModel: this.projectModel,
+                        featureFlagModel: this.featureFlagModel,
+                    }),
                 };
             }),
         );
