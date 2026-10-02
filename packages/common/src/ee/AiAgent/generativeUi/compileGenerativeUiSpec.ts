@@ -21,6 +21,11 @@ export type GenerativeUiOperation = {
     pathTemplate: string;
 };
 
+export type ApiGenerativeUiOperationsResponse = {
+    status: 'ok';
+    results: GenerativeUiOperation[];
+};
+
 export type GenerativeUiCompiledRequest = {
     operation: GenerativeUiOperation;
     params: {

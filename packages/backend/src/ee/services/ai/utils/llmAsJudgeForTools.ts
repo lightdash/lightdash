@@ -41,6 +41,8 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     createContent: 'create_content',
     createScheduledDelivery: 'create_scheduled_delivery',
     updateUserName: 'update_user_name',
+    searchApi: 'search_api',
+    describeApi: 'describe_api',
     loadSkill: 'load_skill',
     generateHashes: 'generate_hashes',
     loadProjectContext: 'load_project_context',

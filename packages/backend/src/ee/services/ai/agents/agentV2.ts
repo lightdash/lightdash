@@ -60,6 +60,7 @@ import {
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
 import { createVizPlanner } from '../decisions/vizPlanner';
+import { getGenerativeUiApiCatalog } from '../generativeUi/apiOperationCatalog';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
     getDeferredToolInstructions,
@@ -77,6 +78,7 @@ import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
 import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
 import { getDelegateResearchTask } from '../tools/delegateResearchTask';
+import { getDescribeApi } from '../tools/describeApi';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
@@ -123,6 +125,7 @@ import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
+import { getSearchApi } from '../tools/searchApi';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
@@ -2090,6 +2093,16 @@ export const getAgentTools = (
         ...(loadMcpTools ? { loadMcpTools } : {}),
         ...(args.decisions && args.execution.mode === 'standard'
             ? { loadAgentTools: getLoadAgentTools() }
+            : {}),
+        ...(args.enableGenerativeUi
+            ? {
+                  searchApi: getSearchApi({
+                      catalog: getGenerativeUiApiCatalog(),
+                  }),
+                  describeApi: getDescribeApi({
+                      catalog: getGenerativeUiApiCatalog(),
+                  }),
+              }
             : {}),
     };
 

@@ -179,6 +179,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type AppGeneratePipelineJobPayload,
     type DataAppVizChart,
+    type GenerativeUiOperation,
     type ItemsMap,
     type MetricQuery,
     type PivotConfiguration,
@@ -394,6 +395,8 @@ import {
 import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
+import { getGenerativeUiApiCatalog } from '../ai/generativeUi/apiOperationCatalog';
+import { assertGenerativeUiAvailable } from '../ai/generativeUi/generativeUiAccess';
 import {
     filterModelsForOrg,
     getAvailableModels,
@@ -3968,6 +3971,27 @@ export class AiAgentService extends BaseService {
                 };
             }),
         };
+    }
+
+    private async assertGenerativeUiAvailable(user: SessionUser) {
+        await assertGenerativeUiAvailable({
+            isCopilotEnabled: () => this.getIsCopilotEnabled(user),
+            isGenerativeUiEnabled: async () => {
+                const { enabled } = await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiAgentGenerativeUi,
+                });
+                return enabled;
+            },
+        });
+    }
+
+    /** The API operations a generated UI card may call, for the web renderer. */
+    async listGenerativeUiOperations(
+        user: SessionUser,
+    ): Promise<GenerativeUiOperation[]> {
+        await this.assertGenerativeUiAvailable(user);
+        return getGenerativeUiApiCatalog().listForClient();
     }
 
     async decideSqlApproval(
@@ -14012,17 +14036,29 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
                 featureFlagId: FeatureFlags.AiFilterExpressions,
             });
-        const [{ enabled: toolSearchEnabled }, { enabled: codeModeEnabled }] =
-            await Promise.all([
-                this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.AiAgentToolSearch,
-                }),
-                this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.AiAgentCodeMode,
-                }),
-            ]);
+        const [
+            { enabled: toolSearchEnabled },
+            { enabled: codeModeEnabled },
+            { enabled: generativeUiFlagEnabled },
+        ] = await Promise.all([
+            this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentToolSearch,
+            }),
+            this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentCodeMode,
+            }),
+            this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentGenerativeUi,
+            }),
+        ]);
+        // Cards render in the web thread; Slack and deep research get none.
+        const generativeUiEnabled =
+            generativeUiFlagEnabled &&
+            !isSlackPrompt(prompt) &&
+            responseExecution.mode === 'standard';
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(
@@ -14501,6 +14537,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableFilterExpressions: filterExpressionsEnabled,
             enableToolSearch: toolSearchEnabled,
             enableCodeMode: codeModeEnabled,
+            enableGenerativeUi: generativeUiEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
@@ -16257,6 +16294,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return 'Reviewing the project context...';
                 case 'searchTools':
                     return 'Finding the right tools...';
+                case 'searchApi':
+                case 'describeApi':
+                    return 'Finding the right API...';
                 case 'runCode':
                     return 'Combining the results...';
                 case 'findContent':

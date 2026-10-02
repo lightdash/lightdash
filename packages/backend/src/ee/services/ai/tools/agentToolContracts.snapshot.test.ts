@@ -7,12 +7,14 @@ import {
 } from '@lightdash/common';
 import { asSchema, toolSearch, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
+import { getGenerativeUiApiCatalog } from '../generativeUi/apiOperationCatalog';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { AgentContext } from '../utils/AgentContext';
 import { getStaticToolDescription } from '../utils/toolDescription';
 import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
 import { getCreateScheduledDelivery } from './createScheduledDelivery';
+import { getDescribeApi } from './describeApi';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
@@ -47,6 +49,7 @@ import { getRunContentQuery } from './runContentQuery';
 import { getRunQuery } from './runQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
+import { getSearchApi } from './searchApi';
 import { getSearchFieldValues } from './searchFieldValues';
 import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 import { getUpdateUserName } from './updateUserName';
@@ -97,6 +100,8 @@ const makeAgentTools = (
             createScheduledDelivery: noop,
         }),
         updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
+        searchApi: getSearchApi({ catalog: getGenerativeUiApiCatalog() }),
+        describeApi: getDescribeApi({ catalog: getGenerativeUiApiCatalog() }),
         editContent: getEditContent({ editContent: noop }),
         findContent: getFindContent({
             findContent: noop,

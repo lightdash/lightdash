@@ -84,6 +84,11 @@ import {
     toolDashboardV2OutputSchema,
 } from './toolDashboardV2Args';
 import {
+    TOOL_DESCRIBE_API_DESCRIPTION,
+    toolDescribeApiArgsSchema,
+    toolDescribeApiOutputSchema,
+} from './toolDescribeApiArgs';
+import {
     TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
     toolDescribeWarehouseTableArgsSchema,
     toolDescribeWarehouseTableOutputSchema,
@@ -322,6 +327,11 @@ import {
     toolRunSqlArgsSchema,
     toolRunSqlOutputSchema,
 } from './toolRunSqlArgs';
+import {
+    TOOL_SEARCH_API_DESCRIPTION,
+    toolSearchApiArgsSchema,
+    toolSearchApiOutputSchema,
+} from './toolSearchApiArgs';
 import {
     TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
     TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION,
@@ -1001,6 +1011,34 @@ export const updateUserNameToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolUpdateUserNameArgsSchema,
     agent: { outputSchema: toolUpdateUserNameOutputSchema },
+});
+
+export const searchApiToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'searchApi',
+    typeof toolSearchApiArgsSchema,
+    typeof toolSearchApiArgsSchema,
+    typeof toolSearchApiOutputSchema
+> = defineTool({
+    name: 'searchApi',
+    title: 'Search API operations',
+    description: TOOL_SEARCH_API_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolSearchApiArgsSchema,
+    agent: { outputSchema: toolSearchApiOutputSchema },
+});
+
+export const describeApiToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'describeApi',
+    typeof toolDescribeApiArgsSchema,
+    typeof toolDescribeApiArgsSchema,
+    typeof toolDescribeApiOutputSchema
+> = defineTool({
+    name: 'describeApi',
+    title: 'Describe API operation',
+    description: TOOL_DESCRIBE_API_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolDescribeApiArgsSchema,
+    agent: { outputSchema: toolDescribeApiOutputSchema },
 });
 
 export const runContentQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1916,6 +1954,8 @@ type AgentToolDefinitionsByName = {
     createContent: typeof createContentToolDefinition;
     createScheduledDelivery: typeof createScheduledDeliveryToolDefinition;
     updateUserName: typeof updateUserNameToolDefinition;
+    searchApi: typeof searchApiToolDefinition;
+    describeApi: typeof describeApiToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
@@ -1976,6 +2016,8 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     createContent: createContentToolDefinition,
     createScheduledDelivery: createScheduledDeliveryToolDefinition,
     updateUserName: updateUserNameToolDefinition,
+    searchApi: searchApiToolDefinition,
+    describeApi: describeApiToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     loadSkill: loadSkillToolDefinition,
@@ -2043,6 +2085,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     createContentToolDefinition,
     createScheduledDeliveryToolDefinition,
     updateUserNameToolDefinition,
+    searchApiToolDefinition,
+    describeApiToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
     loadSkillToolDefinition,

@@ -30,6 +30,8 @@ export const ALWAYS_LOADED_TOOL_NAMES: ReadonlySet<string> = new Set([
     'loadSkill',
     'loadProjectContext',
     'loadMcpTools',
+    'searchApi',
+    'describeApi',
 ]);
 
 /**
@@ -39,6 +41,7 @@ export const ALWAYS_LOADED_TOOL_NAMES: ReadonlySet<string> = new Set([
  */
 export const CODE_MODE_TOOL_NAMES: ReadonlySet<string> = new Set([
     'analyzeFieldImpact',
+    'describeApi',
     'describeWarehouseTable',
     'discoverRepos',
     'findContent',
@@ -61,6 +64,7 @@ export const CODE_MODE_TOOL_NAMES: ReadonlySet<string> = new Set([
     'resolveUrl',
     'runContentQuery',
     'runSavedChart',
+    'searchApi',
     'searchFieldValues',
     'searchSemanticLayer',
 ]);

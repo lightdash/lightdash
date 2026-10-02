@@ -402,6 +402,8 @@ export const ToolCallDescription: FC<{
         case 'findCustomChartTypes':
         case 'searchTools':
         case 'runCode':
+        case 'searchApi':
+        case 'describeApi':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);

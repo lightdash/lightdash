@@ -75,6 +75,8 @@ export const DISTILL_TOOL_POLICIES = {
     listKnowledgeDocuments: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     readPinnedThread: { result: omitResult('cross-thread transcript') },
     searchTools: { result: omitResult('tool catalog') },
+    searchApi: { result: omitResult('API catalog') },
+    describeApi: { result: omitResult('API catalog') },
     runCode: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     getProjectInfo: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     listProjects: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
