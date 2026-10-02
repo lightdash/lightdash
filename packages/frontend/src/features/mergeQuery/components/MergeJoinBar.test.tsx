@@ -6,6 +6,7 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { MergeJoinBar } from './MergeJoinBar';
 import { MergeReadOnlyBar } from './MergeReadOnlyBar';
+import { MergeRelationshipCard } from './MergeRelationshipCard';
 
 type TestItem = {
     table: string;
@@ -107,7 +108,38 @@ vi.mock('../context/useMerge', () => ({
 }));
 
 vi.mock('../hooks/useMergeSetup', () => ({
-    useMergeSetup: () => state.setup,
+    useMergeSetup: () => ({
+        ...state.setup,
+        additionalSource: state.merge.additionalSources[0],
+        first: {
+            availablePrimaryJoinItems: state.setup.availablePrimaryJoinItems,
+        },
+        sourceSetups: state.merge.additionalSources.map((source) => ({
+            additionalSourceId: source.id,
+            additionalSource: source,
+            additionalExploreLabel:
+                source.id === 'b' || source.exploreName === 'customers'
+                    ? state.setup.additionalExploreLabel
+                    : 'Payments',
+            availableAdditionalJoinItems:
+                state.setup.availableAdditionalJoinItems,
+            getJoinCandidates: state.setup.getJoinCandidates,
+        })),
+        sourceLabels: [
+            state.setup.primaryExploreLabel,
+            ...state.merge.additionalSources.map((source) =>
+                source.id === 'b' || source.exploreName === 'customers'
+                    ? state.setup.additionalExploreLabel
+                    : 'Payments',
+            ),
+        ],
+        relationshipSummary: state.setup.effectiveParts
+            .map(
+                (part) =>
+                    `${state.setup.primaryExploreLabel} · ${state.setup.labelFor(part.fieldIdBySourceId.a!)} = ${state.setup.additionalExploreLabel} · ${state.setup.labelFor(part.fieldIdBySourceId.b!)}`,
+            )
+            .join(' AND '),
+    }),
 }));
 
 vi.mock('../../../components/common/FieldSelect', () => ({
@@ -175,6 +207,14 @@ const additionalItems: TestItem[] = [
 const resetState = () => {
     state.merge.readOnly = false;
     state.merge.joinType = MergeJoinType.FULL;
+    state.merge.additionalSources = [
+        {
+            id: 'b',
+            exploreName: 'customers',
+            dimensions: [],
+            metrics: [],
+        },
+    ];
     state.setup.effectiveParts = [
         {
             fieldIdBySourceId: {
@@ -207,7 +247,7 @@ describe('MergeJoinBar', () => {
         const user = userEvent.setup();
         renderWithProviders(<MergeJoinBar guided />);
 
-        expect(screen.getByText('Orders')).toBeInTheDocument();
+        expect(screen.getByText('Orders (first source)')).toBeInTheDocument();
         expect(screen.getByText('Customers')).toBeInTheDocument();
         expect(screen.getByText('=')).toBeInTheDocument();
 
@@ -324,39 +364,59 @@ describe('MergeJoinBar', () => {
         expect(state.removeJoinPart).toHaveBeenCalledWith(1);
     });
 
-    it('applies a source-qualified suggested pair', async () => {
+    it('shows every source mapping together and updates the selected source', async () => {
         const user = userEvent.setup();
+        state.merge.additionalSources = [
+            ...state.merge.additionalSources,
+            {
+                id: 'c',
+                exploreName: 'payments',
+                dimensions: [],
+                metrics: [],
+            },
+        ];
         state.setup.effectiveParts = [
             {
                 fieldIdBySourceId: {
-                    [PRIMARY_SOURCE_ID]: null,
-                    b: null,
+                    [PRIMARY_SOURCE_ID]: 'orders_customer_id',
+                    b: 'customers_id',
+                    c: 'customers_account_key',
                 },
             },
         ];
-        state.setup.isIncomplete = true;
-        state.setup.suggestedAvailablePair = {
-            [PRIMARY_SOURCE_ID]: 'orders_customer_id',
-            b: 'customers_id',
-        };
 
         renderWithProviders(<MergeJoinBar guided />);
 
         expect(
-            screen.getByText('Orders · Customer ID = Customers · ID', {
-                exact: false,
-            }),
+            screen.getByRole('combobox', { name: 'Customers join field' }),
         ).toBeInTheDocument();
-        await user.click(
-            screen.getByRole('button', { name: 'Use suggestion' }),
+        await user.selectOptions(
+            screen.getByRole('combobox', { name: 'Payments join field' }),
+            'customers_id',
         );
 
-        expect(state.setJoinField).toHaveBeenCalledWith(
+        expect(state.setJoinField).toHaveBeenCalledWith(0, 'c', 'customers_id');
+        state.merge.additionalSources = state.merge.additionalSources.slice(
             0,
-            PRIMARY_SOURCE_ID,
-            'orders_customer_id',
+            1,
         );
-        expect(state.setJoinField).toHaveBeenCalledWith(0, 'b', 'customers_id');
+    });
+
+    it('disambiguates repeated explores in the shared key mapping', () => {
+        state.merge.additionalSources = [
+            ...state.merge.additionalSources,
+            {
+                id: 'c',
+                exploreName: 'customers',
+                dimensions: [],
+                metrics: [],
+            },
+        ];
+        state.setup.effectiveParts[0].fieldIdBySourceId.c = 'customers_id';
+
+        renderWithProviders(<MergeJoinBar guided />);
+
+        expect(screen.getAllByText(/^Customers · /)).toHaveLength(2);
     });
 
     it('supports clicking and arrow-key navigation between join types', async () => {
@@ -364,11 +424,11 @@ describe('MergeJoinBar', () => {
         renderWithProviders(<MergeJoinBar guided />);
 
         const fullOuter = screen.getByRole('radio', {
-            name: /Full outer:/,
+            name: /All rows:/,
         });
         expect(fullOuter).toBeChecked();
 
-        await user.click(screen.getByRole('radio', { name: /Left:/ }));
+        await user.click(screen.getByRole('radio', { name: /From Orders:/ }));
         expect(state.setJoinType).toHaveBeenCalledWith(MergeJoinType.LEFT);
 
         fullOuter.focus();
@@ -417,6 +477,26 @@ describe('MergeJoinBar', () => {
             screen.getByText('Orders · Customer ID = Customers · ID', {
                 exact: false,
             }),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps the relationship header compact for many sources', () => {
+        state.merge.additionalSources = [
+            ...state.merge.additionalSources,
+            {
+                id: 'c',
+                exploreName: 'payments',
+                dimensions: [],
+                metrics: [],
+            },
+        ];
+        state.setup.effectiveParts[0].fieldIdBySourceId.c =
+            'customers_account_key';
+
+        renderWithProviders(<MergeRelationshipCard />);
+
+        expect(
+            screen.getByText('3 sources · Customer ID · All rows'),
         ).toBeInTheDocument();
     });
 });

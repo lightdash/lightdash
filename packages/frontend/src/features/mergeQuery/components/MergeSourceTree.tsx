@@ -42,7 +42,7 @@ export const MergeSourceTree: FC<{
     );
     if (!source) return null;
 
-    if (isChoosingExplore) {
+    if (isChoosingExplore || !source.exploreName) {
         return (
             <Stack gap="xs" h="100%" mih={0}>
                 <Button

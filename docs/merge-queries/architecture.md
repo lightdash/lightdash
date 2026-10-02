@@ -4,7 +4,7 @@ How a merge executes, and the traps around it.
 
 ## One execution path
 
-A merge is a composed query: two semantic-layer nodes and one DuckDB join node,
+A merge is a composed query: one semantic-layer node per source and one DuckDB join node,
 submitted through `QuerySourceService`. Nothing about merges is special at
 execution time.
 
@@ -127,10 +127,13 @@ through `buildMergeQueryFromMergeDefinition`: saved charts, dashboard tiles,
 scheduled deliveries, chart-as-code, promotion and version history. Document
 chart cells keep the v2 shape inside the document's own schema.
 
-In the Explorer the editor addresses its sources by fixed handles (`a`, `b`)
+In the Explorer the editor addresses its sources by stable handles (`a`, `b`, `source_2`, …)
 and runs them under names (`getMergeSourceNames`): the chart's explore, the
-other query's explore, `_2` on a repeat. A restored chart carries its saved
-names so its column ids hold.
+other queries' explores, with numeric suffixes for duplicates. Restored charts
+retain their saved names; removing a source fixes the surviving names so column
+ids hold. Every source maps into the same composite key and shares one join
+type. FULL joins coalesce preceding key columns, including keys absent from
+the chart query; LEFT keeps chart keys and INNER requires every source.
 
 Kept as decided: the side table stays (a column on `saved_queries_versions`
 would widen every version read for a value almost no version has), and
