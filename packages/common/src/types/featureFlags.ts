@@ -256,6 +256,8 @@ export enum FeatureFlags {
 
     /** Kill switch for expired shared sign-in messages. On by default. */
     SharedSignInExpiryMessage = 'shared-sign-in-expiry-message',
+    /** Kill switch for shared sign-in reconnection. On by default. */
+    SharedSignInReconnect = 'shared-sign-in-reconnect',
 
     /**
      * Cloud-only: let an organization send report/notification emails from

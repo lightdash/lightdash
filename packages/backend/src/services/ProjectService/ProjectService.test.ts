@@ -39,6 +39,7 @@ import {
     MissingWarehouseCredentialsError,
     NotFoundError,
     NotImplementedError,
+    OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     ParameterError,
     PersonSignInProvider,
@@ -12878,5 +12879,300 @@ describe('ProjectService expired shared sign-in', () => {
             name: 'SnowflakeTokenError',
             data: { sharedSignIn: { subjectUserUuid: 'subject-uuid' } },
         });
+    });
+});
+
+describe('ProjectService.reconnectSharedSignIn', () => {
+    const credentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'analytics',
+        dataset: 'marts',
+        authenticationType: BigqueryAuthenticationType.SSO,
+        timeoutSeconds: 300,
+        priority: 'interactive',
+        retries: 3,
+        location: undefined,
+        maximumBytesBilled: undefined,
+        keyfileContents: {
+            type: 'authorized_user',
+            client_id: 'original-client',
+            client_secret: 'original-secret',
+            refresh_token: 'expired-token',
+        },
+    } as CreateBigqueryCredentials;
+    const model = projectModel as unknown as {
+        getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
+    };
+    const grant = { getRefreshToken: vi.fn(async () => 'new-token') };
+    const flag = {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId === FeatureFlags.SharedSignInReconnect,
+        })),
+    };
+    const service = getMockedProjectService(lightdashConfigMock, {
+        featureFlagModel: flag as unknown as FeatureFlagModel,
+    });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        Object.assign(service, { userOAuthGrantsModel: grant });
+        grant.getRefreshToken.mockResolvedValue('new-token');
+        projectModel.getWithSensitiveFields.mockResolvedValue({
+            ...projectWithSensitiveFields,
+            warehouseConnection: credentials,
+            organizationWarehouseCredentialsUuid: undefined,
+        } as never);
+        model.getSharedSignInSubjectForToken = vi.fn(async () => ({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: { userUuid: developerAccount.user.id, name: 'Owner' },
+        }));
+        vi.spyOn(UserService, 'generateGoogleAccessToken').mockResolvedValue(
+            'access-token',
+        );
+    });
+
+    test('writes the new token with the form save path and records the caller', async () => {
+        await service.reconnectSharedSignIn(
+            developerAccount,
+            projectSummary.projectUuid,
+        );
+        expect(projectModel.update).toHaveBeenCalledWith(
+            projectSummary.projectUuid,
+            expect.objectContaining({
+                warehouseConnection: {
+                    ...credentials,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        client_id:
+                            lightdashConfigMock.auth.google.oauth2ClientId,
+                        client_secret:
+                            lightdashConfigMock.auth.google.oauth2ClientSecret,
+                        refresh_token: 'new-token',
+                    },
+                },
+            }),
+            developerAccount.user.id,
+        );
+        expect(grant.getRefreshToken).toHaveBeenCalledWith(
+            developerAccount.user.id,
+            OpenIdIdentityIssuerType.GOOGLE,
+        );
+        expect(UserService.generateGoogleAccessToken).toHaveBeenCalledWith(
+            'new-token',
+            'bigquery',
+        );
+    });
+
+    test('allows an unknown subject to reconnect', async () => {
+        model.getSharedSignInSubjectForToken.mockResolvedValue(null);
+        await service.reconnectSharedSignIn(
+            developerAccount,
+            projectSummary.projectUuid,
+        );
+        expect(projectModel.update).toHaveBeenCalledOnce();
+    });
+
+    test('refuses another subject without writing', async () => {
+        model.getSharedSignInSubjectForToken.mockResolvedValue({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: { userUuid: 'someone-else', name: 'Owner' },
+        });
+        await expect(
+            service.reconnectSharedSignIn(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(projectModel.update).not.toHaveBeenCalled();
+    });
+
+    test('refuses a viewer and a disabled flag', async () => {
+        await expect(
+            service.reconnectSharedSignIn(
+                viewerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        flag.get.mockResolvedValueOnce({
+            id: FeatureFlags.SharedSignInReconnect,
+            enabled: false,
+        });
+        await expect(
+            service.reconnectSharedSignIn(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(projectModel.getWithSensitiveFields).toHaveBeenCalledTimes(1);
+        expect(projectModel.update).not.toHaveBeenCalled();
+    });
+
+    test('refuses a non-person credential', async () => {
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection: {
+                ...credentials,
+                keyfileContents: { type: 'service_account' },
+            },
+        } as never);
+        await expect(
+            service.reconnectSharedSignIn(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(projectModel.update).not.toHaveBeenCalled();
+    });
+
+    test('refuses a non-BigQuery credential', async () => {
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection: {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'expired-token',
+            },
+        } as never);
+        await expect(
+            service.reconnectSharedSignIn(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(projectModel.update).not.toHaveBeenCalled();
+    });
+
+    test.each(['expired-token', ''])(
+        'refuses an unchanged or missing token',
+        async (token) => {
+            grant.getRefreshToken.mockResolvedValueOnce(token);
+            await expect(
+                service.reconnectSharedSignIn(
+                    developerAccount,
+                    projectSummary.projectUuid,
+                ),
+            ).rejects.toThrow('Sign in with Google did not finish. Try again.');
+            expect(projectModel.update).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('ProjectService.getSharedSignInStatus', () => {
+    const credentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'analytics',
+        dataset: 'marts',
+        authenticationType: BigqueryAuthenticationType.SSO,
+        timeoutSeconds: 300,
+        priority: 'interactive',
+        retries: 3,
+        location: undefined,
+        maximumBytesBilled: undefined,
+        keyfileContents: {
+            type: 'authorized_user',
+            refresh_token: 'expired-token',
+        },
+    } as CreateBigqueryCredentials;
+    const model = projectModel as unknown as {
+        getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
+    };
+    const flag = {
+        get: vi.fn(async () => ({
+            id: FeatureFlags.SharedSignInReconnect,
+            enabled: true,
+        })),
+    };
+    const service = getMockedProjectService(lightdashConfigMock, {
+        featureFlagModel: flag as unknown as FeatureFlagModel,
+    });
+    const owner = { userUuid: developerAccount.user.id, name: 'Owner' };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        projectModel.getWithSensitiveFields.mockResolvedValue({
+            ...projectWithSensitiveFields,
+            warehouseConnection: credentials,
+            organizationWarehouseCredentialsUuid: undefined,
+        } as never);
+        model.getSharedSignInSubjectForToken = vi.fn(async () => ({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: owner,
+        }));
+        Object.assign(service, {
+            isGoogleSharedSignInExpired: vi.fn(async () => true),
+        });
+    });
+
+    test('reports an expired token and lets its subject reconnect', async () => {
+        await expect(
+            service.getSharedSignInStatus(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toMatchObject({
+            expired: true,
+            canReconnect: true,
+            subject: owner,
+        });
+    });
+
+    test('allows an updater when the subject is unknown', async () => {
+        model.getSharedSignInSubjectForToken.mockResolvedValue(null);
+        await expect(
+            service.getSharedSignInStatus(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toMatchObject({ canReconnect: true, subject: null });
+    });
+
+    test('does not allow another subject or a viewer', async () => {
+        model.getSharedSignInSubjectForToken.mockResolvedValue({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: { userUuid: 'someone-else', name: 'Other' },
+        });
+        await expect(
+            service.getSharedSignInStatus(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toMatchObject({ canReconnect: false });
+        model.getSharedSignInSubjectForToken.mockResolvedValue({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: null,
+        });
+        await expect(
+            service.getSharedSignInStatus(
+                viewerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toMatchObject({ canReconnect: false });
+    });
+
+    test('returns null for a non-person credential and when disabled', async () => {
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection: {
+                ...credentials,
+                keyfileContents: { type: 'service_account' },
+            },
+        } as never);
+        await expect(
+            service.getSharedSignInStatus(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toBeNull();
+        flag.get.mockResolvedValueOnce({
+            id: FeatureFlags.SharedSignInReconnect,
+            enabled: false,
+        });
+        await expect(
+            service.getSharedSignInStatus(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toBeNull();
     });
 });

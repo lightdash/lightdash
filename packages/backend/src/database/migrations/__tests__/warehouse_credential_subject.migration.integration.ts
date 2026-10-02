@@ -166,6 +166,29 @@ describe('warehouse credential subject', () => {
         });
     });
 
+    test('keeps the owner and stores the new token after a reconnect write', async () => {
+        const organization = await createOrganization();
+        const owner = await createUser('Owner');
+        await addMemberWithGoogleToken(organization, owner, 'new-token');
+        const projectUuid = await model.create(
+            owner,
+            organization,
+            projectData(googleSignIn('expired-token')),
+        );
+
+        await model.update(
+            projectUuid,
+            projectData(googleSignIn('new-token')),
+            owner,
+        );
+
+        const project = await model.getWithSensitiveFields(projectUuid);
+        expect(project.warehouseConnection).toMatchObject({
+            keyfileContents: { refresh_token: 'new-token' },
+        });
+        expect(await storedSubject(projectUuid)).toBe(owner);
+    });
+
     test('keeps the subject when someone else saves the same sign-in, and moves it with a new one', async () => {
         const organization = await createOrganization();
         const founder = await createUser('Fran');

@@ -1,6 +1,7 @@
 import {
     type ApiErrorDetail,
     type SharedSignInExpiry,
+    type SharedSignInStatus,
 } from '@lightdash/common';
 
 export const getSharedSignInExpiry = (
@@ -11,3 +12,7 @@ export const getSharedSignInExpiry = (
         ? (sharedSignIn as SharedSignInExpiry)
         : null;
 };
+
+export const shouldOpenSharedSignInReconnectModal = (
+    status: SharedSignInStatus | null,
+): boolean => status?.expired === true && status.canReconnect;

@@ -26,6 +26,13 @@ export const PERSON_SIGN_IN_LABELS: Record<PersonSignInProvider, string> = {
 
 export type SignInSubject = { userUuid: string; name: string };
 
+export type SharedSignInStatus = {
+    provider: PersonSignInProvider;
+    subject: SignInSubject | null;
+    expired: boolean;
+    canReconnect: boolean;
+};
+
 export type PersonSignIn = {
     provider: PersonSignInProvider;
     refreshToken: string;
