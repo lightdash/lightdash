@@ -53129,6 +53129,82 @@
                 },
                 "type": "object"
             },
+            "PersonSignInProvider": {
+                "enum": ["google", "snowflake", "databricks"],
+                "type": "string"
+            },
+            "SignInSubject": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "userUuid"],
+                "type": "object"
+            },
+            "SignInSubjectBasis": {
+                "enum": ["recorded", "project_creator"],
+                "type": "string"
+            },
+            "SharedSignInStatus": {
+                "properties": {
+                    "canReconnect": {
+                        "type": "boolean"
+                    },
+                    "expired": {
+                        "type": "boolean"
+                    },
+                    "subjectBasis": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SignInSubjectBasis"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "subject": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SignInSubject"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "provider": {
+                        "$ref": "#/components/schemas/PersonSignInProvider"
+                    }
+                },
+                "required": [
+                    "canReconnect",
+                    "expired",
+                    "subjectBasis",
+                    "subject",
+                    "provider"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_SharedSignInStatus-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SharedSignInStatus"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SupportedDbtVersions": {
                 "enum": [
                     "v1.4",
@@ -68810,7 +68886,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.415.4",
+        "version": "2.415.5",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -93471,6 +93547,82 @@
                     {
                         "in": "path",
                         "name": "projectDbtSourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/warehouse-credentials/shared-sign-in": {
+            "get": {
+                "operationId": "GetSharedSignInStatus",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_SharedSignInStatus-or-null_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "ReconnectSharedSignIn",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"

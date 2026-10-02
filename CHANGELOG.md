@@ -1,3 +1,15 @@
+## [2.415.5](https://github.com/lightdash/lightdash/compare/2.415.4...2.415.5) (2026-10-02)
+
+
+### Bug Fixes
+
+* **connections:** let the owner of an expired shared sign-in sign in again in place ([#30406](https://github.com/lightdash/lightdash/issues/30406)) ([028a0bd](https://github.com/lightdash/lightdash/commit/028a0bd1d82911d960b331e0d071f278f3e622fd))
+
+
+### Performance Improvements
+
+* bound concurrent analytics URL signing ([#30414](https://github.com/lightdash/lightdash/issues/30414)) ([d5b6062](https://github.com/lightdash/lightdash/commit/d5b6062ef88bae907d55c51935d5b644b6452c03))
+
 ## [2.415.4](https://github.com/lightdash/lightdash/compare/2.415.3...2.415.4) (2026-10-02)
 
 
