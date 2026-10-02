@@ -14,6 +14,7 @@ import {
     getErrorMessage,
     RedshiftIamTokenError,
     WarehouseConnectionError,
+    WarehouseSignInRejection,
 } from '@lightdash/common';
 
 // Temporary AWS credentials are valid for at most 1 hour for provisioned
@@ -201,6 +202,7 @@ export const mintRedshiftIamCredentials = async (
         if (isExpiredAwsTokenError(e)) {
             throw new RedshiftIamTokenError(
                 'Your Redshift IAM AWS session has expired. Generate new AWS credentials and log in to Redshift again.',
+                { rejection: WarehouseSignInRejection.INVALID_GRANT },
             );
         }
         throw new WarehouseConnectionError(

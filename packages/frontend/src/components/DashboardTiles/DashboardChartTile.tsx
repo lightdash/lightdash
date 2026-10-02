@@ -81,6 +81,8 @@ import React, {
 import { v4 as uuid4 } from 'uuid';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
+import { useIsPersonalSignInExpired } from '../../hooks/useIsPersonalSignInExpired';
+import { QueryErrorState } from '../common/QueryErrorState';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import {
     getAppliedTileDateZoom,
@@ -116,8 +118,9 @@ const useAppliedTileDateZoom = ({
     );
 
 const getDashboardTileErrorMessage = (
-    error: DashboardTileError,
+    error: DashboardTileError | null,
 ): string | undefined => {
+    if (error === null) return undefined;
     if (error instanceof Error) {
         return error.message;
     }
@@ -2509,6 +2512,9 @@ export const GenericDashboardChartTile: FC<
 }) => {
     const projectUuid = useProjectUuid();
     const { user } = useApp();
+    const isExpiredSignIn = useIsPersonalSignInExpired(
+        getDashboardTileErrorMessage(error),
+    );
 
     // Resolve the dashboard-aware palette via the shared resolver endpoint.
     // The resolver returns chart > dashboard > space > project > org, so the
@@ -2601,15 +2607,20 @@ export const GenericDashboardChartTile: FC<
                 }
                 {...rest}
             >
-                <SuboptimalState
-                    adaptive
-                    icon={IconAlertCircle}
-                    title={tileTitle}
-                    description={
-                        getDashboardTileErrorMessage(error) ||
-                        'Error running query'
-                    }
-                />
+                <QueryErrorState
+                    isExpiredSignIn={isExpiredSignIn}
+                    details={getDashboardTileErrorMessage(error)}
+                >
+                    <SuboptimalState
+                        adaptive
+                        icon={IconAlertCircle}
+                        title={tileTitle}
+                        description={
+                            getDashboardTileErrorMessage(error) ||
+                            'Error running query'
+                        }
+                    />
+                </QueryErrorState>
             </TileBase>
         );
     }

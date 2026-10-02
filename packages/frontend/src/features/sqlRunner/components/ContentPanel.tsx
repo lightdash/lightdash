@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    FeatureFlags,
     getFirstIndexColumns,
     getParameterReferences,
     isVizBigNumberConfig,
@@ -46,6 +47,7 @@ import {
 } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { QueryErrorState } from '../../../components/common/QueryErrorState';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { updateChartSortBy } from '../../../components/DataViz/store/actions/commonChartActions';
@@ -60,7 +62,9 @@ import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useIsPersonalSignInExpired } from '../../../hooks/useIsPersonalSignInExpired';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
@@ -104,12 +108,19 @@ const isPreviewWarehouseSignInExpiredError = (
     'data' in error &&
     error.name === 'PreviewWarehouseSignInExpiredError';
 
+const getVisibleQueryResults = <T,>(
+    results: T | undefined,
+    isExpiredSignIn: boolean,
+): T | undefined => (isExpiredSignIn ? undefined : results);
+
 const useQueryErrorToast = (
     queryError: ApiErrorDetail | SerializedError | Error | undefined,
     projectUuid: string | undefined,
 ) => {
     const { showToastError, showToastApiError } = useToaster();
+    const isExpiredSignIn = useIsPersonalSignInExpired(queryError?.message);
     useEffect(() => {
+        if (isExpiredSignIn) return;
         if (queryError && isPreviewWarehouseSignInExpiredError(queryError)) {
             showToastApiError({
                 title: 'Could not fetch SQL query results',
@@ -124,10 +135,19 @@ const useQueryErrorToast = (
         } else {
             notifications.clean();
         }
-    }, [queryError, projectUuid, showToastError, showToastApiError]);
+    }, [
+        queryError,
+        projectUuid,
+        showToastError,
+        showToastApiError,
+        isExpiredSignIn,
+    ]);
 };
 
 export const ContentPanel: FC = () => {
+    const expiredStateFlag = useServerFeatureFlag(
+        FeatureFlags.ExpiredSignInState,
+    );
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
     const projectUuid = useAppSelector(selectProjectUuid);
@@ -141,6 +161,7 @@ export const ContentPanel: FC = () => {
         (state) => state.sqlRunner.queryIsLoading,
     );
     const queryError = useAppSelector((state) => state.sqlRunner.queryError);
+    const isExpiredSignIn = useIsPersonalSignInExpired(queryError?.message);
     const queryErrorProjectUuid = useAppSelector(
         (state) => state.sqlRunner.queryErrorProjectUuid,
     );
@@ -209,6 +230,10 @@ export const ContentPanel: FC = () => {
     );
 
     const queryResults = useAppSelector(selectSqlQueryResults);
+    const visibleQueryResults = getVisibleQueryResults(
+        queryResults?.results,
+        isExpiredSignIn,
+    );
     const hasQueryResults = useMemo(() => !!queryResults, [queryResults]);
 
     const handleRunQuery = useCallback(
@@ -267,6 +292,11 @@ export const ContentPanel: FC = () => {
 
     useEffect(() => {
         const retryFailedRun = (event: Event) => {
+            if (
+                event.type === 'warehouse-sign-in-reconnected' &&
+                expiredStateFlag.data?.enabled !== true
+            )
+                return;
             const failedRun = lastFailedRun.current;
             if (
                 !(event instanceof CustomEvent) ||
@@ -285,12 +315,21 @@ export const ContentPanel: FC = () => {
             }
         };
         window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
-        return () =>
+        window.addEventListener(
+            'warehouse-sign-in-reconnected',
+            retryFailedRun,
+        );
+        return () => {
             window.removeEventListener(
                 SHARED_SIGN_IN_RECONNECTED,
                 retryFailedRun,
             );
-    }, [dispatch, projectUuid]);
+            window.removeEventListener(
+                'warehouse-sign-in-reconnected',
+                retryFailedRun,
+            );
+        };
+    }, [dispatch, projectUuid, expiredStateFlag.data?.enabled]);
 
     useQueryErrorToast(queryError, queryErrorProjectUuid);
 
@@ -894,14 +933,19 @@ export const ContentPanel: FC = () => {
                                     }}
                                     visible={isLoadingSqlQuery}
                                 />
-                                {!queryResults?.results && (
-                                    <SuboptimalState
-                                        icon={IconTable}
-                                        title="No results yet"
-                                        description="Run the query to see its rows here."
-                                    />
-                                )}
-                                {queryResults?.results && resultsRunner && (
+                                <QueryErrorState
+                                    isExpiredSignIn={isExpiredSignIn}
+                                    details={queryError?.message}
+                                >
+                                    {!queryResults?.results && (
+                                        <SuboptimalState
+                                            icon={IconTable}
+                                            title="No results yet"
+                                            description="Run the query to see its rows here."
+                                        />
+                                    )}
+                                </QueryErrorState>
+                                {visibleQueryResults && resultsRunner && (
                                     <>
                                         <ConditionalVisibility
                                             isVisible={showSqlResultsTable}

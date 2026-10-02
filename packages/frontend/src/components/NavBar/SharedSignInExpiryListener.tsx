@@ -25,6 +25,7 @@ import {
     shouldOpenSharedSignInReconnectModal,
 } from '../ProjectConnection/SharedSignIn/sharedSignInCopy';
 import { SharedSignInReconnectModal } from '../ProjectConnection/SharedSignIn/SharedSignInReconnectModal';
+import { isPersonalSignInExpiredError } from './isPersonalSignInExpiredError';
 import {
     queryBelongsToProject,
     scheduleSharedSignInCooldownCheck,
@@ -96,6 +97,7 @@ export const SharedSignInExpiryListener: FC = () => {
         };
         const notify = (error: unknown) => {
             if (!error || !activeProjectUuid) return;
+            if (isPersonalSignInExpiredError(error)) return;
             if (reconnectFlag.isLoading) return;
             if (!reconnectFlag.data?.enabled) {
                 showExpiryToast(error);

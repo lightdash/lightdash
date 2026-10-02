@@ -82,6 +82,8 @@ export class FeatureFlagModel {
                 this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.WarehouseSignInMark]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
+            [FeatureFlags.ExpiredSignInState]: (flagArgs, options) =>
+                this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.WarehouseSignInCheck]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.LightGoogleReconnect]: (flagArgs, options) =>

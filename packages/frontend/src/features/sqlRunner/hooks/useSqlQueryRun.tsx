@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type ApiError,
     type ParametersValuesMap,
     type RawResultRow,
@@ -8,6 +9,7 @@ import {
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { useAppSelector } from '../store/hooks';
 import { selectConnectionUuid } from '../store/sqlRunnerSlice';
@@ -39,6 +41,9 @@ export const useSqlQueryRun = (
 ) => {
     const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     const lastFailedRun = useRef<UseSqlQueryRunParams | null>(null);
+    const expiredStateFlag = useServerFeatureFlag(
+        FeatureFlags.ExpiredSignInState,
+    );
     const mutation = useMutation<
         ResultsAndColumns | undefined,
         ApiError,
@@ -70,6 +75,11 @@ export const useSqlQueryRun = (
     useEffect(() => {
         const retryFailedRun = (event: Event) => {
             if (
+                event.type === 'warehouse-sign-in-reconnected' &&
+                expiredStateFlag.data?.enabled !== true
+            )
+                return;
+            if (
                 event instanceof CustomEvent &&
                 event.detail === projectUuid &&
                 lastFailedRun.current
@@ -78,11 +88,20 @@ export const useSqlQueryRun = (
             }
         };
         window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
-        return () =>
+        window.addEventListener(
+            'warehouse-sign-in-reconnected',
+            retryFailedRun,
+        );
+        return () => {
             window.removeEventListener(
                 SHARED_SIGN_IN_RECONNECTED,
                 retryFailedRun,
             );
-    }, [mutate, projectUuid]);
+            window.removeEventListener(
+                'warehouse-sign-in-reconnected',
+                retryFailedRun,
+            );
+        };
+    }, [mutate, projectUuid, expiredStateFlag.data?.enabled]);
     return mutation;
 };

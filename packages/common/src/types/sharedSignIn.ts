@@ -35,12 +35,20 @@ export type SharedSignInStatus = {
 };
 
 export type WarehouseSignInStatus = {
-    signIn: {
-        provider: PersonSignInProvider;
-        warehouseType: WarehouseTypes;
-        userWarehouseCredentialsUuid: string;
-        expired: boolean;
-    } | null;
+    signIn:
+        | {
+              provider: PersonSignInProvider;
+              warehouseType: WarehouseTypes;
+              userWarehouseCredentialsUuid: string;
+              expired: boolean;
+          }
+        | {
+              provider: 'aws';
+              warehouseType: WarehouseTypes.REDSHIFT;
+              userWarehouseCredentialsUuid: string;
+              expired: boolean;
+          }
+        | null;
 };
 
 export type ApiWarehouseSignInStatusResponse = {

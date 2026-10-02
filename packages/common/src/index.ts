@@ -1268,3 +1268,4 @@ export * from './utils/dashboardTilePositions';
 export * from './utils/savedMerge';
 
 export * from './types/sharedSignIn';
+export * from './types/personalSignIn';

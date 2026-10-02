@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    FeatureFlags,
     PersonSignInProvider,
     type WarehouseSignInStatus,
 } from '@lightdash/common';
@@ -7,6 +8,7 @@ import { Button, Center, Group, Text } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGoogleLoginPopup } from '../../hooks/gdrive/useGdrive';
 import { useDatabricksLoginPopup } from '../../hooks/useDatabricks';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useSnowflakeLoginPopup } from '../../hooks/useSnowflake';
 import { warehouseSignInStatusQueryKey } from '../../hooks/useWarehouseSignInStatus';
 import { BANNER_HEIGHT } from '../common/Page/constants';
@@ -38,7 +40,15 @@ export const WarehouseSignInBanner = ({
     });
     const snowflake = useSnowflakeLoginPopup({ onLogin });
     const databricks = useDatabricksLoginPopup({ projectUuid, onLogin });
+    const expiredStateFlag = useServerFeatureFlag(
+        FeatureFlags.ExpiredSignInState,
+    );
     if (!status.signIn?.expired) return null;
+    if (
+        status.signIn.provider === 'aws' &&
+        expiredStateFlag.data?.enabled !== true
+    )
+        return null;
 
     const { provider } = status.signIn;
     const reconnect = () => {
@@ -52,6 +62,13 @@ export const WarehouseSignInBanner = ({
             case PersonSignInProvider.DATABRICKS:
                 databricks.mutate();
                 return;
+            case 'aws':
+                window.dispatchEvent(
+                    new CustomEvent('warehouse-sign-in-requested', {
+                        detail: projectUuid,
+                    }),
+                );
+                return;
             default:
                 assertUnreachable(provider, 'Unknown sign-in provider');
         }
@@ -64,6 +81,8 @@ export const WarehouseSignInBanner = ({
                 return 'Snowflake';
             case PersonSignInProvider.DATABRICKS:
                 return 'Databricks';
+            case 'aws':
+                return 'Redshift';
             default:
                 return assertUnreachable(provider, 'Unknown sign-in provider');
         }

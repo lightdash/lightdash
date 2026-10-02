@@ -4852,6 +4852,30 @@ describe('ProjectService', () => {
                 });
             });
 
+            test('does not retry an optional personal rejection with the project credential', async () => {
+                findPersonalCredentials.mockResolvedValue(personalCredentials);
+                const rejection = new BigqueryTokenError(
+                    'personal token rejected',
+                    {
+                        rejection: WarehouseSignInRejection.INVALID_GRANT,
+                    },
+                );
+                const refresh = vi
+                    .spyOn(
+                        service as unknown as {
+                            refreshCredentials: () => Promise<CreateWarehouseCredentials>;
+                        },
+                        'refreshCredentials',
+                    )
+                    .mockRejectedValueOnce(rejection);
+                try {
+                    await expect(getCredentials()).rejects.toBe(rejection);
+                    expect(refresh).toHaveBeenCalledTimes(1);
+                } finally {
+                    refresh.mockRestore();
+                }
+            });
+
             test('uses personal credentials with an organization connection', async () => {
                 findPersonalCredentials.mockResolvedValue(personalCredentials);
 
@@ -13555,6 +13579,92 @@ describe('ProjectService.getWarehouseSignInStatus', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it('reports a stored mark without exchanging a token', async () => {
+        const check = vi.fn();
+        Object.assign(service, { checkGoogleSignIn: check });
+        findForProjectWithSecrets.mockResolvedValueOnce({
+            ...personal,
+            uuid: 'stored-mark-credential',
+            needsSignIn: {
+                since: new Date(),
+                reason: WarehouseSignInRejection.INVALID_GRANT,
+            },
+        });
+        expect(
+            (
+                await service.getWarehouseSignInStatus(
+                    developerAccount,
+                    projectUuid,
+                )
+            ).signIn?.expired,
+        ).toBe(true);
+        expect(check).not.toHaveBeenCalled();
+    });
+
+    it('uses the existing token check when the expired state flag is off', async () => {
+        const check = vi.fn(async () => ({ succeeded: true, rejection: null }));
+        Object.assign(service, { checkGoogleSignIn: check });
+        flag.get
+            .mockResolvedValueOnce({
+                id: FeatureFlags.WarehouseSignInCheck,
+                enabled: true,
+            })
+            .mockResolvedValueOnce({
+                id: FeatureFlags.ExpiredSignInState,
+                enabled: false,
+            });
+        findForProjectWithSecrets.mockResolvedValueOnce({
+            ...personal,
+            uuid: 'flag-off-credential',
+            needsSignIn: {
+                since: new Date(),
+                reason: WarehouseSignInRejection.INVALID_GRANT,
+            },
+        });
+        expect(
+            (
+                await service.getWarehouseSignInStatus(
+                    developerAccount,
+                    projectUuid,
+                )
+            ).signIn?.expired,
+        ).toBe(false);
+        expect(check).toHaveBeenCalledOnce();
+    });
+
+    it('reports a marked Redshift browser sign-in without a token exchange', async () => {
+        projectModel.getWarehouseCredentialsForProject.mockReset();
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce({
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
+            requireUserCredentials: true,
+        } as CreateWarehouseCredentials);
+        findForProjectWithSecrets.mockResolvedValueOnce({
+            uuid: 'redshift-marked-credential',
+            needsSignIn: {
+                since: new Date(),
+                reason: WarehouseSignInRejection.INVALID_GRANT,
+            },
+            credentials: {
+                type: WarehouseTypes.REDSHIFT,
+                authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
+            },
+        } as UserWarehouseCredentialsWithSecrets);
+        expect(
+            (
+                await service.getWarehouseSignInStatus(
+                    developerAccount,
+                    projectUuid,
+                )
+            ).signIn,
+        ).toEqual({
+            provider: 'aws',
+            warehouseType: WarehouseTypes.REDSHIFT,
+            userWarehouseCredentialsUuid: 'redshift-marked-credential',
+            expired: true,
+        });
     });
 
     it('does not clear a Google mark when the token endpoint is unavailable', async () => {
