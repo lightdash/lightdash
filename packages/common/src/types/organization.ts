@@ -1,11 +1,7 @@
 import { type AnyType } from './any';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectMemberRole } from './projectMemberRole';
-import {
-    type ProjectType,
-    type ProvisioningSource,
-    type WarehouseTypes,
-} from './projects';
+import { type ProjectType, type WarehouseTypes } from './projects';
 
 /**
  * Details of a user's Organization
@@ -94,7 +90,7 @@ export type OrganizationProject = {
     upstreamProjectUuid: string | null;
     warehouseType?: WarehouseTypes;
     expiresAt: Date | null;
-    provisioningSource?: ProvisioningSource | null;
+    provisioningSource?: string | null;
 };
 
 /**

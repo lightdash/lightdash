@@ -1353,7 +1353,7 @@ export type Project = {
     projectDefaults?: ProjectDefaults;
     colorPaletteUuid: string | null;
     expiresAt: Date | null;
-    provisioningSource?: ProvisioningSource | null;
+    provisioningSource?: string | null;
     agentSqlScope: AgentSqlScope | null;
     connectionRoute?: ConnectionRoute;
 };
@@ -1418,6 +1418,7 @@ export const PLAYGROUND_CONNECTION_LOCKED_MESSAGE =
 export const playgroundProjectTriggers = [
     'invite_expert',
     'agent_onboarding_wait',
+    'get_started',
     'warehouse_picker',
     'project_list',
 ] as const;

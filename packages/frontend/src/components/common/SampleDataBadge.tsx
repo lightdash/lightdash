@@ -1,11 +1,11 @@
-import { FeatureFlags, type ProvisioningSource } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { Badge } from '@mantine/core';
 import { type FC } from 'react';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 
 export const SampleDataBadge: FC<{
-    provisioningSource: ProvisioningSource | null | undefined;
+    provisioningSource: string | null | undefined;
 }> = ({ provisioningSource }) => {
     const connectJourneyFlag = useServerFeatureFlag(
         FeatureFlags.ConnectJourney,
