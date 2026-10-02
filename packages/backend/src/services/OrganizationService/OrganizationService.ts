@@ -1123,6 +1123,15 @@ export class OrganizationService extends BaseService {
             data,
         );
 
+        this.analytics.track({
+            event: 'organization_color_palette.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                colorPaletteId: palette.colorPaletteUuid,
+            },
+        });
+
         return palette;
     }
 
@@ -1216,6 +1225,15 @@ export class OrganizationService extends BaseService {
             user.organizationUuid,
             colorPaletteUuid,
         );
+
+        this.analytics.track({
+            event: 'organization_color_palette.activated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                colorPaletteId: palette.colorPaletteUuid,
+            },
+        });
 
         return palette;
     }
