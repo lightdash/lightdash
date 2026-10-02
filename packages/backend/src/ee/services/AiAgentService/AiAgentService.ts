@@ -1941,6 +1941,7 @@ export class AiAgentService extends BaseService {
                         account: fromSession(user),
                         projectUuid: prompt.projectUuid,
                         queryUuid: input.queryUuid,
+                        aiAccessOnly: true,
                         maxRows: input.rowLimit,
                     });
                 if (queryResults.rows.length !== input.rowLimit) return null;
@@ -13456,6 +13457,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         account: fromSession(user),
                         projectUuid: prompt.projectUuid,
                         queryUuid: vizQuery.query.queryUuid,
+                        aiAccessOnly: true,
                         page: 1,
                         pageSize: 1,
                     });
@@ -15721,6 +15723,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     account: fromSession(user),
                     projectUuid: slackPrompt.projectUuid,
                     queryUuid,
+                    aiAccessOnly: true,
                     maxRows,
                 }),
             onLoadError: (toolCallId) =>
