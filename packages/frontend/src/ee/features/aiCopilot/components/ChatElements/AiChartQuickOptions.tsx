@@ -116,6 +116,7 @@ export const AiChartQuickOptions = ({
     const { content, writeActions, embedToken } = useEmbed();
     const isEmbed = isEmbedAiAgentRoute();
     const getBackUrl = useChatBackUrl();
+    const optionsAnchorId = `chart-options-${artifactData?.artifactUuid ?? message.uuid}`;
     const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -397,7 +398,7 @@ export const AiChartQuickOptions = ({
         if (isEmbed) {
             if (!metricQuery?.exploreName) return;
 
-            const backUrl = getBackUrl();
+            const backUrl = getBackUrl(optionsAnchorId);
             void navigate(
                 {
                     pathname: `/embed/${projectUuid}/explore/${encodeURIComponent(
@@ -444,6 +445,7 @@ export const AiChartQuickOptions = ({
         isEmbed,
         navigate,
         getBackUrl,
+        optionsAnchorId,
         metricQuery?.exploreName,
         createShareUrl,
         user?.data?.userUuid,
@@ -533,7 +535,11 @@ export const AiChartQuickOptions = ({
             {hasQuickActions && (
                 <Menu withArrow position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon size="sm" color="ldGray.9">
+                        <ActionIcon
+                            size="sm"
+                            color="ldGray.9"
+                            data-chat-anchor={optionsAnchorId}
+                        >
                             <MantineIcon icon={IconDots} size="lg" />
                         </ActionIcon>
                     </Menu.Target>

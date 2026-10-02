@@ -122,12 +122,18 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     ? props['data-dashboard-uuid']
                     : undefined;
             if (openEmbedDashboard) {
+                const anchorId = `assistant-${message.uuid}-dashboard-${dashboardUuid}`;
                 return (
                     <ContentReferenceLink
                         kind="dashboard"
+                        data-chat-anchor={anchorId}
                         onClick={
                             dashboardUuid
-                                ? () => openEmbedDashboard(dashboardUuid)
+                                ? () =>
+                                      openEmbedDashboard(
+                                          dashboardUuid,
+                                          anchorId,
+                                      )
                                 : undefined
                         }
                         title={title}

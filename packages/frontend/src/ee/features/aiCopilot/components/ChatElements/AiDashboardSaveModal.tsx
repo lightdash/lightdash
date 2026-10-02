@@ -265,7 +265,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
                         children: 'Open dashboard',
                         onClick: () =>
                             openEmbedDashboard
-                                ? openEmbedDashboard(dashboard.uuid)
+                                ? openEmbedDashboard(dashboard.uuid, null)
                                 : navigate(
                                       `/projects/${projectUuid}/dashboards/${dashboard.uuid}`,
                                   ),

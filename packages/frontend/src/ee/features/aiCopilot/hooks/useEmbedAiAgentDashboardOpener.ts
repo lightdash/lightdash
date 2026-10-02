@@ -21,11 +21,11 @@ export const useEmbedAiAgentDashboardOpener = (
     const isEmbed = isEmbedAiAgentRoute();
 
     const open = useCallback(
-        (dashboardUuid: string) => {
+        (dashboardUuid: string, anchorId: string | null) => {
             if (!agentUuid || !projectUuid) {
                 return;
             }
-            const backUrl = getBackUrl();
+            const backUrl = getBackUrl(anchorId);
             void navigate(
                 {
                     pathname: getEmbedAiAgentDashboardPath(
