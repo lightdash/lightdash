@@ -76,10 +76,10 @@ import {
     type ConnectionRoute,
     type CreateBigqueryCredentials,
     type PersonSignIn,
-    type SharedSignIn,
     type SignInSubject,
     type StoredSignInSubject,
     type SummaryExplore,
+    type WarehouseCredentialSummary,
 } from '@lightdash/common';
 import {
     buildMotherduckConnectionString,
@@ -969,7 +969,9 @@ export class ProjectModel {
             .merge();
     }
 
-    async getSharedSignIn(projectUuid: string): Promise<SharedSignIn | null> {
+    async getWarehouseCredentialSummary(
+        projectUuid: string,
+    ): Promise<WarehouseCredentialSummary> {
         const row = await this.database('warehouse_credentials')
             .innerJoin(
                 'projects',
@@ -977,25 +979,36 @@ export class ProjectModel {
                 'warehouse_credentials.project_id',
             )
             .where('projects.project_uuid', projectUuid)
-            .whereNull('projects.organization_warehouse_credentials_uuid')
-            .first<{ encrypted_credentials: Buffer } | undefined>(
+            .first<
+                | {
+                      encrypted_credentials: Buffer;
+                      organization_warehouse_credentials_uuid: string | null;
+                  }
+                | undefined
+            >(
                 'warehouse_credentials.encrypted_credentials',
+                'projects.organization_warehouse_credentials_uuid',
             );
-        if (!row) return null;
+        const none = { sharedSignIn: null, hasServiceAccount: false };
+        if (!row || row.organization_warehouse_credentials_uuid) return none;
         const credentials = this.decryptWarehouseCredentials(
             row.encrypted_credentials,
         );
         const signIn = credentials ? getPersonSignIn(credentials) : null;
-        if (!signIn) return null;
+        if (!credentials) return none;
+        if (!signIn) return { sharedSignIn: null, hasServiceAccount: true };
         const resolved = await this.getSharedSignInSubjectForToken(
             projectUuid,
             signIn.refreshToken,
         );
-        if (!resolved) return null;
+        if (!resolved) return none;
         return {
-            provider: resolved.provider,
-            subject: resolved.subject,
-            subjectBasis: resolved.basis,
+            sharedSignIn: {
+                provider: resolved.provider,
+                subject: resolved.subject,
+                subjectBasis: resolved.basis,
+            },
+            hasServiceAccount: false,
         };
     }
 

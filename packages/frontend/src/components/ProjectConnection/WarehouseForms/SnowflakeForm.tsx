@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    PersonSignInProvider,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type DepositSnowflakeCredentials,
@@ -45,6 +46,7 @@ import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
+import { SharedSignInSetupLine } from '../SharedSignIn/SharedSignInSetupLine';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { SnowflakeDefaultValues } from './defaultValues';
@@ -576,11 +578,20 @@ const SnowflakeForm: FC<{
                                 ) : authenticationType ===
                                   SnowflakeAuthenticationType.SSO ? (
                                     !isLoadingAuth && (
-                                        <SnowflakeSSOInput
-                                            isAuthenticated={isAuthenticated}
-                                            disabled={disabled}
-                                            openLoginPopup={openLoginPopup}
-                                        />
+                                        <>
+                                            <SnowflakeSSOInput
+                                                isAuthenticated={
+                                                    isAuthenticated
+                                                }
+                                                disabled={disabled}
+                                                openLoginPopup={openLoginPopup}
+                                            />
+                                            <SharedSignInSetupLine
+                                                provider={
+                                                    PersonSignInProvider.SNOWFLAKE
+                                                }
+                                            />
+                                        </>
                                     )
                                 ) : authenticationType ===
                                   SnowflakeAuthenticationType.EXTERNAL_BROWSER ? (

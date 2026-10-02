@@ -1,6 +1,7 @@
 import {
     BigqueryAuthenticationType,
     FeatureFlags,
+    PersonSignInProvider,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -52,6 +53,7 @@ import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
+import { SharedSignInSetupLine } from '../SharedSignIn/SharedSignInSetupLine';
 import { useProjectFormContext } from '../useProjectFormContext';
 import classes from './BigQueryForm.module.css';
 import {
@@ -490,11 +492,16 @@ const BigQueryForm: FC<{
                 }
 
                 {authenticationType === BigqueryAuthenticationType.SSO && (
-                    <BigQuerySSOInput
-                        isAuthenticated={isAuthenticated}
-                        disabled={disabled}
-                        openLoginPopup={handleBigQuerySsoSignIn}
-                    />
+                    <>
+                        <BigQuerySSOInput
+                            isAuthenticated={isAuthenticated}
+                            disabled={disabled}
+                            openLoginPopup={handleBigQuerySsoSignIn}
+                        />
+                        <SharedSignInSetupLine
+                            provider={PersonSignInProvider.GOOGLE}
+                        />
+                    </>
                 )}
                 {showWarehouseConfigFields && (
                     <>
