@@ -144,7 +144,7 @@ describe('Invite', () => {
         });
         expect(microsoftSignUp).toHaveAttribute(
             'href',
-            '/api/v1/login/azuread?redirect=%2F&inviteCode=invite-code&login_hint=invitee%40lightdash.com',
+            '/api/v1/login/azuread?redirect=%2Finvite%2Finvite-code&inviteCode=invite-code&login_hint=invitee%40lightdash.com',
         );
         expect(
             screen.queryByRole('button', {
