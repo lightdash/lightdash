@@ -407,6 +407,7 @@ import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
+import { isAiAgentEmbedAccount } from '../../utils/embedAiAgentAccount';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
@@ -7838,6 +7839,23 @@ export class ProjectService extends BaseService {
                 'User cannot run queries with custom SQL fields',
             );
         }
+    }
+
+    isCompiledSqlHiddenFromAccount(
+        account: Account,
+        projectUuid: string,
+    ): boolean {
+        return (
+            isAiAgentEmbedAccount(account) &&
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('EmbedAiAgentSql', {
+                    organizationUuid:
+                        account.embed.organization.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        );
     }
 
     async compileQuery(

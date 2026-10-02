@@ -13313,3 +13313,94 @@ describe('ProjectService.getSharedSignInStatus', () => {
         ).resolves.toBeNull();
     });
 });
+
+describe('ProjectService.isCompiledSqlHiddenFromAccount', () => {
+    const { projectUuid } = defaultProject;
+    const { organizationUuid } = projectSummary;
+    const service = getMockedProjectService(lightdashConfigMock);
+
+    const buildAiAgentAccount = (withSqlScope: boolean) =>
+        fromJwt({
+            decodedToken: {
+                content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
+                writeActions: {
+                    userUuid: 'write-actor-uuid',
+                    spaceUuid: 'space-uuid',
+                },
+            },
+            content: {
+                type: 'aiAgent',
+                agentUuid: 'agent-uuid',
+                chartUuids: [],
+                explores: [],
+            },
+            embed: {
+                organization: {
+                    organizationUuid,
+                    name: 'Test organization',
+                },
+                projectUuid,
+                encodedSecret: 'test-secret',
+                dashboardUuids: [],
+                allowAllDashboards: false,
+                chartUuids: [],
+                allowAllCharts: false,
+                appUuids: [],
+                allowAllApps: false,
+                createdAt: '2026-01-01',
+                user: null,
+            },
+            source: 'test-token',
+            userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+            embedWriteUser: {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        subject: 'EmbedAiAgent',
+                        action: 'view',
+                        conditions: { organizationUuid, projectUuid },
+                    },
+                    ...(withSqlScope
+                        ? [
+                              {
+                                  subject: 'EmbedAiAgentSql' as const,
+                                  action: 'view' as const,
+                                  conditions: { organizationUuid, projectUuid },
+                              },
+                          ]
+                        : []),
+                ]),
+            },
+            embedWriteContext: {
+                canUpdateDashboard: false,
+                canUpdateSavedChart: false,
+                canCreateSavedChart: false,
+                canUseAiAgent: true,
+            },
+        });
+
+    it('hides compiled SQL when the AI agent embed lacks the SQL scope', () => {
+        const aiAccount = buildAiAgentAccount(false);
+
+        expect(
+            service.isCompiledSqlHiddenFromAccount(aiAccount, projectUuid),
+        ).toBe(true);
+    });
+
+    it('shows compiled SQL when the AI agent embed has the SQL scope', () => {
+        const aiAccount = buildAiAgentAccount(true);
+
+        expect(
+            service.isCompiledSqlHiddenFromAccount(aiAccount, projectUuid),
+        ).toBe(false);
+    });
+
+    it('does not hide compiled SQL from session accounts', () => {
+        expect(
+            service.isCompiledSqlHiddenFromAccount(
+                developerAccount,
+                projectUuid,
+            ),
+        ).toBe(false);
+    });
+});
