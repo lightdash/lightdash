@@ -1,3 +1,10 @@
+# [2.423.0](https://github.com/lightdash/lightdash/compare/2.422.0...2.423.0) (2026-10-02)
+
+
+### Features
+
+* **ai:** choose an AI provider credential per project ([#30370](https://github.com/lightdash/lightdash/issues/30370)) ([fa7047e](https://github.com/lightdash/lightdash/commit/fa7047e0da9873cf1bf2d5333e25050410d22978)), closes [#30318](https://github.com/lightdash/lightdash/issues/30318)
+
 # [2.422.0](https://github.com/lightdash/lightdash/compare/2.421.0...2.422.0) (2026-10-02)
 
 
