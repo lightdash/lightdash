@@ -7269,6 +7269,7 @@ export class AiAgentService extends BaseService {
         // Before compaction, which is itself billable.
         if (aiCreditCheck !== null) {
             await this.assertAgentCreditsAvailable(user, {
+                projectUuid: prompt.projectUuid,
                 modelConfig: prompt.modelConfig ?? null,
                 aiCreditCheck,
             });
@@ -8239,9 +8240,11 @@ export class AiAgentService extends BaseService {
     async assertAgentCreditsAvailable(
         user: SessionUser,
         {
+            projectUuid,
             modelConfig,
             aiCreditCheck,
         }: {
+            projectUuid: string | null;
             modelConfig: AiAgentModelConfig | null;
             aiCreditCheck: AiCreditCheck;
         },
@@ -8250,9 +8253,10 @@ export class AiAgentService extends BaseService {
             user,
             resolveKeyManagement: async () => {
                 const copilotConfig =
-                    await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                        user.organizationUuid ?? null,
-                    );
+                    await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                        organizationUuid: user.organizationUuid ?? null,
+                        projectUuid,
+                    });
                 return getModel(copilotConfig, {
                     enableReasoning: modelConfig?.reasoning,
                     modelName: modelConfig?.modelName,
@@ -13629,6 +13633,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const { prompt, stream } = options;
         if (options.aiCreditCheck !== null) {
             await this.assertAgentCreditsAvailable(user, {
+                projectUuid: prompt.projectUuid,
                 modelConfig: prompt.modelConfig ?? null,
                 aiCreditCheck: options.aiCreditCheck,
             });
