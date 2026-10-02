@@ -1,3 +1,16 @@
+# [2.422.0](https://github.com/lightdash/lightdash/compare/2.421.0...2.422.0) (2026-10-02)
+
+
+### Bug Fixes
+
+* **embed:** return to the clicked link when going back to an AI conversation ([#30435](https://github.com/lightdash/lightdash/issues/30435)) ([5ddd923](https://github.com/lightdash/lightdash/commit/5ddd923346ef3a967519eb2284a36126a8dff85f))
+
+
+### Features
+
+* **ai:** manage Bedrock credentials from organization settings ([#30369](https://github.com/lightdash/lightdash/issues/30369)) ([9e5bfaa](https://github.com/lightdash/lightdash/commit/9e5bfaa1f03cf959718f01cf31a28a90a6ae57be)), closes [#30318](https://github.com/lightdash/lightdash/issues/30318)
+* **ai:** open Documents in the agent's side panel ([#30433](https://github.com/lightdash/lightdash/issues/30433)) ([c39939e](https://github.com/lightdash/lightdash/commit/c39939e39bfc01c924f7080d63f387fb4f71b0f4))
+
 # [2.421.0](https://github.com/lightdash/lightdash/compare/2.420.0...2.421.0) (2026-10-02)
 
 
