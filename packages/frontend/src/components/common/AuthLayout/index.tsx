@@ -197,9 +197,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                         <LightdashWordmark className={classes.formWordmark} />
                         {title && (
                             <Stack gap="xs">
-                                <Title order={2} className={classes.formTitle}>
-                                    {title}
-                                </Title>
+                                <Title order={2}>{title}</Title>
                                 {subtitle && (
                                     <Text className={classes.formSubtitle}>
                                         {subtitle}

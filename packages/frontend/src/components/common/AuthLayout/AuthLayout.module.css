@@ -1,12 +1,3 @@
-@font-face {
-    font-family: 'Britti Sans';
-    font-style: normal;
-    font-weight: 500;
-    font-display: swap;
-    src: url('https://framerusercontent.com/assets/53b0cytkvSXx6L4kjxKUH3MpVk.woff2')
-        format('woff2');
-}
-
 .root {
     display: flex;
     min-height: 100dvh;
@@ -86,14 +77,7 @@
         calc(var(--auth-block-size) * 0.7)
     );
     color: var(--mantine-color-white);
-    font-family: 'Britti Sans', var(--mantine-font-family-headings);
-    font-weight: 500;
-    letter-spacing: -0.01em;
-}
-
-.formTitle {
-    font-family: 'Britti Sans', var(--mantine-font-family-headings);
-    font-weight: 500;
+    letter-spacing: -0.02em;
 }
 
 .subcopy {
