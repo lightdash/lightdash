@@ -1332,6 +1332,23 @@ export type ApiInviteLinkResponse = {
     results: InviteLink;
 };
 
+export enum InviteLinkFailureReason {
+    Expired = 'expired',
+    NotFound = 'not_found',
+    AlreadyUsed = 'already_used',
+    WrongEmail = 'wrong_email',
+}
+
+export type InviteLinkFailure = {
+    reason: InviteLinkFailureReason | null;
+    canRequestNewInvite: boolean;
+};
+
+export type ApiInviteLinkFailureResponse = {
+    status: 'ok';
+    results: InviteLinkFailure;
+};
+
 export type ApiGetInviteLinkResponse = {
     status: 'ok';
     results: InviteLinkWithAuthenticationOptions;
@@ -1410,6 +1427,7 @@ type ApiResults =
     | SavedChart[]
     | Space[]
     | InviteLink
+    | InviteLinkFailure
     | OrganizationProject[]
     | Project
     | WarehouseCredentials

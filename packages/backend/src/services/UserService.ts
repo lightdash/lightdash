@@ -24,6 +24,7 @@ import {
     DeleteOpenIdentity,
     EmailStatus,
     EmailStatusExpiring,
+    ExpiredError,
     FeatureFlags,
     ForbiddenError,
     getEmailDomain,
@@ -36,6 +37,7 @@ import {
     hasProperty,
     InvalidUser,
     InviteLink,
+    InviteLinkFailureReason,
     InviteLinkPurpose,
     InviteLinkWithAuthenticationOptions,
     isEmailOnlyUser,
@@ -150,6 +152,7 @@ import {
 } from '../utils/organizationRolePermissions';
 import { processAvatarImage } from '../utils/processAvatarImage';
 import { BaseService } from './BaseService';
+import { InviteLinkFailureService } from './InviteLinkFailureService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
 
 const AWS_SSO_DEVICE_GRANT_TYPE =
@@ -171,6 +174,7 @@ type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     inviteLinkModel: InviteLinkModel;
+    inviteLinkFailureService: InviteLinkFailureService;
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
     groupsModel: GroupsModel;
@@ -281,6 +285,8 @@ export class UserService extends BaseService {
 
     private readonly inviteLinkModel: InviteLinkModel;
 
+    private readonly inviteLinkFailureService: InviteLinkFailureService;
+
     private readonly userModel: UserModel;
 
     private readonly userOAuthGrantsModel: UserOAuthGrantsModel;
@@ -335,6 +341,7 @@ export class UserService extends BaseService {
         lightdashConfig,
         analytics,
         inviteLinkModel,
+        inviteLinkFailureService,
         userModel,
         userOAuthGrantsModel,
         groupsModel,
@@ -362,6 +369,7 @@ export class UserService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
+        this.inviteLinkFailureService = inviteLinkFailureService;
         this.userModel = userModel;
         this.userOAuthGrantsModel = userOAuthGrantsModel;
         this.groupsModel = groupsModel;
@@ -469,7 +477,7 @@ export class UserService extends BaseService {
         inviteCode: string,
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
-        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
+        const inviteLink = await this.getInviteLink(inviteCode);
         return this.activateUserFromInviteLink(inviteLink, activateUser);
     }
 
@@ -526,6 +534,12 @@ export class UserService extends BaseService {
         }
 
         if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
+            await this.inviteLinkFailureService.trackFailure(
+                inviteLink.inviteCode,
+                InviteLinkFailureReason.WrongEmail,
+                null,
+                inviteLink.organizationUuid,
+            );
             this.logger.error(
                 `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
             );
@@ -889,6 +903,7 @@ export class UserService extends BaseService {
             userUuid,
             purpose,
         );
+        await this.inviteLinkFailureService.recordInvite(inviteLink, user);
         await this.emailClient.sendInviteEmail(user, inviteLink);
         this.analytics.track({
             userId: user.userUuid,
@@ -1181,8 +1196,10 @@ export class UserService extends BaseService {
             };
 
             if (inviteCode) {
-                const inviteLink =
-                    await this.inviteLinkModel.getByCode(inviteCode);
+                const inviteLink = await this.getInviteLink(
+                    inviteCode,
+                    authenticatedUser ?? null,
+                );
                 this.logger.info(
                     `Checking invite code - Invite email: ${inviteLink.email}, User email: ${loginUser.email}`,
                 );
@@ -1193,6 +1210,12 @@ export class UserService extends BaseService {
                 ) {
                     this.logger.error(
                         `User accepted invite with wrong email ${loginUser.email} when the invited email was ${inviteLink.email}`,
+                    );
+                    await this.inviteLinkFailureService.trackFailure(
+                        inviteCode,
+                        InviteLinkFailureReason.WrongEmail,
+                        authenticatedUser ?? null,
+                        inviteLink.organizationUuid,
                     );
                     throw new AuthorizationError(
                         `Provided email ${loginUser.email} does not match the invited email.`,
@@ -1696,8 +1719,31 @@ export class UserService extends BaseService {
         });
     }
 
-    async getInviteLink(inviteCode: string): Promise<InviteLink> {
-        return this.inviteLinkModel.getByCode(inviteCode);
+    async getInviteLink(
+        inviteCode: string,
+        user: SessionUser | null = null,
+    ): Promise<InviteLink> {
+        try {
+            return await this.inviteLinkModel.getByCode(inviteCode);
+        } catch (error) {
+            if (
+                error instanceof ExpiredError ||
+                error instanceof NotFoundError
+            ) {
+                await this.inviteLinkFailureService.trackFailure(
+                    inviteCode,
+                    error instanceof ExpiredError
+                        ? InviteLinkFailureReason.Expired
+                        : InviteLinkFailureReason.NotFound,
+                    user,
+                );
+            }
+            throw error;
+        }
+    }
+
+    async cleanupInviteLinkProvenance(): Promise<void> {
+        await this.inviteLinkFailureService.cleanup();
     }
 
     private async isInviteLinkActivationAllowed(
@@ -1710,8 +1756,9 @@ export class UserService extends BaseService {
 
     async getInviteLinkWithAuthenticationOptions(
         inviteCode: string,
+        user: SessionUser | null = null,
     ): Promise<InviteLinkWithAuthenticationOptions> {
-        const inviteLink = await this.getInviteLink(inviteCode);
+        const inviteLink = await this.getInviteLink(inviteCode, user);
         const [loginOptions, allowPasswordSignup] = await Promise.all([
             this.getLoginOptions(inviteLink.email),
             this.isLoginMethodAllowed(inviteLink.email, LocalIssuerTypes.EMAIL),

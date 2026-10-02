@@ -34,6 +34,7 @@ import { GitUserCredentialsModel } from './GitUserCredentials/GitUserCredentials
 import { GroupsModel } from './GroupsModel';
 import { HeadlessBrowserLoginGrantModel } from './HeadlessBrowserLoginGrantModel';
 import { InviteLinkModel } from './InviteLinkModel';
+import { InviteLinkProvenanceModel } from './InviteLinkProvenanceModel';
 import { JiraAppInstallationsModel } from './JiraAppInstallations/JiraAppInstallationsModel';
 import { JobModel } from './JobModel/JobModel';
 import { LearnWorkspaceModel } from './LearnWorkspaceModel';
@@ -132,6 +133,7 @@ export type ModelManifest = {
     groupsModel: GroupsModel;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
+    inviteLinkProvenanceModel: InviteLinkProvenanceModel;
     jobModel: JobModel;
     managedSignInModel: ManagedSignInModel;
     mcpContextModel: McpContextModel;
@@ -551,6 +553,13 @@ export class ModelRepository
         return this.getModel(
             'pullRequestsModel',
             () => new PullRequestsModel({ database: this.database }),
+        );
+    }
+
+    public getInviteLinkProvenanceModel(): InviteLinkProvenanceModel {
+        return this.getModel(
+            'inviteLinkProvenanceModel',
+            () => new InviteLinkProvenanceModel(this.database),
         );
     }
 

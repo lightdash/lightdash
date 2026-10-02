@@ -285,6 +285,7 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_INVITE_LINK_PROVENANCE]: () => ({}),
     [SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES]: () => ({}),
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: (payload) => ({
         'project.uuid': payload.projectUuid,

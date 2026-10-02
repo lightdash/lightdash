@@ -52,6 +52,7 @@ import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
 import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
+import { InviteLinkFailureService } from './InviteLinkFailureService';
 import { JiraAppService } from './JiraAppService/JiraAppService';
 import { LearnSandboxService } from './LearnSandboxService/LearnSandboxService';
 import { LicenseService } from './LicenseService/LicenseService';
@@ -168,6 +169,7 @@ interface ServiceManifest {
     unfurlService: UnfurlService;
     userAttributesService: UserAttributesService;
     userService: UserService;
+    inviteLinkFailureService: InviteLinkFailureService;
     validationService: ValidationService;
     warehouseConnectService: WarehouseConnectService;
     catalogService: CatalogService;
@@ -1483,11 +1485,28 @@ export class ServiceRepository
         );
     }
 
+    public getInviteLinkFailureService(): InviteLinkFailureService {
+        return this.getService(
+            'inviteLinkFailureService',
+            () =>
+                new InviteLinkFailureService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    inviteLinkModel: this.models.getInviteLinkModel(),
+                    provenanceModel: this.models.getInviteLinkProvenanceModel(),
+                    emailClient: this.clients.getEmailClient(),
+                }),
+        );
+    }
+
     public getUserService(): UserService {
         return this.getService(
             'userService',
             () =>
                 new UserService({
+                    inviteLinkFailureService:
+                        this.getInviteLinkFailureService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     inviteLinkModel: this.models.getInviteLinkModel(),
@@ -2007,6 +2026,8 @@ export class ServiceRepository
             'rolesService',
             () =>
                 new RolesService({
+                    inviteLinkFailureService:
+                        this.getInviteLinkFailureService(),
                     lightdashConfig: this.context.lightdashConfig,
                     licenseService: this.getLicenseService(),
                     analytics: this.context.lightdashAnalytics,

@@ -58,6 +58,7 @@ import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { getOrganizationSystemRoleScopes } from '../utils/organizationRolePermissions';
+import { InviteLinkFailureService } from './InviteLinkFailureService';
 import { UserService } from './UserService';
 import {
     authenticatedUser,
@@ -71,6 +72,11 @@ import {
     sessionUser,
     userWithoutOrg,
 } from './UserService.mock';
+
+const inviteLinkFailureService = {
+    trackFailure: vi.fn(async () => {}),
+    recordInvite: vi.fn(async () => {}),
+} as unknown as InviteLinkFailureService;
 
 const userModel = {
     getOpenIdIssuers: vi.fn<UserModel['getOpenIdIssuers']>(async () => []),
@@ -273,6 +279,7 @@ const createUserService = (
     overrides: UserServiceTestOverrides = {},
 ) =>
     new UserService({
+        inviteLinkFailureService,
         analytics: analyticsMock,
         lightdashConfig,
         inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
@@ -4663,6 +4670,7 @@ describe('UserService', () => {
                 }),
             };
             const service = new UserService({
+                inviteLinkFailureService,
                 analytics: analyticsMock,
                 lightdashConfig: lightdashConfigMock,
                 inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
@@ -4742,6 +4750,7 @@ describe('UserService', () => {
                 ),
             };
             const service = new UserService({
+                inviteLinkFailureService,
                 analytics: analyticsMock,
                 lightdashConfig: lightdashConfigMock,
                 inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
@@ -5931,5 +5940,33 @@ describe('UserService learn progress (CS-186)', () => {
             started: [],
             lastStarted: null,
         });
+    });
+});
+
+describe('invite failure detection', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it.each([
+        [new ExpiredError('Invite link expired'), 'expired'],
+        [new NotFoundError('No invite link found'), 'not_found'],
+    ])('tracks and preserves %s from invite lookup', async (error, reason) => {
+        inviteLinkModel.getByCode.mockRejectedValueOnce(error);
+        await expect(
+            createUserService(lightdashConfigMock).getInviteLink('failed-code'),
+        ).rejects.toBe(error);
+        expect(inviteLinkFailureService.trackFailure).toHaveBeenCalledWith(
+            'failed-code',
+            reason,
+            null,
+        );
+    });
+
+    it('does not classify other lookup errors as invite failures', async () => {
+        const error = new Error('Database unavailable');
+        inviteLinkModel.getByCode.mockRejectedValueOnce(error);
+        await expect(
+            createUserService(lightdashConfigMock).getInviteLink('code'),
+        ).rejects.toBe(error);
+        expect(inviteLinkFailureService.trackFailure).not.toHaveBeenCalled();
     });
 });
