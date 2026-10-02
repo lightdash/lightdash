@@ -143,7 +143,7 @@ const PinnedDashboardCard: FC<{
         return (
             <ContentReferenceLink
                 kind="dashboard"
-                onClick={() => openEmbedDashboard(item.dashboardUuid)}
+                onClick={() => openEmbedDashboard(item.dashboardUuid, null)}
                 showArrow
             >
                 {label}

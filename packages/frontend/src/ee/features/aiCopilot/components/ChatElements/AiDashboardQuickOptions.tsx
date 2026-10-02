@@ -49,6 +49,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
     };
 
     const { savedDashboardUuid } = artifactData;
+    const optionsAnchorId = `dashboard-options-${artifactData.artifactUuid}`;
 
     const handleSaveSuccess = (_dashboard: Dashboard) => {
         // TODO persist on artifact
@@ -64,7 +65,11 @@ export const AiDashboardQuickOptions: FC<Props> = ({
         <Fragment>
             <Menu withArrow>
                 <Menu.Target>
-                    <ActionIcon size="sm" color="ldGray.9">
+                    <ActionIcon
+                        size="sm"
+                        color="ldGray.9"
+                        data-chat-anchor={optionsAnchorId}
+                    >
                         <MantineIcon icon={IconDots} size="lg" />
                     </ActionIcon>
                 </Menu.Target>
@@ -74,7 +79,10 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                         openEmbedDashboard ? (
                             <Menu.Item
                                 onClick={() =>
-                                    openEmbedDashboard(savedDashboardUuid)
+                                    openEmbedDashboard(
+                                        savedDashboardUuid,
+                                        optionsAnchorId,
+                                    )
                                 }
                                 leftSection={
                                     <MantineIcon icon={IconTableShortcut} />

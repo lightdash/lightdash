@@ -7,7 +7,7 @@ import {
     useState,
 } from 'react';
 import { useSearchParams } from 'react-router';
-import { CHAT_MESSAGE_PARAM } from '../../hooks/useChatBackUrl';
+import { CHAT_MESSAGE_PARAM, findChatAnchor } from '../../hooks/useChatBackUrl';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 
@@ -89,15 +89,22 @@ const ThreadScrollToBottom = ({
             const frame = requestAnimationFrame(() => {
                 hasPositioned.current = true;
                 const viewport = scrollAreaRef.current;
-                const message = viewport?.querySelector(
-                    `[data-message-id="${CSS.escape(returnMessageId)}"]`,
-                );
                 if (!viewport) return;
-                viewport.scrollTop = message
-                    ? viewport.scrollTop +
-                      message.getBoundingClientRect().top -
-                      viewport.getBoundingClientRect().top
-                    : viewport.scrollHeight;
+                const anchor = findChatAnchor(viewport, returnMessageId);
+                if (!anchor) {
+                    viewport.scrollTop = viewport.scrollHeight;
+                    return;
+                }
+                const anchorRect = anchor.getBoundingClientRect();
+                // Centre the element; one taller than the panel aligns to the top.
+                const centreOffset = Math.max(
+                    0,
+                    (viewport.clientHeight - anchorRect.height) / 2,
+                );
+                viewport.scrollTop +=
+                    anchorRect.top -
+                    viewport.getBoundingClientRect().top -
+                    centreOffset;
             });
             return () => cancelAnimationFrame(frame);
         }

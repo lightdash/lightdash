@@ -192,10 +192,16 @@ export const UserBubble: FC<Props> = ({
                                 segment.item.type === 'chart'
                                     ? segment.item.chartUuid
                                     : null;
+                            const anchorId = embedDashboardUuid
+                                ? `user-${message.uuid}-dashboard-${embedDashboardUuid}`
+                                : null;
                             const handleClick =
                                 openEmbedDashboard && embedDashboardUuid
                                     ? () =>
-                                          openEmbedDashboard(embedDashboardUuid)
+                                          openEmbedDashboard(
+                                              embedDashboardUuid,
+                                              anchorId,
+                                          )
                                     : !openEmbedDashboard &&
                                         chartUuid &&
                                         openChartEditor
@@ -215,6 +221,7 @@ export const UserBubble: FC<Props> = ({
                                             : undefined
                                     }
                                     kind={segment.item.type}
+                                    data-chat-anchor={anchorId ?? undefined}
                                     onClick={handleClick}
                                     rel={href ? 'noreferrer' : undefined}
                                     target={href ? '_blank' : undefined}
