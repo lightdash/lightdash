@@ -166,7 +166,10 @@ const getFieldValues = async (
     });
 };
 
-export const MAX_POLL_ATTEMPTS = 30; // ~30s with backoff (250ms → 1s)
+// ~3 minutes with backoff (250ms → 2s): cold warehouse scans can far exceed
+// 30s, and giving up while the query is still running reproduces the
+// empty-dropdown failure the async path exists to avoid.
+export const MAX_POLL_ATTEMPTS = 95;
 
 export const pollForFieldValueResults = async (
     projectUuid: string,
@@ -190,7 +193,7 @@ export const pollForFieldValueResults = async (
         results.status === QueryHistoryStatus.QUEUED ||
         results.status === QueryHistoryStatus.EXECUTING
     ) {
-        const nextBackoff = Math.min(backoffMs * 2, 1000);
+        const nextBackoff = Math.min(backoffMs * 2, 2000);
         await new Promise((resolve) => {
             setTimeout(resolve, backoffMs);
         });
@@ -311,7 +314,7 @@ export const useFieldValues = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
 ) => {
-    const { embedToken } = useEmbed();
+    const { embedToken, content: embedContent } = useEmbed();
     const sessionTimezone = useSessionTimezone();
     const { data: resultsCacheFlag } = useServerFeatureFlag(
         FeatureFlags.ResultsCacheEnabled,
@@ -413,6 +416,21 @@ export const useFieldValues = (
     const query = useQuery<FieldValueSearchResult, ApiError>(
         cachekey,
         () => {
+            // Dashboard embeds use async execute+poll: the sync embed search
+            // runs the warehouse query inside one HTTP request and dies at
+            // the gateway when a cold warehouse scan is slow.
+            if (embedToken && embedContent?.type === 'dashboard' && projectId) {
+                return getFieldValuesAsync(
+                    projectId,
+                    tableName,
+                    fieldId,
+                    debouncedSearch,
+                    forceRefresh,
+                    filters,
+                    undefined,
+                    parameterValues,
+                );
+            }
             if (embedToken && filterId && projectId) {
                 return getEmbedFilterValues({
                     embedToken,

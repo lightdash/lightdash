@@ -50,6 +50,7 @@ import {
     getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDateZoomFromRequestParameters,
+    getDimensionMapFromTables,
     getDimensions,
     getDimensionsWithValidParameters,
     getDocumentRuntimeChartConfig,
@@ -71,6 +72,7 @@ import {
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
+    isDashboardChartTileType,
     isDateItem,
     isExploreError,
     isField,
@@ -78,6 +80,7 @@ import {
     isMergeMetricSource,
     isMergeResultSource,
     isMetric,
+    isParameterInteractivityEnabled,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -6188,6 +6191,81 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /**
+     * Embed JWTs may only search fields reachable from their dashboard's
+     * chart explores — parity with the embed searchFilterValues endpoint.
+     * Other JWT content types must use the embed-specific search endpoint.
+     * Returns the dashboard's saved parameter values, the trusted defaults
+     * merged under any viewer-supplied parameters.
+     */
+    private async getEmbedFieldValueSearchScope({
+        account,
+        projectUuid,
+        table,
+        fieldId,
+    }: {
+        account: AnonymousAccount;
+        projectUuid: string;
+        table: string;
+        fieldId: string;
+    }): Promise<{ dashboardParameterValues: ParametersValuesMap | undefined }> {
+        const { dashboardUuid } = account.access.content;
+        if (!dashboardUuid) {
+            throw new ForbiddenError(
+                'Embedded field value search is only available for dashboard embeds',
+            );
+        }
+        const { dashboardUuids, allowAllDashboards } = account.embed;
+        if (!allowAllDashboards && !dashboardUuids.includes(dashboardUuid)) {
+            throw new ForbiddenError(
+                `Dashboard ${dashboardUuid} is not embedded`,
+            );
+        }
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+        const savedChartUuids = [
+            ...new Set(
+                dashboard.tiles
+                    .filter(isDashboardChartTileType)
+                    .map((tile) => tile.properties.savedChartUuid)
+                    .filter((uuid): uuid is string => Boolean(uuid)),
+            ),
+        ];
+        const savedCharts =
+            await this.savedChartModel.getInfoForAvailableFilters(
+                savedChartUuids,
+            );
+        const explores = await Promise.all(
+            [...new Set(savedCharts.map((chart) => chart.tableName))].map(
+                (tableName) =>
+                    this.projectModel.getExploreFromCache(
+                        projectUuid,
+                        tableName,
+                    ),
+            ),
+        );
+        const isFieldInDashboardExplores = explores.some(
+            (explore) =>
+                !isExploreError(explore) &&
+                table in explore.tables &&
+                fieldId in getDimensionMapFromTables(explore.tables),
+        );
+        if (!isFieldInDashboardExplores) {
+            throw new ForbiddenError(
+                `Field ${fieldId} is not available on this dashboard`,
+            );
+        }
+
+        return {
+            dashboardParameterValues: convertDashboardParametersToValuesMap(
+                dashboard.parameters,
+            ),
+        };
+    }
+
     async executeAsyncFieldValueSearch({
         account,
         projectUuid,
@@ -6218,6 +6296,26 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        let acceptedParameters = parameters;
+        let dashboardParameterValues: ParametersValuesMap | undefined;
+        if (isJwtUser(account)) {
+            ({ dashboardParameterValues } =
+                await this.getEmbedFieldValueSearchScope({
+                    account,
+                    projectUuid,
+                    table,
+                    fieldId: initialFieldId,
+                }));
+            // Viewer-supplied parameters are only trusted when the JWT
+            // grants parameter interactivity — parity with the embed
+            // search endpoint.
+            acceptedParameters = isParameterInteractivityEnabled(
+                account.access.parameters,
+            )
+                ? parameters
+                : {};
         }
 
         const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
@@ -6253,7 +6351,8 @@ export class AsyncQueryService extends ProjectService {
             const combinedParameters = await this.combineParameters(
                 projectUuid,
                 explore,
-                parameters,
+                acceptedParameters,
+                dashboardParameterValues,
             );
             const staticRequestParameters: ExecuteAsyncFieldValueSearchRequestParams =
                 {
@@ -6372,7 +6471,8 @@ export class AsyncQueryService extends ProjectService {
         const combinedParameters = await this.combineParameters(
             projectUuid,
             explore,
-            parameters,
+            acceptedParameters,
+            dashboardParameterValues,
         );
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
