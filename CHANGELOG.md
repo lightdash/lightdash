@@ -1,3 +1,10 @@
+## [2.415.7](https://github.com/lightdash/lightdash/compare/2.415.6...2.415.7) (2026-10-02)
+
+
+### Bug Fixes
+
+* **frontend:** preserve leading-zero decimal alert thresholds ([#30412](https://github.com/lightdash/lightdash/issues/30412)) ([ba933f2](https://github.com/lightdash/lightdash/commit/ba933f240a72d38b2123347c3ee5df79ccde7bea))
+
 ## [2.415.6](https://github.com/lightdash/lightdash/compare/2.415.5...2.415.6) (2026-10-02)
 
 
