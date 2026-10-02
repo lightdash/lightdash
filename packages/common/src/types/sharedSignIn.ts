@@ -26,6 +26,21 @@ export const PERSON_SIGN_IN_LABELS: Record<PersonSignInProvider, string> = {
 
 export type SignInSubject = { userUuid: string; name: string };
 
+export type SharedSignIn = {
+    provider: PersonSignInProvider;
+    subject: SignInSubject | null;
+    subjectBasis: SignInSubjectBasis | null;
+};
+
+export type WarehouseCredentialSummary = {
+    sharedSignIn: SharedSignIn | null;
+};
+
+export type ApiWarehouseCredentialSummaryResponse = {
+    status: 'ok';
+    results: WarehouseCredentialSummary;
+};
+
 export type SharedSignInStatus = {
     provider: PersonSignInProvider;
     subject: SignInSubject | null;

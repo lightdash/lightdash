@@ -261,6 +261,7 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    getSharedSignIn: vi.fn<ProjectModel['getSharedSignIn']>(async () => null),
     reconnectSharedSignIn: vi.fn<ProjectModel['reconnectSharedSignIn']>(
         async () => ({ kind: 'skipped' }),
     ),
@@ -13639,5 +13640,64 @@ describe('ProjectService.getSharedSignInStatus', () => {
                 projectSummary.projectUuid,
             ),
         ).resolves.toBeNull();
+    });
+});
+
+describe('ProjectService.getWarehouseCredentialSummary', () => {
+    const sharedSignIn = {
+        provider: PersonSignInProvider.GOOGLE,
+        subject: { userUuid: 'founder-uuid', name: 'Fran Founder' },
+        subjectBasis: SignInSubjectBasis.RECORDED,
+    };
+    const flagged = (enabled: boolean) =>
+        ({
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled,
+                }),
+            ),
+        }) as unknown as FeatureFlagModel;
+
+    beforeEach(() => {
+        projectModel.getSharedSignIn.mockResolvedValue(sharedSignIn);
+    });
+
+    test('is not available while the flag is off', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(false),
+        });
+        await expect(
+            service.getWarehouseCredentialSummary(
+                user,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow('This feature is not enabled');
+        expect(projectModel.getSharedSignIn).not.toHaveBeenCalled();
+    });
+
+    test('needs view access to the project', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(true),
+        });
+        await expect(
+            service.getWarehouseCredentialSummary(
+                { ...user, ability: new Ability<PossibleAbilities>([]) },
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(projectModel.getSharedSignIn).not.toHaveBeenCalled();
+    });
+
+    test('returns whose sign-in the project runs on', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(true),
+        });
+        await expect(
+            service.getWarehouseCredentialSummary(
+                user,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toEqual({ sharedSignIn });
     });
 });

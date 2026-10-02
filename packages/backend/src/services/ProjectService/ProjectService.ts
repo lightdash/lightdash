@@ -300,6 +300,7 @@ import {
     type Tag,
     type UUID,
     type WarehouseConnectionStagedTestResults,
+    type WarehouseCredentialSummary,
     type WarehouseLocation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -4100,6 +4101,33 @@ export class ProjectService extends BaseService {
             errorCount: summary.report.errorExploresCount,
             total: summary.report.totalExploresCount,
             ...(connectionWarnings.length > 0 ? { connectionWarnings } : {}),
+        };
+    }
+
+    async getWarehouseCredentialSummary(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<WarehouseCredentialSummary> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.SharedSignInOwnership,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('This feature is not enabled');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return {
+            sharedSignIn: await this.projectModel.getSharedSignIn(projectUuid),
         };
     }
 

@@ -76,6 +76,7 @@ import {
     type ConnectionRoute,
     type CreateBigqueryCredentials,
     type PersonSignIn,
+    type SharedSignIn,
     type SignInSubject,
     type StoredSignInSubject,
     type SummaryExplore,
@@ -966,6 +967,36 @@ export class ProjectModel {
             })
             .onConflict('project_id')
             .merge();
+    }
+
+    async getSharedSignIn(projectUuid: string): Promise<SharedSignIn | null> {
+        const row = await this.database('warehouse_credentials')
+            .innerJoin(
+                'projects',
+                'projects.project_id',
+                'warehouse_credentials.project_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .whereNull('projects.organization_warehouse_credentials_uuid')
+            .first<{ encrypted_credentials: Buffer } | undefined>(
+                'warehouse_credentials.encrypted_credentials',
+            );
+        if (!row) return null;
+        const credentials = this.decryptWarehouseCredentials(
+            row.encrypted_credentials,
+        );
+        const signIn = credentials ? getPersonSignIn(credentials) : null;
+        if (!signIn) return null;
+        const resolved = await this.getSharedSignInSubjectForToken(
+            projectUuid,
+            signIn.refreshToken,
+        );
+        if (!resolved) return null;
+        return {
+            provider: resolved.provider,
+            subject: resolved.subject,
+            subjectBasis: resolved.basis,
+        };
     }
 
     async getSharedSignInSubjectForToken(

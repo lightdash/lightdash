@@ -215,6 +215,11 @@ describe('warehouse credential subject', () => {
         );
 
         expect(await storedSubject(projectUuid)).toBe(founder);
+        expect(await model.getSharedSignIn(projectUuid)).toEqual({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: { userUuid: founder, name: 'Fran Person' },
+            subjectBasis: SignInSubjectBasis.RECORDED,
+        });
         expect(
             await model.getSharedSignInSubjectForToken(
                 projectUuid,
@@ -314,6 +319,7 @@ describe('warehouse credential subject', () => {
         await model.update(projectUuid, projectData(serviceAccount), founder);
 
         expect(await storedSubject(projectUuid)).toBeNull();
+        expect(await model.getSharedSignIn(projectUuid)).toBeNull();
         expect(
             await model.getSharedSignInSubjectForToken(
                 projectUuid,
