@@ -98,3 +98,41 @@ describe('ToolCallRow for runComposerQueries', () => {
         ).toHaveAttribute('aria-expanded', 'false');
     });
 });
+
+describe('ToolCallRow labels', () => {
+    it('labels every built-in tool instead of falling back to MCP', () => {
+        renderWithProviders(
+            <ToolCallRow
+                toolName="searchTools"
+                toolCalls={[
+                    {
+                        toolCallId: 'call-2',
+                        toolName: 'searchTools',
+                        toolArgs: { query: 'schedule' },
+                    },
+                ]}
+                status="done"
+            />,
+        );
+        expect(screen.getByText('Found tools')).toBeVisible();
+        expect(screen.queryByText(/Used MCP/)).not.toBeInTheDocument();
+    });
+
+    it('falls back to MCP only for unknown tool names', () => {
+        renderWithProviders(
+            <ToolCallRow
+                toolName="linear__list_issues"
+                toolCalls={[
+                    {
+                        toolCallId: 'call-3',
+                        toolName: 'linear__list_issues',
+                        toolArgs: {},
+                    },
+                ]}
+                status="done"
+            />,
+        );
+        expect(screen.getByText(/Used/)).toBeVisible();
+        expect(screen.queryByText('Found tools')).not.toBeInTheDocument();
+    });
+});

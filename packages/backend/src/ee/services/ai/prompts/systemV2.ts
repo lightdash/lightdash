@@ -45,6 +45,7 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+import { TOOL_SEARCH_SECTION } from './systemV2ToolRouting';
 
 const getDataAccessSection = (
     enableDataAccess: boolean,
@@ -174,6 +175,8 @@ export const getSystemPromptV2 = (args: {
     runSqlMaxLimit?: number;
     unauthenticatedMcpServerNames?: string[];
     mcpServers?: Array<{ name: string; toolNames: string[] }>;
+    // Non-core tools are hidden until the model finds them with searchTools.
+    enableToolSearch?: boolean;
 }): SystemModelMessage => {
     const {
         instructions,
@@ -199,6 +202,7 @@ export const getSystemPromptV2 = (args: {
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
         mcpServers = [],
+        enableToolSearch = false,
     } = args;
 
     const capabilitySections = getCapabilitySections(args);
@@ -513,6 +517,7 @@ export const getSystemPromptV2 = (args: {
         args.enableFastMetadata
             ? 'For a definition or reference-only question, give the shortest complete answer: the definition, required conditions and exceptions, plus date scope only when requested. Preserve all requested rules. Avoid repeating them under multiple headings, speculative implementation caveats and offers to run future queries. Discuss an unspecified convention when the user asks about it or the requested result depends on choosing it; merely restating a documented definition does not require the user to settle every convention for a possible future query.'
             : '',
+        enableToolSearch ? TOOL_SEARCH_SECTION : '',
         mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,

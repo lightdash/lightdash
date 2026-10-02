@@ -368,6 +368,14 @@ export enum FeatureFlags {
      * on any mismatch. Off by default.
      */
     DbtPartialParse = 'dbt-partial-parse',
+
+    /**
+     * AI agent tool search (AI SDK `toolSearch`): only a core tool set is
+     * sent to the model up front; every other built-in tool is registered
+     * with `deferLoading` and becomes callable once the model finds it with
+     * the `searchTools` tool. Off by default; enable per-org.
+     */
+    AiAgentToolSearch = 'ai-agent-tool-search',
 }
 
 export type FeatureFlag = {

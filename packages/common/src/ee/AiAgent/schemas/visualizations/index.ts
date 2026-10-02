@@ -57,6 +57,7 @@ export const ToolNameSchema = z.enum([
     'submitResearchReport',
     'delegateResearchTask',
     'submitWorkerFindings',
+    'searchTools',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -64,11 +65,9 @@ export type ToolName = z.infer<typeof ToolNameSchema>;
 export const isToolName = (toolName: string): toolName is ToolName =>
     ToolNameSchema.safeParse(toolName).success;
 
-// display messages schema
-export const ToolDisplayMessagesSchema = z.partialRecord(
-    ToolNameSchema,
-    z.string(),
-);
+// Exhaustive on purpose: a built-in tool without a label would render as
+// an MCP tool in the thread.
+export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
@@ -124,7 +123,10 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     submitResearchReport: 'Saving research report',
     delegateResearchTask: 'Delegating a research task',
     submitWorkerFindings: 'Saving task findings',
-});
+    listDataAppThemes: 'Checking data app themes',
+    editProjectContext: 'Editing project context',
+    searchTools: 'Finding tools',
+} satisfies Record<ToolName, string>);
 
 // after-tool-call messages
 export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
@@ -182,4 +184,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         submitResearchReport: 'Saved research report',
         delegateResearchTask: 'Delegated a research task',
         submitWorkerFindings: 'Saved task findings',
-    });
+        listDataAppThemes: 'Checked data app themes',
+        editProjectContext: 'Edited project context',
+        searchTools: 'Found tools',
+    } satisfies Record<ToolName, string>);

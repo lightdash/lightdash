@@ -334,7 +334,7 @@ const LatestRow: FC<{
                     />
                 </Box>
             </Box>
-            {label ? (
+            {label !== null ? (
                 <Text
                     size="xs"
                     className={styles.latestLabel}
