@@ -14,6 +14,7 @@ const DocumentRenderer = ({
     actions,
     metadata,
     rail,
+    showContents = true,
     initialScrollTop,
     onScrollTopChange,
 }: {
@@ -23,6 +24,8 @@ const DocumentRenderer = ({
     metadata?: ReactNode;
     /** Replaces the contents rail. */
     rail?: ReactNode;
+    /** False drops the contents rail, e.g. in a narrow side panel. */
+    showContents?: boolean;
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
 }) => {
@@ -52,6 +55,7 @@ const DocumentRenderer = ({
             actions={actions}
             metadata={metadata ?? <DocumentByline document={document} />}
             rail={rail}
+            showContents={showContents}
             initialScrollTop={initialScrollTop}
             onScrollTopChange={onScrollTopChange}
         >

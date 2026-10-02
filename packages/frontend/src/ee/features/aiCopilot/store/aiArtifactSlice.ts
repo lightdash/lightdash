@@ -29,6 +29,15 @@ export interface DataAppPreviewData {
     latestReadyVersionAtOpen: number | null;
 }
 
+export interface DocumentPreviewData {
+    /** A uuid, or a slug when the agent linked the Document by its URL. */
+    documentUuidOrSlug: string;
+    messageUuid: string;
+    threadUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+}
+
 export type DataAppPreviewVersion = Pick<
     DataAppPreviewData,
     'version' | 'latestReadyVersionAtOpen'
@@ -37,7 +46,8 @@ export type DataAppPreviewVersion = Pick<
 export type AiPreview =
     | ({ type: 'artifact' } & ArtifactData)
     | ({ type: 'savedChart' } & SavedChartPreviewData)
-    | ({ type: 'dataApp' } & DataAppPreviewData);
+    | ({ type: 'dataApp' } & DataAppPreviewData)
+    | ({ type: 'document' } & DocumentPreviewData);
 
 export interface AiArtifactState {
     preview: AiPreview | null;
@@ -118,6 +128,11 @@ export const selectSavedChartPreview = (state: StateWithAiArtifact) =>
 
 export const selectDataAppPreview = (state: StateWithAiArtifact) =>
     state.aiArtifact.preview?.type === 'dataApp'
+        ? state.aiArtifact.preview
+        : null;
+
+export const selectDocumentPreview = (state: StateWithAiArtifact) =>
+    state.aiArtifact.preview?.type === 'document'
         ? state.aiArtifact.preview
         : null;
 

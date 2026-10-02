@@ -42,7 +42,10 @@ const renderDocumentLink = () => {
                 element: (
                     <ContentLink
                         contentType="document-link"
-                        props={{ href: DOCUMENT_HREF }}
+                        props={{
+                            href: DOCUMENT_HREF,
+                            'data-document-uuid': 'document-1',
+                        }}
                         message={message}
                         projectUuid="project-1"
                         agentUuid="agent-1"
@@ -67,24 +70,23 @@ const renderDocumentLink = () => {
 describe('Document content links', () => {
     beforeEach(() => store.dispatch(clearPreview()));
 
-    it('opens the dedicated page without preview state or dashboard callbacks', async () => {
+    it('opens the Document in the side panel and stays in the thread', () => {
         const { router, onDashboardLinkClick } = renderDocumentLink();
         const link = screen.getByRole('link', { name: 'Hello World' });
         expect(link).toHaveAttribute('href', DOCUMENT_HREF);
         expect(link).not.toHaveAttribute('target');
         fireEvent.click(link);
 
-        expect(await screen.findByText('Document page')).toBeInTheDocument();
-        expect(router.state.location.pathname).toBe(DOCUMENT_HREF);
-        expect(router.state.location.state).toBeNull();
-        expect(store.getState().aiArtifact.preview).toBeNull();
-        expect(onDashboardLinkClick).not.toHaveBeenCalled();
-
-        await router.navigate(-1);
-        expect(
-            await screen.findByRole('link', { name: 'Hello World' }),
-        ).toBeInTheDocument();
         expect(router.state.location.pathname).toBe(THREAD_HREF);
+        expect(store.getState().aiArtifact.preview).toEqual({
+            type: 'document',
+            documentUuidOrSlug: 'document-1',
+            messageUuid: 'message-1',
+            threadUuid: 'thread-1',
+            projectUuid: 'project-1',
+            agentUuid: 'agent-1',
+        });
+        expect(onDashboardLinkClick).not.toHaveBeenCalled();
     });
 
     it.each([{ ctrlKey: true }, { metaKey: true }, { button: 1 }])(

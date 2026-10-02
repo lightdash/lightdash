@@ -104,16 +104,39 @@ export const ContentLink: FC<ContentLinkProps> = ({
 
     switch (contentType) {
         // Documents have no embed surface, so the chip stays a static reference.
-        case 'document-link':
+        case 'document-link': {
+            const documentUuidOrSlug =
+                'data-document-uuid' in props &&
+                typeof props['data-document-uuid'] === 'string'
+                    ? props['data-document-uuid']
+                    : undefined;
+            const handleDocumentClick = (e: MouseEvent<HTMLAnchorElement>) => {
+                if (!documentUuidOrSlug || !isPlainLeftClick(e)) {
+                    return;
+                }
+                e.preventDefault();
+                dispatch(
+                    setPreview({
+                        type: 'document',
+                        documentUuidOrSlug,
+                        messageUuid: message.uuid,
+                        threadUuid: message.threadUuid,
+                        projectUuid,
+                        agentUuid,
+                    }),
+                );
+            };
             return (
                 <ContentReferenceLink
                     to={isEmbed ? undefined : resourceHref || undefined}
                     kind="document"
+                    onClick={isEmbed ? undefined : handleDocumentClick}
                     title={title}
                 >
                     {children}
                 </ContentReferenceLink>
             );
+        }
 
         case 'dashboard-link': {
             const dashboardUuid =

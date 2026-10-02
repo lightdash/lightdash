@@ -6,7 +6,7 @@ export const PREVIEW_PANE_MAX = 64;
 
 export type PreviewPane = {
     /** Doubles as the splitter layout key, so each kind remembers its own width. */
-    id: 'data-app' | 'chart-artifact' | 'composer-artifact';
+    id: 'data-app' | 'chart-artifact' | 'composer-artifact' | 'document';
     defaultSize: number;
 };
 
@@ -25,6 +25,8 @@ export const previewPaneOf = (
                 : { id: 'chart-artifact', defaultSize: 46 };
         case 'savedChart':
             return { id: 'chart-artifact', defaultSize: 46 };
+        case 'document':
+            return { id: 'document', defaultSize: 50 };
         default:
             return assertUnreachable(type, 'Unknown preview type');
     }

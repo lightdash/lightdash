@@ -1,9 +1,12 @@
 import { type AiAgentMessageAssistant } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
 import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import { store } from '../../store';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
+import { clearPreview } from '../../store/aiArtifactSlice';
 import AiDocumentCards from './AiDocumentCards';
 
 const DOCUMENT_UUID = '591eb352-180d-4cfd-b2ce-b4c004edb6ce';
@@ -77,7 +80,12 @@ const renderCards = (
                 element: (
                     <AiDocumentCards
                         projectUuid="project-1"
-                        toolResults={toolResults}
+                        agentUuid="agent-1"
+                        message={{
+                            uuid: 'message-1',
+                            threadUuid: 'thread-1',
+                            toolResults,
+                        }}
                         streamParts={streamParts}
                     />
                 ),
@@ -86,12 +94,17 @@ const renderCards = (
         ],
         { initialEntries: ['/thread'] },
     );
-    renderWithProviders(<RouterProvider router={router} />);
+    renderWithProviders(
+        <Provider store={store}>
+            <RouterProvider router={router} />
+        </Provider>,
+    );
     return router;
 };
 
 describe('native Document result cards', () => {
     beforeEach(() => {
+        store.dispatch(clearPreview());
         mocks.projectRoute.mockReset();
         mocks.projectRoute.mockReturnValue(null);
         mocks.projects.mockReset();
@@ -142,12 +155,19 @@ describe('native Document result cards', () => {
         const resolved = mocks.projects();
         mocks.projects.mockReturnValue({ data: undefined });
         const content = () => (
-            <MemoryRouter>
-                <AiDocumentCards
-                    projectUuid="project-1"
-                    toolResults={[result]}
-                />
-            </MemoryRouter>
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AiDocumentCards
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        message={{
+                            uuid: 'message-1',
+                            threadUuid: 'thread-1',
+                            toolResults: [result],
+                        }}
+                    />
+                </MemoryRouter>
+            </Provider>
         );
         const { rerender } = renderWithProviders(content());
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
@@ -296,15 +316,21 @@ describe('native Document result cards', () => {
         },
     );
 
-    it('navigates directly and preserves browser Back', async () => {
+    it('opens the Document in the side panel and stays in the thread', () => {
         const router = renderCards();
         fireEvent.click(screen.getByRole('link'));
-        expect(await screen.findByText('Document page')).toBeInTheDocument();
-        expect(router.state.location.state).toBeNull();
-        await router.navigate(-1);
-        expect(await screen.findByRole('link')).toHaveAttribute(
-            'href',
-            DOCUMENT_HREF,
+        expect(router.state.location.pathname).toBe('/thread');
+        expect(store.getState().aiArtifact.preview).toEqual({
+            type: 'document',
+            documentUuidOrSlug: DOCUMENT_UUID,
+            messageUuid: 'message-1',
+            threadUuid: 'thread-1',
+            projectUuid: 'project-1',
+            agentUuid: 'agent-1',
+        });
+        expect(screen.getByRole('link')).toHaveAttribute(
+            'data-artifact-open',
+            'true',
         );
     });
 
@@ -314,6 +340,7 @@ describe('native Document result cards', () => {
             const router = renderCards();
             expect(fireEvent.click(screen.getByRole('link'), event)).toBe(true);
             expect(router.state.location.pathname).toBe('/thread');
+            expect(store.getState().aiArtifact.preview).toBeNull();
         },
     );
 });

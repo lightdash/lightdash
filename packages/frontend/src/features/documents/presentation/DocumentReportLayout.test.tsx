@@ -33,6 +33,33 @@ describe('Shared report presentation', () => {
         );
     });
 
+    it.each([
+        [true, 1],
+        [false, 0],
+    ])(
+        'shows the contents rail only when asked (showContents=%s)',
+        (showContents, navCount) => {
+            render(
+                <MantineProvider env="test">
+                    <DocumentReportLayout
+                        title="Orders review"
+                        variant="document"
+                        headings={[{ id: 'findings', label: 'Findings' }]}
+                        showContents={showContents}
+                    >
+                        <p>Report narrative</p>
+                    </DocumentReportLayout>
+                </MantineProvider>,
+            );
+            expect(
+                screen.queryAllByRole('navigation', {
+                    name: 'Report contents',
+                }),
+            ).toHaveLength(navCount);
+            expect(screen.getByText('Report narrative')).toBeVisible();
+        },
+    );
+
     it('opens at a carried-over scroll offset and reports scrolling', async () => {
         const onScrollTopChange = vi.fn();
         const { container } = render(
