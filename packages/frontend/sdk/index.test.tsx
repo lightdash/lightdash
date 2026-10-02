@@ -510,6 +510,40 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         });
     });
 
+    it('returns to the SDK dashboard in one click from a nested drill-down', async () => {
+        const { getByTestId, queryByTestId } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={[]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+
+        fireEvent.click(getByTestId('drill-down-explore'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'orders',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-drill-down-unsaved'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'orders_drill',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-back'));
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+        expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
     it('drills in place inside the SDK explore and returns to the saved chart', async () => {
         const onExplore = vi.fn();
         const { getByTestId, queryByTestId } = render(

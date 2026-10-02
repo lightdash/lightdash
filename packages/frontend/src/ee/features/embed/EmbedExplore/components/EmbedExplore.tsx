@@ -149,6 +149,7 @@ const EmbedExploreContent: FC<{
                     pivotConfig: savedChart?.pivotConfig || {
                         columns: [],
                     },
+                    parameters: savedChart?.parameters,
                 },
             },
             defaultLimit: 500,

@@ -230,7 +230,8 @@ const getInitialNavigation = (
 });
 
 // Saved charts go to the host; derived charts (drill-downs) render in place.
-// Back restores the query each drill-down was opened from.
+// handleBack restores the query each drill-down was opened from;
+// handleBackToDashboard leaves every drill-down at once.
 const useEmbedExploreNavigation = (
     onExplore: BaseProps['onExplore'],
     rootKey?: string,
@@ -260,7 +261,7 @@ const useEmbedExploreNavigation = (
         [onExplore, rootKey],
     );
 
-    const handleBackToDashboard = useCallback(
+    const handleBack = useCallback(
         () =>
             setState((prev) => {
                 if (prev.rootKey !== rootKey) {
@@ -293,10 +294,16 @@ const useEmbedExploreNavigation = (
         [rootKey],
     );
 
+    const handleBackToDashboard = useCallback(
+        () => setState(getInitialNavigation(rootKey)),
+        [rootKey],
+    );
+
     return {
         exploreChart: navigation.frames.at(-1)?.chart,
         restoredChart: navigation.restoredChart,
         handleExplore,
+        handleBack,
         handleBackToDashboard,
     };
 };
@@ -732,12 +739,8 @@ const Explore: FC<
     savedChart,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
-    const {
-        exploreChart,
-        restoredChart,
-        handleExplore,
-        handleBackToDashboard,
-    } = useEmbedExploreNavigation(onExplore, `${exploreId}:${savedChart.uuid}`);
+    const { exploreChart, restoredChart, handleExplore, handleBack } =
+        useEmbedExploreNavigation(onExplore, `${exploreId}:${savedChart.uuid}`);
     const currentChart = exploreChart ?? restoredChart;
 
     if (!tokenContext) {
@@ -757,9 +760,7 @@ const Explore: FC<
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
                 onExplore={handleExplore}
-                onBackToDashboard={
-                    exploreChart ? handleBackToDashboard : undefined
-                }
+                onBackToDashboard={exploreChart ? handleBack : undefined}
             >
                 <EmbedExplore
                     exploreId={currentChart?.tableName ?? exploreId}
