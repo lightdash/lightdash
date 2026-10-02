@@ -75,7 +75,7 @@ export const toolRunSqlStructuredContentSchema = z.object({
     rows: mcpSqlQueryRowsColumnsSchema.shape.rows
         .nullable()
         .describe(
-            `Raw values of the preview rows rendered as CSV in the result (first ${RUN_SQL_PREVIEW_ROW_LIMIT} at most). Null when data access is disabled and no row values are exposed.`,
+            `Raw values of the preview rows rendered as CSV in the result (first ${RUN_SQL_PREVIEW_ROW_LIMIT} at most); [] when the query returned no rows. Null when data access is disabled and the rows were withheld.`,
         ),
     truncated: z
         .boolean()
