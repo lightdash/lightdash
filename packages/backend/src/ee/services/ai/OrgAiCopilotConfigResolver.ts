@@ -11,6 +11,7 @@ import {
 } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
+import { AiOrganizationProviderCredentialModel } from '../../models/AiOrganizationProviderCredentialModel';
 import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
@@ -186,6 +187,7 @@ export const overlayOrgProviderApiKeys = (
 type Dependencies = {
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
+    aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
     aiModelCatalog: AiModelCatalog;
 };
 
@@ -194,13 +196,68 @@ export class OrgAiCopilotConfigResolver {
 
     private aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
+    private aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
+
     private aiModelCatalog: AiModelCatalog;
 
     constructor(dependencies: Dependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
+        this.aiOrganizationProviderCredentialModel =
+            dependencies.aiOrganizationProviderCredentialModel;
         this.aiModelCatalog = dependencies.aiModelCatalog;
+    }
+
+    /**
+     * Effective BYO keys for an organization. A named default credential wins
+     * over the legacy single-blob Bedrock config, so an org that has moved to
+     * credentials stops reading the old blob. The other BYO providers always
+     * come from the blob — only Bedrock has named credentials, because only
+     * Bedrock carries a region.
+     *
+     * A credential that exists but cannot be decrypted throws rather than
+     * falling through: the fallback would be the legacy key or the instance
+     * provider, either of which can be a different region than the one the
+     * organization deliberately selected. Failing the request is the only safe
+     * answer — the alternative is silently processing data somewhere it is not
+     * allowed. This is why the model distinguishes `none` from `unreadable`.
+     */
+    private async resolveOrgProviderKeys(
+        organizationUuid: string,
+        /**
+         * `fail-closed` throws when the selected credential cannot be read —
+         * correct for anything that will serve a prompt.
+         *
+         * `tolerate-unreadable` ignores the broken credential and resolves the
+         * legacy or instance keys instead. ONLY for admin read paths, which
+         * must load in order to repair that credential: failing them closed
+         * would hide the screen that fixes the problem behind the problem.
+         */
+        onUnreadable: 'fail-closed' | 'tolerate-unreadable' = 'fail-closed',
+    ): Promise<AiOrgProviderApiKeys | null> {
+        const [legacyKeys, resolution] = await Promise.all([
+            this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            ),
+            this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
+                organizationUuid,
+            ),
+        ]);
+
+        if (resolution.status === 'unreadable') {
+            if (onUnreadable === 'fail-closed') {
+                throw new MissingConfigError(
+                    `The AI provider credential "${resolution.label}" cannot be read with the current encryption secret. Replace its API key in organization settings; AI features are unavailable until then.`,
+                );
+            }
+            return legacyKeys;
+        }
+        if (resolution.status === 'none') return legacyKeys;
+        return {
+            ...(legacyKeys ?? {}),
+            bedrock: resolution.credential.config,
+        };
     }
 
     async getCopilotConfig(
@@ -209,10 +266,33 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid);
+        if (!orgKeys) return managed;
+        return overlayOrgProviderApiKeys(base, orgKeys);
+    }
+
+    /**
+     * Copilot config for rendering admin settings — never for serving a prompt.
+     *
+     * When the organization's selected credential cannot be decrypted this
+     * resolves the legacy or instance keys instead of throwing, so the settings
+     * screen still loads. That screen is where the broken credential is
+     * replaced, so failing it closed would put the fix behind the fault. The
+     * credential list reports the unreadable rows separately, so the admin is
+     * told the truth rather than shown a working-looking configuration.
+     *
+     * Execution paths use `getCopilotConfig`, which fails closed.
+     */
+    async getCopilotConfigForDisplay(
+        organizationUuid: string | null | undefined,
+    ): Promise<ResolvedCopilotConfig> {
+        const base = this.lightdashConfig.ai.copilot;
+        const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
+        if (!organizationUuid) return managed;
+        const orgKeys = await this.resolveOrgProviderKeys(
+            organizationUuid,
+            'tolerate-unreadable',
+        );
         if (!orgKeys) return managed;
         return overlayOrgProviderApiKeys(base, orgKeys);
     }
@@ -234,10 +314,7 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid);
         if (!orgKeys) return managed;
         const overlaid = overlayOrgProviderApiKeys(base, orgKeys);
         return {
@@ -263,10 +340,7 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid);
         if (!orgKeys) return managed;
         const overlaid = overlayOrgProviderApiKeys(base, orgKeys);
         return {
@@ -293,10 +367,10 @@ export class OrgAiCopilotConfigResolver {
             keyAccessibleModelIds: null,
         };
         if (!organizationUuid) return none;
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
+        const orgKeys = await this.resolveOrgProviderKeys(
+            organizationUuid,
+            'tolerate-unreadable',
+        );
         if (!orgKeys) return none;
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
@@ -335,10 +409,10 @@ export class OrgAiCopilotConfigResolver {
         organizationUuid: string,
         submitted: AiOrgModelVisibility | null,
     ): Promise<AiOrgModelVisibility | null> {
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
+        const orgKeys = await this.resolveOrgProviderKeys(
+            organizationUuid,
+            'tolerate-unreadable',
+        );
         if (!orgKeys) return submitted;
         return resolveEffectiveModelVisibility(orgKeys, submitted);
     }
@@ -356,10 +430,10 @@ export class OrgAiCopilotConfigResolver {
         organizationUuid: string | null | undefined,
     ): Promise<DataAppModelVisibility | null> {
         if (!organizationUuid) return null;
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
+        const orgKeys = await this.resolveOrgProviderKeys(
+            organizationUuid,
+            'tolerate-unreadable',
+        );
         if (!orgKeys?.anthropic) return null;
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
@@ -433,10 +507,7 @@ export class OrgAiCopilotConfigResolver {
         organizationUuid: string | null | undefined,
     ): Promise<boolean> {
         if (!organizationUuid) return false;
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid);
         return Boolean(orgKeys?.bedrock);
     }
 
@@ -455,10 +526,10 @@ export class OrgAiCopilotConfigResolver {
             byoJudgeProvider: null,
         };
         if (!organizationUuid) return none;
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
+        const orgKeys = await this.resolveOrgProviderKeys(
+            organizationUuid,
+            'tolerate-unreadable',
+        );
         if (!orgKeys) return none;
         const hasActiveByoKey = BYO_AI_PROVIDERS.some(
             (provider) => orgKeys[provider],

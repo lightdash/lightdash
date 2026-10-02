@@ -302,6 +302,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                     lightdashConfig: context.lightdashConfig,
@@ -460,6 +462,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                 }),
@@ -585,6 +589,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                     sandboxManager: null,
@@ -638,6 +644,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                 }),
@@ -764,6 +772,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                     shareService: repository.getShareService(),
@@ -855,6 +865,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                 }),
@@ -870,6 +882,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                 }),
@@ -898,6 +912,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                     catalogModel: models.getCatalogModel(),
@@ -931,6 +947,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                 }),
@@ -1029,6 +1047,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                 }),
@@ -1502,6 +1522,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
                         aiModelCatalog,
                     }),
                     aiOrganizationSettingsService:
