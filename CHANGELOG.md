@@ -1,3 +1,10 @@
+# [2.418.0](https://github.com/lightdash/lightdash/compare/2.417.0...2.418.0) (2026-10-02)
+
+
+### Features
+
+* **ai:** place chat charts in Documents with chart tags ([#30409](https://github.com/lightdash/lightdash/issues/30409)) ([0b49796](https://github.com/lightdash/lightdash/commit/0b49796a302fd79e39d090cfd65ef0d5a5d351cf)), closes [#30408](https://github.com/lightdash/lightdash/issues/30408)
+
 # [2.417.0](https://github.com/lightdash/lightdash/compare/2.416.0...2.417.0) (2026-10-02)
 
 

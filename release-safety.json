@@ -1,73 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.417.0",
-  "previousVersion": "2.416.0",
-  "releaseDate": "2026-10-02T14:06:20.988Z",
+  "version": "2.418.0",
+  "previousVersion": "2.417.0",
+  "releaseDate": "2026-10-02T14:13:05.741Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261002090000_store_documents_as_markdown_with_chart_tags.ts",
-        "edition": "core",
-        "tables": [
-          "document_versions",
-          "documents"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": "unknown",
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "GET /api/v1/projects/{projectUuid}/code/documents — removed the required property `results/documents/items/allOf[subschema #2]/content` from the response with the `200` status",
-        "POST /api/v1/projects/{projectUuid}/code/documents/{slug} — added `#/components/schemas/DocumentContent` to the request body `allOf` list",
-        "POST /api/v1/projects/{projectUuid}/code/documents/{slug} — removed the enum value `1.00` of the request property `allOf[subschema #2]/schemaVersion`",
-        "POST /api/v1/projects/{projectUuid}/documents — added the new required request property `content/charts`",
-        "POST /api/v1/projects/{projectUuid}/documents — added the new required request property `content/markdown`",
-        "POST /api/v1/projects/{projectUuid}/documents — removed the enum value `1.00` of the request property `schemaVersion`",
-        "POST /api/v1/projects/{projectUuid}/documents — removed the required property `results/allOf[subschema #2]/version/content/cells` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug} — removed the required property `results/allOf[subschema #2]/version/content/cells` from the response with the `200` status",
-        "PATCH /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug} — removed the required property `results/allOf[subschema #2]/version/content/cells` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/as-code — removed the required property `results/allOf[subschema #2]/content` from the response with the `200` status",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/duplicate — removed the required property `results/allOf[subschema #2]/version/content/cells` from the response with the `200` status",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellIndex}/query — api path removed without deprecation",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/promote — removed the required property `results/allOf[subschema #2]/version/content/cells` from the response with the `200` status",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — added the new required request property `content/charts`",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — added the new required request property `content/markdown`",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — removed the required property `results/allOf[subschema #2]/version/content/cells` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions/{versionUuid} — removed the required property `results/allOf[subschema #2]/version/content/cells` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the required property `results/data/items/requestParameters/allOf[subschema #2]/documentSource/cellIndex` from the response with the `200` status"
-      ],
-      "breakingCount": 18,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/code/documents — added the new `2.00` enum value to the `results/documents/items/allOf[subschema #2]/schemaVersion` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/code/documents/{slug} — removed the request property `allOf[subschema #2]/content`",
-        "POST /api/v1/projects/{projectUuid}/documents — removed the request property `content/cells`",
-        "POST /api/v1/projects/{projectUuid}/documents — added the new `2.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug} — added the new `2.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
-        "PATCH /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug} — added the new `2.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/as-code — added the new `2.00` enum value to the `results/allOf[subschema #2]/schemaVersion` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/duplicate — added the new `2.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/promote — added the new `2.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — removed the request property `content/cells`",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — added the new `2.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions/{versionUuid} — added the new `2.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`"
-      ],
-      "advisoryCount": 12
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
@@ -87,11 +41,5 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "documents-markdown-schema-v2-api",
-      "reason": "Documents (beta, documents feature flag) switch to schema version 2: the REST API, content-as-code files, CLI uploads, promotion and MCP Document tools now read and write { markdown, charts } instead of ordered cells, chart queries move from /cells/{cellIndex}/query to /charts/{chartId}/query, and version 1 payloads are rejected. API clients and CLI users with Document files must switch to the new shape.",
-      "requiredStop": false
-    }
-  ]
+  "declaredBreaks": []
 }
