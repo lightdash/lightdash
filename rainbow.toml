@@ -245,3 +245,14 @@ GITHUB_APP_NAME = "github-app"
 GITHUB_CLIENT_ID = "github-app"
 GITHUB_CLIENT_SECRET = "github-app"
 GITHUB_PRIVATE_KEY = "github-app"
+
+# The e2e variant (system-description/repo-config.md §4.12). CI creates one
+# environment per e2e run as this profile: the production bundle is built in
+# the fork beside the dev stack and the suite is driven at the backend, which
+# serves packages/frontend/build itself — production assets at production
+# request counts (178 per page against the dev server's 1,211), from the
+# same parent the preview forks from. The preview stays a dev server.
+[profile.e2e]
+run = "pnpm -F frontend build"
+serve_port = 8080
+memory = "12gb"                    # vite build peaked the guest near 4 GB beside the dev stack
