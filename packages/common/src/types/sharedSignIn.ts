@@ -96,11 +96,9 @@ export const resolveSignInSubject = ({
 }): string | null => {
     if (!signIn) return null;
     const match = stored.find(
-        (candidate) =>
-            candidate.subjectUserUuid !== null &&
-            candidate.refreshToken === signIn.refreshToken,
+        (candidate) => candidate.refreshToken === signIn.refreshToken,
     );
-    return match?.subjectUserUuid ?? actorUserUuid;
+    return match ? match.subjectUserUuid : actorUserUuid;
 };
 
 export type SharedSignInExpiry = {
@@ -117,6 +115,7 @@ export const getExpiredSharedSignInMessage = (
     const signIn = PERSON_SIGN_IN_LABELS[expiry.provider];
     const name = expiry.subjectName?.trim();
     const nobodyMessage = `This project's connection uses a ${signIn} sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.`;
+    if (viewerUserUuid === null) return nobodyMessage;
     switch (expiry.subjectBasis) {
         case SignInSubjectBasis.RECORDED:
             if (expiry.subjectUserUuid === viewerUserUuid) {

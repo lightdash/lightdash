@@ -44,7 +44,9 @@ export const personaliseSharedSignInError = <T>(
     if (!sharedSignIn) return error;
     return withSharedSignInExpiry(
         error,
-        sharedSignIn,
+        viewerUserUuid === null
+            ? { ...sharedSignIn, subjectUserUuid: null, subjectName: null }
+            : sharedSignIn,
         viewerUserUuid,
     ) as unknown as T;
 };

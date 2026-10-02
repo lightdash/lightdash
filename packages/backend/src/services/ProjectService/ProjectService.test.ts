@@ -12812,11 +12812,11 @@ describe('ProjectService expired shared sign-in', () => {
         );
     };
 
-    test('names the subject when the shared warehouse client rejects its token', async () => {
+    test('keeps attribution for a rejected token until the viewer is known', async () => {
         await expect(queryWith(true)).rejects.toMatchObject({
             name: 'BigqueryTokenError',
             message:
-                "This project's connection uses Sam Rivera's sign-in, which has expired. Ask Sam Rivera or an admin to reconnect.",
+                "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
             data: {
                 sharedSignIn: {
                     provider: PersonSignInProvider.GOOGLE,

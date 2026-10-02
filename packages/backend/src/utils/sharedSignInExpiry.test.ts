@@ -26,7 +26,7 @@ describe('withSharedSignInExpiry', () => {
         new SnowflakeTokenError('raw'),
         new DatabricksTokenError('raw'),
     ])('keeps the error class and names the subject: $name', (error) => {
-        const attributed = withSharedSignInExpiry(error, expiry, null);
+        const attributed = withSharedSignInExpiry(error, expiry, 'teammate');
         expect(attributed).toBeInstanceOf(error.constructor);
         expect(attributed.statusCode).toBe(401);
         expect(attributed.message).toBe(
@@ -40,7 +40,7 @@ describe('personaliseSharedSignInError', () => {
     const attributed = withSharedSignInExpiry(
         new BigqueryTokenError('raw'),
         expiry,
-        null,
+        'teammate',
     );
 
     it('tells the subject to reconnect', () => {
@@ -55,11 +55,23 @@ describe('personaliseSharedSignInError', () => {
         const guessed = withSharedSignInExpiry(
             new BigqueryTokenError('raw'),
             { ...expiry, subjectBasis: SignInSubjectBasis.PROJECT_CREATOR },
-            null,
+            'teammate',
         );
         expect(personaliseSharedSignInError(guessed, 'subject').message).toBe(
             "This project's Google sign-in has expired. You created this project. Reconnect it in Project settings → Connection settings.",
         );
+    });
+
+    it('hides names and subject identifiers from an anonymous viewer', () => {
+        const anonymous = personaliseSharedSignInError(attributed, null);
+        expect(anonymous.message).toBe(
+            "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
+        );
+        expect(anonymous.data.sharedSignIn).toEqual({
+            ...expiry,
+            subjectUserUuid: null,
+            subjectName: null,
+        });
     });
 
     it('leaves other errors and unattributed token errors alone', () => {

@@ -87,6 +87,7 @@ import {
 import { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
+import { createHash } from 'node:crypto';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -267,6 +268,18 @@ const warehouseCredentialsCache =
               checkperiod: 60, // cleanup interval in seconds
           })
         : undefined;
+
+type SharedSignInSubjectLookup = {
+    provider: PersonSignIn['provider'];
+    subject: SignInSubject | null;
+    basis: SignInSubjectBasis | null;
+};
+
+const legacySignInSubjects = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+const pendingLegacySignInSubjects = new Map<
+    string,
+    Promise<SharedSignInSubjectLookup | null>
+>();
 
 const INSERT_BATCH_SIZE = 1000;
 
@@ -955,11 +968,7 @@ export class ProjectModel {
     async getSharedSignInSubjectForToken(
         projectUuid: string,
         refreshToken: string,
-    ): Promise<{
-        provider: PersonSignIn['provider'];
-        subject: SignInSubject | null;
-        basis: SignInSubjectBasis | null;
-    } | null> {
+    ): Promise<SharedSignInSubjectLookup | null> {
         const row = await this.database('warehouse_credentials')
             .innerJoin(
                 'projects',
@@ -1052,88 +1061,157 @@ export class ProjectModel {
                 basis: SignInSubjectBasis.RECORDED,
             };
         }
-        if (signIn.provider === PersonSignInProvider.DATABRICKS) {
-            return creatorFallback();
-        }
-        const members = await this.database('organization_memberships')
-            .innerJoin(
-                'users',
-                'users.user_id',
-                'organization_memberships.user_id',
-            )
-            .leftJoin('user_oauth_grants', function joinGrants() {
-                this.on(
-                    'user_oauth_grants.user_uuid',
-                    '=',
-                    'users.user_uuid',
-                ).andOnVal('user_oauth_grants.provider', '=', signIn.provider);
-            })
-            .leftJoin('openid_identities', function joinIdentities() {
-                this.on(
-                    'openid_identities.user_id',
-                    '=',
+        const cacheKey = `${projectUuid}:${createHash('sha256')
+            .update(refreshToken)
+            .digest('hex')}`;
+        const cached =
+            legacySignInSubjects.get<SharedSignInSubjectLookup>(cacheKey);
+        if (cached) return cached;
+        const pending = pendingLegacySignInSubjects.get(cacheKey);
+        if (pending) return pending;
+        const lookup = async (): Promise<SharedSignInSubjectLookup | null> => {
+            if (signIn.provider === PersonSignInProvider.DATABRICKS) {
+                return creatorFallback();
+            }
+            const members = await this.database('organization_memberships')
+                .innerJoin(
+                    'users',
                     'users.user_id',
-                ).andOnVal(
-                    'openid_identities.issuer_type',
-                    '=',
-                    signIn.provider,
+                    'organization_memberships.user_id',
+                )
+                .leftJoin('user_oauth_grants', function joinGrants() {
+                    this.on(
+                        'user_oauth_grants.user_uuid',
+                        '=',
+                        'users.user_uuid',
+                    ).andOnVal(
+                        'user_oauth_grants.provider',
+                        '=',
+                        signIn.provider,
+                    );
+                })
+                .leftJoin('openid_identities', function joinIdentities() {
+                    this.on(
+                        'openid_identities.user_id',
+                        '=',
+                        'users.user_id',
+                    ).andOnVal(
+                        'openid_identities.issuer_type',
+                        '=',
+                        signIn.provider,
+                    );
+                })
+                .where(
+                    'organization_memberships.organization_id',
+                    row.organization_id,
+                )
+                .select(
+                    'users.user_uuid',
+                    'users.first_name',
+                    'users.last_name',
+                    'user_oauth_grants.encrypted_refresh_token',
+                    'openid_identities.refresh_token',
                 );
-            })
-            .where(
-                'organization_memberships.organization_id',
-                row.organization_id,
-            )
-            .select(
-                'users.user_uuid',
-                'users.first_name',
-                'users.last_name',
-                'user_oauth_grants.encrypted_refresh_token',
-                'openid_identities.refresh_token',
+            const matchingUserUuids = new Set<string>();
+            for (const member of members) {
+                let grantToken: string | null = null;
+                try {
+                    grantToken = member.encrypted_refresh_token
+                        ? this.encryptionUtil.decrypt(
+                              member.encrypted_refresh_token,
+                          )
+                        : null;
+                } catch {
+                    grantToken = null;
+                }
+                if (
+                    grantToken === refreshToken ||
+                    member.refresh_token === refreshToken
+                ) {
+                    matchingUserUuids.add(member.user_uuid);
+                }
+            }
+            if (matchingUserUuids.size !== 1) {
+                return creatorFallback();
+            }
+            const subjectUserUuid = [...matchingUserUuids][0];
+            const member = members.find(
+                (candidate) => candidate.user_uuid === subjectUserUuid,
             );
-        const matchingUserUuids = new Set<string>();
-        for (const member of members) {
-            let grantToken: string | null = null;
-            try {
-                grantToken = member.encrypted_refresh_token
-                    ? this.encryptionUtil.decrypt(
-                          member.encrypted_refresh_token,
+            const updated = await this.database('warehouse_credentials')
+                .where('project_id', row.project_id)
+                .whereNull('credential_subject_user_uuid')
+                .where('encrypted_credentials', row.encrypted_credentials)
+                .update({ credential_subject_user_uuid: subjectUserUuid });
+            if (updated === 0) {
+                const current = await this.database('warehouse_credentials')
+                    .leftJoin(
+                        'users as subject_user',
+                        'subject_user.user_uuid',
+                        'warehouse_credentials.credential_subject_user_uuid',
+                    )
+                    .where('warehouse_credentials.project_id', row.project_id)
+                    .first<
+                        | {
+                              encrypted_credentials: Buffer;
+                              credential_subject_user_uuid: string | null;
+                              first_name: string | null;
+                              last_name: string | null;
+                          }
+                        | undefined
+                    >(
+                        'warehouse_credentials.encrypted_credentials',
+                        'warehouse_credentials.credential_subject_user_uuid',
+                        'subject_user.first_name',
+                        'subject_user.last_name',
+                    );
+                const currentCredentials = current
+                    ? this.decryptWarehouseCredentials(
+                          current.encrypted_credentials,
                       )
                     : null;
-            } catch {
-                grantToken = null;
+                const currentSignIn = currentCredentials
+                    ? getPersonSignIn(currentCredentials)
+                    : null;
+                if (currentSignIn?.refreshToken !== refreshToken) return null;
+                if (current?.credential_subject_user_uuid) {
+                    return {
+                        provider: currentSignIn.provider,
+                        subject: {
+                            userUuid: current.credential_subject_user_uuid,
+                            name: [current.first_name, current.last_name]
+                                .filter(Boolean)
+                                .join(' ')
+                                .trim(),
+                        },
+                        basis: SignInSubjectBasis.RECORDED,
+                    };
+                }
+                return null;
             }
-            if (
-                grantToken === refreshToken ||
-                member.refresh_token === refreshToken
-            ) {
-                matchingUserUuids.add(member.user_uuid);
-            }
-        }
-        if (matchingUserUuids.size !== 1) {
-            return creatorFallback();
-        }
-        const subjectUserUuid = [...matchingUserUuids][0];
-        const member = members.find(
-            (candidate) => candidate.user_uuid === subjectUserUuid,
-        );
-        const updated = await this.database('warehouse_credentials')
-            .where('project_id', row.project_id)
-            .whereNull('credential_subject_user_uuid')
-            .where('encrypted_credentials', row.encrypted_credentials)
-            .update({ credential_subject_user_uuid: subjectUserUuid });
-        if (updated === 0)
-            return { provider: signIn.provider, subject: null, basis: null };
-        return {
-            provider: signIn.provider,
-            subject: {
-                userUuid: subjectUserUuid,
-                name: [member?.first_name, member?.last_name]
-                    .filter(Boolean)
-                    .join(' ')
-                    .trim(),
-            },
-            basis: SignInSubjectBasis.RECORDED,
+            return {
+                provider: signIn.provider,
+                subject: {
+                    userUuid: subjectUserUuid,
+                    name: [member?.first_name, member?.last_name]
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim(),
+                },
+                basis: SignInSubjectBasis.RECORDED,
+            };
         };
+        const resultPromise = lookup();
+        pendingLegacySignInSubjects.set(cacheKey, resultPromise);
+        try {
+            const result = await resultPromise;
+            if (result && result.basis !== SignInSubjectBasis.RECORDED) {
+                legacySignInSubjects.set(cacheKey, result);
+            }
+            return result;
+        } finally {
+            pendingLegacySignInSubjects.delete(cacheKey);
+        }
     }
 
     async hasAnyProjects(): Promise<boolean> {

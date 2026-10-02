@@ -1,32 +1,20 @@
-import { SignInSubjectBasis, type SharedSignInExpiry } from '@lightdash/common';
 import { Anchor, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
-import { Link } from 'react-router';
-import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
-import useApp from '../../../providers/App/useApp';
 
 export const SharedSignInExpiredMessage: FC<{
     message: string;
-    expiry: SharedSignInExpiry;
+    settingsHref: string | null;
     onNavigate?: () => void;
-}> = ({ message, expiry, onNavigate }) => {
-    const { user } = useApp();
-    const { activeProjectUuid } = useActiveProjectUuid();
-    const isSubject =
-        !!expiry.subjectUserUuid &&
-        expiry.subjectUserUuid === user.data?.userUuid &&
-        (expiry.subjectBasis === SignInSubjectBasis.RECORDED ||
-            expiry.subjectBasis === SignInSubjectBasis.PROJECT_CREATOR);
-
+}> = ({ message, settingsHref, onNavigate }) => {
     return (
         <Stack gap={4} align="flex-start">
             <Text mb={0} fz="xs">
                 {message}
             </Text>
-            {isSubject && activeProjectUuid && (
+            {settingsHref && (
                 <Anchor
-                    component={Link}
-                    to={`/generalSettings/projectManagement/${activeProjectUuid}/settings`}
+                    component="a"
+                    href={settingsHref}
                     fz="xs"
                     fw={600}
                     onClick={onNavigate}

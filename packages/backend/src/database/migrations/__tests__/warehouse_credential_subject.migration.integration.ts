@@ -191,6 +191,33 @@ describe('warehouse credential subject', () => {
         expect(await storedSubject(projectUuid)).toBe(admin);
     });
 
+    test('leaves a legacy subject unknown when an admin saves the same token', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Fran');
+        const admin = await createUser('Ada');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData(googleSignIn('legacy-save-token')),
+        );
+        await database('warehouse_credentials')
+            .whereIn(
+                'project_id',
+                database('projects')
+                    .where('project_uuid', projectUuid)
+                    .select('project_id'),
+            )
+            .update({ credential_subject_user_uuid: null });
+
+        await model.update(
+            projectUuid,
+            projectData(googleSignIn('legacy-save-token')),
+            admin,
+        );
+
+        expect(await storedSubject(projectUuid)).toBeNull();
+    });
+
     test('clears the subject and the warning when a service account replaces the sign-in', async () => {
         const organization = await createOrganization();
         const founder = await createUser('Fran');
@@ -245,6 +272,36 @@ describe('warehouse credential subject', () => {
             googleSignIn('founder-token'),
         );
         expect(await storedSubject(own)).toBe(founder);
+    });
+
+    test('leaves a preview subject unknown when it copies a legacy parent token', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Fran');
+        const developer = await createUser('Dev');
+        const parent = await model.create(
+            founder,
+            organization,
+            projectData(googleSignIn('legacy-preview-token')),
+        );
+        await database('warehouse_credentials')
+            .whereIn(
+                'project_id',
+                database('projects')
+                    .where('project_uuid', parent)
+                    .select('project_id'),
+            )
+            .update({ credential_subject_user_uuid: null });
+
+        const preview = await model.create(
+            developer,
+            organization,
+            projectData(googleSignIn('legacy-preview-token'), {
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: parent,
+            }),
+        );
+
+        expect(await storedSubject(preview)).toBeNull();
     });
 
     test('shows the sign-in without a name once its subject is deleted', async () => {
@@ -496,5 +553,55 @@ describe('warehouse credential subject', () => {
                 'different-token',
             ),
         ).toBeNull();
+    });
+
+    test('coalesces concurrent unresolved legacy lookups and caches the result', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Fran');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData(googleSignIn('unresolved-concurrent-token')),
+        );
+        await database('warehouse_credentials')
+            .whereIn(
+                'project_id',
+                database('projects')
+                    .where('project_uuid', projectUuid)
+                    .select('project_id'),
+            )
+            .update({ credential_subject_user_uuid: null });
+
+        let memberScans = 0;
+        const countMemberScans = ({ sql }: { sql: string }) => {
+            if (
+                sql
+                    .replaceAll('"', '')
+                    .includes('user_oauth_grants.encrypted_refresh_token')
+            ) {
+                memberScans += 1;
+            }
+        };
+        database.on('query', countMemberScans);
+        try {
+            const [first, second] = await Promise.all([
+                model.getSharedSignInSubjectForToken(
+                    projectUuid,
+                    'unresolved-concurrent-token',
+                ),
+                model.getSharedSignInSubjectForToken(
+                    projectUuid,
+                    'unresolved-concurrent-token',
+                ),
+            ]);
+            expect(first).toEqual(second);
+            await model.getSharedSignInSubjectForToken(
+                projectUuid,
+                'unresolved-concurrent-token',
+            );
+            expect(memberScans).toBe(1);
+        } finally {
+            database.off('query', countMemberScans);
+        }
     });
 });

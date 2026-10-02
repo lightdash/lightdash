@@ -173,14 +173,14 @@ describe('resolveSignInSubject', () => {
         ).toBe('founder');
     });
 
-    it('falls back to the actor when the stored token has no recorded subject', () => {
+    it('keeps an unknown subject when the stored token has no recorded subject', () => {
         expect(
             resolveSignInSubject({
                 signIn,
                 actorUserUuid: 'actor',
                 stored: [{ refreshToken: 'token-a', subjectUserUuid: null }],
             }),
-        ).toBe('actor');
+        ).toBeNull();
     });
 });
 
@@ -201,6 +201,12 @@ describe('getExpiredSharedSignInMessage', () => {
     it('names the subject for teammates', () => {
         expect(getExpiredSharedSignInMessage(expiry, 'teammate')).toBe(
             "This project's connection uses Sam Rivera's sign-in, which has expired. Ask Sam Rivera or an admin to reconnect.",
+        );
+    });
+
+    it('uses the generic message for an anonymous viewer', () => {
+        expect(getExpiredSharedSignInMessage(expiry, null)).toBe(
+            "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
         );
     });
 

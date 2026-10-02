@@ -963,7 +963,9 @@ export default class App {
             (rawError: Error, req: Request, res: Response, _: NextFunction) => {
                 const error = personaliseSharedSignInError(
                     rawError,
-                    req.user?.userUuid ?? null,
+                    req.account?.isRegisteredUser()
+                        ? req.account.user.id
+                        : null,
                 );
                 const errorResponse = errorHandler(error);
                 if (
