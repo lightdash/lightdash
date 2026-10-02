@@ -111,6 +111,128 @@ describe('signed analytics file manifests', () => {
         expect(destroy).toHaveBeenCalledOnce();
     });
 
+    it.each(['s3', 'gcp_oauth'] as const)(
+        'bounds %s signing concurrency and preserves the complete manifest',
+        async (authMode) => {
+            const keys = Array.from({ length: 19 }, (_, i) =>
+                key().replace('part-1', `part-${i}`),
+            );
+            send.mockResolvedValue({ Contents: keys.map((Key) => ({ Key })) });
+            let active = 0;
+            let peak = 0;
+            const sign = async (objectKey: string) => {
+                active += 1;
+                peak = Math.max(peak, active);
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 1);
+                });
+                active -= 1;
+                return `signed:${objectKey}`;
+            };
+            vi.mocked(getSignedUrl).mockImplementation((_client, command) =>
+                sign((command as GetObjectCommand).input.Key!),
+            );
+            gcsSign.mockImplementation(async (_bucket, objectKey) => [
+                await sign(objectKey),
+            ]);
+            const source = await createS3AnalyticsSourceResolver({
+                ...config,
+                storage: {
+                    ...config.storage,
+                    ...(authMode === 'gcp_oauth' ? { authMode } : {}),
+                },
+            })();
+            expect(peak).toBe(8);
+            expect(active).toBe(0);
+            expect(source.tables[0].urls).toEqual(
+                keys.map((k) => `signed:${k}`).sort(),
+            );
+            expect(
+                authMode === 'gcp_oauth' ? gcsSign : getSignedUrl,
+            ).toHaveBeenCalledTimes(19);
+            expect(destroy).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('drains in-flight signing before cleanup and never starts another batch after failure', async () => {
+        send.mockResolvedValue({
+            Contents: Array.from({ length: 20 }, (_, i) => ({
+                Key: key().replace('part-1', `part-${i}`),
+            })),
+        });
+        let release: () => void = () => {};
+        const pending = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        vi.mocked(getSignedUrl)
+            .mockRejectedValueOnce(new Error('X-Amz-Signature=secret'))
+            .mockImplementation(async () => {
+                await pending;
+                return 'signed-url';
+            });
+        const resolution = createS3AnalyticsSourceResolver(config)().catch(
+            (error: unknown) => error,
+        );
+        await vi.waitFor(() => expect(getSignedUrl).toHaveBeenCalledTimes(8));
+        expect(destroy).not.toHaveBeenCalled();
+        release();
+        expect(await resolution).toEqual(
+            new Error(
+                'Analytics storage access failed. Check bucket credentials, organization and compacted data availability.',
+            ),
+        );
+        expect(getSignedUrl).toHaveBeenCalledTimes(8);
+        expect(destroy).toHaveBeenCalledOnce();
+    });
+
+    it('keeps simultaneous organizations isolated', async () => {
+        const otherOrg = '00000000-0000-0000-0000-000000000002';
+        send.mockImplementation(async (command: ListObjectsV2Command) => ({
+            Contents: Array.from({ length: 12 }, (_, i) => ({
+                Key: `${command.input.Prefix}stream=query_events/dt=2026-09-07/part-${i}.parquet`,
+            })),
+        }));
+        vi.mocked(getSignedUrl).mockImplementation(async (_client, command) => {
+            await new Promise((resolve) => {
+                setTimeout(resolve, 1);
+            });
+            return `signed:${(command as GetObjectCommand).input.Key}`;
+        });
+        const sources = await Promise.all(
+            [org, otherOrg].map((organizationUuid) =>
+                createS3AnalyticsSourceResolver({
+                    ...config,
+                    organizationUuid,
+                })(),
+            ),
+        );
+        sources.forEach((source, i) => {
+            const expectedOrg = [org, otherOrg][i];
+            expect(source.scope).toContain(`org_id%3D${expectedOrg}/`);
+            expect(source.tables[0].urls).toHaveLength(12);
+            expect(
+                source.tables[0].urls.every((url) =>
+                    url.includes(`org_id=${expectedOrg}/`),
+                ),
+            ).toBe(true);
+        });
+        expect(destroy).toHaveBeenCalledTimes(2);
+    });
+
+    it('validates the full listing page before starting its signing requests', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                { Key: key() },
+                { Key: 'events/compacted/org_id=other/file.parquet' },
+            ],
+        });
+        await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
+            'Analytics storage access failed',
+        );
+        expect(getSignedUrl).not.toHaveBeenCalled();
+        expect(destroy).toHaveBeenCalledOnce();
+    });
+
     it('uses Google signed URLs for workload identity without AWS signing', async () => {
         const signedUrl = `https://storage.googleapis.com/example-bucket/${key().replace(/=/g, '%3D')}?X-Goog-Signature=test`;
         gcsSign.mockResolvedValue([signedUrl]);
