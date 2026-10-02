@@ -6,7 +6,7 @@ import {
     type UuidOrSlug,
 } from '@lightdash/common';
 import { ActionIcon, Badge, Button, Group, Text, Tooltip } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import { IconArrowsDiff, IconX } from '@tabler/icons-react';
 import {
     Link,
     Navigate,
@@ -20,11 +20,13 @@ import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
+import DocumentVersionComparison from '../features/documents/DocumentVersionComparison';
 import DocumentVersionList from '../features/documents/DocumentVersionList';
 import {
     formatVersionTime,
     getVersionAuthor,
 } from '../features/documents/documentVersions';
+import DocumentReportLayout from '../features/documents/presentation/DocumentReportLayout';
 import { useDocument } from '../features/documents/useDocument';
 import {
     useDocumentVersion,
@@ -35,6 +37,7 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
 const VERSION_PARAM = 'version';
+const COMPARE_PARAM = 'compare';
 
 const VersionByline = ({
     summary,
@@ -92,6 +95,7 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
     const selectedVersionUuid =
         searchParams.get(VERSION_PARAM) ?? document.version.versionUuid;
     const isCurrent = selectedVersionUuid === document.version.versionUuid;
+    const isComparing = !isCurrent && searchParams.get(COMPARE_PARAM) === '1';
     const historical = useDocumentVersion(
         document.projectUuid,
         document.documentUuid,
@@ -127,7 +131,10 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
                 setSearchParams(
                     version.versionUuid === document.version.versionUuid
                         ? {}
-                        : { [VERSION_PARAM]: version.versionUuid },
+                        : {
+                              [VERSION_PARAM]: version.versionUuid,
+                              ...(isComparing ? { [COMPARE_PARAM]: '1' } : {}),
+                          },
                     { replace: true },
                 )
             }
@@ -150,36 +157,83 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
             />
         );
     }
+    const metadata = (
+        <VersionByline summary={summary} isCurrent={shownIsCurrent} />
+    );
+    const actions = (
+        <ActionIcon.Group role="group" aria-label="Version history controls">
+            {!isCurrent && (
+                <Tooltip
+                    label={
+                        isComparing
+                            ? 'Show this version'
+                            : 'Compare with current version'
+                    }
+                >
+                    <ActionIcon
+                        variant={isComparing ? 'filled' : 'default'}
+                        size="lg"
+                        aria-label="Compare with current version"
+                        aria-pressed={isComparing}
+                        onClick={() =>
+                            setSearchParams(
+                                {
+                                    [VERSION_PARAM]: selectedVersionUuid,
+                                    ...(isComparing
+                                        ? {}
+                                        : { [COMPARE_PARAM]: '1' }),
+                                },
+                                { replace: true },
+                            )
+                        }
+                    >
+                        <MantineIcon icon={IconArrowsDiff} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+            <Tooltip label="Close version history">
+                <ActionIcon
+                    variant="default"
+                    size="lg"
+                    aria-label="Close version history"
+                    onClick={() => void navigate(documentUrl)}
+                >
+                    <MantineIcon icon={IconX} />
+                </ActionIcon>
+            </Tooltip>
+        </ActionIcon.Group>
+    );
     return (
         <DocumentPageLayout name={document.name}>
-            <DocumentRenderer
-                // Titles and access come from the current Document, content from the version
-                document={{ ...shown, name: document.name }}
-                rail={rail}
-                metadata={
-                    <VersionByline
-                        summary={summary}
-                        isCurrent={shownIsCurrent}
-                    />
-                }
-                actions={
-                    <ActionIcon.Group
-                        role="group"
-                        aria-label="Version history controls"
-                    >
-                        <Tooltip label="Close version history">
-                            <ActionIcon
-                                variant="default"
-                                size="lg"
-                                aria-label="Close version history"
-                                onClick={() => void navigate(documentUrl)}
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </ActionIcon.Group>
-                }
-            />
+            {isComparing ? (
+                <DocumentReportLayout
+                    title={document.name}
+                    contentsLabel={null}
+                    headings={[]}
+                    variant="document"
+                    rail={rail}
+                    metadata={metadata}
+                    actions={actions}
+                >
+                    {historical.data ? (
+                        <DocumentVersionComparison
+                            before={historical.data.version.content}
+                            after={document.version.content}
+                            description={`Changes from version ${historical.data.version.versionNumber} to the current version ${document.version.versionNumber}.`}
+                        />
+                    ) : (
+                        <EmptyStateLoader title="Loading version" />
+                    )}
+                </DocumentReportLayout>
+            ) : (
+                <DocumentRenderer
+                    // Titles and access come from the current Document, content from the version
+                    document={{ ...shown, name: document.name }}
+                    rail={rail}
+                    metadata={metadata}
+                    actions={actions}
+                />
+            )}
         </DocumentPageLayout>
     );
 };
