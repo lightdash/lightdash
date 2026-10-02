@@ -1,5 +1,10 @@
 import { Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Adds a nullable column with a lock timeout',
+} as const;
+
 const LOCK_TIMEOUT = '5s';
 
 export async function up(knex: Knex): Promise<void> {
