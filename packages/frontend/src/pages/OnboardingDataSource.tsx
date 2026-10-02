@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ProjectType, WarehouseTypes } from '@lightdash/common';
+import { FeatureFlags, ProjectType, WarehouseTypes } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -17,6 +17,7 @@ import ErrorState from '../components/common/ErrorState';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManuallyStep2 from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
 import InviteExpertFooter from '../components/ProjectConnection/ProjectConnectFlow/InviteExpertFooter';
+import { PickerSecondaryOptions } from '../components/ProjectConnection/ProjectConnectFlow/PickerSecondaryOptions';
 import {
     OtherWarehouse,
     type SelectedWarehouse,
@@ -29,6 +30,7 @@ import {
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -124,6 +126,10 @@ const DataSourcePicker: FC = () => {
     const popularWarehouses = getPopularWarehouses(
         health.data?.auth.google.enabled ?? false,
     );
+    const connectJourneyFlag = useServerFeatureFlag(
+        FeatureFlags.ConnectJourney,
+    );
+    const isConnectJourneyEnabled = connectJourneyFlag.data?.enabled === true;
 
     const handleSelect = (
         key: SelectedWarehouse,
@@ -208,7 +214,11 @@ const DataSourcePicker: FC = () => {
                 </SimpleGrid>
             </Stack>
 
-            <InviteExpertFooter />
+            {isConnectJourneyEnabled ? (
+                <PickerSecondaryOptions />
+            ) : (
+                <InviteExpertFooter />
+            )}
         </Box>
     );
 };
