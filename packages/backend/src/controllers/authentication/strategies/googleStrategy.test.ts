@@ -54,6 +54,56 @@ const createUserService = () => ({
 });
 
 describe('googleStrategyVerify', () => {
+    it('keeps the stored grant and requests one consent retry when a light reconnect has no refresh token', async () => {
+        const userService = createUserService();
+        const done = vi.fn<VerifyCallback>();
+        const req = {
+            session: {
+                oauth: {
+                    intent: 'link',
+                    lightGoogleReconnect: true,
+                    forceBigqueryConsent: false,
+                },
+            },
+            user,
+            services: { getUserService: () => userService },
+        } as unknown as Express.Request;
+
+        await googleStrategyVerify(
+            req,
+            'access-token',
+            '',
+            params,
+            profile,
+            done,
+        );
+
+        expect(req.session.oauth?.bigqueryConsentRequired).toBe(true);
+        expect(userService.storeOAuthGrant).not.toHaveBeenCalled();
+        expect(
+            userService.createBigqueryWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(done).toHaveBeenCalledWith(null, user);
+
+        req.session.oauth = {
+            ...req.session.oauth,
+            forceBigqueryConsent: true,
+            bigqueryConsentRequired: false,
+        };
+        await googleStrategyVerify(
+            req,
+            'access-token',
+            '',
+            params,
+            profile,
+            done,
+        );
+        expect(req.session.oauth?.bigqueryConsentRequired).toBe(false);
+        expect(done).toHaveBeenLastCalledWith(null, undefined, {
+            message: 'Google did not return a refresh token',
+        });
+    });
+
     it('stores a link grant without entering the login identity path', async () => {
         const userService = createUserService();
         const done = vi.fn<VerifyCallback>();

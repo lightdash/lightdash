@@ -1,4 +1,8 @@
-import { AuthorizationError, OrganizationSsoProvider } from '@lightdash/common';
+import {
+    AuthorizationError,
+    FeatureFlags,
+    OrganizationSsoProvider,
+} from '@lightdash/common';
 import {
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     isDatabricksCliOAuthClientId,
@@ -42,6 +46,10 @@ import Logger from '../logging/logger';
 import { logAuditEvent } from '../logging/winston';
 import { UserModel } from '../models/UserModel';
 import { aiAgentMcpOAuthCallbackRouter } from './aiAgentMcpServerRouter';
+import {
+    getBigqueryConsentRedirect,
+    getBigqueryLoginOptions,
+} from './bigqueryLoginOptions';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
 import { jobsRouter } from './jobsRouter';
@@ -717,13 +725,47 @@ apiV1Router.get(
     '/login/bigquery',
     storeOIDCRedirect,
     storeOIDCLinkIntent,
-    passport.authenticate('google', {
-        scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
-        accessType: 'offline',
-        prompt: 'consent',
-        session: false,
-        includeGrantedScopes: true,
-    }),
+    async (req, res, next) => {
+        try {
+            const forceConsent = req.query.forceConsent === 'true';
+            const organizationUuid =
+                req.account?.organization.organizationUuid ??
+                req.user?.organizationUuid;
+            const userUuid = req.account?.user.id ?? req.user?.userUuid;
+            const lightReconnect =
+                organizationUuid && userUuid
+                    ? (
+                          await req.services.getFeatureFlagService().get({
+                              user: { organizationUuid, userUuid },
+                              featureFlagId: FeatureFlags.LightGoogleReconnect,
+                          })
+                      ).enabled
+                    : false;
+            req.session.oauth = req.session.oauth ?? {};
+            req.session.oauth.forceBigqueryConsent = forceConsent;
+            req.session.oauth.lightGoogleReconnect = lightReconnect;
+            let loginHint: string | undefined;
+            if (lightReconnect && !forceConsent) {
+                loginHint = userUuid
+                    ? ((await req.services
+                          .getUserService()
+                          .getGoogleAccountEmail(userUuid)) ??
+                      req.user?.email ??
+                      req.account?.user.email)
+                    : getLoginHint(req);
+            }
+            passport.authenticate(
+                'google',
+                getBigqueryLoginOptions({
+                    lightReconnect,
+                    forceConsent,
+                    loginHint,
+                }),
+            )(req, res, next);
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
 // path to start the OAuth flow
@@ -810,6 +852,22 @@ apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
             (error, user) => {
                 if (error) {
                     next(error);
+                    return;
+                }
+                const consentRequired =
+                    req.session.oauth?.bigqueryConsentRequired === true;
+                if (req.session.oauth) {
+                    delete req.session.oauth.lightGoogleReconnect;
+                    delete req.session.oauth.forceBigqueryConsent;
+                    delete req.session.oauth.bigqueryConsentRequired;
+                }
+                if (consentRequired) {
+                    res.redirect(
+                        getBigqueryConsentRedirect({
+                            isPopup: req.session.oauth?.isPopup === true,
+                            returnTo: req.session.oauth?.returnTo,
+                        }),
+                    );
                     return;
                 }
                 res.redirect(getOidcRedirectURL(Boolean(user))(req));

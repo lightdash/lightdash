@@ -79,13 +79,35 @@ export const googleStrategyVerify = async (
                 );
             }
 
-            await userService.storeOAuthGrant(
-                req.user,
-                OpenIdIdentityIssuerType.GOOGLE,
-                refreshToken,
-                scopes,
-                openIdUser.openId,
-            );
+            if (
+                hasBigqueryScope &&
+                !refreshToken &&
+                req.session.oauth?.lightGoogleReconnect &&
+                !req.session.oauth.forceBigqueryConsent
+            ) {
+                req.session.oauth.bigqueryConsentRequired = true;
+                return done(null, req.user);
+            }
+            if (
+                hasBigqueryScope &&
+                !refreshToken &&
+                req.session.oauth?.lightGoogleReconnect &&
+                req.session.oauth.forceBigqueryConsent
+            ) {
+                return done(null, undefined, {
+                    message: 'Google did not return a refresh token',
+                });
+            }
+
+            if (refreshToken || !req.session.oauth?.lightGoogleReconnect) {
+                await userService.storeOAuthGrant(
+                    req.user,
+                    OpenIdIdentityIssuerType.GOOGLE,
+                    refreshToken,
+                    scopes,
+                    openIdUser.openId,
+                );
+            }
 
             if (hasBigqueryScope && refreshToken) {
                 Logger.info(

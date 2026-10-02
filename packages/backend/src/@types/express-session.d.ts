@@ -20,6 +20,9 @@ declare module 'express-session' {
                 encryptedClientSecret: string;
             };
             isPopup?: boolean | undefined;
+            lightGoogleReconnect?: boolean;
+            forceBigqueryConsent?: boolean;
+            bigqueryConsentRequired?: boolean;
             databricks?: {
                 projectUuid?: string | undefined;
             };

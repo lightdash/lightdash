@@ -24,6 +24,7 @@ import {
     assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    BigqueryTokenError,
     buildDataTimezonePreviewResponse,
     buildDataTimezonePreviewSql,
     buildMergeItems,
@@ -267,6 +268,7 @@ import {
     WarehouseCredentials,
     WarehouseDatabaseListing,
     WarehouseSignInRejection,
+    WarehouseSignInStatus,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -423,6 +425,10 @@ import {
     withSharedSignInExpiry,
 } from '../../utils/sharedSignInExpiry';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import {
+    cacheWarehouseSignInStatus,
+    getCachedWarehouseSignInStatus,
+} from '../../utils/warehouseSignInStatusCache';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 import {
@@ -2960,6 +2966,38 @@ export class ProjectService extends BaseService {
         });
     }
 
+    private async selectPersonalWarehouseCredentials(
+        projectUuid: string,
+        userId: string,
+        credentials: CreateWarehouseCredentials,
+    ): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
+        if (
+            !credentials.requireUserCredentials &&
+            !allowsOptionalUserCredentials(credentials)
+        )
+            return undefined;
+        const personal =
+            await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                projectUuid,
+                userId,
+                credentials.type,
+            );
+        const userHost =
+            personal?.credentials.type === WarehouseTypes.DATABRICKS &&
+            'serverHostName' in personal.credentials
+                ? normalizeDatabricksHostLenient(
+                      personal.credentials.serverHostName,
+                  )
+                : undefined;
+        const projectHost =
+            credentials.type === WarehouseTypes.DATABRICKS
+                ? normalizeDatabricksHostLenient(credentials.serverHostName)
+                : undefined;
+        return userHost && projectHost && userHost !== projectHost
+            ? undefined
+            : personal;
+    }
+
     private async getSingleRouteWarehouseCredentials({
         projectUuid,
         userId,
@@ -3033,37 +3071,15 @@ export class ProjectService extends BaseService {
         }
 
         // Only load personal credentials when required or enabled by the project.
-        const shouldFetchUserCredentials =
-            credentials.requireUserCredentials ||
-            allowsOptionalUserCredentials(credentials);
-
         if (isRegisteredUser) {
-            // Fetch user credentials only when needed (for performance)
-            const userWarehouseCredentials = shouldFetchUserCredentials
-                ? await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
-                      projectUuid,
-                      userId,
-                      credentials.type,
-                  )
-                : undefined;
+            const userWarehouseCredentials =
+                await this.selectPersonalWarehouseCredentials(
+                    projectUuid,
+                    userId,
+                    credentials,
+                );
 
-            // Skip user credentials if the serverHostName doesn't match the project
-            const userCredHost =
-                userWarehouseCredentials?.credentials.type ===
-                    WarehouseTypes.DATABRICKS &&
-                'serverHostName' in userWarehouseCredentials.credentials
-                    ? normalizeDatabricksHostLenient(
-                          userWarehouseCredentials.credentials.serverHostName,
-                      )
-                    : undefined;
-            const projectHost =
-                credentials.type === WarehouseTypes.DATABRICKS
-                    ? normalizeDatabricksHostLenient(credentials.serverHostName)
-                    : undefined;
-            const hostMismatch =
-                userCredHost && projectHost && userCredHost !== projectHost;
-
-            if (userWarehouseCredentials && !hostMismatch) {
+            if (userWarehouseCredentials) {
                 credentials = mergePersonalWarehouseCredentials(
                     credentials,
                     userWarehouseCredentials,
@@ -3089,7 +3105,7 @@ export class ProjectService extends BaseService {
                     userWarehouseCredentials.needsSignIn != null;
             } else if (credentials.requireUserCredentials) {
                 this.logger.warn(
-                    `No ${credentials.type} user warehouse credentials found for user ${userId} on project ${projectUuid} (requireUserCredentials enabled, host mismatch: ${!!hostMismatch})`,
+                    `No ${credentials.type} user warehouse credentials found for user ${userId} on project ${projectUuid} (requireUserCredentials enabled)`,
                 );
                 if (credentials.type === WarehouseTypes.DATABRICKS) {
                     throw new DatabricksTokenError(
@@ -3534,6 +3550,108 @@ export class ProjectService extends BaseService {
         };
     }
 
+    async getWarehouseSignInStatus(
+        account: Account,
+        projectUuid: string,
+    ): Promise<WarehouseSignInStatus> {
+        assertIsAccountWithOrg(account);
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const resource = subject('Project', {
+            organizationUuid: project.organizationUuid,
+            projectUuid: project.projectUuid,
+            upstreamProjectUuid: project.upstreamProjectUuid,
+            type: project.type,
+            createdByUserUuid: project.createdByUserUuid,
+        });
+        if (this.createAuditedAbility(account).cannot('view', resource))
+            throw new ForbiddenError();
+        const flag = await this.featureFlagModel.get({
+            user: {
+                organizationUuid: project.organizationUuid,
+                userUuid: account.user.id,
+            },
+            featureFlagId: FeatureFlags.WarehouseSignInCheck,
+        });
+        if (!flag.enabled) return { signIn: null };
+
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const personal = await this.selectPersonalWarehouseCredentials(
+            projectUuid,
+            account.user.id,
+            credentials,
+        );
+        if (!personal) return { signIn: null };
+        const effective = mergePersonalWarehouseCredentials(
+            credentials,
+            personal,
+        );
+        const signIn = getPersonSignIn(effective);
+        if (!signIn) return { signIn: null };
+
+        const cached = getCachedWarehouseSignInStatus(personal.uuid);
+        let expired: boolean;
+        if (cached !== null) {
+            expired = cached;
+        } else if (signIn.provider === PersonSignInProvider.GOOGLE) {
+            const result = await this.checkGoogleSignIn(
+                effective.type === WarehouseTypes.BIGQUERY
+                    ? effective.keyfileContents
+                    : {},
+            );
+            expired = result.rejection !== null;
+            if (result.rejection !== null) {
+                await this.markPersonalCredentialOnRejection(
+                    projectUuid,
+                    personal.uuid,
+                    new BigqueryTokenError('Google sign-in expired', {
+                        rejection: result.rejection,
+                    }),
+                );
+            } else if (result.succeeded) {
+                await this.clearPersonalCredentialAfterSuccess(
+                    projectUuid,
+                    personal.uuid,
+                );
+            }
+            cacheWarehouseSignInStatus(personal.uuid, expired);
+        } else {
+            try {
+                await this.refreshCredentialsAndPersistRotation(
+                    effective,
+                    account.user.id,
+                    {
+                        kind: 'user',
+                        userWarehouseCredentialsUuid: personal.uuid,
+                        needsSignIn: personal.needsSignIn != null,
+                        projectUuid,
+                    },
+                );
+                await this.clearPersonalCredentialAfterSuccess(
+                    projectUuid,
+                    personal.uuid,
+                );
+                expired = false;
+            } catch (error) {
+                expired =
+                    isWarehouseTokenError(error) &&
+                    error.data.rejection != null;
+            }
+            cacheWarehouseSignInStatus(personal.uuid, expired);
+        }
+        return {
+            signIn: {
+                provider: signIn.provider,
+                warehouseType: credentials.type,
+                userWarehouseCredentialsUuid: personal.uuid,
+                expired,
+            },
+        };
+    }
+
     private canReconnectSharedSignIn(
         owner: SignInSubject | null,
         basis: SignInSubjectBasis | null,
@@ -3548,14 +3666,39 @@ export class ProjectService extends BaseService {
     private async isGoogleSharedSignInExpired(
         keyfileContents: Record<string, string>,
     ): Promise<boolean> {
+        return (
+            (await this.checkGoogleSignIn(keyfileContents)).rejection !== null
+        );
+    }
+
+    private async checkGoogleSignIn(
+        keyfileContents: Record<string, string>,
+    ): Promise<{
+        succeeded: boolean;
+        rejection: WarehouseSignInRejection | null;
+    }> {
         try {
             await new GoogleAuth({
                 credentials: keyfileContents,
                 scopes: ['https://www.googleapis.com/auth/bigquery'],
             }).getAccessToken();
-            return false;
+            return { succeeded: true, rejection: null };
         } catch (error) {
-            return getGoogleOauthTokenError(error)?.error === 'invalid_grant';
+            const tokenError = getGoogleOauthTokenError(error);
+            if (tokenError?.error !== 'invalid_grant')
+                return { succeeded: false, rejection: null };
+            const needsRapt =
+                tokenError.errorSubtype === 'invalid_rapt' ||
+                tokenError.errorSubtype === 'rapt_required' ||
+                tokenError.errorDescription?.includes('invalid_rapt') ===
+                    true ||
+                tokenError.errorDescription?.includes('rapt_required') === true;
+            return {
+                succeeded: false,
+                rejection: needsRapt
+                    ? WarehouseSignInRejection.INVALID_RAPT
+                    : WarehouseSignInRejection.INVALID_GRANT,
+            };
         }
     }
 

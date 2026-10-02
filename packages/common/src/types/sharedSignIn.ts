@@ -34,6 +34,20 @@ export type SharedSignInStatus = {
     canReconnect: boolean;
 };
 
+export type WarehouseSignInStatus = {
+    signIn: {
+        provider: PersonSignInProvider;
+        warehouseType: WarehouseTypes;
+        userWarehouseCredentialsUuid: string;
+        expired: boolean;
+    } | null;
+};
+
+export type ApiWarehouseSignInStatusResponse = {
+    status: 'ok';
+    results: WarehouseSignInStatus;
+};
+
 export type PersonSignIn = {
     provider: PersonSignInProvider;
     refreshToken: string;

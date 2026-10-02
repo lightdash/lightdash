@@ -8,17 +8,17 @@ import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
+import { useWarehouseSignInStatus } from '../../hooks/useWarehouseSignInStatus';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
-import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
-import { PreviewBanner } from './PreviewBanner';
-import { TrialWarningBanner } from './TrialWarningBanner';
+import { NavBarBanner } from './NavBarBanner';
+import { getWarehouseSignInBanner } from './warehouseSignInBannerDecision';
 
 enum NavBarMode {
     DEFAULT = 'default',
@@ -77,6 +77,9 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             projectUuid: routeProjectUuid,
         });
     const { data: project } = useProject(activeProjectUuid);
+    const { data: warehouseSignInStatus } = useWarehouseSignInStatus(
+        routeProjectUuid ? activeProjectUuid : undefined,
+    );
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
     const isCurrentProjectPlayground = isPlaygroundProvisioningSource(
@@ -105,10 +108,30 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             organizationAccess?.status ===
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
+    const preview =
+        isCurrentProjectPreview && !isTrainingCopy
+            ? {
+                  expiresAt: project?.expiresAt ?? null,
+                  upstreamProject: upstreamProject
+                      ? {
+                            projectUuid: upstreamProject.projectUuid,
+                            slug: upstreamProject.slug,
+                            name: upstreamProject.name,
+                        }
+                      : null,
+              }
+            : null;
+    const trialAccess = showTrialWarning ? (organizationAccess ?? null) : null;
+    const warehouseSignIn = getWarehouseSignInBanner(
+        activeProjectUuid,
+        warehouseSignInStatus,
+    );
+
     const hasBanner =
         isImpersonating ||
-        (isCurrentProjectPreview && !isTrainingCopy) ||
-        showTrialWarning;
+        preview !== null ||
+        showTrialWarning ||
+        warehouseSignIn !== null;
 
     // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
@@ -130,26 +153,12 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 cssVariablesSelector="#navbar-header"
                 getRootElement={getNavBarRootElement}
             >
-                {isImpersonating ? (
-                    <ImpersonationBanner />
-                ) : isCurrentProjectPreview && !isTrainingCopy ? (
-                    <PreviewBanner
-                        expiresAt={project?.expiresAt ?? null}
-                        upstreamProject={
-                            upstreamProject
-                                ? {
-                                      projectUuid: upstreamProject.projectUuid,
-                                      slug: upstreamProject.slug,
-                                      name: upstreamProject.name,
-                                  }
-                                : null
-                        }
-                    />
-                ) : (
-                    organizationAccess && (
-                        <TrialWarningBanner access={organizationAccess} />
-                    )
-                )}
+                <NavBarBanner
+                    isImpersonating={isImpersonating}
+                    preview={preview}
+                    trialAccess={trialAccess}
+                    warehouseSignIn={warehouseSignIn}
+                />
                 <Box
                     component="header"
                     h={NAVBAR_HEIGHT}

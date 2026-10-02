@@ -3516,6 +3516,10 @@ export class UserService extends BaseService {
         );
     }
 
+    async getGoogleAccountEmail(userUuid: string): Promise<string | null> {
+        return this.userOAuthGrantsModel.getGoogleAccountEmail(userUuid);
+    }
+
     async getWarehouseCredentials(user: SessionUser) {
         const credentials =
             await this.userWarehouseCredentialsModel.getAllByUserUuid(
