@@ -14,8 +14,8 @@ import { Checkbox, Divider, Group, Select, Stack, Text } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldSelect from '../../../../../components/common/FieldSelect';
-import FilterNumberInput from '../../../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { NumberInput } from '../../../../../components/common/NumberInput';
 import { SchedulerFormChartFiltersTab } from '../SchedulerFormChartFiltersTab';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
@@ -51,6 +51,8 @@ export const SchedulerAlertSection: FC<Props> = ({
     loading,
 }) => {
     const form = useSchedulerFormContext();
+    const { onChange: _onChange, ...thresholdInputProps } =
+        form.getInputProps('thresholds.0.value');
     const operator = form.values.thresholds?.[0]?.operator;
     const isPercentOperator =
         operator === ThresholdOperator.INCREASED_BY ||
@@ -94,14 +96,16 @@ export const SchedulerAlertSection: FC<Props> = ({
                     data={thresholdOperatorOptions}
                     {...form.getInputProps('thresholds.0.operator')}
                 />
-                <FilterNumberInput
+                <NumberInput
                     label="Threshold"
                     size="sm"
-                    {...form.getInputProps('thresholds.0.value')}
-                    onChange={(value) => {
-                        form.setFieldValue('thresholds.0.value', value || '');
+                    w="100%"
+                    hideControls
+                    decimalScale="unlimited"
+                    {...thresholdInputProps}
+                    onNumberChange={(value) => {
+                        form.setFieldValue('thresholds.0.value', value ?? '');
                     }}
-                    value={form.values.thresholds?.[0]?.value}
                     rightSection={
                         isPercentOperator && (
                             <MantineIcon
