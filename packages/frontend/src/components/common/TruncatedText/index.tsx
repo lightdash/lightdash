@@ -12,6 +12,8 @@ interface TruncatedTextProps extends Omit<TextProps, 'truncate'> {
     /** Caps the tooltip label at this many characters and wraps it, so long
      *  values don't stretch the tooltip across the page. */
     tooltipMaxLength?: number;
+    /** Wraps the full tooltip text within this width. */
+    tooltipMaxWidth?: number;
 }
 
 const TOOLTIP_MAX_WIDTH = 400;
@@ -25,6 +27,7 @@ const TruncatedText: FC<TruncatedTextProps> = ({
     maxWidth,
     inline,
     tooltipMaxLength,
+    tooltipMaxWidth,
     ...textProps
 }) => {
     const { ref, isTruncated } = useIsTruncated<HTMLParagraphElement>();
@@ -38,8 +41,8 @@ const TruncatedText: FC<TruncatedTextProps> = ({
         <Tooltip
             label={label}
             disabled={!isTruncated}
-            multiline={isCapped}
-            maw={isCapped ? TOOLTIP_MAX_WIDTH : undefined}
+            multiline={isCapped || tooltipMaxWidth !== undefined}
+            maw={tooltipMaxWidth ?? (isCapped ? TOOLTIP_MAX_WIDTH : undefined)}
             zIndex={getDefaultZIndex('max')}
         >
             <Text

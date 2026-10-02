@@ -35,6 +35,7 @@ import { useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
+import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useCanManageAiAgentThread } from '../../hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
@@ -164,16 +165,21 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             px="xs"
             py={rem(4)}
             className={classes.threadNavLink}
+            classNames={{ section: classes.threadSection }}
+            data-slack={thread.createdFrom === 'slack' ? true : undefined}
             label={
-                <Text
-                    truncate="end"
-                    size="xs"
+                <TruncatedText
+                    inline
+                    display="block"
+                    maxWidth="100%"
+                    tooltipMaxWidth={400}
+                    fz="xs"
                     fw={500}
                     c={hasTitle ? 'ldGray.9' : 'dimmed'}
                     fs={hasTitle ? undefined : 'italic'}
                 >
                     {hasTitle ? threadTitle : 'Untitled thread'}
-                </Text>
+                </TruncatedText>
             }
             description={
                 showAgentName ? (
@@ -188,11 +194,13 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             rightSection={
                 <Group gap={4} wrap="nowrap">
                     {thread.createdFrom === 'slack' && (
-                        <Tooltip
-                            label={'Threads created in slack are read only'}
-                        >
-                            <IconBrandSlack size={18} stroke={1} />
-                        </Tooltip>
+                        <Box ml="xs">
+                            <Tooltip
+                                label={'Threads created in slack are read only'}
+                            >
+                                <IconBrandSlack size={18} stroke={1} />
+                            </Tooltip>
+                        </Box>
                     )}
                     {canManageThread && (
                         <Menu
