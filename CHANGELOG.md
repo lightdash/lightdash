@@ -1,3 +1,15 @@
+# [2.416.0](https://github.com/lightdash/lightdash/compare/2.415.8...2.416.0) (2026-10-02)
+
+
+### Bug Fixes
+
+* **sqlRunner:** request editor tables by the listed database name ([#30411](https://github.com/lightdash/lightdash/issues/30411)) ([6bdcb86](https://github.com/lightdash/lightdash/commit/6bdcb863c263f157ae4a73a65caf74baf3eda08d))
+
+
+### Features
+
+* **documents:** add markdown chart tag utilities ([#30407](https://github.com/lightdash/lightdash/issues/30407)) ([11bcde4](https://github.com/lightdash/lightdash/commit/11bcde4fb9afc2fba0d9dd85295417183f7e76cf))
+
 ## [2.415.8](https://github.com/lightdash/lightdash/compare/2.415.7...2.415.8) (2026-10-02)
 
 
