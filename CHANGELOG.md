@@ -1,3 +1,10 @@
+## [2.415.3](https://github.com/lightdash/lightdash/compare/2.415.2...2.415.3) (2026-10-02)
+
+
+### Bug Fixes
+
+* **frontend:** reordering rows in an unpivoted table updates column order ([#30372](https://github.com/lightdash/lightdash/issues/30372)) ([6f22b8a](https://github.com/lightdash/lightdash/commit/6f22b8a70ddb2407017b76b427ff68186a3d51f8))
+
 ## [2.415.2](https://github.com/lightdash/lightdash/compare/2.415.1...2.415.2) (2026-10-02)
 
 
