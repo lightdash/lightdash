@@ -252,6 +252,7 @@ import {
     hasBlockingTotalFilters,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
+import { personaliseSharedSignInError } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import type { ICacheService } from '../CacheService/ICacheService';
@@ -4088,7 +4089,12 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 queryCreatedAt,
                 queryUsage,
-                errorMessage: getErrorMessage(e),
+                errorMessage: getErrorMessage(
+                    personaliseSharedSignInError(
+                        e,
+                        isRegisteredUser ? userUuid : null,
+                    ),
+                ),
                 executionSource,
                 warehouseType: warehouseCredentialsType ?? null,
                 warehouseConnectionUuid,

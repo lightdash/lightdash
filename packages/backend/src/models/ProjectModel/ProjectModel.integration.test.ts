@@ -608,6 +608,7 @@ describe('ProjectModel preview credential push', () => {
                     parentUuid,
                     parentUpdate(token),
                     pushToken(token),
+                    null,
                 ),
             ),
         );
@@ -627,6 +628,7 @@ describe('ProjectModel preview credential push', () => {
             () => {
                 throw new Error('preview push failed');
             },
+            null,
         );
 
         expect(push.kind).toBe('failed');

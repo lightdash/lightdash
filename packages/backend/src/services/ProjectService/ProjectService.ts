@@ -116,6 +116,7 @@ import {
     getMetrics,
     getModelsFromManifest,
     getParameterReferences,
+    getPersonSignIn,
     getPreAggregateExploreName,
     getRequestMethod,
     getTimezoneLabel,
@@ -409,6 +410,11 @@ import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
+import {
+    attributeClientErrors,
+    isWarehouseTokenError,
+    withSharedSignInExpiry,
+} from '../../utils/sharedSignInExpiry';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
@@ -1715,7 +1721,16 @@ export class ProjectService extends BaseService {
     ): Promise<T> {
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
-        const refreshed = await this.refreshCredentials(args, userUuid);
+        const refreshed = await this.refreshCredentials(args, userUuid).catch(
+            (error: unknown) =>
+                source.kind === 'project'
+                    ? this.attributeSharedSignInExpiry(
+                          source.projectUuid,
+                          args,
+                          error,
+                      )
+                    : Promise.reject(error),
+        );
 
         const newRefreshToken =
             ProjectService.getCredentialsRefreshToken(refreshed);
@@ -1878,6 +1893,7 @@ export class ProjectService extends BaseService {
         projectUuid,
         savedProject,
         updatedProject,
+        actorUserUuid,
     }: {
         projectUuid: string;
         savedProject: Pick<
@@ -1885,19 +1901,25 @@ export class ProjectService extends BaseService {
             'projectUuid' | 'organizationUuid' | 'type'
         >;
         updatedProject: UpdateProject;
+        actorUserUuid: string | null;
     }): Promise<void> {
         const pushToPreview = await this.getSsoPushToPreviews({
             savedProject,
             updatedProject,
         });
         if (!pushToPreview) {
-            await this.projectModel.update(projectUuid, updatedProject);
+            await this.projectModel.update(
+                projectUuid,
+                updatedProject,
+                actorUserUuid,
+            );
             return;
         }
         const push = await this.projectModel.updateAndPushToPreviews(
             projectUuid,
             updatedProject,
             pushToPreview,
+            actorUserUuid,
         );
         switch (push.kind) {
             case 'skipped':
@@ -3122,7 +3144,11 @@ export class ProjectService extends BaseService {
         ) {
             // if existing client uses identical credentials, use it
             return {
-                warehouseClient: existingClient,
+                warehouseClient: this.withSharedSignInAttribution(
+                    projectUuid,
+                    credentials,
+                    existingClient,
+                ),
                 sshTunnel,
                 tunnelConnectMs,
             };
@@ -3199,7 +3225,62 @@ export class ProjectService extends BaseService {
             { enableInstanceCache, projectUuid, logger: this.logger },
         );
         this.warehouseClients[cacheKey] = client;
-        return { warehouseClient: client, sshTunnel, tunnelConnectMs };
+        return {
+            warehouseClient: this.withSharedSignInAttribution(
+                projectUuid,
+                credentials,
+                client,
+            ),
+            sshTunnel,
+            tunnelConnectMs,
+        };
+    }
+
+    private withSharedSignInAttribution<T extends object>(
+        projectUuid: string,
+        credentials: CreateWarehouseCredentials,
+        client: T,
+    ): T {
+        if (!getPersonSignIn(credentials)) return client;
+        return attributeClientErrors(client, (error) =>
+            this.attributeSharedSignInExpiry(projectUuid, credentials, error),
+        );
+    }
+
+    private async attributeSharedSignInExpiry(
+        projectUuid: string,
+        credentials: CreateWarehouseCredentials,
+        error: unknown,
+    ): Promise<never> {
+        const signIn = getPersonSignIn(credentials);
+        if (!isWarehouseTokenError(error) || !signIn) throw error;
+        try {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.SharedSignInExpiryMessage,
+            });
+            const stored = enabled
+                ? await this.projectModel.getSharedSignInSubjectForToken(
+                      projectUuid,
+                      signIn.refreshToken,
+                  )
+                : null;
+            if (!stored) throw error;
+            throw withSharedSignInExpiry(
+                error,
+                {
+                    provider: stored.provider,
+                    subjectUserUuid: stored.subject?.userUuid ?? null,
+                    subjectName: stored.subject?.name || null,
+                },
+                null,
+            );
+        } catch (attributed) {
+            if (isWarehouseTokenError(attributed)) throw attributed;
+            throw error;
+        }
     }
 
     private async syncPreAggregateDefinitionsRegistry(
@@ -5237,6 +5318,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             savedProject,
             updatedProject,
+            actorUserUuid: account.user.id,
         });
         if (
             savedProject.type === ProjectType.PREVIEW &&
@@ -5415,6 +5497,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             savedProject,
             updatedProject,
+            actorUserUuid: account.user.id,
         });
         if (
             savedProject.type === ProjectType.PREVIEW &&

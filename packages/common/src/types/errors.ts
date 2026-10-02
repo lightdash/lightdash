@@ -1,6 +1,7 @@
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
+import type { SharedSignInExpiry } from './sharedSignIn';
 
 type LightdashErrorData = {
     /**
@@ -804,16 +805,18 @@ export class AiAgentValidatorError extends LightdashError {
     }
 }
 
+export type WarehouseTokenErrorData = { sharedSignIn?: SharedSignInExpiry };
+
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI
 */
 export class SnowflakeTokenError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: WarehouseTokenErrorData = {}) {
         super({
             message,
             name: 'SnowflakeTokenError',
             statusCode: 401,
-            data: {},
+            data,
         });
     }
 }
@@ -822,12 +825,12 @@ export class SnowflakeTokenError extends LightdashError {
 to show a "reauthenticate" button in the UI
 */
 export class DatabricksTokenError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: WarehouseTokenErrorData = {}) {
         super({
             message,
             name: 'DatabricksTokenError',
             statusCode: 401,
-            data: {},
+            data,
         });
     }
 }
@@ -836,12 +839,12 @@ export class DatabricksTokenError extends LightdashError {
 to show a "reauthenticate" button in the UI
 */
 export class BigqueryTokenError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: WarehouseTokenErrorData = {}) {
         super({
             message,
             name: 'BigqueryTokenError',
             statusCode: 401,
-            data: {},
+            data,
         });
     }
 }

@@ -41,6 +41,7 @@ import {
     NotImplementedError,
     OrganizationMemberRole,
     ParameterError,
+    PersonSignInProvider,
     PreAggregateMissReason,
     PreviewWarehouseSignInExpiredError,
     ProjectType,
@@ -49,6 +50,7 @@ import {
     RequestMethod,
     SessionUser,
     SnowflakeAuthenticationType,
+    SnowflakeTokenError,
     SupportedDbtAdapter,
     WarehouseTypes,
     WeekDay,
@@ -1901,6 +1903,7 @@ describe('ProjectService', () => {
                         installation_id: '999',
                     }),
                 }),
+                developerAccount.user.id,
             );
             // The stale PAT is not carried into the OAuth connection.
             expect(projectModel.update).toHaveBeenCalledWith(
@@ -1910,6 +1913,7 @@ describe('ProjectService', () => {
                         personal_access_token: expect.anything(),
                     }),
                 }),
+                developerAccount.user.id,
             );
         });
 
@@ -12750,5 +12754,125 @@ describe('preview BigQuery SSO credentials', () => {
         expect(model.updateAndPushToPreviews).not.toHaveBeenCalled();
         expect(model.update).toHaveBeenCalledTimes(1);
         expect(checkRefreshToken).not.toHaveBeenCalled();
+    });
+});
+
+describe('ProjectService expired shared sign-in', () => {
+    const { projectUuid } = projectSummary;
+    const credentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'analytics',
+        dataset: 'marts',
+        authenticationType: BigqueryAuthenticationType.SSO,
+        keyfileContents: {
+            type: 'authorized_user',
+            refresh_token: 'shared-token',
+        },
+    } as unknown as CreateWarehouseCredentials;
+    const stored = {
+        provider: PersonSignInProvider.GOOGLE,
+        subject: { userUuid: 'subject-uuid', name: 'Sam Rivera' },
+    };
+    const flagged = (enabled: boolean) =>
+        ({
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled,
+                }),
+            ),
+        }) as unknown as FeatureFlagModel;
+    const model = projectModel as unknown as {
+        getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
+        getWarehouseClientFromCredentials: ReturnType<typeof vi.fn>;
+    };
+
+    beforeEach(() => {
+        model.getSharedSignInSubjectForToken = vi.fn(async () => stored);
+        model.getWarehouseClientFromCredentials.mockImplementation(() => ({
+            credentials,
+            runQuery: vi.fn(async () => {
+                throw new BigqueryTokenError('Google rejected the token');
+            }),
+        }));
+    });
+
+    const queryWith = async (enabled: boolean) => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(enabled),
+        });
+        const { warehouseClient } = await service._getWarehouseClient(
+            `${projectUuid}-${Math.random()}`,
+            credentials,
+        );
+        return (warehouseClient.runQuery as (sql: string) => Promise<unknown>)(
+            'select 1',
+        );
+    };
+
+    test('names the subject when the shared warehouse client rejects its token', async () => {
+        await expect(queryWith(true)).rejects.toMatchObject({
+            name: 'BigqueryTokenError',
+            message:
+                "This project's connection uses Sam Rivera's sign-in, which has expired. Ask Sam Rivera or an admin to reconnect.",
+            data: {
+                sharedSignIn: {
+                    provider: PersonSignInProvider.GOOGLE,
+                    subjectUserUuid: 'subject-uuid',
+                    subjectName: 'Sam Rivera',
+                },
+            },
+        });
+    });
+
+    test('leaves the original error when the kill switch is off', async () => {
+        await expect(queryWith(false)).rejects.toThrow(
+            'Google rejected the token',
+        );
+    });
+
+    test('does not attribute a personal credential', async () => {
+        model.getSharedSignInSubjectForToken.mockResolvedValueOnce(null);
+        await expect(queryWith(true)).rejects.toThrow(
+            'Google rejected the token',
+        );
+    });
+
+    test('attributes a rejected refresh from the project credential', async () => {
+        const refreshCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            refreshToken: 'shared-token',
+        } as CreateWarehouseCredentials;
+        model.getSharedSignInSubjectForToken.mockResolvedValueOnce({
+            provider: PersonSignInProvider.SNOWFLAKE,
+            subject: stored.subject,
+        });
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: flagged(true),
+        });
+        vi.spyOn(
+            UserService,
+            'generateSnowflakeAccessToken',
+        ).mockRejectedValueOnce(
+            new SnowflakeTokenError('Snowflake rejected the token'),
+        );
+        const refresh = service as unknown as {
+            refreshCredentialsAndPersistRotation: (
+                args: CreateWarehouseCredentials,
+                userUuid: string,
+                source: { kind: 'project'; projectUuid: string },
+            ) => Promise<CreateWarehouseCredentials>;
+        };
+        await expect(
+            refresh.refreshCredentialsAndPersistRotation(
+                refreshCredentials,
+                'viewer',
+                { kind: 'project', projectUuid },
+            ),
+        ).rejects.toMatchObject({
+            name: 'SnowflakeTokenError',
+            data: { sharedSignIn: { subjectUserUuid: 'subject-uuid' } },
+        });
     });
 });
