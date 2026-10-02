@@ -274,6 +274,44 @@ async function main() {
         });
         const metricsCatalogEmbedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}/metrics#${metricsCatalogToken}`;
 
+        const chart = await db('saved_queries')
+            .select('saved_queries.saved_query_uuid')
+            .join('spaces', 'saved_queries.space_id', 'spaces.space_id')
+            .where('spaces.space_uuid', spaceUuid)
+            .whereNull('saved_queries.deleted_at')
+            .modify((queryBuilder) => {
+                if (process.env.CHART_UUID) {
+                    void queryBuilder.where(
+                        'saved_queries.saved_query_uuid',
+                        process.env.CHART_UUID,
+                    );
+                }
+            })
+            .orderBy('saved_queries.name')
+            .first();
+        const chartEmbedUrl = chart
+            ? `${LIGHTDASH_URL}/embed/${projectUuid}/chart/${
+                  chart.saved_query_uuid
+              }#${jwt.sign(
+                  {
+                      content: {
+                          type: 'chart',
+                          projectUuid,
+                          contentId: chart.saved_query_uuid,
+                      },
+                      writeActions: {
+                          ...writeActor,
+                          spaceUuid,
+                      },
+                      user: {
+                          email: 'demo@lightdash.com',
+                      },
+                  },
+                  rawSecret,
+                  { expiresIn: '24h' },
+              )}`
+            : null;
+
         console.log(
             JSON.stringify(
                 {
@@ -285,6 +323,7 @@ async function main() {
                     embedUrl,
                     aiAgentEmbedUrl,
                     metricsCatalogEmbedUrl,
+                    chartEmbedUrl,
                 },
                 null,
                 2,
@@ -296,6 +335,9 @@ async function main() {
         console.log(
             `VITE_METRICS_CATALOG_EMBED_URL="${metricsCatalogEmbedUrl}"`,
         );
+        if (chartEmbedUrl) {
+            console.log(`VITE_CHART_EMBED_URL="${chartEmbedUrl}"`);
+        }
         if (aiAgent) {
             console.log(`VITE_AI_AGENT_EMBED_URL="${aiAgentEmbedUrl}"`);
         }

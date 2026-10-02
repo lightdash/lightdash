@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { AiAgentExamplePage } from './AiAgentExamplePage';
+import { ChartExamplePage } from './ChartExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
@@ -39,6 +40,15 @@ export const examples: ExampleDefinition[] = [
         sourcePath:
             'packages/sdk-test-app/src/examples/MetricsCatalogExamplePage.tsx',
         component: MetricsCatalogExamplePage,
+    },
+    {
+        slug: 'chart',
+        path: '/examples/chart',
+        title: 'Chart demo',
+        description:
+            'Embed a single saved chart in view or edit mode and drill down without leaving the host app.',
+        sourcePath: 'packages/sdk-test-app/src/examples/ChartExamplePage.tsx',
+        component: ChartExamplePage,
     },
     {
         slug: 'content-catalog',

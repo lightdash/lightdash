@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -598,6 +598,39 @@ describe('SDK Chart edit mode', () => {
 
         expect(await findByTestId('embed-chart-edit')).toBe(explorer);
         expect(explorer).toHaveAttribute('data-edit-mode', 'true');
+    });
+
+    it('drills in place inside the SDK chart and returns to the chart', async () => {
+        mockEmbedWriteContext = { canUpdateSavedChart: true };
+        const onExplore = vi.fn();
+        const { findByTestId, getByTestId, queryByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                isEditMode={false}
+                onExplore={onExplore}
+            />,
+        );
+
+        fireEvent.click(
+            within(await findByTestId('embed-chart-edit')).getByTestId(
+                'explore-drill-down',
+            ),
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'orders',
+            );
+        });
+        expect(queryByTestId('embed-chart-edit')).toBeNull();
+        expect(onExplore).not.toHaveBeenCalled();
+
+        fireEvent.click(getByTestId('explore-back'));
+
+        expect(await findByTestId('embed-chart-edit')).toBeInTheDocument();
+        expect(queryByTestId('embed-explore')).toBeNull();
     });
 
     it('rejects edit mode when the write actor cannot update the chart', async () => {

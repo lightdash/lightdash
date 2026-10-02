@@ -161,7 +161,9 @@ const ExplorerHeader: FC = memo(() => {
             ? 'Back to AI'
             : content?.type === 'metricsCatalog'
               ? 'Back to Metrics Catalog'
-              : 'Back to Dashboard';
+              : content?.type === 'chart'
+                ? 'Back to Chart'
+                : 'Back to Dashboard';
 
     return (
         <Group justify="space-between">
