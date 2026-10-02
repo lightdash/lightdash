@@ -3,6 +3,7 @@ import {
     BigqueryTokenError,
     ParameterError,
     SnowflakeAuthenticationType,
+    WarehouseSignInRejection,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -47,6 +48,8 @@ const makeRow = (
     created_at: new Date(),
     updated_at: new Date(),
     project_uuid: null,
+    needs_sign_in_at: null,
+    needs_sign_in_reason: null,
     project_name: null,
     project_type: null,
 });
@@ -102,6 +105,53 @@ const createModel = ({
 };
 
 describe('UserWarehouseCredentialsModel', () => {
+    describe('needs sign-in mark', () => {
+        const makeMarkModel = () => {
+            const builder = {
+                where: vi.fn(),
+                whereNull: vi.fn(),
+                whereNotNull: vi.fn(),
+                update: vi.fn(async () => 0),
+            };
+            builder.where.mockReturnValue(builder);
+            builder.whereNull.mockReturnValue(builder);
+            builder.whereNotNull.mockReturnValue(builder);
+            const database = vi.fn(() => builder) as unknown as Knex;
+            return {
+                model: new UserWarehouseCredentialsModel({
+                    database,
+                    encryptionUtil: passthroughEncryption,
+                }),
+                builder,
+            };
+        };
+
+        test('sets the first rejection time only when no mark exists', async () => {
+            const { model, builder } = makeMarkModel();
+            await model.markNeedsSignIn(
+                'credential-1',
+                WarehouseSignInRejection.INVALID_GRANT,
+            );
+            expect(builder.whereNull).toHaveBeenCalledWith('needs_sign_in_at');
+            expect(builder.update).toHaveBeenCalledWith({
+                needs_sign_in_at: expect.any(Date),
+                needs_sign_in_reason: WarehouseSignInRejection.INVALID_GRANT,
+            });
+        });
+
+        test('clears only a marked credential', async () => {
+            const { model, builder } = makeMarkModel();
+            await model.clearNeedsSignIn('credential-1');
+            expect(builder.whereNotNull).toHaveBeenCalledWith(
+                'needs_sign_in_at',
+            );
+            expect(builder.update).toHaveBeenCalledWith({
+                needs_sign_in_at: null,
+                needs_sign_in_reason: null,
+            });
+        });
+    });
+
     describe('getQueryTimeValidationError', () => {
         test('accepts a BigQuery credential with a refresh token', () => {
             expect(

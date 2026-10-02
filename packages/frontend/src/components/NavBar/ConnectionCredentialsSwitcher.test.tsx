@@ -42,6 +42,7 @@ const personal = (
     uuid,
     userUuid: 'user-uuid',
     name,
+    needsSignIn: null,
     createdAt: new Date('2026-09-01T00:00:00Z'),
     updatedAt: new Date('2026-09-01T00:00:00Z'),
     credentials: { type } as UserWarehouseCredentials['credentials'],

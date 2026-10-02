@@ -80,6 +80,8 @@ export class FeatureFlagModel {
                 this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.SharedSignInReconnect]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
+            [FeatureFlags.WarehouseSignInMark]: (flagArgs, options) =>
+                this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.PreviewSsoCredentialSync]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
         };

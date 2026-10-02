@@ -40,6 +40,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
@@ -487,8 +488,17 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         ].join('; ');
 
         if (this.usesUserRefreshToken()) {
+            const rejection =
+                tokenError.errorSubtype === 'invalid_rapt' ||
+                tokenError.errorSubtype === 'rapt_required' ||
+                tokenError.errorDescription?.includes('invalid_rapt') ===
+                    true ||
+                tokenError.errorDescription?.includes('rapt_required') === true
+                    ? WarehouseSignInRejection.INVALID_RAPT
+                    : WarehouseSignInRejection.INVALID_GRANT;
             return new BigqueryTokenError(
                 `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} (${details}). Reconnect your BigQuery account in personal settings.`,
+                { rejection },
             );
         }
         return new WarehouseConnectionError(

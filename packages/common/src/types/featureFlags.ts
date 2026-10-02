@@ -258,6 +258,8 @@ export enum FeatureFlags {
     SharedSignInExpiryMessage = 'shared-sign-in-expiry-message',
     /** Kill switch for shared sign-in reconnection. On by default. */
     SharedSignInReconnect = 'shared-sign-in-reconnect',
+    /** On by default; kill switch for personal warehouse sign-in marks. */
+    WarehouseSignInMark = 'warehouse-sign-in-mark',
 
     /**
      * Cloud-only: let an organization send report/notification emails from

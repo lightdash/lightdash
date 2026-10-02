@@ -1,3 +1,4 @@
+import { WarehouseSignInRejection } from '@lightdash/common';
 import { Knex } from 'knex';
 import { WarehouseType } from './warehouseCredentials';
 
@@ -10,6 +11,8 @@ export type DbUserWarehouseCredentials = {
     warehouse_type: WarehouseType;
     encrypted_credentials: Buffer;
     project_uuid: string | null;
+    needs_sign_in_at: Date | null;
+    needs_sign_in_reason: WarehouseSignInRejection | null;
 };
 export const UserWarehouseCredentialsTableName = 'user_warehouse_credentials';
 export type UserWarehouseCredentialsTable = Knex.CompositeTableType<
@@ -26,9 +29,16 @@ type Create = Pick<
     | 'encrypted_credentials'
     | 'project_uuid'
 >;
-type Update = Pick<
-    DbUserWarehouseCredentials,
-    'name' | 'warehouse_type' | 'encrypted_credentials' | 'updated_at'
+type Update = Partial<
+    Pick<
+        DbUserWarehouseCredentials,
+        | 'name'
+        | 'warehouse_type'
+        | 'encrypted_credentials'
+        | 'updated_at'
+        | 'needs_sign_in_at'
+        | 'needs_sign_in_reason'
+    >
 >;
 
 export type DbProjectUserWarehouseCredentialPreference = {
