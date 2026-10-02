@@ -3517,9 +3517,20 @@ export class UserService extends BaseService {
     }
 
     async getWarehouseCredentials(user: SessionUser) {
-        return this.userWarehouseCredentialsModel.getAllByUserUuid(
-            user.userUuid,
-        );
+        const credentials =
+            await this.userWarehouseCredentialsModel.getAllByUserUuid(
+                user.userUuid,
+            );
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: user.organizationUuid },
+            featureFlagId: FeatureFlags.WarehouseSignInMark,
+        });
+        return enabled
+            ? credentials
+            : credentials.map((credential) => ({
+                  ...credential,
+                  needsSignIn: null,
+              }));
     }
 
     async hasDatabricksOAuthCredentialForHost(
@@ -3958,10 +3969,17 @@ export class UserService extends BaseService {
         userWarehouseCredentialsUuid: string,
         data: UpsertUserWarehouseCredentials,
     ) {
+        const signInMarkEnabled = (
+            await this.featureFlagModel.get({
+                user: { organizationUuid: user.organizationUuid },
+                featureFlagId: FeatureFlags.WarehouseSignInMark,
+            })
+        ).enabled;
         await this.userWarehouseCredentialsModel.update(
             user.userUuid,
             userWarehouseCredentialsUuid,
             data,
+            signInMarkEnabled,
         );
         this.analytics.track({
             userId: user.userUuid,
@@ -3971,9 +3989,12 @@ export class UserService extends BaseService {
                 warehouseType: data.credentials.type,
             },
         });
-        return this.userWarehouseCredentialsModel.getByUuid(
+        const credentials = await this.userWarehouseCredentialsModel.getByUuid(
             userWarehouseCredentialsUuid,
         );
+        return signInMarkEnabled
+            ? credentials
+            : { ...credentials, needsSignIn: null };
     }
 
     async deleteWarehouseCredentials(

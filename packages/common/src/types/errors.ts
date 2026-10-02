@@ -805,18 +805,26 @@ export class AiAgentValidatorError extends LightdashError {
     }
 }
 
-export type WarehouseTokenErrorData = { sharedSignIn?: SharedSignInExpiry };
+export enum WarehouseSignInRejection {
+    INVALID_GRANT = 'invalid_grant',
+    INVALID_RAPT = 'invalid_rapt',
+}
+
+export type WarehouseTokenErrorData = {
+    sharedSignIn?: SharedSignInExpiry;
+    rejection: WarehouseSignInRejection | null;
+};
 
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI
 */
 export class SnowflakeTokenError extends LightdashError {
-    constructor(message: string, data: WarehouseTokenErrorData = {}) {
+    constructor(message: string, data: Partial<WarehouseTokenErrorData> = {}) {
         super({
             message,
             name: 'SnowflakeTokenError',
             statusCode: 401,
-            data,
+            data: { rejection: null, ...data },
         });
     }
 }
@@ -825,12 +833,12 @@ export class SnowflakeTokenError extends LightdashError {
 to show a "reauthenticate" button in the UI
 */
 export class DatabricksTokenError extends LightdashError {
-    constructor(message: string, data: WarehouseTokenErrorData = {}) {
+    constructor(message: string, data: Partial<WarehouseTokenErrorData> = {}) {
         super({
             message,
             name: 'DatabricksTokenError',
             statusCode: 401,
-            data,
+            data: { rejection: null, ...data },
         });
     }
 }
@@ -839,12 +847,12 @@ export class DatabricksTokenError extends LightdashError {
 to show a "reauthenticate" button in the UI
 */
 export class BigqueryTokenError extends LightdashError {
-    constructor(message: string, data: WarehouseTokenErrorData = {}) {
+    constructor(message: string, data: Partial<WarehouseTokenErrorData> = {}) {
         super({
             message,
             name: 'BigqueryTokenError',
             statusCode: 401,
-            data,
+            data: { rejection: null, ...data },
         });
     }
 }
@@ -888,12 +896,12 @@ export class PreviewWarehouseSignInExpiredError extends LightdashError {
 to show a "reauthenticate" button in the UI
 */
 export class RedshiftIamTokenError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: Partial<WarehouseTokenErrorData> = {}) {
         super({
             message,
             name: 'RedshiftIamTokenError',
             statusCode: 401,
-            data: {},
+            data: { rejection: null, ...data },
         });
     }
 }

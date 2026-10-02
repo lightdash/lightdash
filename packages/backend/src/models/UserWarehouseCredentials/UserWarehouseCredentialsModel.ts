@@ -20,6 +20,7 @@ import {
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
+    WarehouseSignInRejection,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -27,7 +28,10 @@ import {
     normalizeDatabricksHost,
     normalizeDatabricksHostLenient,
 } from '../../controllers/authentication/strategies/databricksStrategy';
+import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import { ProjectTableName } from '../../database/entities/projects';
+import { UserTableName } from '../../database/entities/users';
 import {
     DbUserWarehouseCredentials,
     ProjectUserWarehouseCredentialPreferenceTableName,
@@ -72,6 +76,13 @@ export class UserWarehouseCredentialsModel {
         return {
             uuid: data.user_warehouse_credentials_uuid,
             credentials,
+            needsSignIn:
+                data.needs_sign_in_at && data.needs_sign_in_reason
+                    ? {
+                          since: data.needs_sign_in_at,
+                          reason: data.needs_sign_in_reason,
+                      }
+                    : null,
         };
     }
 
@@ -155,6 +166,13 @@ export class UserWarehouseCredentialsModel {
             name: data.name,
             createdAt: data.created_at,
             updatedAt: data.updated_at,
+            needsSignIn:
+                data.needs_sign_in_at && data.needs_sign_in_reason
+                    ? {
+                          since: data.needs_sign_in_at,
+                          reason: data.needs_sign_in_reason,
+                      }
+                    : null,
             credentials,
             project,
         };
@@ -172,6 +190,81 @@ export class UserWarehouseCredentialsModel {
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.project_type as project_type`,
             );
+    }
+
+    async markNeedsSignIn(
+        uuid: string,
+        reason: WarehouseSignInRejection,
+    ): Promise<void> {
+        await this.database(UserWarehouseCredentialsTableName)
+            .where('user_warehouse_credentials_uuid', uuid)
+            .whereNull('needs_sign_in_at')
+            .update({
+                needs_sign_in_at: new Date(),
+                needs_sign_in_reason: reason,
+            });
+    }
+
+    async clearNeedsSignIn(uuid: string): Promise<void> {
+        await this.database(UserWarehouseCredentialsTableName)
+            .where('user_warehouse_credentials_uuid', uuid)
+            .whereNotNull('needs_sign_in_at')
+            .update({ needs_sign_in_at: null, needs_sign_in_reason: null });
+    }
+
+    async findNeedingSignIn({
+        organizationUuid,
+    }: {
+        organizationUuid: string;
+    }): Promise<
+        {
+            userUuid: string;
+            userWarehouseCredentialsUuid: string;
+            warehouseType: WarehouseTypes;
+            since: Date;
+            reason: WarehouseSignInRejection;
+        }[]
+    > {
+        const rows = await this.database(UserWarehouseCredentialsTableName)
+            .join(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${UserWarehouseCredentialsTableName}.user_uuid`,
+            )
+            .join(
+                OrganizationMembershipsTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .join(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${OrganizationMembershipsTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereNotNull(
+                `${UserWarehouseCredentialsTableName}.needs_sign_in_at`,
+            )
+            .whereNotNull(
+                `${UserWarehouseCredentialsTableName}.needs_sign_in_reason`,
+            )
+            .select(
+                `${UserWarehouseCredentialsTableName}.user_uuid`,
+                `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+                `${UserWarehouseCredentialsTableName}.warehouse_type`,
+                `${UserWarehouseCredentialsTableName}.needs_sign_in_at`,
+                `${UserWarehouseCredentialsTableName}.needs_sign_in_reason`,
+            );
+        return rows.map((row) => ({
+            userUuid: row.user_uuid,
+            userWarehouseCredentialsUuid: row.user_warehouse_credentials_uuid,
+            warehouseType: row.warehouse_type,
+            since: row.needs_sign_in_at,
+            reason: row.needs_sign_in_reason,
+        }));
     }
 
     async getAllByUserUuid(
@@ -674,6 +767,7 @@ export class UserWarehouseCredentialsModel {
         userUuid: string,
         userWarehouseCredentialsUuid: string,
         data: UpsertUserWarehouseCredentials,
+        clearNeedsSignIn = true,
     ): Promise<string> {
         let dataToPersist = data;
         if (
@@ -721,6 +815,9 @@ export class UserWarehouseCredentialsModel {
                 warehouse_type: normalized.credentials.type,
                 encrypted_credentials: encryptedCredentials,
                 updated_at: new Date(),
+                ...(clearNeedsSignIn
+                    ? { needs_sign_in_at: null, needs_sign_in_reason: null }
+                    : {}),
             })
             .where(
                 'user_warehouse_credentials_uuid',

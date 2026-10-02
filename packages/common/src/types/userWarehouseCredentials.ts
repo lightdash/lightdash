@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { WarehouseSignInRejection } from './errors';
 import {
     DatabricksAuthenticationType,
     RedshiftAuthenticationType,
@@ -29,6 +30,7 @@ export type UserWarehouseCredentials = {
     name: string;
     createdAt: Date;
     updatedAt: Date;
+    needsSignIn: { since: Date; reason: WarehouseSignInRejection } | null;
     credentials:
         | Pick<
               CreateRedshiftCredentials,
@@ -55,6 +57,7 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
     UserWarehouseCredentials,
     'uuid'
 > & {
+    needsSignIn: UserWarehouseCredentials['needsSignIn'];
     credentials:
         | Pick<CreateRedshiftCredentials, 'type' | 'user' | 'password'>
         | Pick<

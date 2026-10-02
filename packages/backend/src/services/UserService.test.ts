@@ -25,6 +25,7 @@ import {
     ProjectMemberRole,
     SessionUser,
     SnowflakeAuthenticationType,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type LearnProgress,
     type RegisteredAccount,
@@ -338,6 +339,44 @@ const auditLogSpy = vi
 
 describe('UserService', () => {
     const userService = createUserService(lightdashConfigMock);
+
+    test('hides a stored sign-in mark when its organization kills the feature', async () => {
+        const since = new Date('2026-10-01T00:00:00.000Z');
+        const credentialsModel = {
+            getAllByUserUuid: vi.fn(async () => [
+                {
+                    uuid: 'credential-1',
+                    userUuid: sessionUser.userUuid,
+                    name: 'Personal BigQuery',
+                    createdAt: since,
+                    updatedAt: since,
+                    credentials: { type: WarehouseTypes.BIGQUERY as const },
+                    project: null,
+                    needsSignIn: {
+                        since,
+                        reason: WarehouseSignInRejection.INVALID_GRANT,
+                    },
+                },
+            ]),
+        };
+        const service = createUserService(lightdashConfigMock, {
+            userWarehouseCredentialsModel: credentialsModel,
+            featureFlagModel: {
+                get: vi.fn(async () => ({
+                    id: FeatureFlags.WarehouseSignInMark,
+                    enabled: false,
+                })),
+            },
+        });
+        await expect(
+            service.getWarehouseCredentials(sessionUser),
+        ).resolves.toEqual([
+            expect.objectContaining({
+                uuid: 'credential-1',
+                needsSignIn: null,
+            }),
+        ]);
+    });
 
     afterEach(() => {
         vi.clearAllMocks();
@@ -5565,6 +5604,7 @@ describe('UserService', () => {
                         refreshToken: 'new-refresh-token',
                     }),
                 }),
+                true,
             );
             expect(credentialsModel.create).not.toHaveBeenCalled();
         });
@@ -5585,6 +5625,7 @@ describe('UserService', () => {
                 sessionUser.userUuid,
                 'sso-credentials-uuid',
                 expect.objectContaining({ name: 'My Snowflake login' }),
+                true,
             );
         });
 
@@ -5625,6 +5666,7 @@ describe('UserService', () => {
                 sessionUser.userUuid,
                 'newest-sso-credentials-uuid',
                 expect.anything(),
+                true,
             );
         });
 

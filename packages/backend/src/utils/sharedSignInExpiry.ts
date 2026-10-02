@@ -25,12 +25,21 @@ export const withSharedSignInExpiry = (
 ): WarehouseTokenError => {
     const message = getExpiredSharedSignInMessage(sharedSignIn, viewerUserUuid);
     if (error instanceof BigqueryTokenError) {
-        return new BigqueryTokenError(message, { sharedSignIn });
+        return new BigqueryTokenError(message, {
+            sharedSignIn,
+            rejection: error.data.rejection ?? null,
+        });
     }
     if (error instanceof SnowflakeTokenError) {
-        return new SnowflakeTokenError(message, { sharedSignIn });
+        return new SnowflakeTokenError(message, {
+            sharedSignIn,
+            rejection: error.data.rejection ?? null,
+        });
     }
-    return new DatabricksTokenError(message, { sharedSignIn });
+    return new DatabricksTokenError(message, {
+        sharedSignIn,
+        rejection: error.data.rejection ?? null,
+    });
 };
 
 export const personaliseSharedSignInError = <T>(

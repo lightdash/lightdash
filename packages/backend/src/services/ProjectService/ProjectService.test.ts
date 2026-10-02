@@ -54,6 +54,7 @@ import {
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
     SupportedDbtAdapter,
+    WarehouseSignInRejection,
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
@@ -686,6 +687,244 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
+
+    describe('personal warehouse sign-in mark', () => {
+        const makeService = (enabled: boolean) => {
+            const instance = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled,
+                    })),
+                } as unknown as FeatureFlagModel,
+            });
+            const markNeedsSignIn = vi.fn(async () => undefined);
+            const clearNeedsSignIn = vi.fn(async () => undefined);
+            Object.assign(instance, {
+                userWarehouseCredentialsModel: {
+                    markNeedsSignIn,
+                    clearNeedsSignIn,
+                },
+            });
+            return { instance, markNeedsSignIn, clearNeedsSignIn };
+        };
+
+        test.each([true, false])(
+            'marks a definite personal rejection only when enabled=%s',
+            async (enabled) => {
+                const { instance, markNeedsSignIn } = makeService(enabled);
+                if (enabled) {
+                    markNeedsSignIn.mockRejectedValueOnce(
+                        new Error('database unavailable'),
+                    );
+                }
+                const rejection = new DatabricksTokenError('rejected', {
+                    rejection: WarehouseSignInRejection.INVALID_GRANT,
+                });
+                const refresh = vi.spyOn(
+                    await import('@lightdash/warehouses'),
+                    'refreshDatabricksOAuthToken',
+                );
+                refresh.mockRejectedValueOnce(rejection);
+                const credentials = {
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
+                    serverHostName: 'example.databricks.com',
+                    httpPath: '/sql',
+                    database: 'default',
+                    refreshToken: 'refresh-token',
+                } as CreateWarehouseCredentials;
+                const call = () =>
+                    (
+                        instance as unknown as {
+                            refreshCredentialsAndPersistRotation: (
+                                args: CreateWarehouseCredentials,
+                                userUuid: string,
+                                source: object,
+                            ) => Promise<CreateWarehouseCredentials>;
+                        }
+                    ).refreshCredentialsAndPersistRotation(
+                        credentials,
+                        'user-1',
+                        {
+                            kind: 'user',
+                            userWarehouseCredentialsUuid: 'credential-1',
+                            needsSignIn: false,
+                            projectUuid,
+                        },
+                    );
+                await expect(call()).rejects.toBe(rejection);
+                expect(markNeedsSignIn).toHaveBeenCalledTimes(enabled ? 1 : 0);
+            },
+        );
+
+        test('does not mark a network failure', async () => {
+            const { instance, markNeedsSignIn } = makeService(true);
+            const error = new Error('network unavailable');
+            const refresh = vi.spyOn(
+                await import('@lightdash/warehouses'),
+                'refreshDatabricksOAuthToken',
+            );
+            refresh.mockRejectedValueOnce(error);
+            await expect(
+                (
+                    instance as unknown as {
+                        refreshCredentialsAndPersistRotation: (
+                            args: CreateWarehouseCredentials,
+                            userUuid: string,
+                            source: object,
+                        ) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).refreshCredentialsAndPersistRotation(
+                    {
+                        type: WarehouseTypes.DATABRICKS,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_U2M,
+                        serverHostName: 'example.databricks.com',
+                        httpPath: '/sql',
+                        database: 'default',
+                        refreshToken: 'refresh-token',
+                    } as CreateWarehouseCredentials,
+                    'user-1',
+                    {
+                        kind: 'user',
+                        userWarehouseCredentialsUuid: 'credential-1',
+                        needsSignIn: false,
+                        projectUuid,
+                    },
+                ),
+            ).rejects.toThrow(DatabricksTokenError);
+            expect(markNeedsSignIn).not.toHaveBeenCalled();
+        });
+
+        test('marks a Snowflake invalid_grant response but never marks a shared credential', async () => {
+            const { instance, markNeedsSignIn } = makeService(true);
+            const refresh = vi.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            );
+            const rejection = {
+                statusCode: 400,
+                data: JSON.stringify({ error: 'invalid_grant' }),
+            };
+            const credentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'refresh-token',
+            } as CreateWarehouseCredentials;
+            const call = (source: object) =>
+                (
+                    instance as unknown as {
+                        refreshCredentialsAndPersistRotation: (
+                            args: CreateWarehouseCredentials,
+                            userUuid: string,
+                            source: object,
+                        ) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).refreshCredentialsAndPersistRotation(
+                    credentials,
+                    'user-1',
+                    source,
+                );
+            refresh.mockRejectedValueOnce(rejection);
+            await expect(
+                call({
+                    kind: 'user',
+                    userWarehouseCredentialsUuid: 'credential-1',
+                    needsSignIn: false,
+                    projectUuid,
+                }),
+            ).rejects.toMatchObject({
+                data: { rejection: WarehouseSignInRejection.INVALID_GRANT },
+            });
+            expect(markNeedsSignIn).toHaveBeenCalledTimes(1);
+            refresh.mockRejectedValueOnce(rejection);
+            await expect(
+                call({ kind: 'project', projectUuid }),
+            ).rejects.toThrow(SnowflakeTokenError);
+            expect(markNeedsSignIn).toHaveBeenCalledTimes(1);
+        });
+
+        test.each([true, false])(
+            'clears after a successful refresh only when a mark was loaded (%s)',
+            async (needsSignIn) => {
+                const { instance, clearNeedsSignIn } = makeService(true);
+                vi.spyOn(
+                    await import('@lightdash/warehouses'),
+                    'refreshDatabricksOAuthToken',
+                ).mockResolvedValueOnce({
+                    accessToken: 'access-token',
+                    refreshToken: 'refresh-token',
+                    expiresIn: 3600,
+                });
+                await (
+                    instance as unknown as {
+                        refreshCredentialsAndPersistRotation: (
+                            args: CreateWarehouseCredentials,
+                            userUuid: string,
+                            source: object,
+                        ) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).refreshCredentialsAndPersistRotation(
+                    {
+                        type: WarehouseTypes.DATABRICKS,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_U2M,
+                        serverHostName: 'example.databricks.com',
+                        httpPath: '/sql',
+                        database: 'default',
+                        refreshToken: 'refresh-token',
+                    } as CreateWarehouseCredentials,
+                    'user-1',
+                    {
+                        kind: 'user',
+                        userWarehouseCredentialsUuid: 'credential-1',
+                        needsSignIn,
+                        projectUuid,
+                    },
+                );
+                expect(clearNeedsSignIn).toHaveBeenCalledTimes(
+                    needsSignIn ? 1 : 0,
+                );
+            },
+        );
+
+        test('BigQuery marks a rejection and clears after a later success', async () => {
+            const { instance, markNeedsSignIn, clearNeedsSignIn } =
+                makeService(true);
+            const rejection = new BigqueryTokenError('rejected', {
+                rejection: WarehouseSignInRejection.INVALID_GRANT,
+            });
+            const runQuery = vi
+                .fn()
+                .mockRejectedValueOnce(rejection)
+                .mockResolvedValueOnce('ok');
+            const wrapped = await (
+                instance as unknown as {
+                    withPersonalSignInMark: (
+                        project: string,
+                        credentials: CreateWarehouseCredentials,
+                        client: { runQuery: typeof runQuery },
+                    ) => Promise<{ runQuery: typeof runQuery }>;
+                }
+            ).withPersonalSignInMark(
+                projectUuid,
+                {
+                    type: WarehouseTypes.BIGQUERY,
+                    userWarehouseCredentialsUuid: 'credential-1',
+                    userWarehouseCredentialsNeedsSignIn: false,
+                } as unknown as CreateWarehouseCredentials,
+                { runQuery },
+            );
+            await expect(wrapped.runQuery()).rejects.toBe(rejection);
+            expect(markNeedsSignIn).toHaveBeenCalledWith(
+                'credential-1',
+                WarehouseSignInRejection.INVALID_GRANT,
+            );
+            await expect(wrapped.runQuery()).resolves.toBe('ok');
+            expect(clearNeedsSignIn).toHaveBeenCalledWith('credential-1');
+        });
+    });
 
     describe('Document counts in legacy Space listing', () => {
         it.each([
@@ -4492,6 +4731,7 @@ describe('ProjectService', () => {
             };
             const personalCredentials = {
                 uuid: 'personal-bigquery-credentials',
+                needsSignIn: null,
                 credentials: {
                     type: WarehouseTypes.BIGQUERY,
                     authenticationType: BigqueryAuthenticationType.SSO,
@@ -4706,10 +4946,22 @@ describe('ProjectService', () => {
                 });
 
             const mockUserCredentials = (
-                credentials: UserWarehouseCredentialsWithSecrets | undefined,
+                credentials:
+                    | (Omit<
+                          UserWarehouseCredentialsWithSecrets,
+                          'needsSignIn'
+                      > & {
+                          needsSignIn?: UserWarehouseCredentialsWithSecrets['needsSignIn'];
+                      })
+                    | undefined,
             ) => {
-                const findForProjectWithSecretsMock = vi.fn(
-                    async () => credentials,
+                const findForProjectWithSecretsMock = vi.fn(async () =>
+                    credentials
+                        ? {
+                              ...credentials,
+                              needsSignIn: credentials.needsSignIn ?? null,
+                          }
+                        : undefined,
                 );
                 (
                     service as unknown as {

@@ -66,6 +66,7 @@ describe('useRedshiftAwsSsoLoginPopup', () => {
             uuid: 'credential-uuid',
             name: 'Redshift AWS SSO',
             userUuid: 'user-uuid',
+            needsSignIn: null,
             createdAt: new Date(),
             updatedAt: new Date(),
             credentials: {
