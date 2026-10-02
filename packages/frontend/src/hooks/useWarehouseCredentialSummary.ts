@@ -16,6 +16,7 @@ export const useWarehouseCredentialSummary = (
     projectUuid: string | undefined,
 ) => {
     const isEnabled = useIsSharedSignInOwnershipEnabled();
+    const setupFlag = useServerFeatureFlag(FeatureFlags.PersonalSignInSetup);
     return useQuery<WarehouseCredentialSummary, ApiError>(
         ['warehouse_credential_summary', projectUuid],
         () =>
@@ -24,6 +25,10 @@ export const useWarehouseCredentialSummary = (
                 method: 'GET',
                 body: undefined,
             }),
-        { enabled: isEnabled && !!projectUuid },
+        {
+            enabled:
+                (isEnabled || setupFlag.data?.enabled === true) &&
+                !!projectUuid,
+        },
     );
 };

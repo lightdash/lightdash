@@ -1,14 +1,21 @@
 import {
+    BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
+    SnowflakeAuthenticationType,
     PersonSignInProvider,
     SignInSubjectBasis,
     WarehouseTypes,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    canUseServiceCredentialForPeople,
     getRunsAsLabel,
     getSchedulePrompt,
     getSetupLine,
     getServiceMethods,
+    isPersonSignInMethod,
+    SHARED_SIGN_IN_REFUSAL_MESSAGE,
+    shouldOfferFirstServiceCredentialChoice,
     getSharedSignInExpiry,
     getStopsWorkingLabel,
     isSharedSignInModalError,
@@ -254,6 +261,17 @@ describe('getStopsWorkingLabel', () => {
 });
 
 describe('getServiceMethods', () => {
+    it('limits fallback to warehouses with optional personal credentials', () => {
+        expect(canUseServiceCredentialForPeople(WarehouseTypes.BIGQUERY)).toBe(
+            true,
+        );
+        expect(
+            canUseServiceCredentialForPeople(WarehouseTypes.DATABRICKS),
+        ).toBe(true);
+        expect(canUseServiceCredentialForPeople(WarehouseTypes.SNOWFLAKE)).toBe(
+            false,
+        );
+    });
     it('lists a method without a long-lived key first', () => {
         expect(
             getServiceMethods(WarehouseTypes.ATHENA).map(({ label }) => label),
@@ -265,5 +283,71 @@ describe('getServiceMethods', () => {
         expect(getServiceMethods(WarehouseTypes.SNOWFLAKE)).toHaveLength(1);
         expect(getServiceMethods(WarehouseTypes.DATABRICKS)).toHaveLength(1);
         expect(getServiceMethods(WarehouseTypes.POSTGRES)).toEqual([]);
+    });
+});
+
+describe('personal sign-in form methods', () => {
+    it('recognizes a person method before it contains a token', () => {
+        expect(
+            isPersonSignInMethod({
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                project: 'p',
+                dataset: 'd',
+                keyfileContents: {},
+            } as never),
+        ).toBe(true);
+        expect(
+            isPersonSignInMethod({
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+            } as never),
+        ).toBe(false);
+    });
+
+    it('explains why a shared sign-in is refused', () => {
+        expect(SHARED_SIGN_IN_REFUSAL_MESSAGE).toContain(
+            'Sign in with your own account',
+        );
+    });
+
+    it('offers the first service choice during project creation and after a secret-free connection', () => {
+        const service = {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        } as never;
+        expect(
+            shouldOfferFirstServiceCredentialChoice(
+                service,
+                true,
+                false,
+                undefined,
+            ),
+        ).toBe(true);
+        expect(
+            shouldOfferFirstServiceCredentialChoice(service, true, true, false),
+        ).toBe(true);
+        expect(
+            shouldOfferFirstServiceCredentialChoice(service, true, true, true),
+        ).toBe(false);
+        expect(
+            shouldOfferFirstServiceCredentialChoice(
+                service,
+                false,
+                false,
+                undefined,
+            ),
+        ).toBe(false);
+        expect(
+            shouldOfferFirstServiceCredentialChoice(
+                {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: SnowflakeAuthenticationType.NONE,
+                } as never,
+                true,
+                false,
+                undefined,
+            ),
+        ).toBe(false);
     });
 });

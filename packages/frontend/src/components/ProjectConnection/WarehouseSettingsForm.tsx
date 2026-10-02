@@ -2,6 +2,8 @@ import { WarehouseTypes } from '@lightdash/common';
 import { Select, Stack } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useFormContext } from './formContext';
+import { FirstServiceCredentialChoice } from './SharedSignIn/FirstServiceCredentialChoice';
+import { SharedSignInRefusal } from './SharedSignIn/SharedSignInRefusal';
 import AthenaForm from './WarehouseForms/AthenaForm';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import ClickhouseForm from './WarehouseForms/ClickhouseForm';
@@ -86,6 +88,8 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                 )}
 
                 <WarehouseForm disabled={disabled} />
+                <SharedSignInRefusal disabled={disabled} />
+                <FirstServiceCredentialChoice disabled={disabled} />
                 {children}
             </Stack>
         </SnowflakeCliSsoModeProvider>

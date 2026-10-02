@@ -1,9 +1,12 @@
 import {
     AthenaAuthenticationType,
+    assertUnreachable,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    DuckdbConnectionType,
     getExpiredSharedSignInMessage,
     PERSON_SIGN_IN_LABELS,
+    RedshiftAuthenticationType,
     type PersonSignInProvider,
     SignInSubjectBasis,
     SnowflakeAuthenticationType,
@@ -12,10 +15,15 @@ import {
     type SharedSignIn,
     type SharedSignInExpiry,
     type SharedSignInStatus,
+    type CreateWarehouseCredentials,
+    WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
 } from '@lightdash/common';
 
 export const getSetupLine = (provider: PersonSignInProvider) =>
     `Teammates sign in with their own ${PERSON_SIGN_IN_LABELS[provider]} account. Add a service account for schedules and shared work.`;
+
+export const SHARED_SIGN_IN_REFUSAL_MESSAGE =
+    'A shared connection can only use a service account. Sign in with your own account under your warehouse connections, or add a service account.';
 
 const getSubjectName = (subject: SharedSignIn['subject']) =>
     subject?.name.trim() || null;
@@ -50,6 +58,7 @@ export type ServiceMethod = {
         | AthenaAuthenticationType
         | BigqueryAuthenticationType
         | DatabricksAuthenticationType
+        | RedshiftAuthenticationType
         | SnowflakeAuthenticationType;
     label: string;
     needsLongLivedKey: boolean;
@@ -89,6 +98,13 @@ const SERVICE_METHODS: Partial<Record<WarehouseTypes, ServiceMethod[]>> = {
             needsLongLivedKey: false,
         },
     ],
+    [WarehouseTypes.REDSHIFT]: [
+        {
+            authenticationType: RedshiftAuthenticationType.IAM,
+            label: 'AWS IAM',
+            needsLongLivedKey: false,
+        },
+    ],
 };
 
 export const getServiceMethods = (
@@ -97,6 +113,156 @@ export const getServiceMethods = (
     [...(SERVICE_METHODS[warehouseType] ?? [])].sort(
         (a, b) => Number(a.needsLongLivedKey) - Number(b.needsLongLivedKey),
     );
+
+export const canUseServiceCredentialForPeople = (
+    warehouseType: WarehouseTypes,
+): boolean =>
+    WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS.includes(warehouseType);
+
+export const isPersonSignInMethod = (
+    credentials: CreateWarehouseCredentials,
+): boolean => {
+    switch (credentials.type) {
+        case WarehouseTypes.BIGQUERY:
+            return (
+                credentials.authenticationType ===
+                BigqueryAuthenticationType.SSO
+            );
+        case WarehouseTypes.SNOWFLAKE:
+            return (
+                credentials.authenticationType ===
+                    SnowflakeAuthenticationType.SSO ||
+                credentials.authenticationType ===
+                    SnowflakeAuthenticationType.EXTERNAL_BROWSER
+            );
+        case WarehouseTypes.DATABRICKS:
+            return (
+                credentials.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_U2M
+            );
+        case WarehouseTypes.REDSHIFT:
+            return (
+                credentials.authenticationType ===
+                RedshiftAuthenticationType.IAM_BROWSER
+            );
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.TRINO:
+        case WarehouseTypes.CLICKHOUSE:
+        case WarehouseTypes.ATHENA:
+        case WarehouseTypes.DUCKDB:
+            return false;
+        default:
+            return assertUnreachable(credentials, 'Unknown warehouse type');
+    }
+};
+
+const isServiceCredentialMethod = (
+    credentials: CreateWarehouseCredentials,
+): boolean => {
+    switch (credentials.type) {
+        case WarehouseTypes.BIGQUERY: {
+            const authenticationType = credentials.authenticationType;
+            switch (authenticationType) {
+                case BigqueryAuthenticationType.PRIVATE_KEY:
+                case BigqueryAuthenticationType.ADC:
+                case undefined:
+                    return true;
+                case BigqueryAuthenticationType.SSO:
+                    return false;
+                default:
+                    return assertUnreachable(
+                        authenticationType,
+                        'Unknown BigQuery authentication type',
+                    );
+            }
+        }
+        case WarehouseTypes.SNOWFLAKE: {
+            const authenticationType = credentials.authenticationType;
+            switch (authenticationType) {
+                case SnowflakeAuthenticationType.PASSWORD:
+                case SnowflakeAuthenticationType.PRIVATE_KEY:
+                case undefined:
+                    return true;
+                case SnowflakeAuthenticationType.SSO:
+                case SnowflakeAuthenticationType.EXTERNAL_BROWSER:
+                case SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE:
+                case SnowflakeAuthenticationType.NONE:
+                    return false;
+                default:
+                    return assertUnreachable(
+                        authenticationType,
+                        'Unknown Snowflake authentication type',
+                    );
+            }
+        }
+        case WarehouseTypes.DATABRICKS: {
+            const authenticationType = credentials.authenticationType;
+            switch (authenticationType) {
+                case DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN:
+                case DatabricksAuthenticationType.OAUTH_M2M:
+                case undefined:
+                    return true;
+                case DatabricksAuthenticationType.OAUTH_U2M:
+                    return false;
+                default:
+                    return assertUnreachable(
+                        authenticationType,
+                        'Unknown Databricks authentication type',
+                    );
+            }
+        }
+        case WarehouseTypes.REDSHIFT: {
+            const authenticationType = credentials.authenticationType;
+            switch (authenticationType) {
+                case RedshiftAuthenticationType.PASSWORD:
+                case RedshiftAuthenticationType.IAM:
+                case undefined:
+                    return true;
+                case RedshiftAuthenticationType.IAM_BROWSER:
+                    return false;
+                default:
+                    return assertUnreachable(
+                        authenticationType,
+                        'Unknown Redshift authentication type',
+                    );
+            }
+        }
+        case WarehouseTypes.ATHENA: {
+            const authenticationType = credentials.authenticationType;
+            switch (authenticationType) {
+                case AthenaAuthenticationType.ACCESS_KEY:
+                case AthenaAuthenticationType.IAM_ROLE:
+                case undefined:
+                    return true;
+                default:
+                    return assertUnreachable(
+                        authenticationType,
+                        'Unknown Athena authentication type',
+                    );
+            }
+        }
+        case WarehouseTypes.DUCKDB:
+            return (
+                credentials.connectionType !== DuckdbConnectionType.ANALYTICS
+            );
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.TRINO:
+        case WarehouseTypes.CLICKHOUSE:
+            return true;
+        default:
+            return assertUnreachable(credentials, 'Unknown warehouse type');
+    }
+};
+
+export const shouldOfferFirstServiceCredentialChoice = (
+    credentials: CreateWarehouseCredentials,
+    flagEnabled: boolean,
+    hasSavedProject: boolean,
+    hasServiceAccount: boolean | undefined,
+): boolean =>
+    flagEnabled &&
+    (!hasSavedProject || hasServiceAccount === false) &&
+    isServiceCredentialMethod(credentials);
 
 export const getSchedulePrompt = (
     sharedSignIn: SharedSignIn | null,

@@ -14,6 +14,7 @@ import { type Knex } from 'knex';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
     createMigratedTestDatabase,
@@ -50,6 +51,7 @@ describe('warehouse credential subject', () => {
     let migrated: MigratedTestDatabase;
     let database: Knex;
     let model: ProjectModel;
+    let userCredentialsModel: UserWarehouseCredentialsModel;
     let encryptionUtil: EncryptionUtil;
 
     beforeAll(async () => {
@@ -70,6 +72,10 @@ describe('warehouse credential subject', () => {
         model = new ProjectModel({
             database,
             lightdashConfig: lightdashConfigMock,
+            encryptionUtil,
+        });
+        userCredentialsModel = new UserWarehouseCredentialsModel({
+            database,
             encryptionUtil,
         });
     }, 600000);
@@ -117,6 +123,174 @@ describe('warehouse credential subject', () => {
                     'warehouse_credentials.credential_subject_user_uuid',
                 )
         )?.credential_subject_user_uuid ?? null;
+
+    test('stores a personal-only shared connection without a service credential or subject', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Fran');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData({
+                ...googleSignIn('unused'),
+                keyfileContents: {},
+                requireUserCredentials: true,
+            }),
+        );
+
+        expect(await storedSubject(projectUuid)).toBeNull();
+        expect(
+            await model.getWarehouseCredentialSummary(projectUuid, true),
+        ).toEqual({
+            sharedSignIn: null,
+            hasServiceAccount: false,
+        });
+        expect(
+            (await model.getWithSensitiveFields(projectUuid))
+                .warehouseConnection,
+        ).toMatchObject({
+            keyfileContents: {},
+            requireUserCredentials: true,
+        });
+    });
+
+    test('creates the shared row, personal row and preference in one transaction', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Creator');
+        const personal = googleSignIn('creator-token');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData({
+                ...personal,
+                keyfileContents: {},
+                requireUserCredentials: true,
+            }),
+            null,
+            async (createdProjectUuid, trx) => {
+                const credentialUuid = await userCredentialsModel.create(
+                    founder,
+                    {
+                        name: 'Default',
+                        credentials: {
+                            type: WarehouseTypes.BIGQUERY,
+                            authenticationType: BigqueryAuthenticationType.SSO,
+                            keyfileContents: personal.keyfileContents,
+                        },
+                    },
+                    createdProjectUuid,
+                    trx,
+                );
+                await userCredentialsModel.upsertUserCredentialsPreference(
+                    founder,
+                    createdProjectUuid,
+                    credentialUuid,
+                    trx,
+                );
+            },
+        );
+        const preference = await database(
+            'project_user_warehouse_credentials_preference',
+        )
+            .where({ user_uuid: founder, project_uuid: projectUuid })
+            .first('user_warehouse_credentials_uuid');
+        const personalRow = await userCredentialsModel.getByUuidWithSecrets(
+            preference!.user_warehouse_credentials_uuid,
+        );
+        expect(personalRow.credentials).toMatchObject({
+            keyfileContents: { refresh_token: 'creator-token' },
+        });
+        expect(await storedSubject(projectUuid)).toBeNull();
+        expect(
+            (await model.getWithSensitiveFields(projectUuid))
+                .warehouseConnection,
+        ).toMatchObject({ keyfileContents: {}, requireUserCredentials: true });
+    });
+
+    test('rolls back project and personal rows when preference creation fails', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Rollback');
+        await expect(
+            model.create(
+                founder,
+                organization,
+                projectData({
+                    ...googleSignIn('unused'),
+                    keyfileContents: {},
+                    requireUserCredentials: true,
+                }),
+                null,
+                async (projectUuid, trx) => {
+                    await userCredentialsModel.create(
+                        founder,
+                        {
+                            name: 'Default',
+                            credentials: {
+                                type: WarehouseTypes.BIGQUERY,
+                                authenticationType:
+                                    BigqueryAuthenticationType.SSO,
+                                keyfileContents:
+                                    googleSignIn('rolled-back').keyfileContents,
+                            },
+                        },
+                        projectUuid,
+                        trx,
+                    );
+                    throw new Error('preference failed');
+                },
+            ),
+        ).rejects.toThrow('preference failed');
+        expect(
+            await database('projects')
+                .where({ name: 'Sign-in subject project' })
+                .andWhere(
+                    'organization_id',
+                    (await database('organizations')
+                        .where('organization_uuid', organization)
+                        .first('organization_id'))!.organization_id,
+                ),
+        ).toHaveLength(0);
+        expect(
+            await database('user_warehouse_credentials').where(
+                'user_uuid',
+                founder,
+            ),
+        ).toHaveLength(0);
+    });
+
+    test('persists a first service credential on a personal-only connection', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Service');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData({
+                ...googleSignIn('unused'),
+                keyfileContents: {},
+                requireUserCredentials: true,
+            }),
+        );
+        await model.update(
+            projectUuid,
+            projectData({
+                ...serviceAccount,
+                requireUserCredentials: false,
+                allowUserCredentials: true,
+            }),
+            founder,
+        );
+        expect(await storedSubject(projectUuid)).toBeNull();
+        expect(
+            (await model.getWithSensitiveFields(projectUuid))
+                .warehouseConnection,
+        ).toMatchObject({
+            keyfileContents: serviceAccount.keyfileContents,
+            requireUserCredentials: false,
+            allowUserCredentials: true,
+        });
+        expect(
+            await model.getWarehouseCredentialSummary(projectUuid, true),
+        ).toEqual({ sharedSignIn: null, hasServiceAccount: true });
+    });
 
     test('reconnect writes only the locked credentials when the authorised token and subject match', async () => {
         const organization = await createOrganization();

@@ -1,5 +1,16 @@
 # Adding and operating feature flags
 
+`personal-sign-in-setup` is an organization scoped rollout. It makes setup
+and CLI person sign-ins personal credentials, requires service credentials for
+shared connections, and uses service credentials for unattended work. It is off
+by default. The backend resolves it through `FeatureFlagModel.get`; the frontend
+reads it through `useServerFeatureFlag`. Console organization overrides and the
+generic self-hosted feature flag ENV lists follow the precedence below. Changes
+take effect when the flag query refreshes; no deployment restart is required for
+Console overrides. Use organization overrides so creation, embeds and
+background work resolve the same value; user overrides can differ by entry
+point.
+
 Internal implementation and rollout guide for engineers and reviewers. Use one
 resolver for Console-managed Cloud rollouts and self-hosted ENV configuration.
 Flag enablement does not replace authorization or supply infrastructure/credentials.

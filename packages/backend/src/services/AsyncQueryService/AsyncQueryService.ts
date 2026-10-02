@@ -3285,6 +3285,7 @@ export class AsyncQueryService extends ProjectService {
         if (account.isServiceAccount()) actorType = 'service_account';
         else if (account.isRegisteredUser()) actorType = 'registered_user';
         const queryUsage: QueryUsageMetadata = {
+            credentialPurpose: context.scheduler?.job_id ? 'scheduled' : null,
             startedAtMs: context.query_request?.startedAtMs ?? Date.now(),
             timingBasis: context.query_request ? 'request' : 'query_submission',
             requestId: context.query_request?.requestId ?? null,
@@ -3575,6 +3576,7 @@ export class AsyncQueryService extends ProjectService {
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
     public async runAsyncWarehouseQuery({
+        useServiceCredential,
         userUuid,
         organizationUuid,
         isPreviewProject,
@@ -3660,6 +3662,9 @@ export class AsyncQueryService extends ProjectService {
                     userId: userUuid,
                     isRegisteredUser,
                     isServiceAccount,
+                    useServiceCredential:
+                        useServiceCredential ||
+                        queryUsage?.credentialPurpose === 'scheduled',
                 });
             const { warehouseCredentials } = resolvedCredentials;
 
@@ -4207,6 +4212,9 @@ export class AsyncQueryService extends ProjectService {
             isRegisteredUser: actor.isRegisteredUser,
             isEmbedOrigin: query.requestParameters.isEmbedOrigin,
             isServiceAccount: actor.isServiceAccount,
+            useServiceCredential:
+                query.requestParameters.queryUsage?.credentialPurpose ===
+                'scheduled',
             onboardingFlow,
             queryTags,
             fieldsMap: query.fields,
@@ -5227,6 +5235,8 @@ export class AsyncQueryService extends ProjectService {
                     trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
+                        useServiceCredential:
+                            queryUsage.credentialPurpose === 'scheduled',
                         userUuid: account.user.id,
                         organizationUuid,
                         isPreviewProject,

@@ -521,8 +521,9 @@ export class UserWarehouseCredentialsModel {
         userUuid: string,
         projectUuid: string,
         userWarehouseCredentialsUuid: string,
+        trx?: Knex.Transaction,
     ) {
-        const [result] = await this.database(
+        const [result] = await (trx ?? this.database)(
             ProjectUserWarehouseCredentialPreferenceTableName,
         )
             .insert({
@@ -641,6 +642,7 @@ export class UserWarehouseCredentialsModel {
         userUuid: string,
         data: UpsertUserWarehouseCredentials,
         projectUuid?: string,
+        trx?: Knex.Transaction,
     ): Promise<string> {
         const normalized =
             UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
@@ -654,7 +656,9 @@ export class UserWarehouseCredentialsModel {
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
         }
-        const [result] = await this.database(UserWarehouseCredentialsTableName)
+        const [result] = await (trx ?? this.database)(
+            UserWarehouseCredentialsTableName,
+        )
             .insert({
                 user_uuid: userUuid,
                 name: normalized.name,

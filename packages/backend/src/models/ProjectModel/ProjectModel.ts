@@ -29,6 +29,7 @@ import {
     getLtreePathFromSlug,
     getPersonSignIn,
     GroupType,
+    hasServiceCredential,
     IdContentMapping,
     isExploreError,
     isUserManagedExplore,
@@ -971,6 +972,7 @@ export class ProjectModel {
 
     async getWarehouseCredentialSummary(
         projectUuid: string,
+        personalSignInSetupEnabled = false,
     ): Promise<WarehouseCredentialSummary> {
         const row = await this.database('warehouse_credentials')
             .innerJoin(
@@ -996,7 +998,13 @@ export class ProjectModel {
         );
         const signIn = credentials ? getPersonSignIn(credentials) : null;
         if (!credentials) return none;
-        if (!signIn) return { sharedSignIn: null, hasServiceAccount: true };
+        if (!signIn)
+            return {
+                sharedSignIn: null,
+                hasServiceAccount: personalSignInSetupEnabled
+                    ? hasServiceCredential(credentials)
+                    : true,
+            };
         const resolved = await this.getSharedSignInSubjectForToken(
             projectUuid,
             signIn.refreshToken,
@@ -1302,12 +1310,18 @@ export class ProjectModel {
         organizationUuid: string,
         data: CreateProject,
         expiresAt?: Date | null,
+        onCreated?: (
+            projectUuid: string,
+            trx: Knex.Transaction,
+        ) => Promise<void>,
     ): Promise<string> {
         return this.createWithOptionalCredentials(
             userUuid,
             organizationUuid,
             data,
             expiresAt,
+            undefined,
+            onCreated,
         );
     }
 
@@ -1317,6 +1331,10 @@ export class ProjectModel {
         data: CreateProjectOptionalCredentials,
         expiresAt?: Date | null,
         provisioningSource?: ProvisioningSource,
+        onCreated?: (
+            projectUuid: string,
+            trx: Knex.Transaction,
+        ) => Promise<void>,
     ): Promise<string> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
@@ -1414,6 +1432,7 @@ export class ProjectModel {
                 });
             }
 
+            await onCreated?.(project.project_uuid, trx);
             return project.project_uuid;
         });
     }

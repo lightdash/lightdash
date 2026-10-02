@@ -1952,6 +1952,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 false,
                 false,
                 body?.syncContent === true,
+                undefined,
+                req.account.isPatUser() || req.account.isServiceAccount(),
             );
         return {
             status: 'ok',

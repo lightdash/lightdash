@@ -3,16 +3,19 @@ import {
     Account,
     CreateOrganizationWarehouseCredentials,
     CreateWarehouseCredentials,
+    FeatureFlags,
     ForbiddenError,
     NotImplementedError,
     OpenIdIdentityIssuerType,
     OrganizationWarehouseCredentials,
     OrganizationWarehouseCredentialsSummary,
+    ParameterError,
     SnowflakeAuthenticationType,
     UpdateOrganizationWarehouseCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { BaseService } from '../../services/BaseService';
@@ -21,6 +24,7 @@ type OrganizationWarehouseCredentialsServiceArguments = {
     analytics: LightdashAnalytics;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class OrganizationWarehouseCredentialsService extends BaseService {
@@ -30,16 +34,20 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
 
     private readonly userOAuthGrantsModel: UserOAuthGrantsModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor({
         analytics,
         organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
+        featureFlagModel,
     }: OrganizationWarehouseCredentialsServiceArguments) {
         super();
         this.analytics = analytics;
         this.organizationWarehouseCredentialsModel =
             organizationWarehouseCredentialsModel;
         this.userOAuthGrantsModel = userOAuthGrantsModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private canManage(account: Account) {
@@ -143,7 +151,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
     */
     private async updateCredentialTokens<
         T extends { credentials?: CreateWarehouseCredentials },
-    >(userUuid: string, data: T): Promise<T> {
+    >(userUuid: string, organizationUuid: string, data: T): Promise<T> {
         if (!data.credentials) {
             return data;
         }
@@ -154,6 +162,18 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
             data.credentials.authenticationType ===
                 SnowflakeAuthenticationType.SSO
         ) {
+            if (
+                (
+                    await this.featureFlagModel.get({
+                        user: { organizationUuid },
+                        featureFlagId: FeatureFlags.PersonalSignInSetup,
+                    })
+                ).enabled
+            ) {
+                throw new ParameterError(
+                    'A shared connection can only use a service account. Sign in with your own account under your warehouse connections, or add a service account.',
+                );
+            }
             const refreshToken =
                 await this.userOAuthGrantsModel.getRefreshToken(
                     userUuid,
@@ -180,6 +200,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         const userUuid = account.user.id;
         const credentialsWithTokens = await this.updateCredentialTokens(
             userUuid,
+            organizationUuid,
             data,
         );
         const credentials =
@@ -223,13 +244,20 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
             );
         }
         // Also get a new refresh token when updating credentials if applicable
-        const credentialsWithTokens = await this.updateCredentialTokens(
-            userUuid,
-            {
-                ...existing,
-                ...data,
-            },
-        );
+        const keepExistingCredentials =
+            !data.credentials &&
+            (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid },
+                    featureFlagId: FeatureFlags.PersonalSignInSetup,
+                })
+            ).enabled;
+        const credentialsWithTokens = keepExistingCredentials
+            ? { ...existing, ...data }
+            : await this.updateCredentialTokens(userUuid, organizationUuid, {
+                  ...existing,
+                  ...data,
+              });
 
         const updated = await this.organizationWarehouseCredentialsModel.update(
             credentialsUuid,
