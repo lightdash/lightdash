@@ -1,5 +1,16 @@
 # Adding and operating feature flags
 
+`compile-as-refresher` is an organization scoped, default-off rollout. It lets
+an authenticated person who clicks Refresh dbt compile with their own Google,
+Snowflake or Databricks sign-in when the project has no service credential.
+Service credentials take precedence. Scheduled, CLI, CI, API-key and webhook
+compiles still require a service credential. The backend resolves the flag for
+the project's organization after the compile permission check; the frontend
+reads the same resolved flag. Console organization overrides apply on the next
+backend read and after the frontend flag query refetches. Self-hosted ENV list
+changes require an API and worker restart. User overrides are not used for this
+organization-wide credential policy.
+
 `personal-sign-in-setup` is an organization scoped rollout. It makes setup
 and CLI person sign-ins personal credentials, requires service credentials for
 shared connections, and uses service credentials for unattended work. It is off

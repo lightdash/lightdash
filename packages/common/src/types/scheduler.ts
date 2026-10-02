@@ -906,6 +906,7 @@ export type CopyPreviewContentPayload = TraceTaskBase & {
 
 export type CompileProjectPayload = TraceTaskBase & {
     createdByUserUuid: string;
+    sessionRefresh?: boolean;
     requestMethod: string;
     jobUuid: string;
     isPreview: boolean;

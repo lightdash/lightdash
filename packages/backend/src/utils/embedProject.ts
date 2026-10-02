@@ -32,6 +32,8 @@ export const pickEmbedProject = (project: Project): Project => ({
     schedulerFailureIncludeContact: false,
     schedulerFailureContactOverride: null,
     createdByUserUuid: null,
+    lastCompiledAsUserUuid: null,
+    lastCompiledAsUserName: null,
     hasDefaultUserSpaces: project.hasDefaultUserSpaces,
     projectDefaults: project.projectDefaults,
     colorPaletteUuid: project.colorPaletteUuid,

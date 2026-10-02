@@ -4319,14 +4319,37 @@ export class ProjectService extends BaseService {
             return pickEmbedProject(project);
         }
 
+        const compilerVisible = project.lastCompiledAsUserUuid
+            ? (
+                  await this.featureFlagModel.get({
+                      user: { organizationUuid: project.organizationUuid },
+                      featureFlagId: FeatureFlags.CompileAsRefresher,
+                  })
+              ).enabled
+            : false;
+        const projectWithCompilerName =
+            compilerVisible && project.lastCompiledAsUserUuid
+                ? {
+                      ...project,
+                      lastCompiledAsUserName:
+                          await this.projectModel.getLastCompiledAsUserName(
+                              project.lastCompiledAsUserUuid,
+                          ),
+                  }
+                : {
+                      ...project,
+                      lastCompiledAsUserUuid: null,
+                      lastCompiledAsUserName: null,
+                  };
+
         if (auditedAbility.cannot('update', projectSubject)) {
             return {
-                ...project,
+                ...projectWithCompilerName,
                 dbtConnection: omitDbtEnvironment(project.dbtConnection),
             };
         }
 
-        return project;
+        return projectWithCompilerName;
     }
 
     async assertAnalyticsProjectAccess(
@@ -7917,6 +7940,7 @@ export class ProjectService extends BaseService {
     private async buildAdapter(
         projectUuid: string,
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        compileAsRefresher?: { enabled: boolean; sessionRefresh: boolean },
     ): Promise<{
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         adapter: ProjectAdapter;
@@ -7926,6 +7950,7 @@ export class ProjectService extends BaseService {
         cachedWarehouse: CachedWarehouse;
         dbtVersionOption: DbtVersionOption;
         dbtPartialParse: boolean;
+        compiledAsUserUuid: string | null;
     }> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -7944,17 +7969,33 @@ export class ProjectService extends BaseService {
         const cachedWarehouseCatalog =
             await this.projectModel.getWarehouseFromCache(projectUuid);
 
+        const needsPersonalCredential = !hasServiceCredential(
+            project.warehouseConnection,
+        );
+        if (
+            compileAsRefresher?.enabled &&
+            needsPersonalCredential &&
+            !compileAsRefresher.sessionRefresh
+        ) {
+            throw new ParameterError(
+                'Add a service account to refresh on a schedule or from the CLI.',
+            );
+        }
+        let compiledAsUserUuid: string | null = null;
         let personalSnowflakeCredential = false;
         if (
-            project.warehouseConnection.requireUserCredentials &&
-            !hasServiceCredential(project.warehouseConnection) &&
+            (project.warehouseConnection.requireUserCredentials ||
+                compileAsRefresher?.enabled) &&
+            needsPersonalCredential &&
             (project.warehouseConnection.type === WarehouseTypes.BIGQUERY ||
                 project.warehouseConnection.type === WarehouseTypes.SNOWFLAKE)
         ) {
-            const { enabled } = await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.PersonalSignInSetup,
-            });
+            const { enabled } = compileAsRefresher?.enabled
+                ? { enabled: compileAsRefresher.sessionRefresh }
+                : await this.featureFlagModel.get({
+                      user,
+                      featureFlagId: FeatureFlags.PersonalSignInSetup,
+                  });
             if (enabled) {
                 const personal =
                     await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
@@ -7963,10 +8004,17 @@ export class ProjectService extends BaseService {
                         project.warehouseConnection.type,
                     );
                 if (!personal) {
+                    if (compileAsRefresher?.enabled) {
+                        throw new ParameterError(
+                            `Sign in with your own ${project.warehouseConnection.type === WarehouseTypes.BIGQUERY ? 'Google' : 'Snowflake'} account to refresh this project.`,
+                        );
+                    }
                     throw new MissingWarehouseCredentialsError(
                         'Sign in to your warehouse connection before compiling this project.',
                     );
                 }
+                if (compileAsRefresher?.enabled)
+                    compiledAsUserUuid = user.userUuid;
                 project.warehouseConnection = mergePersonalWarehouseCredentials(
                     project.warehouseConnection,
                     personal,
@@ -8074,8 +8122,9 @@ export class ProjectService extends BaseService {
                 DatabricksAuthenticationType.OAUTH_U2M
         ) {
             // For U2M OAuth, resolve refresh token from user credentials if not on project
-            let u2mRefreshToken =
-                project.warehouseConnection.refreshToken ?? undefined;
+            let u2mRefreshToken = compileAsRefresher?.enabled
+                ? undefined
+                : (project.warehouseConnection.refreshToken ?? undefined);
 
             let userCredOauthClientId: string | undefined;
             if (!u2mRefreshToken) {
@@ -8093,7 +8142,15 @@ export class ProjectService extends BaseService {
                 ) {
                     u2mRefreshToken = userCreds.credentials.refreshToken;
                     userCredOauthClientId = userCreds.credentials.oauthClientId;
+                    if (compileAsRefresher?.enabled)
+                        compiledAsUserUuid = user.userUuid;
                 }
+            }
+
+            if (!u2mRefreshToken && compileAsRefresher?.enabled) {
+                throw new ParameterError(
+                    'Sign in with your own Databricks account to refresh this project.',
+                );
             }
 
             if (u2mRefreshToken) {
@@ -8174,6 +8231,7 @@ export class ProjectService extends BaseService {
             cachedWarehouse,
             dbtVersionOption,
             dbtPartialParse,
+            compiledAsUserUuid,
         };
     }
 
@@ -12298,6 +12356,8 @@ export class ProjectService extends BaseService {
         requestMethod: RequestMethod,
         jobUuid: string | undefined,
         consume: (prepared: PreparedExploreStream) => Promise<T>,
+        compileAsRefresher?: { enabled: boolean; sessionRefresh: boolean },
+        onCredentialResolved?: (userUuid: string | null) => void,
     ): Promise<T> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -12349,7 +12409,12 @@ export class ProjectService extends BaseService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const buildResult = await this.buildAdapter(projectUuid, user);
+        const buildResult = await this.buildAdapter(
+            projectUuid,
+            { ...user, organizationUuid: project.organizationUuid },
+            compileAsRefresher,
+        );
+        onCredentialResolved?.(buildResult.compiledAsUserUuid);
         const { sshTunnel } = buildResult;
         let { adapter } = buildResult;
         // Adapters built only to read a source's manifest (git clones); destroyed in finally.
@@ -12681,6 +12746,7 @@ export class ProjectService extends BaseService {
         syncContentAfterCompile: boolean = false,
         existingJobUuid?: string,
         unattendedCredentialRequired: boolean = false,
+        sessionRefresh: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -12743,6 +12809,7 @@ export class ProjectService extends BaseService {
             validateAfterCompile,
             syncContentAfterCompile,
             userUuid: user.userUuid,
+            sessionRefresh,
         });
 
         return { jobUuid: job.jobUuid };
@@ -12752,11 +12819,20 @@ export class ProjectService extends BaseService {
         projectUuid: string,
     ): Promise<void> {
         const project = await this.projectModel.getSummary(projectUuid);
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid: project.organizationUuid },
-            featureFlagId: FeatureFlags.PersonalSignInSetup,
-        });
-        if (!enabled) return;
+        const { enabled: personalSignInSetupEnabled } =
+            await this.featureFlagModel.get({
+                user: { organizationUuid: project.organizationUuid },
+                featureFlagId: FeatureFlags.PersonalSignInSetup,
+            });
+        const compileAsRefresherEnabled = personalSignInSetupEnabled
+            ? false
+            : (
+                  await this.featureFlagModel.get({
+                      user: { organizationUuid: project.organizationUuid },
+                      featureFlagId: FeatureFlags.CompileAsRefresher,
+                  })
+              ).enabled;
+        if (!personalSignInSetupEnabled && !compileAsRefresherEnabled) return;
         const credentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
@@ -12776,6 +12852,7 @@ export class ProjectService extends BaseService {
         requestMethod: RequestMethod,
         jobUuid: string,
         afterCompile?: { stepType: JobStepType; run: () => Promise<void> },
+        sessionRefresh: boolean = false,
     ) {
         const totalStartTime = performance.now();
 
@@ -12805,6 +12882,12 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const { enabled: compileAsRefresherEnabled } =
+            await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.CompileAsRefresher,
+            });
+        let compiledAsUserUuid: string | null = null;
         const job: CreateJob = {
             jobUuid,
             jobType: JobType.COMPILE_PROJECT,
@@ -12978,6 +13061,13 @@ export class ProjectService extends BaseService {
 
                                 return result;
                             },
+                            {
+                                enabled: compileAsRefresherEnabled,
+                                sessionRefresh,
+                            },
+                            (userUuid) => {
+                                compiledAsUserUuid = userUuid;
+                            },
                         ),
                 );
 
@@ -12989,6 +13079,10 @@ export class ProjectService extends BaseService {
                     );
                 }
 
+                await this.projectModel.setLastCompiledAsUserUuid(
+                    projectUuid,
+                    compiledAsUserUuid,
+                );
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
                     jobResults: compileResult,

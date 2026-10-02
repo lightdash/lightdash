@@ -2193,6 +2193,7 @@ export class ProjectModel {
                   scheduler_failure_include_contact: boolean;
                   scheduler_failure_contact_override: string | null;
                   created_by_user_uuid: string | null;
+                  last_compiled_as_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
@@ -2219,6 +2220,7 @@ export class ProjectModel {
                   scheduler_failure_include_contact: boolean;
                   scheduler_failure_contact_override: string | null;
                   created_by_user_uuid: string | null;
+                  last_compiled_as_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
@@ -2302,6 +2304,9 @@ export class ProjectModel {
                                 .ref('created_by_user_uuid')
                                 .withSchema(ProjectTableName),
                             this.database
+                                .ref('last_compiled_as_user_uuid')
+                                .withSchema(ProjectTableName),
+                            this.database
                                 .ref('organization_warehouse_credentials_uuid')
                                 .withSchema(ProjectTableName),
                             this.database
@@ -2381,6 +2386,8 @@ export class ProjectModel {
                     schedulerFailureContactOverride:
                         project.scheduler_failure_contact_override,
                     createdByUserUuid: project.created_by_user_uuid,
+                    lastCompiledAsUserUuid: project.last_compiled_as_user_uuid,
+                    lastCompiledAsUserName: null,
                     organizationWarehouseCredentialsUuid:
                         project.organization_warehouse_credentials_uuid ??
                         undefined,
@@ -2592,6 +2599,27 @@ export class ProjectModel {
         }
     }
 
+    async setLastCompiledAsUserUuid(
+        projectUuid: string,
+        userUuid: string | null,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({ last_compiled_as_user_uuid: userUuid });
+    }
+
+    async getLastCompiledAsUserName(userUuid: string): Promise<string | null> {
+        const user = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .first<{ first_name: string; last_name: string }>([
+                'first_name',
+                'last_name',
+            ]);
+        return user
+            ? `${user.first_name} ${user.last_name}`.trim() || null
+            : null;
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
@@ -2652,6 +2680,8 @@ export class ProjectModel {
             schedulerFailureContactOverride:
                 project.schedulerFailureContactOverride,
             createdByUserUuid: project.createdByUserUuid ?? null,
+            lastCompiledAsUserUuid: project.lastCompiledAsUserUuid,
+            lastCompiledAsUserName: project.lastCompiledAsUserName,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,

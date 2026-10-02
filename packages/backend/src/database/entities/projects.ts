@@ -40,6 +40,7 @@ export type DbProject = {
     scheduler_failure_include_contact: boolean;
     scheduler_failure_contact_override: string | null;
     created_by_user_uuid: string | null;
+    last_compiled_as_user_uuid: string | null;
     has_default_user_spaces: boolean;
     project_defaults: ProjectDefaults | null;
     color_palette_uuid: string | null;
@@ -100,6 +101,7 @@ type UpdateDbProject = Partial<
         | 'provisioning_source'
         | 'agent_sql_scope'
         | 'playground_bundle_version'
+        | 'last_compiled_as_user_uuid'
     >
 >;
 

@@ -119,6 +119,8 @@ export const expectedProject: Project = {
     schedulerFailureIncludeContact: false,
     schedulerFailureContactOverride: null,
     createdByUserUuid: null,
+    lastCompiledAsUserUuid: null,
+    lastCompiledAsUserName: null,
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,
     expiresAt: null,

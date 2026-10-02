@@ -278,6 +278,7 @@ export enum FeatureFlags {
      */
     SharedSignInOwnership = 'shared-sign-in-ownership',
     PersonalSignInSetup = 'personal-sign-in-setup',
+    CompileAsRefresher = 'compile-as-refresher',
 
     /**
      * Cloud-only: let an organization send report/notification emails from

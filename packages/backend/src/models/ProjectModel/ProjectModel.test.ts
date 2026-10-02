@@ -120,10 +120,18 @@ describe('ProjectModel', () => {
     test('should get project with no sensitive properties', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
-            .response([projectMock]);
+            .response([{ ...projectMock, last_compiled_as_user_uuid: null }]);
 
         const project = await model.get(projectUuid);
-        expect(project).toEqual(expectedProject);
+        expect(project).toEqual({
+            ...expectedProject,
+            lastCompiledAsUserUuid: null,
+            lastCompiledAsUserName: null,
+            organizationWarehouseCredentialsUuid: undefined,
+            pinnedListUuid: undefined,
+            projectDefaults: undefined,
+            upstreamProjectUuid: undefined,
+        });
         expect(tracker.history.select).toHaveLength(1);
     });
     test('should get the primary dbt source identity', async () => {

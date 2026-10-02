@@ -346,6 +346,8 @@ const projectModel = {
         },
     ),
     setTableGroups: vi.fn(async () => undefined),
+    setLastCompiledAsUserUuid: vi.fn(async () => undefined),
+    getLastCompiledAsUserName: vi.fn(async () => 'Compiler Person'),
     updateProjectDefaults: vi.fn(async () => undefined),
     updateDefaultUserSpaces: vi.fn(async () => undefined),
     tryAcquireProjectLock: vi.fn(
@@ -1361,6 +1363,57 @@ describe('ProjectService', () => {
             expect(result.dbtConnection).toHaveProperty('environment', [
                 { key: 'DBT_ENV_SECRET_PASSWORD', value: 'super-secret' },
             ]);
+        });
+
+        test('shows the last personal compiler to an authorized project viewer', async () => {
+            const flaggedService = getMockedProjectService(
+                lightdashConfigMock,
+                {
+                    featureFlagModel: {
+                        get: vi.fn(
+                            async ({
+                                featureFlagId,
+                            }: {
+                                featureFlagId: string;
+                            }) => ({
+                                id: featureFlagId,
+                                enabled:
+                                    featureFlagId ===
+                                    FeatureFlags.CompileAsRefresher,
+                            }),
+                        ),
+                    } as unknown as FeatureFlagModel,
+                },
+            );
+            projectModel.get.mockResolvedValueOnce({
+                ...projectWithEnvironment,
+                lastCompiledAsUserUuid: 'compiler-user',
+            });
+
+            const result = await flaggedService.getProject(
+                projectUuid,
+                viewerAccount,
+            );
+
+            expect(projectModel.getLastCompiledAsUserName).toHaveBeenCalledWith(
+                'compiler-user',
+            );
+            expect(result.lastCompiledAsUserName).toBe('Compiler Person');
+        });
+
+        test('hides the compiler name while the flag is off', async () => {
+            projectModel.get.mockResolvedValueOnce({
+                ...projectWithEnvironment,
+                lastCompiledAsUserUuid: 'compiler-user',
+            });
+            projectModel.getLastCompiledAsUserName.mockClear();
+
+            const result = await service.getProject(projectUuid, viewerAccount);
+
+            expect(result.lastCompiledAsUserName).toBeNull();
+            expect(
+                projectModel.getLastCompiledAsUserName,
+            ).not.toHaveBeenCalled();
         });
 
         test.each([
@@ -14557,6 +14610,302 @@ describe('personal sign-in setup service requirements', () => {
             }),
         ).rejects.toThrow(
             "This embed needs a service account. Ask an admin to add one in the project's connection settings.",
+        );
+    });
+});
+
+describe('compile as refresher credentials', () => {
+    const googleProject: CreateBigqueryCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'analytics',
+        dataset: 'marts',
+        authenticationType: BigqueryAuthenticationType.SSO,
+        keyfileContents: {},
+        requireUserCredentials: true,
+        timeoutSeconds: 300,
+        priority: 'interactive',
+        retries: 3,
+        location: undefined,
+        maximumBytesBilled: undefined,
+    };
+
+    test('queues trusted session provenance, never infers it from the user UUID', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const compileUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Job', action: ['create'] },
+                { subject: 'CompileProject', action: ['manage'] },
+            ]),
+        };
+        schedulerClient.compileProject.mockClear();
+        await service.scheduleCompileProject(
+            compileUser,
+            projectSummary.projectUuid,
+            RequestMethod.WEB_APP,
+            false,
+            false,
+            false,
+            undefined,
+            false,
+            true,
+        );
+        expect(schedulerClient.compileProject).toHaveBeenCalledWith(
+            expect.objectContaining({ sessionRefresh: true }),
+        );
+        schedulerClient.compileProject.mockClear();
+        await service.scheduleCompileProject(
+            compileUser,
+            projectSummary.projectUuid,
+            RequestMethod.WEB_APP,
+        );
+        expect(schedulerClient.compileProject).toHaveBeenCalledWith(
+            expect.objectContaining({ sessionRefresh: false }),
+        );
+    });
+
+    test('requires a service credential for CLI when only the new flag is on', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.CompileAsRefresher,
+                    }),
+                ),
+            } as unknown as FeatureFlagModel,
+        });
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+            googleProject,
+        );
+        await expect(
+            service['assertServiceCredentialForUnattendedCompile'](
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow(
+            'Add a service account to refresh on a schedule or from the CLI.',
+        );
+    });
+
+    const snowflakeProject: CreateSnowflakeCredentials = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'account',
+        user: 'compiler',
+        database: 'database',
+        warehouse: 'warehouse',
+        schema: 'public',
+        authenticationType: SnowflakeAuthenticationType.SSO,
+        requireUserCredentials: true,
+    };
+
+    const build = async (
+        credentials: CreateWarehouseCredentials,
+        personal: UserWarehouseCredentialsWithSecrets | undefined,
+        enabled = true,
+        sessionRefresh = true,
+    ) => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            organizationWarehouseCredentialsUuid: 'shared-row',
+            warehouseConnection: credentials,
+        });
+        projectModel.getWarehouseFromCache.mockResolvedValueOnce(undefined);
+        const findPersonal = vi.fn(async () => personal);
+        Object.assign(service, {
+            userWarehouseCredentialsModel: {
+                findForProjectWithSecrets: findPersonal,
+            },
+        });
+        (SshTunnel as unknown as import('vitest').Mock).mockImplementationOnce(
+            class MockSshTunnel {
+                overrideCredentials: CreateWarehouseCredentials;
+
+                constructor(warehouseCredentials: CreateWarehouseCredentials) {
+                    this.overrideCredentials = warehouseCredentials;
+                }
+
+                connect = vi.fn(async () => undefined);
+
+                disconnect = vi.fn(async () => undefined);
+            } as unknown as (...args: unknown[]) => unknown,
+        );
+        vi.spyOn(
+            projectAdapterModule,
+            'projectAdapterFromConfig',
+        ).mockResolvedValueOnce({} as ProjectAdapter);
+        const result = await service['buildAdapter'](
+            projectSummary.projectUuid,
+            {
+                userUuid: user.userUuid,
+                organizationUuid: projectSummary.organizationUuid,
+            },
+            { enabled, sessionRefresh },
+        );
+        return { result, findPersonal };
+    };
+
+    test('uses a service credential before reading a personal credential', async () => {
+        const { result, findPersonal } = await build(
+            {
+                ...googleProject,
+                authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+                keyfileContents: {
+                    type: 'service_account',
+                    private_key: 'key',
+                },
+            },
+            undefined,
+        );
+        expect(result.compiledAsUserUuid).toBeNull();
+        expect(findPersonal).not.toHaveBeenCalled();
+    });
+
+    test('uses the signed-in refresher for BigQuery', async () => {
+        const { result, findPersonal } = await build(googleProject, {
+            uuid: 'personal-google',
+            credentials: {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    refresh_token: 'person',
+                },
+            },
+        } as UserWarehouseCredentialsWithSecrets);
+        expect(result.compiledAsUserUuid).toBe(user.userUuid);
+        expect(result.warehouseCredentials).toMatchObject({
+            keyfileContents: { refresh_token: 'person' },
+        });
+        expect(findPersonal).toHaveBeenCalledOnce();
+    });
+
+    test('uses the signed-in refresher for Snowflake', async () => {
+        const { result } = await build(snowflakeProject, {
+            uuid: 'personal-snowflake',
+            credentials: {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                user: 'person',
+                password: 'person-secret',
+            },
+        } as UserWarehouseCredentialsWithSecrets);
+        expect(result.compiledAsUserUuid).toBe(user.userUuid);
+        expect(result.warehouseCredentials).toMatchObject({
+            user: 'person',
+            password: 'person-secret',
+        });
+    });
+
+    test('uses only the refresher token for Databricks U2M', async () => {
+        const { refreshDatabricksOAuthToken } =
+            await import('@lightdash/warehouses');
+        (
+            refreshDatabricksOAuthToken as import('vitest').Mock
+        ).mockResolvedValueOnce({
+            accessToken: 'person-access',
+            refreshToken: 'person-rotated',
+        });
+        const { result } = await build(
+            {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
+                serverHostName: 'test.databricks.com',
+                httpPath: '/sql/warehouse',
+                database: 'db',
+                refreshToken: 'shared-person-token',
+            },
+            {
+                uuid: 'personal-databricks',
+                credentials: {
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
+                    refreshToken: 'person-token',
+                },
+            } as UserWarehouseCredentialsWithSecrets,
+        );
+        expect(refreshDatabricksOAuthToken).toHaveBeenCalledWith(
+            'test.databricks.com',
+            expect.any(String),
+            'person-token',
+            undefined,
+        );
+        expect(result.compiledAsUserUuid).toBe(user.userUuid);
+    });
+
+    test('refuses a missing personal sign-in', async () => {
+        await expect(build(googleProject, undefined)).rejects.toThrow(
+            'Sign in with your own Google account to refresh this project.',
+        );
+    });
+
+    test('refuses a non-session compile without a service credential', async () => {
+        await expect(
+            build(snowflakeProject, undefined, true, false),
+        ).rejects.toThrow(
+            'Add a service account to refresh on a schedule or from the CLI.',
+        );
+    });
+
+    test('leaves the parent path unchanged when the flag is off', async () => {
+        const { result, findPersonal } = await build(
+            {
+                ...googleProject,
+                requireUserCredentials: false,
+            },
+            undefined,
+            false,
+            false,
+        );
+        expect(result.compiledAsUserUuid).toBeNull();
+        expect(findPersonal).not.toHaveBeenCalled();
+    });
+
+    test('records the credential used after a successful compile', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.CompileAsRefresher,
+                    }),
+                ),
+            } as unknown as FeatureFlagModel,
+        });
+        const compileUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Job', action: ['create'] },
+                { subject: 'CompileProject', action: ['manage'] },
+            ]),
+        };
+        vi.spyOn(
+            service as unknown as {
+                refreshTablesAndProjectConfig: (
+                    ...args: unknown[]
+                ) => Promise<unknown>;
+            },
+            'refreshTablesAndProjectConfig',
+        ).mockImplementationOnce(async (...args: unknown[]) => {
+            (args[6] as (userUuid: string | null) => void)(user.userUuid);
+            return { indexCatalogJobUuid: 'catalog-job' };
+        });
+        projectModel.setLastCompiledAsUserUuid.mockClear();
+
+        await service.compileProject(
+            compileUser,
+            projectSummary.projectUuid,
+            RequestMethod.WEB_APP,
+            'compile-job',
+            undefined,
+            true,
+        );
+
+        expect(projectModel.setLastCompiledAsUserUuid).toHaveBeenCalledWith(
+            projectSummary.projectUuid,
+            user.userUuid,
         );
     });
 });

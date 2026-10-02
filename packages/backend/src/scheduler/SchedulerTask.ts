@@ -2900,6 +2900,7 @@ export default class SchedulerTask {
                               ),
                       }
                     : undefined,
+                payload.sessionRefresh === true,
             );
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
