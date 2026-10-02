@@ -39862,6 +39862,230 @@
                 "type": "object",
                 "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. The organization installation authorizes only\nthe project's configured repository; additional repositories require the\nlinked user's own provider access."
             },
+            "MultiCredentialAiProvider": {
+                "type": "string",
+                "enum": ["bedrock"],
+                "nullable": false
+            },
+            "AiProviderCredential": {
+                "properties": {
+                    "isDefault": {
+                        "type": "boolean"
+                    },
+                    "apiKeyHint": {
+                        "type": "string"
+                    },
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "provider": {
+                        "$ref": "#/components/schemas/MultiCredentialAiProvider"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isDefault",
+                    "apiKeyHint",
+                    "allowedModels",
+                    "region",
+                    "label",
+                    "provider",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "A named credential as exposed over the API: everything needed to identify\nand pick it, never the key itself."
+            },
+            "LegacyBedrockCredential": {
+                "properties": {
+                    "apiKeyHint": {
+                        "type": "string"
+                    },
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "region": {
+                        "type": "string"
+                    }
+                },
+                "required": ["apiKeyHint", "allowedModels", "region"],
+                "type": "object",
+                "description": "Bedrock config still held in the organization's legacy single-key blob,\nsurfaced so an organization that configured Bedrock before named credentials\nexisted does not open the page to an empty list. Adopted as a real\ncredential the first time any credential is created."
+            },
+            "UnreadableAiProviderCredential": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label", "uuid"],
+                "type": "object",
+                "description": "A credential row whose ciphertext could not be read with the current secret."
+            },
+            "AiProviderCredentialsList": {
+                "properties": {
+                    "unreadableCredentials": {
+                        "items": {
+                            "$ref": "#/components/schemas/UnreadableAiProviderCredential"
+                        },
+                        "type": "array"
+                    },
+                    "legacyBedrock": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LegacyBedrockCredential"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "credentials": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiProviderCredential"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "unreadableCredentials",
+                    "legacyBedrock",
+                    "credentials"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiProviderCredentialsList_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiProviderCredentialsList"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiProviderCredentialsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiProviderCredentialsList_"
+            },
+            "ApiSuccess__uuid-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiProviderCredentialCreatedResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__uuid-string__"
+            },
+            "CreateAiProviderCredential": {
+                "properties": {
+                    "apiKey": {
+                        "type": "string"
+                    },
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "provider": {
+                        "$ref": "#/components/schemas/MultiCredentialAiProvider"
+                    }
+                },
+                "required": [
+                    "apiKey",
+                    "allowedModels",
+                    "region",
+                    "label",
+                    "provider"
+                ],
+                "type": "object"
+            },
+            "UpdateAiProviderCredential": {
+                "properties": {
+                    "apiKey": {
+                        "type": "string"
+                    },
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectAiCredentialSelection": {
+                "properties": {
+                    "credentialUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["credentialUuid"],
+                "type": "object",
+                "description": "Which credential a project's AI features run on; null means org default."
+            },
+            "ApiSuccess_ProjectAiCredentialSelection_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectAiCredentialSelection"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiProjectAiCredentialResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ProjectAiCredentialSelection_"
+            },
             "AiOrganizationRuntimeSettings": {
                 "properties": {
                     "threadRetentionHours": {
@@ -45112,6 +45336,9 @@
             },
             "Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__": {
                 "properties": {
+                    "bedrock": {
+                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
+                    },
                     "anthropic": {
                         "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
                     },
@@ -45119,9 +45346,6 @@
                         "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
                     },
                     "openai": {
-                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
-                    },
-                    "bedrock": {
                         "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
                     }
                 },
@@ -45152,6 +45376,9 @@
             },
             "Record_ByoAiProvider.boolean_": {
                 "properties": {
+                    "bedrock": {
+                        "type": "boolean"
+                    },
                     "anthropic": {
                         "type": "boolean"
                     },
@@ -45160,12 +45387,9 @@
                     },
                     "openai": {
                         "type": "boolean"
-                    },
-                    "bedrock": {
-                        "type": "boolean"
                     }
                 },
-                "required": ["anthropic", "google", "openai", "bedrock"],
+                "required": ["bedrock", "anthropic", "google", "openai"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
@@ -45174,6 +45398,10 @@
             },
             "Record_ByoAiProvider.string-or-null_": {
                 "properties": {
+                    "bedrock": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "anthropic": {
                         "type": "string",
                         "nullable": true
@@ -45185,13 +45413,9 @@
                     "openai": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "bedrock": {
-                        "type": "string",
-                        "nullable": true
                     }
                 },
-                "required": ["anthropic", "google", "openai", "bedrock"],
+                "required": ["bedrock", "anthropic", "google", "openai"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
@@ -68855,7 +69079,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.420.0",
+        "version": "2.421.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -83695,6 +83919,355 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/ai/provider-credentials": {
+            "get": {
+                "operationId": "listAiProviderCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Retrieved AI provider credentials",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiProviderCredentialsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "createAiProviderCredential",
+                "responses": {
+                    "201": {
+                        "description": "Created AI provider credential",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiProviderCredentialCreatedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAiProviderCredential"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/provider-credentials/adopt-legacy": {
+            "post": {
+                "operationId": "adoptLegacyAiProviderCredential",
+                "responses": {
+                    "200": {
+                        "description": "Converted the legacy Bedrock configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Convert a legacy Bedrock configuration into a managed credential\n\nLets an organization that configured Bedrock before named credentials\nexisted take ownership of that configuration so it can be edited or\nremoved, without having to add a second credential first.",
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/ai/provider-credentials/{credentialUuid}": {
+            "patch": {
+                "operationId": "updateAiProviderCredential",
+                "responses": {
+                    "200": {
+                        "description": "Updated AI provider credential",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "credentialUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiProviderCredential"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "operationId": "replaceAiProviderCredential",
+                "responses": {
+                    "200": {
+                        "description": "Replaced AI provider credential",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Replace an AI provider credential\n\nFull replacement. Unlike PATCH this never reads the stored ciphertext, so\nit is how an administrator repairs a credential that can no longer be\ndecrypted. Every field is required.",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "credentialUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAiProviderCredential"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteAiProviderCredential",
+                "responses": {
+                    "200": {
+                        "description": "Deleted AI provider credential",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "credentialUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ai/provider-credentials/{credentialUuid}/default": {
+            "put": {
+                "operationId": "setDefaultAiProviderCredential",
+                "responses": {
+                    "200": {
+                        "description": "Set default AI provider credential",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "credentialUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/ai/provider-credential": {
+            "get": {
+                "operationId": "getProjectAiProviderCredential",
+                "responses": {
+                    "200": {
+                        "description": "Retrieved project AI provider credential",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectAiCredentialResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "setProjectAiProviderCredential",
+                "responses": {
+                    "200": {
+                        "description": "Updated project AI provider credential",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectAiCredentialSelection"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/aiAgents/settings": {

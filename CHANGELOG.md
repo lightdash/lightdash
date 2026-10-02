@@ -1,3 +1,10 @@
+# [2.421.0](https://github.com/lightdash/lightdash/compare/2.420.0...2.421.0) (2026-10-02)
+
+
+### Features
+
+* **ai:** API for AI provider credentials and project pinning ([#30368](https://github.com/lightdash/lightdash/issues/30368)) ([9d07ed4](https://github.com/lightdash/lightdash/commit/9d07ed45e669cee455663df99d98d7fddedecf9b)), closes [#30318](https://github.com/lightdash/lightdash/issues/30318)
+
 # [2.420.0](https://github.com/lightdash/lightdash/compare/2.419.0...2.420.0) (2026-10-02)
 
 
