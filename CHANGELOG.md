@@ -1,3 +1,10 @@
+# [2.417.0](https://github.com/lightdash/lightdash/compare/2.416.0...2.417.0) (2026-10-02)
+
+
+### Features
+
+* **documents:** store Documents as markdown with chart tags ([#30408](https://github.com/lightdash/lightdash/issues/30408)) ([4981352](https://github.com/lightdash/lightdash/commit/498135212f5ae69ec4c796fbd051a2d4d2bc49a8)), closes [#30407](https://github.com/lightdash/lightdash/issues/30407)
+
 # [2.416.0](https://github.com/lightdash/lightdash/compare/2.415.8...2.416.0) (2026-10-02)
 
 

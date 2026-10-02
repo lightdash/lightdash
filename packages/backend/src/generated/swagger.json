@@ -11180,55 +11180,30 @@
                     }
                 ]
             },
-            "DocumentCell": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "content": {
-                                "properties": {
-                                    "markdown": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["markdown"],
-                                "type": "object"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["markdown"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["content", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "content": {
-                                "$ref": "#/components/schemas/DocumentChartContent"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["chart"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["content", "type"],
-                        "type": "object"
-                    }
-                ]
+            "Record_string.DocumentChartContent_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DocumentChartContent"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DocumentCharts": {
+                "$ref": "#/components/schemas/Record_string.DocumentChartContent_",
+                "description": "Charts by id. Stored ids are sequential per Document (`c1`, `c2`, …)."
             },
             "DocumentContent": {
                 "properties": {
-                    "cells": {
-                        "items": {
-                            "$ref": "#/components/schemas/DocumentCell"
-                        },
-                        "type": "array"
+                    "charts": {
+                        "$ref": "#/components/schemas/DocumentCharts"
+                    },
+                    "markdown": {
+                        "type": "string"
                     }
                 },
-                "required": ["cells"],
-                "type": "object"
+                "required": ["charts", "markdown"],
+                "type": "object",
+                "description": "Markdown with a `<document-chart id=\"…\">` block wherever a chart sits, and\nthe charts those blocks reference. On writes, ids that are not `c<n>` are\ntemporary keys the server replaces with the next free id."
             },
             "DocumentAsCode": {
                 "allOf": [
@@ -11237,20 +11212,20 @@
                     },
                     {
                         "properties": {
-                            "content": {
-                                "$ref": "#/components/schemas/DocumentContent"
-                            },
                             "schemaVersion": {
                                 "type": "number",
-                                "enum": [1],
+                                "enum": [2],
                                 "nullable": false
                             },
                             "spaceSlug": {
                                 "type": "string"
                             }
                         },
-                        "required": ["content", "schemaVersion", "spaceSlug"],
+                        "required": ["schemaVersion", "spaceSlug"],
                         "type": "object"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DocumentContent"
                     }
                 ]
             },
@@ -15561,9 +15536,8 @@
             },
             "ExternalFetchDocumentContext": {
                 "properties": {
-                    "cellIndex": {
-                        "type": "number",
-                        "format": "double"
+                    "chartId": {
+                        "type": "string"
                     },
                     "documentVersionUuid": {
                         "$ref": "#/components/schemas/UUID"
@@ -15572,13 +15546,9 @@
                         "$ref": "#/components/schemas/UUID"
                     }
                 },
-                "required": [
-                    "cellIndex",
-                    "documentVersionUuid",
-                    "documentUuid"
-                ],
+                "required": ["chartId", "documentVersionUuid", "documentUuid"],
                 "type": "object",
-                "description": "A chart cell of a specific Document version rendering a chart type."
+                "description": "A chart of a specific Document version rendering a chart type."
             },
             "ExternalFetchRequest": {
                 "properties": {
@@ -63332,10 +63302,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiDocumentCellQueryResponse": {
+            "ApiDocumentChartQueryResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
             },
-            "ExecuteDocumentCellQueryRequest": {
+            "ExecuteDocumentChartQueryRequest": {
                 "properties": {
                     "versionUuid": {
                         "type": "string"
@@ -63460,7 +63430,7 @@
                     },
                     "schemaVersion": {
                         "type": "number",
-                        "enum": [1],
+                        "enum": [2],
                         "nullable": false
                     },
                     "versionNumber": {
@@ -63551,7 +63521,7 @@
                     },
                     "schemaVersion": {
                         "type": "number",
-                        "enum": [1],
+                        "enum": [2],
                         "nullable": false
                     },
                     "spaceUuid": {
@@ -65464,9 +65434,8 @@
             },
             "DocumentQueryReference": {
                 "properties": {
-                    "cellIndex": {
-                        "type": "number",
-                        "format": "double"
+                    "chartId": {
+                        "type": "string"
                     },
                     "versionUuid": {
                         "type": "string"
@@ -65475,7 +65444,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["cellIndex", "versionUuid", "documentUuid"],
+                "required": ["chartId", "versionUuid", "documentUuid"],
                 "type": "object"
             },
             "ExecuteAsyncQueryRequestParams": {
@@ -68886,7 +68855,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.416.0",
+        "version": "2.417.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -106331,16 +106300,16 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellIndex}/query": {
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/charts/{chartId}/query": {
             "post": {
-                "operationId": "ExecuteDocumentCellQuery",
+                "operationId": "ExecuteDocumentChartQuery",
                 "responses": {
                     "200": {
                         "description": "Ok",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiDocumentCellQueryResponse"
+                                    "$ref": "#/components/schemas/ApiDocumentChartQueryResponse"
                                 }
                             }
                         }
@@ -106377,11 +106346,10 @@
                     },
                     {
                         "in": "path",
-                        "name": "cellIndex",
+                        "name": "chartId",
                         "required": true,
                         "schema": {
-                            "format": "double",
-                            "type": "number"
+                            "type": "string"
                         }
                     }
                 ],
@@ -106390,7 +106358,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/ExecuteDocumentCellQueryRequest"
+                                "$ref": "#/components/schemas/ExecuteDocumentChartQueryRequest"
                             }
                         }
                     }

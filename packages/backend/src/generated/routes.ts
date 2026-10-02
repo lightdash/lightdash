@@ -10856,48 +10856,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentCell: {
+    'Record_string.DocumentChartContent_': {
         dataType: 'refAlias',
         type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        content: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                markdown: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                            },
-                            required: true,
-                        },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['markdown'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        content: {
-                            ref: 'DocumentChartContent',
-                            required: true,
-                        },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['chart'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DocumentChartContent' },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentCharts: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.DocumentChartContent_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DocumentContent: {
@@ -10905,11 +10876,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                cells: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'DocumentCell' },
-                    required: true,
-                },
+                charts: { ref: 'DocumentCharts', required: true },
+                markdown: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -10924,15 +10892,15 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        content: { ref: 'DocumentContent', required: true },
                         schemaVersion: {
                             dataType: 'enum',
-                            enums: [1],
+                            enums: [2],
                             required: true,
                         },
                         spaceSlug: { dataType: 'string', required: true },
                     },
                 },
+                { ref: 'DocumentContent' },
             ],
             validators: {},
         },
@@ -15151,7 +15119,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                cellIndex: { dataType: 'double', required: true },
+                chartId: { dataType: 'string', required: true },
                 documentVersionUuid: { ref: 'UUID', required: true },
                 documentUuid: { ref: 'UUID', required: true },
             },
@@ -64840,7 +64808,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiDocumentCellQueryResponse: {
+    ApiDocumentChartQueryResponse: {
         dataType: 'refAlias',
         type: {
             ref: 'ApiSuccess_ApiExecuteAsyncMetricQueryResults_',
@@ -64848,7 +64816,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ExecuteDocumentCellQueryRequest: {
+    ExecuteDocumentChartQueryRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -64952,7 +64920,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 content: { ref: 'DocumentContent', required: true },
-                schemaVersion: { dataType: 'enum', enums: [1], required: true },
+                schemaVersion: { dataType: 'enum', enums: [2], required: true },
                 versionNumber: { dataType: 'double', required: true },
                 versionUuid: { dataType: 'string', required: true },
             },
@@ -65033,7 +65001,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 content: { ref: 'DocumentContent', required: true },
-                schemaVersion: { dataType: 'enum', enums: [1], required: true },
+                schemaVersion: { dataType: 'enum', enums: [2], required: true },
                 spaceUuid: { dataType: 'string', required: true },
                 description: { dataType: 'string', required: true },
                 slug: { dataType: 'string' },
@@ -66803,7 +66771,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                cellIndex: { dataType: 'double', required: true },
+                chartId: { dataType: 'string', required: true },
                 versionUuid: { dataType: 'string', required: true },
                 documentUuid: { dataType: 'string', required: true },
             },
@@ -83529,11 +83497,11 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        cellIndex: {
+        chartId: {
             in: 'path',
-            name: 'cellIndex',
+            name: 'chartId',
             required: true,
-            dataType: 'double',
+            dataType: 'string',
         },
         documentVersionUuid: {
             in: 'query',
@@ -83543,7 +83511,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.get(
-        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/documents/:documentUuid/cells/:cellIndex/render-metadata',
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/documents/:documentUuid/charts/:chartId/render-metadata',
         ...fetchMiddlewares<RequestHandler>(AppGenerateController),
         ...fetchMiddlewares<RequestHandler>(
             AppGenerateController.prototype.getDocumentDataAppVizRenderMetadata,
@@ -83614,11 +83582,11 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        cellIndex: {
+        chartId: {
             in: 'path',
-            name: 'cellIndex',
+            name: 'chartId',
             required: true,
-            dataType: 'double',
+            dataType: 'string',
         },
         version: {
             in: 'path',
@@ -83634,7 +83602,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.get(
-        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/documents/:documentUuid/cells/:cellIndex/versions/:version/preview-token',
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/documents/:documentUuid/charts/:chartId/versions/:version/preview-token',
         ...fetchMiddlewares<RequestHandler>(AppGenerateController),
         ...fetchMiddlewares<RequestHandler>(
             AppGenerateController.prototype.getDocumentDataAppVizPreviewToken,
@@ -129183,7 +129151,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsDocumentController_executeCellQuery: Record<
+    const argsDocumentController_executeChartQuery: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -129200,27 +129168,27 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        cellIndex: {
+        chartId: {
             in: 'path',
-            name: 'cellIndex',
+            name: 'chartId',
             required: true,
-            dataType: 'double',
+            dataType: 'string',
         },
         body: {
             in: 'body',
             name: 'body',
             required: true,
-            ref: 'ExecuteDocumentCellQueryRequest',
+            ref: 'ExecuteDocumentChartQueryRequest',
         },
     };
     app.post(
-        '/api/v1/projects/:projectUuid/documents/:documentUuid/cells/:cellIndex/query',
+        '/api/v1/projects/:projectUuid/documents/:documentUuid/charts/:chartId/query',
         ...fetchMiddlewares<RequestHandler>(DocumentController),
         ...fetchMiddlewares<RequestHandler>(
-            DocumentController.prototype.executeCellQuery,
+            DocumentController.prototype.executeChartQuery,
         ),
 
-        async function DocumentController_executeCellQuery(
+        async function DocumentController_executeChartQuery(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -129230,7 +129198,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsDocumentController_executeCellQuery,
+                    args: argsDocumentController_executeChartQuery,
                     request,
                     response,
                 });
@@ -129247,7 +129215,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'executeCellQuery',
+                    methodName: 'executeChartQuery',
                     controller,
                     response,
                     next,
