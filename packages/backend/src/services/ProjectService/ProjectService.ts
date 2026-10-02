@@ -139,6 +139,7 @@ import {
     isMetric,
     isMissingBigqueryKeyfile,
     isNotNull,
+    isPeriodOverPeriodAdditionalMetric,
     isReservedParameterName,
     isSqlTableCalculation,
     isSshTunnelErrorData,
@@ -1257,6 +1258,13 @@ export class ProjectService extends BaseService {
                     metricQuery.metrics.includes(getItemId(metric)) &&
                     metric.formatOptions &&
                     metric.formatOptions.type === CustomFormatType.CUSTOM,
+            ).length,
+            periodOverPeriodMetricsCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    isPeriodOverPeriodAdditionalMetric(metric),
             ).length,
             ...countCustomDimensionsInMetricQuery(metricQuery),
             dateZoomGranularity: dateZoom?.granularity || null,
