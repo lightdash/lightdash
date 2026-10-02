@@ -33,6 +33,19 @@ export type DocumentCell =
 
 export type DocumentContent = { cells: DocumentCell[] };
 
+/** Charts by id. Stored ids are sequential per Document (`c1`, `c2`, …). */
+export type DocumentCharts = Record<string, DocumentChartContent>;
+
+/**
+ * Markdown with a `<document-chart id="…">` block wherever a chart sits, and
+ * the charts those blocks reference. On writes, ids that are not `c<n>` are
+ * temporary keys the server replaces with the next free id.
+ */
+export type DocumentMarkdownContent = {
+    markdown: string;
+    charts: DocumentCharts;
+};
+
 /** Assignable owner, independent of the immutable creator and version authors. */
 export type DocumentOwner = DashboardOwner;
 
