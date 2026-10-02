@@ -1,3 +1,10 @@
+## [2.415.1](https://github.com/lightdash/lightdash/compare/2.415.0...2.415.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ai:** match tool structured output to the text it returns ([#30373](https://github.com/lightdash/lightdash/issues/30373)) ([759b302](https://github.com/lightdash/lightdash/commit/759b3023ed6e79722a9132c89ed03cc47f92a3b7))
+
 # [2.415.0](https://github.com/lightdash/lightdash/compare/2.414.0...2.415.0) (2026-10-01)
 
 
