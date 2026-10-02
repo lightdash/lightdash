@@ -12,7 +12,8 @@ import {
     SpaceMemberRole,
     type CreateDocumentRequest,
     type Document,
-    type DocumentCell,
+    type DocumentChartContent,
+    type DocumentContent,
     type RegisteredAccount,
     type SemanticChartAsCode,
 } from '@lightdash/common';
@@ -25,10 +26,24 @@ const spaceUuid = 'document-space';
 const documentUuid = 'document-uuid';
 const baseVersionUuid = 'document-version';
 
-const markdown: DocumentCell = {
-    type: 'markdown',
-    content: { markdown: '# Findings' },
+type Block =
+    | { type: 'markdown'; markdown: string }
+    | { type: 'chart'; content: DocumentChartContent };
+type ChartBlock = Extract<Block, { type: 'chart' }>;
+
+/** Content placing the charts as c1, c2, … in block order. */
+const toContent = (blocks: Block[]): DocumentContent => {
+    const charts: DocumentContent['charts'] = {};
+    const parts = blocks.map((block) => {
+        if (block.type === 'markdown') return block.markdown;
+        const id = `c${Object.keys(charts).length + 1}`;
+        charts[id] = block.content;
+        return `<document-chart id="${id}">`;
+    });
+    return { markdown: parts.join('\n\n'), charts };
 };
+
+const markdown: Block = { type: 'markdown', markdown: '# Findings' };
 const chart: SemanticChartAsCode = {
     name: 'Orders',
     tableName: 'orders',
@@ -43,11 +58,11 @@ const chart: SemanticChartAsCode = {
     },
     chartConfig: { type: ChartType.TABLE },
 };
-const semantic: DocumentCell = {
+const semantic: ChartBlock = {
     type: 'chart',
     content: { source: 'semantic', chart },
 };
-const merge: DocumentCell = {
+const merge: ChartBlock = {
     type: 'chart',
     content: {
         source: 'merge',
@@ -83,7 +98,7 @@ describe('Document as-code chart round-trip', () => {
     test.each([semantic, merge])(
         'preserves durable $content.source charts',
         async (cell) => {
-            const content = { cells: [markdown, cell] };
+            const content = toContent([markdown, cell]);
             const service = new DocumentService({
                 spaceModel: {
                     find: vi.fn().mockResolvedValue([{ path: 'reports' }]),
@@ -94,16 +109,19 @@ describe('Document as-code chart round-trip', () => {
                 slug: 'report',
                 description: 'Description',
                 spaceUuid,
-                version: { schemaVersion: 1, content },
+                version: { schemaVersion: 2, content },
             } as Document);
             const result = await service.getAsCode(
                 {} as RegisteredAccount,
                 projectUuid,
                 'report',
             );
-            expect(result.content).toEqual(content);
+            expect(result).toMatchObject(content);
             expect(
-                parseDocumentContent(result.schemaVersion, result.content),
+                parseDocumentContent(result.schemaVersion, {
+                    markdown: result.markdown,
+                    charts: result.charts,
+                }),
             ).toEqual(content);
         },
     );
@@ -127,17 +145,17 @@ const document: Document = {
     version: {
         versionUuid: baseVersionUuid,
         versionNumber: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-15'),
-        content: { cells: [markdown] },
+        content: toContent([markdown]),
     },
 };
 const createInput: CreateDocumentRequest = {
     name: document.name,
     description: document.description,
     spaceUuid,
-    schemaVersion: 1,
+    schemaVersion: 2,
     content: document.version.content,
 };
 
@@ -248,16 +266,12 @@ const mutate = (
         case 'content':
             return service.updateContent(account, projectUuid, documentUuid, {
                 baseVersionUuid,
-                content: {
-                    cells: [
-                        { type: 'markdown', content: { markdown: 'Done' } },
-                    ],
-                },
+                content: toContent([{ type: 'markdown', markdown: 'Done' }]),
             });
         case 'replacement':
             return service.updateContent(account, projectUuid, documentUuid, {
                 baseVersionUuid,
-                content: { cells: [semantic] },
+                content: toContent([semantic]),
             });
         default:
             return assertUnreachable(mutation, 'Unknown Document mutation');
@@ -290,13 +304,13 @@ describe('DocumentService mutation analytics', () => {
         },
     );
 
-    test('counts cells by kind and never sends names or content', async () => {
+    test('counts charts by kind and never sends names or content', async () => {
         const { service, analytics, documentModel } = setup();
         documentModel.create.mockResolvedValueOnce({
             ...document,
             version: {
                 ...document.version,
-                content: { cells: [markdown, semantic, merge] },
+                content: toContent([markdown, semantic, merge]),
             },
         });
         await service.create(makeAccount(), projectUuid, createInput);
@@ -306,12 +320,12 @@ describe('DocumentService mutation analytics', () => {
             projectId: projectUuid,
             documentId: document.documentUuid,
             source: 'api',
-            schemaVersion: 1,
-            cellCount: 3,
-            markdownCellCount: 1,
-            chartCellCount: 2,
-            customChartCellCount: 0,
-            mergeChartCellCount: 1,
+            schemaVersion: 2,
+            chartCount: 2,
+            customChartCount: 0,
+            mergeChartCount: 1,
+            markdownLength: toContent([markdown, semantic, merge]).markdown
+                .length,
         });
     });
 
@@ -321,7 +335,7 @@ describe('DocumentService mutation analytics', () => {
             makeAccount(),
             projectUuid,
             documentUuid,
-            { baseVersionUuid, content: { cells: [markdown] } },
+            { baseVersionUuid, content: toContent([markdown]) },
             {
                 change: {
                     source: 'mcp',
@@ -369,7 +383,7 @@ describe('DocumentService mutations', () => {
                 version: {
                     ...document.version,
                     versionNumber: 5,
-                    content: { cells: [markdown, cell] },
+                    content: toContent([markdown, cell]),
                 },
             };
             documentModel.getBySlug.mockResolvedValue(source);
@@ -388,11 +402,11 @@ describe('DocumentService mutations', () => {
                 projectUuid,
                 createdByUserUuid: userUuid,
                 description: source.description,
-                schemaVersion: 1,
+                schemaVersion: 2,
                 content: source.version.content,
             });
             expect(source.version.versionNumber).toBe(5);
-            expect(source.version.content).toEqual({ cells: [markdown, cell] });
+            expect(source.version.content).toEqual(toContent([markdown, cell]));
             expect(documentModel.updateMetadata).not.toHaveBeenCalled();
             expect(documentModel.updateContent).not.toHaveBeenCalled();
             expect(projectService.compileQuery).toHaveBeenCalled();
@@ -500,7 +514,7 @@ describe('DocumentService mutations', () => {
                           documentUuid,
                           {
                               baseVersionUuid,
-                              content: { cells: [] },
+                              content: toContent([]),
                           },
                           options,
                       );
@@ -724,7 +738,7 @@ describe('DocumentService mutations', () => {
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
     });
 
-    test.each([{ content: { cells: [semantic] } }])(
+    test.each([{ content: toContent([semantic]) }])(
         'rejects stale base versions before chart compilation: %j',
         async (replacement) => {
             const { service, documentModel, projectService } = setup();
@@ -746,9 +760,9 @@ describe('DocumentService mutations', () => {
     );
 
     test.each([
-        { cells: [markdown, semantic, markdown] },
-        { cells: [semantic, markdown] },
-        { cells: [semantic] },
+        toContent([markdown, semantic, markdown]),
+        toContent([semantic, markdown]),
+        toContent([semantic]),
     ])(
         'does not recompile unchanged charts when replacing content with %j',
         async (content) => {
@@ -757,7 +771,7 @@ describe('DocumentService mutations', () => {
                 ...document,
                 version: {
                     ...document.version,
-                    content: { cells: [markdown, semantic] },
+                    content: toContent([markdown, semantic]),
                 },
             });
             const request = { baseVersionUuid, content };
@@ -804,7 +818,7 @@ describe('DocumentService mutations', () => {
                 ...document,
                 version: {
                     ...document.version,
-                    content: { cells: [cell, markdown] },
+                    content: toContent([cell, markdown]),
                 },
             });
             projectService.compileQuery.mockRejectedValue(
@@ -820,15 +834,10 @@ describe('DocumentService mutations', () => {
                     documentUuid,
                     {
                         baseVersionUuid,
-                        content: {
-                            cells: [
-                                {
-                                    ...markdown,
-                                    content: { markdown: '# Revised' },
-                                },
-                                cell,
-                            ],
-                        },
+                        content: toContent([
+                            { type: 'markdown', markdown: '# Revised' },
+                            cell,
+                        ]),
                     },
                 ),
             ).resolves.toMatchObject(document);
@@ -837,11 +846,11 @@ describe('DocumentService mutations', () => {
         },
     );
 
-    test('reauthorizes changed charts even at the same array position', async () => {
+    test('reauthorizes changed charts even with the same chart id', async () => {
         const { service, documentModel, projectService } = setup();
         documentModel.get.mockResolvedValue({
             ...document,
-            version: { ...document.version, content: { cells: [semantic] } },
+            version: { ...document.version, content: toContent([semantic]) },
         });
         projectService.compileQuery.mockRejectedValue(
             new ForbiddenError('No chart authoring'),
@@ -849,23 +858,21 @@ describe('DocumentService mutations', () => {
         await expect(
             service.updateContent(makeAccount(), projectUuid, documentUuid, {
                 baseVersionUuid,
-                content: {
-                    cells: [
-                        {
-                            type: 'chart',
-                            content: {
-                                source: 'semantic',
-                                chart: {
-                                    ...chart,
-                                    metricQuery: {
-                                        ...chart.metricQuery,
-                                        metrics: ['orders_secret'],
-                                    },
+                content: toContent([
+                    {
+                        type: 'chart',
+                        content: {
+                            source: 'semantic',
+                            chart: {
+                                ...chart,
+                                metricQuery: {
+                                    ...chart.metricQuery,
+                                    metrics: ['orders_secret'],
                                 },
                             },
                         },
-                    ],
-                },
+                    },
+                ]),
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(projectService.compileQuery).toHaveBeenCalledOnce();
@@ -878,21 +885,19 @@ describe('DocumentService mutations', () => {
             const { service, documentModel, projectService } = setup();
             documentModel.get.mockResolvedValue({
                 ...document,
-                version: { ...document.version, content: { cells: [cell] } },
+                version: { ...document.version, content: toContent([cell]) },
             });
             const request = {
                 baseVersionUuid,
-                content: {
-                    cells: [
-                        {
-                            ...cell,
-                            content: {
-                                ...cell.content,
-                                title: 'Updated section',
-                            },
-                        },
-                    ],
-                },
+                content: toContent([
+                    {
+                        ...cell,
+                        content: {
+                            ...cell.content,
+                            title: 'Updated section',
+                        } as unknown as DocumentChartContent,
+                    },
+                ]),
             };
             await expect(
                 service.updateContent(
@@ -911,7 +916,7 @@ describe('DocumentService mutations', () => {
     test('compiles semantic chart definitions through the canonical project compiler before persistence', async () => {
         const { service, projectService, documentModel } = setup();
         const account = makeAccount();
-        const input = { ...createInput, content: { cells: [semantic] } };
+        const input = { ...createInput, content: toContent([semantic]) };
 
         await service.create(account, projectUuid, input);
 
@@ -950,7 +955,7 @@ describe('DocumentService mutations', () => {
             await expect(
                 service.create(makeAccount(), projectUuid, {
                     ...createInput,
-                    content: { cells: [semantic] },
+                    content: toContent([semantic]),
                 }),
             ).rejects.toBe(error);
             expect(documentModel.create).not.toHaveBeenCalled();
@@ -977,7 +982,7 @@ describe('DocumentService mutations', () => {
             await expect(
                 service.create(makeAccount(), projectUuid, {
                     ...createInput,
-                    content: { cells: [semantic] },
+                    content: toContent([semantic]),
                 }),
             ).rejects.toThrow(ParameterError);
             await expect(
@@ -987,7 +992,7 @@ describe('DocumentService mutations', () => {
                     documentUuid,
                     {
                         baseVersionUuid,
-                        content: { cells: [semantic] },
+                        content: toContent([semantic]),
                     },
                 ),
             ).rejects.toThrow(expectedMessage);
@@ -1012,13 +1017,13 @@ describe('DocumentService mutations', () => {
                 missingParameterReferences: new Set<string>(),
             };
         });
-        const cells = Array.from({ length: 9 }, () => ({
+        const blocks = Array.from({ length: 9 }, () => ({
             ...semantic,
         }));
 
         await service.create(makeAccount(), projectUuid, {
             ...createInput,
-            content: { cells },
+            content: toContent(blocks),
         });
 
         expect(projectService.compileQuery).toHaveBeenCalledTimes(9);
@@ -1033,7 +1038,7 @@ describe('DocumentService mutations', () => {
         await expect(
             service.updateContent(makeAccount(), projectUuid, documentUuid, {
                 baseVersionUuid,
-                content: { cells: [semantic] },
+                content: toContent([semantic]),
             }),
         ).rejects.toBe(error);
         expect(documentModel.updateContent).not.toHaveBeenCalled();
@@ -1045,7 +1050,7 @@ describe('DocumentService mutations', () => {
 
         await service.create(account, projectUuid, {
             ...createInput,
-            content: { cells: [merge] },
+            content: toContent([merge]),
         });
 
         expect(projectService.compileMergeQuery).toHaveBeenCalledWith(
@@ -1085,7 +1090,7 @@ describe('DocumentService mutations', () => {
                 operation === 'create'
                     ? service.create(makeAccount(), projectUuid, {
                           ...createInput,
-                          content: { cells: [merge] },
+                          content: toContent([merge]),
                       })
                     : service.updateContent(
                           makeAccount(),
@@ -1093,7 +1098,7 @@ describe('DocumentService mutations', () => {
                           documentUuid,
                           {
                               baseVersionUuid,
-                              content: { cells: [merge] },
+                              content: toContent([merge]),
                           },
                       );
             await expect(request).rejects.toThrow(
@@ -1115,7 +1120,7 @@ describe('DocumentService mutations', () => {
         await expect(
             service.create(makeAccount(), projectUuid, {
                 ...createInput,
-                content: { cells: [merge] },
+                content: toContent([merge]),
             }),
         ).rejects.toThrow('Join key does not exist');
         expect(documentModel.create).not.toHaveBeenCalled();
@@ -1123,13 +1128,24 @@ describe('DocumentService mutations', () => {
 
     test.each([
         { ...createInput, schemaVersion: 4 },
-        { ...createInput, schemaVersion: 2 },
+        { ...createInput, schemaVersion: 1 },
         { ...createInput, schemaVersion: 3 },
+        { ...createInput, content: { cells: [] } },
         {
             ...createInput,
-            content: {
-                cells: [{ ...semantic, content: { source: 'sql', chart } }],
-            },
+            content: { markdown: '<document-chart id="c1">', charts: {} },
+        },
+        {
+            ...createInput,
+            content: toContent([
+                {
+                    type: 'chart',
+                    content: {
+                        source: 'sql',
+                        chart,
+                    } as unknown as DocumentChartContent,
+                },
+            ]),
         },
     ])(
         'rejects unsupported schema or chart source before compilation',
@@ -1151,8 +1167,7 @@ describe('DocumentService mutations', () => {
 
     test('rejects chart tableName and exploreName mismatch before compiling', async () => {
         const { service, projectService, documentModel } = setup();
-        const cell: DocumentCell = {
-            ...semantic,
+        const cell: Block = {
             type: 'chart',
             content: {
                 source: 'semantic',
@@ -1163,7 +1178,7 @@ describe('DocumentService mutations', () => {
         await expect(
             service.create(makeAccount(), projectUuid, {
                 ...createInput,
-                content: { cells: [cell] },
+                content: toContent([cell]),
             }),
         ).rejects.toThrow('tableName must match its exploreName');
         expect(projectService.compileQuery).not.toHaveBeenCalled();

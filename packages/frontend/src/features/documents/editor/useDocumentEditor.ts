@@ -3,13 +3,13 @@ import { useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { useMemo, useRef } from 'react';
 import { hydrateContentMentions } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
 import { type ReportHeading } from '../presentation/DocumentReportLayout';
-import { getDocumentCells } from './documentCells';
 import { buildDocumentContent } from './documentContent';
 import {
     createDocumentEditorExtensions,
     type DocumentEditorExtensionOptions,
 } from './documentEditorExtensions';
 import { areHeadingsEqual, getDocumentHeadings } from './DocumentHeadingIds';
+import { getDocumentContent } from './documentSerialization';
 
 const NO_HEADINGS: ReportHeading[] = [];
 
@@ -25,7 +25,7 @@ const useDocumentHeadings = (editor: Editor | null) => {
 
 const loadDocument = (editor: Editor, document: Document) => {
     editor.commands.setContent(
-        buildDocumentContent(editor, document.version.content.cells),
+        buildDocumentContent(editor, document.version.content),
         { emitUpdate: false },
     );
     hydrateContentMentions(editor);
@@ -54,7 +54,7 @@ export const useDocumentReader = (document: Document) => {
 
 type EditingCallbacks = NonNullable<DocumentEditorExtensionOptions['editing']>;
 
-/** An editable editor seeded from a saved version; `dirty` compares the serialised cells. */
+/** An editable editor seeded from a saved version; `dirty` compares the serialised content. */
 export const useDocumentEditor = (
     document: Document,
     callbacks: EditingCallbacks,
@@ -99,7 +99,7 @@ export const useDocumentEditor = (
             content: '',
             onCreate: ({ editor: created }) => {
                 loadDocument(created, document);
-                baseline.current = JSON.stringify(getDocumentCells(created));
+                baseline.current = JSON.stringify(getDocumentContent(created));
             },
         },
         [document.version.versionUuid, extensions],
@@ -109,7 +109,7 @@ export const useDocumentEditor = (
         // A destroyed editor (StrictMode remount) has no extension storage
         selector: ({ editor: current }) =>
             current && !current.isDestroyed
-                ? JSON.stringify(getDocumentCells(current))
+                ? JSON.stringify(getDocumentContent(current))
                 : '',
     });
     return {

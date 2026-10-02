@@ -10,6 +10,8 @@ import {
     getContentAsCodePathFromLtreePath,
     getDataAppVizChartConfigErrors,
     getLtreePathFromContentAsCodePath,
+    mapDocumentCharts,
+    matchDocumentChartKeys,
     NotFoundError,
     ParameterError,
     parseDocumentAsCode,
@@ -21,7 +23,6 @@ import {
     type Document,
     type DocumentAsCode,
     type DocumentAsCodeList,
-    type DocumentCell,
     type DocumentChartContent,
     type DocumentContent,
     type DocumentList,
@@ -40,8 +41,8 @@ import { isEqual } from 'lodash';
 import pLimit from 'p-limit';
 import { validate as isUuid } from 'uuid';
 import type {
-    DocumentCellCounts,
     DocumentChangeSource,
+    DocumentChartCounts,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -338,7 +339,7 @@ export class DocumentService extends BaseService {
                 documentId: created.documentUuid,
                 source: change.source,
                 schemaVersion: created.version.schemaVersion,
-                ...DocumentService.getCellCounts(created.version.content),
+                ...DocumentService.getChartCounts(created.version.content),
                 ...DocumentService.getAiProperties(change),
             },
         });
@@ -454,11 +455,10 @@ export class DocumentService extends BaseService {
             );
         }
         // Reads add portable slugs; compare against the stored form.
-        const previous = {
-            cells: document.version.content.cells.map(
-                DocumentService.withoutDataAppVizSlug,
-            ),
-        };
+        const previous = mapDocumentCharts(
+            document.version.content,
+            DocumentService.withoutDataAppVizSlug,
+        );
         const content = await this.resolveCustomCharts(
             projectUuid,
             parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content),
@@ -481,28 +481,26 @@ export class DocumentService extends BaseService {
                 source: change.source,
                 change: 'content',
                 versionNumber: updated.version.versionNumber,
-                ...DocumentService.getCellCounts(updated.version.content),
+                ...DocumentService.getChartCounts(updated.version.content),
                 ...DocumentService.getAiProperties(change),
             },
         });
         return this.authorizeDocument(account, updated);
     }
 
-    private static getCellCounts(content: DocumentContent): DocumentCellCounts {
-        const charts = content.cells.flatMap((cell) =>
-            cell.type === 'chart' ? [cell.content] : [],
-        );
+    private static getChartCounts(
+        content: DocumentContent,
+    ): DocumentChartCounts {
+        const charts = Object.values(content.charts);
         return {
-            cellCount: content.cells.length,
-            markdownCellCount: content.cells.length - charts.length,
-            chartCellCount: charts.length,
-            customChartCellCount: charts.filter(
+            chartCount: charts.length,
+            customChartCount: charts.filter(
                 ({ chart }) =>
                     chart.chartConfig.type === ChartType.DATA_APP_VIZ,
             ).length,
-            mergeChartCellCount: charts.filter(
-                ({ source }) => source === 'merge',
-            ).length,
+            mergeChartCount: charts.filter(({ source }) => source === 'merge')
+                .length,
+            markdownLength: content.markdown.length,
         };
     }
 
@@ -662,26 +660,27 @@ export class DocumentService extends BaseService {
         content: DocumentContent,
         previous?: DocumentContent,
     ): Promise<DocumentContent> {
-        const previousCharts =
-            previous?.cells.filter((cell) => cell.type === 'chart') ?? [];
-        const cells = await Promise.all(
-            content.cells.map(
-                async (cell, cellIndex): Promise<DocumentCell> => {
+        const previousCharts = Object.values(previous?.charts ?? {});
+        const charts = await Promise.all(
+            Object.entries(content.charts).map(
+                async ([id, chartContent]): Promise<
+                    [string, DocumentChartContent]
+                > => {
                     if (
-                        cell.type !== 'chart' ||
-                        cell.content.chart.chartConfig.type !==
-                            ChartType.DATA_APP_VIZ
+                        chartContent.chart.chartConfig.type !==
+                        ChartType.DATA_APP_VIZ
                     ) {
-                        return cell;
+                        return [id, chartContent];
                     }
-                    const stored = DocumentService.withoutDataAppVizSlug(cell);
-                    const unchanged = previousCharts.find((previousCell) =>
-                        isEqual(previousCell, stored),
+                    const stored =
+                        DocumentService.withoutDataAppVizSlug(chartContent);
+                    const unchanged = previousCharts.find((previousChart) =>
+                        isEqual(previousChart, stored),
                     );
                     if (unchanged) {
-                        return unchanged;
+                        return [id, unchanged];
                     }
-                    const { chart } = cell.content;
+                    const { chart } = chartContent;
                     const { chartConfig, vizSchema } =
                         await resolveDataAppVizBinding({
                             appModel: this.dependencies.appModel,
@@ -696,7 +695,7 @@ export class DocumentService extends BaseService {
                         vizSchema === undefined
                     ) {
                         throw new ParameterError(
-                            `Custom chart in cell ${cellIndex} must reference a chart type`,
+                            `Custom chart "${id}" must reference a chart type`,
                         );
                     }
                     const errors = getDataAppVizChartConfigErrors(
@@ -713,45 +712,41 @@ export class DocumentService extends BaseService {
                     );
                     if (errors.length > 0) {
                         throw new ParameterError(
-                            `Invalid custom chart in cell ${cellIndex}: ${errors.join(' ')}`,
+                            `Invalid custom chart "${id}": ${errors.join(' ')}`,
                         );
                     }
-                    return {
-                        ...cell,
-                        content: {
-                            ...cell.content,
+                    return [
+                        id,
+                        {
+                            ...chartContent,
                             chart: { ...chart, chartConfig },
-                        },
-                    } as DocumentCell;
+                        } as DocumentChartContent,
+                    ];
                 },
             ),
         );
-        return { ...content, cells };
+        return { ...content, charts: Object.fromEntries(charts) };
     }
 
-    /** The stored form of a chart cell: bindings are kept by uuid only. */
-    private static withoutDataAppVizSlug(cell: DocumentCell): DocumentCell {
+    /** The stored form of a chart: bindings are kept by uuid only. */
+    private static withoutDataAppVizSlug(
+        content: DocumentChartContent,
+    ): DocumentChartContent {
         if (
-            cell.type !== 'chart' ||
-            cell.content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
-            cell.content.chart.chartConfig.config?.dataAppVizUuid ===
-                undefined ||
-            cell.content.chart.chartConfig.config.dataAppVizSlug === undefined
+            content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            content.chart.chartConfig.config?.dataAppVizUuid === undefined ||
+            content.chart.chartConfig.config.dataAppVizSlug === undefined
         ) {
-            return cell;
+            return content;
         }
-        const { dataAppVizSlug, ...config } =
-            cell.content.chart.chartConfig.config;
+        const { dataAppVizSlug, ...config } = content.chart.chartConfig.config;
         return {
-            ...cell,
-            content: {
-                ...cell.content,
-                chart: {
-                    ...cell.content.chart,
-                    chartConfig: { ...cell.content.chart.chartConfig, config },
-                },
+            ...content,
+            chart: {
+                ...content.chart,
+                chartConfig: { ...content.chart.chartConfig, config },
             },
-        } as DocumentCell;
+        } as DocumentChartContent;
     }
 
     /**
@@ -764,11 +759,10 @@ export class DocumentService extends BaseService {
         content: DocumentContent,
         { portable = false }: { portable?: boolean } = {},
     ): Promise<DocumentContent> {
-        const uuids = content.cells.flatMap((cell) =>
-            cell.type === 'chart' &&
-            cell.content.chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
-            cell.content.chart.chartConfig.config?.dataAppVizUuid
-                ? [cell.content.chart.chartConfig.config.dataAppVizUuid]
+        const uuids = Object.values(content.charts).flatMap(({ chart }) =>
+            chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+            chart.chartConfig.config?.dataAppVizUuid
+                ? [chart.chartConfig.config.dataAppVizUuid]
                 : [],
         );
         if (uuids.length === 0) {
@@ -780,42 +774,30 @@ export class DocumentService extends BaseService {
             { dataAppVizsFilter: 'only' },
         );
         const slugByUuid = new Map(rows.map((row) => [row.app_id, row.slug]));
-        return {
-            ...content,
-            cells: content.cells.map((cell) => {
-                if (
-                    cell.type !== 'chart' ||
-                    cell.content.chart.chartConfig.type !==
-                        ChartType.DATA_APP_VIZ ||
-                    cell.content.chart.chartConfig.config?.dataAppVizUuid ===
-                        undefined
-                ) {
-                    return cell;
-                }
-                const { dataAppVizUuid, ...rest } =
-                    cell.content.chart.chartConfig.config;
-                const dataAppVizSlug = slugByUuid.get(dataAppVizUuid);
-                if (dataAppVizSlug === undefined) {
-                    return cell;
-                }
-                const config = portable
-                    ? { ...rest, dataAppVizSlug }
-                    : { ...rest, dataAppVizUuid, dataAppVizSlug };
-                return {
-                    ...cell,
-                    content: {
-                        ...cell.content,
-                        chart: {
-                            ...cell.content.chart,
-                            chartConfig: {
-                                ...cell.content.chart.chartConfig,
-                                config,
-                            },
-                        },
-                    },
-                } as DocumentCell;
-            }),
-        };
+        return mapDocumentCharts(content, (chartContent) => {
+            const { chart } = chartContent;
+            if (
+                chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+                chart.chartConfig.config?.dataAppVizUuid === undefined
+            ) {
+                return chartContent;
+            }
+            const { dataAppVizUuid, ...rest } = chart.chartConfig.config;
+            const dataAppVizSlug = slugByUuid.get(dataAppVizUuid);
+            if (dataAppVizSlug === undefined) {
+                return chartContent;
+            }
+            const config = portable
+                ? { ...rest, dataAppVizSlug }
+                : { ...rest, dataAppVizUuid, dataAppVizSlug };
+            return {
+                ...chartContent,
+                chart: {
+                    ...chart,
+                    chartConfig: { ...chart.chartConfig, config },
+                },
+            } as DocumentChartContent;
+        });
     }
 
     private async validateCharts(
@@ -826,45 +808,41 @@ export class DocumentService extends BaseService {
     ): Promise<void> {
         parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content);
         const limit = pLimit(MAX_CONCURRENT_CHART_VALIDATIONS);
+        const previousCharts = Object.values(previous?.charts ?? {});
         // Compile only changed charts: narrative edits must not require chart authoring capabilities.
         await Promise.all(
-            content.cells.map((cell, cellIndex) =>
+            Object.entries(content.charts).map(([chartId, chartContent]) =>
                 limit(async () => {
-                    if (cell.type !== 'chart') {
-                        return;
-                    }
                     if (
-                        previous?.cells.some(
-                            (previousCell) =>
-                                previousCell.type === 'chart' &&
-                                isEqual(previousCell.content, cell.content),
+                        previousCharts.some((previousChart) =>
+                            isEqual(previousChart, chartContent),
                         )
                     ) {
                         return;
                     }
-                    const { chart } = cell.content;
+                    const { chart } = chartContent;
                     if (chart.tableName !== chart.metricQuery.exploreName) {
                         throw new ParameterError(
-                            `Chart tableName must match its exploreName in cell ${cellIndex}`,
+                            `Chart tableName must match its exploreName in chart "${chartId}"`,
                         );
                     }
                     const metricQuery = {
                         ...chart.metricQuery,
                         filters: normalizeFilterIds(chart.metricQuery.filters),
                     };
-                    if (cell.content.source === 'merge') {
+                    if (chartContent.source === 'merge') {
                         // Merge compilation returns join refusals but not tolerant leg compilation errors.
                         await Promise.all(
                             [
                                 metricQuery,
-                                ...cell.content.chart.merge.sources
+                                ...chartContent.chart.merge.sources
                                     .filter((source) => source.kind === 'query')
                                     .map((source) => source.metricQuery),
                             ].map((query) =>
                                 this.validateQuery({
                                     account,
                                     projectUuid,
-                                    cellIndex,
+                                    chartId,
                                     metricQuery: query,
                                     parameters: chart.parameters,
                                 }),
@@ -877,7 +855,7 @@ export class DocumentService extends BaseService {
                                     projectUuid,
                                     mergeQuery: buildMergeQueryFromSaved(
                                         metricQuery,
-                                        cell.content.chart.merge,
+                                        chartContent.chart.merge,
                                     ),
                                     parameters: chart.parameters,
                                     userAttributeOverrides: {},
@@ -885,7 +863,7 @@ export class DocumentService extends BaseService {
                             );
                         if (compiled.errors.length > 0) {
                             throw new ParameterError(
-                                `Invalid chart in cell ${cellIndex}: ${compiled.errors.map((error) => error.message).join('; ')}`,
+                                `Invalid chart "${chartId}": ${compiled.errors.map((error) => error.message).join('; ')}`,
                             );
                         }
                         return;
@@ -893,7 +871,7 @@ export class DocumentService extends BaseService {
                     await this.validateQuery({
                         account,
                         projectUuid,
-                        cellIndex,
+                        chartId,
                         metricQuery,
                         parameters: chart.parameters,
                     });
@@ -905,13 +883,13 @@ export class DocumentService extends BaseService {
     private async validateQuery({
         account,
         projectUuid,
-        cellIndex,
+        chartId,
         metricQuery,
         parameters,
     }: {
         account: RegisteredAccount;
         projectUuid: string;
-        cellIndex: number;
+        chartId: string;
         metricQuery: MetricQuery;
         parameters: ParametersValuesMap | undefined;
     }): Promise<void> {
@@ -924,12 +902,12 @@ export class DocumentService extends BaseService {
         });
         if (compiled.compilationErrors.length > 0) {
             throw new ParameterError(
-                `Invalid chart in cell ${cellIndex}: ${compiled.compilationErrors.join('; ')}`,
+                `Invalid chart "${chartId}": ${compiled.compilationErrors.join('; ')}`,
             );
         }
         if (compiled.missingParameterReferences.size > 0) {
             throw new ParameterError(
-                `Missing parameters in cell ${cellIndex}: ${[...compiled.missingParameterReferences].join(', ')}`,
+                `Missing parameters in chart "${chartId}": ${[...compiled.missingParameterReferences].join(', ')}`,
             );
         }
     }
@@ -1205,33 +1183,30 @@ export class DocumentService extends BaseService {
     }
 
     /**
-     * A chart cell of a saved Document version. Any version can be read by
-     * anyone who can view the Document: the version pins the exact cell.
+     * A chart of a saved Document version. Any version can be read by anyone
+     * who can view the Document: the version pins the exact chart.
      */
-    async getChartCell(
+    async getChart(
         account: RegisteredAccount,
         projectUuid: UUID,
         reference: DocumentQueryReference,
     ): Promise<DocumentChartContent> {
-        if (
-            !Number.isSafeInteger(reference.cellIndex) ||
-            reference.cellIndex < 0
-        ) {
-            throw new ParameterError(
-                'Document cell index must be a non-negative integer',
-            );
-        }
         const document = await this.getVersion(
             account,
             projectUuid,
             reference.documentUuid,
             reference.versionUuid,
         );
-        const cell = document.version.content.cells[reference.cellIndex];
-        if (!cell || cell.type !== 'chart') {
-            throw new NotFoundError('Document chart cell not found');
+        const chart = Object.hasOwn(
+            document.version.content.charts,
+            reference.chartId,
+        )
+            ? document.version.content.charts[reference.chartId]
+            : undefined;
+        if (!chart) {
+            throw new NotFoundError('Document chart not found');
         }
-        return cell.content;
+        return chart;
     }
 
     async getAsCode(
@@ -1336,13 +1311,15 @@ export class DocumentService extends BaseService {
                 description: desired.description,
                 spaceUuid: space.uuid,
                 schemaVersion: desired.schemaVersion,
-                content: desired.content,
+                content: { markdown: desired.markdown, charts: desired.charts },
             });
             return PromotionAction.CREATE;
         }
 
         const current = await this.toAsCode(existing);
-        if (isEqual(current, desired)) {
+        // Charts re-sent under a temporary key match their stored id
+        const matched = matchDocumentChartKeys(desired, current);
+        if (isEqual(current, { ...desired, ...matched })) {
             return PromotionAction.NO_CHANGES;
         }
         await this.assertCanUpdate(account, existing);
@@ -1351,14 +1328,20 @@ export class DocumentService extends BaseService {
         if (isMove) {
             await this.assertCanMoveInto(account, existing, space.uuid);
         }
-        if (!isEqual(current.content, desired.content)) {
+        if (
+            current.markdown !== matched.markdown ||
+            !isEqual(current.charts, matched.charts)
+        ) {
             await this.updateContent(
                 account,
                 projectUuid,
                 existing.documentUuid,
                 {
                     baseVersionUuid: existing.version.versionUuid,
-                    content: desired.content,
+                    content: {
+                        markdown: desired.markdown,
+                        charts: desired.charts,
+                    },
                 },
             );
         }
@@ -1483,11 +1466,11 @@ export class DocumentService extends BaseService {
             description: document.description,
             spaceSlug: getContentAsCodePathFromLtreePath(space.path),
             schemaVersion: document.version.schemaVersion,
-            content: await this.withDataAppVizSlugs(
+            ...(await this.withDataAppVizSlugs(
                 document.projectUuid,
                 document.version.content,
                 { portable: true },
-            ),
+            )),
         };
     }
 

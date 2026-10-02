@@ -34,15 +34,15 @@ import { EventName } from '../../types/Events';
 import DocumentByline from './DocumentByline';
 import DocumentPageLayout from './DocumentPageLayout';
 import {
-    getDocumentCells,
-    getTopLevelInsertPosition,
-} from './editor/documentCells';
-import {
     DOCUMENT_CHART_NODE,
     isEditableChart,
     type DocumentChartAttributes,
 } from './editor/documentChartNode';
 import { DocumentEditorProvider } from './editor/DocumentEditorContext';
+import {
+    getDocumentContent,
+    getTopLevelInsertPosition,
+} from './editor/documentSerialization';
 import { useDocumentEditor } from './editor/useDocumentEditor';
 import { useTopDropZone } from './editor/useTopDropZone';
 import { useTopGapClick } from './editor/useTopGapClick';
@@ -125,7 +125,7 @@ const DocumentEditor = ({
     // The Edit button unmounts on entry, so place focus deliberately: an
     // empty document is ready to type into, otherwise Cancel takes Edit's spot
     const cancelRef = useRef<HTMLButtonElement>(null);
-    const startsEmpty = document.version.content.cells.length === 0;
+    const startsEmpty = document.version.content.markdown.trim() === '';
     useEffect(() => {
         if (!editor) {
             return undefined;
@@ -187,7 +187,7 @@ const DocumentEditor = ({
             if (contentDirty) {
                 await update.mutateAsync({
                     baseVersionUuid: document.version.versionUuid,
-                    content: { cells: getDocumentCells(editor) },
+                    content: getDocumentContent(editor),
                 });
             }
             onClose();
@@ -200,11 +200,16 @@ const DocumentEditor = ({
         if (!editor || !chartEditor) {
             return;
         }
-        const attrs: DocumentChartAttributes = {
-            content: { source: 'semantic', chart },
-            sourceIndex: null,
-        };
+        const content = { source: 'semantic' as const, chart };
         if (chartEditor.mode === 'edit') {
+            const edited = editor.state.doc.nodeAt(chartEditor.position);
+            const attrs: DocumentChartAttributes = {
+                content,
+                chartId:
+                    (edited?.attrs as DocumentChartAttributes | undefined)
+                        ?.chartId ?? null,
+                isSaved: false,
+            };
             editor
                 .chain()
                 .focus()
@@ -222,7 +227,14 @@ const DocumentEditor = ({
                         editor.state.doc,
                         chartEditor.position ?? editor.state.selection.to,
                     ),
-                    { type: DOCUMENT_CHART_NODE, attrs },
+                    {
+                        type: DOCUMENT_CHART_NODE,
+                        attrs: {
+                            content,
+                            chartId: null,
+                            isSaved: false,
+                        } satisfies DocumentChartAttributes,
+                    },
                 )
                 .run();
         }

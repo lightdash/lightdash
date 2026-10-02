@@ -7,7 +7,7 @@ import {
     SpaceMemberRole,
     type DataAppVizSchema,
     type Document,
-    type DocumentCell,
+    type DocumentChartContent,
     type DocumentContent,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -31,27 +31,38 @@ const vizSchema = {
     colorPalette: null,
 } as unknown as DataAppVizSchema;
 
-const customChart = (config: Record<string, unknown>): DocumentCell =>
+const customChart = (config: Record<string, unknown>): DocumentChartContent =>
     ({
-        type: 'chart',
-        content: {
-            source: 'semantic',
-            chart: {
-                name: 'Orders',
-                tableName: 'orders',
-                metricQuery: {
-                    exploreName: 'orders',
-                    dimensions: ['orders_status'],
-                    metrics: ['orders_count'],
-                    filters: {},
-                    sorts: [],
-                    limit: 100,
-                    tableCalculations: [],
-                },
-                chartConfig: { type: ChartType.DATA_APP_VIZ, config },
+        source: 'semantic',
+        chart: {
+            name: 'Orders',
+            tableName: 'orders',
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                filters: {},
+                sorts: [],
+                limit: 100,
+                tableCalculations: [],
             },
+            chartConfig: { type: ChartType.DATA_APP_VIZ, config },
         },
-    }) as unknown as DocumentCell;
+    }) as unknown as DocumentChartContent;
+
+/** Content placing the given charts as c1, c2, … after optional text. */
+const withCharts = (
+    charts: DocumentChartContent[],
+    text?: string,
+): DocumentContent => ({
+    markdown: [
+        ...(text ? [text] : []),
+        ...charts.map((_, index) => `<document-chart id="c${index + 1}">`),
+    ].join('\n\n'),
+    charts: Object.fromEntries(
+        charts.map((chart, index) => [`c${index + 1}`, chart]),
+    ),
+});
 
 const binding = {
     fieldMapping: { category: 'orders_status', value: 'orders_count' },
@@ -62,11 +73,6 @@ const stored = customChart({
     dataAppVizUuid: vizUuid,
     dataAppVizVersion: 3,
 });
-const markdown: DocumentCell = {
-    type: 'markdown',
-    content: { markdown: 'Findings' },
-};
-
 const makeDocument = (content: DocumentContent): Document => ({
     pinnedListUuid: null,
     createdBy: null,
@@ -85,7 +91,7 @@ const makeDocument = (content: DocumentContent): Document => ({
     version: {
         versionUuid: baseVersionUuid,
         versionNumber: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-15'),
         content,
@@ -115,7 +121,7 @@ const account = {
     isServiceAccount: () => false,
 } as unknown as RegisteredAccount;
 
-const setup = (existing: DocumentContent = { cells: [markdown] }) => {
+const setup = (existing: DocumentContent = withCharts([], 'Findings')) => {
     const documentModel = {
         get: vi.fn().mockResolvedValue(makeDocument(existing)),
         getBySlug: vi.fn().mockResolvedValue(makeDocument(existing)),
@@ -191,13 +197,13 @@ const setup = (existing: DocumentContent = { cells: [markdown] }) => {
     return { service, documentModel, appModel, projectService };
 };
 
-const create = (service: DocumentService, cells: DocumentCell[]) =>
+const create = (service: DocumentService, charts: DocumentChartContent[]) =>
     service.create(account, projectUuid, {
         name: 'Review',
         description: '',
         spaceUuid,
-        schemaVersion: 1,
-        content: { cells },
+        schemaVersion: 2,
+        content: withCharts(charts),
     });
 
 describe('DocumentService custom chart types', () => {
@@ -206,11 +212,11 @@ describe('DocumentService custom chart types', () => {
         const created = await create(service, [
             customChart({ ...binding, dataAppVizSlug: vizSlug }),
         ]);
-        expect(documentModel.create.mock.calls[0][0].content).toEqual({
-            cells: [stored],
-        });
+        expect(documentModel.create.mock.calls[0][0].content).toEqual(
+            withCharts([stored]),
+        );
         // Reads carry the portable slug next to the uuid.
-        expect(created.version.content.cells[0]).toEqual(
+        expect(created.version.content.charts.c1).toEqual(
             customChart({
                 ...binding,
                 dataAppVizUuid: vizUuid,
@@ -230,9 +236,9 @@ describe('DocumentService custom chart types', () => {
             }),
         ]);
         expect(appModel.getVersion).toHaveBeenCalledWith(vizUuid, 3);
-        expect(documentModel.create.mock.calls[0][0].content).toEqual({
-            cells: [stored],
-        });
+        expect(documentModel.create.mock.calls[0][0].content).toEqual(
+            withCharts([stored]),
+        );
     });
 
     test('rejects an unknown slug', async () => {
@@ -318,53 +324,45 @@ describe('DocumentService custom chart types', () => {
     });
 
     test('narrative edits keep a stored chart even after its chart type is gone', async () => {
-        const { service, documentModel, appModel, projectService } = setup({
-            cells: [markdown, stored],
-        });
+        const { service, documentModel, appModel, projectService } = setup(
+            withCharts([stored], 'Findings'),
+        );
         appModel.findAppsByUuids.mockResolvedValue([]);
         appModel.getVersion.mockResolvedValue(null);
         await service.updateContent(account, projectUuid, documentUuid, {
             baseVersionUuid,
-            content: {
-                cells: [
-                    { type: 'markdown', content: { markdown: 'Updated' } },
-                    stored,
-                ],
-            },
+            content: withCharts([stored], 'Updated'),
         });
-        expect(documentModel.updateContent.mock.calls[0][2].content).toEqual({
-            cells: [
-                { type: 'markdown', content: { markdown: 'Updated' } },
-                stored,
-            ],
-        });
+        expect(documentModel.updateContent.mock.calls[0][2].content).toEqual(
+            withCharts([stored], 'Updated'),
+        );
         expect(projectService.compileQuery).not.toHaveBeenCalled();
         expect(appModel.getVersion).not.toHaveBeenCalled();
     });
 
     test('a read-back chart with its slug round-trips without revalidation', async () => {
-        const { service, documentModel, projectService } = setup({
-            cells: [stored],
-        });
+        const { service, documentModel, projectService } = setup(
+            withCharts([stored]),
+        );
         const current = await service.get(account, projectUuid, documentUuid);
         await service.updateContent(account, projectUuid, documentUuid, {
             baseVersionUuid,
             content: current.version.content,
         });
-        expect(documentModel.updateContent.mock.calls[0][2].content).toEqual({
-            cells: [stored],
-        });
+        expect(documentModel.updateContent.mock.calls[0][2].content).toEqual(
+            withCharts([stored]),
+        );
         expect(projectService.compileQuery).not.toHaveBeenCalled();
     });
 
     test('exports the portable slug without the project-specific uuid', async () => {
-        const { service } = setup({ cells: [stored] });
+        const { service } = setup(withCharts([stored]));
         const asCode = await service.getAsCode(
             account,
             projectUuid,
             documentUuid,
         );
-        expect(asCode.content.cells[0]).toEqual(
+        expect(asCode.charts.c1).toEqual(
             customChart({
                 ...binding,
                 dataAppVizVersion: 3,
@@ -374,13 +372,13 @@ describe('DocumentService custom chart types', () => {
     });
 
     test('keeps the uuid of a chart type deleted since', async () => {
-        const { service, appModel } = setup({ cells: [stored] });
+        const { service, appModel } = setup(withCharts([stored]));
         appModel.findAppsByUuids.mockResolvedValue([]);
         const asCode = await service.getAsCode(
             account,
             projectUuid,
             documentUuid,
         );
-        expect(asCode.content.cells[0]).toEqual(stored);
+        expect(asCode.charts.c1).toEqual(stored);
     });
 });

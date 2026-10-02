@@ -1,21 +1,21 @@
 import {
     getDocumentRuntimeChartConfig,
-    type DocumentCell,
+    type DocumentChartContent,
 } from '@lightdash/common';
 import { useMemo, type ReactNode } from 'react';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import DocumentChartExploreButton from './DocumentChartExploreButton';
 import DocumentChartVisualization from './DocumentChartVisualization';
-import { useDocumentCellQuery } from './useDocument';
+import { useDocumentChartQuery } from './useDocument';
 
 type Props = {
     projectUuid: string;
     spaceUuid: string;
     documentUuid: string;
     versionUuid: string;
-    cellIndex: number;
-    cell: Extract<DocumentCell, { type: 'chart' }>;
+    chartId: string;
+    content: DocumentChartContent;
     showTitle?: boolean;
     /** Replaces the Explore button, e.g. with editing controls. */
     actions?: ReactNode;
@@ -26,23 +26,23 @@ const DocumentChart = ({
     spaceUuid,
     documentUuid,
     versionUuid,
-    cellIndex,
-    cell,
+    chartId,
+    content,
     showTitle = false,
     actions,
 }: Props) => {
-    const { chart } = cell.content;
+    const { chart } = content;
     const authoringEnabled = useContentAuthoringEnabled();
     const { canViewExplore } = useContextMenuPermissions({ projectUuid });
-    const query = useDocumentCellQuery(
+    const query = useDocumentChartQuery(
         projectUuid,
         documentUuid,
         versionUuid,
-        cellIndex,
+        chartId,
     );
     const renderTarget = useMemo(
-        () => ({ documentUuid, versionUuid, cellIndex }),
-        [documentUuid, versionUuid, cellIndex],
+        () => ({ documentUuid, versionUuid, chartId }),
+        [documentUuid, versionUuid, chartId],
     );
     return (
         <DocumentChartVisualization
@@ -54,7 +54,7 @@ const DocumentChart = ({
             renderTarget={renderTarget}
             actions={
                 actions ??
-                (cell.content.source === 'semantic' &&
+                (content.source === 'semantic' &&
                 authoringEnabled &&
                 canViewExplore &&
                 query.data &&

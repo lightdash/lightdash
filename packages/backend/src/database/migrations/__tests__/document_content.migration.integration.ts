@@ -61,14 +61,7 @@ describe('Document content PostgreSQL integration', () => {
             name: `Content integration ${randomUUID()}`,
             description: 'Metadata only',
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            content: {
-                cells: [
-                    {
-                        type: 'markdown',
-                        content: { markdown: 'Body must not be projected' },
-                    },
-                ],
-            },
+            content: { markdown: 'Body must not be projected', charts: {} },
         });
         documentUuid = document.documentUuid;
         contentModel = new ContentModel({ database: transaction });
@@ -135,7 +128,7 @@ describe('Document content PostgreSQL integration', () => {
             name: `Earlier deletion ${randomUUID()}`,
             description: '',
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            content: { cells: [] },
+            content: { markdown: '', charts: {} },
         });
         const oldDeletedAt = new Date();
         await transaction('documents')
@@ -233,7 +226,7 @@ describe('Document content PostgreSQL integration', () => {
             name: 'Nested Document',
             description: '',
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            content: { cells: [] },
+            content: { markdown: '', charts: {} },
         });
         await spaces.softDelete(child.uuid, SEED_ORG_1_ADMIN.user_uuid);
         await spaces.softDelete(spaceUuid, SEED_ORG_1_ADMIN.user_uuid);
@@ -336,14 +329,7 @@ describe('Document content PostgreSQL integration', () => {
             name: 'A direct-only union fixture',
             description: '',
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            content: {
-                cells: [
-                    {
-                        type: 'markdown',
-                        content: { markdown: 'Private content' },
-                    },
-                ],
-            },
+            content: { markdown: 'Private content', charts: {} },
         });
         const filters = {
             projectUuids: [SEED_PROJECT.project_uuid],

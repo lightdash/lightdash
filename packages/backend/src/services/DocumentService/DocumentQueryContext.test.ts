@@ -3,7 +3,6 @@ import {
     ForbiddenError,
     MergeJoinType,
     NotFoundError,
-    ParameterError,
     type Document,
     type MetricQuery,
     type RegisteredAccount,
@@ -17,7 +16,7 @@ const projectUuid = 'project';
 const reference = {
     documentUuid: 'document',
     versionUuid: 'version',
-    cellIndex: 0,
+    chartId: 'c1',
 };
 const query: MetricQuery = {
     exploreName: 'orders',
@@ -40,69 +39,61 @@ const document = {
     version: {
         versionUuid: reference.versionUuid,
         content: {
-            cells: [
-                {
-                    type: 'chart',
-                    content: {
-                        source: 'semantic',
-                        chart,
-                    },
-                },
-            ],
+            markdown: '<document-chart id="c1">',
+            charts: { c1: { source: 'semantic', chart } },
         },
     },
-} as Document;
+} as unknown as Document;
 
-const setup = (savedDocument = document, cellIndex = reference.cellIndex) => {
+const setup = (savedDocument = document, chartId = reference.chartId) => {
     const getVersion = vi.fn().mockResolvedValue(savedDocument);
     const authorize = () =>
         DocumentQueryContext.authorize({
             documentService: {
                 getVersion,
-                getChartCell: DocumentService.prototype.getChartCell,
+                getChart: DocumentService.prototype.getChart,
             } as unknown as DocumentService,
             account,
             projectUuid,
-            reference: { ...reference, cellIndex },
+            reference: { ...reference, chartId },
             sourceRowCap: 1000,
         });
     return { getVersion, authorize };
 };
 
 describe('DocumentQueryContext', () => {
-    test.each([-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY])(
-        'rejects invalid cell index %s',
-        async (cellIndex) => {
-            await expect(
-                setup(document, cellIndex).authorize(),
-            ).rejects.toThrow(ParameterError);
+    test.each(['c2', '0', '', 'toString', '__proto__'])(
+        'rejects unknown chart id %j',
+        async (chartId) => {
+            await expect(setup(document, chartId).authorize()).rejects.toThrow(
+                NotFoundError,
+            );
         },
     );
 
-    test('rejects an out-of-bounds index', async () => {
-        await expect(setup(document, 1).authorize()).rejects.toThrow(
-            NotFoundError,
-        );
-    });
-
-    test('addresses cells by their zero-based array position', async () => {
+    test('addresses charts by id, not position', async () => {
         const saved: Document = {
             ...document,
             version: {
                 ...document.version,
                 content: {
-                    cells: [
-                        { type: 'markdown', content: { markdown: '# Intro' } },
-                        ...document.version.content.cells,
-                    ],
+                    markdown:
+                        '# Intro\n\n<document-chart id="c3">\n\n<document-chart id="c1">',
+                    charts: {
+                        c3: {
+                            source: 'semantic',
+                            chart: {
+                                ...chart,
+                                metricQuery: { ...query, limit: 5 },
+                            },
+                        },
+                        ...document.version.content.charts,
+                    },
                 },
             },
         };
-        await expect(setup(saved, 0).authorize()).rejects.toThrow(
-            NotFoundError,
-        );
-        const context = await setup(saved, 1).authorize();
-        expect(context.reference.cellIndex).toBe(1);
+        const context = await setup(saved, 'c1').authorize();
+        expect(context.reference.chartId).toBe('c1');
         expect(context.metricQuery).toMatchObject(query);
     });
 
@@ -178,26 +169,13 @@ describe('DocumentQueryContext', () => {
         );
     });
 
-    test('requires a chart cell in the referenced version', async () => {
-        await expect(
-            setup({
-                ...document,
-                version: { ...document.version, content: { cells: [] } },
-            }).authorize(),
-        ).rejects.toThrow(NotFoundError);
+    test('requires the chart in the referenced version', async () => {
         await expect(
             setup({
                 ...document,
                 version: {
                     ...document.version,
-                    content: {
-                        cells: [
-                            {
-                                type: 'markdown',
-                                content: { markdown: 'text' },
-                            },
-                        ],
-                    },
+                    content: { markdown: 'text', charts: {} },
                 },
             }).authorize(),
         ).rejects.toThrow(NotFoundError);
@@ -223,39 +201,37 @@ describe('DocumentQueryContext', () => {
             version: {
                 ...document.version,
                 content: {
-                    cells: [
-                        {
-                            type: 'chart',
-                            content: {
-                                source: 'merge',
-                                chart: {
-                                    ...chart,
-                                    merge: {
-                                        primarySourceId: 'a',
-                                        sources: [
-                                            { id: 'a', kind: 'chart' },
-                                            {
-                                                id: 'b',
-                                                kind: 'query',
-                                                metricQuery: sourceQuery,
+                    markdown: '<document-chart id="c1">',
+                    charts: {
+                        c1: {
+                            source: 'merge',
+                            chart: {
+                                ...chart,
+                                merge: {
+                                    primarySourceId: 'a',
+                                    sources: [
+                                        { id: 'a', kind: 'chart' },
+                                        {
+                                            id: 'b',
+                                            kind: 'query',
+                                            metricQuery: sourceQuery,
+                                        },
+                                    ],
+                                    joinKey: [
+                                        {
+                                            name: 'status',
+                                            fieldIdBySourceId: {
+                                                a: 'orders_status',
+                                                b: 'orders_status',
                                             },
-                                        ],
-                                        joinKey: [
-                                            {
-                                                name: 'status',
-                                                fieldIdBySourceId: {
-                                                    a: 'orders_status',
-                                                    b: 'orders_status',
-                                                },
-                                            },
-                                        ],
-                                        joinType: MergeJoinType.FULL,
-                                        tableCalculations: [],
-                                    },
+                                        },
+                                    ],
+                                    joinType: MergeJoinType.FULL,
+                                    tableCalculations: [],
                                 },
                             },
                         },
-                    ],
+                    },
                 },
             },
         };

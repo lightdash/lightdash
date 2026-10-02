@@ -24,23 +24,23 @@ export const useDocument = (
         retry: false,
     });
 
-export const useDocumentCellQuery = (
+export const useDocumentChartQuery = (
     projectUuid: string,
     documentUuid: string,
     versionUuid: string,
-    cellIndex: number,
+    chartId: string,
 ) =>
     useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         queryKey: [
-            'document-cell-query',
+            'document-chart-query',
             projectUuid,
             documentUuid,
             versionUuid,
-            cellIndex,
+            chartId,
         ],
         queryFn: ({ signal }) =>
             lightdashApi<ApiExecuteAsyncMetricQueryResults>({
-                url: `/projects/${projectUuid}/documents/${documentUuid}/cells/${cellIndex}/query`,
+                url: `/projects/${projectUuid}/documents/${documentUuid}/charts/${encodeURIComponent(chartId)}/query`,
                 method: 'POST',
                 body: JSON.stringify({ versionUuid }),
                 signal,

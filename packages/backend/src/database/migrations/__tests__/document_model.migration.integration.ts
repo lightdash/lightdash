@@ -1,4 +1,5 @@
 import {
+    ChartType,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     getUserAvatarUrl,
@@ -22,6 +23,7 @@ import {
 } from '../20260916100000_create_document_access_tables';
 import { up as provenanceUp } from '../20260916110000_add_document_space_deletion_provenance';
 import { up as ownerUp } from '../20260930150000_add_document_owner_user_uuid_to_documents';
+import { up as markdownUp } from '../20261002090000_store_documents_as_markdown_with_chart_tags';
 
 describe('DocumentModel PostgreSQL integration', () => {
     let database: Knex;
@@ -75,6 +77,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         await up(transaction);
         await provenanceUp(transaction);
         await ownerUp(transaction);
+        await markdownUp(transaction);
         model = new DocumentModel({ database: transaction });
         const space = await transaction('spaces')
             .join('projects', 'projects.project_id', 'spaces.project_id')
@@ -89,16 +92,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             spaceUuid: space.space_uuid,
             name: `Document ${randomUUID()}`,
             description: 'A durable report',
-            content: {
-                cells: [
-                    {
-                        type: 'markdown',
-                        content: {
-                            markdown: '# Report',
-                        },
-                    },
-                ],
-            },
+            content: { markdown: '# Report', charts: {} },
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
         };
     });
@@ -721,14 +715,7 @@ describe('DocumentModel PostgreSQL integration', () => {
 
     test('whole-content replacement preserves history and rejects stale writes', async () => {
         const document = await model.create(input);
-        const replacement = {
-            cells: [
-                {
-                    type: 'markdown' as const,
-                    content: { markdown: '# Replacement' },
-                },
-            ],
-        };
+        const replacement = { markdown: '# Replacement', charts: {} };
         const request = {
             expectedSpaceUuid: input.spaceUuid,
             baseVersionUuid: document.version.versionUuid,
@@ -756,50 +743,86 @@ describe('DocumentModel PostgreSQL integration', () => {
             {
                 ...request,
                 baseVersionUuid: updated.version.versionUuid,
-                content: { cells: [] },
+                content: { markdown: '', charts: {} },
             },
             SEED_ORG_1_ADMIN.user_uuid,
         );
-        expect(cleared.version.content.cells).toEqual([]);
+        expect(cleared.version.content).toEqual({ markdown: '', charts: {} });
         expect(cleared.version.versionNumber).toBe(3);
         const versions = await transaction(DocumentVersionsTableName)
-            .select('content')
+            .select('markdown', 'chart_data')
             .orderBy('version_number');
-        expect(versions.map((version) => version.content)).toEqual([
-            input.content,
-            replacement,
-            { cells: [] },
-        ]);
+        expect(
+            versions.map(({ markdown, chart_data }) => ({
+                markdown,
+                charts: chart_data,
+            })),
+        ).toEqual([input.content, replacement, { markdown: '', charts: {} }]);
     });
 
-    test('persists duplicate cells and replacement order without generating IDs', async () => {
-        const original = input.content.cells[0];
-        const ending = {
-            type: 'markdown' as const,
-            content: { markdown: '# Conclusion' },
+    test('assigns sequential chart ids from temporary keys and never reuses one', async () => {
+        const chart = {
+            source: 'semantic' as const,
+            chart: {
+                name: 'Orders',
+                tableName: 'orders',
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_count'],
+                    filters: {},
+                    sorts: [],
+                    limit: 100,
+                    tableCalculations: [],
+                },
+                chartConfig: { type: ChartType.TABLE },
+            },
         };
         const document = await model.create({
             ...input,
-            content: { cells: [original, original, ending] },
+            content: {
+                markdown:
+                    '# Report\n\n<document-chart id="first">\n\n<document-chart id="second">',
+                charts: { first: chart, second: chart, unplaced: chart },
+            },
         });
-        const replacement = { cells: [ending, original, original] };
+        expect(document.version.content).toEqual({
+            markdown:
+                '# Report\n\n<document-chart id="c1">\n\n<document-chart id="c2">',
+            charts: { c1: chart, c2: chart },
+        });
+        // Removing c2 and adding a different chart hands out c3, never c2 again.
+        const added = { ...chart, chart: { ...chart.chart, name: 'Added' } };
         const updated = await model.updateContent(
             input.projectUuid,
             document.documentUuid,
             {
                 expectedSpaceUuid: input.spaceUuid,
                 baseVersionUuid: document.version.versionUuid,
-                content: replacement,
+                content: {
+                    markdown:
+                        '<document-chart id="added">\n\n<document-chart id="c1">',
+                    charts: { added, c1: chart },
+                },
             },
             SEED_ORG_1_ADMIN.user_uuid,
         );
-        expect(updated.version.content).toEqual(replacement);
+        expect(updated.version.content).toEqual({
+            markdown: '<document-chart id="c3">\n\n<document-chart id="c1">',
+            charts: { c3: added, c1: chart },
+        });
+        const [row] = await transaction(DocumentsTableName)
+            .where('document_uuid', document.documentUuid)
+            .select('next_chart_number');
+        expect(row.next_chart_number).toBe(4);
         const versions = await transaction(DocumentVersionsTableName).orderBy(
             'version_number',
         );
-        expect(versions.map((version) => version.content)).toEqual([
-            { cells: [original, original, ending] },
-            replacement,
+        expect(
+            versions.map(({ chart_data }) => Object.keys(chart_data as object)),
+        ).toEqual([
+            ['c1', 'c2'],
+            ['c1', 'c3'],
         ]);
     });
 
@@ -812,13 +835,8 @@ describe('DocumentModel PostgreSQL integration', () => {
                 expectedSpaceUuid: input.spaceUuid,
                 baseVersionUuid: document.version.versionUuid,
                 content: {
-                    cells: [
-                        ...input.content.cells,
-                        {
-                            type: 'markdown',
-                            content: { markdown: 'Done' },
-                        },
-                    ],
+                    markdown: `${input.content.markdown}\n\nDone`,
+                    charts: {},
                 },
             },
             SEED_ORG_1_ADMIN.user_uuid,
@@ -827,10 +845,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         expect(updated.version.versionUuid).not.toBe(
             document.version.versionUuid,
         );
-        expect(updated.version.content.cells).toEqual([
-            ...input.content.cells,
-            { type: 'markdown', content: { markdown: 'Done' } },
-        ]);
+        expect(updated.version.content.markdown).toBe('# Report\n\nDone');
         expect(updated.version.createdByUserUuid).toBe(
             SEED_ORG_1_ADMIN.user_uuid,
         );
@@ -838,7 +853,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             'version_number',
         );
         expect(versions).toHaveLength(2);
-        expect(versions[0].content).toEqual(input.content);
+        expect(versions[0].markdown).toEqual(input.content.markdown);
     });
 
     test('invalid replacement content does not append a version', async () => {
@@ -851,15 +866,8 @@ describe('DocumentModel PostgreSQL integration', () => {
                     expectedSpaceUuid: input.spaceUuid,
                     baseVersionUuid: document.version.versionUuid,
                     content: {
-                        cells: [
-                            ...input.content.cells,
-                            {
-                                type: 'markdown',
-                                content: {
-                                    markdown: null as unknown as string,
-                                },
-                            },
-                        ],
+                        markdown: null as unknown as string,
+                        charts: {},
                     },
                 },
                 SEED_ORG_1_ADMIN.user_uuid,
@@ -880,7 +888,7 @@ describe('DocumentModel PostgreSQL integration', () => {
                 {
                     expectedSpaceUuid: input.spaceUuid,
                     baseVersionUuid: randomUUID(),
-                    content: { cells: [] },
+                    content: { markdown: '', charts: {} },
                 },
                 SEED_ORG_1_ADMIN.user_uuid,
             ),
@@ -998,7 +1006,7 @@ describe('DocumentModel PostgreSQL integration', () => {
                           {
                               expectedSpaceUuid: document.spaceUuid,
                               baseVersionUuid: document.version.versionUuid,
-                              content: { cells: [] },
+                              content: { markdown: '', charts: {} },
                           },
                           SEED_ORG_1_ADMIN.user_uuid,
                       )
@@ -1088,7 +1096,7 @@ describe('DocumentModel PostgreSQL integration', () => {
                     {
                         expectedSpaceUuid: input.spaceUuid,
                         baseVersionUuid: document.version.versionUuid,
-                        content: { cells: [] },
+                        content: { markdown: '', charts: {} },
                     },
                     SEED_ORG_1_ADMIN.user_uuid,
                 ),
@@ -1145,15 +1153,8 @@ describe('DocumentModel PostgreSQL integration', () => {
                             expectedSpaceUuid: input.spaceUuid,
                             baseVersionUuid: document.version.versionUuid,
                             content: {
-                                cells: [
-                                    ...input.content.cells,
-                                    {
-                                        type: 'markdown',
-                                        content: {
-                                            markdown: `Writer ${index}`,
-                                        },
-                                    },
-                                ],
+                                markdown: `Writer ${index}`,
+                                charts: {},
                             },
                         },
                         SEED_ORG_1_ADMIN.user_uuid,
@@ -1206,12 +1207,12 @@ describe('DocumentModel PostgreSQL integration', () => {
                 document.documentUuid,
             );
             expect(persisted.version.versionNumber).toBe(2);
-            expect(persisted.version.content.cells).toHaveLength(2);
+            expect(persisted.version.content.markdown).toMatch(/^Writer /);
             const versions = await firstConnection(
                 DocumentVersionsTableName,
             ).orderBy('version_number');
             expect(versions).toHaveLength(2);
-            expect(versions[0].content).toEqual(input.content);
+            expect(versions[0].markdown).toEqual(input.content.markdown);
         } finally {
             await Promise.all([
                 firstConnection.destroy(),
@@ -1252,7 +1253,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             {
                 expectedSpaceUuid: input.spaceUuid,
                 baseVersionUuid: document.version.versionUuid,
-                content: { cells: [] },
+                content: { markdown: '', charts: {} },
             },
             editorUuid,
         );
@@ -1290,14 +1291,18 @@ describe('DocumentModel PostgreSQL integration', () => {
         const document = await model.create(input);
         expect(document.version).toMatchObject({
             versionNumber: 1,
-            schemaVersion: 1,
+            schemaVersion: 2,
             content: input.content,
         });
         expect(
             await transaction(DocumentVersionsTableName)
                 .where('document_version_uuid', document.version.versionUuid)
                 .first(),
-        ).toMatchObject({ schema_version: 1, content: input.content });
+        ).toMatchObject({
+            schema_version: 2,
+            markdown: input.content.markdown,
+            chart_data: input.content.charts,
+        });
         expect(
             await model.get(input.projectUuid, document.documentUuid),
         ).toEqual(document);
@@ -1323,8 +1328,9 @@ describe('DocumentModel PostgreSQL integration', () => {
         await transaction(DocumentVersionsTableName).insert({
             document_id: row.document_id,
             version_number: 2,
-            schema_version: 1,
-            content: { cells: [] },
+            schema_version: 2,
+            markdown: '',
+            chart_data: JSON.stringify({}),
             created_by_user_uuid: null,
         });
         const latest = await model.get(
@@ -1332,7 +1338,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             document.documentUuid,
         );
         expect(latest.version.versionNumber).toBe(2);
-        expect(latest.version.content).toEqual({ cells: [] });
+        expect(latest.version.content).toEqual({ markdown: '', charts: {} });
     });
 
     test('lists version history newest first with authors and pages', async () => {
@@ -1352,7 +1358,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             {
                 expectedSpaceUuid: input.spaceUuid,
                 baseVersionUuid: first.version.versionUuid,
-                content: { cells: [] },
+                content: { markdown: '', charts: {} },
             },
             editorUuid,
         );
@@ -1362,7 +1368,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             {
                 expectedSpaceUuid: input.spaceUuid,
                 baseVersionUuid: second.version.versionUuid,
-                content: { cells: [] },
+                content: { markdown: '', charts: {} },
             },
             leaverUuid,
         );
@@ -1406,7 +1412,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             {
                 expectedSpaceUuid: input.spaceUuid,
                 baseVersionUuid: first.version.versionUuid,
-                content: { cells: [] },
+                content: { markdown: '', charts: {} },
             },
             SEED_ORG_1_ADMIN.user_uuid,
         );
@@ -1496,21 +1502,13 @@ describe('DocumentModel PostgreSQL integration', () => {
         await expect(model.create(input)).rejects.toThrow('Space not found');
     });
 
-    test('rejects invalid cells before creating identity or version rows', async () => {
+    test('rejects invalid content before creating identity or version rows', async () => {
         await expect(
             model.create({
                 ...input,
                 content: {
-                    cells: [
-                        {
-                            type: 'markdown',
-                            content: { markdown: null as unknown as string },
-                        },
-                        {
-                            type: 'markdown',
-                            content: { markdown: 'two' },
-                        },
-                    ],
+                    markdown: '<document-chart id="missing">',
+                    charts: {},
                 },
             }),
         ).rejects.toThrow();
@@ -1531,12 +1529,58 @@ describe('DocumentModel PostgreSQL integration', () => {
             document_id: row.document_id,
             version_number: 2,
             schema_version: 99,
-            content: { cells: [] },
+            markdown: '',
+            chart_data: JSON.stringify({}),
             created_by_user_uuid: null,
         });
         await expect(
             model.get(input.projectUuid, document.documentUuid),
         ).rejects.toThrow();
+    });
+
+    test('reads a version written as cells by the previous release', async () => {
+        const document = await model.create(input);
+        const row = await transaction(DocumentsTableName)
+            .where('document_uuid', document.documentUuid)
+            .first();
+        if (!row) {
+            throw new Error('Document missing');
+        }
+        const chart = {
+            source: 'semantic',
+            chart: {
+                name: 'Orders',
+                tableName: 'orders',
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_count'],
+                    filters: {},
+                    sorts: [],
+                    limit: 100,
+                    tableCalculations: [],
+                },
+                chartConfig: { type: 'table' },
+            },
+        };
+        await transaction.raw(
+            `INSERT INTO document_versions (document_id, version_number, schema_version, content)
+             VALUES (?, 2, 1, ?::jsonb)`,
+            [
+                row.document_id,
+                JSON.stringify({
+                    cells: [
+                        { type: 'markdown', content: { markdown: '# Old' } },
+                        { type: 'chart', content: chart },
+                    ],
+                }),
+            ],
+        );
+        const read = await model.get(input.projectUuid, document.documentUuid);
+        expect(read.version.content).toEqual({
+            markdown: '# Old\n\n<document-chart id="c1">',
+            charts: { c1: chart },
+        });
     });
 
     test('deleting an author preserves identity and versions', async () => {
@@ -1654,8 +1698,9 @@ describe('DocumentModel PostgreSQL integration', () => {
                 await savepoint(DocumentVersionsTableName).insert({
                     document_id: row.document_id,
                     version_number: 1,
-                    schema_version: 1,
-                    content: input.content,
+                    schema_version: 2,
+                    markdown: input.content.markdown,
+                    chart_data: JSON.stringify(input.content.charts),
                     created_by_user_uuid: null,
                 });
             }),

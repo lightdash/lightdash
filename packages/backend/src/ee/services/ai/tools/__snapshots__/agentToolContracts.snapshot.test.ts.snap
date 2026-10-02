@@ -11723,7 +11723,7 @@ Parameters:
                   "properties": {
                     "content": {
                       "additionalProperties": {},
-                      "description": "Document as code JSON (schema version 1), exactly as shown in \`result\`.",
+                      "description": "Document as code JSON (schema version 2), exactly as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
                       },

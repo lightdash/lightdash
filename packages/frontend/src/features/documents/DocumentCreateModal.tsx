@@ -54,8 +54,8 @@ const DocumentCreateModal = ({
                 name: values.name.trim(),
                 description: values.description.trim(),
                 spaceUuid: selectedSpaceUuid,
-                schemaVersion: 1,
-                content: { cells: [] },
+                schemaVersion: 2,
+                content: { markdown: '', charts: {} },
             },
             {
                 onSuccess: (document) => {

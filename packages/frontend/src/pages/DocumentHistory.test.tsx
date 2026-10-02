@@ -55,8 +55,8 @@ const versionOf = (
 ): Document['version'] => ({
     versionUuid: `version-${versionNumber}`,
     versionNumber,
-    schemaVersion: 1,
-    content: { cells: [{ type: 'markdown', content: { markdown } }] },
+    schemaVersion: 2,
+    content: { markdown, charts: {} },
     createdAt: new Date(`2026-09-1${versionNumber}T10:00:00`),
     createdByUserUuid: author.userUuid,
 });

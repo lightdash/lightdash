@@ -58,34 +58,27 @@ describe('content-as-code resource files', () => {
             slug: 'quarterly-review',
             description: '',
             spaceSlug: 'reports/finance',
-            schemaVersion: 1,
-            content: {
-                cells: [
-                    {
-                        type: 'markdown',
-                        content: { markdown: '# Findings\n\n- "quoted": yes' },
-                    },
-                    {
-                        type: 'chart',
-                        content: {
-                            source: 'semantic',
-                            chart: {
-                                name: 'Orders',
-                                tableName: 'orders',
-                                metricQuery: {
-                                    exploreName: 'orders',
-                                    dimensions: ['orders_status'],
-                                    metrics: ['orders_count'],
-                                    filters: {},
-                                    sorts: [],
-                                    limit: 100,
-                                    tableCalculations: [],
-                                },
-                                chartConfig: { type: ChartType.TABLE },
-                            },
+            schemaVersion: 2,
+            markdown:
+                '# Findings\n\n- "quoted": yes\n\n<document-chart id="c1">',
+            charts: {
+                c1: {
+                    source: 'semantic',
+                    chart: {
+                        name: 'Orders',
+                        tableName: 'orders',
+                        metricQuery: {
+                            exploreName: 'orders',
+                            dimensions: ['orders_status'],
+                            metrics: ['orders_count'],
+                            filters: {},
+                            sorts: [],
+                            limit: 100,
+                            tableCalculations: [],
                         },
+                        chartConfig: { type: ChartType.TABLE },
                     },
-                ],
+                },
             },
         };
 
@@ -99,6 +92,19 @@ describe('content-as-code resource files', () => {
         await expect(
             fs.readdir(path.join(basePath, 'documents')),
         ).resolves.toEqual(['quarterly-review.yml']);
+        const written = await fs.readFile(
+            path.join(basePath, 'documents', 'quarterly-review.yml'),
+            'utf8',
+        );
+        expect(written.split('\n').slice(0, 7)).toEqual([
+            'name: Quarterly review',
+            'slug: quarterly-review',
+            'description: ""',
+            'spaceSlug: reports/finance',
+            'schemaVersion: 2',
+            'markdown: |-',
+            '  # Findings',
+        ]);
         await expect(
             readCodeResourceFiles({
                 definition: DOCUMENT_CODE_RESOURCE,
@@ -127,7 +133,7 @@ describe('content-as-code resource files', () => {
         await fs.mkdir(path.join(basePath, 'documents'));
         await fs.writeFile(
             path.join(basePath, 'documents', 'broken.yml'),
-            'name: Broken\nslug: broken\nspaceSlug: reports\nschemaVersion: 1\ncontent:\n  cells: [{ type: video }]\n',
+            'name: Broken\nslug: broken\nspaceSlug: reports\nschemaVersion: 2\nmarkdown: ""\ncharts:\n  c1: { source: video }\n',
         );
 
         const result = await readCodeResourceFiles({

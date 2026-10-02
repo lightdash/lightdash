@@ -1677,18 +1677,17 @@ export type DocumentChangeSource =
     | 'promotion';
 
 /** Cell counts of a Document version; never its content. */
-export type DocumentCellCounts = {
-    cellCount: number;
-    markdownCellCount: number;
-    chartCellCount: number;
-    customChartCellCount: number;
-    mergeChartCellCount: number;
+export type DocumentChartCounts = {
+    chartCount: number;
+    customChartCount: number;
+    mergeChartCount: number;
+    markdownLength: number;
 };
 
 export type DocumentCreatedEvent = BaseTrack & {
     event: 'document.created';
     userId: string;
-    properties: DocumentCellCounts & {
+    properties: DocumentChartCounts & {
         organizationId: string;
         projectId: string;
         documentId: string;
@@ -1704,7 +1703,7 @@ export type DocumentCreatedEvent = BaseTrack & {
 export type DocumentUpdatedEvent = BaseTrack & {
     event: 'document.updated';
     userId: string;
-    properties: Partial<DocumentCellCounts> & {
+    properties: Partial<DocumentChartCounts> & {
         organizationId: string;
         projectId: string;
         documentId: string;

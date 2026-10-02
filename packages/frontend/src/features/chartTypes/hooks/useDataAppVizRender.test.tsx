@@ -94,7 +94,7 @@ describe('useDataAppVizRender', () => {
             document: {
                 documentUuid: 'document-1',
                 versionUuid: 'document-version-2',
-                cellIndex: 4,
+                chartId: 'c4',
             },
         };
         const { result } = renderHook(() =>
@@ -103,7 +103,7 @@ describe('useDataAppVizRender', () => {
         await (result.current as unknown as CapturedQuery).queryFn();
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
-            url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/cells/4/render-metadata?documentVersionUuid=document-version-2',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/charts/c4/render-metadata?documentVersionUuid=document-version-2',
         });
 
         mocks.lightdashApi.mockResolvedValue({ token: 'token-3' });
@@ -113,7 +113,7 @@ describe('useDataAppVizRender', () => {
         await (tokenResult.current as unknown as CapturedQuery).queryFn();
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
-            url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/cells/4/versions/3/preview-token?documentVersionUuid=document-version-2',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/charts/c4/versions/3/preview-token?documentVersionUuid=document-version-2',
         });
     });
 

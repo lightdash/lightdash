@@ -471,7 +471,7 @@ export class AppGenerateController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get(
-        '/visualizations/{dataAppVizUuid}/documents/{documentUuid}/cells/{cellIndex}/render-metadata',
+        '/visualizations/{dataAppVizUuid}/documents/{documentUuid}/charts/{chartId}/render-metadata',
     )
     @OperationId('getDocumentDataAppVizRenderMetadata')
     async getDocumentDataAppVizRenderMetadata(
@@ -479,7 +479,7 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: UUID,
         @Path() dataAppVizUuid: string,
         @Path() documentUuid: UUID,
-        @Path() cellIndex: number,
+        @Path() chartId: string,
         @Query() documentVersionUuid: UUID,
     ): Promise<ApiDataAppVizRenderMetadataResponse> {
         assertRegisteredAccount(req.account);
@@ -492,7 +492,7 @@ export class AppGenerateController extends BaseController {
                     {
                         documentUuid,
                         versionUuid: documentVersionUuid,
-                        cellIndex,
+                        chartId,
                     },
                     dataAppVizUuid,
                 ),
@@ -505,7 +505,7 @@ export class AppGenerateController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get(
-        '/visualizations/{dataAppVizUuid}/documents/{documentUuid}/cells/{cellIndex}/versions/{version}/preview-token',
+        '/visualizations/{dataAppVizUuid}/documents/{documentUuid}/charts/{chartId}/versions/{version}/preview-token',
     )
     @OperationId('getDocumentDataAppVizPreviewToken')
     async getDocumentDataAppVizPreviewToken(
@@ -513,7 +513,7 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: UUID,
         @Path() dataAppVizUuid: string,
         @Path() documentUuid: UUID,
-        @Path() cellIndex: number,
+        @Path() chartId: string,
         @Path() version: number,
         @Query() documentVersionUuid: UUID,
     ): Promise<ApiDataAppVizPreviewTokenResponse> {
@@ -525,7 +525,7 @@ export class AppGenerateController extends BaseController {
                 {
                     documentUuid,
                     versionUuid: documentVersionUuid,
-                    cellIndex,
+                    chartId,
                 },
                 dataAppVizUuid,
                 version,

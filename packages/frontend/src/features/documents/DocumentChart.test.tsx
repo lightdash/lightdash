@@ -1,4 +1,8 @@
-import { ChartType, MergeJoinType, type DocumentCell } from '@lightdash/common';
+import {
+    ChartType,
+    MergeJoinType,
+    type DocumentChartContent,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -11,7 +15,7 @@ const mocks = vi.hoisted(() => ({
         data: {} as unknown,
         isFetching: false,
     },
-    cellQuery: vi.fn(),
+    chartQuery: vi.fn(),
     canExplore: true,
     authoringEnabled: true,
     explore: vi.fn(),
@@ -32,8 +36,8 @@ vi.mock('./DocumentChartExploreButton', () => ({
 }));
 
 vi.mock('./useDocument', () => ({
-    useDocumentCellQuery: (...args: unknown[]) => {
-        mocks.cellQuery(...args);
+    useDocumentChartQuery: (...args: unknown[]) => {
+        mocks.chartQuery(...args);
         return mocks.query;
     },
 }));
@@ -62,7 +66,9 @@ vi.mock('../../components/LightdashVisualization', () => ({
     },
 }));
 
-const semanticCell: Extract<DocumentCell, { type: 'chart' }> = {
+type ChartFixture = { type: 'chart'; content: DocumentChartContent };
+
+const semanticCell: ChartFixture = {
     type: 'chart',
     content: {
         source: 'semantic',
@@ -93,8 +99,8 @@ const renderChart = (cell = semanticCell, showTitle = true) => {
                 spaceUuid="space"
                 documentUuid="document"
                 versionUuid="version"
-                cellIndex={2}
-                cell={cell}
+                chartId="c2"
+                content={cell.content}
             />
         </MantineProvider>,
     );
@@ -105,7 +111,7 @@ describe('Document chart titles', () => {
         mocks.query.error = undefined;
         mocks.query.data = {};
         mocks.query.isFetching = false;
-        mocks.cellQuery.mockClear();
+        mocks.chartQuery.mockClear();
         mocks.canExplore = true;
         mocks.authoringEnabled = true;
         mocks.explore.mockClear();
@@ -122,13 +128,13 @@ describe('Document chart titles', () => {
         expect(screen.getByText('Visualization')).toBeInTheDocument();
     });
 
-    test('queries the chart position within its immutable document version', () => {
+    test('queries the chart id within its immutable document version', () => {
         renderChart();
-        expect(mocks.cellQuery).toHaveBeenCalledWith(
+        expect(mocks.chartQuery).toHaveBeenCalledWith(
             'project',
             'document',
             'version',
-            2,
+            'c2',
         );
     });
 
@@ -291,8 +297,8 @@ describe('Document charts printed to PDF', () => {
                         spaceUuid="space"
                         documentUuid="document"
                         versionUuid="version"
-                        cellIndex={2}
-                        cell={semanticCell}
+                        chartId="c2"
+                        content={semanticCell.content}
                     />
                 </DocumentExportStatusContext.Provider>
             </MantineProvider>,
@@ -305,15 +311,15 @@ describe('Document charts printed to PDF', () => {
         exportStatus.markErrored.mockClear();
     });
 
-    test('reports its cell once the visualization has drawn or failed', () => {
+    test('reports its chart once the visualization has drawn or failed', () => {
         renderForExport();
         const [props] = mocks.visualization.mock.lastCall as [
             { onScreenshotReady: () => void; onScreenshotError: () => void },
         ];
         props.onScreenshotReady();
-        expect(exportStatus.markReady).toHaveBeenCalledExactlyOnceWith(2);
+        expect(exportStatus.markReady).toHaveBeenCalledExactlyOnceWith('c2');
         props.onScreenshotError();
-        expect(exportStatus.markErrored).toHaveBeenCalledExactlyOnceWith(2);
+        expect(exportStatus.markErrored).toHaveBeenCalledExactlyOnceWith('c2');
     });
 
     test('prints a failed query as an explicit error, without controls', () => {
@@ -327,7 +333,7 @@ describe('Document charts printed to PDF', () => {
         expect(
             screen.queryByRole('button', { name: 'Retry' }),
         ).not.toBeInTheDocument();
-        expect(exportStatus.markErrored).toHaveBeenCalledWith(2);
+        expect(exportStatus.markErrored).toHaveBeenCalledWith('c2');
     });
 
     test('leaves out the Explore action', () => {

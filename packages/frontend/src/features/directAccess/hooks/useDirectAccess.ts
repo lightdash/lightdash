@@ -92,7 +92,7 @@ const useInvalidateAfterDirectAccessMutation = (
                                 [
                                     'document',
                                     'documents',
-                                    'document-cell-query',
+                                    'document-chart-query',
                                 ].includes(String(queryKey[0])) &&
                                 queryKey[1] === projectUuid
                             );

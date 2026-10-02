@@ -116,8 +116,8 @@ describe('Create document', () => {
                     name: 'Weekly review',
                     description: 'Context',
                     spaceUuid: 'editor',
-                    schemaVersion: 1,
-                    content: { cells: [] },
+                    schemaVersion: 2,
+                    content: { markdown: '', charts: {} },
                 }),
             }),
         );

@@ -1,35 +1,43 @@
-import { ChartType, type DocumentCell } from '@lightdash/common';
+import {
+    ChartType,
+    fromDocumentChartBlocks,
+    type DocumentChartBlock,
+    type DocumentChartContent,
+} from '@lightdash/common';
 import { Editor } from '@tiptap/core';
 import { DOMParser } from '@tiptap/pm/model';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
 import { getDocumentHeadings } from './DocumentHeadingIds';
 
-const chart: DocumentCell = {
-    type: 'chart',
-    content: {
-        source: 'semantic',
-        chart: {
-            name: 'Orders',
-            description: '',
-            tableName: 'orders',
-            metricQuery: {
-                exploreName: 'orders',
-                dimensions: [],
-                metrics: ['orders_count'],
-                filters: {},
-                sorts: [],
-                limit: 500,
-                tableCalculations: [],
-            },
-            chartConfig: { type: ChartType.TABLE },
+const chartContent: DocumentChartContent = {
+    source: 'semantic',
+    chart: {
+        name: 'Orders',
+        description: '',
+        tableName: 'orders',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
         },
+        chartConfig: { type: ChartType.TABLE },
     },
 };
 
-const markdown = (text: string): DocumentCell => ({
+const chart: DocumentChartBlock = {
+    type: 'chart',
+    id: 'c1',
+    chart: chartContent,
+};
+
+const markdown = (text: string): DocumentChartBlock => ({
     type: 'markdown',
-    content: { markdown: text },
+    markdown: text,
 });
 
 const createEditor = () =>
@@ -38,16 +46,17 @@ const createEditor = () =>
         extensions: createDocumentEditorExtensions({ projectUuid: 'project' }),
     });
 
-const load = (cells: DocumentCell[]) => {
+const load = (blocks: DocumentChartBlock[]) => {
     const editor = createEditor();
-    editor.commands.setContent(buildDocumentContent(editor, cells), {
-        emitUpdate: false,
-    });
+    editor.commands.setContent(
+        buildDocumentContent(editor, fromDocumentChartBlocks(blocks)),
+        { emitUpdate: false },
+    );
     return editor;
 };
 
 describe('buildDocumentContent', () => {
-    it('keeps cells in order and places chart nodes with their saved index', () => {
+    it('keeps blocks in order and places chart nodes with their saved id', () => {
         const editor = load([
             markdown('# Findings\n\nSome text'),
             chart,
@@ -55,12 +64,17 @@ describe('buildDocumentContent', () => {
         ]);
         const types = editor.state.doc.content.content.map((node) =>
             node.type.name === 'documentChart'
-                ? `chart:${node.attrs.sourceIndex}`
+                ? `chart:${node.attrs.chartId}:${node.attrs.isSaved}`
                 : node.type.name,
         );
-        expect(types).toEqual(['heading', 'paragraph', 'chart:1', 'heading']);
+        expect(types).toEqual([
+            'heading',
+            'paragraph',
+            'chart:c1:true',
+            'heading',
+        ]);
         expect(editor.state.doc.content.content[2].attrs.content).toStrictEqual(
-            chart.content,
+            chartContent,
         );
         editor.destroy();
     });
@@ -99,15 +113,23 @@ describe('buildDocumentContent', () => {
         editor.destroy();
     });
 
-    it('renders a placeholder paragraph for an unknown cell type', () => {
-        const editor = load([
-            markdown('# Findings'),
-            { type: 'widget', content: {} } as unknown as DocumentCell,
-        ]);
-        expect(editor.state.doc.lastChild?.textContent).toBe(
-            'This content type is not supported yet.',
-        );
+    it('keeps an unknown tag as escaped text', () => {
+        const editor = load([markdown('# Findings\n\n<widget id="x">')]);
+        expect(editor.state.doc.lastChild?.textContent).toBe('<widget id="x">');
         expect(editor.state.doc.childCount).toBe(2);
+        editor.destroy();
+    });
+
+    it('rejects a chart tag without a chart', () => {
+        const editor = createEditor();
+        expect(() =>
+            buildDocumentContent(editor, {
+                markdown: '<document-chart id="c9">',
+                charts: {},
+            }),
+        ).toThrow(
+            'Chart "c9" is placed in the markdown but missing from charts',
+        );
         editor.destroy();
     });
 });
@@ -166,8 +188,8 @@ describe('pasted chart HTML', () => {
     };
 
     it('keeps a well-formed chart', () => {
-        expect(parsedContent(JSON.stringify(chart.content))).toStrictEqual(
-            chart.content,
+        expect(parsedContent(JSON.stringify(chartContent))).toStrictEqual(
+            chartContent,
         );
     });
 
@@ -183,11 +205,11 @@ describe('pasted chart HTML', () => {
         ],
         [
             'an unknown source',
-            JSON.stringify({ ...chart.content, source: 'sql' }),
+            JSON.stringify({ ...chartContent, source: 'sql' }),
         ],
         [
             'a merge chart without its merge',
-            JSON.stringify({ ...chart.content, source: 'merge' }),
+            JSON.stringify({ ...chartContent, source: 'merge' }),
         ],
     ])('drops %s instead of rendering it', (_label, attribute) => {
         expect(parsedContent(attribute)).toBeNull();
@@ -202,9 +224,12 @@ describe('empty documents', () => {
                 editing: { onInsertChart: null, onEditChart: null },
             }),
         });
-        editor.commands.setContent(buildDocumentContent(editor, []), {
-            emitUpdate: false,
-        });
+        editor.commands.setContent(
+            buildDocumentContent(editor, { markdown: '', charts: {} }),
+            {
+                emitUpdate: false,
+            },
+        );
         expect(editor.state.doc.childCount).toBeGreaterThan(0);
         expect(editor.state.doc.firstChild?.type.name).toBe('paragraph');
         editor.commands.insertContent('First words');

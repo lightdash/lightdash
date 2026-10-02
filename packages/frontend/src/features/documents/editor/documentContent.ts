@@ -1,6 +1,13 @@
-import { type DocumentCell } from '@lightdash/common';
+import {
+    getDocumentChartBlocks,
+    type DocumentChartBlock,
+    type DocumentContent,
+} from '@lightdash/common';
 import { generateJSON, type Editor, type JSONContent } from '@tiptap/core';
-import { DOCUMENT_CHART_NODE } from './documentChartNode';
+import {
+    DOCUMENT_CHART_NODE,
+    type DocumentChartAttributes,
+} from './documentChartNode';
 
 // tiptap-markdown exposes its markdown-it parser on storage without typing it.
 declare module 'tiptap-markdown' {
@@ -9,45 +16,31 @@ declare module 'tiptap-markdown' {
     }
 }
 
-const UNSUPPORTED_CELL_TEXT = 'This content type is not supported yet.';
-
-const cellToContent = (
+const blockToContent = (
     editor: Editor,
-    cell: DocumentCell,
-    index: number,
+    block: DocumentChartBlock,
 ): JSONContent[] => {
-    switch (cell.type) {
-        case 'markdown': {
-            const html = editor.storage.markdown.parser.parse(
-                cell.content.markdown,
-            );
-            // The unresolved option list; the manager's flattened list would
-            // register StarterKit's children twice.
-            return generateJSON(html, editor.options.extensions).content ?? [];
-        }
-        case 'chart':
-            return [
-                {
-                    type: DOCUMENT_CHART_NODE,
-                    attrs: { content: cell.content, sourceIndex: index },
-                },
-            ];
-        default:
-            // Older or newer servers may send cell types this build does not know.
-            return [
-                {
-                    type: 'paragraph',
-                    content: [{ type: 'text', text: UNSUPPORTED_CELL_TEXT }],
-                },
-            ];
+    if (block.type === 'markdown') {
+        const html = editor.storage.markdown.parser.parse(block.markdown);
+        // The unresolved option list; the manager's flattened list would
+        // register StarterKit's children twice.
+        return generateJSON(html, editor.options.extensions).content ?? [];
     }
+    const attrs: DocumentChartAttributes = {
+        content: block.chart,
+        chartId: block.id,
+        isSaved: true,
+    };
+    return [{ type: DOCUMENT_CHART_NODE, attrs }];
 };
 
-/** One Tiptap document for a saved version: chart cells become chart nodes in place. */
+/** One Tiptap document for a saved version: chart tags become chart nodes in place. */
 export const buildDocumentContent = (
     editor: Editor,
-    cells: DocumentCell[],
+    content: DocumentContent,
 ): JSONContent => ({
     type: 'doc',
-    content: cells.flatMap((cell, index) => cellToContent(editor, cell, index)),
+    content: getDocumentChartBlocks(content).flatMap((block) =>
+        blockToContent(editor, block),
+    ),
 });

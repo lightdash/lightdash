@@ -36,10 +36,8 @@ const document: Document = {
     version: {
         versionUuid: 'version',
         versionNumber: 1,
-        schemaVersion: 1,
-        content: {
-            cells: [{ type: 'markdown', content: { markdown: '# Report' } }],
-        },
+        schemaVersion: 2,
+        content: { markdown: '# Report', charts: {} },
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-15'),
     },

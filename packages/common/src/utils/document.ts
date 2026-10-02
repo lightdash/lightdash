@@ -3,12 +3,20 @@ import { validate as isUuid } from 'uuid';
 import chartAsCodeSchema from '../schemas/json/chart-as-code-1.0.json';
 import type { UuidOrSlug } from '../types/api/uuid';
 import type { ChartAsCodeConfig } from '../types/contentAsCode/charts';
-import type { DocumentAsCode, DocumentContent } from '../types/document';
+import type {
+    DocumentAsCode,
+    DocumentChartContent,
+    DocumentContent,
+} from '../types/document';
 import { ParameterError } from '../types/errors';
 import { parseSavedMergeQuery } from '../types/mergeQuery';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
+import {
+    fromDocumentChartBlocks,
+    getDocumentChartBlocks,
+} from './documentMarkdown';
 
-export const DOCUMENT_SCHEMA_VERSION = 1;
+export const DOCUMENT_SCHEMA_VERSION = 2;
 
 export const getDocumentUrl = (
     projectUuidOrSlug: UuidOrSlug,
@@ -59,58 +67,71 @@ const createValidator = (): ValidateFunction<DocumentContent> =>
         $defs: chartAsCodeSchema.$defs,
         type: 'object',
         additionalProperties: false,
-        required: ['cells'],
+        required: ['markdown', 'charts'],
         properties: {
-            cells: {
-                type: 'array',
-                items: {
-                    type: 'object',
-                    additionalProperties: false,
-                    required: ['type', 'content'],
-                    properties: {
-                        type: { enum: ['markdown', 'chart'] },
-                        content: {},
-                    },
-                    oneOf: [
-                        {
-                            properties: {
-                                type: { const: 'markdown' },
-                                content: {
-                                    type: 'object',
-                                    additionalProperties: false,
-                                    required: ['markdown'],
-                                    properties: {
-                                        markdown: { type: 'string' },
-                                    },
-                                },
-                            },
+            markdown: { type: 'string' },
+            charts: {
+                type: 'object',
+                additionalProperties: {
+                    oneOf: [false, true].map((merge) => ({
+                        type: 'object',
+                        additionalProperties: false,
+                        required: ['source', 'chart'],
+                        properties: {
+                            source: { const: merge ? 'merge' : 'semantic' },
+                            chart: chartSchema(merge),
                         },
-                        {
-                            properties: {
-                                type: { const: 'chart' },
-                                content: {
-                                    oneOf: [false, true].map((merge) => ({
-                                        type: 'object',
-                                        additionalProperties: false,
-                                        required: ['source', 'chart'],
-                                        properties: {
-                                            source: {
-                                                const: merge
-                                                    ? 'merge'
-                                                    : 'semantic',
-                                            },
-                                            chart: chartSchema(merge),
-                                        },
-                                    })),
-                                },
-                            },
-                        },
-                    ],
+                    })),
                 },
             },
         },
     });
 
+const validateChart = (id: string, content: DocumentChartContent): void => {
+    const { chart } = content;
+    const queries = [
+        chart.metricQuery,
+        ...(content.source === 'merge'
+            ? content.chart.merge.sources
+                  .filter((source) => source.kind === 'query')
+                  .map((source) => source.metricQuery)
+            : []),
+    ];
+    if (
+        queries.some((query) =>
+            ['queryUuid', 'results', 'rows'].some((key) => key in query),
+        )
+    ) {
+        throw new ParameterError(
+            'Document charts must contain durable queries, not query UUIDs or results',
+        );
+    }
+    if (
+        chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+        chart.chartConfig.config === undefined
+    ) {
+        throw new ParameterError(
+            `Custom chart "${id}" must reference a chart type`,
+        );
+    }
+    if (content.source === 'merge') {
+        const { merge } = content.chart;
+        if (
+            merge.sources.some((source) => 'queryUuid' in source) ||
+            merge.sources.length !== 2 ||
+            !parseSavedMergeQuery(merge)
+        ) {
+            throw new ParameterError(
+                `Invalid merge sources or join keys in chart "${id}"`,
+            );
+        }
+    }
+};
+
+/**
+ * Validate Document content and return its canonical form: chart tags carry
+ * only their id and charts that are not placed in the markdown are dropped.
+ */
 export const parseDocumentContent = (
     schemaVersion: number,
     raw: unknown,
@@ -126,50 +147,11 @@ export const parseDocumentContent = (
             `Invalid Document content: ${contentValidator.errors?.map((error) => `${error.instancePath} ${error.message}`).join('; ')}`,
         );
     }
-    raw.cells.forEach((cell, cellIndex) => {
-        if (cell.type !== 'chart') {
-            return;
-        }
-        const { chart } = cell.content;
-        const queries = [
-            chart.metricQuery,
-            ...(cell.content.source === 'merge'
-                ? cell.content.chart.merge.sources
-                      .filter((source) => source.kind === 'query')
-                      .map((source) => source.metricQuery)
-                : []),
-        ];
-        if (
-            queries.some((query) =>
-                ['queryUuid', 'results', 'rows'].some((key) => key in query),
-            )
-        ) {
-            throw new ParameterError(
-                'Document charts must contain durable queries, not query UUIDs or results',
-            );
-        }
-        if (
-            chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
-            chart.chartConfig.config === undefined
-        ) {
-            throw new ParameterError(
-                `Custom chart in cell ${cellIndex} must reference a chart type`,
-            );
-        }
-        if (cell.content.source === 'merge') {
-            const { merge } = cell.content.chart;
-            if (
-                merge.sources.some((source) => 'queryUuid' in source) ||
-                merge.sources.length !== 2 ||
-                !parseSavedMergeQuery(merge)
-            ) {
-                throw new ParameterError(
-                    `Invalid merge sources or join keys in cell ${cellIndex}`,
-                );
-            }
-        }
+    const blocks = getDocumentChartBlocks(raw);
+    blocks.forEach((block) => {
+        if (block.type === 'chart') validateChart(block.id, block.chart);
     });
-    return raw;
+    return fromDocumentChartBlocks(blocks);
 };
 
 const DOCUMENT_AS_CODE_KEYS = [
@@ -178,7 +160,8 @@ const DOCUMENT_AS_CODE_KEYS = [
     'description',
     'spaceSlug',
     'schemaVersion',
-    'content',
+    'markdown',
+    'charts',
 ] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -224,7 +207,10 @@ export const parseDocumentAsCode = (raw: unknown): DocumentAsCode => {
         description,
         spaceSlug,
         schemaVersion,
-        content: parseDocumentContent(schemaVersion, raw.content),
+        ...parseDocumentContent(schemaVersion, {
+            markdown: raw.markdown,
+            charts: raw.charts ?? {},
+        }),
     };
 };
 

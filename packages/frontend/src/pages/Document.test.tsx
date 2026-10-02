@@ -1,4 +1,10 @@
-import { ChartType, type Document, type DocumentCell } from '@lightdash/common';
+import {
+    ChartType,
+    fromDocumentChartBlocks,
+    type Document,
+    type DocumentChartContent,
+    type DocumentContent,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -55,19 +61,39 @@ vi.mock('../components/common/Page/Page', () => ({
     ),
 }));
 vi.mock('../features/documents/DocumentChart', () => ({
-    default: (props: { cell: Extract<DocumentCell, { type: 'chart' }> }) => {
+    default: (props: { content: DocumentChartContent }) => {
         mocks.chart(props);
-        const { cell } = props;
+        const { content } = props;
         if (mocks.chartFails) {
             throw new Error('Chart rendering failed');
         }
-        return (
-            <div data-testid="document-chart">{cell.content.chart.name}</div>
-        );
+        return <div data-testid="document-chart">{content.chart.name}</div>;
     },
 }));
 
-const chart: DocumentCell = {
+type TestCell =
+    | { type: 'markdown'; content: { markdown: string } }
+    | { type: 'chart'; content: DocumentChartContent };
+
+/** Ordered test cells as stored content; charts get ids c1, c2, … in order. */
+const toContent = (testCells: TestCell[]): DocumentContent => {
+    let chartNumber = 0;
+    return fromDocumentChartBlocks(
+        testCells.map((cell) => {
+            if (cell.type === 'markdown') {
+                return { type: 'markdown', markdown: cell.content.markdown };
+            }
+            chartNumber += 1;
+            return {
+                type: 'chart',
+                id: `c${chartNumber}`,
+                chart: cell.content,
+            };
+        }),
+    );
+};
+
+const chart = {
     type: 'chart',
     content: {
         source: 'semantic',
@@ -86,7 +112,22 @@ const chart: DocumentCell = {
             chartConfig: { type: ChartType.TABLE },
         },
     },
-};
+} satisfies TestCell;
+const cells: TestCell[] = [
+    {
+        type: 'markdown',
+        content: {
+            markdown: '# Findings\n\nSupporting findings',
+        },
+    },
+    chart,
+    {
+        type: 'markdown',
+        content: {
+            markdown: '# Recommendations\n\nNext steps',
+        },
+    },
+];
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
@@ -105,24 +146,8 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 1,
-        content: {
-            cells: [
-                {
-                    type: 'markdown',
-                    content: {
-                        markdown: '# Findings\n\nSupporting findings',
-                    },
-                },
-                chart,
-                {
-                    type: 'markdown',
-                    content: {
-                        markdown: '# Recommendations\n\nNext steps',
-                    },
-                },
-            ],
-        },
+        schemaVersion: 2,
+        content: toContent(cells),
         createdAt: new Date('2026-09-15'),
         createdByUserUuid: null,
     },
@@ -314,15 +339,13 @@ describe('Document page', () => {
             ...document,
             version: {
                 ...document.version,
-                content: {
-                    cells: [
-                        {
-                            type: 'markdown',
-                            content: { markdown: 'Opening narrative' },
-                        },
-                        ...document.version.content.cells,
-                    ],
-                },
+                content: toContent([
+                    {
+                        type: 'markdown',
+                        content: { markdown: 'Opening narrative' },
+                    },
+                    ...cells,
+                ]),
             },
         });
         renderPage();
@@ -361,7 +384,7 @@ describe('Document page', () => {
                 projectUuid: 'project-uuid',
                 documentUuid: 'document-uuid',
                 versionUuid: 'version-uuid',
-                cellIndex: 1,
+                chartId: 'c1',
             }),
         );
         expect(screen.getByTestId('ai-agent-context')).toHaveTextContent(
@@ -392,24 +415,22 @@ describe('Document page', () => {
             ...document,
             version: {
                 ...document.version,
-                content: {
-                    cells: [
-                        {
-                            type: 'markdown',
-                            content: { markdown: '## Embedded heading' },
-                        },
-                        {
-                            ...chart,
-                            content: {
-                                ...chart.content,
-                                chart: {
-                                    ...chart.content.chart,
-                                    name: 'Chart section',
-                                },
+                content: toContent([
+                    {
+                        type: 'markdown',
+                        content: { markdown: '## Embedded heading' },
+                    },
+                    {
+                        ...chart,
+                        content: {
+                            ...chart.content,
+                            chart: {
+                                ...chart.content.chart,
+                                name: 'Chart section',
                             },
                         },
-                    ],
-                },
+                    },
+                ]),
             },
         });
         renderPage();
@@ -436,21 +457,19 @@ describe('Document page', () => {
             ...document,
             version: {
                 ...document.version,
-                content: {
-                    cells: [
-                        {
-                            ...chart,
-                            content: {
-                                ...chart.content,
-                                chart: {
-                                    ...chart.content.chart,
-                                    name: 'Failed chart section',
-                                },
+                content: toContent([
+                    {
+                        ...chart,
+                        content: {
+                            ...chart.content,
+                            chart: {
+                                ...chart.content.chart,
+                                name: 'Failed chart section',
                             },
                         },
-                        document.version.content.cells[0],
-                    ],
-                },
+                    },
+                    cells[0],
+                ]),
             },
         });
         try {
@@ -491,17 +510,15 @@ describe('Document page', () => {
             ...document,
             version: {
                 ...document.version,
-                content: {
-                    cells: [
-                        {
-                            type: 'chart',
-                            content: {
-                                ...chart.content,
-                                chart: { ...chart.content.chart, name: title },
-                            },
+                content: toContent([
+                    {
+                        type: 'chart',
+                        content: {
+                            ...chart.content,
+                            chart: { ...chart.content.chart, name: title },
                         },
-                    ],
-                },
+                    },
+                ]),
             },
         });
         const { container } = renderPage();
@@ -515,7 +532,7 @@ describe('Document page', () => {
     test('renders an empty document explicitly', async () => {
         mocks.api.mockResolvedValue({
             ...document,
-            version: { ...document.version, content: { cells: [] } },
+            version: { ...document.version, content: toContent([]) },
         });
         renderPage();
         expect(
@@ -523,16 +540,15 @@ describe('Document page', () => {
         ).toBeInTheDocument();
     });
 
-    test('uses a placeholder for an unsupported cell and preserves neighboring content', async () => {
+    test('shows an unknown tag as text and preserves neighboring content', async () => {
         mocks.api.mockResolvedValue({
             ...document,
             version: {
                 ...document.version,
                 content: {
-                    cells: [
-                        document.version.content.cells[0],
-                        { type: 'widget', content: {} },
-                    ],
+                    markdown:
+                        '# Findings\n\nSupporting findings\n\n<widget id="x">',
+                    charts: {},
                 },
             },
         });
@@ -540,9 +556,7 @@ describe('Document page', () => {
         expect(
             await screen.findByRole('heading', { name: 'Findings' }),
         ).toBeInTheDocument();
-        expect(
-            screen.getAllByText('This content type is not supported yet.'),
-        ).toHaveLength(1);
+        expect(screen.getByText('<widget id="x">')).toBeInTheDocument();
         expect(screen.queryByTestId('document-chart')).not.toBeInTheDocument();
     });
 
@@ -600,24 +614,22 @@ describe('Document page', () => {
             ...document,
             version: {
                 ...document.version,
-                content: {
-                    cells: [
-                        {
-                            type: 'markdown',
-                            content: {
-                                markdown: [
-                                    '## Safe heading',
-                                    '<iframe src="https://example.com"></iframe>',
-                                    '<script>alert(1)</script>',
-                                    '<img src=x onerror="alert(1)">',
-                                    '[unsafe](javascript:alert%281%29)',
-                                    '[data link](data:text/html,test)',
-                                    '[safe link](https://example.com/report)',
-                                ].join('\n\n'),
-                            },
+                content: toContent([
+                    {
+                        type: 'markdown',
+                        content: {
+                            markdown: [
+                                '## Safe heading',
+                                '<iframe src="https://example.com"></iframe>',
+                                '<script>alert(1)</script>',
+                                '<img src=x onerror="alert(1)">',
+                                '[unsafe](javascript:alert%281%29)',
+                                '[data link](data:text/html,test)',
+                                '[safe link](https://example.com/report)',
+                            ].join('\n\n'),
                         },
-                    ],
-                },
+                    },
+                ]),
             },
         });
         const { container } = renderPage();
