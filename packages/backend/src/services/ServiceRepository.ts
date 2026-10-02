@@ -76,6 +76,7 @@ import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { provisionTrainingProject } from './ProjectService/provisionTrainingProject';
+import { ProjectSetupService } from './ProjectSetupService/ProjectSetupService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PromptService } from './PromptService/PromptService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
@@ -188,6 +189,7 @@ interface ServiceManifest {
     warehouseConnectionSwitchService: WarehouseConnectionSwitchService;
     warehouseConnectionBindingService: WarehouseConnectionBindingService;
     projectCompileLogService: ProjectCompileLogService;
+    projectSetupService: ProjectSetupService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
@@ -963,6 +965,7 @@ export class ServiceRepository
                         this.models.getProjectDbtSourcesModel(),
                     preAggregateModel: this.models.getPreAggregateModel(),
                     onboardingModel: this.models.getOnboardingModel(),
+                    projectSetupModel: this.models.getProjectSetupModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     jobModel: this.models.getJobModel(),
                     emailClient: this.clients.getEmailClient(),
@@ -1118,6 +1121,7 @@ export class ServiceRepository
                         this.models.getProjectDbtSourcesModel(),
                     preAggregateModel: this.models.getPreAggregateModel(),
                     onboardingModel: this.models.getOnboardingModel(),
+                    projectSetupModel: this.models.getProjectSetupModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     jobModel: this.models.getJobModel(),
                     emailClient: this.clients.getEmailClient(),
@@ -2170,6 +2174,18 @@ export class ServiceRepository
                 new ProjectCompileLogService({
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
+                }),
+        );
+    }
+
+    public getProjectSetupService(): ProjectSetupService {
+        return this.getService(
+            'projectSetupService',
+            () =>
+                new ProjectSetupService({
+                    projectSetupModel: this.models.getProjectSetupModel(),
+                    projectModel: this.models.getProjectModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

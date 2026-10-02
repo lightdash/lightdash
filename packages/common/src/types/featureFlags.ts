@@ -260,6 +260,15 @@ export enum FeatureFlags {
     SharedSignInReconnect = 'shared-sign-in-reconnect',
 
     /**
+     * Delivery one of the connect-your-data journey redesign, built on the
+     * new onboarding experience: wherever this flag is on, `new-onboarding`
+     * resolves on too. One flag for the whole delivery until the rollout
+     * decision settles grouping. Off by default; resolved per user and
+     * organization.
+     */
+    ConnectJourney = 'connect-journey',
+
+    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a

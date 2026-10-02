@@ -49,6 +49,7 @@ import {
     CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { ProjectSetupsTableName } from '../../database/entities/projectSetups';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedChartSlugMappingsTableName } from '../../database/entities/savedChartSlugMappings';
 import {
@@ -1235,6 +1236,9 @@ describe('ProjectModel', () => {
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
         tracker.on
+            .update(({ sql }) => sql.includes(ProjectSetupsTableName))
+            .response([]);
+        tracker.on
             .select(({ sql }) => sql.includes('warehouse_connections'))
             .response(undefined);
         tracker.on
@@ -1268,6 +1272,9 @@ describe('ProjectModel', () => {
         tracker.on
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
+        tracker.on
+            .update(({ sql }) => sql.includes(ProjectSetupsTableName))
+            .response([]);
         tracker.on
             .select(({ sql }) => sql.includes('warehouse_connections'))
             .response(undefined);

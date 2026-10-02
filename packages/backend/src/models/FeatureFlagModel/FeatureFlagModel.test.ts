@@ -367,6 +367,76 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('new onboarding', () => {
+        const getNewOnboarding = (model: ReturnType<typeof buildModel>) =>
+            model.get({
+                user: dbUser,
+                featureFlagId: FeatureFlags.NewOnboarding,
+            });
+
+        it('is off when neither flag is on', async () => {
+            await expect(
+                getNewOnboarding(buildModel({}, buildFakeDatabase({}))),
+            ).resolves.toEqual({
+                id: FeatureFlags.NewOnboarding,
+                enabled: false,
+            });
+        });
+
+        it('turns on wherever connect-journey is on', async () => {
+            await expect(
+                getNewOnboarding(
+                    buildModel(
+                        {
+                            enabledFeatureFlags: new Set([
+                                FeatureFlags.ConnectJourney,
+                            ]),
+                        },
+                        buildFakeDatabase({}),
+                    ),
+                ),
+            ).resolves.toEqual({
+                id: FeatureFlags.NewOnboarding,
+                enabled: true,
+            });
+        });
+
+        it('keeps the new-onboarding kill switch absolute', async () => {
+            await expect(
+                getNewOnboarding(
+                    buildModel(
+                        {
+                            enabledFeatureFlags: new Set([
+                                FeatureFlags.ConnectJourney,
+                            ]),
+                            disabledFeatureFlags: new Set([
+                                FeatureFlags.NewOnboarding,
+                            ]),
+                        },
+                        buildFakeDatabase({}),
+                    ),
+                ),
+            ).resolves.toEqual({
+                id: FeatureFlags.NewOnboarding,
+                enabled: false,
+            });
+        });
+
+        it('stays off in previews, where both flags need an opt-in', async () => {
+            await expect(
+                getNewOnboarding(
+                    buildModel(
+                        { previewFeatureFlags: { enabled: true } },
+                        buildFakeDatabase({}),
+                    ),
+                ),
+            ).resolves.toEqual({
+                id: FeatureFlags.NewOnboarding,
+                enabled: false,
+            });
+        });
+    });
+
     describe('check telemetry', () => {
         beforeEach(() => {
             vi.mocked(record).mockReset();
