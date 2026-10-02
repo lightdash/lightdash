@@ -42,6 +42,7 @@ const PERSISTENT_URL_S3_EXPIRY_SECONDS = 300; // 5 minutes
 const DOWNLOAD_TOKEN_TYPE = 'persistent-download';
 const DOWNLOAD_TOKEN_ISSUER = 'lightdash';
 const DOWNLOAD_TOKEN_AUDIENCE = 'persistent-download';
+const PERSISTENT_URL_PATH_REGEX = /^\/api\/v1\/file\/([\w-]{21})$/;
 
 type DownloadTokenPayload = {
     type: typeof DOWNLOAD_TOKEN_TYPE;
@@ -164,21 +165,7 @@ export class PersistentDownloadFileService extends BaseService {
         if (data.accessMode === PersistentDownloadFileAccessMode.SIGNED) {
             url.searchParams.set(
                 'downloadToken',
-                jwt.sign(
-                    {
-                        type: DOWNLOAD_TOKEN_TYPE,
-                        fileId: fileNanoid,
-                    } satisfies DownloadTokenPayload,
-                    deriveDownloadSigningKey(
-                        this.lightdashConfig.lightdashSecrets.active,
-                    ),
-                    {
-                        expiresIn: Math.max(1, expirationSeconds),
-                        issuer: DOWNLOAD_TOKEN_ISSUER,
-                        audience: DOWNLOAD_TOKEN_AUDIENCE,
-                        algorithm: 'HS256',
-                    },
-                ),
+                this.createDownloadToken(fileNanoid, expirationSeconds),
             );
         }
 
@@ -190,6 +177,47 @@ export class PersistentDownloadFileService extends BaseService {
         });
 
         return url.href;
+    }
+
+    /**
+     * Adds a short-lived download token to an existing persistent URL so
+     * viewers that cannot send credentials (e.g. embed `<img>`) can load it.
+     */
+    signPersistentUrl(
+        persistentUrl: string,
+        expirationSeconds: number,
+    ): string {
+        const url = new URL(persistentUrl);
+        const fileNanoid = url.pathname.match(PERSISTENT_URL_PATH_REGEX)?.[1];
+        if (!fileNanoid) {
+            throw new ParameterError('URL is not a persistent file URL');
+        }
+        url.searchParams.set(
+            'downloadToken',
+            this.createDownloadToken(fileNanoid, expirationSeconds),
+        );
+        return url.href;
+    }
+
+    private createDownloadToken(
+        fileNanoid: string,
+        expirationSeconds: number,
+    ): string {
+        return jwt.sign(
+            {
+                type: DOWNLOAD_TOKEN_TYPE,
+                fileId: fileNanoid,
+            } satisfies DownloadTokenPayload,
+            deriveDownloadSigningKey(
+                this.lightdashConfig.lightdashSecrets.active,
+            ),
+            {
+                expiresIn: Math.max(1, expirationSeconds),
+                issuer: DOWNLOAD_TOKEN_ISSUER,
+                audience: DOWNLOAD_TOKEN_AUDIENCE,
+                algorithm: 'HS256',
+            },
+        );
     }
 
     /**
@@ -307,7 +335,7 @@ export class PersistentDownloadFileService extends BaseService {
                 isAuthorized = canCreatorAccess();
                 break;
             case PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT:
-                isAuthorized = canViewFileProject();
+                isAuthorized = canViewFileProject() || hasValidDownloadToken();
                 break;
             case PersistentDownloadFileAccessMode.SIGNED:
                 isAuthorized = hasValidDownloadToken() || canCreatorAccess();

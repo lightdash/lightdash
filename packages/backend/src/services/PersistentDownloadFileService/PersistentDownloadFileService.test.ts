@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     NotFoundError,
+    ParameterError,
     PersistentDownloadFileAccessMode,
     PossibleAbilities,
     type Account,
@@ -251,6 +252,34 @@ describe('PersistentDownloadFileService', () => {
             );
             expect(serializedLogs).toContain(fileId);
             expect(serializedLogs).not.toContain(downloadToken);
+        });
+    });
+
+    describe('signPersistentUrl', () => {
+        it('adds a file-bound token with the requested lifetime', () => {
+            const service = createService();
+
+            const url = new URL(
+                service.signPersistentUrl(
+                    'https://test.lightdash.cloud/api/v1/file/test-nanoid-123456789',
+                    3600,
+                ),
+            );
+            const decoded = jwt.decode(
+                url.searchParams.get('downloadToken')!,
+            ) as jwt.JwtPayload;
+
+            expect(url.pathname).toBe('/api/v1/file/test-nanoid-123456789');
+            expect(decoded.fileId).toBe('test-nanoid-123456789');
+            expect(decoded.exp! - decoded.iat!).toBe(3600);
+        });
+
+        it('rejects URLs that are not persistent file URLs', () => {
+            const service = createService();
+
+            expect(() =>
+                service.signPersistentUrl('https://example.com/avatar.png', 60),
+            ).toThrow(ParameterError);
         });
     });
 
@@ -622,6 +651,66 @@ describe('PersistentDownloadFileService', () => {
                 ),
             ).rejects.toThrow(NotFoundError);
             expect(mockS3GetFileStream).not.toHaveBeenCalled();
+        });
+
+        it('denies a shared project asset without authentication or token', async () => {
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT),
+            );
+            const service = createService();
+
+            await expect(
+                service.getFileStream(
+                    'test-nanoid-123456789',
+                    requestContext(),
+                ),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('allows a shared project asset with a token minted for it', async () => {
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT),
+            );
+            const service = createService();
+            const signedUrl = new URL(
+                service.signPersistentUrl(
+                    'https://test.lightdash.cloud/api/v1/file/test-nanoid-123456789',
+                    3600,
+                ),
+            );
+
+            await expect(
+                service.getFileStream(
+                    'test-nanoid-123456789',
+                    requestContext(
+                        undefined,
+                        signedUrl.searchParams.get('downloadToken')!,
+                    ),
+                ),
+            ).resolves.toMatchObject({ fileType: 'csv' });
+        });
+
+        it('does not accept minted tokens for creator-bound exports', async () => {
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR),
+            );
+            const service = createService();
+            const signedUrl = new URL(
+                service.signPersistentUrl(
+                    'https://test.lightdash.cloud/api/v1/file/test-nanoid-123456789',
+                    3600,
+                ),
+            );
+
+            await expect(
+                service.getFileStream(
+                    'test-nanoid-123456789',
+                    requestContext(
+                        undefined,
+                        signedUrl.searchParams.get('downloadToken')!,
+                    ),
+                ),
+            ).rejects.toThrow(NotFoundError);
         });
 
         it('preserves anonymous access for legacy rows until expiry', async () => {
