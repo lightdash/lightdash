@@ -145,21 +145,22 @@ export const getRunMetricQuery = ({
                 ]);
 
                 if (results.rows.length === 0) {
+                    const result = decisions
+                        ? await diagnoseEmptyResult({
+                              decisions,
+                              question: getAgentQuestion({
+                                  messageHistory: messages,
+                              }),
+                              explores: ctx.getAvailableExplores(),
+                              plan: {
+                                  kind: 'semantic',
+                                  query: reviewedQuery,
+                              },
+                              review,
+                          })
+                        : NO_RESULTS_RETRY_PROMPT;
                     return {
-                        result: decisions
-                            ? await diagnoseEmptyResult({
-                                  decisions,
-                                  question: getAgentQuestion({
-                                      messageHistory: messages,
-                                  }),
-                                  explores: ctx.getAvailableExplores(),
-                                  plan: {
-                                      kind: 'semantic',
-                                      query: reviewedQuery,
-                                  },
-                                  review,
-                              })
-                            : NO_RESULTS_RETRY_PROMPT,
+                        result,
                         metadata: {
                             status: 'success',
                             queryCacheHit:
@@ -169,6 +170,7 @@ export const getRunMetricQuery = ({
                             columns: [],
                             rows: [],
                             rowCount: 0,
+                            review: decisions ? result : null,
                         },
                     };
                 }
@@ -180,7 +182,6 @@ export const getRunMetricQuery = ({
                 const columns = fieldIds.map((fieldId) => {
                     const item = results.fields[fieldId];
                     return {
-                        fieldId,
                         label: item
                             ? getItemLabelWithoutTableName(item)
                             : fieldId,
@@ -201,15 +202,6 @@ export const getRunMetricQuery = ({
                     columns: columns.map((column) => column.label),
                 });
 
-                const rows = csvRows.map((values) =>
-                    Object.fromEntries(
-                        fieldIds.map((fieldId, index) => [
-                            fieldId,
-                            values[index],
-                        ]),
-                    ),
-                );
-
                 return {
                     result: `${serializeData(csv, 'csv')}${review}`,
                     metadata: {
@@ -218,8 +210,9 @@ export const getRunMetricQuery = ({
                     },
                     structuredContent: {
                         columns,
-                        rows,
-                        rowCount: rows.length,
+                        rows: csvRows,
+                        rowCount: csvRows.length,
+                        review: review === '' ? null : review,
                     },
                 };
             } catch (e) {

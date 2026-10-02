@@ -23,39 +23,50 @@ export type ToolListWorkstreamsArgs = z.infer<
     typeof toolListWorkstreamsArgsSchema
 >;
 
-export const toolListWorkstreamsStructuredContentSchema = z.object({
-    repoTarget: z
+const workstreamSchema = z.object({
+    repository: z
+        .string()
+        .describe(
+            'Repository the pull request was opened on, as "owner/repo".',
+        ),
+    prNumber: z.number().int(),
+    prUrl: z
+        .string()
+        .describe(
+            "Pull request URL; pass it as the edit tool's `prUrl` to continue this workstream.",
+        ),
+    summary: z
         .string()
         .nullable()
         .describe(
-            'The "owner/repo" the list was restricted to, or null when it spans every repository.',
-        ),
-    workstreams: z
-        .array(
-            z.object({
-                repository: z
-                    .string()
-                    .describe(
-                        'Repository the pull request was opened on, as "owner/repo".',
-                    ),
-                prNumber: z.number().int(),
-                prUrl: z
-                    .string()
-                    .describe(
-                        "Pull request URL; pass it as the edit tool's `prUrl` to continue this workstream.",
-                    ),
-                summary: z
-                    .string()
-                    .nullable()
-                    .describe(
-                        'Short summary of the changes in the pull request, or null when none was recorded.',
-                    ),
-            }),
-        )
-        .describe(
-            'Pull requests this conversation has opened; empty when none match.',
+            'Short summary of the changes in the pull request, or null when none was recorded.',
         ),
 });
+
+export const toolListWorkstreamsStructuredContentSchema = z.union([
+    z.object({
+        repoTarget: z
+            .string()
+            .nullable()
+            .describe(
+                'The "owner/repo" the list was restricted to, or null when it spans every repository.',
+            ),
+        workstreams: z
+            .array(workstreamSchema)
+            .length(0)
+            .describe(
+                'Pull requests this conversation has opened; empty when none match.',
+            ),
+    }),
+    z.object({
+        workstreams: z
+            .array(workstreamSchema)
+            .nonempty()
+            .describe(
+                'Pull requests this conversation has opened; empty when none match.',
+            ),
+    }),
+]);
 
 export type ToolListWorkstreamsStructuredContent = z.infer<
     typeof toolListWorkstreamsStructuredContentSchema

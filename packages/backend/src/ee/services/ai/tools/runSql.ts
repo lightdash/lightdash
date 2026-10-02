@@ -345,18 +345,26 @@ export const getRunSql = ({
                         inlineCsv: '',
                         truncated: false,
                     });
+                    const emptyReview =
+                        enableDataAccess && reviewQuery
+                            ? await reviewQuery(
+                                  { kind: 'sql', sql, limit: effectiveLimit },
+                                  { emptyResult: true, review },
+                              )
+                            : null;
                     const emptyContent: ToolRunSqlStructuredContent = {
                         rowCount: 0,
                         columns,
                         rows: [],
                         truncated: false,
+                        review: emptyReview,
                     };
                     return await persistResumeResult({
                         result: `Query returned 0 rows.${
                             columns.length > 0
                                 ? ` Columns: ${columns.join(', ')}`
                                 : ''
-                        }${enableDataAccess && reviewQuery ? ` ${await reviewQuery({ kind: 'sql', sql, limit: effectiveLimit }, { emptyResult: true, review })}` : ''}`,
+                        }${emptyReview !== null ? ` ${emptyReview}` : ''}`,
                         metadata: { status: 'success', rowCount: 0 },
                         structuredContent: emptyContent,
                     });
@@ -387,6 +395,7 @@ export const getRunSql = ({
                         columns,
                         rows: null,
                         truncated: false,
+                        review: null,
                     };
                     return await persistResumeResult({
                         result: resultSummary,
@@ -404,6 +413,7 @@ export const getRunSql = ({
                     columns,
                     rows: previewRows,
                     truncated: rowCount > RUN_SQL_PREVIEW_ROW_LIMIT,
+                    review: review || null,
                 };
                 const previewCsv = stringify(previewRows, {
                     header: true,

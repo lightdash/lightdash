@@ -26,6 +26,12 @@ const toDocumentEntry = (doc: AiAgentDocumentSummary): DocumentEntry => ({
     uuid: doc.uuid,
     name: doc.name,
     sizeBytes: doc.contentSizeBytes,
+    relevance: doc.summary.relevance,
+    description: doc.summary.description,
+    definedTerms: doc.summary.definedTerms,
+    relatedExploreNames: doc.summary.relatedExploreNames,
+    useWhen: doc.summary.useWhen,
+    warning: doc.summary.warning,
 });
 
 const renderDocument = (doc: AiAgentDocumentSummary) => (

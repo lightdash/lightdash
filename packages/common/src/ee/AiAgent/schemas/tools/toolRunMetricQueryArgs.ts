@@ -118,7 +118,6 @@ export const toolRunMetricQueryStructuredContentSchema = z.object({
     columns: z
         .array(
             z.object({
-                fieldId: z.string().describe('Field id keying each row.'),
                 label: z
                     .string()
                     .describe('Column header as shown in the CSV result.'),
@@ -128,15 +127,16 @@ export const toolRunMetricQueryStructuredContentSchema = z.object({
             'Ordered columns of the CSV result. Empty when the query returned no rows.',
         ),
     rows: z
-        .array(z.record(z.string(), z.unknown()))
+        .array(z.array(z.unknown()))
         .describe(
-            'Result rows keyed by field id, holding the same raw values as the CSV result.',
+            'Result rows as cell arrays in `columns` order, holding the cell values before CSV serialization (booleans, nulls and empty strings are kept; the CSV prints true as 1 and false, null and empty as blank).',
         ),
     rowCount: z
         .number()
         .int()
         .nonnegative()
         .describe('Number of rows returned; 0 means no results.'),
+    review: z.string().nullable(),
 });
 
 export const toolRunMetricQueryOutputSchema = structuredToolOutputSchema({

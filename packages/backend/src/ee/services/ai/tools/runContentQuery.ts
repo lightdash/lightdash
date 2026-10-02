@@ -74,10 +74,7 @@ const describeSavedChartSpec = (
 ): RowsOutcome['chart'] => ({
     ...describeSavedChartStructure(chartUuid, name, metricQuery),
     filters: metricQuery.filters,
-    sorts: metricQuery.sorts.map(({ fieldId, descending }) => ({
-        fieldId,
-        descending,
-    })),
+    sorts: metricQuery.sorts,
     limit: metricQuery.limit,
     tableCalculations: (metricQuery.tableCalculations ?? []).map(
         (calculation) => calculation.name,
@@ -90,11 +87,11 @@ const describeSavedChartSpec = (
     ),
 });
 
-// The rows the model sees, and the columns as the CSV header labels them.
+// The raw typed values behind the CSV cells, and the CSV header labels.
 const buildShownTable = (
     queryResults: { rows: Record<string, unknown>[]; fields: ItemsMap },
     maxContextRows: number,
-): Omit<RowsOutcome, 'outcome' | 'chart'> => {
+) => {
     const fieldIds = queryResults.rows[0]
         ? Object.keys(queryResults.rows[0])
         : [];
@@ -195,30 +192,33 @@ export const getRunContentQuery = ({
                             }))) ?? '';
 
                     if (queryResults.rows.length === 0) {
+                        const result = reviewQuery
+                            ? await reviewQuery(
+                                  {
+                                      kind: 'semantic',
+                                      query: queryResults.execution.metricQuery,
+                                      parameters:
+                                          queryResults.execution
+                                              .usedParametersValues,
+                                      timezone:
+                                          queryResults.execution
+                                              .resolvedTimezone,
+                                  },
+                                  { emptyResult: true, review },
+                              )
+                            : NO_RESULTS_RETRY_PROMPT;
                         return {
-                            result: reviewQuery
-                                ? await reviewQuery(
-                                      {
-                                          kind: 'semantic',
-                                          query: queryResults.execution
-                                              .metricQuery,
-                                          parameters:
-                                              queryResults.execution
-                                                  .usedParametersValues,
-                                          timezone:
-                                              queryResults.execution
-                                                  .resolvedTimezone,
-                                      },
-                                      { emptyResult: true, review },
-                                  )
-                                : NO_RESULTS_RETRY_PROMPT,
+                            result,
                             metadata: {
                                 status: 'success' as const,
                                 queryCacheHit:
                                     queryResults.cacheMetadata?.cacheHit ===
                                     true,
                             },
-                            structuredContent: { outcome: 'noResults' },
+                            structuredContent: {
+                                outcome: 'noResults',
+                                review: reviewQuery ? result : null,
+                            },
                         };
                     }
 
@@ -227,6 +227,10 @@ export const getRunContentQuery = ({
                         maxContextRows,
                     );
                     const table = buildShownTable(queryResults, maxContextRows);
+                    const truncationNote = getContextTruncationNote({
+                        rowCount: queryResults.rows.length,
+                        maxContextRows,
+                    });
                     return {
                         result: `${buildSavedChartHeader(
                             uuid,
@@ -235,10 +239,7 @@ export const getRunContentQuery = ({
                             {
                                 includeFullSpec: true,
                             },
-                        )}${getContextTruncationNote({
-                            rowCount: queryResults.rows.length,
-                            maxContextRows,
-                        })}${serializeData(csv, 'csv')}${review}`,
+                        )}${truncationNote}${serializeData(csv, 'csv')}${review}`,
                         metadata: {
                             status: 'success' as const,
                             queryCacheHit:
@@ -252,6 +253,9 @@ export const getRunContentQuery = ({
                                 queryResults.execution.metricQuery,
                             ),
                             ...table,
+                            review: review === '' ? null : review,
+                            truncationNote:
+                                truncationNote === '' ? null : truncationNote,
                         },
                     };
                 }
@@ -324,34 +328,39 @@ export const getRunContentQuery = ({
                 ]);
 
                 if (queryResults.rows.length === 0) {
+                    const result = reviewQuery
+                        ? await reviewQuery(
+                              {
+                                  kind: 'semantic',
+                                  query: metricQuery,
+                                  parameters: source.parameters
+                                      ? (source.parameters as ParametersValuesMap)
+                                      : undefined,
+                              },
+                              { emptyResult: true, review },
+                          )
+                        : NO_RESULTS_RETRY_PROMPT;
                     return {
-                        result: reviewQuery
-                            ? await reviewQuery(
-                                  {
-                                      kind: 'semantic',
-                                      query: metricQuery,
-                                      parameters: source.parameters
-                                          ? (source.parameters as ParametersValuesMap)
-                                          : undefined,
-                                  },
-                                  { emptyResult: true, review },
-                              )
-                            : NO_RESULTS_RETRY_PROMPT,
+                        result,
                         metadata: {
                             status: 'success' as const,
                             queryCacheHit:
                                 queryResults.cacheMetadata?.cacheHit === true,
                         },
-                        structuredContent: { outcome: 'noResults' },
+                        structuredContent: {
+                            outcome: 'noResults',
+                            review: reviewQuery ? result : null,
+                        },
                     };
                 }
 
                 const table = buildShownTable(queryResults, maxContextRows);
+                const truncationNote = getContextTruncationNote({
+                    rowCount: queryResults.rows.length,
+                    maxContextRows,
+                });
                 return {
-                    result: `${getContextTruncationNote({
-                        rowCount: queryResults.rows.length,
-                        maxContextRows,
-                    })}${serializeData(
+                    result: `${truncationNote}${serializeData(
                         convertQueryResultsToCsv(queryResults, maxContextRows),
                         'csv',
                     )}${review}`,
@@ -364,6 +373,16 @@ export const getRunContentQuery = ({
                         outcome: 'rows',
                         chart: null,
                         ...table,
+                        columns: table.columns.map(({ label }) => ({
+                            fieldId: null,
+                            label,
+                        })),
+                        rows: table.rows.map((row) =>
+                            table.columns.map(({ fieldId }) => row[fieldId]),
+                        ),
+                        review: review === '' ? null : review,
+                        truncationNote:
+                            truncationNote === '' ? null : truncationNote,
                     },
                 };
             } catch (error) {

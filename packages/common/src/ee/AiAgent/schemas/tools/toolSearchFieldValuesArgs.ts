@@ -117,6 +117,12 @@ export const toolSearchFieldValuesStructuredContentSchema = z.object({
         .describe(
             'Guidance about the returned values, e.g. that they come from curated field metadata or that value suggestions are disabled for the field. Null when there is none.',
         ),
+    matchingValue: z
+        .union([z.string(), z.number(), z.boolean()])
+        .nullable()
+        .describe(
+            'The returned value that matches the requested query (exact hit or decision-resolved equivalent); null when none was asserted.',
+        ),
 });
 
 export const toolSearchFieldValuesOutputSchema = structuredToolOutputSchema({

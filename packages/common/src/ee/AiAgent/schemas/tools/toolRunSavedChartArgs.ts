@@ -97,12 +97,18 @@ export const toolRunSavedChartStructuredContentSchema = z.discriminatedUnion(
             rows: z
                 .array(z.record(z.string(), z.unknown()))
                 .describe('Row cells keyed by column fieldId'),
+            review: z.string().nullable(),
+            truncationNote: z.string().nullable(),
         }),
         z.object({
             status: z.literal('no_results'),
             note: z
                 .string()
-                .describe('Retry guidance; the same text as `result`'),
+                .nullable()
+                .describe(
+                    "Retry guidance, the same text as `result`, when no reviewer ran; null when the reviewer's diagnosis is carried in `review`",
+                ),
+            review: z.string().nullable(),
         }),
         z.object({
             status: z.literal('data_access_disabled'),
@@ -110,7 +116,7 @@ export const toolRunSavedChartStructuredContentSchema = z.discriminatedUnion(
             note: z
                 .string()
                 .describe(
-                    'Why no rows are returned; the same text as `result`',
+                    'Why no rows are returned; the sentence that follows the chart header in `result`',
                 ),
         }),
     ],

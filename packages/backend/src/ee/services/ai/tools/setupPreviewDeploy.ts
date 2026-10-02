@@ -52,7 +52,7 @@ export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
                         status: 'success',
                         prUrl,
                     },
-                    structuredContent: setup,
+                    structuredContent: { projectName, repository, secrets },
                 };
             } catch (error) {
                 return toolErrorOutput(

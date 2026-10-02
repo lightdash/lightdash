@@ -22,11 +22,6 @@ const toolSetupPreviewDeployMetadataSchema = z.discriminatedUnion('status', [
 ]);
 
 export const toolSetupPreviewDeployStructuredContentSchema = z.object({
-    prUrl: z
-        .string()
-        .describe(
-            'URL of the opened pull request. The user already sees it as a "View pull request" button, so do not repeat it in the reply.',
-        ),
     projectName: z
         .string()
         .describe('Lightdash project the preview deploys are based on.'),

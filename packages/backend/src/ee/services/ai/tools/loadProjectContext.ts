@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
-import { renderMemoryBlock } from '../utils/memoryBlock';
+import { renderMemoryBlockWithDetails } from '../utils/memoryBlock';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -49,8 +49,8 @@ const isMemoryEntry = (
 const renderMemories = (
     entries: ProjectContextSearchEntry[],
     getContent: (entry: MemoryEntry) => string,
-): string | null =>
-    renderMemoryBlock(
+) =>
+    renderMemoryBlockWithDetails(
         entries.filter(isMemoryEntry).map((entry) => ({
             slug: entry.id,
             content: getContent(entry),
@@ -90,7 +90,7 @@ export const renderProjectContextEntries = (
         .join('\n');
     const memoryBlock = renderMemories(entries, (entry) => entry.content);
 
-    return [context, memoryBlock].filter(Boolean).join('\n');
+    return [context, memoryBlock.block].filter(Boolean).join('\n');
 };
 
 const toLoadedEntry = (
@@ -117,7 +117,7 @@ const toLoadedEntry = (
 // When patterns match nothing, list the available entries (id/kind/terms) so
 // the agent can re-grep with broader keywords or load everything — cheaper than
 // silently dumping the whole context.
-const renderNoMatch = (all: ProjectContextSearchEntry[]): string => {
+const renderNoMatch = (all: ProjectContextSearchEntry[]) => {
     const context = all
         .filter((entry) => entry.source !== 'memory')
         .map((entry) => {
@@ -134,9 +134,13 @@ const renderNoMatch = (all: ProjectContextSearchEntry[]): string => {
             ? `Available search terms: ${entry.terms.join(', ')}`
             : 'No search terms.',
     );
-    const inventory = [context, memoryBlock].filter(Boolean).join('\n');
+    const inventory = [context, memoryBlock.block].filter(Boolean).join('\n');
 
-    return `No context entry matched your patterns. ${all.length} entries exist — re-grep with broader keywords, or call again without patterns to load all:\n${inventory}`;
+    return {
+        result: `No context entry matched your patterns. ${all.length} entries exist — re-grep with broader keywords, or call again without patterns to load all:\n${inventory}`,
+        renderedMemoryCount: memoryBlock.renderedCount,
+        truncationNote: memoryBlock.truncationNote,
+    };
 };
 
 const toAvailableEntry = (
@@ -180,8 +184,17 @@ export const getLoadProjectContext = ({
                 // Patterns given but nothing matched: surface the available
                 // entries instead of an empty result.
                 if (patterns?.length && selected.length === 0) {
+                    const rendered = renderNoMatch(entries);
+                    // Mirror the inventory as printed: context entries, then
+                    // the memories the block had room for.
+                    const availableEntries = [
+                        ...entries.filter((entry) => !isMemoryEntry(entry)),
+                        ...entries
+                            .filter(isMemoryEntry)
+                            .slice(0, rendered.renderedMemoryCount),
+                    ];
                     return {
-                        result: renderNoMatch(entries),
+                        result: rendered.result,
                         metadata: {
                             status: 'success',
                             entryIds: [],
@@ -190,7 +203,8 @@ export const getLoadProjectContext = ({
                         structuredContent: {
                             outcome: 'no_match',
                             totalEntries: entries.length,
-                            available: entries.map(toAvailableEntry),
+                            available: availableEntries.map(toAvailableEntry),
+                            truncationNote: rendered.truncationNote,
                         },
                     };
                 }
@@ -229,6 +243,18 @@ export const getLoadProjectContext = ({
                     } ids=${entryIds.join(',')}`,
                 );
 
+                // Mirror the entries as printed: context entries, then the
+                // memories the block had room for.
+                const memoryBlock = renderMemories(
+                    selected,
+                    (entry) => entry.content,
+                );
+                const loadedEntries = [
+                    ...selected.filter((entry) => !isMemoryEntry(entry)),
+                    ...selected
+                        .filter(isMemoryEntry)
+                        .slice(0, memoryBlock.renderedCount),
+                ];
                 return {
                     result: renderProjectContextEntries(selected),
                     metadata: {
@@ -238,7 +264,8 @@ export const getLoadProjectContext = ({
                     },
                     structuredContent: {
                         outcome: 'loaded',
-                        entries: selected.map(toLoadedEntry),
+                        entries: loadedEntries.map(toLoadedEntry),
+                        truncationNote: memoryBlock.truncationNote,
                     },
                 };
             } catch (error) {

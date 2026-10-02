@@ -32,6 +32,7 @@ const toDashboardChart = (
         ? {
               verifiedBy: `${chart.verification.verifiedBy.firstName} ${chart.verification.verifiedBy.lastName}`,
               verifiedAt: moment(chart.verification.verifiedAt).toISOString(),
+              verifiedAgo: moment(chart.verification.verifiedAt).fromNow(),
           }
         : null,
 });
@@ -48,6 +49,7 @@ const renderChart = (chart: DashboardChart) => (
             <verified
                 by={chart.verification.verifiedBy}
                 at={moment(chart.verification.verifiedAt).fromNow()}
+                iso={moment(chart.verification.verifiedAt).toISOString()}
             />
         )}
     </chart>

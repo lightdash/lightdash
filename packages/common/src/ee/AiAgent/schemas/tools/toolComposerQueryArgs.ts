@@ -436,8 +436,10 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
         })
         .nullable()
         .describe(
-            'Rows the model was shown; null when data access is disabled or the terminal result is empty.',
+            'Raw values of the preview rows rendered as CSV in the result; null when data access is disabled or the terminal result is empty.',
         ),
+    visualization: z.string().nullable(),
+    review: z.string().nullable(),
 });
 
 export const toolComposerQueriesOutputSchema = structuredToolOutputSchema({

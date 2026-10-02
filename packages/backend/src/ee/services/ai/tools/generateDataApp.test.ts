@@ -78,9 +78,6 @@ describe('getGenerateDataApp', () => {
             },
             structuredContent: {
                 status: 'pending',
-                appUuid: 'app-1',
-                version: 1,
-                name: 'Revenue Overview',
             },
         });
     });

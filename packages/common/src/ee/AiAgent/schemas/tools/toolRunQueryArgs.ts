@@ -640,13 +640,23 @@ export type ToolRunQueryAppliedParameters = z.infer<
 
 const executedQueryLimitSchema = z
     .object({
-        requested: z.number().nullable(),
+        requested: z
+            .number()
+            .nullable()
+            .describe(
+                'The requested limit only when the summary states it; null when unstated or no limit was requested.',
+            ),
         effective: z
             .number()
             .describe(
                 'The limit applied after resolving null and capping to `max`. A rowCount equal to this means the limit was reached and more rows may exist.',
             ),
-        max: z.number().describe("This tool's maximum row limit."),
+        max: z
+            .number()
+            .nullable()
+            .describe(
+                "This tool's maximum row limit only when the summary states it; null otherwise.",
+            ),
     })
     .describe('The row limit behind rowCount.');
 
@@ -654,16 +664,30 @@ const shownResultsSchema = z
     .object({
         columns: z
             .array(z.string())
-            .describe('Ordered field ids matching the keys of each row.'),
+            .describe('Ordered column labels matching the CSV headers.'),
         rows: z
-            .array(z.record(z.string(), z.unknown()))
+            .array(z.array(z.unknown()))
             .describe(
-                'The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.',
+                'The raw typed values of the rows the CSV renders; cells may differ in type or precision from the CSV. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.',
             ),
     })
     .nullable()
     .describe(
-        'The result rows the model was shown; null when the agent has no data access and no rows were shown.',
+        'The raw warehouse values behind the CSV cells in the shown slice; null when the agent has no data access and no rows were shown.',
+    );
+
+const chartVersionUuidSchema = z
+    .string()
+    .nullable()
+    .describe(
+        'The saved chart versionUuid the result tells the model to select, when it states one; null otherwise.',
+    );
+
+const reviewSchema = z
+    .string()
+    .nullable()
+    .describe(
+        'The reviewer prose carried by the result (query/question review, empty-result diagnosis, value hints), verbatim; null when the result carries none.',
     );
 
 export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
@@ -675,12 +699,14 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
                 .describe(
                     "Data access is disabled, so the query was not run; the query definition was recorded as a new version of the thread's chart artifact (created on first use). Nothing is saved to the project.",
                 ),
+            chartVersionUuid: chartVersionUuidSchema,
         }),
         z.object({
             outcome: z
                 .literal('noResults')
                 .describe('The query ran and returned no rows.'),
             rowCount: z.literal(0),
+            review: reviewSchema,
             parameters: appliedParametersSchema
                 .nullable()
                 .describe(
@@ -698,6 +724,41 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
                 .nullable()
                 .describe(
                     'The uuid of this execution, when the run exposes it for citation; null otherwise.',
+                ),
+            chartVersionUuid: chartVersionUuidSchema,
+            chartExport: z
+                .object({
+                    artifactUuid: z.string(),
+                    versionUuid: z.string(),
+                })
+                .nullable()
+                .describe(
+                    'The stored chart to pass to exportChartAsCode, when the result names it; null otherwise.',
+                ),
+            truncationNote: z
+                .string()
+                .nullable()
+                .describe(
+                    'The note stating that only part of the rows were written into the conversation, verbatim; null when every row is shown.',
+                ),
+            review: reviewSchema,
+            presentationNote: z
+                .string()
+                .nullable()
+                .describe(
+                    'The chart presentation note, verbatim; null when the result carries none.',
+                ),
+            chartQualityNote: z
+                .string()
+                .nullable()
+                .describe(
+                    'The chart readability hints, verbatim; null when the result carries none.',
+                ),
+            sourceCoverageNote: z
+                .string()
+                .nullable()
+                .describe(
+                    'The joined-measure source coverage note, verbatim; null when the result carries none.',
                 ),
             rowCount: z
                 .number()

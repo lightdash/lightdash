@@ -97,11 +97,8 @@ describe('getGenerateDataAppBuildOutcome', () => {
 
         expect(outcome?.structuredContent).toEqual({
             status: 'success',
-            appUuid: 'app-1',
             version: 2,
             name: 'Revenue app',
-            slug: 'revenue-app',
-            href: 'https://ld.example.com/projects/proj-1/apps/app-1',
         });
         expect(toolGenerateDataAppOutputSchema.safeParse(outcome).success).toBe(
             true,

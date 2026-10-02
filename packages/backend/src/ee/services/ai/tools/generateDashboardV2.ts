@@ -145,8 +145,11 @@ export const getGenerateDashboardV2 = ({
                 }
 
                 const structuredContent: ToolDashboardV2StructuredContent = {
-                    visualizationCount: validVisualizations.length,
+                    visualizationCount:
+                        errors.length > 0 ? validVisualizations.length : null,
                     excludedVisualizations,
+                    layout: layout ?? null,
+                    defaultLayoutNote: layout ? null : (layoutResult ?? null),
                 };
 
                 // Return appropriate message based on whether some visualizations failed
