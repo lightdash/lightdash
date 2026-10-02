@@ -37,6 +37,7 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseConnectionFailureCause,
+    WarehouseConnectionTestStage,
     WarehouseTypes,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
@@ -333,7 +334,8 @@ type WarehouseConnectionTestedEvent = BaseTrack & {
         errorType?: string;
         failureCause?: WarehouseConnectionFailureCause;
         driverCode?: string | null;
-        context: 'project_create' | 'project_update';
+        failureStage?: WarehouseConnectionTestStage;
+        context: 'project_create' | 'project_update' | 'staged_test';
         method: RequestMethod;
         onboardingFlow: OnboardingFlow;
     };

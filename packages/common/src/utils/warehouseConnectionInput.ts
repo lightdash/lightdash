@@ -51,7 +51,7 @@ const HOST_WITH_PORT_PATTERN = /^([^:]+):(\d{1,5})$/;
 const LOCAL_HOSTS = new Set(['localhost', '0.0.0.0', '::1', '::']);
 const SNOWFLAKE_SUFFIX_PATTERN = /\.snowflakecomputing\.com$/i;
 
-const isLocalHost = (host: string) => {
+export const isLocalHost = (host: string): boolean => {
     const lower = host.toLowerCase();
     return (
         LOCAL_HOSTS.has(lower) ||
@@ -259,6 +259,24 @@ export const parseMotherduckDatabaseInput = (
     return trimmed;
 };
 
+export const parsePortInput = (
+    input: number | string,
+): ConnectionInputParseResult => {
+    const port = Number(input);
+    if (Number.isInteger(port) && port > 0 && port <= 65535) {
+        return {
+            kind: ConnectionInputParseKind.UNCHANGED,
+            value: String(input),
+        };
+    }
+    return {
+        kind: ConnectionInputParseKind.BLOCKED,
+        value: String(input),
+        original: String(input),
+        reason: `${input} is not a valid port. Use a number between 1 and 65535.`,
+    };
+};
+
 export type WarehouseConnectionInputIssue = {
     field: string;
     result: Exclude<
@@ -278,6 +296,11 @@ const hostOptions = (
     fieldLabel,
 });
 
+const portResult = (
+    port: number | string | undefined,
+): Record<string, ConnectionInputParseResult> =>
+    port === undefined ? {} : { port: parsePortInput(port) };
+
 export const parseWarehouseConnectionInputs = (
     credentials: CreateWarehouseCredentials,
     environment: ConnectionInputEnvironment,
@@ -290,20 +313,16 @@ export const parseWarehouseConnectionInputs = (
                     credentials.host,
                     hostOptions(environment, credentials.useSshTunnel, true),
                 ),
+                ...portResult(credentials.port),
             };
         case WarehouseTypes.TRINO:
-            return {
-                host: parseHostInput(
-                    credentials.host,
-                    hostOptions(environment, false, true),
-                ),
-            };
         case WarehouseTypes.CLICKHOUSE:
             return {
                 host: parseHostInput(
                     credentials.host,
                     hostOptions(environment, false, true),
                 ),
+                ...portResult(credentials.port),
             };
         case WarehouseTypes.DATABRICKS:
             return {

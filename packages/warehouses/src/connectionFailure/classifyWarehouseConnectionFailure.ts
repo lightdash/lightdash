@@ -21,6 +21,10 @@ type CauseRule = {
 
 const NODE_RULES: readonly CauseRule[] = [
     {
+        cause: WarehouseConnectionFailureCause.INPUT_FORMAT,
+        codes: ['ERR_SOCKET_BAD_PORT', 'ERR_INVALID_URL'],
+    },
+    {
         cause: WarehouseConnectionFailureCause.TLS,
         codes: [
             'SELF_SIGNED_CERT_IN_CHAIN',

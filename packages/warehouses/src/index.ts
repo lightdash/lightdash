@@ -17,3 +17,4 @@ export * from './warehouseClients/redshiftIamCredentials';
 export * from './warehouseClients/SnowflakeWarehouseClient';
 export * from './warehouseClients/TrinoWarehouseClient';
 export * from './warehouseSqlBuilderFromType';
+export * from './connectionTest/runStagedConnectionTest';
