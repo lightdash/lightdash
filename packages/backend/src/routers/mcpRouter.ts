@@ -419,6 +419,36 @@ mcpRouter.all(
                         dataAppBuildsEnabled,
                     },
                 };
+                if (
+                    !runSqlEnabled &&
+                    parsedToolCall.success &&
+                    parsedToolCall.data.params.name === 'run_sql' &&
+                    req.account &&
+                    req.user?.organizationUuid
+                ) {
+                    const requestedProjectUuid =
+                        parsedToolCall.data.params.arguments?.projectUuid;
+                    const refusalProjectUuid =
+                        pinnedProjectUuid ??
+                        (typeof requestedProjectUuid === 'string' &&
+                        isValidUuid(requestedProjectUuid)
+                            ? requestedProjectUuid
+                            : null);
+                    if (refusalProjectUuid) {
+                        const requestedSql =
+                            parsedToolCall.data.params.arguments?.sql;
+                        await mcpService.recordDisabledRunSqlRefusal({
+                            account: req.account,
+                            organizationUuid: req.user.organizationUuid,
+                            projectUuid: refusalProjectUuid,
+                            sql:
+                                typeof requestedSql === 'string'
+                                    ? requestedSql
+                                    : null,
+                            userAgent: userAgent ?? null,
+                        });
+                    }
+                }
                 const mcpServer = await mcpService.createServer(toolOptions);
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,

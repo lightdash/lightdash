@@ -1853,6 +1853,8 @@ describe('AiAgentToolsService', () => {
                 chartUuid: 'allowed-chart-uuid',
                 limit: 100,
                 context: QueryExecutionContext.AI,
+                aiSurface: null,
+                aiClient: 'lightdash',
             },
             undefined,
             onQueryPrepared,
@@ -2294,6 +2296,8 @@ describe('AiAgentToolsService runComposerQueries', () => {
             parameters: {},
             userAttributeOverrides: {},
             invalidateCache: false,
+            aiSurface: null,
+            aiClient: 'lightdash',
         });
         expect(getAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'query-2', page: 1 }),

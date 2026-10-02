@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     Account,
+    AgentSqlScope,
     AnyType,
     assertUnreachable,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
@@ -32,11 +33,14 @@ import {
     PersonSignInProvider,
     PossibleAbilities,
     ProjectType,
+    QueryCredentialKind,
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
     QueryHistoryWindow,
+    QueryRefusalReason,
     QuerySourceType,
+    QuerySurface,
     QueryTrigger,
     ResultColumns,
     ResultsExpiredError,
@@ -265,6 +269,7 @@ const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
+    getAgentSqlScope: vi.fn(async (): Promise<AgentSqlScope | null> => null),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
@@ -3788,6 +3793,10 @@ describe('AsyncQueryService', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            surface: null,
+            aiClient: null,
+            credentialKind: null,
+            credentialUuid: null,
         });
 
         test('allows embedded AI agent JWTs to poll AI queries created by the embed write user', async () => {
@@ -3878,6 +3887,10 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                surface: null,
+                aiClient: null,
+                credentialKind: null,
+                credentialUuid: null,
             });
 
             serviceWithCache.getExplore = vi
@@ -4122,6 +4135,10 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                surface: null,
+                aiClient: null,
+                credentialKind: null,
+                credentialUuid: null,
             };
 
             serviceWithCache.queryHistoryModel.get = vi
@@ -4245,6 +4262,10 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                surface: null,
+                aiClient: null,
+                credentialKind: null,
+                credentialUuid: null,
             };
 
             serviceWithCache.queryHistoryModel.get = vi
@@ -4348,6 +4369,10 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                surface: null,
+                aiClient: null,
+                credentialKind: null,
+                credentialUuid: null,
             };
 
             serviceWithCache.queryHistoryModel.get = vi
@@ -4415,6 +4440,10 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: 'duckdb',
                 preAggregateFallbackReason: 'duckdb_execution_error',
                 processingStartedAt: null,
+                surface: null,
+                aiClient: null,
+                credentialKind: null,
+                credentialUuid: null,
             };
 
             serviceWithCache.queryHistoryModel.get = vi
@@ -4694,6 +4723,10 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                surface: null,
+                aiClient: null,
+                credentialKind: null,
+                credentialUuid: null,
                 ...overrides,
             }) as QueryHistory;
 
@@ -5265,6 +5298,10 @@ describe('AsyncQueryService', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            surface: null,
+            aiClient: null,
+            credentialKind: null,
+            credentialUuid: null,
         });
 
         const getPollArgs = (
@@ -5442,6 +5479,10 @@ describe('AsyncQueryService', () => {
         preAggregateExecution: null,
         preAggregateFallbackReason: null,
         processingStartedAt: null,
+        surface: null,
+        aiClient: null,
+        credentialKind: null,
+        credentialUuid: null,
     });
 
     describe('prepareQueuedQueryForExecution', () => {
@@ -5537,6 +5578,110 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncQuery with originalColumns', () => {
+        test.each([
+            {
+                enabled: true,
+                context: QueryExecutionContext.AI,
+                aiSurface: QuerySurface.SLACK_AGENT,
+                aiClient: 'lightdash',
+                credentialKind: QueryCredentialKind.PERSONAL,
+                credentialUuid: 'personal-credential-1',
+                expectedProvenance: {
+                    surface: QuerySurface.SLACK_AGENT,
+                    aiClient: 'lightdash',
+                    credentialKind: QueryCredentialKind.PERSONAL,
+                    credentialUuid: 'personal-credential-1',
+                },
+            },
+            {
+                enabled: true,
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                aiSurface: null,
+                aiClient: 'mcp-client',
+                credentialKind: QueryCredentialKind.SHARED,
+                credentialUuid: 'shared-credential-1',
+                expectedProvenance: {
+                    surface: QuerySurface.MCP,
+                    aiClient: 'mcp-client',
+                    credentialKind: QueryCredentialKind.SHARED,
+                    credentialUuid: 'shared-credential-1',
+                },
+            },
+            {
+                enabled: false,
+                context: QueryExecutionContext.AI,
+                aiSurface: QuerySurface.SLACK_AGENT,
+                aiClient: 'lightdash',
+                credentialKind: QueryCredentialKind.PERSONAL,
+                credentialUuid: 'personal-credential-1',
+                expectedProvenance: undefined,
+            },
+        ] as const)(
+            'persists provenance for $context only when enabled ($enabled)',
+            async ({
+                enabled,
+                context,
+                aiSurface,
+                aiClient,
+                credentialKind,
+                credentialUuid,
+                expectedProvenance,
+            }) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                vi.mocked(service.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.QueryProvenance &&
+                            enabled,
+                    }),
+                );
+                vi.mocked(service.queryHistoryModel.create).mockResolvedValue({
+                    queryUuid: 'query-1',
+                });
+                service.findResultsCache = vi.fn().mockResolvedValue({
+                    cacheHit: false,
+                    updatedAt: undefined,
+                    expiresAt: undefined,
+                });
+                const run = vi
+                    .spyOn(service, 'runAsyncWarehouseQuery')
+                    .mockResolvedValue(undefined);
+
+                await service['executeAsyncQuery'](
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        context,
+                        aiSurface,
+                        aiClient,
+                        queryTags: { query_context: context },
+                        queryComposer: createQueryComposerMock(),
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid: null,
+                        credentialKind,
+                        credentialUuid,
+                    },
+                    { query: metricQueryMock },
+                );
+
+                const createCall = vi.mocked(service.queryHistoryModel.create)
+                    .mock.calls[0];
+                expect(createCall[2]?.provenance).toEqual(expectedProvenance);
+                expect(run).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        queryTags: enabled
+                            ? expect.objectContaining({
+                                  query_surface: expectedProvenance?.surface,
+                                  ai_client: aiClient,
+                                  credential_kind: credentialKind,
+                              })
+                            : { query_context: context },
+                    }),
+                );
+            },
+        );
+
         const serviceWithCache = getMockedAsyncQueryService({
             ...lightdashConfigMock,
             results: {
@@ -6607,6 +6752,34 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        it('records an AI scope refusal once before query setup', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            projectModel.getAgentSqlScope.mockImplementationOnce(async () => ({
+                schemas: ['jaffle'],
+            }));
+            const record = vi
+                .spyOn(service, 'recordQueryRefusal')
+                .mockResolvedValue();
+            const warehouse = vi.spyOn(service, '_getWarehouseClient');
+
+            await expect(
+                service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT * FROM jaffle_old.orders',
+                    context: QueryExecutionContext.AI,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(record).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    reason: QueryRefusalReason.BLOCKED_FOR_AI,
+                    sql: 'SELECT * FROM jaffle_old.orders',
+                }),
+            );
+            expect(warehouse).not.toHaveBeenCalled();
+        });
+
         it('rejects managed analytics SQL before accessing the warehouse', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             projectModel.getSummary.mockResolvedValueOnce({
@@ -9621,6 +9794,10 @@ describe('saved chart query result access', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            surface: null,
+            aiClient: null,
+            credentialKind: null,
+            credentialUuid: null,
         };
         const getChart = vi.fn().mockResolvedValue({
             uuid: 'source-chart-uuid',
@@ -12043,6 +12220,10 @@ describe('executeAsyncMergeQuery over a result source', () => {
         preAggregateExecution: null,
         preAggregateFallbackReason: null,
         processingStartedAt: null,
+        surface: null,
+        aiClient: null,
+        credentialKind: null,
+        credentialUuid: null,
     });
 
     const mergeQuery: MergeQuery = {
@@ -12781,6 +12962,10 @@ describe('chart embed token query history access', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            surface: null,
+            aiClient: null,
+            credentialKind: null,
+            credentialUuid: null,
         };
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);

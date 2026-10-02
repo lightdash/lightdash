@@ -29,8 +29,11 @@ import {
     OrganizationMemberRole,
     PinnedItem,
     ProjectMemberRole,
+    QueryCredentialKind,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QueryRefusalReason,
+    QuerySurface,
     RequestMethod,
     SchedulerFormat,
     SchedulerResourceType,
@@ -621,6 +624,22 @@ type QueryExecutionSource =
     | 'pre_aggregate_duckdb'
     | 'pre_aggregate_warehouse'
     | 'external_source_duckdb';
+
+export type QueryRefusedEvent = BaseTrack & {
+    event: 'query.refused';
+    properties: {
+        organizationUuid: string;
+        projectUuid: string;
+        userUuid: string | null;
+        surface: QuerySurface;
+        aiClient: string | null;
+        warehouseConnectionUuid: string | null;
+        credentialKind: QueryCredentialKind | null;
+        credentialUuid: string | null;
+        reason: QueryRefusalReason;
+        sqlHash: string | null;
+    };
+};
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -4502,6 +4521,7 @@ type TypedEvent =
     | UserJoinOrganizationEvent
     | UserLeftOrganizationEvent
     | QueryExecutionEvent
+    | QueryRefusedEvent
     | QueryReadyEvent
     | QueryErrorEvent
     | QueryCompletedEvent

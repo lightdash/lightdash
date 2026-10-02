@@ -143,6 +143,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     ReadinessScore,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
@@ -11741,6 +11742,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
+            querySurface: isSlackPrompt(prompt)
+                ? QuerySurface.SLACK_AGENT
+                : QuerySurface.AI_AGENT,
             tags: runtimeAgentSettings.tags,
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
@@ -12490,6 +12494,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             runAsyncMergeQuery: toolsRuntime.runAsyncMergeQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
+            recordSqlScopeRefusal: toolsRuntime.recordSqlScopeRefusal,
             runComposerQueries: toolsRuntime.runComposerQueries,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
             describeWarehouseTable: toolsRuntime.describeWarehouseTable,
@@ -14209,6 +14214,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
+            recordSqlScopeRefusal,
             runComposerQueries,
             listWarehouseTables,
             describeWarehouseTable,
@@ -14637,6 +14643,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
+            recordSqlScopeRefusal,
             runComposerQueries,
             listWarehouseTables,
             describeWarehouseTable,

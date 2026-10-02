@@ -68,6 +68,7 @@ const createMcpService = (documentsEnabled: boolean) =>
         isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
+        recordDisabledRunSqlRefusal: vi.fn().mockResolvedValue(undefined),
         recordToolList: vi.fn(),
     }) as McpService;
 
@@ -277,6 +278,36 @@ describe('MCP tool catalogue activity', () => {
         });
 
         expect(mcpService.recordToolList).not.toHaveBeenCalled();
+    });
+
+    it('records a disabled run_sql call once before the SDK rejects it', async () => {
+        const account = createAccount({ type: 'pat' });
+        const { mcpService } = await requestMcp({
+            account,
+            method: 'POST',
+            requestBody: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'run_sql',
+                    arguments: {
+                        projectUuid: PROJECT_UUID,
+                        sql: 'SELECT 1',
+                    },
+                },
+            },
+        });
+
+        expect(
+            mcpService.recordDisabledRunSqlRefusal,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                account,
+                projectUuid: PROJECT_UUID,
+                sql: 'SELECT 1',
+            }),
+        );
     });
 });
 

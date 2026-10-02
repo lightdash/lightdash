@@ -95,6 +95,7 @@ const makeTool = ({
             columns: ['answer'],
             rowCount: 1,
         }),
+        recordSqlScopeRefusal: vi.fn().mockResolvedValue(undefined),
         getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
         updateSlackMessage: vi.fn().mockResolvedValue(undefined),
@@ -493,6 +494,11 @@ describe('getRunSql agent SQL scope', () => {
         );
 
         expect(dependencies.runSqlJob).not.toHaveBeenCalled();
+        expect(
+            dependencies.recordSqlScopeRefusal,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'SELECT id FROM jaffle_old.stale_orders',
+        );
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('jaffle_old');
         expect(output.structuredContent).toEqual({ error: output.result });

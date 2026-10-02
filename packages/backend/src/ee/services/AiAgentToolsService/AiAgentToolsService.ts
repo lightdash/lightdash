@@ -35,6 +35,8 @@ import {
     parseDocumentContent,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QueryRefusalReason,
+    QuerySurface,
     RequestMethod,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
@@ -202,6 +204,8 @@ export type AiAgentToolsRuntimeContext = {
     enableDocuments?: boolean;
     catalogSearchContext: CatalogSearchContext;
     defaultQueryExecutionContext: QueryExecutionContext;
+    querySurface?: QuerySurface.AI_AGENT | QuerySurface.SLACK_AGENT | null;
+    aiClient?: string | null;
     tags: string[] | null;
     spaceAccess: string[] | null;
     sqlScope?: AgentSqlScope | null;
@@ -264,6 +268,7 @@ export type AiAgentToolsRuntime = {
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
+    recordSqlScopeRefusal: (sql: string) => Promise<void>;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
@@ -718,6 +723,20 @@ export class AiAgentToolsService extends BaseService {
             runSavedChartQuery: (args) =>
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
+            recordSqlScopeRefusal: (sql) =>
+                this.asyncQueryService.recordQueryRefusal({
+                    account: context.account,
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                    context: context.defaultQueryExecutionContext,
+                    aiSurface: context.querySurface ?? null,
+                    aiClient:
+                        context.source === 'ai_agent'
+                            ? 'lightdash'
+                            : (context.aiClient ?? null),
+                    reason: QueryRefusalReason.BLOCKED_FOR_AI,
+                    sql,
+                }),
             runComposerQueries: (args) =>
                 this.runComposerQueries(context, args),
             listWarehouseTables: () => this.listWarehouseTables(context),
@@ -2883,6 +2902,11 @@ export class AiAgentToolsService extends BaseService {
                                 ),
                             },
                             context: context.defaultQueryExecutionContext,
+                            aiSurface: context.querySurface ?? null,
+                            aiClient:
+                                context.source === 'ai_agent'
+                                    ? 'lightdash'
+                                    : (context.aiClient ?? null),
                             isEmbedOrigin: context.isEmbedOrigin,
                             parameters,
                             userAttributeOverrides:
@@ -2932,6 +2956,11 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             mergeQuery,
                             context: context.defaultQueryExecutionContext,
+                            aiSurface: context.querySurface ?? null,
+                            aiClient:
+                                context.source === 'ai_agent'
+                                    ? 'lightdash'
+                                    : (context.aiClient ?? null),
                             isEmbedOrigin: context.isEmbedOrigin,
                             parameters,
                             mode: { type: 'interactive' },
@@ -2986,6 +3015,11 @@ export class AiAgentToolsService extends BaseService {
                             chartUuid: args.chartUuid,
                             limit,
                             context: context.defaultQueryExecutionContext,
+                            aiSurface: context.querySurface ?? null,
+                            aiClient:
+                                context.source === 'ai_agent'
+                                    ? 'lightdash'
+                                    : (context.aiClient ?? null),
                             ...(context.invalidateQueryCache
                                 ? { invalidateCache: true }
                                 : {}),
@@ -3035,6 +3069,11 @@ export class AiAgentToolsService extends BaseService {
                         dashboardSorts: [],
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        aiSurface: context.querySurface ?? null,
+                        aiClient:
+                            context.source === 'ai_agent'
+                                ? 'lightdash'
+                                : (context.aiClient ?? null),
                         ...(context.invalidateQueryCache
                             ? { invalidateCache: true }
                             : {}),
@@ -3063,6 +3102,19 @@ export class AiAgentToolsService extends BaseService {
                     context.sqlScope,
                 );
                 if (violations.length > 0 && context.sqlScope) {
+                    await this.asyncQueryService.recordQueryRefusal({
+                        account: context.account,
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                        context: context.defaultQueryExecutionContext,
+                        aiSurface: context.querySurface ?? null,
+                        aiClient:
+                            context.source === 'ai_agent'
+                                ? 'lightdash'
+                                : (context.aiClient ?? null),
+                        reason: QueryRefusalReason.BLOCKED_FOR_AI,
+                        sql,
+                    });
                     this.logger.warn(
                         `Blocked out-of-scope agent SQL for project ${
                             context.projectUuid
@@ -3083,6 +3135,11 @@ export class AiAgentToolsService extends BaseService {
                         sql,
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        aiSurface: context.querySurface ?? null,
+                        aiClient:
+                            context.source === 'ai_agent'
+                                ? 'lightdash'
+                                : (context.aiClient ?? null),
                         isEmbedOrigin: context.isEmbedOrigin,
                     });
 
@@ -3201,6 +3258,11 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             queries,
                             context: context.defaultQueryExecutionContext,
+                            aiSurface: context.querySurface ?? null,
+                            aiClient:
+                                context.source === 'ai_agent'
+                                    ? 'lightdash'
+                                    : (context.aiClient ?? null),
                             isEmbedOrigin: context.isEmbedOrigin,
                             parameters: {},
                             userAttributeOverrides:

@@ -37,6 +37,7 @@ type Dependencies = {
     reviewQuery?: QueryReviewer;
     updateProgress: UpdateProgressFn;
     runSqlJob: RunSqlJobFn;
+    recordSqlScopeRefusal?: (sql: string) => Promise<void>;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     updateSlackMessage: UpdateSlackMessageFn;
@@ -126,6 +127,7 @@ export const getRunSql = ({
     reviewQuery,
     updateProgress,
     runSqlJob,
+    recordSqlScopeRefusal,
     getPrompt,
     updateSlackMessage,
     siteUrl,
@@ -223,6 +225,7 @@ export const getRunSql = ({
             // yet, just return the error to the agent.
             const scopeViolations = findSqlScopeViolations(sql, sqlScope);
             if (scopeViolations.length > 0 && sqlScope) {
+                await recordSqlScopeRefusal?.(sql);
                 return persistResumeResult(
                     nonSuccessOutput(
                         formatSqlScopeError(scopeViolations, sqlScope),

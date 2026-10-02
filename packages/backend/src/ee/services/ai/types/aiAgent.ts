@@ -363,6 +363,7 @@ export type AiAgentDependencies = {
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
+    recordSqlScopeRefusal?: (sql: string) => Promise<void>;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;

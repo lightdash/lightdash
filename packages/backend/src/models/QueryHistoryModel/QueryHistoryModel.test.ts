@@ -1,9 +1,87 @@
-import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
+import {
+    QueryCredentialKind,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+    QuerySurface,
+    type Account,
+    type QueryHistory,
+} from '@lightdash/common';
 import type { Knex } from 'knex';
 import { createHash } from 'node:crypto';
+import { vi } from 'vitest';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
+    describe('create provenance', () => {
+        const account = {
+            user: { id: 'user-1' },
+            authentication: { type: 'session' },
+            isRegisteredUser: () => true,
+            isAnonymousUser: () => false,
+        } as unknown as Account;
+        const history: Parameters<QueryHistoryModel['create']>[1] = {
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            context: QueryExecutionContext.MCP_RUN_SQL,
+            compiledSql: 'select 1',
+            metricQuery: {} as QueryHistory['metricQuery'],
+            fields: {},
+            requestParameters: {
+                context: QueryExecutionContext.MCP_RUN_SQL,
+                sql: 'select 1',
+            },
+            usedParameters: null,
+            cacheKey: 'cache-1',
+            pivotConfiguration: null,
+            originalColumns: null,
+        };
+
+        const setup = () => {
+            const returning = vi
+                .fn()
+                .mockResolvedValue([{ query_uuid: 'q-1' }]);
+            const insert = vi.fn().mockReturnValue({ returning });
+            const database = vi.fn().mockReturnValue({ insert });
+            return {
+                model: new QueryHistoryModel({
+                    database: database as unknown as Knex,
+                }),
+                insert,
+            };
+        };
+
+        test('stores resolved personal credentials and MCP attribution', async () => {
+            const { model, insert } = setup();
+            await model.create(account, history, {
+                warehouseConnectionUuid: 'connection-1',
+                provenance: {
+                    surface: QuerySurface.MCP,
+                    aiClient: 'test-client',
+                    credentialKind: QueryCredentialKind.PERSONAL,
+                    credentialUuid: 'credential-1',
+                },
+            });
+            expect(insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    surface: 'mcp',
+                    ai_client: 'test-client',
+                    credential_kind: 'personal',
+                    credential_uuid: 'credential-1',
+                    warehouse_connection_uuid: 'connection-1',
+                }),
+            );
+        });
+
+        test('omits provenance columns when the flag is off', async () => {
+            const { model, insert } = setup();
+            await model.create(account, history);
+            const row = insert.mock.calls[0][0];
+            expect(row).not.toHaveProperty('surface');
+            expect(row).not.toHaveProperty('ai_client');
+            expect(row).not.toHaveProperty('credential_kind');
+            expect(row).not.toHaveProperty('credential_uuid');
+        });
+    });
     describe('getCacheKey', () => {
         const projectUuid = 'test-project-uuid';
         const sql = 'SELECT * FROM test_table';
