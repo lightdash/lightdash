@@ -5,6 +5,7 @@ import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric, type TimestampDomain } from './field';
 import { type CreateWarehouseCredentials } from './projects';
 import type { WarehouseQueryMetadata } from './queryHistory';
+import { type QueryCredentialKind, type QuerySurface } from './queryProvenance';
 import { type ResultNumericKind } from './results';
 import { type UserAttributeValueMap } from './userAttributes';
 
@@ -28,6 +29,9 @@ export type RunQueryTags = Record<UserAttributeQueryTag, string> & {
     job_id?: string;
     explore_name?: string;
     query_context: QueryExecutionContext;
+    query_surface?: QuerySurface;
+    ai_client?: string;
+    credential_kind?: QueryCredentialKind;
 };
 
 const sanitizeQueryTagString = (

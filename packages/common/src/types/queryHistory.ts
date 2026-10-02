@@ -7,6 +7,7 @@ import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import type { ParametersValuesMap } from './parameters';
 import type { WarehouseTypes } from './projects';
+import type { QueryCredentialKind, QuerySurface } from './queryProvenance';
 
 export interface IWarehouseQueryMetadata {
     type: WarehouseTypes;
@@ -52,6 +53,10 @@ export type QueryUsageMetadata = {
 };
 
 export type QueryHistory = {
+    surface: QuerySurface | null;
+    aiClient: string | null;
+    credentialKind: QueryCredentialKind | null;
+    credentialUuid: string | null;
     queryUuid: string;
     createdAt: Date;
     createdBy: string | null;

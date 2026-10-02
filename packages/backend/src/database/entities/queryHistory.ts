@@ -8,15 +8,21 @@ import type {
     PivotValuesColumn,
     PreAggregateExecutionEngine,
     PreAggregateFallbackReason,
+    QueryCredentialKind,
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
+    QuerySurface,
     ResultColumns,
     WarehouseQueryMetadata,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbQueryHistory = {
+    surface: QuerySurface | null;
+    ai_client: string | null;
+    credential_kind: QueryCredentialKind | null;
+    credential_uuid: string | null;
     query_uuid: string;
     created_at: Date;
     created_by_user_uuid: string | null;
@@ -57,9 +63,19 @@ export type DbQueryHistory = {
 
 export type DbQueryHistoryIn = Omit<
     DbQueryHistory,
-    'query_uuid' | 'created_at' | 'created_by_actor_type'
+    | 'query_uuid'
+    | 'created_at'
+    | 'created_by_actor_type'
+    | 'surface'
+    | 'ai_client'
+    | 'credential_kind'
+    | 'credential_uuid'
 > & {
     created_by_actor_type: AuthType;
+    surface?: QuerySurface | null;
+    ai_client?: string | null;
+    credential_kind?: QueryCredentialKind | null;
+    credential_uuid?: string | null;
     warehouse_connection_uuid?: string | null;
 };
 

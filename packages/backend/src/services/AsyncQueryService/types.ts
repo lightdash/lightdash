@@ -25,6 +25,7 @@ import {
     type QueryExecutionContext,
     type QueryHistory,
     type QuerySourceTableName,
+    type QuerySurface,
     type QueryUsageMetadata,
     type ResultColumns,
     type ResultsPaginationArgs,
@@ -53,6 +54,8 @@ export type CommonAsyncQueryArgs = {
     invalidateCache?: boolean;
     usePreAggregateCache?: boolean;
     context: QueryExecutionContext;
+    aiSurface?: QuerySurface.AI_AGENT | QuerySurface.SLACK_AGENT | null;
+    aiClient?: string | null;
     parameters?: ParametersValuesMap;
     userAttributeOverrides?: UserAttributeValueMap;
 };

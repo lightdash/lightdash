@@ -1745,6 +1745,7 @@ export const getAgentTools = (
                   reviewQuery,
                   updateProgress: dependencies.updateProgress,
                   runSqlJob: queryDependencies.runSqlJob,
+                  recordSqlScopeRefusal: dependencies.recordSqlScopeRefusal,
                   getPrompt: dependencies.getPrompt,
                   sendFile: dependencies.sendFile,
                   updateSlackMessage: dependencies.updateSlackMessage,

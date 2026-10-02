@@ -208,6 +208,7 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    QueryCredentialKind,
     QueryExecutionContext,
     RedshiftAuthenticationType,
     RegisteredAccount,
@@ -2250,6 +2251,8 @@ export class ProjectService extends BaseService {
                         : connectionRotationSource,
                 )),
                 userWarehouseCredentialsUuid,
+                organizationWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid ?? undefined,
             };
         }
 
@@ -2373,6 +2376,8 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            organizationWarehouseCredentialsUuid:
+                organizationWarehouseCredentialsUuid ?? undefined,
         };
     }
 
@@ -2728,27 +2733,46 @@ export class ProjectService extends BaseService {
             originalWarehouseConnectionUuid,
         };
         switch (target.kind) {
-            case 'original':
+            case 'original': {
+                const warehouseCredentials =
+                    await this.getSingleRouteWarehouseCredentials(args);
                 return {
-                    warehouseCredentials:
-                        await this.getSingleRouteWarehouseCredentials(args),
+                    warehouseCredentials,
                     warehouseConnectionUuid: null,
                     connectionRoute,
+                    credentialKind:
+                        warehouseCredentials.userWarehouseCredentialsUuid
+                            ? QueryCredentialKind.PERSONAL
+                            : QueryCredentialKind.SHARED,
+                    credentialUuid:
+                        warehouseCredentials.userWarehouseCredentialsUuid ??
+                        warehouseCredentials.organizationWarehouseCredentialsUuid ??
+                        args.projectUuid,
                 };
-            case 'extra':
+            }
+            case 'extra': {
+                const warehouseCredentials =
+                    await this.getExtraConnectionWarehouseCredentials({
+                        projectUuid: args.projectUuid,
+                        warehouseConnectionUuid: target.warehouseConnectionUuid,
+                        userId: args.userId,
+                        isRegisteredUser: args.isRegisteredUser,
+                        isServiceAccount: args.isServiceAccount,
+                    });
                 return {
-                    warehouseCredentials:
-                        await this.getExtraConnectionWarehouseCredentials({
-                            projectUuid: args.projectUuid,
-                            warehouseConnectionUuid:
-                                target.warehouseConnectionUuid,
-                            userId: args.userId,
-                            isRegisteredUser: args.isRegisteredUser,
-                            isServiceAccount: args.isServiceAccount,
-                        }),
+                    warehouseCredentials,
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
                     connectionRoute,
+                    credentialKind:
+                        warehouseCredentials.userWarehouseCredentialsUuid
+                            ? QueryCredentialKind.PERSONAL
+                            : QueryCredentialKind.SHARED,
+                    credentialUuid:
+                        warehouseCredentials.userWarehouseCredentialsUuid ??
+                        warehouseCredentials.organizationWarehouseCredentialsUuid ??
+                        target.warehouseConnectionUuid,
                 };
+            }
             default:
                 return assertUnreachable(target, 'Unknown credential target');
         }
@@ -2942,7 +2966,12 @@ export class ProjectService extends BaseService {
                 project.organizationUuid,
             );
             await this.assertAnalyticsProjectAccess(user, project);
-            return { ...credentials, userWarehouseCredentialsUuid };
+            return {
+                ...credentials,
+                userWarehouseCredentialsUuid,
+                organizationWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid ?? undefined,
+            };
         }
 
         if (
@@ -3070,6 +3099,8 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            organizationWarehouseCredentialsUuid:
+                organizationWarehouseCredentialsUuid ?? undefined,
         };
     }
 

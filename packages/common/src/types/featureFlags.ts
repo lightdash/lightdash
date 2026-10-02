@@ -313,6 +313,9 @@ export enum FeatureFlags {
      */
     QueryHistory = 'query-history',
 
+    /** Records query provenance and refusals; off by default at organization scope. */
+    QueryProvenance = 'query-provenance',
+
     /**
      * Configurable retention for AI agent threads. Off by default; enabled
      * per-org on demand for enterprise customers.

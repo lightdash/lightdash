@@ -74,6 +74,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QueryRefusalReason,
     readContentToolDefinition,
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
@@ -1001,6 +1002,7 @@ export class McpService extends BaseService {
             organizationUuid,
             projectUuid,
             source: 'mcp',
+            aiClient: await this.getMcpClientName(context),
             catalogSearchContext: CatalogSearchContext.MCP,
             defaultQueryExecutionContext:
                 QueryExecutionContext.MCP_RUN_METRIC_QUERY,
@@ -3389,6 +3391,7 @@ export class McpService extends BaseService {
                                     metricQuery: query,
                                     context:
                                         QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                                    aiClient: await this.getMcpClientName(ctx),
                                     userAttributeOverrides,
                                     parameters:
                                         queryTool.queryConfig.parameters ??
@@ -3692,6 +3695,7 @@ export class McpService extends BaseService {
                                 sql: args.sql,
                                 limit: args.limit ?? 500,
                                 context: QueryExecutionContext.MCP_RUN_SQL,
+                                aiClient: await this.getMcpClientName(ctx),
                             });
 
                         const queryHistory =
@@ -4832,6 +4836,67 @@ export class McpService extends BaseService {
             featureFlagId: FeatureFlags.AiFilterExpressions,
         });
         return enabled;
+    }
+
+    private async getMcpClientName(
+        context: McpProtocolContext,
+    ): Promise<string | null> {
+        try {
+            const { user, organizationUuid } = McpService.getAccount(context);
+            const { enabled } = await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.QueryProvenance,
+            });
+            if (!enabled) return null;
+            const userAgent = context.authInfo?.extra?.userAgent;
+            if (!userAgent) return null;
+            const client = await this.mcpToolCallModel.findClientInfo(
+                user.userUuid,
+                organizationUuid,
+                userAgent,
+            );
+            return client?.client_name ?? null;
+        } catch {
+            return null;
+        }
+    }
+
+    public async recordDisabledRunSqlRefusal({
+        account,
+        organizationUuid,
+        projectUuid,
+        sql,
+        userAgent,
+    }: {
+        account: Account;
+        organizationUuid: string;
+        projectUuid: string;
+        sql: string | null;
+        userAgent: string | null;
+    }): Promise<void> {
+        let aiClient: string | null = null;
+        if (userAgent) {
+            try {
+                const client = await this.mcpToolCallModel.findClientInfo(
+                    account.user.id,
+                    organizationUuid,
+                    userAgent,
+                );
+                aiClient = client?.client_name ?? null;
+            } catch {
+                aiClient = null;
+            }
+        }
+        await this.asyncQueryService.recordQueryRefusal({
+            account,
+            organizationUuid,
+            projectUuid,
+            context: QueryExecutionContext.MCP_RUN_SQL,
+            aiSurface: null,
+            aiClient,
+            reason: QueryRefusalReason.RAW_SQL_OFF,
+            sql,
+        });
     }
 
     /**

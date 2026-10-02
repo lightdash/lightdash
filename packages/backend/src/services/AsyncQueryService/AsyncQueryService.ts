@@ -25,6 +25,7 @@ import {
     CustomSqlQueryForbiddenError,
     DashboardFilters,
     DashboardPreAggregateAudit,
+    DatabricksTokenError,
     DEFAULT_RESULTS_PAGE_SIZE,
     derivePivotConfigurationFromChart,
     Dimension,
@@ -64,6 +65,7 @@ import {
     getMetrics,
     getMetricsWithValidParameters,
     getPivotValueColumnName,
+    getQuerySurface,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAccessQueryContext,
@@ -88,6 +90,7 @@ import {
     MergeQuery,
     MetricQuery,
     MissingConfigError,
+    MissingWarehouseCredentialsError,
     normalizeIndexColumns,
     NotFoundError,
     NotImplementedError,
@@ -100,15 +103,21 @@ import {
     PivotConfiguration,
     PreviewWarehouseSignInExpiredError,
     ProjectType,
+    QueryCredentialKind,
     QueryExecutionContext,
     QueryHistoryListFilters,
     QueryHistoryStatus,
+    QueryRefusalReason,
     QuerySourceType,
+    QuerySurface,
+    RedshiftIamTokenError,
     resolveQueryTimezone,
     ResultRow,
     ResultsExpiredError,
     S3Error,
+    sanitizeQueryTagValue,
     SchedulerFormat,
+    SnowflakeTokenError,
     SqlChart,
     SupportedDbtAdapter,
     TimeFrames,
@@ -278,6 +287,7 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import { recordQueryRefusal } from '../QueryRefusal/recordQueryRefusal';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
@@ -486,6 +496,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
 
 type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
     userWarehouseCredentialsUuid: string | undefined;
+    organizationWarehouseCredentialsUuid?: string;
 };
 
 /**
@@ -495,7 +506,12 @@ type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
  */
 type ExecuteAsyncQueryArgs = Pick<
     CommonAsyncQueryArgs,
-    'account' | 'projectUuid' | 'invalidateCache' | 'context'
+    | 'account'
+    | 'projectUuid'
+    | 'invalidateCache'
+    | 'context'
+    | 'aiSurface'
+    | 'aiClient'
 > & {
     queryTags: RunQueryTags;
     // Saved chart (metric or SQL) the query was executed from, for analytics attribution
@@ -508,6 +524,8 @@ type ExecuteAsyncQueryArgs = Pick<
     preAggregationRoute?: PreAggregationRoute;
     warehouseCredentials: ResolvedWarehouseCredentials;
     warehouseConnectionUuid: string | null;
+    credentialKind?: QueryCredentialKind;
+    credentialUuid?: string;
     connectionRoute?: ConnectionRouteWithOriginal;
     // Preloaded org from the caller (e.g. saved chart) to skip a redundant getSummary
     organizationUuid?: string;
@@ -951,6 +969,122 @@ export class AsyncQueryService extends ProjectService {
             featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
         });
         return enabled;
+    }
+
+    private async isQueryProvenanceEnabled(
+        account: Account,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        try {
+            return (
+                await this.featureFlagModel.get({
+                    user: {
+                        organizationUuid,
+                        ...(account.isRegisteredUser()
+                            ? { userUuid: account.user.id }
+                            : {}),
+                    },
+                    featureFlagId: FeatureFlags.QueryProvenance,
+                })
+            ).enabled;
+        } catch (error) {
+            this.logger.warn('Failed to resolve query provenance flag', {
+                error,
+            });
+            return false;
+        }
+    }
+
+    async recordQueryRefusal({
+        account,
+        organizationUuid,
+        projectUuid,
+        context,
+        aiSurface,
+        aiClient,
+        reason,
+        sql,
+        warehouseConnectionUuid = null,
+    }: {
+        account: Account;
+        organizationUuid: string;
+        projectUuid: string;
+        context: QueryExecutionContext;
+        aiSurface: QuerySurface.AI_AGENT | QuerySurface.SLACK_AGENT | null;
+        aiClient: string | null;
+        reason: QueryRefusalReason;
+        sql: string | null;
+        warehouseConnectionUuid?: string | null;
+    }): Promise<void> {
+        await recordQueryRefusal({
+            account,
+            featureFlagModel: this.featureFlagModel,
+            analytics: this.analytics,
+            organizationUuid,
+            projectUuid,
+            surface: getQuerySurface(context, aiSurface),
+            aiClient,
+            warehouseConnectionUuid,
+            credentialKind: null,
+            credentialUuid: null,
+            reason,
+            sql,
+        });
+    }
+
+    private static getCredentialRefusalReason(
+        error: unknown,
+    ): QueryRefusalReason | null {
+        if (error instanceof MissingWarehouseCredentialsError) {
+            return QueryRefusalReason.CREDENTIAL_MISSING;
+        }
+        if (
+            error instanceof BigqueryTokenError ||
+            error instanceof DatabricksTokenError ||
+            error instanceof SnowflakeTokenError ||
+            error instanceof RedshiftIamTokenError ||
+            error instanceof PreviewWarehouseSignInExpiredError
+        ) {
+            return QueryRefusalReason.CREDENTIAL_EXPIRED;
+        }
+        return null;
+    }
+
+    private async recordCredentialRefusalIfAi(
+        error: unknown,
+        {
+            account,
+            organizationUuid,
+            projectUuid,
+            context,
+            aiSurface,
+            aiClient,
+            sql,
+            warehouseConnectionUuid,
+        }: {
+            account: Account;
+            organizationUuid: string;
+            projectUuid: string;
+            context: QueryExecutionContext;
+            aiSurface: QuerySurface.AI_AGENT | QuerySurface.SLACK_AGENT | null;
+            aiClient: string | null;
+            sql: string | null;
+            warehouseConnectionUuid: string | null;
+        },
+    ): Promise<void> {
+        const reason = AsyncQueryService.getCredentialRefusalReason(error);
+        if (!reason || !isAiAccessQueryContext(context)) return;
+        await this.recordQueryRefusal({
+            account,
+            organizationUuid,
+            projectUuid,
+            context,
+            aiSurface,
+            aiClient,
+            reason,
+            sql,
+            warehouseConnectionUuid,
+        });
     }
 
     private async getPreAggregationRoutingDecision({
@@ -3324,6 +3458,11 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         history: Parameters<QueryHistoryModel['create']>[1],
         binding?: Parameters<QueryHistoryModel['create']>[2],
+        provenanceChecked = false,
+        attribution?: Pick<CommonAsyncQueryArgs, 'aiSurface' | 'aiClient'> & {
+            credentialKind?: QueryCredentialKind | null;
+            credentialUuid?: string | null;
+        },
     ) {
         const context = getQueryRequestContext();
         let actorType = 'anonymous';
@@ -3351,8 +3490,37 @@ export class AsyncQueryService extends ProjectService {
             ...history,
             requestParameters: { ...history.requestParameters, queryUsage },
         };
-        const result = binding
-            ? await this.queryHistoryModel.create(account, enriched, binding)
+        let provenance = binding?.provenance ?? null;
+        if (
+            binding?.provenance === undefined &&
+            !provenanceChecked &&
+            (await this.isQueryProvenanceEnabled(
+                account,
+                history.organizationUuid,
+            ))
+        ) {
+            provenance = {
+                surface: getQuerySurface(
+                    history.context,
+                    attribution?.aiSurface ?? null,
+                ),
+                aiClient: attribution?.aiClient ?? null,
+                credentialKind: attribution?.credentialKind ?? null,
+                credentialUuid: attribution?.credentialUuid ?? null,
+            };
+        }
+        const resolvedBinding = provenance
+            ? {
+                  ...binding,
+                  provenance,
+              }
+            : binding;
+        const result = resolvedBinding
+            ? await this.queryHistoryModel.create(
+                  account,
+                  enriched,
+                  resolvedBinding,
+              )
             : await this.queryHistoryModel.create(account, enriched);
         return { ...result, queryUsage };
     }
@@ -4551,6 +4719,13 @@ export class AsyncQueryService extends ProjectService {
                 : undefined;
 
         return {
+            ...(query.surface ? { query_surface: query.surface } : {}),
+            ...(query.aiClient
+                ? { ai_client: sanitizeQueryTagValue(query.aiClient) }
+                : {}),
+            ...(query.credentialKind
+                ? { credential_kind: query.credentialKind }
+                : {}),
             ...actorTags,
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: query.organizationUuid,
@@ -4791,7 +4966,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     context,
-                    queryTags,
+                    queryTags: baseQueryTags,
                     chart,
                     isPreviewProject,
                     queryComposer,
@@ -4800,11 +4975,55 @@ export class AsyncQueryService extends ProjectService {
                     preAggregationRoute,
                     warehouseCredentials,
                     warehouseConnectionUuid,
+                    credentialKind,
+                    credentialUuid,
                     connectionRoute,
                 } = args;
 
                 try {
                     assertIsAccountWithOrg(account);
+
+                    const provenanceEnabled =
+                        await this.isQueryProvenanceEnabled(
+                            account,
+                            organizationUuid,
+                        );
+                    const provenance = provenanceEnabled
+                        ? {
+                              surface: getQuerySurface(
+                                  context,
+                                  args.aiSurface ?? null,
+                              ),
+                              aiClient: args.aiClient ?? null,
+                              credentialKind:
+                                  routingTarget === 'pre_aggregate' &&
+                                  !preAggregationRoute?.externalTable
+                                      ? QueryCredentialKind.SHARED
+                                      : (credentialKind ??
+                                        QueryCredentialKind.SHARED),
+                              credentialUuid:
+                                  routingTarget === 'pre_aggregate' &&
+                                  !preAggregationRoute?.externalTable
+                                      ? null
+                                      : (credentialUuid ??
+                                        warehouseConnectionUuid ??
+                                        projectUuid),
+                          }
+                        : null;
+                    const queryTags: RunQueryTags = provenance
+                        ? {
+                              query_surface: provenance.surface,
+                              ...(provenance.aiClient
+                                  ? {
+                                        ai_client: sanitizeQueryTagValue(
+                                            provenance.aiClient,
+                                        ),
+                                    }
+                                  : {}),
+                              credential_kind: provenance.credentialKind,
+                              ...baseQueryTags,
+                          }
+                        : baseQueryTags;
 
                     const explore = queryComposer.getExplore();
                     const metricQuery = queryComposer.getMetricQuery();
@@ -4984,17 +5203,22 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration: pivotConfiguration ?? null,
                         originalColumns: originalColumns ?? null,
                     };
+                    const historyBinding =
+                        warehouseConnectionUuid || provenance
+                            ? {
+                                  ...(warehouseConnectionUuid
+                                      ? { warehouseConnectionUuid }
+                                      : {}),
+                                  ...(provenance ? { provenance } : {}),
+                              }
+                            : undefined;
                     const { queryUuid: queryHistoryUuid, queryUsage } =
-                        warehouseConnectionUuid
-                            ? await this.createQueryHistory(
-                                  account,
-                                  queryHistory,
-                                  { warehouseConnectionUuid },
-                              )
-                            : await this.createQueryHistory(
-                                  account,
-                                  queryHistory,
-                              );
+                        await this.createQueryHistory(
+                            account,
+                            queryHistory,
+                            historyBinding,
+                            true,
+                        );
                     const historyCreateMs = Date.now() - historyCreateStart;
                     const connectionAnalytics =
                         this.getQueryConnectionAnalyticsProperties({
@@ -5670,6 +5894,8 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             dateZoom,
             context,
+            aiSurface,
+            aiClient,
             isEmbedOrigin,
             metricQuery: inputMetricQuery,
             invalidateCache,
@@ -5687,7 +5913,6 @@ export class AsyncQueryService extends ProjectService {
         reuseQueryUuid?: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
-
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
@@ -5709,7 +5934,13 @@ export class AsyncQueryService extends ProjectService {
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             { explore, userAccessControls: preloadedUserAccessControls },
-            { warehouseCredentials, warehouseConnectionUuid, connectionRoute },
+            {
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+                credentialKind,
+                credentialUuid,
+            },
             projectParameters,
         ] = await Promise.all([
             this.getExploreForMetricQueryExecution({
@@ -5734,6 +5965,18 @@ export class AsyncQueryService extends ProjectService {
                 isServiceAccount: account.isServiceAccount(),
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
+            }).catch(async (error: unknown) => {
+                await this.recordCredentialRefusalIfAi(error, {
+                    account,
+                    organizationUuid,
+                    projectUuid,
+                    context,
+                    aiSurface: aiSurface ?? null,
+                    aiClient: aiClient ?? null,
+                    sql: null,
+                    warehouseConnectionUuid: null,
+                });
+                throw error;
             }),
             this.projectParametersModel.find(projectUuid),
         ]);
@@ -5926,12 +6169,16 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid,
                 context,
+                aiSurface,
+                aiClient,
                 queryTags: queryTagsWithUserAttributes,
                 invalidateCache,
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
                 warehouseConnectionUuid,
+                credentialKind,
+                credentialUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -6423,6 +6670,8 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            credentialKind,
+            credentialUuid,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
@@ -6483,6 +6732,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 warehouseConnectionUuid,
+                credentialKind,
+                credentialUuid,
                 connectionRoute,
                 routingTarget: 'warehouse',
             },
@@ -6515,6 +6766,8 @@ export class AsyncQueryService extends ProjectService {
         chartUuid,
         versionUuid,
         context,
+        aiSurface,
+        aiClient,
         invalidateCache,
         limit,
         parameters,
@@ -6757,12 +7010,26 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            credentialKind,
+            credentialUuid,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+        }).catch(async (error: unknown) => {
+            await this.recordCredentialRefusalIfAi(error, {
+                account,
+                organizationUuid: savedChartOrganizationUuid,
+                projectUuid,
+                context,
+                aiSurface: aiSurface ?? null,
+                aiClient: aiClient ?? null,
+                sql: null,
+                warehouseConnectionUuid: null,
+            });
+            throw error;
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -6861,12 +7128,16 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid: savedChartOrganizationUuid,
                 chart: { uuid: savedChart.uuid },
                 context,
+                aiSurface,
+                aiClient,
                 queryTags: queryTagsWithUserAttributes,
                 invalidateCache,
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
                 warehouseConnectionUuid,
+                credentialKind,
+                credentialUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -7334,6 +7605,8 @@ export class AsyncQueryService extends ProjectService {
         dashboardSorts,
         dateZoom,
         context,
+        aiSurface,
+        aiClient,
         invalidateCache,
         limit,
         parameters,
@@ -7527,7 +7800,13 @@ export class AsyncQueryService extends ProjectService {
 
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
-            { warehouseCredentials, warehouseConnectionUuid, connectionRoute },
+            {
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+                credentialKind,
+                credentialUuid,
+            },
             rawDashboardParameters,
             projectParameters,
         ] = await Promise.all([
@@ -7539,6 +7818,18 @@ export class AsyncQueryService extends ProjectService {
                 isServiceAccount: account.isServiceAccount(),
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
+            }).catch(async (error: unknown) => {
+                await this.recordCredentialRefusalIfAi(error, {
+                    account,
+                    organizationUuid,
+                    projectUuid,
+                    context,
+                    aiSurface: aiSurface ?? null,
+                    aiClient: aiClient ?? null,
+                    sql: null,
+                    warehouseConnectionUuid: null,
+                });
+                throw error;
             }),
             this.dashboardModel.getDashboardParametersByIdOrSlug(
                 resolvedDashboardUuid,
@@ -7668,12 +7959,16 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
                 chart: { uuid: savedChart.uuid },
                 context,
+                aiSurface,
+                aiClient,
                 queryTags: queryTagsWithUserAttributes,
                 invalidateCache,
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
                 warehouseConnectionUuid,
+                credentialKind,
+                credentialUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -7711,6 +8006,8 @@ export class AsyncQueryService extends ProjectService {
         filters,
         underlyingDataItemId,
         context,
+        aiSurface,
+        aiClient,
         invalidateCache,
         dateZoom,
         limit,
@@ -7742,6 +8039,8 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            credentialKind,
+            credentialUuid,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
             binding: {
@@ -7751,6 +8050,18 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+        }).catch(async (error: unknown) => {
+            await this.recordCredentialRefusalIfAi(error, {
+                account,
+                organizationUuid,
+                projectUuid,
+                context,
+                aiSurface: aiSurface ?? null,
+                aiClient: aiClient ?? null,
+                sql: null,
+                warehouseConnectionUuid: null,
+            });
+            throw error;
         });
 
         const source = await this.queryHistoryModel.get(
@@ -7994,6 +8305,8 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns: undefined,
                     warehouseCredentials,
                     warehouseConnectionUuid,
+                    credentialKind,
+                    credentialUuid,
                     connectionRoute,
                 },
                 requestParameters,
@@ -8016,6 +8329,8 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         sql,
         context,
+        aiSurface,
+        aiClient,
         isEmbedOrigin,
         invalidateCache,
         pivotConfiguration,
@@ -8037,6 +8352,19 @@ export class AsyncQueryService extends ProjectService {
                 }),
             )
         ) {
+            if (isAiAccessQueryContext(context)) {
+                await this.recordQueryRefusal({
+                    account,
+                    organizationUuid,
+                    projectUuid,
+                    context,
+                    aiSurface: aiSurface ?? null,
+                    aiClient: aiClient ?? null,
+                    warehouseConnectionUuid: requestedConnectionUuid ?? null,
+                    reason: QueryRefusalReason.RAW_SQL_OFF,
+                    sql,
+                });
+            }
             throw new ForbiddenError();
         }
 
@@ -8055,6 +8383,17 @@ export class AsyncQueryService extends ProjectService {
                 await this.projectModel.getAgentSqlScope(projectUuid);
             const violations = findSqlScopeViolations(sql, sqlScope);
             if (violations.length > 0 && sqlScope) {
+                await this.recordQueryRefusal({
+                    account,
+                    organizationUuid,
+                    projectUuid,
+                    context,
+                    aiSurface: aiSurface ?? null,
+                    aiClient: aiClient ?? null,
+                    warehouseConnectionUuid: requestedConnectionUuid ?? null,
+                    reason: QueryRefusalReason.BLOCKED_FOR_AI,
+                    sql,
+                });
                 this.logger.warn('Blocked out-of-scope agent SQL', {
                     projectUuid,
                     context,
@@ -8091,6 +8430,8 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            credentialKind,
+            credentialUuid,
             queryTags,
             queryComposer,
             originalColumns,
@@ -8099,6 +8440,8 @@ export class AsyncQueryService extends ProjectService {
         } = await this.prepareSqlChartAsyncQueryArgs({
             account,
             context,
+            aiSurface: aiSurface ?? null,
+            aiClient: aiClient ?? null,
             projectUuid,
             organizationUuid,
             sql,
@@ -8107,6 +8450,18 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             userAttributeOverrides,
             requestedConnectionUuid,
+        }).catch(async (error: unknown) => {
+            await this.recordCredentialRefusalIfAi(error, {
+                account,
+                organizationUuid,
+                projectUuid,
+                context,
+                aiSurface: aiSurface ?? null,
+                aiClient: aiClient ?? null,
+                sql,
+                warehouseConnectionUuid: requestedConnectionUuid ?? null,
+            });
+            throw error;
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -8119,10 +8474,14 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
                 queryTags,
                 context,
+                aiSurface,
+                aiClient,
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
                 warehouseConnectionUuid,
+                credentialKind,
+                credentialUuid,
                 connectionRoute,
             },
             {
@@ -8344,6 +8703,8 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         sql,
         context,
+        aiSurface,
+        aiClient,
         limit,
         references,
         parameters,
@@ -8394,6 +8755,8 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             sql,
             context,
+            aiSurface,
+            aiClient,
             limit,
             references,
             parameters,
@@ -8427,6 +8790,8 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         sql,
         context,
+        aiSurface,
+        aiClient,
         limit,
         references,
         parameters,
@@ -8470,7 +8835,32 @@ export class AsyncQueryService extends ProjectService {
                 scope: null,
             });
 
+        const provenanceEnabled = await this.isQueryProvenanceEnabled(
+            account,
+            organizationUuid,
+        );
+        const provenance = provenanceEnabled
+            ? {
+                  surface: getQuerySurface(context, aiSurface ?? null),
+                  aiClient: aiClient ?? null,
+                  credentialKind: QueryCredentialKind.SHARED,
+                  credentialUuid: null,
+              }
+            : null;
         const queryTags: RunQueryTags = {
+            ...(provenance
+                ? {
+                      query_surface: provenance.surface,
+                      ...(provenance.aiClient
+                          ? {
+                                ai_client: sanitizeQueryTagValue(
+                                    provenance.aiClient,
+                                ),
+                            }
+                          : {}),
+                      credential_kind: provenance.credentialKind,
+                  }
+                : {}),
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
@@ -8523,19 +8913,24 @@ export class AsyncQueryService extends ProjectService {
             : sharedCacheKey;
 
         const queryCreatedAt = new Date();
-        const { queryUuid } = await this.createQueryHistory(account, {
-            projectUuid,
-            organizationUuid,
-            context,
-            fields: resolved.fields,
-            compiledSql: resolved.sql,
-            requestParameters: resolved.requestParameters,
-            usedParameters: resolved.usedParameters,
-            metricQuery: resolved.metricQuery,
-            cacheKey,
-            pivotConfiguration: resolved.pivotConfiguration,
-            originalColumns: resolved.originalColumns,
-        });
+        const { queryUuid } = await this.createQueryHistory(
+            account,
+            {
+                projectUuid,
+                organizationUuid,
+                context,
+                fields: resolved.fields,
+                compiledSql: resolved.sql,
+                requestParameters: resolved.requestParameters,
+                usedParameters: resolved.usedParameters,
+                metricQuery: resolved.metricQuery,
+                cacheKey,
+                pivotConfiguration: resolved.pivotConfiguration,
+                originalColumns: resolved.originalColumns,
+            },
+            provenance ? { provenance } : undefined,
+            true,
+        );
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',
             QueryHistoryStatus.PENDING,
@@ -10461,6 +10856,8 @@ export class AsyncQueryService extends ProjectService {
         sql,
         config,
         context,
+        aiSurface,
+        aiClient,
         dashboardFilters,
         dashboardSorts,
         limit,
@@ -10478,6 +10875,8 @@ export class AsyncQueryService extends ProjectService {
         sql: string;
         config?: SqlChart['config'];
         context: QueryExecutionContext;
+        aiSurface: QuerySurface.AI_AGENT | QuerySurface.SLACK_AGENT | null;
+        aiClient: string | null;
         dashboardFilters?: ExecuteAsyncDashboardSqlChartArgs['dashboardFilters'];
         dashboardSorts?: ExecuteAsyncDashboardSqlChartArgs['dashboardSorts'];
         limit?: number;
@@ -10495,7 +10894,13 @@ export class AsyncQueryService extends ProjectService {
         // These are independent, so load them in parallel.
         const sectionStartWarehouse = performance.now();
         const [
-            { warehouseCredentials, warehouseConnectionUuid, connectionRoute },
+            {
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+                credentialKind,
+                credentialUuid,
+            },
             { userAttributes: baseUserAttributes, intrinsicUserAttributes },
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
@@ -10520,7 +10925,20 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
         );
 
+        const provenanceEnabled = await this.isQueryProvenanceEnabled(
+            account,
+            organizationUuid,
+        );
         const baseQueryTags: RunQueryTags = {
+            ...(provenanceEnabled
+                ? {
+                      query_surface: getQuerySurface(context, aiSurface),
+                      ...(aiClient
+                          ? { ai_client: sanitizeQueryTagValue(aiClient) }
+                          : {}),
+                      credential_kind: credentialKind,
+                  }
+                : {}),
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
@@ -10690,6 +11108,8 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnection,
             warehouseCredentials,
             warehouseConnectionUuid,
+            credentialKind,
+            credentialUuid,
             connectionRoute,
             queryComposer: composer,
             parameterReferences: Array.from(compiled.parameterReferences),
@@ -10731,6 +11151,8 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            credentialKind,
+            credentialUuid,
             queryTags,
             metricQuery,
             queryComposer,
@@ -10740,6 +11162,8 @@ export class AsyncQueryService extends ProjectService {
         } = await this.prepareSqlChartAsyncQueryArgs({
             account,
             context,
+            aiSurface: args.aiSurface ?? null,
+            aiClient: args.aiClient ?? null,
             projectUuid: sqlChart.project.projectUuid,
             organizationUuid: sqlChart.organization.organizationUuid,
             sql: sqlChart.sql,
@@ -10747,6 +11171,18 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? sqlChart.limit,
             parameters: combinedParameters,
             chartUuid: sqlChart.savedSqlUuid,
+        }).catch(async (error: unknown) => {
+            await this.recordCredentialRefusalIfAi(error, {
+                account,
+                organizationUuid: sqlChart.organization.organizationUuid,
+                projectUuid,
+                context,
+                aiSurface: args.aiSurface ?? null,
+                aiClient: args.aiClient ?? null,
+                sql: sqlChart.sql,
+                warehouseConnectionUuid: null,
+            });
+            throw error;
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -10760,10 +11196,14 @@ export class AsyncQueryService extends ProjectService {
                 chart: { uuid: sqlChart.savedSqlUuid },
                 queryTags,
                 context,
+                aiSurface: args.aiSurface,
+                aiClient: args.aiClient,
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
                 warehouseConnectionUuid,
+                credentialKind,
+                credentialUuid,
                 connectionRoute,
             },
             {
@@ -10877,6 +11317,8 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            credentialKind,
+            credentialUuid,
             queryTags,
             metricQuery,
             queryComposer,
@@ -10887,6 +11329,8 @@ export class AsyncQueryService extends ProjectService {
         } = await this.prepareSqlChartAsyncQueryArgs({
             account,
             context,
+            aiSurface: args.aiSurface ?? null,
+            aiClient: args.aiClient ?? null,
             projectUuid: savedChart.project.projectUuid,
             organizationUuid: savedChart.organization.organizationUuid,
             sql: savedChart.sql,
@@ -10906,6 +11350,18 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             chartUuid: savedChart.savedSqlUuid,
             dashboardUuid,
+        }).catch(async (error: unknown) => {
+            await this.recordCredentialRefusalIfAi(error, {
+                account,
+                organizationUuid: savedChart.organization.organizationUuid,
+                projectUuid,
+                context,
+                aiSurface: args.aiSurface ?? null,
+                aiClient: args.aiClient ?? null,
+                sql: savedChart.sql,
+                warehouseConnectionUuid: null,
+            });
+            throw error;
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -10919,10 +11375,14 @@ export class AsyncQueryService extends ProjectService {
                 chart: { uuid: savedChart.savedSqlUuid },
                 queryTags,
                 context,
+                aiSurface: args.aiSurface,
+                aiClient: args.aiClient,
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
                 warehouseConnectionUuid,
+                credentialKind,
+                credentialUuid,
                 connectionRoute,
             },
             {
@@ -11357,6 +11817,8 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            credentialKind,
+            credentialUuid,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
@@ -11419,6 +11881,8 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns: undefined,
                     warehouseCredentials,
                     warehouseConnectionUuid,
+                    credentialKind,
+                    credentialUuid,
                     connectionRoute,
                     routingTarget: routingDecision.target,
                     ...(routingDecision.target === 'pre_aggregate' && {

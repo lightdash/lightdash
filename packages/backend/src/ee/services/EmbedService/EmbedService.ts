@@ -1144,6 +1144,9 @@ export class EmbedService extends BaseService {
             | 'scheduler_uuid'
             | 'scheduler_name'
             | 'job_id'
+            | 'query_surface'
+            | 'ai_client'
+            | 'credential_kind'
         > & {
             embed: 'true';
             external_id: string;

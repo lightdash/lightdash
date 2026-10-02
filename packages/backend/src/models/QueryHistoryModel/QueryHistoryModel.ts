@@ -51,6 +51,10 @@ function convertDbQueryHistoryToQueryHistory(
             queryHistory.created_by_user_uuid ??
             queryHistory.created_by_account,
         createdByUserUuid: queryHistory.created_by_user_uuid,
+        surface: queryHistory.surface,
+        aiClient: queryHistory.ai_client,
+        credentialKind: queryHistory.credential_kind,
+        credentialUuid: queryHistory.credential_uuid,
         createdByAccount: queryHistory.created_by_account,
         createdByActorType: queryHistory.created_by_actor_type,
         organizationUuid: queryHistory.organization_uuid,
@@ -192,8 +196,18 @@ export class QueryHistoryModel {
             | 'createdByUserUuid'
             | 'createdByActorType'
             | 'createdBy'
+            | 'surface'
+            | 'aiClient'
+            | 'credentialKind'
+            | 'credentialUuid'
         >,
-        binding?: { warehouseConnectionUuid: string | null },
+        binding?: {
+            warehouseConnectionUuid?: string | null;
+            provenance?: Pick<
+                QueryHistory,
+                'surface' | 'aiClient' | 'credentialKind' | 'credentialUuid'
+            > | null;
+        },
     ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
@@ -210,6 +224,14 @@ export class QueryHistoryModel {
                 compiled_sql: queryHistory.compiledSql,
                 default_page_size: null,
                 context: queryHistory.context,
+                ...(binding?.provenance
+                    ? {
+                          surface: binding.provenance.surface,
+                          ai_client: binding.provenance.aiClient,
+                          credential_kind: binding.provenance.credentialKind,
+                          credential_uuid: binding.provenance.credentialUuid,
+                      }
+                    : {}),
                 metric_query: queryHistory.metricQuery,
                 fields: queryHistory.fields,
                 request_parameters: queryHistory.requestParameters,
@@ -239,7 +261,7 @@ export class QueryHistoryModel {
                 pre_aggregate_fallback_reason: null,
                 processing_started_at: null,
                 duckdb_execution: null,
-                ...(binding
+                ...(binding?.warehouseConnectionUuid !== undefined
                     ? {
                           warehouse_connection_uuid:
                               binding.warehouseConnectionUuid,

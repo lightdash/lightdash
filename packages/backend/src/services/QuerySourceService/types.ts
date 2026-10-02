@@ -5,6 +5,7 @@ import type {
     QueryExecutionContext,
     QuerySourceDefinition,
     QuerySourceSchema,
+    QuerySurface,
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
@@ -21,6 +22,8 @@ export type ScanSchemaArgs = {
  * required so a caller decides it explicitly; none of them defaults.
  */
 export type SourceQueryExecutionContext = {
+    aiSurface?: QuerySurface.AI_AGENT | QuerySurface.SLACK_AGENT | null;
+    aiClient?: string | null;
     isEmbedOrigin?: boolean;
     /** Parameter values every node resolves its references against. */
     parameters: ParametersValuesMap;
