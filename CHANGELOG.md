@@ -1,3 +1,16 @@
+## [2.415.8](https://github.com/lightdash/lightdash/compare/2.415.7...2.415.8) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ai:** hide stale Deep Research start cards once the run exists ([#30419](https://github.com/lightdash/lightdash/issues/30419)) ([b79ea4c](https://github.com/lightdash/lightdash/commit/b79ea4c489ba17d0a10020961edade33b9861247))
+* **frontend:** stop loading Britti Sans on the auth pages ([#30424](https://github.com/lightdash/lightdash/issues/30424)) ([20ebbcc](https://github.com/lightdash/lightdash/commit/20ebbcc04a805d1970fe5e40689e43decb8ea07f))
+
+
+### Performance Improvements
+
+* sign only referenced analytics files ([#30417](https://github.com/lightdash/lightdash/issues/30417)) ([2c197f7](https://github.com/lightdash/lightdash/commit/2c197f71666356b29c0f3e20e528dd1100c5746c))
+
 ## [2.415.7](https://github.com/lightdash/lightdash/compare/2.415.6...2.415.7) (2026-10-02)
 
 
