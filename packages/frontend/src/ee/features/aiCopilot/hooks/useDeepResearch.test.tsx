@@ -12,6 +12,7 @@ import {
     useDeepResearchChartLiveQuery,
     useDeepResearchReport,
     useDeepResearchRun,
+    useDeepResearchThreadRunRegistrations,
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
     useTrackDeepResearchReportEngagement,
@@ -294,6 +295,88 @@ describe('useHasActiveDeepResearchRun', () => {
 
         expect(currentThread.result.current).toBe(true);
         expect(otherThread.result.current).toBe(false);
+    });
+
+    it('defers to the server run when a local start shares its prompt', async () => {
+        lightdashApiMock.mockResolvedValue([getRun('completed')]);
+        registerDeepResearchRun({
+            ...registration,
+            runUuid: 'starting-run',
+            state: 'starting',
+        });
+
+        const { result } = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(result.current).toBe(false));
+    });
+});
+
+describe('useDeepResearchThreadRunRegistrations', () => {
+    afterEach(() => {
+        window.localStorage.clear();
+        lightdashApiMock.mockReset();
+    });
+
+    it('hides a failed local start once the server has a run for that prompt', async () => {
+        lightdashApiMock.mockResolvedValue([getRun('running')]);
+        registerDeepResearchRun({
+            ...registration,
+            runUuid: 'starting-run',
+            state: 'start_failed',
+            errorMessage:
+                'We are currently unable to reach the Lightdash server.',
+        });
+
+        const { result } = renderHook(
+            () =>
+                useDeepResearchThreadRunRegistrations({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() =>
+            expect(result.current).toEqual([
+                expect.objectContaining({ runUuid: 'run-1', state: 'started' }),
+            ]),
+        );
+    });
+
+    it('keeps a failed local start when the server has no run for that prompt', async () => {
+        lightdashApiMock.mockResolvedValue([getRun('completed')]);
+        registerDeepResearchRun({
+            ...registration,
+            runUuid: 'starting-run',
+            promptUuid: 'prompt-2',
+            state: 'start_failed',
+        });
+
+        const { result } = renderHook(
+            () =>
+                useDeepResearchThreadRunRegistrations({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() =>
+            expect(result.current).toEqual([
+                expect.objectContaining({ runUuid: 'run-1', state: 'started' }),
+                expect.objectContaining({
+                    runUuid: 'starting-run',
+                    state: 'start_failed',
+                }),
+            ]),
+        );
     });
 });
 
