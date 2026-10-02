@@ -493,6 +493,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
         return new WarehouseConnectionError(
             `Google rejected the BigQuery credentials (${details}).`,
+            { driverCode: 'invalid_grant' },
         );
     }
 
@@ -670,7 +671,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 const responseError: bigquery.IErrorProto | undefined =
                     e?.errors[0];
                 if (responseError) {
-                    throw this.parseError(responseError, query);
+                    throw this.parseErrorWithReason(responseError, query);
                 }
             }
             throw e;
@@ -870,6 +871,17 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return catalog;
     }
 
+    private parseErrorWithReason(
+        error: bigquery.IErrorProto,
+        query: string,
+    ): WarehouseQueryError {
+        const parsed = this.parseError(error, query);
+        return new WarehouseQueryError(parsed.message, {
+            ...parsed.data,
+            driverCode: error.reason ?? null,
+        });
+    }
+
     parseError(error: bigquery.IErrorProto, query: string = '') {
         // if the error has no reason, return a generic error
         if (!error?.reason) {
@@ -1031,7 +1043,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 const responseError: bigquery.IErrorProto | undefined =
                     e?.errors[0];
                 if (responseError) {
-                    throw this.parseError(responseError, sql);
+                    throw this.parseErrorWithReason(responseError, sql);
                 }
             }
             throw e;

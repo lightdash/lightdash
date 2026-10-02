@@ -148,6 +148,7 @@ const buildService = () => {
                 ok: true,
                 hops: [{ stage: 'database', status: 'ok', message: null }],
             }),
+            normaliseWarehouseConnectionInput: async (_user, input) => input,
         },
         analytics,
     });

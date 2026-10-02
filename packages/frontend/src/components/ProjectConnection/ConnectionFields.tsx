@@ -7,6 +7,7 @@ import { Stack, Text, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import { FormProvider, type Form } from './formContext';
 import { ProjectFormProvider } from './ProjectFormProvider';
+import { WarehouseConnectionInputReview } from './WarehouseConnectionInputReview';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
@@ -48,13 +49,15 @@ export const ConnectionFields: FC<{
                         {...form.getInputProps('name')}
                     />
                 )}
-                <WarehouseSettingsForm disabled={false}>
-                    <WarehouseSchemaInput
-                        warehouseType={warehouseType}
-                        disabled={false}
-                        warehouseOnly
-                    />
-                </WarehouseSettingsForm>
+                <WarehouseConnectionInputReview>
+                    <WarehouseSettingsForm disabled={false}>
+                        <WarehouseSchemaInput
+                            warehouseType={warehouseType}
+                            disabled={false}
+                            warehouseOnly
+                        />
+                    </WarehouseSettingsForm>
+                </WarehouseConnectionInputReview>
             </Stack>
         </ProjectFormProvider>
     </FormProvider>

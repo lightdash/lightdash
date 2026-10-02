@@ -18,6 +18,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     ApiUpstreamDiffResults,
+    applyAutomaticConnectionInputFixes,
     applyWarehouseLocation,
     assertEmbeddedAuth,
     assertIsAccountWithOrg,
@@ -35,6 +36,7 @@ import {
     CompilationSource,
     CompiledDimension,
     ConflictError,
+    ConnectionInputParseKind,
     ContentType,
     convertCustomMetricToDbt,
     convertExplores,
@@ -122,6 +124,7 @@ import {
     getSemanticLayerCompileStatus,
     getTimezoneLabel,
     getUnaccountedDimensions,
+    getWarehouseConnectionInputIssues,
     GroupType,
     hasConnectionChanges,
     hasIntersection,
@@ -155,6 +158,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    LightdashMode,
     LightdashProjectConfig,
     LightdashUser,
     ManifestCollision,
@@ -297,6 +301,7 @@ import {
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
     BigqueryWarehouseClient,
+    classifyWarehouseConnectionFailure,
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     exchangeDatabricksOAuthCredentials,
     getGoogleOauthTokenError,
@@ -4378,6 +4383,13 @@ export class ProjectService extends BaseService {
         );
 
         const newProjectData = data;
+        if (newProjectData.warehouseConnection && !internalProvisioning) {
+            newProjectData.warehouseConnection =
+                await this.normaliseWarehouseConnectionInput(
+                    user,
+                    newProjectData.warehouseConnection,
+                );
+        }
         ProjectService.validateDbtEnvironmentVariables(
             newProjectData.dbtConnection,
         );
@@ -4759,6 +4771,10 @@ export class ProjectService extends BaseService {
         }
         const createData: CreateProject = {
             ...data,
+            warehouseConnection: await this.normaliseWarehouseConnectionInput(
+                user,
+                data.warehouseConnection,
+            ),
             setupAttemptUuid: setupAttempt?.project_setup_uuid,
         };
 
@@ -4825,6 +4841,60 @@ export class ProjectService extends BaseService {
             throw error;
         }
         return { jobUuid: job.jobUuid };
+    }
+
+    private async isConnectJourneyEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ConnectJourney,
+        });
+        return enabled;
+    }
+
+    async normaliseWarehouseConnectionInput<
+        T extends CreateWarehouseCredentials,
+    >(
+        user: { userUuid: string; organizationUuid: string },
+        credentials: T,
+    ): Promise<T> {
+        if (!(await this.isConnectJourneyEnabled(user))) {
+            return credentials;
+        }
+        const issues = getWarehouseConnectionInputIssues(credentials, {
+            allowLocalHosts:
+                this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA,
+        });
+        const unresolved = issues.flatMap(({ field, result }) => {
+            switch (result.kind) {
+                case ConnectionInputParseKind.BLOCKED:
+                    return [`${field}: ${result.reason}`];
+                case ConnectionInputParseKind.NEEDS_CONFIRMATION:
+                    return [
+                        `${field}: ${result.changes.join('. ')}. Did you mean "${result.proposed}"?`,
+                    ];
+                case ConnectionInputParseKind.NORMALISED:
+                    return [];
+                default:
+                    return assertUnreachable(
+                        result,
+                        'Unknown connection input result',
+                    );
+            }
+        });
+        if (unresolved.length > 0) {
+            throw new ParameterError(
+                `Check the warehouse connection: ${unresolved.join(' ')}`,
+                {
+                    warehouseConnectionInputIssues: issues.filter(
+                        ({ result }) =>
+                            result.kind !== ConnectionInputParseKind.NORMALISED,
+                    ),
+                },
+            );
+        }
+        return applyAutomaticConnectionInputFixes(credentials, issues);
     }
 
     private async startProjectSetupAttempt(
@@ -5640,6 +5710,16 @@ export class ProjectService extends BaseService {
             savedProject.organizationUuid,
             data,
         );
+        const input: UpdateProject = {
+            ...data,
+            warehouseConnection: await this.normaliseWarehouseConnectionInput(
+                {
+                    userUuid: account.user.id,
+                    organizationUuid: savedProject.organizationUuid,
+                },
+                data.warehouseConnection,
+            ),
+        };
 
         const job: CreateJob = {
             jobUuid: uuidv4(),
@@ -5655,7 +5735,7 @@ export class ProjectService extends BaseService {
             ],
         };
         const createProject = await this._resolveWarehouseClientCredentials(
-            this.mergeMissingDatabricksM2MSecrets(data, savedProject),
+            this.mergeMissingDatabricksM2MSecrets(input, savedProject),
             account.user.id,
             savedProject.organizationUuid,
         );
@@ -5823,7 +5903,13 @@ export class ProjectService extends BaseService {
             name: savedProject.name,
             dbtConnection: savedProject.dbtConnection,
             dbtVersion: savedProject.dbtVersion,
-            warehouseConnection: data.warehouseConnection,
+            warehouseConnection: await this.normaliseWarehouseConnectionInput(
+                {
+                    userUuid: account.user.id,
+                    organizationUuid: savedProject.organizationUuid,
+                },
+                data.warehouseConnection,
+            ),
         };
 
         const resolvedData = await this._resolveWarehouseClientCredentials(
@@ -6381,6 +6467,12 @@ export class ProjectService extends BaseService {
                 error instanceof Error && error.constructor.name
                     ? error.constructor.name
                     : 'UnknownError';
+            const failure = (await this.isConnectJourneyEnabled(user))
+                ? classifyWarehouseConnectionFailure(
+                      data.warehouseConnection.type,
+                      error,
+                  )
+                : null;
             this.analytics.track({
                 event: 'warehouse_connection.tested',
                 userId: user.userUuid,
@@ -6388,6 +6480,12 @@ export class ProjectService extends BaseService {
                     warehouseType: data.warehouseConnection.type,
                     result: 'failure',
                     errorType,
+                    ...(failure
+                        ? {
+                              failureCause: failure.cause,
+                              driverCode: failure.driverCode,
+                          }
+                        : {}),
                     context,
                     method,
                     onboardingFlow,

@@ -22,6 +22,7 @@ import {
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
+    toWarehouseDriverErrorData,
     UnexpectedServerError,
     UnnestSql,
     UnnestSqlArgs,
@@ -544,7 +545,10 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         try {
             connection = await client.connect(this.connectionOptions);
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(getDatabricksErrorMessage(e));
+            throw new WarehouseConnectionError(
+                getDatabricksErrorMessage(e),
+                toWarehouseDriverErrorData(e),
+            );
         }
 
         try {
@@ -564,7 +568,10 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             if (await retry.waitBeforeRetry(e)) {
                 return this.openSession(retry);
             }
-            throw new WarehouseConnectionError(getDatabricksErrorMessage(e));
+            throw new WarehouseConnectionError(
+                getDatabricksErrorMessage(e),
+                toWarehouseDriverErrorData(e),
+            );
         }
 
         return {
