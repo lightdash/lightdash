@@ -823,6 +823,7 @@ export class ServiceRepository
             () =>
                 new EmailWhitelabelService({
                     lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
                     organizationEmailDomainModel:
                         this.models.getOrganizationEmailDomainModel(),
                     organizationMemberProfileModel:

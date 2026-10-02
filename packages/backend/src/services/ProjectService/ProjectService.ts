@@ -13040,6 +13040,16 @@ export class ProjectService extends BaseService {
             data.hasDefaultUserSpaces,
         );
 
+        this.analytics.track({
+            event: 'default_user_spaces.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                hasDefaultUserSpaces: data.hasDefaultUserSpaces,
+            },
+        });
+
         if (data.hasDefaultUserSpaces) {
             await this.schedulerClient.backfillDefaultUserSpaces({
                 organizationUuid,
