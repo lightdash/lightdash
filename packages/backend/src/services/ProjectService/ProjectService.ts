@@ -10746,6 +10746,13 @@ export class ProjectService extends BaseService {
                     false, // loadSources
                     true, // allowPartialCompilation
                 ));
+            const lightdashProjectConfig =
+                await adapter.getLightdashProjectConfig(trackingParams);
+            const projectContext = await this.getProjectContextFromAdapter({
+                adapter,
+                user,
+                organizationUuid: project.organizationUuid,
+            });
             const onCompiled = (summary: ExploreCompilationSummary) => {
                 this.analytics.track({
                     event: 'project.compiled',
@@ -10757,6 +10764,7 @@ export class ProjectService extends BaseService {
                         projectType: project.dbtConnection.type,
                         warehouseType: project.warehouseConnection?.type,
                         ...summary.analytics,
+                        hasProjectContext: (projectContext?.length ?? 0) > 0,
                         packagesCount: packages
                             ? Object.keys(packages).length
                             : undefined,
@@ -10764,14 +10772,6 @@ export class ProjectService extends BaseService {
                     },
                 });
             };
-
-            const lightdashProjectConfig =
-                await adapter.getLightdashProjectConfig(trackingParams);
-            const projectContext = await this.getProjectContextFromAdapter({
-                adapter,
-                user,
-                organizationUuid: project.organizationUuid,
-            });
 
             return await consume({
                 exploreStream,
