@@ -22,6 +22,10 @@ import {
     shouldOpenSharedSignInReconnectModal,
 } from '../ProjectConnection/SharedSignIn/sharedSignInCopy';
 import { SharedSignInReconnectModal } from '../ProjectConnection/SharedSignIn/SharedSignInReconnectModal';
+import {
+    shouldCheckSharedSignInStatus,
+    shouldUseSharedSignInStatus,
+} from './sharedSignInListenerDecision';
 
 export const SharedSignInExpiryListener: FC = () => {
     const { user } = useApp();
@@ -33,13 +37,18 @@ export const SharedSignInExpiryListener: FC = () => {
     const reconnectFlag = useServerFeatureFlag(
         FeatureFlags.SharedSignInReconnect,
     );
-    const checkedProjects = useRef(new Set<string>());
+    const lastChecks = useRef(new Map<string, number>());
     const pendingProjects = useRef(new Set<string>());
     const openProjects = useRef(new Set<string>());
     const dismissedProjects = useRef(new Set<string>());
+    const currentProjectUuid = useRef(activeProjectUuid);
     const [modalProjectUuid, setModalProjectUuid] = useState<string | null>(
         null,
     );
+
+    useEffect(() => {
+        currentProjectUuid.current = activeProjectUuid;
+    }, [activeProjectUuid]);
 
     useEffect(() => {
         if (!modalProjectUuid) return;
@@ -80,29 +89,38 @@ export const SharedSignInExpiryListener: FC = () => {
                 showExpiryToast(error);
                 return;
             }
-            if (dismissedProjects.current.has(activeProjectUuid)) return;
-            if (checkedProjects.current.has(activeProjectUuid)) {
-                if (pendingProjects.current.has(activeProjectUuid)) return;
-                if (!openProjects.current.has(activeProjectUuid))
-                    showExpiryToast(error);
+            if (
+                !shouldCheckSharedSignInStatus({
+                    projectUuid: activeProjectUuid,
+                    pendingProjects: pendingProjects.current,
+                    openProjects: openProjects.current,
+                    dismissedProjects: dismissedProjects.current,
+                    lastChecks: lastChecks.current,
+                    now: Date.now(),
+                })
+            )
                 return;
-            }
-            checkedProjects.current.add(activeProjectUuid);
+            lastChecks.current.set(activeProjectUuid, Date.now());
             pendingProjects.current.add(activeProjectUuid);
             const projectUuid = activeProjectUuid;
             void queryClient
                 .fetchQuery({
                     queryKey: ['shared-sign-in-status', projectUuid],
                     queryFn: () => getSharedSignInStatus(projectUuid),
-                    staleTime: 60_000,
+                    staleTime: 0,
                     retry: false,
                 })
                 .then((status) => {
                     pendingProjects.current.delete(projectUuid);
                     if (
-                        shouldOpenSharedSignInReconnectModal(status) &&
-                        !dismissedProjects.current.has(projectUuid)
-                    ) {
+                        !shouldUseSharedSignInStatus(
+                            projectUuid,
+                            currentProjectUuid.current,
+                            dismissedProjects.current,
+                        )
+                    )
+                        return;
+                    if (shouldOpenSharedSignInReconnectModal(status)) {
                         openProjects.current.add(projectUuid);
                         setSharedSignInToastSuppression(
                             projectUuid,
@@ -116,7 +134,8 @@ export const SharedSignInExpiryListener: FC = () => {
                 })
                 .catch(() => {
                     pendingProjects.current.delete(projectUuid);
-                    showExpiryToast(error);
+                    if (projectUuid === currentProjectUuid.current)
+                        showExpiryToast(error);
                 });
         };
         const unsubscribeQueries = queryClient
@@ -152,7 +171,7 @@ export const SharedSignInExpiryListener: FC = () => {
         <SharedSignInReconnectModal
             projectUuid={modalProjectUuid}
             onRestored={() => {
-                checkedProjects.current.delete(modalProjectUuid);
+                lastChecks.current.delete(modalProjectUuid);
                 openProjects.current.delete(modalProjectUuid);
                 dismissedProjects.current.delete(modalProjectUuid);
             }}

@@ -6,6 +6,8 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
+export const SHARED_SIGN_IN_RECONNECTED = 'shared-sign-in-reconnected';
+
 export const getSharedSignInStatus = (projectUuid: string) =>
     lightdashApi<SharedSignInStatus | null>({
         url: `/projects/${projectUuid}/warehouse-credentials/shared-sign-in`,
@@ -27,6 +29,11 @@ export const useReconnectSharedSignIn = (projectUuid: string) => {
                 queryKey: ['shared-sign-in-status', projectUuid],
             });
             await queryClient.invalidateQueries();
+            window.dispatchEvent(
+                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                    detail: projectUuid,
+                }),
+            );
         },
     });
 };

@@ -10,8 +10,10 @@ const listeners = new Set<() => void>();
 
 export const shouldSuppressSharedSignInToast = (
     error: ApiErrorDetail,
+    projectUuid: string | undefined,
 ): boolean =>
     modal !== null &&
+    modal.projectUuid === projectUuid &&
     isSharedSignInModalError(error, modal.status, modal.viewerUserUuid);
 
 export const subscribeToSharedSignInToastSuppression = (

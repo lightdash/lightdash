@@ -36,7 +36,14 @@ import {
     IconCode,
     IconTable,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
@@ -53,6 +60,7 @@ import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
@@ -139,6 +147,9 @@ export const ContentPanel: FC = () => {
     );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
+    const lastFailedRun = useRef<Parameters<typeof runSqlQuery>[0] | null>(
+        null,
+    );
 
     // Resolved palette from the org → project → space → dashboard cascade.
     // Falls back to org-level colors for brand-new (unsaved) SQL charts where
@@ -206,14 +217,16 @@ export const ContentPanel: FC = () => {
                     prepareAndFetchChartData({ forceRefresh: true }),
                 );
             } else {
-                await dispatch(
-                    runSqlQuery({
-                        sql: sqlToUse,
-                        limit,
-                        projectUuid,
-                        parameterValues,
-                    }),
-                );
+                const args = {
+                    sql: sqlToUse,
+                    limit,
+                    projectUuid,
+                    parameterValues,
+                };
+                const result = await dispatch(runSqlQuery(args));
+                lastFailedRun.current = runSqlQuery.rejected.match(result)
+                    ? args
+                    : null;
 
                 // If we're on viz tab, also fetch chart data after SQL completes
                 if (activeEditorTab === EditorTabs.VISUALIZATION) {
@@ -232,6 +245,26 @@ export const ContentPanel: FC = () => {
             hasQueryResults,
         ],
     );
+
+    useEffect(() => {
+        const retryFailedRun = (event: Event) => {
+            const args = lastFailedRun.current;
+            if (
+                !(event instanceof CustomEvent) ||
+                event.detail !== projectUuid ||
+                args?.projectUuid !== projectUuid
+            )
+                return;
+            lastFailedRun.current = null;
+            void dispatch(runSqlQuery(args));
+        };
+        window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
+        return () =>
+            window.removeEventListener(
+                SHARED_SIGN_IN_RECONNECTED,
+                retryFailedRun,
+            );
+    }, [dispatch, projectUuid]);
 
     useQueryErrorToast(queryError);
 

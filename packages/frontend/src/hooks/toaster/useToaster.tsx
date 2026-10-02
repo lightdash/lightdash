@@ -14,7 +14,7 @@ import {
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as isUuid } from 'uuid';
 import MantineIcon, {
     type MantineIconSize,
 } from '../../components/common/MantineIcon';
@@ -63,6 +63,13 @@ const TOAST_VARIANTS: Record<
 };
 
 const useToaster = () => {
+    const activeProjectUuid = () => {
+        const routeProject =
+            window.location.pathname.match(/\/projects\/([^/]+)/)?.[1];
+        return routeProject && isUuid(routeProject)
+            ? routeProject
+            : (localStorage.getItem('lastProject') ?? undefined);
+    };
     const openedKeys = useRef(new Set<string>());
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
 
@@ -80,7 +87,10 @@ const useToaster = () => {
             if (
                 variant === 'error' &&
                 rest.apiError &&
-                shouldSuppressSharedSignInToast(rest.apiError)
+                shouldSuppressSharedSignInToast(
+                    rest.apiError,
+                    activeProjectUuid(),
+                )
             )
                 return;
             const variantConfig = TOAST_VARIANTS[variant];
@@ -275,6 +285,7 @@ const useToaster = () => {
                                 !error.apiError ||
                                 !shouldSuppressSharedSignInToast(
                                     error.apiError,
+                                    activeProjectUuid(),
                                 ),
                         );
                         if (remaining.length !== errors.length) {
@@ -291,7 +302,10 @@ const useToaster = () => {
         (notificationData: NotificationData) => {
             if (
                 notificationData.apiError &&
-                shouldSuppressSharedSignInToast(notificationData.apiError)
+                shouldSuppressSharedSignInToast(
+                    notificationData.apiError,
+                    activeProjectUuid(),
+                )
             )
                 return;
             const {

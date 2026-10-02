@@ -12972,6 +12972,88 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         );
     });
 
+    test('writes a CLI authorized-user keyfile through the SSO save path', async () => {
+        const cliCredentials = {
+            ...credentials,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        };
+        projectModel.getWithSensitiveFields.mockResolvedValue({
+            ...projectWithSensitiveFields,
+            warehouseConnection: cliCredentials,
+            organizationWarehouseCredentialsUuid: undefined,
+        } as never);
+
+        await service.reconnectSharedSignIn(
+            developerAccount,
+            projectSummary.projectUuid,
+        );
+
+        expect(projectModel.update).toHaveBeenCalledWith(
+            projectSummary.projectUuid,
+            expect.objectContaining({
+                warehouseConnection: expect.objectContaining({
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents: expect.objectContaining({
+                        refresh_token: 'new-token',
+                    }),
+                }),
+            }),
+            developerAccount.user.id,
+        );
+    });
+
+    test('refuses to write when the stored token changes during sign-in', async () => {
+        projectModel.getWithSensitiveFields
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: credentials,
+                organizationWarehouseCredentialsUuid: undefined,
+            } as never)
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    ...credentials,
+                    keyfileContents: {
+                        ...credentials.keyfileContents,
+                        refresh_token: 'replacement-token',
+                    },
+                },
+                organizationWarehouseCredentialsUuid: undefined,
+            } as never);
+
+        await expect(
+            service.reconnectSharedSignIn(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow(
+            'This connection changed while you were signing in. Reload the page and try again.',
+        );
+        expect(projectModel.update).not.toHaveBeenCalled();
+    });
+
+    test('refuses to write when the recorded subject changes during sign-in', async () => {
+        model.getSharedSignInSubjectForToken
+            .mockResolvedValueOnce({
+                provider: PersonSignInProvider.GOOGLE,
+                subject: { userUuid: developerAccount.user.id, name: 'Owner' },
+                basis: SignInSubjectBasis.RECORDED,
+            })
+            .mockResolvedValueOnce({
+                provider: PersonSignInProvider.GOOGLE,
+                subject: { userUuid: 'another-user', name: 'Other' },
+                basis: SignInSubjectBasis.RECORDED,
+            });
+
+        await expect(
+            service.reconnectSharedSignIn(
+                developerAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(projectModel.update).not.toHaveBeenCalled();
+    });
+
     test('allows an admin when nobody is known', async () => {
         model.getSharedSignInSubjectForToken.mockResolvedValue(null);
         await service.reconnectSharedSignIn(

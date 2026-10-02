@@ -3427,8 +3427,36 @@ export class ProjectService extends BaseService {
                 'Sign in with Google did not finish. Try again.',
             );
         }
+        const currentProject =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const currentSignIn = currentProject.warehouseConnection
+            ? getPersonSignIn(currentProject.warehouseConnection)
+            : null;
+        const currentOwner = currentSignIn
+            ? await this.projectModel.getSharedSignInSubjectForToken(
+                  projectUuid,
+                  currentSignIn.refreshToken,
+              )
+            : null;
+        if (
+            currentProject.organizationWarehouseCredentialsUuid ||
+            currentProject.warehouseConnection?.type !==
+                WarehouseTypes.BIGQUERY ||
+            currentSignIn?.refreshToken !== signIn.refreshToken ||
+            currentOwner?.provider !== owner?.provider ||
+            currentOwner?.subject?.userUuid !== owner?.subject?.userUuid ||
+            currentOwner?.basis !== owner?.basis
+        ) {
+            throw new ParameterError(
+                'This connection changed while you were signing in. Reload the page and try again.',
+            );
+        }
         await this.updateWarehouseCredentials(projectUuid, account, {
-            warehouseConnection: { ...credentials, keyfileContents: {} },
+            warehouseConnection: {
+                ...credentials,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents: {},
+            },
         });
     }
 

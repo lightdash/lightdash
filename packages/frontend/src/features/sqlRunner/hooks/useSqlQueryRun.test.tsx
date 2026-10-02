@@ -1,9 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { store } from '../store';
 import {
@@ -63,4 +64,29 @@ describe('useSqlQueryRun', () => {
             expect(vi.mocked(executeSqlQuery).mock.calls[0][5]).toBe(expected);
         },
     );
+
+    it('replays the last failed mutation after reconnect', async () => {
+        vi.mocked(executeSqlQuery)
+            .mockRejectedValueOnce(new Error('expired'))
+            .mockResolvedValueOnce({ columns: [] } as never);
+        const { result } = renderHook(() => useSqlQueryRun('project-uuid'), {
+            wrapper,
+        });
+        await act(async () => {
+            await expect(
+                result.current.mutateAsync({ sql: 'select 1', limit: 1 }),
+            ).rejects.toThrow('expired');
+        });
+
+        act(() => {
+            window.dispatchEvent(
+                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                    detail: 'project-uuid',
+                }),
+            );
+        });
+
+        await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledTimes(2));
+        expect(vi.mocked(executeSqlQuery).mock.calls[1][1]).toBe('select 1');
+    });
 });
