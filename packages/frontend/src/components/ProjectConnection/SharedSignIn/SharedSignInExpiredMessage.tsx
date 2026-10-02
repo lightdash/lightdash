@@ -1,4 +1,4 @@
-import { type SharedSignInExpiry } from '@lightdash/common';
+import { SignInSubjectBasis, type SharedSignInExpiry } from '@lightdash/common';
 import { Anchor, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -14,7 +14,9 @@ export const SharedSignInExpiredMessage: FC<{
     const { activeProjectUuid } = useActiveProjectUuid();
     const isSubject =
         !!expiry.subjectUserUuid &&
-        expiry.subjectUserUuid === user.data?.userUuid;
+        expiry.subjectUserUuid === user.data?.userUuid &&
+        (expiry.subjectBasis === SignInSubjectBasis.RECORDED ||
+            expiry.subjectBasis === SignInSubjectBasis.PROJECT_CREATOR);
 
     return (
         <Stack gap={4} align="flex-start">

@@ -49,6 +49,7 @@ import {
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
+    SignInSubjectBasis,
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
     SupportedDbtAdapter,
@@ -12772,6 +12773,7 @@ describe('ProjectService expired shared sign-in', () => {
     const stored = {
         provider: PersonSignInProvider.GOOGLE,
         subject: { userUuid: 'subject-uuid', name: 'Sam Rivera' },
+        basis: SignInSubjectBasis.RECORDED,
     };
     const flagged = (enabled: boolean) =>
         ({
@@ -12820,6 +12822,7 @@ describe('ProjectService expired shared sign-in', () => {
                     provider: PersonSignInProvider.GOOGLE,
                     subjectUserUuid: 'subject-uuid',
                     subjectName: 'Sam Rivera',
+                    subjectBasis: SignInSubjectBasis.RECORDED,
                 },
             },
         });
@@ -12847,6 +12850,7 @@ describe('ProjectService expired shared sign-in', () => {
         model.getSharedSignInSubjectForToken.mockResolvedValueOnce({
             provider: PersonSignInProvider.SNOWFLAKE,
             subject: stored.subject,
+            basis: SignInSubjectBasis.RECORDED,
         });
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: flagged(true),

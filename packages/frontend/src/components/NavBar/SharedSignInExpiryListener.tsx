@@ -1,5 +1,6 @@
 import {
     getExpiredSharedSignInMessage,
+    SignInSubjectBasis,
     type ApiError,
 } from '@lightdash/common';
 import { IconPlugConnected } from '@tabler/icons-react';
@@ -25,7 +26,11 @@ export const SharedSignInExpiryListener: FC = () => {
             if (!apiError || !activeProjectUuid) return;
             const expiry = getSharedSignInExpiry(apiError);
             if (!expiry) return;
-            const isSubject = !!userUuid && expiry.subjectUserUuid === userUuid;
+            const isSubject =
+                !!userUuid &&
+                expiry.subjectUserUuid === userUuid &&
+                (expiry.subjectBasis === SignInSubjectBasis.RECORDED ||
+                    expiry.subjectBasis === SignInSubjectBasis.PROJECT_CREATOR);
             showToastWarning({
                 key: 'shared-sign-in-expired',
                 title: getExpiredSharedSignInMessage(expiry, userUuid),

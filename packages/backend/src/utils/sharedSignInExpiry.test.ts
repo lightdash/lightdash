@@ -3,6 +3,7 @@ import {
     DatabricksTokenError,
     ForbiddenError,
     PersonSignInProvider,
+    SignInSubjectBasis,
     SnowflakeTokenError,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -16,6 +17,7 @@ const expiry = {
     provider: PersonSignInProvider.GOOGLE,
     subjectUserUuid: 'subject',
     subjectName: 'Sam Rivera',
+    subjectBasis: SignInSubjectBasis.RECORDED,
 };
 
 describe('withSharedSignInExpiry', () => {
@@ -46,6 +48,17 @@ describe('personaliseSharedSignInError', () => {
             personaliseSharedSignInError(attributed, 'subject').message,
         ).toBe(
             "Your Google sign-in for this project's connection has expired. Reconnect it in the project's connection settings.",
+        );
+    });
+
+    it('tells a guessed creator to reconnect without assigning ownership', () => {
+        const guessed = withSharedSignInExpiry(
+            new BigqueryTokenError('raw'),
+            { ...expiry, subjectBasis: SignInSubjectBasis.PROJECT_CREATOR },
+            null,
+        );
+        expect(personaliseSharedSignInError(guessed, 'subject').message).toBe(
+            "This project's Google sign-in has expired. You created this project. Reconnect it in Project settings → Connection settings.",
         );
     });
 

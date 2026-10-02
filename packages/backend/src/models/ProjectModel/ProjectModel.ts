@@ -53,6 +53,7 @@ import {
     ServiceAccountProjectAccessInput,
     ServiceAccountProjectGrant,
     ServiceAccountScope,
+    SignInSubjectBasis,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
@@ -957,6 +958,7 @@ export class ProjectModel {
     ): Promise<{
         provider: PersonSignIn['provider'];
         subject: SignInSubject | null;
+        basis: SignInSubjectBasis | null;
     } | null> {
         const row = await this.database('warehouse_credentials')
             .innerJoin(
@@ -1034,6 +1036,7 @@ export class ProjectModel {
                               .trim(),
                       }
                     : null,
+                basis: creator ? SignInSubjectBasis.PROJECT_CREATOR : null,
             };
         };
         if (row.credential_subject_user_uuid) {
@@ -1046,6 +1049,7 @@ export class ProjectModel {
                         .join(' ')
                         .trim(),
                 },
+                basis: SignInSubjectBasis.RECORDED,
             };
         }
         if (signIn.provider === PersonSignInProvider.DATABRICKS) {
@@ -1117,7 +1121,8 @@ export class ProjectModel {
             .whereNull('credential_subject_user_uuid')
             .where('encrypted_credentials', row.encrypted_credentials)
             .update({ credential_subject_user_uuid: subjectUserUuid });
-        if (updated === 0) return { provider: signIn.provider, subject: null };
+        if (updated === 0)
+            return { provider: signIn.provider, subject: null, basis: null };
         return {
             provider: signIn.provider,
             subject: {
@@ -1127,6 +1132,7 @@ export class ProjectModel {
                     .join(' ')
                     .trim(),
             },
+            basis: SignInSubjectBasis.RECORDED,
         };
     }
 

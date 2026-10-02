@@ -5,6 +5,7 @@ import {
     OrganizationMemberRole,
     PersonSignInProvider,
     ProjectType,
+    SignInSubjectBasis,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type CreateWarehouseCredentials,
@@ -161,6 +162,7 @@ describe('warehouse credential subject', () => {
         ).toEqual({
             provider: PersonSignInProvider.GOOGLE,
             subject: { userUuid: founder, name: 'Fran Person' },
+            basis: SignInSubjectBasis.RECORDED,
         });
     });
 
@@ -264,6 +266,7 @@ describe('warehouse credential subject', () => {
         ).toEqual({
             provider: PersonSignInProvider.GOOGLE,
             subject: null,
+            basis: null,
         });
     });
 
@@ -293,6 +296,7 @@ describe('warehouse credential subject', () => {
         ).toEqual({
             provider: PersonSignInProvider.GOOGLE,
             subject: { userUuid: founder, name: 'Fran Person' },
+            basis: SignInSubjectBasis.RECORDED,
         });
         expect(await storedSubject(projectUuid)).toBe(founder);
     });
@@ -323,6 +327,7 @@ describe('warehouse credential subject', () => {
         ).toEqual({
             provider: PersonSignInProvider.GOOGLE,
             subject: { userUuid: founder, name: 'Fran Person' },
+            basis: SignInSubjectBasis.PROJECT_CREATOR,
         });
         expect(await storedSubject(projectUuid)).toBeNull();
     });
@@ -356,7 +361,11 @@ describe('warehouse credential subject', () => {
                 projectUuid,
                 'legacy-token',
             ),
-        ).toEqual({ provider: PersonSignInProvider.GOOGLE, subject: null });
+        ).toEqual({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: null,
+            basis: null,
+        });
         expect(await storedSubject(projectUuid)).toBeNull();
     });
 
@@ -388,6 +397,7 @@ describe('warehouse credential subject', () => {
         ).toEqual({
             provider: PersonSignInProvider.GOOGLE,
             subject: { userUuid: teammate, name: 'Ada Person' },
+            basis: SignInSubjectBasis.RECORDED,
         });
         expect(await storedSubject(projectUuid)).toBe(teammate);
     });
@@ -436,6 +446,7 @@ describe('warehouse credential subject', () => {
         ).toEqual({
             provider: PersonSignInProvider.GOOGLE,
             subject: { userUuid: founder, name: 'Fran Person' },
+            basis: SignInSubjectBasis.RECORDED,
         });
         expect(await storedSubject(projectUuid)).toBe(founder);
     });
@@ -476,6 +487,7 @@ describe('warehouse credential subject', () => {
         ).toEqual({
             provider: PersonSignInProvider.GOOGLE,
             subject: { userUuid: founder, name: 'Fran Person' },
+            basis: SignInSubjectBasis.PROJECT_CREATOR,
         });
         expect(await storedSubject(projectUuid)).toBeNull();
         expect(

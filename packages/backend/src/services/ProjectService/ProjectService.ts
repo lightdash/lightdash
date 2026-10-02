@@ -3274,6 +3274,7 @@ export class ProjectService extends BaseService {
                     provider: stored.provider,
                     subjectUserUuid: stored.subject?.userUuid ?? null,
                     subjectName: stored.subject?.name || null,
+                    subjectBasis: stored.basis,
                 },
                 null,
             );

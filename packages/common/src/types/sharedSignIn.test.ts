@@ -14,6 +14,7 @@ import {
     getPersonSignIn,
     PersonSignInProvider,
     resolveSignInSubject,
+    SignInSubjectBasis,
 } from './sharedSignIn';
 
 const bigquery = (
@@ -188,6 +189,7 @@ describe('getExpiredSharedSignInMessage', () => {
         provider: PersonSignInProvider.GOOGLE,
         subjectUserUuid: 'subject',
         subjectName: 'Sam Rivera',
+        subjectBasis: SignInSubjectBasis.RECORDED,
     };
 
     it('asks the subject to reconnect', () => {
@@ -202,26 +204,74 @@ describe('getExpiredSharedSignInMessage', () => {
         );
     });
 
+    it('tells the creator to reconnect without claiming the sign-in is theirs', () => {
+        expect(
+            getExpiredSharedSignInMessage(
+                { ...expiry, subjectBasis: SignInSubjectBasis.PROJECT_CREATOR },
+                'subject',
+            ),
+        ).toBe(
+            "This project's Google sign-in has expired. You created this project. Reconnect it in Project settings → Connection settings.",
+        );
+    });
+
+    it('names the creator for teammates without claiming the sign-in is theirs', () => {
+        expect(
+            getExpiredSharedSignInMessage(
+                { ...expiry, subjectBasis: SignInSubjectBasis.PROJECT_CREATOR },
+                'teammate',
+            ),
+        ).toBe(
+            "This project's Google sign-in has expired. Sam Rivera created this project. Ask them or a project admin to reconnect it in Project settings → Connection settings.",
+        );
+    });
+
+    it('uses the nobody message when the creator has no name', () => {
+        expect(
+            getExpiredSharedSignInMessage(
+                {
+                    ...expiry,
+                    subjectBasis: SignInSubjectBasis.PROJECT_CREATOR,
+                    subjectName: '',
+                },
+                'teammate',
+            ),
+        ).toBe(
+            "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
+        );
+    });
+
+    it('uses the nobody message when the subject is unknown', () => {
+        expect(
+            getExpiredSharedSignInMessage(
+                {
+                    ...expiry,
+                    subjectUserUuid: null,
+                    subjectName: null,
+                    subjectBasis: null,
+                },
+                null,
+            ),
+        ).toBe(
+            "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
+        );
+    });
+
     it.each([
-        [PersonSignInProvider.GOOGLE, 'Google'],
         [PersonSignInProvider.SNOWFLAKE, 'Snowflake'],
         [PersonSignInProvider.DATABRICKS, 'Databricks'],
-    ])(
-        'names the %s provider when the subject is unknown',
-        (provider, label) => {
-            expect(
-                getExpiredSharedSignInMessage(
-                    {
-                        ...expiry,
-                        provider,
-                        subjectUserUuid: null,
-                        subjectName: null,
-                    },
-                    null,
-                ),
-            ).toBe(
-                `This project's connection uses a ${label} sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.`,
-            );
-        },
-    );
+    ])('names the %s provider for a creator guess', (provider, label) => {
+        expect(
+            getExpiredSharedSignInMessage(
+                {
+                    ...expiry,
+                    provider,
+                    subjectBasis: SignInSubjectBasis.PROJECT_CREATOR,
+                },
+                'teammate',
+            ),
+        ).toBe(
+            `This project's ${label} sign-in has expired. Sam Rivera created this project. Ask them or a project admin to reconnect it in Project settings → Connection settings.`,
+        );
+    });
 });

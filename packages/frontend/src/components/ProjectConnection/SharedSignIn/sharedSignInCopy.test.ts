@@ -8,6 +8,7 @@ describe('getSharedSignInExpiry', () => {
             provider: PersonSignInProvider.GOOGLE,
             subjectUserUuid: 'u',
             subjectName: 'Sam Rivera',
+            subjectBasis: 'recorded',
         };
         expect(getSharedSignInExpiry({ data: { sharedSignIn } })).toEqual(
             sharedSignIn,

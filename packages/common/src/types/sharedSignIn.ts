@@ -13,6 +13,11 @@ export enum PersonSignInProvider {
     DATABRICKS = 'databricks',
 }
 
+export enum SignInSubjectBasis {
+    RECORDED = 'recorded',
+    PROJECT_CREATOR = 'project_creator',
+}
+
 export const PERSON_SIGN_IN_LABELS: Record<PersonSignInProvider, string> = {
     [PersonSignInProvider.GOOGLE]: 'Google',
     [PersonSignInProvider.SNOWFLAKE]: 'Snowflake',
@@ -102,6 +107,7 @@ export type SharedSignInExpiry = {
     provider: PersonSignInProvider;
     subjectUserUuid: string | null;
     subjectName: string | null;
+    subjectBasis: SignInSubjectBasis | null;
 };
 
 export const getExpiredSharedSignInMessage = (
@@ -109,11 +115,29 @@ export const getExpiredSharedSignInMessage = (
     viewerUserUuid: string | null,
 ): string => {
     const signIn = PERSON_SIGN_IN_LABELS[expiry.provider];
-    if (expiry.subjectUserUuid && expiry.subjectUserUuid === viewerUserUuid) {
-        return `Your ${signIn} sign-in for this project's connection has expired. Reconnect it in the project's connection settings.`;
-    }
     const name = expiry.subjectName?.trim();
-    return name
-        ? `This project's connection uses ${name}'s sign-in, which has expired. Ask ${name} or an admin to reconnect.`
-        : `This project's connection uses a ${signIn} sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.`;
+    const nobodyMessage = `This project's connection uses a ${signIn} sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.`;
+    switch (expiry.subjectBasis) {
+        case SignInSubjectBasis.RECORDED:
+            if (expiry.subjectUserUuid === viewerUserUuid) {
+                return `Your ${signIn} sign-in for this project's connection has expired. Reconnect it in the project's connection settings.`;
+            }
+            return name
+                ? `This project's connection uses ${name}'s sign-in, which has expired. Ask ${name} or an admin to reconnect.`
+                : nobodyMessage;
+        case SignInSubjectBasis.PROJECT_CREATOR:
+            if (expiry.subjectUserUuid === viewerUserUuid) {
+                return `This project's ${signIn} sign-in has expired. You created this project. Reconnect it in Project settings → Connection settings.`;
+            }
+            return name
+                ? `This project's ${signIn} sign-in has expired. ${name} created this project. Ask them or a project admin to reconnect it in Project settings → Connection settings.`
+                : nobodyMessage;
+        case null:
+            return nobodyMessage;
+        default:
+            return assertUnreachable(
+                expiry.subjectBasis,
+                'Unknown sign-in subject basis',
+            );
+    }
 };
