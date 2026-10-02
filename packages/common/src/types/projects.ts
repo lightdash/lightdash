@@ -1348,6 +1348,8 @@ export type Project = {
     schedulerFailureIncludeContact: boolean;
     schedulerFailureContactOverride: string | null;
     createdByUserUuid: string | null;
+    lastCompiledAsUserUuid: string | null;
+    lastCompiledAsUserName: string | null;
     organizationWarehouseCredentialsUuid?: string;
     hasDefaultUserSpaces: boolean;
     projectDefaults?: ProjectDefaults;

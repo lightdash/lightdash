@@ -1093,6 +1093,7 @@ describe('compileProject', () => {
                 }),
         );
         const generateValidation = vi.fn();
+        const compileProject = vi.fn().mockResolvedValue(undefined);
         const task = makeTaskWithDeps({
             userService: asDep<'userService'>({
                 getSessionByUserUuid: vi.fn().mockResolvedValue({
@@ -1101,7 +1102,7 @@ describe('compileProject', () => {
                 }),
             }),
             projectService: asDep<'projectService'>({
-                compileProject: vi.fn().mockResolvedValue(undefined),
+                compileProject,
             }),
             schedulerService: asDep<'schedulerService'>({
                 logSchedulerJob: vi.fn().mockResolvedValue(undefined),
@@ -1120,6 +1121,7 @@ describe('compileProject', () => {
             jobUuid: 'compile-job-1',
             isPreview: true,
             validateAfterCompile: false,
+            sessionRefresh: true,
         };
 
         await (
@@ -1131,6 +1133,15 @@ describe('compileProject', () => {
                 ): Promise<void>;
             }
         ).compileProject('scheduler-job-1', new Date(), payload);
+
+        expect(compileProject).toHaveBeenCalledWith(
+            expect.anything(),
+            'project-1',
+            RequestMethod.WEB_APP,
+            'compile-job-1',
+            undefined,
+            true,
+        );
 
         expect(generateValidation).not.toHaveBeenCalled();
         expect(replaceCustomFields).toHaveBeenCalledWith({

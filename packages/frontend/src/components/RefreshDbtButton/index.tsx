@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { DbtProjectType, JobStatusType, ProjectType } from '@lightdash/common';
+import {
+    DbtProjectType,
+    FeatureFlags,
+    JobStatusType,
+    ProjectType,
+} from '@lightdash/common';
 import {
     Anchor,
     Badge,
@@ -19,12 +24,14 @@ import { useContentAsCodeSettings } from '../../features/contentAsCode/hooks/use
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { useIsGitProject } from '../Explorer/WriteBackModal/hooks';
+import { lastCompiledAsLabel } from './lastCompiledAsLabel';
 import classes from './RefreshDbtButton.module.css';
 
 type RefreshMode = 'dbt' | 'dbt-and-content';
@@ -106,6 +113,13 @@ const RefreshDbtButton: FC<{
 }) => {
     const projectUuid = useProjectUuid();
     const { data } = useProject(projectUuid);
+    const { data: compileFlag } = useServerFeatureFlag(
+        FeatureFlags.CompileAsRefresher,
+    );
+    const showCompileIdentity = compileFlag?.enabled === true;
+    const compiledAsLabel = showCompileIdentity
+        ? lastCompiledAsLabel(data?.lastCompiledAsUserName ?? null)
+        : null;
     const { activeJob } = useActiveJob();
     const { mutate: refreshDbtServer } = useRefreshServer();
     const [isLoading, setIsLoading] = useState(false);
@@ -327,6 +341,11 @@ const RefreshDbtButton: FC<{
                         Developer preview
                     </Badge>
                 </Tooltip>
+            )}
+            {compiledAsLabel && (
+                <Text size="xs" c="dimmed">
+                    {compiledAsLabel}
+                </Text>
             )}
         </Group>
     );

@@ -388,6 +388,8 @@ export const projectWithSensitiveFields: Project = {
     schedulerFailureIncludeContact: false,
     schedulerFailureContactOverride: null,
     createdByUserUuid: sessionAccount.user.id,
+    lastCompiledAsUserUuid: null,
+    lastCompiledAsUserName: null,
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,
     expiresAt: null,

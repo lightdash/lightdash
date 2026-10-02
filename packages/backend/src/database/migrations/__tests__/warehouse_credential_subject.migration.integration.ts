@@ -124,6 +124,31 @@ describe('warehouse credential subject', () => {
                 )
         )?.credential_subject_user_uuid ?? null;
 
+    test('records and clears the last personal compile on the migrated project schema', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Compiler');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData(serviceAccount),
+        );
+
+        expect(
+            (await model.get(projectUuid)).lastCompiledAsUserUuid,
+        ).toBeNull();
+        await model.setLastCompiledAsUserUuid(projectUuid, founder);
+        expect((await model.get(projectUuid)).lastCompiledAsUserUuid).toBe(
+            founder,
+        );
+        expect(await model.getLastCompiledAsUserName(founder)).toBe(
+            'Compiler Person',
+        );
+        await model.setLastCompiledAsUserUuid(projectUuid, null);
+        expect(
+            (await model.get(projectUuid)).lastCompiledAsUserUuid,
+        ).toBeNull();
+    });
+
     test('stores a personal-only shared connection without a service credential or subject', async () => {
         const organization = await createOrganization();
         const founder = await createUser('Fran');

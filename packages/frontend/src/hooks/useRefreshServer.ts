@@ -158,6 +158,10 @@ export const useJob = (
         onSuccess: async (job) => {
             if (job.jobStatus === JobStatusType.DONE) {
                 await queryClient.invalidateQueries(['tables']);
+                await queryClient.invalidateQueries([
+                    'project',
+                    job.projectUuid,
+                ]);
             }
             onSuccess(job);
         },
