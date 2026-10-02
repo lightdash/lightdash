@@ -3067,6 +3067,7 @@ export class AsyncQueryService extends ProjectService {
         userUuid,
         organizationUuid,
         isRegisteredUser,
+        isEmbedOrigin,
         isServiceAccount,
         onboardingFlow,
         projectUuid,
@@ -3102,6 +3103,7 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
                 isPreviewProject,
                 isRegisteredUser,
+                isEmbedOrigin,
                 isServiceAccount,
                 onboardingFlow,
                 projectUuid,
@@ -3154,7 +3156,12 @@ export class AsyncQueryService extends ProjectService {
                     queryCreatedAt,
                     queryUsage,
                     errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
-                        preAggregateError,
+                        personaliseSharedSignInError(
+                            preAggregateError,
+                            isRegisteredUser && !isEmbedOrigin
+                                ? userUuid
+                                : null,
+                        ),
                     )}`,
                     executionSource:
                         preAggregateExecution === 'duckdb'
@@ -3232,6 +3239,7 @@ export class AsyncQueryService extends ProjectService {
                 queryUuid,
                 queryTags,
                 query: warehouseQuery,
+                isEmbedOrigin,
                 fieldsMap,
                 usedParameters,
                 cacheKey,
@@ -3570,6 +3578,7 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid,
         isPreviewProject,
         isRegisteredUser,
+        isEmbedOrigin,
         isServiceAccount,
         onboardingFlow,
         projectUuid,
@@ -4092,7 +4101,7 @@ export class AsyncQueryService extends ProjectService {
                 errorMessage: getErrorMessage(
                     personaliseSharedSignInError(
                         e,
-                        isRegisteredUser ? userUuid : null,
+                        isRegisteredUser && !isEmbedOrigin ? userUuid : null,
                     ),
                 ),
                 executionSource,
@@ -4195,6 +4204,7 @@ export class AsyncQueryService extends ProjectService {
             isPreviewProject,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
+            isEmbedOrigin: query.requestParameters.isEmbedOrigin,
             isServiceAccount: actor.isServiceAccount,
             onboardingFlow,
             queryTags,
@@ -4258,6 +4268,7 @@ export class AsyncQueryService extends ProjectService {
             isPreviewProject,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
+            isEmbedOrigin: query.requestParameters.isEmbedOrigin,
             isServiceAccount: actor.isServiceAccount,
             onboardingFlow,
             queryTags,
@@ -5219,6 +5230,7 @@ export class AsyncQueryService extends ProjectService {
                         organizationUuid,
                         isPreviewProject,
                         isRegisteredUser: account.isRegisteredUser(),
+                        isEmbedOrigin: requestParameters.isEmbedOrigin,
                         isServiceAccount: account.isServiceAccount(),
                         onboardingFlow,
                         projectUuid,
@@ -5597,6 +5609,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             dateZoom,
             context,
+            isEmbedOrigin,
             metricQuery: inputMetricQuery,
             invalidateCache,
             usePreAggregateCache,
@@ -5776,6 +5789,7 @@ export class AsyncQueryService extends ProjectService {
                 : {}),
             ...(references ? { references } : {}),
             context,
+            isEmbedOrigin,
             query: effectiveMetricQuery,
             parameters: combinedParameters,
             dateZoom,
@@ -7933,6 +7947,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         sql,
         context,
+        isEmbedOrigin,
         invalidateCache,
         pivotConfiguration,
         limit,
@@ -8048,6 +8063,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
                 parameters,
                 context,
+                isEmbedOrigin,
             },
         );
 
@@ -9857,6 +9873,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         mergeQuery,
         context,
+        isEmbedOrigin,
         invalidateCache,
         parameters,
         mode,
@@ -9925,6 +9942,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             mergeQuery: effectiveMergeQuery,
             context,
+            isEmbedOrigin,
             invalidateCache,
             parameters,
             userAttributeOverrides,
@@ -9953,6 +9971,7 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid,
         mergeQuery,
         context,
+        isEmbedOrigin,
         invalidateCache,
         parameters,
         userAttributeOverrides,
@@ -9966,6 +9985,7 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid: string;
         mergeQuery: MergeQuery;
         context: QueryExecutionContext;
+        isEmbedOrigin?: boolean;
         invalidateCache: boolean | undefined;
         parameters: ParametersValuesMap | undefined;
         userAttributeOverrides: UserAttributeValueMap | undefined;
@@ -10055,6 +10075,7 @@ export class AsyncQueryService extends ProjectService {
                 ? { documentSource: documentQueryContext.reference }
                 : {}),
             context,
+            isEmbedOrigin,
             invalidateCache,
             mergeQuery,
             parameters,
@@ -10145,6 +10166,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     context,
+                    isEmbedOrigin,
                     queries: [...legNodes, joinNode],
                     parameters: parameters ?? {},
                     userAttributeOverrides: userAttributeOverrides ?? {},

@@ -16,6 +16,7 @@ import type { UUID } from './uuid';
 
 type CommonExecuteQueryRequestParams = {
     context?: QueryExecutionContext;
+    isEmbedOrigin?: boolean;
     invalidateCache?: boolean;
     usePreAggregateCache?: boolean;
     parameters?: ParametersValuesMap;

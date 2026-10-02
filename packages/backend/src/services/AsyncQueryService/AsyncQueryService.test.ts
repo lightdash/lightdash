@@ -29,6 +29,7 @@ import {
     OrganizationAccessStatus,
     ParameterError,
     PersistentDownloadFileAccessMode,
+    PersonSignInProvider,
     PossibleAbilities,
     ProjectType,
     QueryExecutionContext,
@@ -39,6 +40,7 @@ import {
     QueryTrigger,
     ResultColumns,
     ResultsExpiredError,
+    SignInSubjectBasis,
     upgradeSavedMergeQuery,
     VizAggregationOptions,
     VizIndexType,
@@ -6011,9 +6013,19 @@ describe('AsyncQueryService', () => {
             credentials.type === WarehouseTypes.BIGQUERY
                 ? credentials.keyfileContents.refresh_token
                 : undefined;
-        const tokenError = () =>
+        const tokenError = (sharedSignIn: boolean) =>
             new BigqueryTokenError(
                 `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} (invalid_grant). Reconnect your BigQuery account in personal settings.`,
+                sharedSignIn
+                    ? {
+                          sharedSignIn: {
+                              provider: PersonSignInProvider.GOOGLE,
+                              subjectUserUuid: 'another-member',
+                              subjectName: 'Sam Rivera',
+                              subjectBasis: SignInSubjectBasis.RECORDED,
+                          },
+                      }
+                    : undefined,
             );
 
         const stored = new Map<string, CreateWarehouseCredentials>();
@@ -6031,10 +6043,14 @@ describe('AsyncQueryService', () => {
             isPreviewProject = true,
             projectType = ProjectType.PREVIEW,
             userWarehouseCredentials,
+            sharedSignIn = false,
+            isEmbedOrigin = false,
         }: {
             syncEnabled?: boolean;
             isPreviewProject?: boolean;
             projectType?: ProjectType;
+            sharedSignIn?: boolean;
+            isEmbedOrigin?: boolean;
             userWarehouseCredentials?: {
                 uuid: string;
                 credentials: CreateWarehouseCredentials;
@@ -6123,7 +6139,7 @@ describe('AsyncQueryService', () => {
                             executeAsyncQuery: async (args, callback) => {
                                 executeAttempts.push(token);
                                 if (rejectedByWarehouse.has(token)) {
-                                    throw tokenError();
+                                    throw tokenError(sharedSignIn);
                                 }
                                 return warehouseClientMock.executeAsyncQuery(
                                     args,
@@ -6147,6 +6163,7 @@ describe('AsyncQueryService', () => {
                         sessionAccount.organization.organizationUuid!,
                     isPreviewProject,
                     isRegisteredUser: true,
+                    isEmbedOrigin,
                     onboardingFlow: 'legacy',
                     projectUuid,
                     query: 'SELECT 1',
@@ -6214,6 +6231,33 @@ describe('AsyncQueryService', () => {
                 expect.stringContaining(BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER),
             ]);
         });
+
+        test.each([
+            {
+                isEmbedOrigin: true,
+                expected:
+                    "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
+            },
+            {
+                isEmbedOrigin: false,
+                expected:
+                    "This project's connection uses Sam Rivera's sign-in, which has expired. Ask Sam Rivera or an admin to reconnect.",
+            },
+        ])(
+            'stores the correct sign-in message for embed origin $isEmbedOrigin',
+            async ({ isEmbedOrigin, expected }) => {
+                const { service, run } = setup({
+                    isPreviewProject: false,
+                    projectType: ProjectType.DEFAULT,
+                    sharedSignIn: true,
+                    isEmbedOrigin,
+                });
+
+                await run();
+
+                expect(recordedErrors(service)).toEqual([expected]);
+            },
+        );
 
         test('names the parent project when the parent sign-in expired too', async () => {
             rejectedByGoogle.add('token-b');
