@@ -2202,6 +2202,7 @@ describe('getRunQuery Slack links only', () => {
         input = merge ? mergeInput : toolInput,
         purpose = 'visualization',
         artifactVersionUuid = 'version-uuid',
+        documentsEnabled = false,
     }: {
         enableDataAccess: boolean;
         slackLinksOnly: boolean;
@@ -2210,6 +2211,7 @@ describe('getRunQuery Slack links only', () => {
         merge?: boolean;
         purpose?: 'answer' | 'visualization';
         artifactVersionUuid?: string;
+        documentsEnabled?: boolean;
     }) => {
         const runAsyncQuery = vi.fn().mockResolvedValue({
             queryUuid: 'query-uuid',
@@ -2236,6 +2238,7 @@ describe('getRunQuery Slack links only', () => {
         const agentContext = new AgentContext([validExplore]);
         const queryTool = getRunQuery({
             purpose,
+            documentsEnabled,
             agentContext,
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
@@ -2608,6 +2611,44 @@ describe('getRunQuery Slack links only', () => {
             chartVersionUuid: 'version-uuid',
         });
         expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
+    });
+
+    it.each([
+        [false, ''],
+        [true, '<artifact-chart version="version-uuid">'],
+    ])(
+        'tells the model how to place the chart in a Document when Documents are %s',
+        async (documentsEnabled, reference) => {
+            const { output } = await executeLinksOnly({
+                enableDataAccess: true,
+                slackLinksOnly: false,
+                documentsEnabled,
+            });
+            if (reference) {
+                expect(output.result).toContain(reference);
+            } else {
+                expect(output.result).not.toContain('<artifact-chart');
+            }
+        },
+    );
+
+    it('offers a table result as a Document query result', async () => {
+        const { output } = await executeLinksOnly({
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            documentsEnabled: true,
+            input: {
+                ...toolInput,
+                chartConfig: {
+                    ...toolInput.chartConfig,
+                    defaultVizType: 'table',
+                },
+            } as ToolRunQueryArgs,
+        });
+        expect(output.result).toContain(
+            '<query-result version="version-uuid" display="table">',
+        );
+        expect(output.result).not.toContain('<artifact-chart');
     });
 
     it('never uploads an image before the final answer selects a chart', async () => {

@@ -2644,8 +2644,10 @@ export class McpService extends BaseService {
                         args.documentUuid !== undefined
                             ? { documentUuid: args.documentUuid }
                             : { slug: args.slug as string };
-                    const document =
-                        await toolsRuntime.readDocumentContent(identifier);
+                    const document = await toolsRuntime.readDocumentContent(
+                        identifier,
+                        args.chartId ?? null,
+                    );
                     return this.buildScopedResponse(
                         ctx,
                         `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,

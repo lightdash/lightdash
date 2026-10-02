@@ -270,6 +270,14 @@ export const getDocumentSummaryMarkdown = (content: DocumentContent): string =>
         }),
     );
 
+/** Tags an AI agent writes to place charts from its conversation. */
+export const ARTIFACT_CHART_TAG = 'artifact-chart';
+export const QUERY_RESULT_TAG = 'query-result';
+export const DOCUMENT_CONVERSATION_TAGS = [
+    ARTIFACT_CHART_TAG,
+    QUERY_RESULT_TAG,
+] as const;
+
 /**
  * Give a temporary chart key the stored id of an identical, otherwise unplaced
  * chart in the previous version, so re-sending an unchanged chart under a

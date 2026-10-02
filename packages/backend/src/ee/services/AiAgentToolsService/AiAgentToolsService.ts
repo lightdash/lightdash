@@ -6,9 +6,11 @@ import {
     assertUnreachable,
     CatalogFilter,
     CatalogType,
+    ConflictError,
     ContentType,
     dataAppVizSchema,
     DimensionType,
+    DOCUMENT_CONVERSATION_TAGS,
     documentAsCodeSchema,
     Explore,
     FeatureFlags,
@@ -18,6 +20,7 @@ import {
     ForbiddenError,
     getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
+    getDocumentSummaryMarkdown,
     getDocumentUrl,
     getErrorMessage,
     getItemMap,
@@ -32,6 +35,7 @@ import {
     mcpDocumentEditSchema,
     NotFoundError,
     ParameterError,
+    parseDocumentBlocks,
     parseDocumentContent,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -300,6 +304,7 @@ export type McpAiAgentToolsRuntime = Omit<
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
         identifier: { slug: string } | { documentUuid: string },
+        chartId: string | null,
     ) => Promise<DocumentContentResult>;
     editDocumentContent: (
         slug: string,
@@ -762,8 +767,8 @@ export class AiAgentToolsService extends BaseService {
                 this.getDataAppBuildStatus(context, args),
             createDocumentContent: (content) =>
                 this.createDocumentContent(context, content),
-            readDocumentContent: (slug) =>
-                this.readDocumentContent(context, slug),
+            readDocumentContent: (identifier, chartId) =>
+                this.readDocumentContent(context, identifier, chartId),
             editDocumentContent: (slug, edit) =>
                 this.editDocumentContent(context, slug, edit),
             getExplore: this.withMcpRuntimeResult(
@@ -2085,7 +2090,7 @@ export class AiAgentToolsService extends BaseService {
         args: Parameters<ReadContentFn>[0],
     ): ReturnType<ReadContentFn> {
         if (args.type === 'document') {
-            return this.readDocumentContent(context, args);
+            return this.readDocumentContent(context, args, args.chartId);
         }
         const { slug, type } = args;
         return wrapSentryTransaction(
@@ -4392,6 +4397,7 @@ export class AiAgentToolsService extends BaseService {
     private async documentContentResult(
         context: AiAgentToolsRuntimeContext,
         document: Document,
+        chartId: string | null = null,
     ): Promise<DocumentContentResult> {
         if (
             !AiAgentToolsService.hasAgentSpaceAccess(
@@ -4409,6 +4415,23 @@ export class AiAgentToolsService extends BaseService {
             throw new NotFoundError('Document not found');
         }
         const project = await this.projectModel.getSummary(context.projectUuid);
+        const metadata = {
+            name: document.name,
+            slug: document.slug,
+            description: document.description,
+            spaceSlug: getContentAsCodePathFromLtreePath(space.path),
+            schemaVersion: document.version.schemaVersion,
+        };
+        const { charts } = document.version.content;
+        const chart =
+            chartId !== null && Object.hasOwn(charts, chartId)
+                ? charts[chartId]
+                : undefined;
+        if (chartId !== null && chart === undefined) {
+            throw new NotFoundError(
+                `Document chart "${chartId}" not found. Chart ids: ${Object.keys(charts).join(', ') || 'none'}`,
+            );
+        }
         return {
             type: 'document',
             uuid: document.documentUuid,
@@ -4418,20 +4441,27 @@ export class AiAgentToolsService extends BaseService {
                 document.slug,
             ),
             versionUuid: document.version.versionUuid,
-            content: {
-                name: document.name,
-                slug: document.slug,
-                description: document.description,
-                spaceSlug: getContentAsCodePathFromLtreePath(space.path),
-                schemaVersion: document.version.schemaVersion,
-                ...document.version.content,
-            },
+            content:
+                chart === undefined
+                    ? {
+                          ...metadata,
+                          markdown: getDocumentSummaryMarkdown(
+                              document.version.content,
+                          ),
+                          chart: null,
+                      }
+                    : {
+                          ...metadata,
+                          markdown: null,
+                          chart: { id: chartId as string, ...chart },
+                      },
         };
     }
 
     private async readDocumentContent(
         context: AiAgentToolsRuntimeContext,
         identifier: { slug: string } | { documentUuid: string },
+        chartId: string | null = null,
     ) {
         assertRegisteredAccount(context.account);
         const document =
@@ -4446,7 +4476,20 @@ export class AiAgentToolsService extends BaseService {
                       context.projectUuid,
                       identifier.slug,
                   );
-        return this.documentContentResult(context, document);
+        return this.documentContentResult(context, document, chartId);
+    }
+
+    /** Conversation tags must be resolved by the agent before content reaches here. */
+    private static assertNoConversationTags(markdown: string): void {
+        const [tag] = parseDocumentBlocks(
+            markdown,
+            DOCUMENT_CONVERSATION_TAGS,
+        ).flatMap((block) => (block.type === 'tag' ? [block.tag] : []));
+        if (tag) {
+            throw new ParameterError(
+                `<${tag.name}> is only available inside a Lightdash AI agent conversation. Place the chart with <document-chart id="KEY"> and its full definition in charts.`,
+            );
+        }
     }
 
     private async createDocumentContent(
@@ -4455,6 +4498,7 @@ export class AiAgentToolsService extends BaseService {
     ) {
         assertRegisteredAccount(context.account);
         const input = documentAsCodeSchema.parse(raw);
+        AiAgentToolsService.assertNoConversationTags(input.markdown);
         const space = await this.resolveDocumentSpace(context, input.spaceSlug);
         const document = await this.documentService.create(
             context.account,
@@ -4567,17 +4611,49 @@ export class AiAgentToolsService extends BaseService {
             );
             return this.documentContentResult(context, document);
         }
-        const content = parseDocumentContent(existing.version.schemaVersion, {
-            markdown: edit.markdown,
-            charts: edit.charts,
-        });
+        if (existing.version.versionUuid !== edit.baseVersionUuid) {
+            throw new ConflictError(
+                'Document has changed. Read it again and retry with the latest version UUID',
+            );
+        }
+        const { content: stored } = existing.version;
+        const getContent = (): unknown => {
+            if (edit.type === 'content') {
+                AiAgentToolsService.assertNoConversationTags(edit.markdown);
+                // Charts placed by tag alone keep their current definition.
+                return {
+                    markdown: edit.markdown,
+                    charts: { ...stored.charts, ...edit.charts },
+                };
+            }
+            const chart = Object.hasOwn(stored.charts, edit.chartId)
+                ? stored.charts[edit.chartId]
+                : undefined;
+            if (chart === undefined) {
+                throw new NotFoundError(
+                    `Document chart "${edit.chartId}" not found`,
+                );
+            }
+            const patched: unknown = JsonPatch.applyPatch(
+                structuredClone(chart),
+                edit.patch as JsonPatch.Operation[],
+                true,
+            ).newDocument;
+            return {
+                ...stored,
+                charts: { ...stored.charts, [edit.chartId]: patched },
+            };
+        };
         const document = await this.documentService.updateContent(
             context.account,
             context.projectUuid,
             current.uuid,
             {
                 baseVersionUuid: edit.baseVersionUuid,
-                content,
+                content: parseDocumentContent(
+                    existing.version.schemaVersion,
+                    getContent(),
+                ),
             },
             {
                 allowedSpaceUuids: context.spaceAccess ?? undefined,

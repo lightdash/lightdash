@@ -95,8 +95,9 @@ describe('MCP Document content', () => {
             mcpReadContentArgsSchema.parse({
                 type: 'document',
                 slug: document.slug,
+                chartId: 'c1',
             }),
-        ).toEqual({ type: 'document', slug: document.slug });
+        ).toEqual({ type: 'document', slug: document.slug, chartId: 'c1' });
     });
 
     test('preserves custom chart type references by slug and version', () => {
@@ -264,17 +265,22 @@ describe('MCP Document content', () => {
         });
     });
 
+    test('accepts a chart patch', () => {
+        const edit = {
+            type: 'chart',
+            baseVersionUuid,
+            chartId: 'c2',
+            patch: [{ op: 'replace', path: '/chart/name', value: 'Revenue' }],
+        };
+        expect(mcpDocumentEditSchema.parse(edit)).toEqual(edit);
+    });
+
     test.each([
         { type: 'content', markdown, charts: {} },
         { type: 'content', baseVersionUuid: 'stale', markdown, charts: {} },
         { type: 'content', baseVersionUuid, content: { cells: [] } },
         { type: 'content', baseVersionUuid, markdown },
-        {
-            type: 'chart',
-            baseVersionUuid,
-            chartId: 'c1',
-            patch: [],
-        },
+        { type: 'chart', baseVersionUuid, patch: [] },
         { type: 'metadata', spaceSlug: 'another-space' },
     ])('rejects invalid edit shape %j', (edit) => {
         expect(mcpDocumentEditSchema.safeParse(edit).success).toBe(false);

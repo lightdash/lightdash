@@ -1,5 +1,6 @@
 import {
     createContentToolDefinition,
+    documentAsCodeSchema,
     mcpCreateContentArgsSchema,
     mcpCreateContentToolDefinition,
     toolCreateContentArgsSchema,
@@ -8,7 +9,9 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
+import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
+import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -19,6 +22,7 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 type Dependencies = {
     createContent: CreateContentFn;
     documentsEnabled?: boolean;
+    artifacts?: ArtifactChartExportAccess;
 };
 
 type CreatedContent = Awaited<ReturnType<CreateContentFn>>;
@@ -31,6 +35,17 @@ type ExecuteCreateContentResult =
     | ExecuteToolErrorResult;
 
 const toolDefinition = createContentToolDefinition.for('agent');
+
+const resolveDocumentContent = async (
+    content: unknown,
+    artifacts: ArtifactChartExportAccess | undefined,
+) => {
+    const document = documentAsCodeSchema.parse(content);
+    return {
+        ...document,
+        ...(await resolveDocumentConversationTags(document, artifacts)),
+    };
+};
 
 const contentResult = ({
     content,
@@ -72,6 +87,7 @@ const toCreatedContent = (
 export const getCreateContent = ({
     createContent,
     documentsEnabled = false,
+    artifacts,
 }: Dependencies) =>
     tool({
         ...(documentsEnabled
@@ -86,7 +102,10 @@ export const getCreateContent = ({
                 ).parse(args);
                 const result = await createContent({
                     type,
-                    content,
+                    content:
+                        type === 'document'
+                            ? await resolveDocumentContent(content, artifacts)
+                            : content,
                 } as Parameters<CreateContentFn>[0]);
                 const created = toCreatedContent(
                     result,

@@ -407,6 +407,7 @@ describe('deterministic chart-as-code', () => {
                 .fn()
                 .mockResolvedValue([{ ...reference, title: 'Revenue' }]),
             prepare: vi.fn().mockResolvedValue(prepare()),
+            prepareVersion: vi.fn(),
         };
         const ctx = new AgentContext([]);
         const tool = getExportChartAsCode(ctx, artifacts);
@@ -452,7 +453,11 @@ describe('deterministic chart-as-code', () => {
 
     it('rejects ambiguous or incomplete source references before calling artifact dependencies', async () => {
         const ctx = new AgentContext([]);
-        const artifacts = { list: vi.fn(), prepare: vi.fn() };
+        const artifacts = {
+            list: vi.fn(),
+            prepare: vi.fn(),
+            prepareVersion: vi.fn(),
+        };
         const tool = getExportChartAsCode(ctx, artifacts);
         const options = {
             toolCallId: 'export',
@@ -483,6 +488,7 @@ describe('deterministic chart-as-code', () => {
         const tool = getExportChartAsCode(ctx, {
             list: vi.fn(),
             prepare: vi.fn().mockRejectedValue(new Error('Access denied')),
+            prepareVersion: vi.fn(),
         });
         const output = await tool.execute!(
             {

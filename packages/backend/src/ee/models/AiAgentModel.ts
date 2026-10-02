@@ -9071,6 +9071,15 @@ export class AiAgentModel {
         }
     }
 
+    async findArtifactUuidByVersionUuid(
+        versionUuid: string,
+    ): Promise<string | undefined> {
+        const row = await this.database(AiArtifactVersionsTableName)
+            .where('ai_artifact_version_uuid', versionUuid)
+            .first('ai_artifact_uuid');
+        return row?.ai_artifact_uuid;
+    }
+
     async getArtifact(
         artifactUuid: string,
         versionUuid?: string,

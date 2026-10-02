@@ -32,6 +32,7 @@ import {
     KnexPaginateArgs,
     McpDocumentAsCode,
     McpDocumentEdit,
+    McpDocumentRead,
     MergeQuery,
     MetricQuery,
     ParameterDefinitions,
@@ -333,7 +334,7 @@ export type GetDashboardChartsFn = (args: {
 
 export type DocumentContentResult = {
     type: 'document';
-    content: McpDocumentAsCode;
+    content: McpDocumentRead;
     uuid: string;
     href: string;
     versionUuid: string;
@@ -341,11 +342,9 @@ export type DocumentContentResult = {
 
 export type ReadContentFn = (
     args:
-        | {
-              slug: string;
-              type: ReadContentType | 'document';
-          }
-        | { type: 'document'; documentUuid: string },
+        | { slug: string; type: ReadContentType }
+        | { type: 'document'; slug: string; chartId: string | null }
+        | { type: 'document'; documentUuid: string; chartId: string | null },
 ) => Promise<
     | DocumentContentResult
     | {
