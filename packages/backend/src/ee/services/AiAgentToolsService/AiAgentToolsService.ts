@@ -3105,6 +3105,7 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             queryUuid,
                             page: 1,
+                            aiAccessOnly: true,
                             pageSize: limit,
                         });
 
@@ -3379,6 +3380,7 @@ export class AiAgentToolsService extends BaseService {
                     projectUuid: context.projectUuid,
                     queryUuid: terminalSubmission.queryUuid,
                     page: 1,
+                    aiAccessOnly: true,
                     pageSize,
                 });
 
@@ -3705,7 +3707,7 @@ export class AiAgentToolsService extends BaseService {
                         context.userAttributeOverrides,
                         context.source === 'mcp'
                             ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
-                            : undefined,
+                            : QueryExecutionContext.AI,
                     );
                 const output =
                     context.source === 'mcp' ? results : results.results;

@@ -6693,6 +6693,61 @@ describe('ProjectService', () => {
     });
 
     describe('searchFieldUniqueValues', () => {
+        test.each([
+            [QueryExecutionContext.AI, true, false],
+            [QueryExecutionContext.AI, false, true],
+            [QueryExecutionContext.FILTER_AUTOCOMPLETE, true, true],
+        ])(
+            'autocomplete cache for %s with flag %s',
+            async (context, enabled, usesCache) => {
+                const flaggedService = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    results: {
+                        ...lightdashConfigMock.results,
+                        autocompleteEnabled: true,
+                    },
+                });
+                flaggedService.warehouseClients = {};
+                vi.mocked(
+                    flaggedService.featureFlagModel.get,
+                ).mockResolvedValue({
+                    id: FeatureFlags.AiAccessSkipResultsCache,
+                    enabled,
+                });
+                const getIfFresh = vi.fn(async () => undefined);
+                const uploadResults = vi.fn(async () => undefined);
+                Object.assign(flaggedService, {
+                    s3CacheClient: { getIfFresh, uploadResults },
+                    getWarehouseCredentials: vi.fn(
+                        async () => warehouseClientMock.credentials,
+                    ),
+                });
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockImplementation(() => ({
+                    ...warehouseClientMock,
+                    runQuery: vi.fn(async () => resultsWith1Row),
+                }));
+
+                await flaggedService.searchFieldUniqueValues(
+                    user,
+                    projectUuid,
+                    'a',
+                    'a_dim1',
+                    'test',
+                    10,
+                    undefined,
+                    false,
+                    undefined,
+                    undefined,
+                    context,
+                );
+
+                expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+            },
+        );
+
         const replaceWhitespace = (str: string) =>
             str.replace(/\s+/g, ' ').trim();
 
