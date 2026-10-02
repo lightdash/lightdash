@@ -1,6 +1,8 @@
+import { experimental_codeModeTool as codeModeTool } from '@ai-sdk/code-mode';
 import {
     agentToolDefinitions,
     agentToolDefinitionsByName,
+    runCodeToolDefinition,
     searchToolsToolDefinition,
 } from '@lightdash/common';
 import { asSchema, toolSearch, type FlexibleSchema, type ToolSet } from 'ai';
@@ -114,8 +116,9 @@ const makeAgentTools = (
         }),
         generateHashes: getGenerateHashes(),
         generateUuids: getGenerateUuids(),
-        // The AI SDK tool-search tool as the model sees it.
+        // AI SDK tools (tool search / code mode) as the model sees them.
         searchTools: toolSearch(),
+        runCode: codeModeTool({ toolDiscovery: 'conversation' }),
         getDashboardCharts: getGetDashboardCharts({
             getDashboardCharts: noop,
             pageSize: 25,
@@ -369,6 +372,13 @@ describe('AI agent tool contracts', () => {
         expect(
             inputShape(searchToolsToolDefinition.for('agent').inputSchema),
         ).toEqual(inputShape(toolSearch().inputSchema));
+        expect(
+            inputShape(runCodeToolDefinition.for('agent').inputSchema),
+        ).toEqual(
+            inputShape(
+                codeModeTool({ toolDiscovery: 'conversation' }).inputSchema,
+            ),
+        );
     });
 
     it('has an explicit memory distill policy for every shared agent tool', () => {

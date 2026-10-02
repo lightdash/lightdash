@@ -25,6 +25,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import classes from './AgentChatDebugDrawer.module.css';
+import { getRunCodeJs } from './ToolCalls/utils/runCodeSummary';
 import { ToolResults } from './ToolResults';
 
 type Props = {
@@ -190,6 +191,12 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                     toolCall.toolArgs,
                                     2,
                                 );
+                                // A program reads better as code than as an
+                                // escaped JSON string.
+                                const runCodeJs =
+                                    toolCall.toolName === 'runCode'
+                                        ? getRunCodeJs(toolCall.toolArgs)
+                                        : null;
                                 const toolResult = toolResultsMap.get(
                                     toolCall.toolCallId,
                                 );
@@ -245,7 +252,29 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                         <Collapse expanded={isExpanded}>
                                             <Stack gap="sm" p="sm">
                                                 {/* Tool Arguments */}
-                                                {argsJson ? (
+                                                {runCodeJs !== null ? (
+                                                    <Box>
+                                                        <Text
+                                                            fw={500}
+                                                            size="xs"
+                                                            c="dark"
+                                                            mb="xs"
+                                                        >
+                                                            Code
+                                                        </Text>
+                                                        <CodeBlock
+                                                            code={runCodeJs}
+                                                            language="javascript"
+                                                            withLineNumbers
+                                                            styles={{
+                                                                code: {
+                                                                    fontSize:
+                                                                        '11px',
+                                                                },
+                                                            }}
+                                                        />
+                                                    </Box>
+                                                ) : argsJson ? (
                                                     <Box>
                                                         <Text
                                                             fw={500}

@@ -154,7 +154,12 @@ import {
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
-import { isToolRoutingEnabled, withToolSearch } from './agentToolRouting';
+import {
+    copyToolCaller,
+    getAgentToolRouting,
+    isToolRoutingEnabled,
+    withToolSearch,
+} from './agentToolRouting';
 import { getMcpActiveTools } from './mcpToolGating';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
@@ -2205,7 +2210,7 @@ export const withEarlyToolProgress = (
             }
             return [
                 toolName,
-                {
+                copyToolCaller(toolDef, {
                     ...toolDef,
                     execute: (input: AnyType, options: AnyType) => {
                         const progress = updateProgress(
@@ -2231,7 +2236,7 @@ export const withEarlyToolProgress = (
                         });
                         return originalExecute(input, options);
                     },
-                },
+                }),
             ];
         }),
     ) as ToolSet;
@@ -2448,6 +2453,8 @@ export const getAgentMessages = (
         enableMergeQueries: args.enableMergeQueries,
         enableToolSearch:
             args.enableToolSearch && isToolRoutingEnabled(args.execution),
+        enableCodeMode:
+            args.enableCodeMode && isToolRoutingEnabled(args.execution),
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
         sqlScope: args.sqlScope,
@@ -2760,6 +2767,8 @@ export const generateAgentResponse = async ({
             reportEarlyToolProgress: true,
             verifyAnswers: true,
         });
+
+        const routing = getAgentToolRouting(tools, args);
         logger(
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
@@ -2804,7 +2813,8 @@ export const generateAgentResponse = async ({
             providerOptions: args.providerOptions,
             experimental_repairToolCall: repairToolCall,
             model: args.model,
-            tools,
+            tools: routing.tools,
+            experimental_toolCallers: routing.toolCallers,
             allowSystemInMessages: true,
             messages,
             experimental_onToolCallStart: ({ toolCall }) => {
@@ -3204,6 +3214,8 @@ export const streamAgentResponse = async ({
             // into a single delayed block. Keep it on non-stream delivery.
             verifyAnswers: false,
         });
+
+        const routing = getAgentToolRouting(tools, args);
         logger(
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
@@ -3239,7 +3251,8 @@ export const streamAgentResponse = async ({
             providerOptions: args.providerOptions,
             experimental_repairToolCall: repairToolCall,
             model: args.model,
-            tools,
+            tools: routing.tools,
+            experimental_toolCallers: routing.toolCallers,
             allowSystemInMessages: true,
             messages,
             experimental_onToolCallFinish: (event) => {

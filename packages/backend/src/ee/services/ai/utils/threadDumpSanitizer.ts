@@ -68,6 +68,8 @@ const DUMP_TOOL_RESULT_POLICIES = {
     getKnowledgeDocumentContent: 'omit',
     readPinnedThread: 'omit',
     searchTools: 'keep',
+    // A program can return query rows or other values.
+    runCode: 'omit',
     exploreRepo: 'omit',
     getPullRequestDiff: 'omit',
 } as const satisfies Record<ToolName, DumpToolResultPolicy>;

@@ -1,0 +1,4 @@
+{"kind":"pending","id":"14c8e563-46c1-492f-a7cc-7e09262dfca3","undo":{"kind":"http","method":"DELETE","path":"/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/aiAgents/d01fffd7-cf7c-475b-a5c9-689749b8a063"}}
+{"kind":"pending","id":"1a098911-ac8c-4d52-a93e-264e21efb502","undo":{"kind":"sql","text":"UPDATE ai_artifact_versions SET embedding_model = $2 WHERE ai_artifact_version_uuid = $1","params":["99068db5-959b-4dd8-8943-0f9447b446b0","text-embedding-3-small"]}}
+{"kind":"done","id":"1a098911-ac8c-4d52-a93e-264e21efb502"}
+{"kind":"done","id":"14c8e563-46c1-492f-a7cc-7e09262dfca3"}
