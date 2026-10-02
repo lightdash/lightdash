@@ -32,6 +32,7 @@ import {
     PersonSignInProvider,
     PossibleAbilities,
     ProjectType,
+    ProvisioningSource,
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
@@ -2261,7 +2262,7 @@ describe('AsyncQueryService', () => {
         test('marks playground queries for exclusion from the usage event stream', async () => {
             projectModel.getSummary.mockResolvedValueOnce({
                 ...projectSummary,
-                provisioningSource: 'playground',
+                provisioningSource: ProvisioningSource.PLAYGROUND,
             });
             (
                 serviceWithCache.queryHistoryModel
@@ -4993,7 +4994,7 @@ describe('AsyncQueryService', () => {
                         reason === 'cross-org'
                             ? 'other-org'
                             : account.organization.organizationUuid!,
-                    provisioningSource: 'analytics',
+                    provisioningSource: ProvisioningSource.ANALYTICS,
                 });
                 vi.spyOn(
                     analyticsClient,
@@ -6478,7 +6479,7 @@ describe('AsyncQueryService', () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             projectModel.getSummary.mockResolvedValueOnce({
                 ...projectSummary,
-                provisioningSource: 'analytics',
+                provisioningSource: ProvisioningSource.ANALYTICS,
             });
             const warehouse = vi.spyOn(service, '_getWarehouseClient');
             await expect(
@@ -6494,7 +6495,7 @@ describe('AsyncQueryService', () => {
             expect(warehouse).not.toHaveBeenCalled();
         });
 
-        it.each([undefined, 'analytics'])(
+        it.each([undefined, ProvisioningSource.ANALYTICS])(
             'checks SQL permissions before project restrictions (%s)',
             async (provisioningSource) => {
                 projectModel.getSummary.mockResolvedValueOnce({

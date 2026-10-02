@@ -62,6 +62,13 @@ type TestableUserModel = {
             createdByUserUuid: string | null;
         }[]
     >;
+    getPlaygroundProject: (
+        organizationId: number,
+        trx?: Knex,
+    ) => Promise<{
+        projectUuid: string;
+        createdByUserUuid: string | null;
+    } | null>;
     getUserProjectRoles: (
         userUuid: string,
         options?: { trx?: Knex },
@@ -802,6 +809,91 @@ describe('UserModel', () => {
                     }),
                 ),
             ).toBe(true);
+        });
+    });
+
+    describe('playground member layer', () => {
+        const memberDetails: DbUserDetails = {
+            ...userDetails,
+            user_uuid: 'member-user',
+            is_internal: false,
+            role: OrganizationMemberRole.MEMBER,
+            role_uuid: undefined,
+        };
+
+        const createMemberModel = (connectJourneyEnabled: boolean) => {
+            const model = new UserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig,
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId === FeatureFlags.ConnectJourney &&
+                                connectJourneyEnabled,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getTrainingProjects = vi.fn(async () => []);
+            model.getPlaygroundProject = vi.fn(async () => ({
+                projectUuid: 'playground-project',
+                createdByUserUuid: 'admin-user',
+            }));
+            model.getUserProjectRoles = vi.fn(async () => []);
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
+            model.customRoleScopes = vi.fn(async () => ({}));
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            return model;
+        };
+
+        it('lets every member explore the Playground as an interactive viewer', async () => {
+            const model = createMemberModel(true);
+            const ability = (
+                await model.generateUserAbilityBuilder(memberDetails)
+            ).abilityBuilder.build();
+            const playground = { projectUuid: 'playground-project' };
+
+            expect(
+                ability.can('view', subject('Project', { ...playground })),
+            ).toBe(true);
+            expect(
+                ability.can('manage', subject('Explore', { ...playground })),
+            ).toBe(true);
+            expect(
+                ability.can('update', subject('Project', { ...playground })),
+            ).toBe(false);
+            expect(
+                ability.can('manage', subject('SqlRunner', { ...playground })),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', { projectUuid: 'other-project' }),
+                ),
+            ).toBe(false);
+        });
+
+        it('grants nothing when connect-journey is off', async () => {
+            const model = createMemberModel(false);
+            const ability = (
+                await model.generateUserAbilityBuilder(memberDetails)
+            ).abilityBuilder.build();
+
+            expect(model.getPlaygroundProject).not.toHaveBeenCalled();
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', { projectUuid: 'playground-project' }),
+                ),
+            ).toBe(false);
         });
     });
 

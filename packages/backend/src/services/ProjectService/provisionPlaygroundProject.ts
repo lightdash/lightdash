@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ProjectType,
+    ProvisioningSource,
     RequestMethod,
     WarehouseTypes,
     type EnsurePlaygroundProjectResults,
@@ -19,12 +20,13 @@ import {
     type LightdashAnalytics,
     type OnboardingFlow,
     type PlaygroundProjectSkippedReason,
-} from '../../../analytics/LightdashAnalytics';
-import Logger from '../../../logging/logger';
-import { type OnboardingModel } from '../../../models/OnboardingModel/OnboardingModel';
-import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
-import { type CatalogService } from '../../../services/CatalogService/CatalogService';
-import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+} from '../../analytics/LightdashAnalytics';
+import { type PlaygroundContent } from '../../ee/services/ProjectService/playgroundContentTypes';
+import Logger from '../../logging/logger';
+import { type OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type CatalogService } from '../CatalogService/CatalogService';
+import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import {
     getCurrentPlaygroundBundleVersion,
     getServablePlaygroundBundleVersions,
@@ -34,9 +36,11 @@ import {
     validatePlaygroundDatabaseBundle,
     type PlaygroundBundle,
     type PlaygroundDatabaseCheck,
-} from '../../../services/ProjectService/playgroundBundle';
-import { type ProjectService } from '../../../services/ProjectService/ProjectService';
-import { type PlaygroundContent } from './playgroundContentTypes';
+} from './playgroundBundle';
+import { type ProjectService } from './ProjectService';
+
+export const getPlaygroundProjectName = (isConnectJourney: boolean) =>
+    isConnectJourney ? 'Playground' : 'Playground (sample data)';
 
 export type ProvisionPlaygroundProjectArguments = {
     user: SessionUser;
@@ -52,7 +56,6 @@ export type ProvisionPlaygroundProjectArguments = {
     >;
     onboardingModel: Pick<
         OnboardingModel,
-        | 'getByOrganizationUuid'
         | 'getPlaygroundContentSeedVersion'
         | 'setPlaygroundContentSeedVersion'
         | 'runInPlaygroundProvisioningLock'
@@ -63,9 +66,11 @@ export type ProvisionPlaygroundProjectArguments = {
         projectUuid: string;
         user: SessionUser;
         content: PlaygroundContent;
+        publicSpace: boolean;
     }) => Promise<void>;
     analytics: Pick<LightdashAnalytics, 'track'>;
     canViewProject: (project: OrganizationProject) => boolean;
+    isPlaygroundEnabled: boolean;
     trigger?: PlaygroundProjectTrigger;
     hasActiveAgentOnboardingRun?: () => Promise<boolean>;
     playgroundDataDirectory?: string;
@@ -88,6 +93,7 @@ export const provisionPlaygroundProject = async ({
     seedPlaygroundContent,
     analytics,
     canViewProject,
+    isPlaygroundEnabled,
     trigger = 'invite_expert',
     hasActiveAgentOnboardingRun,
     playgroundDataDirectory,
@@ -99,10 +105,17 @@ export const provisionPlaygroundProject = async ({
         throw new ForbiddenError('User is not part of an organization');
     }
 
-    const featureFlag = await featureFlagService.get({
-        user,
-        featureFlagId: FeatureFlags.NewOnboarding,
-    });
+    const [featureFlag, connectJourneyFlag] = await Promise.all([
+        featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.NewOnboarding,
+        }),
+        featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.ConnectJourney,
+        }),
+    ]);
+    const isConnectJourney = connectJourneyFlag.enabled;
     const onboardingFlow: OnboardingFlow = featureFlag.enabled
         ? 'new'
         : 'legacy';
@@ -124,6 +137,10 @@ export const provisionPlaygroundProject = async ({
             },
         });
     };
+    if (!isPlaygroundEnabled) {
+        trackSkipped('instance_disabled', null);
+        throw new NotFoundError('Sample data is turned off on this instance');
+    }
     if (!featureFlag.enabled) {
         trackSkipped('new_onboarding_flag_disabled', null);
         throw new NotFoundError('Playground projects are not available');
@@ -137,16 +154,26 @@ export const provisionPlaygroundProject = async ({
                 const dataDirectory = path.resolve(
                     playgroundDataDirectory ??
                         process.env.PLAYGROUND_DATA_DIR ??
-                        path.join(__dirname, '../../../../assets/playground'),
+                        path.join(__dirname, '../../../assets/playground'),
                 );
                 const projects =
                     await projectModel.getAllByOrganizationUuid(
                         organizationUuid,
                     );
                 const accessibleProjects = projects.filter(canViewProject);
-                const playground = accessibleProjects.find(
-                    (project) => project.provisioningSource === 'playground',
+                const playground = (
+                    isConnectJourney ? projects : accessibleProjects
+                ).find(
+                    (project) =>
+                        project.provisioningSource ===
+                        ProvisioningSource.PLAYGROUND,
                 );
+                if (playground && !canViewProject(playground)) {
+                    trackSkipped('no_project_access', playground.projectUuid);
+                    throw new ForbiddenError(
+                        'User does not have permission to view the Playground',
+                    );
+                }
                 if (playground) {
                     lastKnownProjectUuid = playground.projectUuid;
                     let bundle: PlaygroundBundle | null = null;
@@ -194,6 +221,21 @@ export const provisionPlaygroundProject = async ({
                             undefined,
                             version,
                         );
+                        if (isConnectJourney) {
+                            await catalogService
+                                .indexCatalog(
+                                    playground.projectUuid,
+                                    user.userUuid,
+                                )
+                                .catch((error) => {
+                                    Sentry.captureException(error);
+                                    Logger.error(
+                                        `Failed to index playground catalog for project ${playground.projectUuid}: ${getErrorType(
+                                            error,
+                                        )}`,
+                                    );
+                                });
+                        }
                     }
                     try {
                         const seedVersion =
@@ -207,6 +249,7 @@ export const provisionPlaygroundProject = async ({
                                 projectUuid: playground.projectUuid,
                                 user,
                                 content,
+                                publicSpace: isConnectJourney,
                             });
                             await onboardingModel.setPlaygroundContentSeedVersion(
                                 organizationUuid,
@@ -238,7 +281,11 @@ export const provisionPlaygroundProject = async ({
                 const isWaitingOnRun =
                     trigger === 'agent_onboarding_wait' &&
                     (await hasActiveAgentOnboardingRun?.()) === true;
-                if (projects.length > 0 && !isWaitingOnRun) {
+                if (
+                    projects.length > 0 &&
+                    !isWaitingOnRun &&
+                    !isConnectJourney
+                ) {
                     const existingProject = accessibleProjects[0];
                     if (!existingProject) {
                         trackSkipped('no_project_access', null);
@@ -256,17 +303,6 @@ export const provisionPlaygroundProject = async ({
                     };
                 }
 
-                const onboarding = await onboardingModel.getByOrganizationUuid(
-                    organizationUuid,
-                    trx,
-                );
-                if (onboarding.playgroundProjectDeletedAt) {
-                    trackSkipped('playground_previously_removed', null);
-                    throw new NotFoundError(
-                        'Playground project was previously removed',
-                    );
-                }
-
                 const { explores, content, version } =
                     await loadPlaygroundBundle(
                         dataDirectory,
@@ -276,7 +312,7 @@ export const provisionPlaygroundProject = async ({
                 const creation = await projectService.createWithoutCompile(
                     user,
                     {
-                        name: 'Playground (sample data)',
+                        name: getPlaygroundProjectName(isConnectJourney),
                         type: ProjectType.DEFAULT,
                         dbtConnection: { type: DbtProjectType.NONE },
                         dbtVersion: DefaultSupportedDbtVersion,
@@ -287,7 +323,7 @@ export const provisionPlaygroundProject = async ({
                         },
                     },
                     RequestMethod.BACKEND,
-                    { source: 'playground' },
+                    { source: ProvisioningSource.PLAYGROUND },
                 );
                 const { projectUuid } = creation.project;
                 lastKnownProjectUuid = projectUuid;
@@ -322,6 +358,7 @@ export const provisionPlaygroundProject = async ({
                         projectUuid,
                         user,
                         content,
+                        publicSpace: isConnectJourney,
                     });
                     await onboardingModel.setPlaygroundContentSeedVersion(
                         organizationUuid,

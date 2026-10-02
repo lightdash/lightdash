@@ -47,6 +47,7 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    ProvisioningSource,
     resolveSignInSubject,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
@@ -894,7 +895,7 @@ export class ProjectModel {
 
     async setProvisioningSource(
         projectUuid: string,
-        provisioningSource: string,
+        provisioningSource: ProvisioningSource,
     ): Promise<void> {
         await this.database('projects')
             .where('project_uuid', projectUuid)
@@ -1271,7 +1272,7 @@ export class ProjectModel {
         organizationUuid: string,
         data: CreateProjectOptionalCredentials,
         expiresAt?: Date | null,
-        provisioningSource?: string,
+        provisioningSource?: ProvisioningSource,
     ): Promise<string> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
@@ -2134,7 +2135,7 @@ export class ProjectModel {
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
-                  provisioning_source: string | null;
+                  provisioning_source: ProvisioningSource | null;
                   agent_sql_scope: AgentSqlScope | null;
               }
             | {
@@ -2160,7 +2161,7 @@ export class ProjectModel {
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
-                  provisioning_source: string | null;
+                  provisioning_source: ProvisioningSource | null;
                   agent_sql_scope: AgentSqlScope | null;
               }
         ) & { connection_mode?: string })[];
@@ -5099,7 +5100,7 @@ export class ProjectModel {
             .select('project_uuid', 'playground_bundle_version')
             .where((query) =>
                 query
-                    .where('provisioning_source', 'playground')
+                    .where('provisioning_source', ProvisioningSource.PLAYGROUND)
                     .orWhere('project_type', ProjectType.TRAINING),
             )
             .andWhere((query) =>

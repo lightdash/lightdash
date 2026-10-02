@@ -11,6 +11,7 @@ import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
+import { PlaygroundHomeNotice } from '../components/ProjectConnection/PlaygroundHomeNotice';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { AdminHomepageControls } from '../ee/features/homepageBuilder/AdminHomepageControls';
@@ -136,11 +137,16 @@ const Home: FC = () => {
                     config={homepage.config}
                     projectUuid={project.data.projectUuid}
                     topBar={
-                        !hasFavoritesBlock ? (
-                            <PersonalFavoritesBar
+                        <>
+                            {!hasFavoritesBlock && (
+                                <PersonalFavoritesBar
+                                    projectUuid={project.data.projectUuid}
+                                />
+                            )}
+                            <PlaygroundHomeNotice
                                 projectUuid={project.data.projectUuid}
                             />
-                        ) : null
+                        </>
                     }
                 />
             </Page>

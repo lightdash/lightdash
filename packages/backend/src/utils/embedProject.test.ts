@@ -1,6 +1,7 @@
 import {
     DbtProjectType,
     ProjectType,
+    ProvisioningSource,
     SupportedDbtVersions,
     WarehouseTypes,
     WeekDay,
@@ -46,7 +47,7 @@ const project: Project = {
     projectDefaults: { column_totals: false },
     colorPaletteUuid: 'palette-uuid',
     expiresAt: null,
-    provisioningSource: 'terraform',
+    provisioningSource: ProvisioningSource.TRAINING,
     agentSqlScope: { schemas: ['reporting'] },
     connectionRoute: 'single',
 };
@@ -104,7 +105,7 @@ describe('pickEmbedProject', () => {
             'upstream-uuid',
             'pinned-uuid',
             'org-creds-uuid',
-            'terraform',
+            ProvisioningSource.TRAINING,
         ].forEach((secret) => expect(json).not.toContain(secret));
     });
 

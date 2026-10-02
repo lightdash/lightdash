@@ -365,6 +365,15 @@ export const getTrainingProjectViewerScopes = (): string[] => [
 ];
 
 /**
+ * What every org member holds on the org's Playground: an interactive
+ * viewer's project scopes, without organization-only scopes.
+ */
+export const getPlaygroundProjectMemberScopes = (): string[] =>
+    getAllScopesForRole(ProjectMemberRole.INTERACTIVE_VIEWER).filter(
+        (scope) => !isOrganizationOnlyScope(scope),
+    );
+
+/**
  * Extra scopes a learner holds on their own training copy so the Learn
  * developer sandbox can deploy into it. Deliberately not part of the trainee
  * set: they are excluded above for the shared project and for every other

@@ -5,6 +5,7 @@ import {
     FeatureFlags,
     OrganizationMemberRole,
     ProjectType,
+    ProvisioningSource,
     type HomepageConfig,
     type OrganizationProject,
     type PossibleAbilities,
@@ -309,7 +310,7 @@ describe('provisionOnboardingHomepage', () => {
 
         await provisionOnboardingHomepage({
             ...mocks.args,
-            provisioningSource: 'playground',
+            provisioningSource: ProvisioningSource.PLAYGROUND,
         });
 
         expect(mocks.createHomepage).toHaveBeenCalledWith({

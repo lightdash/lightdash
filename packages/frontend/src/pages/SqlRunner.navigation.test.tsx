@@ -1,4 +1,4 @@
-import { type Project } from '@lightdash/common';
+import { type Project, ProvisioningSource } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { renderWithProviders } from '../testing/testUtils';
@@ -144,7 +144,7 @@ it('preserves navigation state while the project loads, then opens the runner', 
 it('does not mount SQL Runner for managed analytics projects', () => {
     projectQuery.data = {
         projectUuid: 'project-uuid',
-        provisioningSource: 'analytics',
+        provisioningSource: ProvisioningSource.ANALYTICS,
     };
     renderSqlRunner();
 

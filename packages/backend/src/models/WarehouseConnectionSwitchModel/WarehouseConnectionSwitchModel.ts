@@ -1,6 +1,7 @@
 import {
     NotFoundError,
     type ProjectType,
+    type ProvisioningSource,
     type WarehouseConnectionSwitchContentCounts,
     type WarehouseTypes,
 } from '@lightdash/common';
@@ -19,7 +20,7 @@ export type WarehouseConnectionSwitchProject = {
     projectId: number;
     organizationUuid: string;
     type: ProjectType;
-    provisioningSource: string | null;
+    provisioningSource: ProvisioningSource | null;
     connectionMode: ConnectionMode;
     originalWarehouseType: WarehouseTypes | null;
     originalOrganizationWarehouseCredentialsUuid: string | null;
@@ -92,7 +93,7 @@ export class WarehouseConnectionSwitchModel {
                 project_id: number;
                 organization_uuid: string;
                 project_type: ProjectType;
-                provisioning_source: string | null;
+                provisioning_source: ProvisioningSource | null;
                 connection_mode: ConnectionMode;
                 warehouse_type: WarehouseTypes | null;
                 organization_warehouse_credentials_uuid: string | null;

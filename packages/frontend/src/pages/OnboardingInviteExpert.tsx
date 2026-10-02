@@ -51,6 +51,7 @@ import {
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../hooks/useEnsurePlaygroundProject';
 import { useCreateInviteLinkMutation } from '../hooks/useInviteLink';
+import { useCanOfferFirstRunPlayground } from '../hooks/usePlaygroundAvailability';
 import { useUserUpdateMutation } from '../hooks/user/useUserUpdateMutation';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
@@ -172,7 +173,7 @@ const InviteExpertForm: FC<{
 );
 
 const OnboardingInviteExpert: FC = () => {
-    const { health, user } = useApp();
+    const { user } = useApp();
     const existingFirstName = user.data?.firstName ?? '';
     const existingLastName = user.data?.lastName ?? '';
     const needsName = !existingFirstName.trim() || !existingLastName.trim();
@@ -222,10 +223,10 @@ const OnboardingInviteExpert: FC = () => {
 
     // The flag says the flow exists, not that a playground can be provisioned:
     // the instance must support it and the org must not already have a project
-    const canOfferPlayground =
-        isNewOnboarding &&
-        health.data?.hasPlaygroundProjects === true &&
-        organization?.needsProject === true;
+    const canOfferPlayground = useCanOfferFirstRunPlayground(
+        isNewOnboarding,
+        organization?.needsProject,
+    );
 
     const titleRef = useRef<HTMLHeadingElement>(null);
     const hasFocusedTitleRef = useRef(false);

@@ -1406,11 +1406,21 @@ export type ApiLearnAccessResponse = {
     results: LearnAccess;
 };
 
+export enum ProvisioningSource {
+    PLAYGROUND = 'playground',
+    TRAINING = 'training',
+    ANALYTICS = 'analytics',
+}
+
+export const PLAYGROUND_CONNECTION_LOCKED_MESSAGE =
+    "This project uses sample data, so its connection can't be changed. To use your own data, connect a warehouse. That creates a new project.";
+
 export const playgroundProjectTriggers = [
     'invite_expert',
     'agent_onboarding_wait',
     'get_started',
     'warehouse_picker',
+    'project_list',
 ] as const;
 
 export type PlaygroundProjectTrigger =

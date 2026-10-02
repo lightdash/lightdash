@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     ParameterError,
+    PLAYGROUND_CONNECTION_LOCKED_MESSAGE,
     ProjectType,
     SnowflakeAuthenticationType,
     WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE,
@@ -930,7 +931,11 @@ describe('Enable multiple connections on the real schema', () => {
 
             await refusesBoth(
                 fixture,
-                new ForbiddenError(DEFAULT_PROJECT_ONLY_REASON),
+                new ForbiddenError(
+                    source === 'playground'
+                        ? PLAYGROUND_CONNECTION_LOCKED_MESSAGE
+                        : DEFAULT_PROJECT_ONLY_REASON,
+                ),
             );
             expect(await state(fixture.projectUuid)).toEqual(singleState);
         });

@@ -23,6 +23,7 @@ import { LinearAppService } from '../services/LinearAppService/LinearAppService'
 import { OAuthService } from '../services/OAuthService/OAuthService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
+import { provisionPlaygroundProject } from '../services/ProjectService/provisionPlaygroundProject';
 import { provisionTrainingProject } from '../services/ProjectService/provisionTrainingProject';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../services/QuerySourceService/QuerySourceService';
@@ -126,7 +127,6 @@ import { ProjectContextService } from './services/ProjectContextService/ProjectC
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
-import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
@@ -1202,6 +1202,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             user,
                             projectService,
                             canViewProject,
+                            isPlaygroundEnabled:
+                                lightdashConfig.playground.enabled,
                             trigger,
                             hasActiveAgentOnboardingRun: () =>
                                 user.organizationUuid
@@ -1220,11 +1222,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 projectUuid,
                                 user: seedUser,
                                 content,
+                                publicSpace,
                             }) =>
                                 seedPlaygroundContent({
                                     projectUuid,
                                     user: seedUser,
                                     content,
+                                    publicSpace,
                                     spaceModel: models.getSpaceModel(),
                                     savedChartModel:
                                         models.getSavedChartModel(),

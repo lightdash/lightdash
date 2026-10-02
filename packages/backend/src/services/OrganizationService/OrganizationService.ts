@@ -33,6 +33,7 @@ import {
     OrganizationProject,
     ParameterError,
     ProjectType,
+    ProvisioningSource,
     SaveOrganizationBrandRequest,
     SessionUser,
     TooManyRequestsError,
@@ -668,7 +669,8 @@ export class OrganizationService extends BaseService {
 
         const analyticsEnabled =
             projects.some(
-                (project) => project.provisioningSource === 'analytics',
+                (project) =>
+                    project.provisioningSource === ProvisioningSource.ANALYTICS,
             ) &&
             auditedAbility.can(
                 'manage',
@@ -682,7 +684,7 @@ export class OrganizationService extends BaseService {
         return projects.filter(
             (project, index) =>
                 accessResults[index] &&
-                (project.provisioningSource !== 'analytics' ||
+                (project.provisioningSource !== ProvisioningSource.ANALYTICS ||
                     analyticsEnabled),
         );
     }

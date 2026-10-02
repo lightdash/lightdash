@@ -40,7 +40,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import {
     useActiveProject,
     useUpdateActiveProjectMutation,
@@ -55,6 +55,7 @@ import {
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { SampleDataBadge } from '../../common/SampleDataBadge';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import {
     getWarehouseIcon,
@@ -62,6 +63,7 @@ import {
 } from '../../ProjectConnection/ProjectConnectFlow/utils';
 import { ProjectDeleteModal } from '../DeleteProjectPanel/DeleteProjectModal';
 import { ProjectDeleteInBulkModal } from '../DeleteProjectPanel/ProjectDeleteInBulkModal';
+import { ProjectListActions } from './ProjectListActions';
 import classes from './ProjectManagementPanel.module.css';
 import {
     matchesProjectTypeFilter,
@@ -153,6 +155,14 @@ const ProjectManagementPanel: FC = () => {
         WarehouseTypes[]
     >([]);
     const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
+    const selectedWarehouseSet = useMemo(
+        () => new Set(selectedWarehouses),
+        [selectedWarehouses],
+    );
+    const selectedCreatorSet = useMemo(
+        () => new Set(selectedCreators),
+        [selectedCreators],
+    );
     const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
 
     const handleFilterChange = useCallback((value: string) => {
@@ -234,14 +244,14 @@ const ProjectManagementPanel: FC = () => {
             );
 
             const matchesWarehouse =
-                selectedWarehouses.length === 0 ||
+                selectedWarehouseSet.size === 0 ||
                 (project.warehouseType &&
-                    selectedWarehouses.includes(project.warehouseType));
+                    selectedWarehouseSet.has(project.warehouseType));
 
             const matchesCreator =
-                selectedCreators.length === 0 ||
+                selectedCreatorSet.size === 0 ||
                 (project.createdByUserUuid &&
-                    selectedCreators.includes(project.createdByUserUuid));
+                    selectedCreatorSet.has(project.createdByUserUuid));
 
             return (
                 matchesSearch &&
@@ -250,7 +260,13 @@ const ProjectManagementPanel: FC = () => {
                 matchesCreator
             );
         });
-    }, [projects, activeFilter, search, selectedWarehouses, selectedCreators]);
+    }, [
+        projects,
+        activeFilter,
+        search,
+        selectedWarehouseSet,
+        selectedCreatorSet,
+    ]);
 
     const selectedUuids = useMemo(
         () => new Set(selectedProjects),
@@ -369,7 +385,7 @@ const ProjectManagementPanel: FC = () => {
                 accessorKey: 'name',
                 header: 'Name',
                 enableSorting: true,
-                size: 200,
+                size: 280,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
                         <MantineIcon icon={IconTextCaption} color="dimmed" />
@@ -381,21 +397,28 @@ const ProjectManagementPanel: FC = () => {
                     const isCurrentProject =
                         lastProjectUuid === project.projectUuid;
                     return (
-                        <Group gap="xs" wrap="nowrap">
-                            <Text fz="sm" fw={500} truncate="end">
+                        <Group gap="xs">
+                            <Text fz="sm" fw={500} lineClamp={2}>
                                 {project.name}
                             </Text>
                             {isCurrentProject && (
-                                <Badge size="xs">Current</Badge>
+                                <Badge size="xs" flex="none">
+                                    Current
+                                </Badge>
                             )}
                             {project.type === ProjectType.PREVIEW && (
-                                <Badge size="xs">Preview</Badge>
+                                <Badge size="xs" flex="none">
+                                    Preview
+                                </Badge>
                             )}
                             {project.type === ProjectType.TRAINING && (
                                 <Badge size="xs" color="grape" flex="none">
                                     Playground
                                 </Badge>
                             )}
+                            <SampleDataBadge
+                                provisioningSource={project.provisioningSource}
+                            />
                         </Group>
                     );
                 },
@@ -831,7 +854,7 @@ const ProjectManagementPanel: FC = () => {
                                                 label={
                                                     WAREHOUSE_LABELS[wt] ?? wt
                                                 }
-                                                checked={selectedWarehouses.includes(
+                                                checked={selectedWarehouseSet.has(
                                                     wt,
                                                 )}
                                                 size="xs"
@@ -842,7 +865,7 @@ const ProjectManagementPanel: FC = () => {
                                                 }}
                                                 onChange={() => {
                                                     if (
-                                                        selectedWarehouses.includes(
+                                                        selectedWarehouseSet.has(
                                                             wt,
                                                         )
                                                     ) {
@@ -925,7 +948,7 @@ const ProjectManagementPanel: FC = () => {
                                                     <Checkbox
                                                         key={creator.uuid}
                                                         label={creator.name}
-                                                        checked={selectedCreators.includes(
+                                                        checked={selectedCreatorSet.has(
                                                             creator.uuid,
                                                         )}
                                                         size="xs"
@@ -936,7 +959,7 @@ const ProjectManagementPanel: FC = () => {
                                                         }}
                                                         onChange={() => {
                                                             if (
-                                                                selectedCreators.includes(
+                                                                selectedCreatorSet.has(
                                                                     creator.uuid,
                                                                 )
                                                             ) {
@@ -1004,18 +1027,7 @@ const ProjectManagementPanel: FC = () => {
         <SettingsPage
             title="All projects"
             description="Manage projects, connections, access, and project lifecycle."
-            actions={
-                user.data?.ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid: user.data?.organizationUuid,
-                    }),
-                ) && (
-                    <Button size="xs" component={Link} to="/createProject">
-                        Create project
-                    </Button>
-                )
-            }
+            actions={<ProjectListActions projects={projects} />}
         >
             <ContentTable table={table} />
 

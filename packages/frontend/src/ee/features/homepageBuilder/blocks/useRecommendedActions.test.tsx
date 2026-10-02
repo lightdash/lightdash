@@ -5,6 +5,7 @@ import {
     ProjectType,
     type HomepageRecommendedActionKey,
     type OrganizationProject,
+    ProvisioningSource,
 } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { useGithubConfig } from '../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
@@ -304,14 +305,14 @@ describe('useRecommendedActions', () => {
             );
             vi.mocked(useProject).mockReturnValue(
                 settled({
-                    provisioningSource: 'playground',
+                    provisioningSource: ProvisioningSource.PLAYGROUND,
                 }) as unknown as ReturnType<typeof useProject>,
             );
             vi.mocked(useProjects).mockReturnValue(
                 settled([
                     organizationProject({
                         projectUuid: 'playground-uuid',
-                        provisioningSource: 'playground',
+                        provisioningSource: ProvisioningSource.PLAYGROUND,
                     }),
                 ]) as unknown as ReturnType<typeof useProjects>,
             );
@@ -341,7 +342,7 @@ describe('useRecommendedActions', () => {
                 settled([
                     organizationProject({
                         projectUuid: 'playground-uuid',
-                        provisioningSource: 'playground',
+                        provisioningSource: ProvisioningSource.PLAYGROUND,
                     }),
                     organizationProject({ projectUuid: 'real-uuid' }),
                 ]) as unknown as ReturnType<typeof useProjects>,

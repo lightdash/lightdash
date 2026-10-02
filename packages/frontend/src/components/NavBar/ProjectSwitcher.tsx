@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { ProjectType, type OrganizationProject } from '@lightdash/common';
+import {
+    ProjectType,
+    type OrganizationProject,
+    ProvisioningSource,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -39,6 +43,7 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import MantineIcon from '../common/MantineIcon';
+import { SampleDataBadge } from '../common/SampleDataBadge';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import { getNavBarMenuProps } from './NavBarPortalContext';
@@ -188,6 +193,9 @@ const ProjectRow: FC<{
                 <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
                     {isActive && <CurrentBadge />}
                     {isPlaygroundProject(item) && <PlaygroundBadge />}
+                    <SampleDataBadge
+                        provisioningSource={item.provisioningSource}
+                    />
                     {previewCount > 0 && (
                         <Box
                             component="span"
@@ -450,7 +458,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             if (
                 !user.data ||
                 projects?.find((project) => project.projectUuid === projectUuid)
-                    ?.provisioningSource === 'analytics'
+                    ?.provisioningSource === ProvisioningSource.ANALYTICS
             )
                 return false;
             return (
@@ -613,6 +621,11 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                 activeProject?.name ?? 'Select a project'
                             }
                             upstreamProjectName={upstreamProject?.name ?? null}
+                        />
+                        <SampleDataBadge
+                            provisioningSource={
+                                activeProject?.provisioningSource
+                            }
                         />
                     </Button>
                 </Menu.Target>

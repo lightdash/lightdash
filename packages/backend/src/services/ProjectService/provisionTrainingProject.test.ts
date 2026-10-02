@@ -4,6 +4,7 @@ import {
     OrganizationMemberRole,
     ProjectMemberRole,
     ProjectType,
+    ProvisioningSource,
     type OrganizationProject,
     type PossibleAbilities,
     type SessionUser,
@@ -51,7 +52,8 @@ const project = (type: ProjectType): OrganizationProject => ({
     slug: 'project',
     name: 'Project',
     type,
-    provisioningSource: type === ProjectType.TRAINING ? 'training' : null,
+    provisioningSource:
+        type === ProjectType.TRAINING ? ProvisioningSource.TRAINING : null,
     createdByUserUuid: user.userUuid,
     createdByUserName: 'Admin User',
     createdAt: now,
@@ -208,7 +210,7 @@ describe('provisionTrainingProject', () => {
                 type: ProjectType.TRAINING,
             }),
             expect.any(String),
-            { source: 'training' },
+            { source: ProvisioningSource.TRAINING },
         );
         expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
             projectUuid,

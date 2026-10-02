@@ -2,6 +2,7 @@ import { type PinnedItems } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { PlaygroundHomeNotice } from '../../../components/ProjectConnection/PlaygroundHomeNotice';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
@@ -120,6 +121,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
             {/* Same favourites strip the published homepage puts above its
                 blocks — day-0 opens the same way */}
             <PersonalFavoritesBar projectUuid={projectUuid} />
+            <PlaygroundHomeNotice projectUuid={projectUuid} />
             {/* Body rows always follow — Recently viewed and Pinned are the
                 point of day-0 — so the hero stays compact and they're on
                 screen. Same shell for both the AI and non-AI openings. */}

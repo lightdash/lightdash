@@ -6,6 +6,14 @@ import ForbiddenPanel from './ForbiddenPanel';
 const state = vi.hoisted(() => ({
     needsProject: false,
     isInitialLoading: false,
+    canAskForSampleData: false,
+}));
+
+vi.mock('../hooks/usePlaygroundAvailability', () => ({
+    usePlaygroundAvailability: () => ({
+        isConnectJourney: state.canAskForSampleData,
+        isAvailable: state.canAskForSampleData,
+    }),
 }));
 
 vi.mock('../hooks/organization/useOrganization', () => ({
@@ -39,6 +47,26 @@ describe('ForbiddenPanel', () => {
     beforeEach(() => {
         state.needsProject = false;
         state.isInitialLoading = false;
+        state.canAskForSampleData = false;
+    });
+
+    it('asks a non-admin to request sample data when the org has no project', () => {
+        state.needsProject = true;
+        state.canAskForSampleData = true;
+        renderForbiddenPanel();
+
+        expect(
+            screen.getByText(/Ask an admin to add sample data/),
+        ).toBeInTheDocument();
+    });
+
+    it('does not mention sample data when it is not available', () => {
+        state.needsProject = true;
+        renderForbiddenPanel();
+
+        expect(
+            screen.queryByText(/Ask an admin to add sample data/),
+        ).not.toBeInTheDocument();
     });
 
     it('explains the missing project when the organization has none', () => {
