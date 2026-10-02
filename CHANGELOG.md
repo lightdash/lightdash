@@ -1,3 +1,16 @@
+# [2.420.0](https://github.com/lightdash/lightdash/compare/2.419.0...2.420.0) (2026-10-02)
+
+
+### Bug Fixes
+
+* **embed:** load dashboard filter values through the async query API ([#30427](https://github.com/lightdash/lightdash/issues/30427)) ([27fc97d](https://github.com/lightdash/lightdash/commit/27fc97df5f0c8998349837a0f20e031e09f1cb44))
+
+
+### Features
+
+* **ai:** resolve the org default credential over the legacy Bedrock blob ([#30366](https://github.com/lightdash/lightdash/issues/30366)) ([ee6748b](https://github.com/lightdash/lightdash/commit/ee6748bb436dbedbbacedfa50ad9a34886b1b44e)), closes [#30318](https://github.com/lightdash/lightdash/issues/30318)
+* **ai:** scope AI provider credentials per project ([#30367](https://github.com/lightdash/lightdash/issues/30367)) ([cb8de49](https://github.com/lightdash/lightdash/commit/cb8de496643262a804a6077bce374c51ab742118)), closes [#30318](https://github.com/lightdash/lightdash/issues/30318)
+
 # [2.419.0](https://github.com/lightdash/lightdash/compare/2.418.1...2.419.0) (2026-10-02)
 
 
