@@ -49,3 +49,50 @@ describe('AiAgentModel.hasAssistantMessage', () => {
         ).toBe(true);
     });
 });
+
+describe('AiAgentModel.getThreadMessageStatus', () => {
+    const minutesAgo = (minutes: number) =>
+        new Date(Date.now() - minutes * 60 * 1000);
+    const unanswered = {
+        response: null,
+        responded_at: null,
+        error_message: null,
+        created_at: minutesAgo(30),
+        retried_at: null,
+    };
+
+    it('times out an unanswered prompt five minutes after it was created', () => {
+        expect(AiAgentModel.getThreadMessageStatus(unanswered)).toBe('error');
+        expect(
+            AiAgentModel.getThreadMessageStatus({
+                ...unanswered,
+                created_at: minutesAgo(1),
+            }),
+        ).toBe('pending');
+    });
+
+    it('counts from the latest retry, so a resumed old prompt stays pending', () => {
+        expect(
+            AiAgentModel.getThreadMessageStatus({
+                ...unanswered,
+                retried_at: minutesAgo(1),
+            }),
+        ).toBe('pending');
+        expect(
+            AiAgentModel.getThreadMessageStatus({
+                ...unanswered,
+                retried_at: minutesAgo(10),
+            }),
+        ).toBe('error');
+    });
+
+    it('reports an answered prompt as idle', () => {
+        expect(
+            AiAgentModel.getThreadMessageStatus({
+                ...unanswered,
+                response: 'Done.',
+                responded_at: minutesAgo(29),
+            }),
+        ).toBe('idle');
+    });
+});

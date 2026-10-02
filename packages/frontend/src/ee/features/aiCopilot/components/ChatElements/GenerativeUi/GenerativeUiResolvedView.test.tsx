@@ -49,4 +49,16 @@ describe('GenerativeUiResolvedView', () => {
         expect(screen.getByText('Skipped')).toBeInTheDocument();
         expect(screen.getAllByText('—')).toHaveLength(2);
     });
+
+    it('renders nothing for a card that could not be shown', () => {
+        renderWithProviders(
+            <GenerativeUiResolvedView
+                toolArgs={moveChartsSpecMock}
+                metadata={{ status: 'error' }}
+            />,
+        );
+
+        expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+        expect(screen.queryByText(/form/i)).not.toBeInTheDocument();
+    });
 });

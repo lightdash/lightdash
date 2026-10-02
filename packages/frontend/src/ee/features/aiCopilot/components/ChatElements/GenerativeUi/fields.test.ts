@@ -5,7 +5,6 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     fieldsOf,
-    forEachStateKeysOf,
     formatFieldValue,
     initialStateOf,
     validateFields,
@@ -53,7 +52,7 @@ describe('fieldsOf', () => {
 });
 
 describe('validateFields', () => {
-    it('requires visible required fields and a selection for every forEach source', () => {
+    it('requires visible required fields and lets an optional selection stay empty', () => {
         const fields = [
             field({ key: 'name', required: true }),
             field({
@@ -62,15 +61,23 @@ describe('validateFields', () => {
                 visibleWhen: { $state: 'nested', equals: true },
             }),
             field({ key: 'chartUuids', kind: 'selection', initial: [] }),
+            field({
+                key: 'dashboardUuids',
+                kind: 'selection',
+                initial: [],
+                required: true,
+            }),
         ];
 
         expect(
-            validateFields(
-                fields,
-                { name: '', parent: null, nested: false, chartUuids: [] },
-                forEachStateKeysOf(moveChartsSpecMock),
-            ),
-        ).toEqual({ name: 'Required', chartUuids: 'Select at least one' });
+            validateFields(fields, {
+                name: '',
+                parent: null,
+                nested: false,
+                chartUuids: [],
+                dashboardUuids: [],
+            }),
+        ).toEqual({ name: 'Required', dashboardUuids: 'Required' });
     });
 });
 

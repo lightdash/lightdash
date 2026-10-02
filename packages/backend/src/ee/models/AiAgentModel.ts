@@ -4435,6 +4435,7 @@ export class AiAgentModel {
                     | 'response'
                     | 'error_message'
                     | 'responded_at'
+                    | 'retried_at'
                     | 'filters_output'
                     | 'viz_config_output'
                     | 'metric_query'
@@ -4460,6 +4461,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.response`,
                 `${AiPromptTableName}.error_message`,
                 `${AiPromptTableName}.responded_at`,
+                `${AiPromptTableName}.retried_at`,
                 `${AiPromptTableName}.filters_output`,
                 `${AiPromptTableName}.viz_config_output`,
                 `${AiPromptTableName}.metric_query`,
@@ -4572,6 +4574,7 @@ export class AiAgentModel {
                     response: row.response,
                     error_message: row.error_message,
                     created_at: row.created_at,
+                    retried_at: row.retried_at,
                 }),
                 uuid: row.ai_prompt_uuid,
                 threadUuid: row.ai_thread_uuid,
@@ -5136,7 +5139,11 @@ export class AiAgentModel {
     static getThreadMessageStatus(
         row: Pick<
             DbAiPrompt,
-            'responded_at' | 'response' | 'error_message' | 'created_at'
+            | 'responded_at'
+            | 'response'
+            | 'error_message'
+            | 'created_at'
+            | 'retried_at'
         >,
     ): 'idle' | 'pending' | 'error' {
         if (row.error_message != null) {
@@ -5144,9 +5151,9 @@ export class AiAgentModel {
         }
 
         if (row.responded_at == null || row.response == null) {
-            // if the message was created more than 5 minutes ago, return error
+            // Pending for 5 minutes from the latest start: a retry or resume restarts it.
             if (
-                moment(row.created_at)
+                moment(row.retried_at ?? row.created_at)
                     .add(AI_AGENT_THREAD_PENDING_TIMEOUT_MS, 'milliseconds')
                     .isBefore(moment())
             ) {
@@ -5203,6 +5210,7 @@ export class AiAgentModel {
                     | 'error_message'
                     | 'created_at'
                     | 'responded_at'
+                    | 'retried_at'
                     | 'filters_output'
                     | 'viz_config_output'
                     | 'metric_query'
@@ -5228,6 +5236,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.error_message`,
                 `${AiPromptTableName}.created_at`,
                 `${AiPromptTableName}.responded_at`,
+                `${AiPromptTableName}.retried_at`,
                 `${AiPromptTableName}.filters_output`,
                 `${AiPromptTableName}.viz_config_output`,
                 `${AiPromptTableName}.metric_query`,
@@ -5369,6 +5378,7 @@ export class AiAgentModel {
                         response: row.response,
                         error_message: row.error_message,
                         created_at: row.created_at,
+                        retried_at: row.retried_at,
                     }),
                     uuid: row.ai_prompt_uuid,
                     threadUuid: row.ai_thread_uuid,

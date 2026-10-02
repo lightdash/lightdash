@@ -79,6 +79,8 @@ import {
 } from './DataAppBuildCard/AiDataAppBuildCard';
 import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
 import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
+import { hasUnresolvedGenerateUi } from './GenerativeUi/generativeUiCalls';
+import { GenerativeUiCards } from './GenerativeUi/GenerativeUiCards';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
@@ -462,7 +464,9 @@ const AssistantBubbleContent: FC<{
         !message.message &&
         !streamedContent &&
         !isPending &&
-        !message.interrupted;
+        !message.interrupted &&
+        // A run halted on a card has no text until the user acts on it.
+        !hasUnresolvedGenerateUi(message);
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
 
     const isBenignEmptyResponse = hasNoResponse && !hasError && !streamingError;
@@ -970,6 +974,14 @@ const AssistantBubbleContent: FC<{
                         <TypingDots />
                     </Box>
                 )}
+            <GenerativeUiCards
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                message={message}
+                streamParts={streamingState?.parts ?? []}
+                isStreaming={isStreaming}
+                isLastMessage={isLastMessage}
+            />
             <AiDocumentCards
                 projectUuid={projectUuid}
                 toolResults={message.toolResults}

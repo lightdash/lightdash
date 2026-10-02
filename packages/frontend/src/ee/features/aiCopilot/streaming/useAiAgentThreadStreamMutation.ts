@@ -202,8 +202,11 @@ export const getStreamToolCallPart = (
         } as StreamToolCallPart;
     }
 
+    // A call waiting on approval (generateUi) keeps its complete input.
     if (
         toolPart.state !== 'input-available' &&
+        toolPart.state !== 'approval-requested' &&
+        toolPart.state !== 'approval-responded' &&
         toolPart.state !== 'output-available' &&
         toolPart.state !== 'output-error'
     ) {

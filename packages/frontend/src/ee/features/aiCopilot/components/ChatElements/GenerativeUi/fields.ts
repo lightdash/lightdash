@@ -1,9 +1,7 @@
 import {
     assertUnreachable,
-    parseGenerativeUiRef,
     type GenerativeUiBlock,
     type GenerativeUiLeafBlock,
-    type GenerativeUiSpec,
     type GenerativeUiState,
 } from '@lightdash/common';
 import { isPresent, type GenerativeUiOption } from './bindings';
@@ -119,7 +117,7 @@ export const fieldsOf = (blocks: GenerativeUiBlock[]): GenerativeUiField[] =>
                         kind: 'selection',
                         key: block.selectable.key,
                         label: block.columns[0].label,
-                        required: false,
+                        required: block.selectable.required ?? false,
                         initial: block.selectable.multiple ? [] : null,
                         visibleWhen: block.visibleWhen,
                         staticOptions: null,
@@ -145,33 +143,19 @@ export const isVisible = (
     visibleWhen === undefined ||
     state[visibleWhen.$state] === visibleWhen.equals;
 
-/** State keys a forEach step iterates; running over nothing is never intended. */
-export const forEachStateKeysOf = (spec: GenerativeUiSpec): Set<string> =>
-    new Set(
-        spec.action.steps.flatMap((step) => {
-            const target =
-                step.forEach === undefined
-                    ? null
-                    : parseGenerativeUiRef(step.forEach);
-            return target?.kind === 'state' ? [target.key] : [];
-        }),
-    );
-
-/** Errors for visible fields that must be filled before the action runs. */
+/**
+ * Errors for visible fields that must be filled before the action runs. An
+ * empty forEach selection is allowed: its step then runs no requests.
+ */
 export const validateFields = (
     fields: GenerativeUiField[],
     state: GenerativeUiState,
-    forEachStateKeys: ReadonlySet<string>,
 ): Record<string, string> =>
     Object.fromEntries(
         fields.flatMap((field) => {
             if (!isVisible(field.visibleWhen, state)) return [];
             if (isPresent(state[field.key])) return [];
-            if (field.required) return [[field.key, 'Required']];
-            if (forEachStateKeys.has(field.key)) {
-                return [[field.key, 'Select at least one']];
-            }
-            return [];
+            return field.required ? [[field.key, 'Required']] : [];
         }),
     );
 

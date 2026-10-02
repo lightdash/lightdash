@@ -354,6 +354,7 @@ import {
     generateDeepResearchReport as generateDeepResearchReportFromEvidence,
     type AiDeepResearchFinalizerUsageFn,
 } from '../ai/agents/reportFinalizer';
+import { getResumedToolCalls } from '../ai/agents/resumedToolCalls';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
@@ -14204,10 +14205,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 featureFlagId: FeatureFlags.AiAgentGenerativeUi,
             }),
         ]);
-        // Cards render in the web thread; Slack and deep research get none.
+        // Cards act as the web user; Slack, embeds and deep research get none.
         const generativeUiEnabled =
             generativeUiFlagEnabled &&
             !isSlackPrompt(prompt) &&
+            !options.runtimeOptions &&
             responseExecution.mode === 'standard';
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
@@ -15227,6 +15229,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     );
                 }
 
+                // A resumed call's output streams without its input, and UI
+                // readers throw on an unknown call. UI-only: never hits onChunk.
+                getResumedToolCalls(args.messageHistory).forEach(
+                    ({ toolCallId, toolName, input }) => {
+                        writer.write({
+                            type: 'tool-input-available',
+                            toolCallId,
+                            toolName,
+                            input,
+                        });
+                    },
+                );
                 writer.merge(
                     options.redactToolOutputs
                         ? redactStreamToolOutputs(result.toUIMessageStream())

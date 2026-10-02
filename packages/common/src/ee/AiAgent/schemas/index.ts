@@ -2,6 +2,7 @@ import {
     type ToolAnalyzeFieldImpactOutput,
     type ToolComposerQueriesOutput,
     type ToolDashboardV2Output,
+    type ToolDescribeApiOutput,
     type ToolDescribeWarehouseTableOutput,
     type ToolDiscoverFieldsOutput,
     type ToolEditContentOutput,
@@ -13,6 +14,7 @@ import {
     type ToolFindFieldsOutput,
     type ToolGenerateDataAppOutput,
     type ToolGenerateHashesOutput,
+    type ToolGenerateUiOutput,
     type ToolGenerateUuidsOutput,
     type ToolGetKnowledgeDocumentContentOutput,
     type ToolListDataAppThemesOutput,
@@ -23,6 +25,7 @@ import {
     type ToolRunQueryOutput,
     type ToolRunSavedChartOutput,
     type ToolRunSqlOutput,
+    type ToolSearchApiOutput,
     type ToolSearchFieldValuesOutput,
     type ToolSearchSemanticLayerOutput,
     type ToolSyncDbtProjectOutput,
@@ -69,4 +72,7 @@ export type AgentToolOutput =
     | ToolComposerQueriesOutput
     | ToolSearchFieldValuesOutput
     | ToolSearchSemanticLayerOutput
-    | ToolAnalyzeFieldImpactOutput;
+    | ToolAnalyzeFieldImpactOutput
+    | ToolSearchApiOutput
+    | ToolDescribeApiOutput
+    | ToolGenerateUiOutput;

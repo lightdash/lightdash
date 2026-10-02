@@ -42,6 +42,7 @@ import type {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
+    ApiAiAgentUiActionResponse,
     ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiCreditDailyUsageResponse,
@@ -80,6 +81,7 @@ import type {
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
+    ApiGenerativeUiOperationsResponse,
     ApiGetAppCodeResponse,
     ApiGetAppResponse,
     ApiGetDataAppAuthoringContextResponse,
@@ -1612,6 +1614,8 @@ type ApiResults =
     | ApiAiAgentThreadMessageCreateResponse['results']
     | ApiAiAgentThreadMessageInterruptResponse['results']
     | ApiAiAgentThreadMessageSteerResponse['results']
+    | ApiAiAgentUiActionResponse['results']
+    | ApiGenerativeUiOperationsResponse['results']
     | ApiAiAgentArtifactResponse['results']
     | ApiAiAgentThreadGenerateTitleResponse['results']
     | ApiAiAgentThreadSummaryListResponse['results']
