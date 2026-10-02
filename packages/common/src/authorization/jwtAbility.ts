@@ -198,6 +198,14 @@ const aiAgentAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
+    if (canViewEmbedScope('EmbedAiAgentDownload', builder, embed)) {
+        can('view', 'JobStatus', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+            createdByUserUuid: externalId,
+        });
+    }
+
     return { embedUser, content, embed, builder, externalId };
 };
 

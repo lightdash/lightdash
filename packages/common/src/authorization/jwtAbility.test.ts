@@ -2,7 +2,7 @@ import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type CreateEmbedJwt } from '../ee';
 import { type OssEmbed } from '../types/auth';
 import { applyEmbeddedAbility } from './jwtAbility';
-import { type MemberAbility } from './types';
+import { type CaslSubjectNames, type MemberAbility } from './types';
 
 const createEmbedJwt = (overrides?: {
     content?: Partial<CreateEmbedJwt['content']>;
@@ -1070,6 +1070,48 @@ describe('Embedded AI agent abilities', () => {
                 }),
             ),
         ).toBe(false);
+    });
+
+    const abilityWithActorScopes = (resources: CaslSubjectNames[]) => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        resources.forEach((resource) =>
+            builder.can('view', resource, {
+                organizationUuid: organization.organizationUuid,
+                projectUuid,
+            }),
+        );
+        applyEmbeddedAbility(
+            aiAgentEmbedUser,
+            { agentUuid, type: 'aiAgent', chartUuids: [], explores: [] },
+            embed,
+            'external-id-1',
+            builder,
+        );
+        return builder.build();
+    };
+    const ownJob = subject('JobStatus', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid,
+        createdByUserUuid: 'external-id-1',
+    });
+
+    it('lets the embed poll its own jobs when it can download results', () => {
+        const ability = abilityWithActorScopes(['EmbedAiAgentDownload']);
+        expect(ability.can('view', ownJob)).toBe(true);
+        expect(
+            ability.can(
+                'view',
+                subject('JobStatus', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                    createdByUserUuid: 'someone-else',
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('does not grant job polling without the download scope', () => {
+        expect(abilityWithActorScopes([]).can('view', ownJob)).toBe(false);
     });
 });
 
