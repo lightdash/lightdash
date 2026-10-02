@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
     act,
     fireEvent,
@@ -9,6 +10,7 @@ import userEvent from '@testing-library/user-event';
 import nock from 'nock';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createQueryClient } from '../../../providers/ReactQuery/createQueryClient';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { mockRoadmapProject, mockRoadmapResults } from './roadmap.mock';
 import { roadmapApi } from './roadmapApi';
@@ -237,15 +239,20 @@ describe('following roadmap projects', () => {
         expect(follow).toHaveBeenCalledTimes(2);
     });
 
-    it('confirms receipt without inventing interest when manual follow-up is needed', async () => {
+    it('shows accepted following immediately even when an older server snapshot still has no interest', async () => {
         vi.mocked(roadmapApi.followProject).mockResolvedValue(confirmation);
         renderRoadmap();
         await showAllProjects();
         await userEvent.click(screen.getByRole('button', { name: 'Follow' }));
         await submitNote();
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('button', { name: 'Follow' }),
+            ).not.toBeInTheDocument(),
+        );
         expect(
-            await screen.findByRole('button', { name: 'Request sent' }),
-        ).toBeDisabled();
+            screen.queryByRole('button', { name: 'Request sent' }),
+        ).not.toBeInTheDocument();
         expect(showToastSuccess).toHaveBeenCalledWith({
             title: 'Request sent',
             subtitle: confirmation.message,
@@ -254,11 +261,72 @@ describe('following roadmap projects', () => {
             screen.getByRole('button', { name: 'Open Project alpha' }),
         );
         const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText('Following')).toBeInTheDocument();
         expect(
-            within(dialog).getByRole('button', { name: 'Request sent' }),
-        ).toBeDisabled();
-        expect(within(dialog).queryByText('Following')).not.toBeInTheDocument();
+            within(dialog).queryByRole('button', { name: 'Follow' }),
+        ).not.toBeInTheDocument();
+        await userEvent.keyboard('{Escape}');
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        await userEvent.click(screen.getByRole('radio', { name: 'Table' }));
+        const row = await screen.findByRole('row', { name: /Project alpha/ });
+        expect(within(row).getByText('Interested')).toBeInTheDocument();
         expect(hasDirectNeed).toBe(false);
+    });
+
+    it('does not let an older inactive Following request hide an accepted project', async () => {
+        const queryClient = createQueryClient();
+        renderWithProviders(
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter>
+                    <RoadmapProjects canFollow cacheKey="org-1:user-1" />
+                </MemoryRouter>
+            </QueryClientProvider>,
+        );
+        await screen.findByRole('button', { name: 'Open Project direct' });
+        const readProjects = vi
+            .mocked(roadmapApi.getProjects)
+            .getMockImplementation()!;
+        const started = Promise.withResolvers<void>();
+        const oldResponse = Promise.withResolvers<void>();
+        let held = false;
+        vi.mocked(roadmapApi.getProjects).mockImplementation(async (query) => {
+            const snapshot = await readProjects(query);
+            if (
+                query.onlyInterested &&
+                query.statuses === 'backlog,planned' &&
+                !held
+            ) {
+                held = true;
+                started.resolve();
+                await oldResponse.promise;
+            }
+            return snapshot;
+        });
+        act(() => {
+            void queryClient.invalidateQueries({
+                queryKey: ['roadmap-projects', 'org-1:user-1'],
+            });
+        });
+        await started.promise;
+        await showAllProjects();
+        await userEvent.click(screen.getByRole('button', { name: 'Follow' }));
+        await submitNote();
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        await act(async () => {
+            oldResponse.resolve();
+        });
+        await userEvent.click(screen.getByRole('radio', { name: 'Following' }));
+        expect(
+            await screen.findByRole('button', { name: 'Open Project alpha' }),
+        ).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('radio', { name: 'Table' }));
+        expect(
+            await screen.findByRole('row', { name: /Project alpha/ }),
+        ).toBeInTheDocument();
     });
 
     it('loads interest from the server after remount and isolates organizations', async () => {
