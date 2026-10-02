@@ -191,7 +191,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 expect(summary).toMatchObject({
                     partitionsCompacted: 2,
                     partitionsFailed: 0,
-                    dimensions: { refreshed: 5, failed: 0 },
+                    dimensions: { refreshed: 6, failed: 0 },
                     users: { published: 2, failed: 0 },
                 });
                 expect(new Set(dimensionsRead)).toEqual(new Set([org]));

@@ -140,6 +140,28 @@ describe('signed analytics file manifests', () => {
         expect(getSignedUrl).not.toHaveBeenCalled();
     });
 
+    it('serves members without events and never reads historical membership into the current population', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                { Key: `${prefix}dim=people/people.parquet` },
+                {
+                    Key: `${prefix}model=people_membership/dt=2026-10-01/snapshot.parquet`,
+                },
+            ],
+        });
+        const source = await createS3AnalyticsSourceResolver(config)();
+        expect(source.tables.map(({ name }) => name)).toEqual([
+            'lightdash_people',
+        ]);
+        expect(source.emptyTables?.map(({ name }) => name)).toContain(
+            'content_views',
+        );
+        expect(getSignedUrl).toHaveBeenCalledOnce();
+        expect(vi.mocked(getSignedUrl).mock.calls[0][1].input).toMatchObject({
+            Key: `${prefix}dim=people/people.parquet`,
+        });
+    });
+
     it('uses writer config only for prefix listing and signing exact GETs', async () => {
         const resolve = createS3AnalyticsSourceResolver(config);
         expect(createS3ClientFromConfig).not.toHaveBeenCalled();
@@ -379,6 +401,7 @@ describe('signed analytics file manifests', () => {
         expect(source.emptyTables?.map(({ name }) => name)).toEqual([
             'lightdash_dashboards',
             'lightdash_content',
+            'lightdash_people',
             'ai_usage',
             'data_app_events',
             'export_events',
