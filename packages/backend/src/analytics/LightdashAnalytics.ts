@@ -569,6 +569,7 @@ export type MetricQueryExecutionProperties = {
     additionalMetricsCurrencyFormatCount: number;
     additionalMetricsNumberFormatCount: number;
     additionalMetricsCustomFormatCount: number;
+    periodOverPeriodMetricsCount: number;
     numFixedWidthBinCustomDimensions: number;
     numFixedBinsBinCustomDimensions: number;
     numCustomRangeBinCustomDimensions: number;
@@ -1055,6 +1056,8 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         filtersCount: number;
         sortsCount: number;
         tableCalculationsCount: number;
+        additionalMetricsCount: number;
+        periodOverPeriodMetricsCount: number;
         pivotCount: number;
         chartType: ChartType;
         cartesian?: {
@@ -1066,6 +1069,7 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
             margins: string;
             showLegend: boolean;
             hasCustomTooltip: boolean;
+            hasDateXAxis: boolean;
         };
         pie?: {
             isDonut: boolean;

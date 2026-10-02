@@ -43,6 +43,7 @@ describe('SavedChartService.getCreateEventProperties data app viz attribution', 
                 },
             }),
             { viaDashboardGrant: false, grantOnly: false },
+            undefined,
         );
 
         expect(properties.chartType).toBe(ChartType.DATA_APP_VIZ);
@@ -63,6 +64,7 @@ describe('SavedChartService.getCreateEventProperties data app viz attribution', 
                 },
             }),
             { viaDashboardGrant: false, grantOnly: false },
+            undefined,
         );
 
         expect(properties.dataAppViz).toEqual({
@@ -85,6 +87,7 @@ describe('SavedChartService.getCreateEventProperties data app viz attribution', 
                 },
             }),
             { viaDashboardGrant: false, grantOnly: false },
+            undefined,
         );
 
         expect(properties.dataAppViz).toMatchObject({ mappedFieldCount: 2 });
@@ -100,6 +103,7 @@ describe('SavedChartService.getCreateEventProperties data app viz attribution', 
                 },
             }),
             { viaDashboardGrant: false, grantOnly: false },
+            undefined,
         );
 
         expect(properties.dataAppViz).toMatchObject({ mappedFieldCount: 1 });
@@ -109,6 +113,7 @@ describe('SavedChartService.getCreateEventProperties data app viz attribution', 
         const properties = SavedChartService.getCreateEventProperties(
             chartWithConfig({ type: ChartType.DATA_APP_VIZ }),
             { viaDashboardGrant: false, grantOnly: false },
+            undefined,
         );
 
         expect(properties.chartType).toBe(ChartType.DATA_APP_VIZ);
@@ -119,6 +124,7 @@ describe('SavedChartService.getCreateEventProperties data app viz attribution', 
         const properties = SavedChartService.getCreateEventProperties(
             chartWithConfig({ type: ChartType.TABLE, config: {} }),
             { viaDashboardGrant: false, grantOnly: false },
+            undefined,
         );
 
         expect(properties.dataAppViz).toBeUndefined();

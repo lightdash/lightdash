@@ -20,10 +20,13 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     DetailedViewStatistics,
+    DimensionType,
     ExploreSplitError,
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getDimensionMapFromTables,
+    getItemId,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
@@ -31,8 +34,10 @@ import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
+    isExploreError,
     isFormulaTableCalculation,
     isJwtUser,
+    isPeriodOverPeriodAdditionalMetric,
     isSchedulerGsheetsOptions,
     isSqlTableCalculation,
     isTemplateTableCalculation,
@@ -338,10 +343,42 @@ export class SavedChartService
         return access.some((row) => row.grantedVia === 'dashboard');
     }
 
+    static hasDateXAxis(
+        savedChart: SavedChartDAO,
+        explore: Explore | ExploreError | undefined,
+    ): boolean {
+        if (savedChart.chartConfig.type !== ChartType.CARTESIAN) return false;
+        const xField = savedChart.chartConfig.config?.layout?.xField;
+        if (!xField) return false;
+
+        const customDimension = savedChart.metricQuery.customDimensions?.find(
+            (dimension) => dimension.id === xField,
+        );
+        // Without a compiled explore the field type is unknown
+        const exploreDimension =
+            explore && !isExploreError(explore)
+                ? getDimensionMapFromTables(explore.tables)[xField]
+                : undefined;
+        const xDimensionType = isCustomSqlDimension(customDimension)
+            ? customDimension.dimensionType
+            : exploreDimension?.type;
+
+        return (
+            xDimensionType === DimensionType.DATE ||
+            xDimensionType === DimensionType.TIMESTAMP
+        );
+    }
+
     static getCreateEventProperties(
         savedChart: SavedChartDAO,
         grantAudit: { viaDashboardGrant: boolean; grantOnly: boolean },
+        explore: Explore | ExploreError | undefined,
     ): CreateSavedChartVersionEvent['properties'] {
+        const selectedAdditionalMetrics = (
+            savedChart.metricQuery.additionalMetrics || []
+        ).filter((metric) =>
+            savedChart.metricQuery.metrics.includes(getItemId(metric)),
+        );
         const echartsConfig =
             savedChart.chartConfig.type === ChartType.CARTESIAN
                 ? savedChart.chartConfig.config?.eChartsConfig
@@ -363,6 +400,10 @@ export class SavedChartService
             sortsCount: savedChart.metricQuery.sorts.length,
             tableCalculationsCount:
                 savedChart.metricQuery.tableCalculations.length,
+            additionalMetricsCount: selectedAdditionalMetrics.length,
+            periodOverPeriodMetricsCount: selectedAdditionalMetrics.filter(
+                isPeriodOverPeriodAdditionalMetric,
+            ).length,
             pivotCount: (savedChart.pivotConfig?.columns || []).length,
             chartType: savedChart.chartConfig.type,
             pie:
@@ -446,6 +487,10 @@ export class SavedChartService
                           showLegend: echartsConfig?.legend?.show !== false,
                           hasCustomTooltip:
                               (echartsConfig?.tooltip || '').length > 0,
+                          hasDateXAxis: SavedChartService.hasDateXAxis(
+                              savedChart,
+                              explore,
+                          ),
                       }
                     : undefined,
             treemap:
@@ -1109,16 +1154,6 @@ export class SavedChartService
             );
         }
 
-        this.analytics.track({
-            event: 'saved_chart_version.created',
-            userId: user.userUuid,
-            properties: SavedChartService.getCreateEventProperties(savedChart, {
-                viaDashboardGrant:
-                    SavedChartService.hasDashboardGrantRow(access),
-                grantOnly: directOnly,
-            }),
-        });
-
         const formulaProperties =
             SavedChartService.getFormulaTableCalculationEventProperties(
                 savedChart,
@@ -1168,8 +1203,9 @@ export class SavedChartService
             });
         });
 
+        let cachedExplore: Explore | ExploreError | undefined;
         try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
+            cachedExplore = await this.projectModel.getExploreFromCache(
                 projectUuid,
                 savedChart.tableName,
             );
@@ -1190,6 +1226,20 @@ export class SavedChartService
                 error,
             );
         }
+
+        this.analytics.track({
+            event: 'saved_chart_version.created',
+            userId: user.userUuid,
+            properties: SavedChartService.getCreateEventProperties(
+                savedChart,
+                {
+                    viaDashboardGrant:
+                        SavedChartService.hasDashboardGrantRow(access),
+                    grantOnly: directOnly,
+                },
+                cachedExplore,
+            ),
+        });
 
         return {
             ...savedChart,
@@ -2295,11 +2345,15 @@ export class SavedChartService
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
-                ...SavedChartService.getCreateEventProperties(newSavedChart, {
-                    viaDashboardGrant:
-                        SavedChartService.hasDashboardGrantRow(access),
-                    grantOnly: createGrantOnly,
-                }),
+                ...SavedChartService.getCreateEventProperties(
+                    newSavedChart,
+                    {
+                        viaDashboardGrant:
+                            SavedChartService.hasDashboardGrantRow(access),
+                        grantOnly: createGrantOnly,
+                    },
+                    cachedExplore,
+                ),
                 dashboardId: newSavedChart.dashboardUuid ?? undefined,
                 virtualViewId:
                     cachedExplore?.type === ExploreType.VIRTUAL
@@ -2452,17 +2506,21 @@ export class SavedChartService
             user.userUuid,
             duplicatedChart,
         );
-        const newSavedChartProperties =
-            SavedChartService.getCreateEventProperties(newSavedChart, {
-                viaDashboardGrant:
-                    SavedChartService.hasDashboardGrantRow(access),
-                grantOnly: directOnly,
-            });
-
         const cachedExplore = await this.projectModel.getExploreFromCache(
             projectUuid,
             newSavedChart.tableName,
         );
+
+        const newSavedChartProperties =
+            SavedChartService.getCreateEventProperties(
+                newSavedChart,
+                {
+                    viaDashboardGrant:
+                        SavedChartService.hasDashboardGrantRow(access),
+                    grantOnly: directOnly,
+                },
+                cachedExplore,
+            );
 
         this.analytics.track({
             event: 'saved_chart.created',
@@ -2924,17 +2982,10 @@ export class SavedChartService
                 versionId: versionUuid,
             },
         });
-        this.analytics.track({
-            event: 'saved_chart_version.created',
-            userId: user.userUuid,
-            properties: SavedChartService.getCreateEventProperties(
-                newChartVersion,
-                grantAudit,
-            ),
-        });
 
+        let cachedExplore: Explore | ExploreError | undefined;
         try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
+            cachedExplore = await this.projectModel.getExploreFromCache(
                 newChartVersion.projectUuid,
                 newChartVersion.tableName,
             );
@@ -2959,6 +3010,16 @@ export class SavedChartService
                 error,
             );
         }
+
+        this.analytics.track({
+            event: 'saved_chart_version.created',
+            userId: user.userUuid,
+            properties: SavedChartService.getCreateEventProperties(
+                newChartVersion,
+                grantAudit,
+                cachedExplore,
+            ),
+        });
     }
 
     // Deliberately space-only: shared gate for mixed callers including

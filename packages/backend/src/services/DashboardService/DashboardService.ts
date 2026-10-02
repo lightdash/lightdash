@@ -725,12 +725,16 @@ export class DashboardService
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
-                ...SavedChartService.getCreateEventProperties(duplicatedChart, {
-                    viaDashboardGrant: sourceContext.access.some(
-                        (row) => row.grantedVia === 'dashboard',
-                    ),
-                    grantOnly: sourceContext.directOnly,
-                }),
+                ...SavedChartService.getCreateEventProperties(
+                    duplicatedChart,
+                    {
+                        viaDashboardGrant: sourceContext.access.some(
+                            (row) => row.grantedVia === 'dashboard',
+                        ),
+                        grantOnly: sourceContext.directOnly,
+                    },
+                    cachedExplore,
+                ),
                 dashboardId: duplicatedChart.dashboardUuid ?? undefined,
                 duplicated: true,
                 virtualViewId:
