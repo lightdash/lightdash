@@ -28,6 +28,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
+import { NewThreadButton } from '../../features/aiCopilot/components/AiAgentPageLayout/NewThreadButton';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
     mergeAiPromptContextInput,
@@ -345,6 +346,12 @@ const AgentsRouterPage = () => {
         <AiAgentPageLayout
             isAgentSidebarCollapsed={isSidebarCollapsed}
             setIsAgentSidebarCollapsed={setIsSidebarCollapsed}
+            SidebarHeader={
+                <NewThreadButton
+                    to={`/projects/${projectUuid}/ai-agents`}
+                    isCollapsed={isSidebarCollapsed}
+                />
+            }
             Sidebar={
                 <AutoModeSidebar
                     projectUuid={projectUuid!}
