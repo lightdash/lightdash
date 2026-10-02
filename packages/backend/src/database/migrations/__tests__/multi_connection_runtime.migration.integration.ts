@@ -1198,6 +1198,9 @@ describe('Multi runtime identity wiring on the real schema', () => {
     const previewService = () => {
         const service = new ProjectService({
             ...serviceArgs(),
+            featureFlagModel: {
+                get: async () => ({ id: 'flag', enabled: false }),
+            },
             projectParametersModel: { find: async () => [] },
             spaceModel: {
                 find: async ({ projectUuid }: { projectUuid: string }) =>
@@ -1450,6 +1453,9 @@ describe('Multi runtime identity wiring on the real schema', () => {
             const service = new ProjectService({
                 ...serviceArgs(),
                 jobModel,
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: false }),
+                },
                 projectParametersModel: {
                     find: async () => [],
                     replace: async () => {},
@@ -1561,6 +1567,9 @@ describe('Multi runtime identity wiring on the real schema', () => {
         const webhookService = (upstream: Fixture) => {
             const service = new ProjectService({
                 ...serviceArgs(),
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: false }),
+                },
                 lightdashConfig: {
                     ...lightdashConfigMock,
                     preAggregates: {
