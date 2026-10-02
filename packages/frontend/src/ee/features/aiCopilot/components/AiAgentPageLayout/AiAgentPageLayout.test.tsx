@@ -37,7 +37,6 @@ describe('AiAgentPageLayout mobile sidebar', () => {
                 <MemoryRouter>
                     <AiAgentPageLayout
                         Sidebar={<div>Thread list</div>}
-                        SidebarHeader={<button>New thread</button>}
                         MobileSidebarHeader={<div>Revenue analyst</div>}
                     >
                         <div>Chat</div>
@@ -47,7 +46,6 @@ describe('AiAgentPageLayout mobile sidebar', () => {
         );
 
         expect(screen.queryByText('Revenue analyst')).toBeNull();
-        expect(screen.queryByRole('button', { name: 'New thread' })).toBeNull();
 
         fireEvent.click(
             screen.getByRole('button', { name: 'Open Ask AI sidebar' }),
@@ -55,8 +53,5 @@ describe('AiAgentPageLayout mobile sidebar', () => {
 
         expect(await screen.findByText('Revenue analyst')).toBeVisible();
         expect(screen.getByText('Thread list')).toBeVisible();
-        expect(
-            screen.getByRole('button', { name: 'New thread' }),
-        ).toBeVisible();
     });
 });
