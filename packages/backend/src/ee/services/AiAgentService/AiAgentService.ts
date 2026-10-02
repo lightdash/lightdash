@@ -644,6 +644,7 @@ const EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON =
 const AGENT_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 const AGENT_AVATAR_SIZE_PX = 256;
 const AGENT_AVATAR_PERSISTENT_URL_EXPIRY_SECONDS = 10 * 365 * 24 * 60 * 60;
+const EMBED_AGENT_AVATAR_TOKEN_EXPIRY_SECONDS = 24 * 60 * 60;
 const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
     'image/png',
     'image/jpeg',
@@ -2534,15 +2535,33 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    // Embed viewers can't send credentials with `<img>`, so uploaded avatars need a token.
+    private withEmbedViewableAvatar<
+        T extends Pick<AiAgent, 'imageUrl' | 'imageUrlSource'>,
+    >(agent: T): T {
+        if (agent.imageUrlSource !== 'upload' || !agent.imageUrl) {
+            return agent;
+        }
+        return {
+            ...agent,
+            imageUrl: this.persistentDownloadFileService.signPersistentUrl(
+                agent.imageUrl,
+                EMBED_AGENT_AVATAR_TOKEN_EXPIRY_SECONDS,
+            ),
+        };
+    }
+
     async listEmbedAgents(account: AnonymousAccount, projectUuid: string) {
         const { user, spaceUuid, tokenAgentUuid } =
             AiAgentService.getEmbedAiAgentContext(account, projectUuid);
         const agents = await this.listAgents(user, projectUuid);
-        return agents.filter(
-            (agent) =>
-                agent.uuid === tokenAgentUuid &&
-                hasAiAgentAccessToSpace(agent, spaceUuid),
-        );
+        return agents
+            .filter(
+                (agent) =>
+                    agent.uuid === tokenAgentUuid &&
+                    hasAiAgentAccessToSpace(agent, spaceUuid),
+            )
+            .map((agent) => this.withEmbedViewableAvatar(agent));
     }
 
     async getEmbedAgentDetails(
@@ -2555,7 +2574,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
         );
-        return agent;
+        return this.withEmbedViewableAvatar(agent);
     }
 
     async getAvailableExplores(
