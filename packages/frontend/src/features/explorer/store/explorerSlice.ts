@@ -44,7 +44,7 @@ import {
     getCachedPivotConfig,
     getValidChartConfig,
 } from '../../../providers/Explorer/utils';
-import { calcColumnOrder } from './utils';
+import { calcColumnOrder, reorderColumnOrderSlots } from './utils';
 
 export type ExplorerSliceState = ExplorerReduceState;
 
@@ -337,8 +337,20 @@ const explorerSlice = createSlice({
         },
 
         setPivotRows: (state, action: PayloadAction<string[] | undefined>) => {
+            const columns =
+                state.unsavedChartVersion.pivotConfig?.columns ?? [];
+            // Without pivot columns the table follows columnOrder, so reorder it instead
+            if (columns.length === 0 && action.payload !== undefined) {
+                state.unsavedChartVersion.tableConfig.columnOrder =
+                    reorderColumnOrderSlots(
+                        state.unsavedChartVersion.tableConfig.columnOrder,
+                        action.payload,
+                    );
+                state.unsavedChartVersion.pivotConfig = { columns };
+                return;
+            }
             state.unsavedChartVersion.pivotConfig = {
-                columns: state.unsavedChartVersion.pivotConfig?.columns ?? [],
+                columns,
                 ...(action.payload !== undefined && { rows: action.payload }),
             };
         },

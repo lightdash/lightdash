@@ -66,6 +66,18 @@ describe('resolvePivotRowFieldIds', () => {
             }),
         ).toEqual(['cohort_size', 'cohort_month']);
     });
+
+    it('ignores configured pivot rows when nothing is pivoted', () => {
+        expect(
+            resolvePivotRowFieldIds({
+                selectedItemIds: ['cohort_month', 'months_since_start'],
+                itemsMap,
+                pivotDimensions: [],
+                columnOrder: ['cohort_month', 'months_since_start'],
+                pivotRows: ['months_since_start', 'cohort_month'],
+            }),
+        ).toEqual(['cohort_month', 'months_since_start']);
+    });
 });
 
 describe('shouldDisableMetricsAsRows', () => {

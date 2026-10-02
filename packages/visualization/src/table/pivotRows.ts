@@ -36,7 +36,9 @@ export const resolvePivotRowFieldIds = ({
         );
     });
 
-    if (pivotRows === undefined) return defaultRowDimensions;
+    // Unpivoted tables follow columnOrder; a stale pivotRows must not override it
+    if (pivotRows === undefined || pivotDimensionSet.size === 0)
+        return defaultRowDimensions;
 
     const configuredFields = pivotRows.filter((fieldId) => {
         const item = itemsMap[fieldId];

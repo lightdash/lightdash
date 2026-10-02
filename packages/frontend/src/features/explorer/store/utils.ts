@@ -50,3 +50,27 @@ export const calcColumnOrder = (
         return [...cleanColumnOrder, ...missingColumns];
     }
 };
+
+/**
+ * Puts `orderedFieldIds` into the slots they already occupy in `columnOrder`,
+ * in the given order, leaving every other column where it is.
+ */
+export const reorderColumnOrderSlots = (
+    columnOrder: string[],
+    orderedFieldIds: string[],
+): string[] => {
+    const reordered = [...new Set(orderedFieldIds)].filter((fieldId) =>
+        columnOrder.includes(fieldId),
+    );
+    const reorderedSet = new Set(reordered);
+    const slotIndexes = columnOrder.reduce<number[]>(
+        (acc, fieldId, index) =>
+            reorderedSet.has(fieldId) ? [...acc, index] : acc,
+        [],
+    );
+    const result = [...columnOrder];
+    slotIndexes.forEach((slotIndex, i) => {
+        result[slotIndex] = reordered[i] ?? columnOrder[slotIndex];
+    });
+    return result;
+};
