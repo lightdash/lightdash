@@ -45,7 +45,7 @@
 }
 
 .threadItems {
-    min-height: 0;
+    flex-shrink: 0;
 }
 
 .threadNavLink {
