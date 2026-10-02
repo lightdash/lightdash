@@ -129,6 +129,7 @@ import {
     hasIntersection,
     hasWarehouseCredentials,
     isAdditionalMetric,
+    isAiAccessQueryContext,
     isAwsIamRoleArn,
     isCartesianChartConfig,
     isCustomDimension,
@@ -10979,8 +10980,16 @@ export class ProjectService extends BaseService {
             },
         ).compile();
 
+        const { enabled: skipAiAccessCache } = isAiAccessQueryContext(context)
+            ? await this.featureFlagModel.get({
+                  user: { userUuid: user.userUuid, organizationUuid },
+                  featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
+              })
+            : { enabled: false };
         const isUserCacheEnabled =
-            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
+            this.lightdashConfig.results.autocompleteEnabled &&
+            !!user.userUuid &&
+            !skipAiAccessCache;
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
