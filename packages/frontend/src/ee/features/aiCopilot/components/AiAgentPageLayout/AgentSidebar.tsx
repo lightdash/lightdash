@@ -14,6 +14,7 @@ import {
     NavLink,
     Paper,
     rem,
+    ScrollArea,
     Stack,
     Text,
     TextInput,
@@ -392,68 +393,79 @@ const ThreadList: FC<ThreadListProps> = ({
     };
 
     return (
-        <Stack gap="md" className={classes.threadList}>
-            {pinnedThreads.length > 0 && (
-                <ThreadGroup
-                    title="Pinned"
-                    threads={pinnedThreads}
-                    {...groupHandlers}
+        <ScrollArea
+            type="scroll"
+            scrollbars="y"
+            scrollHideDelay={800}
+            classNames={{
+                root: classes.threadList,
+                viewport: classes.threadListViewport,
+                content: classes.threadListContent,
+            }}
+        >
+            <Stack gap="md">
+                {pinnedThreads.length > 0 && (
+                    <ThreadGroup
+                        title="Pinned"
+                        threads={pinnedThreads}
+                        {...groupHandlers}
+                    />
+                )}
+
+                <Stack gap="xs" className={classes.threadItems}>
+                    {threads.length === 0 ? (
+                        <>
+                            <Title order={6} c="dimmed" size="xs" ml="xs">
+                                Recent
+                            </Title>
+                            <Paper variant="dotted" p="sm">
+                                <Text
+                                    truncate="end"
+                                    size="sm"
+                                    c="dimmed"
+                                    ta="center"
+                                >
+                                    No threads yet
+                                </Text>
+                            </Paper>
+                        </>
+                    ) : (
+                        recentThreads.length > 0 && (
+                            <ThreadGroup
+                                title="Recent"
+                                threads={recentThreads}
+                                {...groupHandlers}
+                            />
+                        )
+                    )}
+                </Stack>
+
+                <Box>
+                    {hasNextPage && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            loading={isFetchingNextPage}
+                            onClick={() => fetchNextPage()}
+                            leftSection={<MantineIcon icon={IconChevronDown} />}
+                        >
+                            View more
+                        </Button>
+                    )}
+                </Box>
+
+                <MantineModal
+                    opened={threadToDelete !== null}
+                    onClose={() => setThreadToDelete(null)}
+                    title="Delete thread"
+                    variant="delete"
+                    resourceType="thread"
+                    description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
+                    onConfirm={handleConfirmDelete}
+                    confirmLoading={isDeletingThread}
                 />
-            )}
-
-            <Stack gap="xs" className={classes.threadItems}>
-                {threads.length === 0 ? (
-                    <>
-                        <Title order={6} c="dimmed" size="xs" ml="xs">
-                            Recent
-                        </Title>
-                        <Paper variant="dotted" p="sm">
-                            <Text
-                                truncate="end"
-                                size="sm"
-                                c="dimmed"
-                                ta="center"
-                            >
-                                No threads yet
-                            </Text>
-                        </Paper>
-                    </>
-                ) : (
-                    recentThreads.length > 0 && (
-                        <ThreadGroup
-                            title="Recent"
-                            threads={recentThreads}
-                            {...groupHandlers}
-                        />
-                    )
-                )}
             </Stack>
-
-            <Box>
-                {hasNextPage && (
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        loading={isFetchingNextPage}
-                        onClick={() => fetchNextPage()}
-                        leftSection={<MantineIcon icon={IconChevronDown} />}
-                    >
-                        View more
-                    </Button>
-                )}
-            </Box>
-
-            <MantineModal
-                opened={threadToDelete !== null}
-                onClose={() => setThreadToDelete(null)}
-                title="Delete thread"
-                variant="delete"
-                resourceType="thread"
-                description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
-                onConfirm={handleConfirmDelete}
-                confirmLoading={isDeletingThread}
-            />
-        </Stack>
+        </ScrollArea>
     );
 };
 
