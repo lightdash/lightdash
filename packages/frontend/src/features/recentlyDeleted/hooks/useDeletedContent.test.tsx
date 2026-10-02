@@ -41,7 +41,7 @@ describe('Document trash mutations', () => {
             const keys = [
                 ['documents', 'project'],
                 ['document', 'project', 'doc'],
-                ['document-cell-query', 'project', 'doc'],
+                ['document-chart-query', 'project', 'doc'],
                 ['deletedContent'],
             ];
             keys.forEach((key) => client.setQueryData(key, 'cached'));

@@ -4424,7 +4424,7 @@ export class AiAgentToolsService extends BaseService {
                 description: document.description,
                 spaceSlug: getContentAsCodePathFromLtreePath(space.path),
                 schemaVersion: document.version.schemaVersion,
-                content: document.version.content,
+                ...document.version.content,
             },
         };
     }
@@ -4465,10 +4465,10 @@ export class AiAgentToolsService extends BaseService {
                 description: input.description,
                 spaceUuid: space.uuid,
                 schemaVersion: input.schemaVersion,
-                content: parseDocumentContent(
-                    input.schemaVersion,
-                    input.content,
-                ),
+                content: parseDocumentContent(input.schemaVersion, {
+                    markdown: input.markdown,
+                    charts: input.charts,
+                }),
             },
             AiAgentToolsService.documentChange(context),
         );
@@ -4567,10 +4567,10 @@ export class AiAgentToolsService extends BaseService {
             );
             return this.documentContentResult(context, document);
         }
-        const content = parseDocumentContent(
-            existing.version.schemaVersion,
-            edit.content,
-        );
+        const content = parseDocumentContent(existing.version.schemaVersion, {
+            markdown: edit.markdown,
+            charts: edit.charts,
+        });
         const document = await this.documentService.updateContent(
             context.account,
             context.projectUuid,

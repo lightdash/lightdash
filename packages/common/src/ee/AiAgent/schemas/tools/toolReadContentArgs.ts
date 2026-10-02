@@ -62,7 +62,7 @@ export const toolReadContentStructuredContentSchema = z.discriminatedUnion(
                     'Latest version UUID of the Document; use it as baseVersionUuid for cell edits.',
                 ),
             content: contentJsonSchema.describe(
-                'Document as code JSON (schema version 1), exactly as shown in `result`.',
+                'Document as code JSON (schema version 2), exactly as shown in `result`.',
             ),
         }),
     ],

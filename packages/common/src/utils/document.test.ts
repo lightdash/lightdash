@@ -65,88 +65,68 @@ const chart = {
     metricQuery: query,
     chartConfig: { type: ChartType.TABLE },
 };
-const markdown = { type: 'markdown', content: { markdown: '# Findings' } };
-const semantic = {
-    type: 'chart',
-    content: { source: 'semantic', chart },
-};
+const semantic = { source: 'semantic', chart };
 const merge = {
-    ...semantic,
-    content: {
-        source: 'merge',
-        chart: {
-            ...chart,
-            merge: {
-                primarySourceId: 'a',
-                sources: [
-                    { id: 'a', kind: 'chart' },
-                    { id: 'b', kind: 'query', metricQuery: query },
-                ],
-                joinType: MergeJoinType.FULL,
-                joinKey: [
-                    {
-                        name: 'status',
-                        fieldIdBySourceId: {
-                            a: 'orders_status',
-                            b: 'orders_status',
-                        },
+    source: 'merge',
+    chart: {
+        ...chart,
+        merge: {
+            primarySourceId: 'a',
+            sources: [
+                { id: 'a', kind: 'chart' },
+                { id: 'b', kind: 'query', metricQuery: query },
+            ],
+            joinType: MergeJoinType.FULL,
+            joinKey: [
+                {
+                    name: 'status',
+                    fieldIdBySourceId: {
+                        a: 'orders_status',
+                        b: 'orders_status',
                     },
-                ],
-                tableCalculations: [],
-            },
+                },
+            ],
+            tableCalculations: [],
         },
     },
 };
 
-describe('Document schema version 1', () => {
-    const withChartConfig = (
-        cell: typeof semantic | typeof merge,
-        chartConfig: unknown,
-    ) => ({
-        cells: [
-            {
-                ...cell,
-                content: {
-                    ...cell.content,
-                    chart: { ...cell.content.chart, chartConfig },
-                },
-            },
-        ],
-    });
+/** One chart placed under a heading. */
+const withChart = (content: unknown) => ({
+    markdown: '# Findings\n\n<document-chart id="c1">',
+    charts: { c1: content },
+});
 
+const withChartConfig = (
+    content: typeof semantic | typeof merge,
+    chartConfig: unknown,
+) => withChart({ ...content, chart: { ...content.chart, chartConfig } });
+
+describe('Document schema version 2', () => {
     test.each([semantic, merge])(
         'accepts a custom chart type binding inside a supported source',
-        (cell) => {
+        (content) => {
             const binding = {
                 dataAppVizSlug: 'grouped-bars',
                 dataAppVizVersion: 2,
                 fieldMapping: { category: 'orders_status' },
                 optionValues: { stacked: true },
             };
-            expect(
-                parseDocumentContent(
-                    1,
-                    withChartConfig(cell, {
-                        type: ChartType.DATA_APP_VIZ,
-                        config: binding,
-                    }),
-                ),
-            ).toEqual(
-                withChartConfig(cell, {
-                    type: ChartType.DATA_APP_VIZ,
-                    config: binding,
-                }),
-            );
+            const document = withChartConfig(content, {
+                type: ChartType.DATA_APP_VIZ,
+                config: binding,
+            });
+            expect(parseDocumentContent(2, document)).toEqual(document);
         },
     );
 
     test.each([semantic, merge])(
         'rejects a custom chart that references no chart type',
-        (cell) => {
+        (content) => {
             expect(() =>
                 parseDocumentContent(
-                    1,
-                    withChartConfig(cell, { type: ChartType.DATA_APP_VIZ }),
+                    2,
+                    withChartConfig(content, { type: ChartType.DATA_APP_VIZ }),
                 ),
             ).toThrow('must reference a chart type');
         },
@@ -155,7 +135,7 @@ describe('Document schema version 1', () => {
     test('rejects a non-integer custom chart type version', () => {
         expect(() =>
             parseDocumentContent(
-                1,
+                2,
                 withChartConfig(semantic, {
                     type: ChartType.DATA_APP_VIZ,
                     config: {
@@ -168,245 +148,189 @@ describe('Document schema version 1', () => {
         ).toThrow('Invalid Document content');
     });
 
-    test('rejects otherwise valid three-source merges in version 1', () => {
-        const definition = merge.content.chart.merge;
+    test('rejects otherwise valid three-source merges', () => {
+        const definition = merge.chart.merge;
         expect(() =>
-            parseDocumentContent(1, {
-                cells: [
-                    {
-                        ...merge,
-                        content: {
-                            ...merge.content,
-                            chart: {
-                                ...merge.content.chart,
-                                merge: {
-                                    ...definition,
-                                    sources: [
-                                        ...definition.sources,
-                                        {
-                                            id: 'c',
-                                            kind: 'query',
-                                            metricQuery: query,
-                                        },
-                                    ],
-                                    joinKey: [
-                                        {
-                                            name: 'status',
-                                            fieldIdBySourceId: {
-                                                a: 'orders_status',
-                                                b: 'orders_status',
-                                                c: 'orders_status',
-                                            },
-                                        },
-                                    ],
+            parseDocumentContent(
+                2,
+                withChart({
+                    ...merge,
+                    chart: {
+                        ...merge.chart,
+                        merge: {
+                            ...definition,
+                            sources: [
+                                ...definition.sources,
+                                { id: 'c', kind: 'query', metricQuery: query },
+                            ],
+                            joinKey: [
+                                {
+                                    name: 'status',
+                                    fieldIdBySourceId: {
+                                        a: 'orders_status',
+                                        b: 'orders_status',
+                                        c: 'orders_status',
+                                    },
                                 },
-                            },
+                            ],
                         },
                     },
-                ],
-            }),
-        ).toThrow('Invalid merge sources or join keys');
+                }),
+            ),
+        ).toThrow('Invalid merge sources or join keys in chart "c1"');
     });
 
     test('rejects transient references on merge sources', () => {
-        const definition = merge.content.chart.merge;
+        const definition = merge.chart.merge;
         expect(() =>
-            parseDocumentContent(1, {
-                cells: [
-                    {
-                        ...merge,
-                        content: {
-                            ...merge.content,
-                            chart: {
-                                ...merge.content.chart,
-                                merge: {
-                                    ...definition,
-                                    sources: definition.sources.map(
-                                        (source) => ({
-                                            ...source,
-                                            queryUuid: 'temporary-result',
-                                        }),
-                                    ),
-                                },
-                            },
+            parseDocumentContent(
+                2,
+                withChart({
+                    ...merge,
+                    chart: {
+                        ...merge.chart,
+                        merge: {
+                            ...definition,
+                            sources: definition.sources.map((source) => ({
+                                ...source,
+                                queryUuid: 'temporary-result',
+                            })),
                         },
                     },
-                ],
-            }),
+                }),
+            ),
         ).toThrow('Invalid merge sources or join keys');
     });
 
-    test.each([[], [markdown], [semantic], [merge], [markdown, semantic]])(
-        'preserves valid ordered content: %j',
-        (...cells) => {
-            const content = { cells };
-            expect(
-                parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content),
-            ).toEqual(content);
+    test.each([
+        { markdown: '', charts: {} },
+        { markdown: '# Findings', charts: {} },
+        withChart(semantic),
+        withChart(merge),
+        {
+            markdown:
+                '<document-chart id="c2">\n\nBetween\n\n<document-chart id="c1">',
+            charts: { c1: semantic, c2: merge },
         },
-    );
+    ])('preserves valid canonical content: %j', (content) => {
+        expect(parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content)).toEqual(
+            content,
+        );
+    });
 
-    test('accepts an empty Document', () => {
-        expect(parseDocumentContent(1, { cells: [] })).toEqual({ cells: [] });
+    test('drops charts that are not placed in the markdown', () => {
+        expect(
+            parseDocumentContent(2, {
+                markdown: '<document-chart id="c1">',
+                charts: { c1: semantic, c2: merge },
+            }),
+        ).toEqual({
+            markdown: '<document-chart id="c1">',
+            charts: { c1: semantic },
+        });
+    });
+
+    test('keeps only the id on chart tags', () => {
+        expect(
+            parseDocumentContent(2, {
+                markdown: '<document-chart id="c1" title="Orders" />',
+                charts: { c1: semantic },
+            }).markdown,
+        ).toBe('<document-chart id="c1">');
     });
 
     test.each([
-        { cells: [{ ...markdown, id: 'intro' }] },
-        { cells: [{ ...markdown, content: '# Findings' }] },
-        { cells: [{ ...markdown, content: { markdown: 1 } }] },
-        { cells: [{ ...markdown, id: '' }] },
-        { cells: [{ ...markdown, id: ' ' }] },
-        { cells: [{ ...markdown, content: {} }] },
-        { cells: [{ ...markdown, type: 'html' }] },
-        { cells: [{ ...semantic, content: { source: 'sql', chart } }] },
-        { cells: [{ ...semantic, content: { source: 'composer', chart } }] },
-        {
-            cells: [
-                { ...semantic, content: { source: 'customChartType', chart } },
-            ],
-        },
-        {
-            cells: [
-                {
-                    ...semantic,
-                    content: {
-                        source: 'semantic',
-                        chart: {
-                            ...chart,
-                            metricQuery: { ...query, metrics: 1 },
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            cells: [
-                {
-                    ...semantic,
-                    content: {
-                        source: 'semantic',
-                        chart: {
-                            ...chart,
-                            metricQuery: { ...query, queryUuid: 'temporary' },
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            cells: [
-                {
-                    ...semantic,
-                    content: {
-                        source: 'semantic',
-                        chart: { ...chart, chartConfig: { type: 'unknown' } },
-                    },
-                },
-            ],
-        },
-        {
-            cells: [
-                {
-                    ...merge,
-                    content: {
-                        ...merge.content,
-                        chart: {
-                            ...merge.content.chart,
-                            merge: {
-                                ...merge.content.chart.merge,
-                                primarySourceId: 'missing',
-                            },
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            cells: [
-                {
-                    ...merge,
-                    content: {
-                        ...merge.content,
-                        chart: {
-                            ...merge.content.chart,
-                            merge: {
-                                ...merge.content.chart.merge,
-                                joinType: 'unknown',
-                            },
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            cells: [
-                {
-                    ...merge,
-                    content: {
-                        ...merge.content,
-                        chart: {
-                            ...merge.content.chart,
-                            merge: {
-                                ...merge.content.chart.merge,
-                                joinKey: [],
-                            },
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            cells: [
-                {
-                    ...semantic,
-                    content: { source: 'semantic', chart: merge.content.chart },
-                },
-            ],
-        },
-        { cells: [], unexpected: true },
-    ])('rejects malformed or unsupported content: %j', (content) => {
-        expect(() => parseDocumentContent(1, content)).toThrow();
+        [
+            'a tag without a chart',
+            { markdown: '<document-chart id="c1">', charts: {} },
+            'missing from charts',
+        ],
+        [
+            'a chart placed twice',
+            {
+                markdown:
+                    '<document-chart id="c1">\n\n<document-chart id="c1">',
+                charts: { c1: semantic },
+            },
+            'placed more than once',
+        ],
+        [
+            'a tag without an id',
+            { markdown: '<document-chart title="x">', charts: {} },
+            'needs an id',
+        ],
+    ])('rejects %s', (_label, content, message) => {
+        expect(() => parseDocumentContent(2, content)).toThrow(message);
     });
 
-    test.each([0, 2, 3, 4, -1])(
+    test.each([
+        { cells: [] },
+        { markdown: 1, charts: {} },
+        { markdown: '' },
+        { markdown: '', charts: {}, unexpected: true },
+        withChart({ source: 'sql', chart }),
+        withChart({ source: 'composer', chart }),
+        withChart({ source: 'customChartType', chart }),
+        withChart({
+            ...semantic,
+            chart: { ...chart, metricQuery: { ...query, metrics: 1 } },
+        }),
+        withChart({
+            ...semantic,
+            chart: {
+                ...chart,
+                metricQuery: { ...query, queryUuid: 'temporary' },
+            },
+        }),
+        withChart({
+            ...semantic,
+            chart: { ...chart, chartConfig: { type: 'unknown' } },
+        }),
+        withChart({
+            ...merge,
+            chart: {
+                ...merge.chart,
+                merge: { ...merge.chart.merge, primarySourceId: 'missing' },
+            },
+        }),
+        withChart({
+            ...merge,
+            chart: {
+                ...merge.chart,
+                merge: { ...merge.chart.merge, joinType: 'unknown' },
+            },
+        }),
+        withChart({
+            ...merge,
+            chart: {
+                ...merge.chart,
+                merge: { ...merge.chart.merge, joinKey: [] },
+            },
+        }),
+        withChart({ ...semantic, chart: merge.chart }),
+        withChart({ ...semantic, title: 'Title' }),
+    ])('rejects malformed or unsupported content: %j', (content) => {
+        expect(() => parseDocumentContent(2, content)).toThrow();
+    });
+
+    test.each([0, 1, 3, -1])(
         'rejects unsupported schema version %s',
         (version) => {
-            expect(() => parseDocumentContent(version, { cells: [] })).toThrow(
-                'Unsupported Document schema version',
-            );
+            expect(() =>
+                parseDocumentContent(version, { markdown: '', charts: {} }),
+            ).toThrow('Unsupported Document schema version');
         },
     );
-});
 
-describe('Document cell identity', () => {
-    test('preserves duplicate cells and ordering without generating IDs', () => {
+    test('does not mutate its input', () => {
         const content = {
-            cells: [markdown, semantic, markdown, semantic, merge],
+            markdown: '<document-chart id="c1">',
+            charts: { c1: semantic, c2: merge },
         };
         const snapshot = structuredClone(content);
-        expect(parseDocumentContent(1, content)).toEqual(content);
+        parseDocumentContent(2, content);
         expect(content).toEqual(snapshot);
-        content.cells.forEach((cell) => expect(cell).not.toHaveProperty('id'));
     });
-
-    test.each([markdown, semantic, merge])(
-        'rejects unsupported content metadata',
-        (cell) => {
-            for (const extra of [
-                { title: 'Title' },
-                { metadata: {} },
-                { futureField: true },
-            ]) {
-                expect(() =>
-                    parseDocumentContent(1, {
-                        cells: [
-                            { ...cell, content: { ...cell.content, ...extra } },
-                        ],
-                    }),
-                ).toThrow('Invalid Document content');
-            }
-        },
-    );
 });
 
 describe('getDocumentRuntimeChartConfig', () => {

@@ -76,13 +76,11 @@ describe('Document persistence migration on PostgreSQL', () => {
                 created_by_user_uuid: null,
             })
             .returning('document_id');
-        await transaction('document_versions').insert({
-            document_id: document.document_id,
-            version_number: 1,
-            schema_version: 1,
-            content: { cells: [] },
-            created_by_user_uuid: null,
-        });
+        // The schema as this migration created it, before content became markdown.
+        await transaction.raw(
+            `INSERT INTO document_versions (document_id, version_number, schema_version, content) VALUES (?, 1, 1, '{"cells":[]}')`,
+            [document.document_id],
+        );
         await transaction('projects')
             .where('project_uuid', projectUuid)
             .delete();

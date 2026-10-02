@@ -9,14 +9,15 @@ vi.mock('../../api', () => ({ lightdashApi: api }));
 
 const request: UpdateDocumentContentRequest = {
     baseVersionUuid: 'version-1',
-    content: {
-        cells: [{ type: 'markdown', content: { markdown: '# Updated' } }],
-    },
+    content: { markdown: '# Updated', charts: {} },
 };
 const original = {
     documentUuid: 'document',
     slug: 'report',
-    version: { versionUuid: 'version-1', content: { cells: [] } },
+    version: {
+        versionUuid: 'version-1',
+        content: { markdown: '', charts: {} },
+    },
 };
 const saved = {
     ...original,

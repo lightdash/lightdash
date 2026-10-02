@@ -133,7 +133,7 @@ export const invalidateContent = async (
         queryClient.invalidateQueries(['content']),
         queryClient.invalidateQueries(['documents', projectUuid]),
         queryClient.invalidateQueries(['document', projectUuid]),
-        queryClient.invalidateQueries(['document-cell-query', projectUuid]),
+        queryClient.invalidateQueries(['document-chart-query', projectUuid]),
         queryClient.invalidateQueries(['dashboards']),
         queryClient.invalidateQueries(['most-popular-and-recently-updated']),
         queryClient.invalidateQueries(['pinned_items']),

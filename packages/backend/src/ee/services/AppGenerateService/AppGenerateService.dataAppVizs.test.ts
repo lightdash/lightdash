@@ -732,7 +732,7 @@ describe('AppGenerateService data app vizs', () => {
             const reference = {
                 documentUuid: 'document-1',
                 versionUuid: 'document-version-3',
-                cellIndex: 2,
+                chartId: 'c2',
             };
             const documentDeps = (
                 chartConfig: unknown = {
@@ -744,11 +744,11 @@ describe('AppGenerateService data app vizs', () => {
                         fieldMapping: {},
                     },
                 },
-                getChartCell = vi.fn().mockResolvedValue({
+                getChart = vi.fn().mockResolvedValue({
                     source: 'semantic',
                     chart: { chartConfig },
                 }),
-            ) => ({ documentService: { getChartCell }, getChartCell });
+            ) => ({ documentService: { getChart }, getChart });
             const pinnedAppModel = () => ({
                 findVisualizationApp: vi
                     .fn()
@@ -761,9 +761,9 @@ describe('AppGenerateService data app vizs', () => {
                     .mockResolvedValue(makeVersion({ version: 4 })),
             });
 
-            it('mints a reader token for the version the Document cell pins', async () => {
+            it('mints a reader token for the version the Document chart pins', async () => {
                 const appModel = pinnedAppModel();
-                const { getChartCell, ...deps } = documentDeps();
+                const { getChart, ...deps } = documentDeps();
                 const service = buildService(appModel, deps);
 
                 const token = await service.getDocumentDataAppVizPreviewToken(
@@ -774,7 +774,7 @@ describe('AppGenerateService data app vizs', () => {
                     2,
                 );
 
-                expect(getChartCell).toHaveBeenCalledWith(
+                expect(getChart).toHaveBeenCalledWith(
                     ACCOUNT,
                     'project-1',
                     reference,
@@ -798,7 +798,7 @@ describe('AppGenerateService data app vizs', () => {
                 });
             });
 
-            it('renders the version the Document cell pins', async () => {
+            it('renders the version the Document chart pins', async () => {
                 const appModel = pinnedAppModel();
                 const service = buildService(appModel, documentDeps());
 
@@ -843,7 +843,7 @@ describe('AppGenerateService data app vizs', () => {
                 ['another viz', 'another-viz'],
                 ['a built-in chart', undefined],
             ])(
-                'rejects a cell that renders %s',
+                'rejects a chart that renders %s',
                 async (_case, dataAppVizUuid) => {
                     const appModel = pinnedAppModel();
                     const service = buildService(
@@ -876,7 +876,7 @@ describe('AppGenerateService data app vizs', () => {
                 },
             );
 
-            it('rejects a token for a version other than the cell pin', async () => {
+            it('rejects a token for a version other than the chart pin', async () => {
                 const appModel = pinnedAppModel();
                 const service = buildService(appModel, documentDeps());
 
@@ -894,7 +894,7 @@ describe('AppGenerateService data app vizs', () => {
 
             it('stays off when chart types are disabled', async () => {
                 const appModel = pinnedAppModel();
-                const { getChartCell, ...deps } = documentDeps();
+                const { getChart, ...deps } = documentDeps();
                 const service = buildService(appModel, {
                     ...deps,
                     featureFlags: {
@@ -912,7 +912,7 @@ describe('AppGenerateService data app vizs', () => {
                         2,
                     ),
                 ).rejects.toThrow();
-                expect(getChartCell).not.toHaveBeenCalled();
+                expect(getChart).not.toHaveBeenCalled();
             });
         });
 

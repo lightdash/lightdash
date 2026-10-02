@@ -4,7 +4,7 @@ import { parseDocumentContent } from '../../../../utils/document';
 import {
     documentAsCodeSchema,
     mcpCreateContentArgsSchema,
-    mcpDocumentCellSchema,
+    mcpDocumentChartSchema,
     mcpDocumentEditSchema,
     mcpEditContentArgsSchema,
     mcpReadContentArgsSchema,
@@ -28,58 +28,63 @@ const chart = {
     metricQuery: query,
     chartConfig: { type: ChartType.TABLE },
 };
-const markdown = {
-    type: 'markdown',
-    content: { markdown: '## Findings\n\nOrders are shown below.' },
-};
-const semantic = {
-    type: 'chart',
-    content: { source: 'semantic', chart },
-};
+const semantic = { source: 'semantic', chart };
 const merge = {
-    type: 'chart',
-    content: {
-        source: 'merge',
-        chart: {
-            ...chart,
-            merge: {
-                primarySourceId: 'a',
-                sources: [
-                    { id: 'a', kind: 'chart' },
-                    { id: 'b', kind: 'query', metricQuery: query },
-                ],
-                joinKey: [
-                    {
-                        name: 'status',
-                        fieldIdBySourceId: {
-                            a: 'orders_status',
-                            b: 'orders_status',
-                        },
+    source: 'merge',
+    chart: {
+        ...chart,
+        merge: {
+            primarySourceId: 'a',
+            sources: [
+                { id: 'a', kind: 'chart' },
+                { id: 'b', kind: 'query', metricQuery: query },
+            ],
+            joinKey: [
+                {
+                    name: 'status',
+                    fieldIdBySourceId: {
+                        a: 'orders_status',
+                        b: 'orders_status',
                     },
-                ],
-                joinType: MergeJoinType.FULL,
-                tableCalculations: [],
-            },
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+            tableCalculations: [],
         },
     },
 };
+const markdown =
+    '## Findings\n\nOrders are shown below.\n\n<document-chart id="orders">\n\n<document-chart id="merged">';
 const document = {
     name: 'Order review',
     slug: 'order-review',
     description: 'A review of orders',
     spaceSlug: 'reports',
-    schemaVersion: 1,
-    content: { cells: [markdown, semantic, merge] },
+    schemaVersion: 2,
+    markdown,
+    charts: { orders: semantic, merged: merge },
 };
 const baseVersionUuid = '9e8f3019-5299-43cd-a8b7-ab60a895d9cf';
+
+const withChart = (content: unknown) => ({
+    ...document,
+    markdown: '<document-chart id="orders">',
+    charts: { orders: content },
+});
 
 describe('MCP Document content', () => {
     test('preserves Markdown, semantic charts and durable merge definitions', () => {
         const parsed = documentAsCodeSchema.parse(document);
         expect(parsed).toEqual(document);
         expect(
-            parseDocumentContent(parsed.schemaVersion, parsed.content).cells,
-        ).toEqual(document.content.cells);
+            parseDocumentContent(parsed.schemaVersion, {
+                markdown: parsed.markdown,
+                charts: parsed.charts,
+            }),
+        ).toEqual({
+            markdown,
+            charts: document.charts,
+        });
         expect(
             mcpCreateContentArgsSchema.parse({
                 type: 'document',
@@ -96,81 +101,78 @@ describe('MCP Document content', () => {
 
     test('preserves custom chart type references by slug and version', () => {
         const custom = {
-            type: 'chart',
-            content: {
-                source: 'semantic',
-                chart: {
-                    ...chart,
-                    chartConfig: {
-                        type: ChartType.DATA_APP_VIZ,
-                        config: {
-                            dataAppVizSlug: 'sprouts',
-                            dataAppVizVersion: 3,
-                            fieldMapping: {
-                                category: 'orders_status',
-                                value: 'orders_count',
-                            },
-                            optionValues: { showStage: true },
+            source: 'semantic',
+            chart: {
+                ...chart,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizSlug: 'sprouts',
+                        dataAppVizVersion: 3,
+                        fieldMapping: {
+                            category: 'orders_status',
+                            value: 'orders_count',
                         },
+                        optionValues: { showStage: true },
                     },
                 },
             },
         };
-        const parsed = documentAsCodeSchema.parse({
-            ...document,
-            content: { cells: [custom] },
-        });
+        const parsed = documentAsCodeSchema.parse(withChart(custom));
         expect(
-            parseDocumentContent(parsed.schemaVersion, parsed.content).cells,
-        ).toEqual([custom]);
+            parseDocumentContent(parsed.schemaVersion, {
+                markdown: parsed.markdown,
+                charts: parsed.charts,
+            }).charts,
+        ).toEqual({ orders: custom });
     });
 
     test.each(['sql', 'composer', 'saved_chart', 'artifact'])(
         'rejects unsupported chart source %s',
         (source) => {
             expect(
-                mcpDocumentCellSchema.safeParse({
-                    ...semantic,
-                    content: { ...semantic.content, source },
-                }).success,
+                mcpDocumentChartSchema.safeParse({ ...semantic, source })
+                    .success,
             ).toBe(false);
         },
     );
 
     test.each([
-        { ...markdown, id: 'client-id' },
-        { ...markdown, title: 'Extra title' },
-        { ...markdown, content: { ...markdown.content, title: 'Extra title' } },
-        { ...semantic, content: { ...semantic.content, title: 'Extra title' } },
-        { ...markdown, content: '# Legacy Markdown' },
-        {
-            ...semantic,
-            content: { ...semantic.content, queryUuid: baseVersionUuid },
-        },
-        { ...semantic, content: { ...semantic.content, rows: [] } },
-    ])('rejects legacy or unsupported cell fields: %j', (cell) => {
-        expect(mcpDocumentCellSchema.safeParse(cell).success).toBe(false);
+        { ...semantic, id: 'client-id' },
+        { ...semantic, title: 'Extra title' },
+        { ...semantic, queryUuid: baseVersionUuid },
+        { ...semantic, rows: [] },
+        { type: 'chart', content: semantic },
+    ])('rejects legacy or unsupported chart fields: %j', (content) => {
+        expect(mcpDocumentChartSchema.safeParse(content).success).toBe(false);
+    });
+
+    test('rejects the version 1 cells shape', () => {
+        expect(
+            documentAsCodeSchema.safeParse({
+                ...document,
+                schemaVersion: 1,
+                content: { cells: [] },
+            }).success,
+        ).toBe(false);
     });
 
     test('rejects transient merge sources at the tool boundary', () => {
         expect(
-            mcpDocumentCellSchema.safeParse({
+            mcpDocumentChartSchema.safeParse({
                 ...merge,
-                content: {
-                    ...merge.content,
-                    chart: {
-                        ...merge.content.chart,
-                        merge: {
-                            ...merge.content.chart.merge,
-                            sources: [
-                                { id: 'a', kind: 'chart' },
-                                {
-                                    id: 'b',
-                                    kind: 'query',
-                                    queryUuid: baseVersionUuid,
-                                },
-                            ],
-                        },
+                chart: {
+                    ...merge.chart,
+                    merge: {
+                        ...merge.chart.merge,
+                        sources: [
+                            { id: 'a', kind: 'chart' },
+                            {
+                                id: 'b',
+                                kind: 'query',
+                                queryUuid: baseVersionUuid,
+                            },
+                        ],
                     },
                 },
             }).success,
@@ -180,10 +182,9 @@ describe('MCP Document content', () => {
     test.each(['queryUuid', 'rows', 'results'])(
         'authoritative validation rejects transient %s inside a metric query',
         (key) => {
-            const cell = mcpDocumentCellSchema.parse({
-                ...semantic,
-                content: {
-                    ...semantic.content,
+            const parsed = documentAsCodeSchema.parse(
+                withChart({
+                    ...semantic,
                     chart: {
                         ...chart,
                         metricQuery: {
@@ -191,21 +192,25 @@ describe('MCP Document content', () => {
                             [key]: key === 'queryUuid' ? baseVersionUuid : [],
                         },
                     },
-                },
-            });
-            expect(() => parseDocumentContent(1, { cells: [cell] })).toThrow();
+                }),
+            );
+            expect(() =>
+                parseDocumentContent(2, {
+                    markdown: parsed.markdown,
+                    charts: parsed.charts,
+                }),
+            ).toThrow();
         },
     );
 
     test('authoritative validation rejects transient fields in merge legs', () => {
-        const cell = mcpDocumentCellSchema.parse({
-            ...merge,
-            content: {
-                ...merge.content,
+        const parsed = documentAsCodeSchema.parse(
+            withChart({
+                ...merge,
                 chart: {
-                    ...merge.content.chart,
+                    ...merge.chart,
                     merge: {
-                        ...merge.content.chart.merge,
+                        ...merge.chart.merge,
                         sources: [
                             { id: 'a', kind: 'chart' },
                             {
@@ -219,12 +224,17 @@ describe('MCP Document content', () => {
                         ],
                     },
                 },
-            },
-        });
-        expect(() => parseDocumentContent(1, { cells: [cell] })).toThrow();
+            }),
+        );
+        expect(() =>
+            parseDocumentContent(2, {
+                markdown: parsed.markdown,
+                charts: parsed.charts,
+            }),
+        ).toThrow();
     });
 
-    test.each([0, 2, 3, 4])(
+    test.each([0, 1, 3, 4])(
         'rejects unsupported write schema version %s',
         (schemaVersion) => {
             expect(
@@ -234,54 +244,36 @@ describe('MCP Document content', () => {
         },
     );
 
-    test.each([document.content, { cells: [] }])(
-        'accepts whole-content replacement %j',
-        (content) => {
-            const edit = {
-                type: 'content',
-                baseVersionUuid,
-                content,
-            };
-            expect(mcpDocumentEditSchema.parse(edit)).toEqual(edit);
-            expect(
-                mcpEditContentArgsSchema.parse({
-                    type: 'document',
-                    slug: document.slug,
-                    documentEdit: edit,
-                }),
-            ).toEqual({
+    test.each([
+        { markdown, charts: document.charts },
+        { markdown: '<document-chart id="c1">', charts: {} },
+        { markdown: '', charts: {} },
+    ])('accepts a markdown replacement %j', (content) => {
+        const edit = { type: 'content', baseVersionUuid, ...content };
+        expect(mcpDocumentEditSchema.parse(edit)).toEqual(edit);
+        expect(
+            mcpEditContentArgsSchema.parse({
                 type: 'document',
                 slug: document.slug,
                 documentEdit: edit,
-            });
-        },
-    );
+            }),
+        ).toEqual({
+            type: 'document',
+            slug: document.slug,
+            documentEdit: edit,
+        });
+    });
 
     test.each([
+        { type: 'content', markdown, charts: {} },
+        { type: 'content', baseVersionUuid: 'stale', markdown, charts: {} },
+        { type: 'content', baseVersionUuid, content: { cells: [] } },
+        { type: 'content', baseVersionUuid, markdown },
         {
-            type: 'content',
-            content: document.content,
-        },
-        {
-            type: 'content',
-            baseVersionUuid: 'stale',
-            content: document.content,
-        },
-        { type: 'content', baseVersionUuid, operations: [] },
-        {
-            type: 'content',
+            type: 'chart',
             baseVersionUuid,
-            operations: [{ type: 'remove', index: 0 }],
-        },
-        {
-            type: 'content',
-            baseVersionUuid,
-            operations: [{ type: 'move_after', cellId: 'introduction' }],
-        },
-        {
-            type: 'content',
-            baseVersionUuid,
-            operations: [{ type: 'add', path: '/cells/0', value: markdown }],
+            chartId: 'c1',
+            patch: [],
         },
         { type: 'metadata', spaceSlug: 'another-space' },
     ])('rejects invalid edit shape %j', (edit) => {

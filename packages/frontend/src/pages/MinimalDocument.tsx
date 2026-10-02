@@ -18,22 +18,22 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 type ChartOutcome = 'ready' | 'errored';
 
 const DocumentPrint = ({ document }: { document: Document }) => {
-    const { cells } = document.version.content;
+    const { markdown, charts } = document.version.content;
     const { editor } = useDocumentReader(document);
-    const [outcomes, setOutcomes] = useState<Record<number, ChartOutcome>>({});
+    const [outcomes, setOutcomes] = useState<Record<string, ChartOutcome>>({});
     const exportStatus = useMemo<DocumentExportStatus>(
         () => ({
             // An error is final; a later ready signal never hides it
-            markReady: (cellIndex) =>
+            markReady: (chartId) =>
                 setOutcomes((current) =>
-                    current[cellIndex]
+                    current[chartId]
                         ? current
-                        : { ...current, [cellIndex]: 'ready' },
+                        : { ...current, [chartId]: 'ready' },
                 ),
-            markErrored: (cellIndex) =>
+            markErrored: (chartId) =>
                 setOutcomes((current) => ({
                     ...current,
-                    [cellIndex]: 'errored',
+                    [chartId]: 'errored',
                 })),
         }),
         [],
@@ -47,10 +47,8 @@ const DocumentPrint = ({ document }: { document: Document }) => {
         }),
         [document],
     );
-    const chartCellIndexes = cells.flatMap((cell, index) =>
-        cell.type === 'chart' ? [index] : [],
-    );
-    const chartOutcomes = chartCellIndexes.map((index) => outcomes[index]);
+    const chartIds = Object.keys(charts);
+    const chartOutcomes = chartIds.map((chartId) => outcomes[chartId]);
     const isSettled = editor !== null && chartOutcomes.every(Boolean);
     return (
         <Box
@@ -64,7 +62,7 @@ const DocumentPrint = ({ document }: { document: Document }) => {
                         </Title>
                         <DocumentByline document={document} />
                     </Box>
-                    {cells.length === 0 ? (
+                    {markdown.trim() === '' ? (
                         <Text c="dimmed">This document is empty.</Text>
                     ) : (
                         <DocumentExportStatusContext.Provider
@@ -82,7 +80,7 @@ const DocumentPrint = ({ document }: { document: Document }) => {
             </Box>
             {isSettled && (
                 <ScreenshotReadyIndicator
-                    tilesTotal={chartCellIndexes.length}
+                    tilesTotal={chartIds.length}
                     tilesReady={
                         chartOutcomes.filter((outcome) => outcome === 'ready')
                             .length

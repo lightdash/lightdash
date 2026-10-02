@@ -337,10 +337,10 @@ describe('getSystemPromptV2 custom chart types', () => {
         expect(enabled).toContain(
             'take chartConfig from exportChartAsCode instead of writing it yourself',
         );
-        expect(enabled).not.toContain('custom-chart cells are unsupported');
+        expect(enabled).not.toContain('custom charts are unsupported');
 
         const disabled = promptText(documentArgs);
-        expect(disabled).toContain('custom-chart cells are unsupported');
+        expect(disabled).toContain('custom charts are unsupported');
         expect(disabled).not.toContain('data_app_viz');
     });
 });

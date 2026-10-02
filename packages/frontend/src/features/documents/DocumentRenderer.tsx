@@ -26,7 +26,7 @@ const DocumentRenderer = ({
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
 }) => {
-    const { cells } = document.version.content;
+    const isEmpty = document.version.content.markdown.trim() === '';
     const { editor, headings } = useDocumentReader(document);
     const mentions = useMentionNavigation(editor, document.projectUuid);
     const target = useMemo(
@@ -55,7 +55,7 @@ const DocumentRenderer = ({
             initialScrollTop={initialScrollTop}
             onScrollTopChange={onScrollTopChange}
         >
-            {cells.length === 0 ? (
+            {isEmpty ? (
                 <Text c="dimmed">This document is empty.</Text>
             ) : (
                 <DocumentEditorProvider value={target}>

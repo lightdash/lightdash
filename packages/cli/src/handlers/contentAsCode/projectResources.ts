@@ -192,4 +192,13 @@ export const DOCUMENT_CODE_RESOURCE: CodeResourceDefinition<DocumentAsCode> = {
     displayName: ({ name }) => name,
     parse: (input) => parseDocumentAsCode(input),
     sort: (left, right) => left.slug.localeCompare(right.slug),
+    leadingKeys: [
+        'name',
+        'slug',
+        'description',
+        'spaceSlug',
+        'schemaVersion',
+        'markdown',
+        'charts',
+    ],
 };

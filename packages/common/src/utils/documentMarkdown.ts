@@ -1,8 +1,5 @@
 import { isEqual } from 'lodash';
-import type {
-    DocumentChartContent,
-    DocumentMarkdownContent as DocumentContent,
-} from '../types/document';
+import type { DocumentChartContent, DocumentContent } from '../types/document';
 import { ParameterError } from '../types/errors';
 import { ChartType } from '../types/savedCharts';
 

@@ -20,10 +20,24 @@ const projectSlug = 'jaffle-shop';
 const documentUrl = `/projects/${projectSlug}/documents/weekly-review`;
 const spaceUuid = 'space';
 const versionUuid = '0dc37ee3-264a-488b-a485-4379125afbf1';
-const cell = {
-    type: 'markdown' as const,
-    content: { markdown: '## Findings' },
+const chart = {
+    source: 'semantic' as const,
+    chart: {
+        name: 'Orders',
+        tableName: 'orders',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 100,
+            tableCalculations: [],
+        },
+        chartConfig: { type: ChartType.TABLE },
+    },
 };
+const markdown = '## Findings';
 const document: Document = {
     pinnedListUuid: null,
     createdBy: null,
@@ -42,19 +56,29 @@ const document: Document = {
     version: {
         versionUuid,
         versionNumber: 1,
-        schemaVersion: 1,
-        content: { cells: [cell] },
+        schemaVersion: 2,
+        content: { markdown, charts: {} },
         createdByUserUuid: 'user',
         createdAt: new Date('2026-09-16'),
     },
 };
-const content = {
+const metadata = {
     name: document.name,
     slug: document.slug,
     description: document.description,
     spaceSlug: 'reports',
-    schemaVersion: 1,
-    content: { cells: [{ type: cell.type, content: cell.content }] },
+    schemaVersion: 2 as const,
+};
+const content = { ...metadata, markdown, charts: {} };
+const withChart = {
+    ...document,
+    version: {
+        ...document.version,
+        content: {
+            markdown: `${markdown}\n\n<document-chart id="c1">`,
+            charts: { c1: chart },
+        },
+    },
 };
 const account = {
     user: { type: 'registered', id: 'user', userUuid: 'user' },
@@ -288,7 +312,7 @@ describe('MCP Document runtime', () => {
         });
         const created = await runtime.createContent({
             type: 'document',
-            content: { ...content, schemaVersion: 1 },
+            content,
         });
         expect(created).toMatchObject({
             type: 'document',
@@ -317,7 +341,8 @@ describe('MCP Document runtime', () => {
             documentEdit: {
                 type: 'content',
                 baseVersionUuid: versionUuid,
-                content: content.content,
+                markdown,
+                charts: {},
             },
         });
         expect(edited).toMatchObject({
@@ -328,7 +353,7 @@ describe('MCP Document runtime', () => {
             account,
             projectUuid,
             document.documentUuid,
-            { baseVersionUuid: versionUuid, content: { cells: [cell] } },
+            { baseVersionUuid: versionUuid, content: { markdown, charts: {} } },
             {
                 allowedSpaceUuids: [spaceUuid],
                 change: {
@@ -375,11 +400,14 @@ describe('MCP Document runtime', () => {
         await expect(
             runtime.createContent({
                 type: 'document',
-                content: { ...content, schemaVersion: 1 },
+                content,
             }),
         ).rejects.toThrow(NotFoundError);
         await expect(
-            runtime.readContent({ type: 'document', slug: document.slug }),
+            runtime.readContent({
+                type: 'document',
+                slug: document.slug,
+            }),
         ).rejects.toThrow(NotFoundError);
         await expect(
             runtime.editContent({
@@ -613,8 +641,8 @@ describe('MCP Document runtime', () => {
                 slug: document.slug,
                 description: document.description,
                 spaceUuid,
-                schemaVersion: 1,
-                content: { cells: [cell] },
+                schemaVersion: 2,
+                content: { markdown, charts: {} },
             },
             { source: 'mcp' },
         );
@@ -634,7 +662,8 @@ describe('MCP Document runtime', () => {
                               : {
                                     type: 'content',
                                     baseVersionUuid: versionUuid,
-                                    content: { cells: [] },
+                                    markdown: '',
+                                    charts: {},
                                 },
                       );
             await expect(request).rejects.toThrow(NotFoundError);
@@ -693,15 +722,14 @@ describe('MCP Document runtime', () => {
         expect(documentService.create).not.toHaveBeenCalled();
     });
 
-    test('content edits forward ID-free content, version and Space scope', async () => {
+    test('content edits forward the replacement, version and Space scope', async () => {
         const { runtime, documentService } = setup([spaceUuid]);
-        const replacement = {
-            cells: [content.content.cells[0], content.content.cells[0]],
-        };
+        documentService.getBySlug.mockResolvedValue(withChart);
         await runtime.editDocumentContent(document.slug, {
             type: 'content',
             baseVersionUuid: versionUuid,
-            content: replacement,
+            markdown: '<document-chart id="c1">\n\n# Changed narrative',
+            charts: { c1: chart },
         });
         expect(documentService.updateContent).toHaveBeenCalledWith(
             account,
@@ -709,15 +737,29 @@ describe('MCP Document runtime', () => {
             document.documentUuid,
             {
                 baseVersionUuid: versionUuid,
-                content: replacement,
+                content: {
+                    markdown: '<document-chart id="c1">\n\n# Changed narrative',
+                    charts: { c1: chart },
+                },
             },
             { allowedSpaceUuids: [spaceUuid], change: { source: 'mcp' } },
         );
         expect(documentService.updateMetadata).not.toHaveBeenCalled();
-        const savedCells =
-            documentService.updateContent.mock.calls[0][3].content.cells;
-        expect(savedCells).toEqual(replacement.cells);
-        expect(savedCells[0]).not.toHaveProperty('id');
+    });
+
+    test('content edits add new charts by key and drop charts no longer placed', async () => {
+        const { runtime, documentService } = setup();
+        documentService.getBySlug.mockResolvedValue(withChart);
+        await runtime.editDocumentContent(document.slug, {
+            type: 'content',
+            baseVersionUuid: versionUuid,
+            markdown: 'Only new\n\n<document-chart id="fresh">',
+            charts: { fresh: chart },
+        });
+        expect(documentService.updateContent.mock.calls[0][3].content).toEqual({
+            markdown: 'Only new\n\n<document-chart id="fresh">',
+            charts: { fresh: chart },
+        });
     });
 
     test('metadata edits remain separate from version writes and forward Space scope', async () => {
@@ -745,57 +787,6 @@ describe('MCP Document runtime', () => {
         expect(documentService.updateContent).not.toHaveBeenCalled();
     });
 
-    test('preserves chart content and cell order without assigning IDs', async () => {
-        const { runtime, documentService } = setup();
-        const chartCell = {
-            type: 'chart' as const,
-            content: {
-                source: 'semantic' as const,
-                chart: {
-                    name: 'Orders',
-                    tableName: 'orders',
-                    metricQuery: {
-                        exploreName: 'orders',
-                        dimensions: [],
-                        metrics: ['orders_count'],
-                        filters: {},
-                        sorts: [],
-                        limit: 100,
-                        tableCalculations: [],
-                    },
-                    chartConfig: { type: ChartType.TABLE },
-                },
-            },
-        };
-        documentService.getBySlug.mockResolvedValue({
-            ...document,
-            version: {
-                ...document.version,
-                content: { cells: [cell, chartCell] },
-            },
-        });
-        await runtime.editDocumentContent(document.slug, {
-            type: 'content',
-            baseVersionUuid: versionUuid,
-            content: {
-                cells: [
-                    { type: chartCell.type, content: chartCell.content },
-                    {
-                        type: cell.type,
-                        content: { markdown: '# Changed narrative' },
-                    },
-                ],
-            },
-        });
-        const saved =
-            documentService.updateContent.mock.calls[0][3].content.cells;
-        expect(saved[0]).toEqual(chartCell);
-        expect(saved[1]).toEqual({
-            type: 'markdown',
-            content: { markdown: '# Changed narrative' },
-        });
-    });
-
     test('stale version conflicts are forwarded without retrying the write', async () => {
         const { runtime, documentService } = setup();
         const error = new ConflictError('Document has changed');
@@ -804,7 +795,8 @@ describe('MCP Document runtime', () => {
             runtime.editDocumentContent(document.slug, {
                 type: 'content',
                 baseVersionUuid: versionUuid,
-                content: { cells: [] },
+                markdown: '',
+                charts: {},
             }),
         ).rejects.toBe(error);
         expect(documentService.updateContent).toHaveBeenCalledOnce();

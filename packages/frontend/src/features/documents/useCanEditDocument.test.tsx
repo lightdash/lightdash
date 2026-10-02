@@ -120,8 +120,8 @@ const document: Document = {
     version: {
         versionUuid: 'version',
         versionNumber: 1,
-        schemaVersion: 1,
-        content: { cells: [] },
+        schemaVersion: 2,
+        content: { markdown: '', charts: {} },
         createdByUserUuid: 'user',
         createdAt: new Date('2026-01-01'),
     },

@@ -1,4 +1,4 @@
-import { type DocumentCell } from '@lightdash/common';
+import { type DocumentChartContent } from '@lightdash/common';
 import { Node } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
@@ -7,15 +7,16 @@ import { moveTopLevelNode, type MoveDirection } from './moveTopLevelNode';
 
 export const DOCUMENT_CHART_NODE = 'documentChart';
 
-export type DocumentChartContent = Extract<
-    DocumentCell,
-    { type: 'chart' }
->['content'];
+export type { DocumentChartContent };
 
-/** `sourceIndex` is the cell index in the saved version; null for unsaved charts. */
+/**
+ * `chartId` is the chart's stored id, kept through edits; null for a new
+ * chart. `isSaved` is false once the content differs from the saved version.
+ */
 export type DocumentChartAttributes = {
     content: DocumentChartContent | null;
-    sourceIndex: number | null;
+    chartId: string | null;
+    isSaved: boolean;
 };
 
 export type EditChartHandler = (
@@ -98,9 +99,15 @@ export const DocumentChartNode = Node.create<DocumentChartNodeOptions>({
                     ),
                 renderHTML: () => ({}),
             },
-            sourceIndex: {
+            // Pasted charts are new charts, so identity is not read from HTML
+            chartId: {
                 default: null,
                 parseHTML: () => null,
+                renderHTML: () => ({}),
+            },
+            isSaved: {
+                default: false,
+                parseHTML: () => false,
                 renderHTML: () => ({}),
             },
         };
@@ -162,7 +169,7 @@ export const DocumentChartNode = Node.create<DocumentChartNodeOptions>({
         };
     },
 
-    // Charts have no Markdown form; the cell serializer handles them.
+    // Charts become chart tags in getDocumentContent, not in the Markdown serializer.
     addStorage() {
         return { markdown: { serialize: () => {}, parse: {} } };
     },

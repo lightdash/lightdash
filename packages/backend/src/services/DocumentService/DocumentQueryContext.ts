@@ -4,7 +4,7 @@ import {
     NotFoundError,
     ParameterError,
     type Account,
-    type DocumentCell,
+    type DocumentChartContent,
     type DocumentQueryReference,
     type MergeQuery,
     type MetricQuery,
@@ -15,18 +15,16 @@ import { isEqual } from 'lodash';
 import { normalizeFilterIds } from '../CoderService/filterIds';
 import type { DocumentService } from './DocumentService';
 
-type ChartCell = Extract<DocumentCell, { type: 'chart' }>;
-
 const comparable = (value: unknown): unknown =>
     JSON.parse(JSON.stringify(value));
 
-/** Server-only proof that execution is bound to an authorized persisted cell. */
+/** Server-only proof that execution is bound to an authorized persisted chart. */
 export class DocumentQueryContext {
     private constructor(
         private readonly accountUserUuid: string,
         readonly projectUuid: string,
         readonly reference: DocumentQueryReference,
-        readonly content: ChartCell['content'],
+        readonly content: DocumentChartContent,
         readonly metricQuery: MetricQuery,
         readonly mergeQuery: MergeQuery | undefined,
         private readonly sourceRowCap: number,
@@ -45,7 +43,7 @@ export class DocumentQueryContext {
         reference: DocumentQueryReference;
         sourceRowCap: number;
     }): Promise<DocumentQueryContext> {
-        const content = await documentService.getChartCell(
+        const content = await documentService.getChart(
             account,
             projectUuid,
             reference,

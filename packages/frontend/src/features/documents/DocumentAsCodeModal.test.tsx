@@ -17,34 +17,26 @@ const exportedDocument: DocumentAsCode = {
     slug: 'weekly-report',
     description: 'Revenue summary',
     spaceSlug: 'reports',
-    schemaVersion: 1,
-    content: {
-        cells: [
-            {
-                type: 'markdown',
-                content: { markdown: '# Results\n\nRevenue: **£42**' },
-            },
-            {
-                type: 'chart',
-                content: {
-                    source: 'semantic',
-                    chart: {
-                        name: 'Orders',
-                        tableName: 'orders',
-                        metricQuery: {
-                            exploreName: 'orders',
-                            dimensions: [],
-                            metrics: [],
-                            filters: {},
-                            sorts: [],
-                            tableCalculations: [],
-                            limit: 100,
-                        },
-                        chartConfig: { type: ChartType.TABLE },
-                    },
+    schemaVersion: 2,
+    markdown: '# Results\n\nRevenue: **£42**\n\n<document-chart id="c1">',
+    charts: {
+        c1: {
+            source: 'semantic',
+            chart: {
+                name: 'Orders',
+                tableName: 'orders',
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    tableCalculations: [],
+                    limit: 100,
                 },
+                chartConfig: { type: ChartType.TABLE },
             },
-        ],
+        },
     },
 };
 
@@ -66,8 +58,11 @@ const document: Document = {
     version: {
         versionUuid: 'version',
         versionNumber: 1,
-        schemaVersion: 1,
-        content: exportedDocument.content,
+        schemaVersion: 2,
+        content: {
+            markdown: exportedDocument.markdown,
+            charts: exportedDocument.charts,
+        },
         createdByUserUuid: 'creator',
         createdAt: new Date(),
     },
@@ -110,7 +105,7 @@ describe('Document as code', () => {
     };
 
     it.each(['yaml', 'json'])(
-        'downloads the canonical document preserving cells as %s',
+        'downloads the canonical document preserving markdown and charts as %s',
         async (format) => {
             api.mockResolvedValue(exportedDocument);
             const createObjectURL = vi.fn((_blob: Blob) => 'blob:document');

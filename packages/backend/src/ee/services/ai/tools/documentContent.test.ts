@@ -13,67 +13,57 @@ import { getReadContent } from './readContent';
 
 const versionUuid = '83b3faf3-a320-49ae-8119-0117e813723e';
 const documentUuid = 'ccf2dbb5-26f0-4ea3-94e7-758de087326f';
+const metadata = {
+    schemaVersion: 2 as const,
+    name: 'Findings',
+    slug: 'findings',
+    description: 'Order analysis',
+    spaceSlug: 'reports',
+};
+const input = {
+    ...metadata,
+    markdown: '# Findings\n\n## Detail\n\nEvidence.',
+    charts: {},
+};
 const document: DocumentContentResult = {
     type: 'document',
     uuid: documentUuid,
     href: `/projects/project/documents/${documentUuid}`,
     versionUuid,
-    content: {
-        schemaVersion: 1,
-        name: 'Findings',
-        slug: 'findings',
-        description: 'Order analysis',
-        spaceSlug: 'reports',
-        content: {
-            cells: [
-                {
-                    type: 'markdown',
-                    content: {
-                        markdown: '# Findings\n\n## Detail\n\nEvidence.',
-                    },
-                },
-            ],
-        },
-    },
+    content: input,
 };
-const customChartDocument: DocumentContentResult = {
-    ...document,
-    content: {
-        ...document.content,
-        content: {
-            cells: [
-                {
-                    type: 'chart',
-                    content: {
-                        source: 'semantic',
-                        chart: {
-                            name: 'Growth by country',
-                            tableName: 'orders',
-                            metricQuery: {
-                                exploreName: 'orders',
-                                dimensions: ['orders_country'],
-                                metrics: ['orders_growth'],
-                                filters: {},
-                                sorts: [],
-                                limit: 100,
-                                tableCalculations: [],
-                            },
-                            chartConfig: {
-                                type: ChartType.DATA_APP_VIZ,
-                                config: {
-                                    dataAppVizSlug: 'sprouts',
-                                    dataAppVizVersion: 3,
-                                    fieldMapping: {
-                                        category: 'orders_country',
-                                        value: 'orders_growth',
-                                    },
-                                    optionValues: { showStage: true },
-                                },
-                            },
+const metricQuery = {
+    exploreName: 'orders',
+    dimensions: ['orders_country'],
+    metrics: ['orders_growth'],
+    filters: {},
+    sorts: [],
+    limit: 100,
+    tableCalculations: [],
+};
+const customChartInput = {
+    ...metadata,
+    markdown: '<document-chart id="growth">',
+    charts: {
+        growth: {
+            source: 'semantic' as const,
+            chart: {
+                name: 'Growth by country',
+                tableName: 'orders',
+                metricQuery,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizSlug: 'sprouts',
+                        dataAppVizVersion: 3,
+                        fieldMapping: {
+                            category: 'orders_country',
+                            value: 'orders_growth',
                         },
+                        optionValues: { showStage: true },
                     },
                 },
-            ],
+            },
         },
     },
 };
@@ -121,7 +111,7 @@ describe('AI Agent Document authoring', () => {
             throw new Error('Missing executor');
         }
         const result = await tool.execute(
-            { type: 'document', content: document.content },
+            { type: 'document', content: input },
             options,
         );
         if (Symbol.asyncIterator in result) {
@@ -129,7 +119,7 @@ describe('AI Agent Document authoring', () => {
         }
         expect(createContent).toHaveBeenCalledWith({
             type: 'document',
-            content: document.content,
+            content: input,
         });
         expect(result).toMatchObject({
             metadata: {
@@ -159,7 +149,7 @@ describe('AI Agent Document authoring', () => {
     });
 
     test('creates a Document with a custom chart type by slug and version', async () => {
-        const createContent = vi.fn().mockResolvedValue(customChartDocument);
+        const createContent = vi.fn().mockResolvedValue(document);
         const tool = getCreateContent({
             createContent,
             documentsEnabled: true,
@@ -168,12 +158,12 @@ describe('AI Agent Document authoring', () => {
             throw new Error('Missing executor');
         }
         const result = await tool.execute(
-            { type: 'document', content: customChartDocument.content },
+            { type: 'document', content: customChartInput },
             options,
         );
         expect(createContent).toHaveBeenCalledWith({
             type: 'document',
-            content: customChartDocument.content,
+            content: customChartInput,
         });
         expect(result).toMatchObject({ metadata: { status: 'success' } });
     });
@@ -192,7 +182,7 @@ describe('AI Agent Document authoring', () => {
             throw new Error('Missing executor');
         }
         const result = await tool.execute(
-            { type: 'document', content: customChartDocument.content },
+            { type: 'document', content: customChartInput },
             options,
         );
         expect(result).toMatchObject({
@@ -211,7 +201,7 @@ describe('AI Agent Document authoring', () => {
             throw new Error('Missing executor');
         }
         const result = await tool.execute(
-            { type: 'document', content: document.content },
+            { type: 'document', content: input },
             options,
         );
         if (Symbol.asyncIterator in result) {
@@ -318,7 +308,8 @@ describe('AI Agent Document authoring', () => {
                 documentEdit: {
                     type: 'content',
                     baseVersionUuid: versionUuid,
-                    content: document.content.content,
+                    markdown: input.markdown,
+                    charts: {},
                 },
             },
             options,
@@ -357,7 +348,8 @@ describe('AI Agent Document authoring', () => {
             documentEdit: {
                 type: 'content' as const,
                 baseVersionUuid: versionUuid,
-                content: document.content.content,
+                markdown: '<document-chart id="c1">\n\nNew text',
+                charts: {},
             },
         };
         expect(await tool.execute(args, options)).toMatchObject({
@@ -399,7 +391,7 @@ describe('AI Agent Document authoring', () => {
                     'Ask the user when the destination is missing or ambiguous',
                 );
                 expect(prompt.content).toContain(
-                    'Include every cell to retain',
+                    'Include every chart to keep under its id',
                 );
                 expect(prompt.content).toContain('Use H1 for sections');
                 expect(prompt.content).toContain(

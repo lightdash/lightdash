@@ -861,13 +861,13 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
-    it('passes the Document cell as chart context when rendered in a Document', () => {
+    it('passes the Document chart as chart context when rendered in a Document', () => {
         render(
             <DocumentRenderTargetContext.Provider
                 value={{
                     documentUuid: 'document-uuid',
                     versionUuid: 'document-version-uuid',
-                    cellIndex: 3,
+                    chartId: 'c3',
                 }}
             >
                 {rendererElement()}
@@ -879,7 +879,7 @@ describe('DataAppVizRenderer', () => {
                 chartContext: {
                     documentUuid: 'document-uuid',
                     documentVersionUuid: 'document-version-uuid',
-                    cellIndex: 3,
+                    chartId: 'c3',
                 },
             }),
             undefined,

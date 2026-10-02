@@ -29,7 +29,7 @@ const DocumentChartNodeView = ({
     deleteNode,
     selected,
 }: NodeViewProps) => {
-    const { content, sourceIndex } = node.attrs as DocumentChartAttributes;
+    const { content, chartId, isSaved } = node.attrs as DocumentChartAttributes;
     const { onEditChart } = extension.options as DocumentChartNodeOptions;
     const target = useDocumentEditorTarget();
     if (!content) {
@@ -119,7 +119,7 @@ const DocumentChartNodeView = ({
                     </ReportChartFrame>
                 )}
             >
-                {sourceIndex === null ? (
+                {chartId === null || !isSaved ? (
                     content.source === 'semantic' ? (
                         <DocumentDraftChart
                             projectUuid={target.projectUuid}
@@ -135,8 +135,8 @@ const DocumentChartNodeView = ({
                         spaceUuid={target.spaceUuid}
                         documentUuid={target.documentUuid}
                         versionUuid={target.versionUuid}
-                        cellIndex={sourceIndex}
-                        cell={{ type: 'chart', content }}
+                        chartId={chartId}
+                        content={content}
                         actions={actions}
                     />
                 )}

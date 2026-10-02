@@ -47,33 +47,29 @@ const mergeSchema = z
         'Durable SavedMergeQuery. Query sources contain full metric queries, never query UUIDs or result rows.',
     );
 
-export const mcpDocumentCellSchema = z.discriminatedUnion('type', [
+export const mcpDocumentChartSchema = z.discriminatedUnion('source', [
     z
         .object({
-            type: z.literal('markdown'),
-            content: z.object({ markdown: z.string() }).strict(),
+            source: z.literal('semantic'),
+            chart: chartSchema,
         })
         .strict(),
     z
         .object({
-            type: z.literal('chart'),
-            content: z.discriminatedUnion('source', [
-                z
-                    .object({
-                        source: z.literal('semantic'),
-                        chart: chartSchema,
-                    })
-                    .strict(),
-                z
-                    .object({
-                        source: z.literal('merge'),
-                        chart: chartSchema.extend({ merge: mergeSchema }),
-                    })
-                    .strict(),
-            ]),
+            source: z.literal('merge'),
+            chart: chartSchema.extend({ merge: mergeSchema }),
         })
         .strict(),
 ]);
+
+const DOCUMENT_MARKDOWN_DESCRIPTION =
+    'Document body in Markdown. Place each chart as its own block: a line with only <document-chart id="KEY">, separated from text by blank lines. KEY is a key of `charts`: an existing chart id (c1, c2, …) or a new key. Charts not placed are removed.';
+
+const documentChartsSchema = z
+    .record(z.string(), mcpDocumentChartSchema)
+    .describe(
+        'Full chart definitions for every placed chart, by key. Keep existing charts under their id (c1, c2, …); use a new key (e.g. "revenue") for a new chart and the server assigns it the next cN id. Use {} when there are none.',
+    );
 
 export const documentAsCodeSchema = z
     .object({
@@ -81,12 +77,13 @@ export const documentAsCodeSchema = z
         slug: z.string().min(1),
         description: z.string(),
         spaceSlug: z.string().min(1),
-        schemaVersion: z.literal(1),
-        content: z.object({ cells: z.array(mcpDocumentCellSchema) }).strict(),
+        schemaVersion: z.literal(2),
+        markdown: z.string().describe(DOCUMENT_MARKDOWN_DESCRIPTION),
+        charts: documentChartsSchema,
     })
     .strict()
     .describe(
-        'Document schema version 1. Supply ordered cells without IDs. Headings come from Markdown and chart names.',
+        'Document schema version 2: Markdown with chart tags, plus the charts they reference. Headings come from Markdown.',
     );
 
 export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
@@ -99,9 +96,12 @@ export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
                 .describe(
                     'Version UUID from read_content. Stale edits fail; reload and retry.',
                 ),
-            content: documentAsCodeSchema.shape.content.describe(
-                'Complete replacement content. Include all cells to keep, including unchanged charts. Omitted cells are removed.',
-            ),
+            markdown: z
+                .string()
+                .describe(
+                    `Complete replacement Markdown. ${DOCUMENT_MARKDOWN_DESCRIPTION}`,
+                ),
+            charts: documentChartsSchema,
         })
         .strict(),
     z
@@ -150,7 +150,7 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
     documentEdit: mcpDocumentEditSchema
         .optional()
         .describe(
-            'Required for Documents instead of patch. Replace all content with baseVersionUuid, or update metadata separately.',
+            'Required for Documents instead of patch. Replace the Markdown and charts with baseVersionUuid, or update metadata separately.',
         ),
 });
 

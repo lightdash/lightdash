@@ -2052,7 +2052,7 @@ export type AgentToolDefinition = (typeof agentToolDefinitions)[number];
 export const mcpCreateContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
-    description: `Create a dashboard, chart, or Document. Documents use schema version 1 with Markdown and semantic/merge chart-as-code cells. Returns the persisted content and canonical reference. ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}`,
+    description: `Create a dashboard, chart, or Document. Documents use schema version 2: Markdown with <document-chart> tags plus the semantic/merge chart-as-code charts they reference. Returns the persisted content and canonical reference. ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}`,
     availability: ['agent', 'mcp'],
     inputSchema: mcpCreateContentArgsSchema,
     mcp: { name: 'create_content', annotations: writeAnnotations },
@@ -2062,7 +2062,7 @@ export const mcpReadContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
     description:
-        'Read a dashboard, chart, data app, or Document by slug. Documents include their latest version UUID, required for cell edits.',
+        'Read a dashboard, chart, data app, or Document by slug. Documents return Markdown with chart tags, the charts they reference, and the latest version UUID required for edits.',
     availability: ['agent', 'mcp'],
     inputSchema: mcpReadContentArgsSchema,
     mcp: { name: 'read_content', annotations: readOnlyAnnotations },
@@ -2072,7 +2072,7 @@ export const mcpEditContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
     description:
-        'Edit dashboards and charts with RFC6902 patch. For Documents, use documentEdit to replace all content with baseVersionUuid, or update metadata separately. Include every cell to keep, without cell IDs. Stale versions are rejected; read again and retry.',
+        'Edit dashboards and charts with RFC6902 patch. For Documents, use documentEdit to replace the Markdown and charts with baseVersionUuid, or update metadata separately. Include every chart to keep. Stale versions are rejected; read again and retry.',
     availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
     mcp: { name: 'edit_content', annotations: destructiveWriteAnnotations },
