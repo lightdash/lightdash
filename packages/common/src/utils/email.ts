@@ -28,12 +28,26 @@ const ADDITIONAL_PUBLIC_PROVIDER_DOMAIN_SET = new Set(
 );
 
 /**
+ * Corporate domains the package list wrongly flags as public providers.
+ */
+const CORPORATE_DOMAIN_OVERRIDES = ['telekom.de'];
+
+const CORPORATE_DOMAIN_OVERRIDE_SET = new Set(CORPORATE_DOMAIN_OVERRIDES);
+
+/**
  * Whether a domain is a public/consumer email provider that no single
  * organization can own. Normalizes case before checking.
  */
-export const isPublicEmailProviderDomain = (domain: string): boolean =>
-    ADDITIONAL_PUBLIC_PROVIDER_DOMAIN_SET.has(domain.trim().toLowerCase()) ||
-    !isCompanyDomain(domain.trim().toLowerCase());
+export const isPublicEmailProviderDomain = (domain: string): boolean => {
+    const normalized = domain.trim().toLowerCase();
+    if (CORPORATE_DOMAIN_OVERRIDE_SET.has(normalized)) {
+        return false;
+    }
+    return (
+        ADDITIONAL_PUBLIC_PROVIDER_DOMAIN_SET.has(normalized) ||
+        !isCompanyDomain(normalized)
+    );
+};
 
 const VALID_EMAIL_DOMAIN_REGEX = /^[a-zA-Z0-9][\w.-]+\.\w{2,4}/g;
 export const isValidEmailDomain = (value: string) =>
