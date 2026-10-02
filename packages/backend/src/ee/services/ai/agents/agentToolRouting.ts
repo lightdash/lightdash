@@ -32,6 +32,7 @@ export const ALWAYS_LOADED_TOOL_NAMES: ReadonlySet<string> = new Set([
     'loadMcpTools',
     'searchApi',
     'describeApi',
+    'generateUi',
 ]);
 
 /**

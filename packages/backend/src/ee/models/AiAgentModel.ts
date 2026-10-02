@@ -173,6 +173,7 @@ import {
     AiThreadCompactionTableName,
     AiThreadShareTableName,
     AiThreadTableName,
+    AiToolUserInputTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
     AiWritebackRunTableName,
@@ -8414,7 +8415,11 @@ export class AiAgentModel {
                 `${AiAgentToolResultTableName}.result`,
                 `${AiAgentToolResultTableName}.metadata`,
                 `${AiAgentToolResultTableName}.created_at as result_created_at`,
-                `${AiSqlApprovalTableName}.decision as approval_decision`,
+                // A tool that waited for user input (generateUi) replays as an
+                // approved call once the input is recorded.
+                this.database.raw(
+                    `COALESCE(${AiSqlApprovalTableName}.decision, CASE WHEN ${AiToolUserInputTableName}.tool_call_id IS NOT NULL THEN 'approved' END) as approval_decision`,
+                ),
             )
             .leftJoin(AiAgentToolResultTableName, function joinToolResult() {
                 this.on(
@@ -8434,6 +8439,11 @@ export class AiAgentModel {
                 AiSqlApprovalTableName,
                 `${AiAgentToolCallTableName}.tool_call_id`,
                 `${AiSqlApprovalTableName}.tool_call_id`,
+            )
+            .leftJoin(
+                AiToolUserInputTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiToolUserInputTableName}.tool_call_id`,
             )
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
@@ -8555,12 +8565,13 @@ export class AiAgentModel {
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
     }
 
-    async findSqlApprovalContext(toolCallId: string): Promise<
+    async findToolCallContext(toolCallId: string): Promise<
         | {
               promptUuid: string;
               threadUuid: string;
               agentUuid: string | null;
               toolName: string;
+              toolArgs: object;
               hasResult: boolean;
           }
         | undefined
@@ -8594,11 +8605,13 @@ export class AiAgentModel {
                     threadUuid: string;
                     agentUuid: string | null;
                     toolName: string;
+                    toolArgs: object;
                     resultUuid: string | null;
                 }>
             >(
                 `${AiAgentToolCallTableName}.ai_prompt_uuid as promptUuid`,
                 `${AiAgentToolCallTableName}.tool_name as toolName`,
+                `${AiAgentToolCallTableName}.tool_args as toolArgs`,
                 `${AiThreadTableName}.ai_thread_uuid as threadUuid`,
                 `${AiThreadTableName}.agent_uuid as agentUuid`,
                 `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid as resultUuid`,
@@ -8613,8 +8626,106 @@ export class AiAgentModel {
             threadUuid: row.threadUuid,
             agentUuid: row.agentUuid,
             toolName: row.toolName,
+            toolArgs: row.toolArgs,
             hasResult: row.resultUuid !== null,
         };
+    }
+
+    /**
+     * Records what the user submitted to a tool that waited for input and
+     * reopens its prompt so the agent can resume. Both happen or neither: the
+     * prompt must have finished its halted run, still be the latest prompt of
+     * its thread, and have no result for the tool call.
+     */
+    async recordToolUserInputForResume({
+        promptUuid,
+        toolCallId,
+        toolName,
+        input,
+        userUuid,
+    }: {
+        promptUuid: string;
+        toolCallId: string;
+        toolName: string;
+        input: object;
+        userUuid: string;
+    }): Promise<'recorded' | 'duplicate' | 'not_resumable'> {
+        const trx = await this.database.transaction();
+        try {
+            const inserted = await trx(AiToolUserInputTableName)
+                .insert({
+                    tool_call_id: toolCallId,
+                    tool_name: toolName,
+                    input,
+                    user_uuid: userUuid,
+                })
+                .onConflict('tool_call_id')
+                .ignore()
+                .returning('tool_call_id');
+            if (inserted.length === 0) {
+                await trx.rollback();
+                return 'duplicate';
+            }
+
+            const reopened = await trx(AiPromptTableName)
+                .update({
+                    response: null,
+                    responded_at: trx.raw('NULL'),
+                    error_message: null,
+                    token_usage: null,
+                    needs_user_input: null,
+                    needs_user_input_metadata: null,
+                    retried_at: trx.fn.now(),
+                })
+                .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
+                .whereNotNull(`${AiPromptTableName}.responded_at`)
+                .whereNotExists((later) =>
+                    later
+                        .select(trx.raw('1'))
+                        .from(`${AiPromptTableName} as later_prompt`)
+                        .whereRaw(
+                            `later_prompt.ai_thread_uuid = ${AiPromptTableName}.ai_thread_uuid`,
+                        )
+                        .andWhereRaw(
+                            `later_prompt.created_at > ${AiPromptTableName}.created_at`,
+                        ),
+                )
+                .whereNotExists((result) =>
+                    result
+                        .select(trx.raw('1'))
+                        .from(AiAgentToolResultTableName)
+                        .where(
+                            `${AiAgentToolResultTableName}.tool_call_id`,
+                            toolCallId,
+                        )
+                        .andWhere(
+                            `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                            promptUuid,
+                        ),
+                )
+                .returning('ai_prompt_uuid');
+            if (reopened.length === 0) {
+                await trx.rollback();
+                return 'not_resumable';
+            }
+
+            await trx.commit();
+            return 'recorded';
+        } catch (error) {
+            await trx.rollback();
+            throw error;
+        }
+    }
+
+    async findToolUserInput(
+        toolCallId: string,
+    ): Promise<{ toolName: string; input: unknown } | null> {
+        const row = await this.database(AiToolUserInputTableName)
+            .where('tool_call_id', toolCallId)
+            .first('tool_name', 'input');
+        return row === undefined
+            ? null
+            : { toolName: row.tool_name, input: row.input };
     }
 
     // ---------------------------------------------------------------
@@ -11053,29 +11164,37 @@ export class AiAgentModel {
 
     /**
      * Removes the derived rows the FK graph does not cascade — memories
-     * distilled from a thread, runSql approval decisions (keyed by tool call
-     * id), and pinned-context references — then the threads themselves.
+     * distilled from a thread, runSql approval decisions and tool user input
+     * (keyed by tool call id), and pinned-context references — then the
+     * threads themselves.
      * Everything else is covered by ON DELETE CASCADE.
      */
     private static async deleteThreadsCascade(
         trx: Knex.Transaction,
         deletedThreadUuids: string[],
     ): Promise<{ deletedMemoriesCount: number }> {
+        const threadToolCallIds = (builder: Knex.QueryBuilder) =>
+            builder
+                .select(`${AiAgentToolCallTableName}.tool_call_id`)
+                .from(AiAgentToolCallTableName)
+                .join(
+                    AiPromptTableName,
+                    `${AiPromptTableName}.ai_prompt_uuid`,
+                    `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                )
+                .whereIn(
+                    `${AiPromptTableName}.ai_thread_uuid`,
+                    deletedThreadUuids,
+                );
+
         await trx(AiSqlApprovalTableName)
-            .whereIn('tool_call_id', (builder) =>
-                builder
-                    .select(`${AiAgentToolCallTableName}.tool_call_id`)
-                    .from(AiAgentToolCallTableName)
-                    .join(
-                        AiPromptTableName,
-                        `${AiPromptTableName}.ai_prompt_uuid`,
-                        `${AiAgentToolCallTableName}.ai_prompt_uuid`,
-                    )
-                    .whereIn(
-                        `${AiPromptTableName}.ai_thread_uuid`,
-                        deletedThreadUuids,
-                    ),
-            )
+            .whereIn('tool_call_id', threadToolCallIds)
+            .delete();
+
+        // Generated-form input (keyed by tool call id) holds what the user
+        // typed, so it goes with the thread.
+        await trx(AiToolUserInputTableName)
+            .whereIn('tool_call_id', threadToolCallIds)
             .delete();
 
         await trx(AiPromptContextTableName)

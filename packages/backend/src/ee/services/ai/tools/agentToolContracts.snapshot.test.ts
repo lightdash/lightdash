@@ -28,6 +28,7 @@ import { getFindCustomChartTypes } from './findCustomChartTypes';
 import { getGenerateDashboardV2 } from './generateDashboardV2';
 import { getGenerateDataApp } from './generateDataApp';
 import { getGenerateHashes } from './generateHashes';
+import { getGenerateUi } from './generateUi';
 import { getGenerateUuids } from './generateUuids';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
@@ -102,6 +103,11 @@ const makeAgentTools = (
         updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
         searchApi: getSearchApi({ catalog: getGenerativeUiApiCatalog() }),
         describeApi: getDescribeApi({ catalog: getGenerativeUiApiCatalog() }),
+        generateUi: getGenerateUi({
+            catalog: getGenerativeUiApiCatalog(),
+            projectUuid: 'project-uuid',
+            findToolUserInput: noopAsync,
+        }),
         editContent: getEditContent({ editContent: noop }),
         findContent: getFindContent({
             findContent: noop,

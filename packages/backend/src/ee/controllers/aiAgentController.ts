@@ -44,6 +44,8 @@ import {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadUpdateRequest,
     ApiAiAgentThreadWorkstreamsResponse,
+    ApiAiAgentUiActionRequest,
+    ApiAiAgentUiActionResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAiMcpGithubAvailabilityResponse,
@@ -1393,6 +1395,44 @@ export class AiAgentController extends BaseController {
                     threadUuid,
                     toolCallId,
                     decision: body.decision,
+                },
+            ),
+        };
+    }
+
+    /**
+     * Record what the user did with a card the agent rendered with generateUi
+     * (the action ran, failed, or was skipped) and reopen the prompt, so the
+     * next stream request resumes the agent with that outcome.
+     * @summary Record UI card outcome
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/tool-calls/{toolCallId}/ui-action')
+    @OperationId('recordAgentUiAction')
+    async recordAgentUiAction(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() toolCallId: string,
+        @Body() body: ApiAiAgentUiActionRequest,
+    ): Promise<ApiAiAgentUiActionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().recordUiActionOutcome(
+                toSessionUser(req.account),
+                {
+                    agentUuid,
+                    threadUuid,
+                    toolCallId,
+                    outcome: body.outcome,
                 },
             ),
         };

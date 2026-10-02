@@ -12,6 +12,7 @@ import {
     STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
 import { getDeferredToolInstructions, getSystemPromptV2 } from './systemV2';
+import { GENERATIVE_UI_SECTION } from './systemV2GenerativeUi';
 import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
@@ -1257,6 +1258,26 @@ describe('getSystemPromptV2 deferred capability sections', () => {
         );
         expect(content).not.toContain(
             "Use generateVisualization when the user's intent is to answer a data question",
+        );
+    });
+});
+
+describe('getSystemPromptV2 generative UI', () => {
+    const baseArgs = {
+        availableExplores: [],
+        date: '2026-09-29',
+    };
+
+    it('explains generateUi only when generative UI is enabled', () => {
+        expect(promptText(baseArgs)).not.toContain(GENERATIVE_UI_SECTION);
+        expect(promptText({ ...baseArgs, enableGenerativeUi: true })).toContain(
+            GENERATIVE_UI_SECTION,
+        );
+    });
+
+    it('keeps generateUi out of runCode and alone in its step', () => {
+        expect(GENERATIVE_UI_SECTION).toContain(
+            'Call `generateUi` as the only tool call in that step, and never from inside `runCode`.',
         );
     });
 });

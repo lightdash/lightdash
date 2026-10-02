@@ -172,6 +172,11 @@ import {
     toolGenerateHashesOutputSchema,
 } from './toolGenerateHashesArgs';
 import {
+    TOOL_GENERATE_UI_DESCRIPTION,
+    toolGenerateUiArgsSchema,
+    toolGenerateUiOutputSchema,
+} from './toolGenerateUiArgs';
+import {
     TOOL_GENERATE_UUIDS_DESCRIPTION,
     toolGenerateUuidsArgsSchema,
     toolGenerateUuidsOutputSchema,
@@ -1025,6 +1030,20 @@ export const searchApiToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolSearchApiArgsSchema,
     agent: { outputSchema: toolSearchApiOutputSchema },
+});
+
+export const generateUiToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateUi',
+    typeof toolGenerateUiArgsSchema,
+    typeof toolGenerateUiArgsSchema,
+    typeof toolGenerateUiOutputSchema
+> = defineTool({
+    name: 'generateUi',
+    title: 'Generate UI',
+    description: TOOL_GENERATE_UI_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGenerateUiArgsSchema,
+    agent: { outputSchema: toolGenerateUiOutputSchema },
 });
 
 export const describeApiToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1956,6 +1975,7 @@ type AgentToolDefinitionsByName = {
     updateUserName: typeof updateUserNameToolDefinition;
     searchApi: typeof searchApiToolDefinition;
     describeApi: typeof describeApiToolDefinition;
+    generateUi: typeof generateUiToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
@@ -2018,6 +2038,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     updateUserName: updateUserNameToolDefinition,
     searchApi: searchApiToolDefinition,
     describeApi: describeApiToolDefinition,
+    generateUi: generateUiToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     loadSkill: loadSkillToolDefinition,
@@ -2087,6 +2108,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     updateUserNameToolDefinition,
     searchApiToolDefinition,
     describeApiToolDefinition,
+    generateUiToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
     loadSkillToolDefinition,

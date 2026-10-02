@@ -498,6 +498,8 @@ import {
     AiThreadShareTableName,
     AiThreadTable,
     AiThreadTableName,
+    AiToolUserInputTable,
+    AiToolUserInputTableName,
     AiWebAppPromptTable,
     AiWebAppPromptTableName,
     AiWebAppThreadTable,
@@ -868,6 +870,7 @@ declare module 'knex/types/tables' {
         [McpToolCallTableName]: McpToolCallTable;
         [McpClientInfoTableName]: McpClientInfoTable;
         [AiSqlApprovalTableName]: AiSqlApprovalTable;
+        [AiToolUserInputTableName]: AiToolUserInputTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;

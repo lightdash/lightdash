@@ -738,6 +738,11 @@ export type IsThreadSqlAutoApprovedFn = (
     threadUuid: string,
 ) => Promise<boolean>;
 
+// What the user submitted to a tool that waited for input, if anything yet.
+export type FindToolUserInputFn = (
+    toolCallId: string,
+) => Promise<{ toolName: string; input: unknown } | null>;
+
 export type LoadAgentSkillFn = (
     name: string,
     options: { arguments: string | null },

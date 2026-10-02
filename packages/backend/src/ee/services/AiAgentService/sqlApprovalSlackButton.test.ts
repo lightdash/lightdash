@@ -71,7 +71,7 @@ const buildService = ({
     recorded?: boolean;
 }) => {
     const aiAgentModel = {
-        findSqlApprovalContext: vi.fn().mockResolvedValue(approvalContext),
+        findToolCallContext: vi.fn().mockResolvedValue(approvalContext),
         getAgent: vi.fn().mockResolvedValue({
             uuid: AGENT_UUID,
             name: 'Agent',

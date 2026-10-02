@@ -32,6 +32,7 @@ import {
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
+import { GENERATIVE_UI_SECTION } from './systemV2GenerativeUi';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     REPO_FS_SECTION,
@@ -179,6 +180,7 @@ export const getSystemPromptV2 = (args: {
     enableToolSearch?: boolean;
     // The runCode tool can orchestrate read-only tools from a program.
     enableCodeMode?: boolean;
+    enableGenerativeUi?: boolean;
 }): SystemModelMessage => {
     const {
         instructions,
@@ -206,6 +208,7 @@ export const getSystemPromptV2 = (args: {
         mcpServers = [],
         enableToolSearch = false,
         enableCodeMode = false,
+        enableGenerativeUi = false,
     } = args;
 
     const capabilitySections = getCapabilitySections(args);
@@ -522,6 +525,7 @@ export const getSystemPromptV2 = (args: {
             : '',
         enableToolSearch ? TOOL_SEARCH_SECTION : '',
         enableCodeMode ? CODE_MODE_SECTION : '',
+        enableGenerativeUi ? GENERATIVE_UI_SECTION : '',
         mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,
