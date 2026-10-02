@@ -1,9 +1,9 @@
 #!/bin/sh
 
-GENERATED_API_FILES="packages/backend/src/generated/routes.ts packages/backend/src/generated/swagger.json"
-if git diff --cached --name-only -- $GENERATED_API_FILES | grep -q .; then
-  git restore --staged -- $GENERATED_API_FILES
-  echo "Unstaged generated API artifacts; they are committed by the release workflow."
+RELEASE_GENERATED_FILES="packages/backend/src/generated/routes.ts packages/backend/src/generated/swagger.json packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/curriculum.ts"
+if git diff --cached --name-only -- $RELEASE_GENERATED_FILES | grep -q .; then
+  git restore --staged -- $RELEASE_GENERATED_FILES
+  echo "Unstaged release-generated artifacts; they are committed by the release workflow."
 fi
 
 if git diff --cached --name-only -- .env | grep -qx '.env' && \

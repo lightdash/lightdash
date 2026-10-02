@@ -7,8 +7,8 @@
  * sidebar position of the docs page they cite, then that page's own heading
  * order.
  *
- * Writes the order the library sorts by. Run it when the markers or the docs
- * change; CI regenerates and fails on a diff, as it does for the tours.
+ * Writes the order the library sorts by. PR CI regenerates it for validation;
+ * the release workflow commits the current result with the generated tours.
  *
  * Usage: pnpm scope-tours:order   (LIGHTDASH_DOCS_DIR overrides ../mintlify-docs)
  */

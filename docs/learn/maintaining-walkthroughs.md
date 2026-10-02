@@ -13,7 +13,7 @@ Two kinds of change can break a walkthrough:
 
 ## Who fixes what
 
-- **Your pull request** keeps `Scope walkthrough checks` green for failures your change caused. Most are fixed by putting an attribute back on the equivalent control or by regenerating the walkthroughs and committing the result.
+- **Your pull request** keeps `Scope walkthrough checks` green for failures your change caused. Most are fixed by putting an attribute back on the equivalent control. PR CI validates changes to walkthrough inputs, and the release workflow commits generated artifacts.
 - **The Learn owners** (Customer Success team, Linear project *Lightdash University*) own failures you did not cause (a docs page renamed upstream, a checker bug, CI setup) and any walkthrough that needs a new click path. Say so on your pull request and ask them; they fix it in a separate pull request against `main` and you rebase.
 - **Never change product UI to make a walkthrough pass.** Adapt the walkthrough instead. For a control only some instances show, that means an optional hop (see *When a learner reports a stuck walkthrough*).
 
@@ -45,7 +45,7 @@ To tell whether you caused a failure, run the same command on `main`. If it fail
     pnpm scope-tours:check
     ```
 
-    Commit any change to `generated.ts` and `curriculum.ts`. Read the diff: a step whose title or text changed is a change learners will see.
+    Do not commit changes to `generated.ts` or `curriculum.ts`; the pre-commit hook unstages them and the release workflow commits them. Still read the local diff: a step whose title or text changed is a change learners will see.
 
 4. **If the click path changed, run the smoke** for the walkthroughs you found in step 1.
 
@@ -116,6 +116,8 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 
 **Playground teaching samples survive a bundle rebuild.** `scripts/playground-bundle/content.ts` and the shipped `packages/backend/assets/playground/content.json` differ. Walkthroughs rely on that seeded content, so the two must change together.
 
+**Validate changed walkthrough inputs.** Changes to frontend files containing `data-tour-*` markers (including multiline values and removals), the generator, sandbox lessons, training scopes or the learn bundle must generate and validate successfully. Other frontend edits, PR builds and previews use committed walkthroughs. Releases try to refresh both artifacts; if docs checkout, generation or validation fails, CI restores both committed files and warns. Coverage remains a required check after fallback. The docs repository checks citations and curriculum ordering before docs changes merge. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
+
 **Content coverage tests.** Tests for the coverage audit (`scripts/scope-tours/coverage.test.ts`). Same as the checker tests: yours only if you changed `scripts/scope-tours`.
 
 **Every curriculum permission has a walkthrough or explicit disposition.** Every permission a training copy grants must either have a walkthrough or be listed as Coming Soon or excluded. The JSON output names the problem:
@@ -124,11 +126,7 @@ The last four steps leave the workspace (Click New and Choose Chart are still on
 - `staleDispositions`: a listed scope now has a walkthrough or no longer exists. Remove the entry.
 - `pending` or `related`: a listed gap that blocks a release. Ask the Learn owners.
 
-**Generated tours are up to date.** Either the generator threw (the log names the file, selector or docs citation; see the table below), or `generated.ts` differs from what the markers and docs produce now. For a diff, run `pnpm scope-tours:generate` and commit. If the diff changes step text and you did not touch any `data-tour-*` attribute, the docs changed upstream; committing the regenerated file is fine.
-
-**The teaching order is up to date.** `curriculum.ts` differs from what the docs produce now. Run `pnpm scope-tours:order` and commit. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
-
-**Generation checks.** `pnpm scope-tours:check` found a rule broken. It prints `file:line: error: message`; warnings do not fail the job.
+**Generate and validate walkthroughs.** `pnpm scope-tours:check` found a rule broken. It prints `file:line: error: message`; warnings do not fail the job.
 
 ### Messages from the generator and the checker
 

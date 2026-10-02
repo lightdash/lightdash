@@ -1,0 +1,60 @@
+name: Prepare walkthrough artifacts
+description: Refresh walkthroughs from docs, preserving committed artifacts on failure.
+inputs:
+    docs-token:
+        description: Token with read access to the docs repository.
+        required: true
+    strict:
+        description: Fail when a PR changes walkthrough inputs and cannot validate them.
+        default: 'false'
+runs:
+    using: composite
+    steps:
+        - name: Checkout walkthrough docs
+          id: docs
+          continue-on-error: true
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          with:
+              repository: lightdash/mintlify-docs
+              path: mintlify-docs
+              token: ${{ inputs.docs-token }}
+              persist-credentials: false
+        - name: Build common
+          shell: bash
+          run: pnpm common-build
+        - name: Generate and validate walkthroughs
+          id: generate
+          if: steps.docs.outcome == 'success'
+          continue-on-error: true
+          shell: bash
+          env:
+              LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+          run: |
+              pnpm scope-tours:generate
+              pnpm scope-tours:order
+              pnpm scope-tours:check
+        - name: Restore committed walkthroughs on failure
+          id: restore
+          if: ${{ !cancelled() && (steps.docs.outcome == 'failure' || steps.generate.outcome == 'failure') }}
+          shell: bash
+          env:
+              DOCS_SHA: ${{ steps.docs.outputs.commit }}
+          run: |
+              git restore --source=HEAD -- packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/curriculum.ts
+              echo "::warning title=Walkthrough refresh failed::Using committed generated.ts and curriculum.ts. See docs/learn/maintaining-walkthroughs.md."
+              {
+                echo '### Walkthrough refresh failed'
+                echo "Docs revision: ${DOCS_SHA:-unavailable}. Both committed artifacts were restored."
+                echo 'See the failed checkout or generation step above for the cause.'
+              } >> "$GITHUB_STEP_SUMMARY"
+        - name: Enforce validation for walkthrough changes
+          id: enforce
+          if: ${{ inputs.strict == 'true' && (steps.docs.outcome == 'failure' || steps.generate.outcome == 'failure') }}
+          shell: bash
+          run: |
+              exit 1
+        - name: Check coverage of the selected walkthroughs
+          id: coverage
+          shell: bash
+          run: |
+              pnpm scope-tours:release-check

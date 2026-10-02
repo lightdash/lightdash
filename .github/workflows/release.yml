@@ -34,6 +34,10 @@ jobs:
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Generate backend API artifacts
         run: pnpm generate-api:backend
+      - name: Prepare walkthrough artifacts
+        uses: ./.github/workflows/_prepare_scope_tours
+        with:
+          docs-token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
       - name: Build all packages
         run: pnpm build
 
@@ -103,6 +107,11 @@ jobs:
           tar -xzf /tmp/oasdiff.tar.gz -C /tmp oasdiff
           sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
           oasdiff --version
+
+      - name: Prepare walkthrough artifacts
+        uses: ./.github/workflows/_prepare_scope_tours
+        with:
+          docs-token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
 
       - name: Semantic Release
         # Config is on release.config.js
