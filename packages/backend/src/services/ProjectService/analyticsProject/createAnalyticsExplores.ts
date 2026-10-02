@@ -1,5 +1,6 @@
 import {
     buildDimensionsFromColumns,
+    CustomFormatType,
     DimensionType,
     ExploreCompiler,
     FieldType,
@@ -38,6 +39,11 @@ import {
     contentReachSql,
 } from '../../../analytics/systemExplores/contentReach';
 import {
+    peopleAdoptionColumns,
+    peopleAdoptionMetrics,
+    peopleAdoptionSql,
+} from '../../../analytics/systemExplores/peopleAdoption';
+import {
     systemStreamMetrics,
     userActivityMetrics,
 } from '../../../analytics/systemExplores/systemStreamMetrics';
@@ -72,6 +78,7 @@ export const analyticsExploreNames = [
     'content_health',
     'agent_requests',
     'agent_request_events',
+    'people_adoption',
 ] as const;
 
 /** Compile backend-owned system models without querying remote storage. */
@@ -87,6 +94,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            people_adoption: {
+                columns: peopleAdoptionColumns,
+                metrics: peopleAdoptionMetrics,
+            },
             content_health: {
                 columns: contentHealthColumns,
                 metrics: contentHealthMetrics,
@@ -126,6 +137,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'content_reach' ||
             name === 'content_health' ||
             name === 'agent_requests' ||
+            name === 'people_adoption' ||
             name === 'agent_request_events'
                 ? model[name]
                 : {
@@ -153,6 +165,29 @@ export const createAnalyticsExplores = (): Explore[] => {
                     'Failed calls divided by calls with a known success/error outcome; unknown outcomes are excluded',
                 type: MetricType.NUMBER,
                 sql: "1.0 * SUM(CASE WHEN ${status} = 'error' THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN ${status} IN ('success', 'error') THEN 1 ELSE 0 END), 0)",
+            };
+        }
+        if (name === 'people_adoption') {
+            for (const window of ['1d', '7d', '30d']) {
+                metrics[`adoption_rate_${window}`] = {
+                    ...base,
+                    name: `adoption_rate_${window}`,
+                    label: `Observed adoption (${window})`,
+                    formatOptions: { type: CustomFormatType.PERCENT, round: 1 },
+                    type: MetricType.NUMBER,
+                    description: `Currently eligible members with confirmed activity in the last ${window} closed UTC days divided by all currently eligible members. Apply role/group filters consistently. Not historical or business-user eligibility.`,
+                    sql: `1.0 * COUNT(DISTINCT CASE WHEN \${is_eligible} AND \${active_${window}} THEN \${user_id} END) / NULLIF(COUNT(DISTINCT CASE WHEN \${is_eligible} THEN \${user_id} END), 0)`,
+                };
+            }
+            metrics.agent_share_30d = {
+                ...base,
+                name: 'agent_share_30d',
+                label: 'Agent share of active people (30d)',
+                formatOptions: { type: CustomFormatType.PERCENT, round: 1 },
+                type: MetricType.NUMBER,
+                description:
+                    'Currently eligible agent requesters divided by currently eligible confirmed active people in the same 30 closed UTC days.',
+                sql: '1.0 * COUNT(DISTINCT CASE WHEN ${is_eligible} AND ${agent_active_30d} THEN ${user_id} END) / NULLIF(COUNT(DISTINCT CASE WHEN ${is_eligible} AND ${active_30d} THEN ${user_id} END), 0)',
             };
         }
         if (name === 'content_reach') {
@@ -222,6 +257,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                         content_reach: contentReachSql,
                         content_health: contentHealthSql,
                         agent_requests: agentRequestsSql,
+                        people_adoption: peopleAdoptionSql,
                     } as Partial<Record<typeof name, string>>
                 )[name] ?? `"${name}"`,
             database: 'memory',
@@ -244,6 +280,19 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
         table.dimensions.project_id.label = 'Project UUID';
+        if (name === 'people_adoption') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.project_id.hidden = true;
+            table.dimensions.name.label = 'User name';
+            table.dimensions.group_ids.description =
+                'JSON array of current group UUIDs. Filter by a quoted UUID to select a group without multiplying people. Groups are not inferred HR teams.';
+            table.dimensions.group_names.description =
+                'Current group names as a JSON array, in UUID order. Overlapping groups keep one person row.';
+            table.dimensions.snapshot_at.description =
+                'When current organization membership was observed. Historical snapshots are retained separately; this Explore uses the latest population.';
+            table.dimensions.no_observed_activity.description =
+                'No confirmed human activity in retained capture, not proof that the person has never used Lightdash.';
+        }
         if (name === 'content_health') {
             table.dimensions.org_id.hidden = true;
             table.dimensions.observed_viewers.description =
@@ -285,10 +334,11 @@ export const createAnalyticsExplores = (): Explore[] => {
     };
 
     return analyticsExploreNames.map((name) => {
-        const dimensions: Exclude<UsageDimensionName, 'content'>[] = [];
+        const dimensions: Exclude<UsageDimensionName, 'content' | 'people'>[] =
+            [];
         if (name === 'query_events' || name === 'export_events') {
             dimensions.push('charts', 'dashboards', 'users');
-        } else if (name !== 'content_health') {
+        } else if (name !== 'content_health' && name !== 'people_adoption') {
             dimensions.push('users');
         }
         if (

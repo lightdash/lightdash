@@ -7,10 +7,12 @@ import {
 import { randomUUID } from 'crypto';
 import knex from 'knex';
 import { gzipSync } from 'zlib';
+import Logger from '../../logging/logger';
 import { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
+import { peopleMembershipHistoryKey } from './peopleMembership';
 import { usageDimensionKey } from './usageDimensions';
 import { UsageEventsCompactor } from './UsageEventsCompactor';
 
@@ -88,8 +90,11 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
                     CREATE INDEX ON saved_queries(project_uuid);
                     CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
-                    CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean, is_internal boolean);
-                    CREATE TABLE organization_memberships (organization_id integer, user_id integer, PRIMARY KEY(organization_id, user_id));
+                    CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean, is_internal boolean, is_setup_complete boolean DEFAULT true);
+                    CREATE TABLE organization_memberships (organization_id integer, user_id integer, role text DEFAULT 'member', role_uuid uuid, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(organization_id, user_id));
+                    CREATE TABLE groups (group_uuid uuid PRIMARY KEY, organization_id integer, name text);
+                    CREATE TABLE group_memberships (group_uuid uuid, organization_id integer, user_id integer, PRIMARY KEY(group_uuid, user_id));
+                    CREATE INDEX group_memberships_user_org_idx ON group_memberships (user_id, organization_id);
                 `);
                 await fixture('organizations').insert([
                     { organization_id: 1, organization_uuid: org },
@@ -270,7 +275,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     }).run(new Date('2026-01-02'));
                 const summary = await run();
                 expect(summary.dimensions).toEqual({
-                    refreshed: 10,
+                    refreshed: 12,
                     failed: 0,
                 });
                 const source = createS3AnalyticsSourceResolver({
@@ -308,6 +313,29 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         parameterDefinitions: {},
                         timezone: 'UTC',
                     }).compileQuery().query;
+                const peopleExplore = createAnalyticsExplores().find(
+                    (e) => e.name === 'people_adoption',
+                )!;
+                const peopleQuery = sql([], peopleExplore, [
+                    'people_adoption_eligible_people',
+                    'people_adoption_people_without_observed_activity',
+                ]);
+                // Legacy queries have unknown intent; a UUID is not human activity.
+                expect((await reader.runQuery(peopleQuery)).rows).toEqual([
+                    {
+                        people_adoption_eligible_people: '2',
+                        people_adoption_people_without_observed_activity: '2',
+                    },
+                ]);
+                const snapshotKey = peopleMembershipHistoryKey(org, new Date());
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: snapshotKey,
+                        })
+                    ).ContentLength,
+                ).toBeGreaterThan(0);
                 expect(sql([])).not.toContain('JOIN');
                 const healthExplore = createAnalyticsExplores().find(
                     (e) => e.name === 'content_health',
@@ -463,6 +491,14 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'charts'),
                 });
+                const originalPeopleSnapshot = await s3.headObject({
+                    Bucket: storage.bucket,
+                    Key: usageDimensionKey(org, 'people'),
+                });
+                const originalPeopleHistory = await s3.headObject({
+                    Bucket: storage.bucket,
+                    Key: snapshotKey,
+                });
                 const originalContentSnapshot = await s3.headObject({
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'content'),
@@ -473,7 +509,9 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     async function* interruptedExport(organization, dimension) {
                         if (
                             organization.organization_uuid === org &&
-                            (dimension === 'charts' || dimension === 'content')
+                            (dimension === 'charts' ||
+                                dimension === 'content' ||
+                                dimension === 'people')
                         ) {
                             yield '{}\n';
                             throw new Error(
@@ -489,7 +527,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         prometheusMetrics: null,
                         usageDimensionsModel: failingModel,
                     }).run(new Date('2026-01-02')),
-                ).rejects.toThrow('2 refreshes failed');
+                ).rejects.toThrow('3 refreshes failed');
                 expect(
                     (
                         await s3.headObject({
@@ -506,8 +544,24 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         })
                     ).ETag,
                 ).toBe(originalContentSnapshot.ETag);
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: usageDimensionKey(org, 'people'),
+                        })
+                    ).ETag,
+                ).toBe(originalPeopleSnapshot.ETag);
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: snapshotKey,
+                        })
+                    ).ETag,
+                ).toBe(originalPeopleHistory.ETag);
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 10,
+                    refreshed: 12,
                     failed: 0,
                 });
                 await fixture('ai_agent')
@@ -523,7 +577,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     .where('user_id', 1)
                     .update({ first_name: 'User renamed' });
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 10,
+                    refreshed: 12,
                     failed: 0,
                 });
                 expect((await reader.runQuery(joinedSql)).rows).toEqual(
@@ -600,6 +654,46 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         (row) => row.lightdash_users_name === 'Unknown user',
                     ),
                 ).toBe(true);
+
+                // Exercise bounded population pagination without a user-id group
+                // index that production does not have. Enrichment stays set-based.
+                await db.raw(`INSERT INTO users (user_id,user_uuid,first_name,is_active,is_internal)
+                    SELECT n, md5('person-' || n)::uuid, 'Person ' || n, true, false
+                    FROM generate_series(100, 10099) n`);
+                await db.raw(`INSERT INTO organization_memberships (organization_id,user_id)
+                    SELECT 1, n FROM generate_series(100,10099) n`);
+                const groupA = randomUUID();
+                const groupB = randomUUID();
+                await fixture('groups').insert([
+                    { group_uuid: groupA, organization_id: 1, name: 'Group A' },
+                    { group_uuid: groupB, organization_id: 1, name: 'Group B' },
+                ]);
+                await db.raw(
+                    `INSERT INTO group_memberships SELECT g.group_uuid, 1, u.user_id FROM groups g CROSS JOIN users u WHERE u.user_id >= 100`,
+                );
+                await db.raw('DROP INDEX group_memberships_user_org_idx');
+                const started = Date.now();
+                const exported = [];
+                for await (const line of new UsageDimensionsModel(
+                    db,
+                ).getJsonLines(
+                    { organization_id: 1, organization_uuid: org },
+                    'people',
+                ))
+                    exported.push(JSON.parse(line));
+                expect(exported).toHaveLength(10001);
+                expect(new Set(exported.map((p) => p.user_id)).size).toBe(
+                    10001,
+                );
+                expect(
+                    exported.find((p) => p.name === 'Person 100').group_names,
+                ).toContain('Group A');
+                expect(
+                    exported.find((p) => p.name === 'Person 100').group_names,
+                ).toContain('Group B');
+                Logger.info(
+                    `People snapshot: 10001 members, 20000 group memberships, ${Date.now() - started}ms`,
+                );
             } finally {
                 if (bucketCreated) {
                     const objects = await s3.listObjectsV2({

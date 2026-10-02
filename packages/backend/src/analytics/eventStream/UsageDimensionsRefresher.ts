@@ -12,6 +12,7 @@ import type { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import { quoteDuckdbIdentifier } from '../../utils/duckdb/duckdbSqlTables';
+import { peopleMembershipHistoryKey } from './peopleMembership';
 import {
     usageDimensionKey,
     usageDimensionNames,
@@ -42,6 +43,7 @@ export class UsageDimensionsRefresher extends S3BaseClient {
     }
 
     async run(): Promise<DimensionRefreshSummary> {
+        const observedAt = new Date();
         const summary = { refreshed: 0, failed: 0 };
         try {
             // eslint-disable-next-line no-restricted-syntax
@@ -52,7 +54,12 @@ export class UsageDimensionsRefresher extends S3BaseClient {
                         await this.refresh(
                             organization.organization_uuid,
                             dimension,
-                            this.model.getJsonLines(organization, dimension),
+                            this.model.getJsonLines(
+                                organization,
+                                dimension,
+                                observedAt,
+                            ),
+                            observedAt,
                         );
                         summary.refreshed += 1;
                     } catch (error) {
@@ -76,6 +83,7 @@ export class UsageDimensionsRefresher extends S3BaseClient {
         orgId: string,
         dimension: UsageDimensionName,
         rows: AsyncIterable<string>,
+        observedAt: Date,
     ): Promise<void> {
         if (!this.s3)
             throw new Error('Usage dimensions storage is not configured');
@@ -98,22 +106,33 @@ export class UsageDimensionsRefresher extends S3BaseClient {
             await this.duckdb.runSqlWithMetrics(
                 `COPY (${select}) TO ${literal(parquetFile)} (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 16384)`,
             );
-            const body = createReadStream(parquetFile);
-            try {
-                await new Upload({
-                    client: this.s3,
-                    queueSize: 1,
-                    partSize: 8 * 1024 * 1024,
-                    leavePartsOnError: false,
-                    params: {
-                        Bucket: this.storage.bucket,
-                        Key: usageDimensionKey(orgId, dimension),
-                        Body: body,
-                        ContentType: 'application/vnd.apache.parquet',
-                    },
-                }).done();
-            } finally {
-                body.destroy();
+            // Publish only after the complete bounded export and conversion.
+            // Save history first; failure never replaces the current snapshot.
+            const keys = [
+                ...(dimension === 'people'
+                    ? [peopleMembershipHistoryKey(orgId, observedAt)]
+                    : []),
+                usageDimensionKey(orgId, dimension),
+            ];
+            for (const key of keys) {
+                const body = createReadStream(parquetFile);
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Upload({
+                        client: this.s3,
+                        queueSize: 1,
+                        partSize: 8 * 1024 * 1024,
+                        leavePartsOnError: false,
+                        params: {
+                            Bucket: this.storage.bucket,
+                            Key: key,
+                            Body: body,
+                            ContentType: 'application/vnd.apache.parquet',
+                        },
+                    }).done();
+                } finally {
+                    body.destroy();
+                }
             }
         } finally {
             await rm(directory, { recursive: true, force: true });

@@ -68,10 +68,98 @@ export class UsageDimensionsModel {
     async *getJsonLines(
         organization: Organization,
         dimension: UsageDimensionName,
+        observedAt: Date = new Date(),
     ): AsyncGenerator<string> {
         const { organization_id: orgId, organization_uuid: orgUuid } =
             organization;
         switch (dimension) {
+            case 'people': {
+                let cursor = 0;
+                while (true) {
+                    const pageCursor = cursor;
+                    const page = this.database
+                        .with('people_page', (qb) =>
+                            qb
+                                .from('organization_memberships as m')
+                                .join('users as u', 'u.user_id', 'm.user_id')
+                                .where('m.organization_id', orgId)
+                                .where('m.user_id', '>', pageCursor)
+                                .where('u.is_internal', false)
+                                .select(
+                                    'u.user_id',
+                                    'u.user_uuid',
+                                    'u.first_name',
+                                    'u.last_name',
+                                    'u.is_active',
+                                    'u.is_setup_complete',
+                                    'm.role',
+                                    'm.role_uuid',
+                                    'm.created_at',
+                                )
+                                .orderBy('m.user_id')
+                                .limit(USAGE_DIMENSION_PAGE_SIZE),
+                        )
+                        // Prevent PostgreSQL from re-evaluating this aggregate
+                        // for each person when group membership has no user index.
+                        .withMaterialized('people_groups', (qb) =>
+                            qb
+                                .from('group_memberships as gm')
+                                .join(
+                                    'people_page as p',
+                                    'p.user_id',
+                                    'gm.user_id',
+                                )
+                                .join(
+                                    'groups as g',
+                                    'g.group_uuid',
+                                    'gm.group_uuid',
+                                )
+                                .where('gm.organization_id', orgId)
+                                .where('g.organization_id', orgId)
+                                .groupBy('gm.user_id')
+                                .select(
+                                    'gm.user_id',
+                                    this.database.raw(`
+                                json_agg(g.group_uuid ORDER BY g.group_uuid)::text AS group_ids,
+                                json_agg(g.name ORDER BY g.group_uuid)::text AS group_names`),
+                                ),
+                        )
+                        .from('people_page as p')
+                        .leftJoin(
+                            'people_groups as g',
+                            'g.user_id',
+                            'p.user_id',
+                        )
+                        .orderBy('p.user_id')
+                        .select(
+                            'p.user_id',
+                            this.database.raw(
+                                `json_build_object(
+                            'org_id', ?::text, 'user_id', p.user_uuid,
+                            'name', NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''),
+                            'organization_role', p.role, 'role_id', p.role_uuid,
+                            'membership_created_at', p.created_at, 'snapshot_at', ?::timestamptz,
+                            'is_active', p.is_active, 'is_setup_complete', p.is_setup_complete,
+                            'is_eligible', p.is_active AND p.is_setup_complete,
+                            'group_ids', COALESCE(g.group_ids, '[]'),
+                            'group_names', COALESCE(g.group_names, '[]')
+                        )::text AS json`,
+                                [orgUuid, observedAt.toISOString()],
+                            ),
+                        );
+                    // Bounded pages and set-based group enrichment; no per-user
+                    // subqueries and no transaction across storage IO.
+                    // eslint-disable-next-line no-await-in-loop
+                    const rows = await this.readPage<{
+                        user_id: number;
+                        json: string;
+                    }>(page);
+                    if (rows.length === 0) break;
+                    for (const row of rows) yield `${row.json}\n`;
+                    cursor = rows[rows.length - 1].user_id;
+                }
+                return;
+            }
             case 'content': {
                 for (const contentType of usageContentTypes) {
                     let cursor: string | null = null;
