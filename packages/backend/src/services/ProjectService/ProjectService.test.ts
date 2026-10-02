@@ -255,6 +255,9 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    reconnectSharedSignIn: vi.fn<ProjectModel['reconnectSharedSignIn']>(
+        async () => ({ kind: 'skipped' }),
+    ),
     duplicateContent: vi.fn(async () => ({ spaceMapping: {} })),
     runInAnalyticsProvisioningLock: vi.fn(
         async (_org: string, callback: () => Promise<unknown>) => callback(),
@@ -12940,28 +12943,26 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         );
     });
 
-    test('writes the new token with the form save path and records the caller', async () => {
+    test('resolves the keyfile and leaves other project fields to the locked write', async () => {
         await service.reconnectSharedSignIn(
             developerAccount,
             projectSummary.projectUuid,
         );
-        expect(projectModel.update).toHaveBeenCalledWith(
+        expect(projectModel.reconnectSharedSignIn).toHaveBeenCalledWith(
             projectSummary.projectUuid,
-            expect.objectContaining({
-                warehouseConnection: {
-                    ...credentials,
-                    keyfileContents: {
-                        type: 'authorized_user',
-                        client_id:
-                            lightdashConfigMock.auth.google.oauth2ClientId,
-                        client_secret:
-                            lightdashConfigMock.auth.google.oauth2ClientSecret,
-                        refresh_token: 'new-token',
-                    },
-                },
-            }),
+            'expired-token',
             developerAccount.user.id,
+            {
+                type: 'authorized_user',
+                client_id: lightdashConfigMock.auth.google.oauth2ClientId,
+                client_secret:
+                    lightdashConfigMock.auth.google.oauth2ClientSecret,
+                refresh_token: 'new-token',
+            },
+            developerAccount.user.id,
+            null,
         );
+        expect(projectModel.update).not.toHaveBeenCalled();
         expect(grant.getRefreshToken).toHaveBeenCalledWith(
             developerAccount.user.id,
             OpenIdIdentityIssuerType.GOOGLE,
@@ -12988,38 +12989,22 @@ describe('ProjectService.reconnectSharedSignIn', () => {
             projectSummary.projectUuid,
         );
 
-        expect(projectModel.update).toHaveBeenCalledWith(
+        expect(projectModel.reconnectSharedSignIn).toHaveBeenCalledWith(
             projectSummary.projectUuid,
-            expect.objectContaining({
-                warehouseConnection: expect.objectContaining({
-                    authenticationType: BigqueryAuthenticationType.SSO,
-                    keyfileContents: expect.objectContaining({
-                        refresh_token: 'new-token',
-                    }),
-                }),
-            }),
+            'expired-token',
             developerAccount.user.id,
+            expect.objectContaining({ refresh_token: 'new-token' }),
+            developerAccount.user.id,
+            null,
         );
     });
 
     test('refuses to write when the stored token changes during sign-in', async () => {
-        projectModel.getWithSensitiveFields
-            .mockResolvedValueOnce({
-                ...projectWithSensitiveFields,
-                warehouseConnection: credentials,
-                organizationWarehouseCredentialsUuid: undefined,
-            } as never)
-            .mockResolvedValueOnce({
-                ...projectWithSensitiveFields,
-                warehouseConnection: {
-                    ...credentials,
-                    keyfileContents: {
-                        ...credentials.keyfileContents,
-                        refresh_token: 'replacement-token',
-                    },
-                },
-                organizationWarehouseCredentialsUuid: undefined,
-            } as never);
+        projectModel.reconnectSharedSignIn.mockRejectedValueOnce(
+            new ParameterError(
+                'This connection changed while you were signing in. Reload the page and try again.',
+            ),
+        );
 
         await expect(
             service.reconnectSharedSignIn(
@@ -13033,17 +13018,11 @@ describe('ProjectService.reconnectSharedSignIn', () => {
     });
 
     test('refuses to write when the recorded subject changes during sign-in', async () => {
-        model.getSharedSignInSubjectForToken
-            .mockResolvedValueOnce({
-                provider: PersonSignInProvider.GOOGLE,
-                subject: { userUuid: developerAccount.user.id, name: 'Owner' },
-                basis: SignInSubjectBasis.RECORDED,
-            })
-            .mockResolvedValueOnce({
-                provider: PersonSignInProvider.GOOGLE,
-                subject: { userUuid: 'another-user', name: 'Other' },
-                basis: SignInSubjectBasis.RECORDED,
-            });
+        projectModel.reconnectSharedSignIn.mockRejectedValueOnce(
+            new ParameterError(
+                'This connection changed while you were signing in. Reload the page and try again.',
+            ),
+        );
 
         await expect(
             service.reconnectSharedSignIn(
@@ -13060,7 +13039,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
             adminAccount,
             projectSummary.projectUuid,
         );
-        expect(projectModel.update).toHaveBeenCalledOnce();
+        expect(projectModel.reconnectSharedSignIn).toHaveBeenCalledOnce();
     });
 
     test('allows the recorded person but refuses an admin by name', async () => {
@@ -13074,7 +13053,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
                 projectSummary.projectUuid,
             ),
         ).rejects.toThrow("Only Owner can reconnect this project's sign-in");
-        expect(projectModel.update).toHaveBeenCalledOnce();
+        expect(projectModel.reconnectSharedSignIn).toHaveBeenCalledOnce();
     });
 
     test('allows the creator and an admin for a guessed creator, but refuses a viewer', async () => {
@@ -13097,7 +13076,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
                 projectSummary.projectUuid,
             ),
         ).rejects.toBeInstanceOf(ForbiddenError);
-        expect(projectModel.update).toHaveBeenCalledTimes(2);
+        expect(projectModel.reconnectSharedSignIn).toHaveBeenCalledTimes(2);
     });
 
     test('refuses a viewer and a disabled flag', async () => {

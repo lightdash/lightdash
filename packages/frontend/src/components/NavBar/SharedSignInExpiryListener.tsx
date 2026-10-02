@@ -14,7 +14,10 @@ import {
 } from '../../hooks/toaster/sharedSignInToastSuppression';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
-import { getSharedSignInStatus } from '../../hooks/useReconnectSharedSignIn';
+import {
+    getSharedSignInStatus,
+    SHARED_SIGN_IN_QUERY_FAILED,
+} from '../../hooks/useReconnectSharedSignIn';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import {
@@ -23,6 +26,8 @@ import {
 } from '../ProjectConnection/SharedSignIn/sharedSignInCopy';
 import { SharedSignInReconnectModal } from '../ProjectConnection/SharedSignIn/SharedSignInReconnectModal';
 import {
+    queryBelongsToProject,
+    scheduleSharedSignInCooldownCheck,
     shouldCheckSharedSignInStatus,
     shouldUseSharedSignInStatus,
 } from './sharedSignInListenerDecision';
@@ -56,6 +61,12 @@ export const SharedSignInExpiryListener: FC = () => {
     }, [modalProjectUuid]);
 
     useEffect(() => {
+        if (!activeProjectUuid) return;
+        let trailingCheck: ReturnType<typeof setTimeout> | null = null;
+        const clearTrailingCheck = () => {
+            if (trailingCheck) clearTimeout(trailingCheck);
+            trailingCheck = null;
+        };
         const showExpiryToast = (error: unknown) => {
             const apiError = (error as Partial<ApiError> | null)?.error;
             if (!apiError || !activeProjectUuid) return;
@@ -68,6 +79,7 @@ export const SharedSignInExpiryListener: FC = () => {
                     expiry.subjectBasis === SignInSubjectBasis.PROJECT_CREATOR);
             showToastWarning({
                 key: 'shared-sign-in-expired',
+                projectUuid: activeProjectUuid,
                 title: getExpiredSharedSignInMessage(expiry, userUuid),
                 autoClose: false,
                 action: isSubject
@@ -98,8 +110,30 @@ export const SharedSignInExpiryListener: FC = () => {
                     lastChecks: lastChecks.current,
                     now: Date.now(),
                 })
-            )
+            ) {
+                const lastCheck = lastChecks.current.get(activeProjectUuid);
+                if (
+                    lastCheck !== undefined &&
+                    Date.now() - lastCheck < 60_000 &&
+                    !openProjects.current.has(activeProjectUuid) &&
+                    !dismissedProjects.current.has(activeProjectUuid)
+                ) {
+                    clearTrailingCheck();
+                    const runTrailing = () => {
+                        if (pendingProjects.current.has(activeProjectUuid)) {
+                            trailingCheck = setTimeout(runTrailing, 100);
+                        } else {
+                            notify(error);
+                        }
+                    };
+                    trailingCheck = scheduleSharedSignInCooldownCheck(
+                        lastCheck,
+                        runTrailing,
+                    );
+                }
                 return;
+            }
+            clearTrailingCheck();
             lastChecks.current.set(activeProjectUuid, Date.now());
             pendingProjects.current.add(activeProjectUuid);
             const projectUuid = activeProjectUuid;
@@ -141,21 +175,51 @@ export const SharedSignInExpiryListener: FC = () => {
         const unsubscribeQueries = queryClient
             .getQueryCache()
             .subscribe((event) => {
-                if (event.type === 'updated') notify(event.query.state.error);
+                if (
+                    event.type === 'updated' &&
+                    queryBelongsToProject(
+                        event.query.queryKey,
+                        activeProjectUuid,
+                    )
+                )
+                    notify(event.query.state.error);
             });
         const unsubscribeMutations = queryClient
             .getMutationCache()
             .subscribe((event) => {
-                if (event.type === 'updated') {
+                if (
+                    event.type === 'updated' &&
+                    queryBelongsToProject(
+                        event.mutation.options.mutationKey,
+                        activeProjectUuid,
+                    )
+                ) {
                     notify(event.mutation?.state.error);
                 }
             });
         for (const query of queryClient.getQueryCache().getAll()) {
-            if (query.state.status === 'error') notify(query.state.error);
+            if (
+                query.state.status === 'error' &&
+                queryBelongsToProject(query.queryKey, activeProjectUuid)
+            )
+                notify(query.state.error);
         }
+        const onQueryFailed = (event: Event) => {
+            if (
+                event instanceof CustomEvent &&
+                event.detail?.projectUuid === activeProjectUuid
+            )
+                notify(event.detail.error);
+        };
+        window.addEventListener(SHARED_SIGN_IN_QUERY_FAILED, onQueryFailed);
         return () => {
+            clearTrailingCheck();
             unsubscribeQueries();
             unsubscribeMutations();
+            window.removeEventListener(
+                SHARED_SIGN_IN_QUERY_FAILED,
+                onQueryFailed,
+            );
         };
     }, [
         queryClient,

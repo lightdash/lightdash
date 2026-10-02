@@ -7,6 +7,18 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
 export const SHARED_SIGN_IN_RECONNECTED = 'shared-sign-in-reconnected';
+export const SHARED_SIGN_IN_QUERY_FAILED = 'shared-sign-in-query-failed';
+
+export const reportSharedSignInQueryFailure = (
+    projectUuid: string,
+    error: unknown,
+) => {
+    window.dispatchEvent(
+        new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
+            detail: { projectUuid, error },
+        }),
+    );
+};
 
 export const getSharedSignInStatus = (projectUuid: string) =>
     lightdashApi<SharedSignInStatus | null>({

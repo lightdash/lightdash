@@ -19,6 +19,7 @@ export type NotificationData = Omit<
         icon?: Icon;
     };
     apiError?: ApiErrorDetail;
+    projectUuid?: string;
     messageKey?: string;
     receivedAt?: string;
 };

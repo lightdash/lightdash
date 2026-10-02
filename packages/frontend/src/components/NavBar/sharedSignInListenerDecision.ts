@@ -1,3 +1,14 @@
+export const queryBelongsToProject = (
+    key: readonly unknown[] | undefined,
+    projectUuid: string,
+): boolean => key?.includes(projectUuid) ?? false;
+
+export const scheduleSharedSignInCooldownCheck = (
+    lastCheck: number,
+    check: () => void,
+): ReturnType<typeof setTimeout> =>
+    setTimeout(check, Math.max(0, lastCheck + 60_000 - Date.now()));
+
 export const shouldCheckSharedSignInStatus = ({
     projectUuid,
     pendingProjects,

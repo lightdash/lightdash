@@ -36,4 +36,18 @@ test('suppresses only toasts for the project with the open modal', () => {
 
     expect(shouldSuppressSharedSignInToast(error, 'project-a')).toBe(true);
     expect(shouldSuppressSharedSignInToast(error, 'project-b')).toBe(false);
+    expect(shouldSuppressSharedSignInToast(error, undefined)).toBe(false);
+    setSharedSignInToastSuppression(
+        'project-b',
+        {
+            provider: PersonSignInProvider.GOOGLE,
+            subject: { userUuid: 'owner', name: 'Owner' },
+            subjectBasis: SignInSubjectBasis.RECORDED,
+            expired: true,
+            canReconnect: true,
+        },
+        'owner',
+    );
+    expect(shouldSuppressSharedSignInToast(error, 'project-a')).toBe(false);
+    clearSharedSignInToastSuppression('project-b');
 });

@@ -3427,37 +3427,56 @@ export class ProjectService extends BaseService {
                 'Sign in with Google did not finish. Try again.',
             );
         }
-        const currentProject =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
-        const currentSignIn = currentProject.warehouseConnection
-            ? getPersonSignIn(currentProject.warehouseConnection)
-            : null;
-        const currentOwner = currentSignIn
-            ? await this.projectModel.getSharedSignInSubjectForToken(
-                  projectUuid,
-                  currentSignIn.refreshToken,
-              )
-            : null;
-        if (
-            currentProject.organizationWarehouseCredentialsUuid ||
-            currentProject.warehouseConnection?.type !==
-                WarehouseTypes.BIGQUERY ||
-            currentSignIn?.refreshToken !== signIn.refreshToken ||
-            currentOwner?.provider !== owner?.provider ||
-            currentOwner?.subject?.userUuid !== owner?.subject?.userUuid ||
-            currentOwner?.basis !== owner?.basis
-        ) {
-            throw new ParameterError(
-                'This connection changed while you were signing in. Reload the page and try again.',
+        const resolved = await this._resolveWarehouseClientCredentials(
+            {
+                warehouseConnection: {
+                    ...credentials,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents: {},
+                },
+            },
+            account.user.id,
+            project.organizationUuid,
+        );
+        const resolvedCredentials = resolved.warehouseConnection;
+        if (resolvedCredentials.type !== WarehouseTypes.BIGQUERY) {
+            throw new UnexpectedServerError(
+                'Could not resolve BigQuery sign-in.',
             );
         }
-        await this.updateWarehouseCredentials(projectUuid, account, {
-            warehouseConnection: {
-                ...credentials,
-                authenticationType: BigqueryAuthenticationType.SSO,
-                keyfileContents: {},
+        const pushToPreview = await this.getSsoPushToPreviews({
+            savedProject: project,
+            updatedProject: {
+                name: project.name,
+                dbtConnection: project.dbtConnection,
+                dbtVersion: project.dbtVersion,
+                warehouseConnection: resolvedCredentials,
             },
         });
+        const push = await this.projectModel.reconnectSharedSignIn(
+            projectUuid,
+            signIn.refreshToken,
+            owner?.basis === SignInSubjectBasis.RECORDED
+                ? (owner.subject?.userUuid ?? null)
+                : null,
+            resolvedCredentials.keyfileContents,
+            account.user.id,
+            pushToPreview
+                ? (next) =>
+                      ({ previewCredentials, previousUpstreamCredentials }) =>
+                          getPushedPreviewCredentials({
+                              previewCredentials,
+                              previousUpstreamCredentials,
+                              nextUpstreamCredentials: next,
+                          })
+                : null,
+        );
+        if (push.kind === 'failed') {
+            this.logger.error('Failed to push SSO credentials to previews', {
+                projectUuid,
+                error: getErrorMessage(push.error),
+            });
+        }
     }
 
     private async syncPreAggregateDefinitionsRegistry(

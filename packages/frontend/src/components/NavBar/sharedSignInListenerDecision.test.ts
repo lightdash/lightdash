@@ -1,10 +1,39 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
+    queryBelongsToProject,
+    scheduleSharedSignInCooldownCheck,
     shouldCheckSharedSignInStatus,
     shouldUseSharedSignInStatus,
 } from './sharedSignInListenerDecision';
 
 describe('shared sign-in listener decisions', () => {
+    test('ignores cached errors from another project or an unscoped query', () => {
+        expect(queryBelongsToProject(['query', 'project-a'], 'project-b')).toBe(
+            false,
+        );
+        expect(queryBelongsToProject(['query'], 'project-b')).toBe(false);
+        expect(queryBelongsToProject(undefined, 'project-b')).toBe(false);
+        expect(queryBelongsToProject(['query', 'project-b'], 'project-b')).toBe(
+            true,
+        );
+    });
+
+    test('runs one trailing check at the cooldown boundary and cancels it on cleanup', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(100_000);
+        const check = vi.fn();
+        const timer = scheduleSharedSignInCooldownCheck(90_000, check);
+        vi.advanceTimersByTime(49_999);
+        expect(check).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(check).toHaveBeenCalledOnce();
+        const cancelled = scheduleSharedSignInCooldownCheck(140_000, check);
+        clearTimeout(cancelled);
+        clearTimeout(timer);
+        vi.advanceTimersByTime(60_000);
+        expect(check).toHaveBeenCalledOnce();
+        vi.useRealTimers();
+    });
     const projectUuid = 'project-a';
     const pendingProjects = new Set<string>();
     const openProjects = new Set<string>();
