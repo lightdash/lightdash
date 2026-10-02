@@ -2084,6 +2084,23 @@ LIMIT 10`;
             );
         });
 
+        test('Should throw when a metric using ${TABLE} would be projected from separately aggregated tables', () => {
+            expect(() =>
+                buildQuery({
+                    explore: EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE,
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                        metrics: ['orders_raw_revenue_per_customer'],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }),
+            ).toThrow(
+                'Tried to reference ${TABLE} from metric "orders_raw_revenue_per_customer" in a query that aggregates tables separately. Reference a metric on "orders" instead.',
+            );
+        });
+
         test('Should render an unnested table with the alias its FROM item already carries', () => {
             const explore: Explore = {
                 targetDatabase: SupportedDbtAdapter.BIGQUERY,
