@@ -190,6 +190,7 @@ import { isAgentScopedQueryContext } from '../../ee/services/ai/utils/scopedSqlC
 import {
     findSqlScopeViolations,
     formatSqlScopeError,
+    isSqlScopeConfigured,
 } from '../../ee/services/ai/utils/sqlScope';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -7984,7 +7985,23 @@ export class AsyncQueryService extends ProjectService {
         if (isAgentScopedQueryContext(context)) {
             const sqlScope =
                 await this.projectModel.getAgentSqlScope(projectUuid);
-            const violations = findSqlScopeViolations(sql, sqlScope);
+            const hyphenatedIdentifiers = isSqlScopeConfigured(sqlScope)
+                ? (
+                      await this.featureFlagModel.get({
+                          user: {
+                              organizationUuid,
+                              ...(account.isRegisteredUser()
+                                  ? { userUuid: account.user.id }
+                                  : {}),
+                          },
+                          featureFlagId:
+                              FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
+                      })
+                  ).enabled
+                : false;
+            const violations = findSqlScopeViolations(sql, sqlScope, {
+                hyphenatedIdentifiers,
+            });
             if (violations.length > 0 && sqlScope) {
                 this.logger.warn('Blocked out-of-scope agent SQL', {
                     projectUuid,
