@@ -21,13 +21,19 @@ import {
     type AiDeepResearchLimits,
     type AiModelOption,
     type AiOrgModelVisibility,
+    type AiProviderCredentialsList,
     type ByoAiProvider,
+    type CreateAiProviderCredential,
     type DataAppAnalysisLimits,
+    type ProjectAiCredentialSelection,
     type SessionUser,
+    type UpdateAiProviderCredential,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
+import { AiOrganizationProviderCredentialModel } from '../models/AiOrganizationProviderCredentialModel';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import {
@@ -190,7 +196,9 @@ export const areReviewsEnabledForSettings = (
 
 type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
+    aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
     organizationModel: OrganizationModel;
+    projectModel: ProjectModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
@@ -199,7 +207,11 @@ type AiOrganizationSettingsServiceDependencies = {
 export class AiOrganizationSettingsService extends BaseService {
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
+    private readonly aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
+
     private readonly organizationModel: OrganizationModel;
+
+    private readonly projectModel: ProjectModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
@@ -214,7 +226,10 @@ export class AiOrganizationSettingsService extends BaseService {
         super();
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
+        this.aiOrganizationProviderCredentialModel =
+            dependencies.aiOrganizationProviderCredentialModel;
         this.organizationModel = dependencies.organizationModel;
+        this.projectModel = dependencies.projectModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -906,5 +921,378 @@ export class AiOrganizationSettingsService extends BaseService {
             );
 
         return settings?.mcpContentWritesEnabled ?? true;
+    }
+
+    /**
+     * Named provider credentials for the organization, plus any Bedrock config
+     * still held in the legacy single-key blob and any row whose ciphertext
+     * cannot be read.
+     */
+    async listProviderCredentials(
+        user: SessionUser,
+    ): Promise<AiProviderCredentialsList> {
+        this.checkManageAiAgentAccess(user);
+        const organizationUuid = user.organizationUuid!;
+
+        const [{ credentials, unreadable }, settings] = await Promise.all([
+            this.aiOrganizationProviderCredentialModel.findAllByOrganizationUuid(
+                organizationUuid,
+            ),
+            this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            ),
+        ]);
+
+        // Only surfaced while the org has not adopted it as a credential;
+        // adoption happens on the first credential write.
+        const legacyBedrock =
+            credentials.length === 0 && settings?.bedrockConfig
+                ? {
+                      region: settings.bedrockConfig.region,
+                      allowedModels: settings.bedrockConfig.allowedModels,
+                      apiKeyHint: settings.providerApiKeyHints.bedrock ?? '',
+                  }
+                : null;
+
+        return {
+            credentials,
+            legacyBedrock,
+            unreadableCredentials: unreadable,
+        };
+    }
+
+    /**
+     * Move a legacy single-blob Bedrock config into a real credential before
+     * the first explicit credential is created. Without this, adding a second
+     * region would leave the original config unreachable from the list, and
+     * clearing the blob outright would lose it.
+     *
+     * The adopted credential becomes the default because the blob was already
+     * serving the whole organization — so unscoped paths keep their region.
+     */
+    private async adoptLegacyBedrockCredential(
+        user: SessionUser,
+        organizationUuid: string,
+    ): Promise<void> {
+        const existingCount =
+            await this.aiOrganizationProviderCredentialModel.countByOrganizationUuid(
+                organizationUuid,
+            );
+        if (existingCount > 0) return;
+
+        const legacy =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!legacy?.bedrock) return;
+
+        await this.aiOrganizationProviderCredentialModel.create(
+            organizationUuid,
+            user.userUuid,
+            {
+                provider: 'bedrock',
+                label: legacy.bedrock.region,
+                region: legacy.bedrock.region,
+                allowedModels: legacy.bedrock.allowedModels,
+                apiKey: legacy.bedrock.apiKey,
+            },
+        );
+        // The blob is deliberately NOT cleared here — see
+        // `mirrorDefaultCredentialToLegacyBlob`.
+    }
+
+    /**
+     * Keep the legacy single-blob Bedrock config in step with the default
+     * credential, and clear it only when no credentials remain.
+     *
+     * A release that is mid-rollout still has N−1 pods serving traffic, and
+     * those pods know nothing about the credentials table — the blob is the
+     * only configuration they can read. Clearing it on adoption would make
+     * them see no Bedrock key at all and fall through to another provider,
+     * which for a region-pinned organization is a data-residency break rather
+     * than an outage. Mirroring means an old pod resolves the organization's
+     * default region, which is the closest thing it is capable of.
+     *
+     * It also keeps the resolver's legacy fallback honest: the blob can never
+     * hold a region staler than the current default.
+     */
+    private async mirrorDefaultCredentialToLegacyBlob(
+        organizationUuid: string,
+    ): Promise<void> {
+        const defaultCredential =
+            await this.aiOrganizationProviderCredentialModel.findDefaultDecrypted(
+                organizationUuid,
+            );
+
+        if (defaultCredential.status === 'ok') {
+            const { config } = defaultCredential.credential;
+            await this.aiOrganizationSettingsModel.update(organizationUuid, {
+                providerApiKeys: {
+                    bedrock: {
+                        apiKey: config.apiKey,
+                        region: config.region,
+                        allowedModels: config.allowedModels,
+                    },
+                },
+            });
+            return;
+        }
+
+        // An unreadable default is left alone: overwriting the blob with
+        // nothing would strand N−1 pods, and the admin is already being told
+        // to replace that credential.
+        if (defaultCredential.status === 'unreadable') return;
+
+        // No credentials at all — drop the mirror so the organization is back
+        // to having no Bedrock configuration.
+        const existing =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!existing?.bedrock) return;
+        await this.aiOrganizationSettingsModel.update(organizationUuid, {
+            providerApiKeys: { bedrock: null },
+        });
+    }
+
+    /**
+     * Convert a legacy single-blob Bedrock config into a managed credential
+     * without creating a second one.
+     *
+     * Without this an organization that configured Bedrock before named
+     * credentials existed could see its configuration but never change or
+     * remove it: the legacy row has no edit affordance, and adoption otherwise
+     * only happens as a side effect of adding another credential.
+     */
+    async adoptLegacyProviderCredential(user: SessionUser): Promise<void> {
+        this.checkManageAiAgentAccess(user);
+        const organizationUuid = user.organizationUuid!;
+        const existingCount =
+            await this.aiOrganizationProviderCredentialModel.countByOrganizationUuid(
+                organizationUuid,
+            );
+        if (existingCount > 0) {
+            throw new ParameterError(
+                'This organization already manages its credentials; there is nothing to convert.',
+            );
+        }
+        const legacy =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!legacy?.bedrock) {
+            throw new ParameterError(
+                'No legacy Bedrock configuration to convert',
+            );
+        }
+        await this.adoptLegacyBedrockCredential(user, organizationUuid);
+        await this.mirrorDefaultCredentialToLegacyBlob(organizationUuid);
+        await this.reconcileDefaultModelForCredentials(organizationUuid);
+    }
+
+    /**
+     * Keep the organization's default agent model consistent with the set of
+     * credentials, mirroring what the legacy settings path already does.
+     *
+     * Model resolution honours a pinned provider and does not fall back, so a
+     * default left pointing at OpenAI while the resolved config is Bedrock-only
+     * fails every turn with "openai configuration is required" — and the
+     * reverse once the last Bedrock credential is deleted.
+     */
+    private async reconcileDefaultModelForCredentials(
+        organizationUuid: string,
+    ): Promise<void> {
+        const stored =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        const currentDefault = stored?.defaultAiAgentModelConfig;
+        if (!currentDefault) return;
+
+        const { credentials } =
+            await this.aiOrganizationProviderCredentialModel.findAllByOrganizationUuid(
+                organizationUuid,
+            );
+        const defaultCredential = credentials.find((c) => c.isDefault) ?? null;
+
+        if (defaultCredential) {
+            // Bedrock replaces the provider set outright, so the default must
+            // name one of that credential's allowed models.
+            if (
+                currentDefault.modelProvider === 'bedrock' &&
+                defaultCredential.allowedModels.includes(
+                    currentDefault.modelName,
+                )
+            ) {
+                return;
+            }
+            await this.aiOrganizationSettingsModel.update(organizationUuid, {
+                defaultAiAgentModelConfig: {
+                    modelName: defaultCredential.allowedModels[0],
+                    modelProvider: 'bedrock',
+                },
+            });
+            return;
+        }
+
+        // No credentials left: a stored Bedrock default can no longer resolve,
+        // so repoint it at a model the instance config actually serves.
+        if (currentDefault.modelProvider !== 'bedrock') return;
+        const overrides =
+            await this.orgAiCopilotConfigResolver.getOrgModelOverrides(
+                organizationUuid,
+            );
+        const remaining = filterModelsForOrg(
+            getAvailableModels(this.lightdashConfig.ai.copilot),
+            overrides,
+        );
+        await this.aiOrganizationSettingsModel.update(organizationUuid, {
+            defaultAiAgentModelConfig: pickReplacementDefaultModelConfig(
+                remaining,
+                getDefaultModel(this.lightdashConfig.ai.copilot),
+                currentDefault,
+            ),
+        });
+    }
+
+    async createProviderCredential(
+        user: SessionUser,
+        data: CreateAiProviderCredential,
+    ): Promise<{ uuid: string }> {
+        this.checkManageAiAgentAccess(user);
+        const organizationUuid = user.organizationUuid!;
+        await this.adoptLegacyBedrockCredential(user, organizationUuid);
+        const uuid = await this.aiOrganizationProviderCredentialModel.create(
+            organizationUuid,
+            user.userUuid,
+            data,
+        );
+        await this.mirrorDefaultCredentialToLegacyBlob(organizationUuid);
+        await this.reconcileDefaultModelForCredentials(organizationUuid);
+        return { uuid };
+    }
+
+    async updateProviderCredential(
+        user: SessionUser,
+        credentialUuid: string,
+        data: UpdateAiProviderCredential,
+    ): Promise<void> {
+        this.checkManageAiAgentAccess(user);
+        await this.aiOrganizationProviderCredentialModel.update(
+            user.organizationUuid!,
+            credentialUuid,
+            data,
+        );
+    }
+
+    /**
+     * Overwrite a credential wholesale. The only way back for a row whose
+     * ciphertext can no longer be decrypted, since `update` has to merge with
+     * the stored config and cannot read it.
+     */
+    async replaceProviderCredential(
+        user: SessionUser,
+        credentialUuid: string,
+        data: CreateAiProviderCredential,
+    ): Promise<void> {
+        this.checkManageAiAgentAccess(user);
+        await this.aiOrganizationProviderCredentialModel.replace(
+            user.organizationUuid!,
+            credentialUuid,
+            data,
+        );
+        await this.mirrorDefaultCredentialToLegacyBlob(user.organizationUuid!);
+        await this.reconcileDefaultModelForCredentials(user.organizationUuid!);
+    }
+
+    async deleteProviderCredential(
+        user: SessionUser,
+        credentialUuid: string,
+    ): Promise<void> {
+        this.checkManageAiAgentAccess(user);
+        await this.aiOrganizationProviderCredentialModel.delete(
+            user.organizationUuid!,
+            credentialUuid,
+        );
+        await this.mirrorDefaultCredentialToLegacyBlob(user.organizationUuid!);
+        await this.reconcileDefaultModelForCredentials(user.organizationUuid!);
+    }
+
+    async setDefaultProviderCredential(
+        user: SessionUser,
+        credentialUuid: string,
+    ): Promise<void> {
+        this.checkManageAiAgentAccess(user);
+        await this.aiOrganizationProviderCredentialModel.setDefault(
+            user.organizationUuid!,
+            credentialUuid,
+        );
+        await this.mirrorDefaultCredentialToLegacyBlob(user.organizationUuid!);
+        await this.reconcileDefaultModelForCredentials(user.organizationUuid!);
+    }
+
+    /**
+     * Pinning a project to a region is a compliance decision, so it is gated on
+     * organization-level AI administration rather than project membership.
+     */
+    private async assertProjectInOrganization(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<string> {
+        this.checkManageAiAgentAccess(user);
+        const organizationUuid = user.organizationUuid!;
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+        return organizationUuid;
+    }
+
+    async getProjectProviderCredential(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectAiCredentialSelection> {
+        await this.assertProjectInOrganization(user, projectUuid);
+        const credentialUuid =
+            await this.aiOrganizationProviderCredentialModel.findProjectCredentialUuid(
+                projectUuid,
+            );
+        return { credentialUuid };
+    }
+
+    async setProjectProviderCredential(
+        user: SessionUser,
+        projectUuid: string,
+        credentialUuid: string | null,
+    ): Promise<void> {
+        const organizationUuid = await this.assertProjectInOrganization(
+            user,
+            projectUuid,
+        );
+        // Resolved through the organization so a project can never be pinned to
+        // another organization's credential.
+        if (credentialUuid !== null) {
+            const resolution =
+                await this.aiOrganizationProviderCredentialModel.findDecrypted(
+                    organizationUuid,
+                    credentialUuid,
+                );
+            if (resolution.status === 'none') {
+                throw new ParameterError('AI provider credential not found');
+            }
+            // Refused at pin time rather than at the project's first AI
+            // request, which would otherwise fail with no obvious cause.
+            if (resolution.status === 'unreadable') {
+                throw new ParameterError(
+                    'That credential cannot be read with the current encryption secret. Replace its API key before pinning a project to it.',
+                );
+            }
+        }
+        await this.aiOrganizationProviderCredentialModel.setProjectCredential(
+            projectUuid,
+            credentialUuid,
+        );
     }
 }
