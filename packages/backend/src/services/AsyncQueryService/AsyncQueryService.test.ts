@@ -12705,9 +12705,20 @@ describe('chart embed token query history access', () => {
 });
 
 describe('embedded field value search dashboard scoping', () => {
-    const buildDashboardEmbedAccount = () =>
+    const buildDashboardEmbedAccount = (
+        options: { parameterInteractivityEnabled?: boolean } = {},
+    ) =>
         fromJwt({
-            decodedToken: defaultJwtToken,
+            decodedToken: {
+                ...defaultJwtToken,
+                content: {
+                    type: 'dashboard',
+                    dashboardUuid: 'test-dashboard-uuid',
+                    parameterInteractivity: {
+                        enabled: options.parameterInteractivityEnabled ?? false,
+                    },
+                },
+            },
             embed: {
                 projectUuid,
                 organization: {
@@ -12743,6 +12754,7 @@ describe('embedded field value search dashboard scoping', () => {
                     properties: { savedChartUuid: 'tile-chart-uuid' },
                 },
             ],
+            parameters: { region: { value: 'EMEA' } },
         }));
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             dashboardModel: { getByIdOrSlug } as unknown as DashboardModel,
@@ -12786,7 +12798,15 @@ describe('embedded field value search dashboard scoping', () => {
     const runSearch = (
         service: AsyncQueryService,
         account: Account,
-        { table, fieldId }: { table: string; fieldId: string },
+        {
+            table,
+            fieldId,
+            parameters,
+        }: {
+            table: string;
+            fieldId: string;
+            parameters?: Record<string, string>;
+        },
     ) =>
         service.executeAsyncFieldValueSearch({
             account,
@@ -12798,7 +12818,7 @@ describe('embedded field value search dashboard scoping', () => {
             filters: undefined,
             forceRefresh: false,
             invalidateCache: false,
-            parameters: undefined,
+            parameters,
         } as never);
 
     test('allows an embed account to search a field reachable from the dashboard explores', async () => {
@@ -12887,5 +12907,54 @@ describe('embedded field value search dashboard scoping', () => {
         ).resolves.toEqual(expect.objectContaining({ queryUuid: 'queryUuid' }));
         expect(getByIdOrSlug).not.toHaveBeenCalled();
         expect(execute).toHaveBeenCalled();
+    });
+
+    test('drops viewer parameters when the JWT does not grant parameter interactivity', async () => {
+        const { service } = buildFieldValueSearchService();
+        await runSearch(service, buildDashboardEmbedAccount(), {
+            table: 'a',
+            fieldId: 'a_dim1',
+            parameters: { region: 'viewer-override' },
+        });
+        expect(service.combineParameters).toHaveBeenCalledWith(
+            projectUuid,
+            expect.anything(),
+            {},
+            { region: 'EMEA' },
+        );
+    });
+
+    test('accepts viewer parameters when the JWT grants parameter interactivity', async () => {
+        const { service } = buildFieldValueSearchService();
+        await runSearch(
+            service,
+            buildDashboardEmbedAccount({ parameterInteractivityEnabled: true }),
+            {
+                table: 'a',
+                fieldId: 'a_dim1',
+                parameters: { region: 'viewer-override' },
+            },
+        );
+        expect(service.combineParameters).toHaveBeenCalledWith(
+            projectUuid,
+            expect.anything(),
+            { region: 'viewer-override' },
+            { region: 'EMEA' },
+        );
+    });
+
+    test('keeps session account parameters untouched', async () => {
+        const { service } = buildFieldValueSearchService();
+        await runSearch(service, sessionAccount, {
+            table: 'a',
+            fieldId: 'a_dim1',
+            parameters: { region: 'viewer-override' },
+        });
+        expect(service.combineParameters).toHaveBeenCalledWith(
+            projectUuid,
+            expect.anything(),
+            { region: 'viewer-override' },
+            undefined,
+        );
     });
 });

@@ -138,9 +138,9 @@ describe('pollForFieldValueResults', () => {
             'query-uuid',
         ).catch((e) => e);
 
-        // Advance timers enough for all attempts
+        // Advance timers enough for all attempts (backoff caps at 2s)
         for (let i = 0; i < MAX_POLL_ATTEMPTS + 5; i++) {
-            await vi.advanceTimersByTimeAsync(1000);
+            await vi.advanceTimersByTimeAsync(2000);
         }
 
         const error = await pollPromise;
