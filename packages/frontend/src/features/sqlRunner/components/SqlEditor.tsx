@@ -27,7 +27,6 @@ import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
 import {
-    generateTableCompletions,
     getLightdashMonacoTheme,
     getMonacoLanguage,
     MONACO_DEFAULT_OPTIONS,
@@ -226,9 +225,6 @@ export const SqlEditorView: FC<
                 completionProviderRef.current.dispose();
                 completionProviderRef.current = null;
             }
-            const tablesList = transformedData
-                ? generateTableCompletions(quoteChar, transformedData, settings)
-                : [];
             // Transform current table fields to include context and combine with detected table fields
             const currentTableFieldsWithContext = (tableFieldsData || []).map(
                 (field) => ({
@@ -247,7 +243,7 @@ export const SqlEditorView: FC<
                 monaco,
                 language,
                 quoteChar,
-                tablesList || [],
+                transformedData,
                 allFieldsData.length > 0 ? allFieldsData : undefined,
                 settings,
                 availableParameters,
