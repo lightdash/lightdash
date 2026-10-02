@@ -111,7 +111,8 @@ const SnowflakeSSOInput: FC<{
 
 const SnowflakeForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const { track } = useTracking();
@@ -645,6 +646,7 @@ const SnowflakeForm: FC<{
                                     disabled={disabled}
                                 />
 
+                                {extraFields}
                                 <FormSection isOpen={isOpen} name="advanced">
                                     <Stack mt="xs">
                                         {!isNoneAuth && (
@@ -794,6 +796,7 @@ const SnowflakeForm: FC<{
                         )}
                     </>
                 )}
+                {(useOrgCredentials || isCliSsoMode) && extraFields}
             </Stack>
         </>
     );

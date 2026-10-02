@@ -205,7 +205,8 @@ const RedshiftIamAdvancedFields: FC<{
 
 const RedshiftForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const form = useFormContext();
@@ -362,6 +363,7 @@ const RedshiftForm: FC<{
                     {...form.getInputProps('warehouse.dbname')}
                     disabled={disabled}
                 />
+                {extraFields}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
                         <BooleanSwitch

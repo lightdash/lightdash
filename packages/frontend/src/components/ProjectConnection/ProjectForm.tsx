@@ -39,10 +39,12 @@ export const ProjectForm: FC<Props> = ({
             form.values.dbt.type === DbtProjectType.BITBUCKET) &&
         form.values.dbt.semanticLayer === 'lightdash';
 
+    const cardPadding = warehouseOnly ? 'xl' : 'md';
+
     return (
         <Stack gap="xl">
             {showGeneralSettings && (
-                <SettingsGridCard>
+                <SettingsGridCard p={cardPadding}>
                     <div>
                         <Title order={5}>General settings</Title>
                     </div>
@@ -59,7 +61,7 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            <SettingsGridCard p={warehouseOnly ? 'xl' : 'md'}>
+            <SettingsGridCard p={cardPadding}>
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
                     <Flex align="center" gap={2}>

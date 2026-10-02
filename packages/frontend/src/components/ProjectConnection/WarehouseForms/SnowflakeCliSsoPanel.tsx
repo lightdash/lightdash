@@ -389,7 +389,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 />
                 <Autocomplete
                     label="Schema"
-                    description="We'll start with this schema — you can add more later."
+                    description="We'll start with this schema. You can add more later."
                     data={schemaOptions}
                     rightSection={<Combobox.Chevron />}
                     rightSectionPointerEvents="none"
@@ -409,10 +409,9 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     return (
         <Stack gap="md">
             <Text size="sm" c="dimmed">
-                The quickest, most secure way to connect. Run these two commands
-                in your terminal — our CLI signs you into Snowflake in your
-                browser and sets up a secure, revocable connection for you, with
-                no credentials to copy by hand.
+                Run these two commands in your terminal. The CLI signs you in
+                to Snowflake in your browser and sets up a connection you can
+                revoke. There are no credentials to copy.
             </Text>
 
             {!code ? (

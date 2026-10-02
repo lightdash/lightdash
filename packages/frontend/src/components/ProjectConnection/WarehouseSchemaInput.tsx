@@ -17,8 +17,8 @@ const WarehouseSchemaInput: FC<{
 }> = ({ warehouseType, disabled, warehouseOnly }) => {
     const description = warehouseOnly
         ? warehouseType === WarehouseTypes.BIGQUERY
-            ? "We'll start with this dataset — you can add more later."
-            : "We'll start with this schema — you can add more later."
+            ? "We'll start with this dataset. You can add more later."
+            : "We'll start with this schema. You can add more later."
         : undefined;
 
     switch (warehouseType) {
