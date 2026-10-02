@@ -436,6 +436,54 @@ export type UpdateOrgBedrockConfig = {
     apiKey?: string;
 };
 
+/**
+ * Providers an organization may hold more than one credential for. Bedrock
+ * only: it is the one BYO provider whose credential carries a region, so it is
+ * the one a multi-region organization needs several of. The other BYO
+ * providers stay a single key each in `encrypted_provider_api_keys`.
+ */
+export const MULTI_CREDENTIAL_AI_PROVIDERS = ['bedrock'] as const;
+
+export type MultiCredentialAiProvider =
+    (typeof MULTI_CREDENTIAL_AI_PROVIDERS)[number];
+
+/** The decrypted contents of a stored credential. Server-side only. */
+export type AiProviderCredentialConfig = {
+    apiKey: string;
+    region: string;
+    allowedModels: string[];
+};
+
+/**
+ * A named credential as exposed over the API: everything needed to identify
+ * and pick it, never the key itself.
+ */
+export type AiProviderCredential = {
+    uuid: string;
+    provider: MultiCredentialAiProvider;
+    label: string;
+    region: string;
+    allowedModels: string[];
+    apiKeyHint: string;
+    isDefault: boolean;
+};
+
+export type CreateAiProviderCredential = {
+    provider: MultiCredentialAiProvider;
+    label: string;
+    region: string;
+    allowedModels: string[];
+    apiKey: string;
+};
+
+export type UpdateAiProviderCredential = {
+    label?: string;
+    region?: string;
+    allowedModels?: string[];
+    // Omit to keep the stored key when changing label, region or models.
+    apiKey?: string;
+};
+
 // Explicit shape rather than a mapped type: TSOA cannot model
 // `Record<Exclude<...>> & {...}` and silently drops the properties.
 export type UpdateAiProviderApiKeys = {

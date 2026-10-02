@@ -47,6 +47,7 @@ import { AiCreditHoldModel } from './models/AiCreditHoldModel';
 import { AiCreditRateCardModel } from './models/AiCreditRateCardModel';
 import { AiCreditUsageModel } from './models/AiCreditUsageModel';
 import { AiDeepResearchRunModel } from './models/AiDeepResearchRunModel';
+import { AiOrganizationProviderCredentialModel } from './models/AiOrganizationProviderCredentialModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
 import { AiWritebackRunModel } from './models/AiWritebackRunModel';
@@ -1573,6 +1574,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new McpToolCallModel({ database }),
             aiOrganizationSettingsModel: ({ database, utils }) =>
                 new AiOrganizationSettingsModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
+            aiOrganizationProviderCredentialModel: ({ database, utils }) =>
+                new AiOrganizationProviderCredentialModel({
                     database,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),

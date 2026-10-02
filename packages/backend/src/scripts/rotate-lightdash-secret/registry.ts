@@ -132,6 +132,11 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'encrypted_provider_api_keys',
     },
     {
+        table: 'ai_organization_provider_credential',
+        primaryKeyColumn: 'ai_organization_provider_credential_uuid',
+        column: 'encrypted_config',
+    },
+    {
         table: 'external_connection_secrets',
         primaryKeyColumn: 'external_connection_uuid',
         column: 'encrypted_payload',
