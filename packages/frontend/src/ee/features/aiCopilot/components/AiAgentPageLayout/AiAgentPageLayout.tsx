@@ -42,6 +42,7 @@ import {
 } from '../../store/hooks';
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
+import { AiDocumentPreviewPanel } from '../ChatElements/AiDocumentPreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
 import {
@@ -61,6 +62,8 @@ const renderPreviewPanel = (preview: AiPreview) => {
             return (
                 <AiDataAppPreviewPanel dataAppPreview={preview} showInspector />
             );
+        case 'document':
+            return <AiDocumentPreviewPanel documentPreview={preview} />;
         default:
             return assertUnreachable(preview, 'Unknown preview type');
     }

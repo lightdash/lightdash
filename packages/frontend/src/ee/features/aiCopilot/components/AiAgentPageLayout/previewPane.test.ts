@@ -22,4 +22,11 @@ describe('previewPaneOf', () => {
     it('opens data apps wider than charts', () => {
         expect(previewPaneOf('dataApp', false).defaultSize).toBe(60);
     });
+
+    it('opens Documents under their own layout key, wider than charts', () => {
+        expect(previewPaneOf('document', false)).toEqual({
+            id: 'document',
+            defaultSize: 50,
+        });
+    });
 });

@@ -10,6 +10,7 @@ import {
 } from '../../store/aiAgentLauncherSlice';
 import {
     selectDataAppPreview,
+    selectDocumentPreview,
     selectSavedChartPreview,
 } from '../../store/aiArtifactSlice';
 import {
@@ -17,6 +18,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
+import { AiDocumentPreviewPanel } from '../ChatElements/AiDocumentPreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './AiAgentsLauncher.module.css';
 import { AiAgentsLauncherPortal } from './AiAgentsLauncherPortal';
@@ -86,6 +88,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     );
     const savedChartPreview = useAiAgentStoreSelector(selectSavedChartPreview);
     const dataAppPreview = useAiAgentStoreSelector(selectDataAppPreview);
+    const documentPreview = useAiAgentStoreSelector(selectDocumentPreview);
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );
@@ -197,6 +200,18 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     }
     const transitionDataAppPreview =
         activeDataAppPreview ?? lastDataAppPreviewRef.current;
+    const activeDocumentPreview =
+        documentPreview !== null &&
+        documentPreview.projectUuid === activeProjectUuid &&
+        documentPreview.threadUuid === safeActiveThreadId
+            ? documentPreview
+            : null;
+    const lastDocumentPreviewRef = useRef(activeDocumentPreview);
+    if (activeDocumentPreview) {
+        lastDocumentPreviewRef.current = activeDocumentPreview;
+    }
+    const transitionDocumentPreview =
+        activeDocumentPreview ?? lastDocumentPreviewRef.current;
     const isContentPage =
         currentDashboard?.projectUuid === activeProjectUuid ||
         currentDataApp?.projectUuid === activeProjectUuid ||
@@ -266,6 +281,25 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                             <AiDataAppPreviewPanel
                                 dataAppPreview={transitionDataAppPreview}
                                 showInspector={false}
+                            />
+                        </Box>
+                    )}
+                </Transition>
+            )}
+            {transitionDocumentPreview && (
+                <Transition
+                    mounted={isPanelOpenSafe && activeDocumentPreview !== null}
+                    transition="slide-up"
+                    duration={180}
+                    timingFunction="ease"
+                >
+                    {(transitionStyle) => (
+                        <Box
+                            className={styles.previewPanel}
+                            style={transitionStyle}
+                        >
+                            <AiDocumentPreviewPanel
+                                documentPreview={transitionDocumentPreview}
                             />
                         </Box>
                     )}

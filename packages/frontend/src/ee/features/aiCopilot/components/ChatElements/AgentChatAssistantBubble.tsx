@@ -972,7 +972,8 @@ const AssistantBubbleContent: FC<{
                 )}
             <AiDocumentCards
                 projectUuid={projectUuid}
-                toolResults={message.toolResults}
+                agentUuid={agentUuid}
+                message={message}
                 streamParts={streamingState?.parts}
             />
             {editDbtProjectResult && (

@@ -4,17 +4,28 @@ import {
 } from '@lightdash/common';
 import { Box, Stack, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronRight, IconFileText } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useOptionalProjectRoute } from '../../../../../hooks/useProjectRoute';
 import { useProjects } from '../../../../../hooks/useProjects';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
+import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 import styles from './ArtifactButton/AiArtifactButton.module.css';
+import { isPlainLeftClick } from './useDataAppPreviewLink';
 
 type Props = {
     projectUuid: string;
-    toolResults: AiAgentMessageAssistant['toolResults'];
+    agentUuid: string;
+    message: Pick<
+        AiAgentMessageAssistant,
+        'uuid' | 'threadUuid' | 'toolResults'
+    >;
     streamParts?: StreamPart[];
 };
 
@@ -61,9 +72,13 @@ const getDocumentCard = (
 
 const AiDocumentCards: FC<Props> = ({
     projectUuid,
-    toolResults,
+    agentUuid,
+    message,
     streamParts,
 }) => {
+    const dispatch = useAiAgentStoreDispatch();
+    const currentPreview = useAiAgentStoreSelector(selectPreview);
+    const isEmbed = isEmbedAiAgentRoute();
     const projectRoute = useOptionalProjectRoute();
     const currentProjectRoute =
         projectRoute?.projectUuid === projectUuid ? projectRoute : null;
@@ -74,7 +89,9 @@ const AiDocumentCards: FC<Props> = ({
             ?.slug ??
         projectUuid;
     const results = [
-        ...toolResults.filter((result) => result.toolType === 'built-in'),
+        ...message.toolResults.filter(
+            (result) => result.toolType === 'built-in',
+        ),
         ...(streamParts ?? []).flatMap((part) => {
             if (
                 part.type !== 'toolCall' ||
@@ -111,6 +128,27 @@ const AiDocumentCards: FC<Props> = ({
         return null;
     }
 
+    // Opens in the side panel like chart artifacts; modified clicks keep the link
+    const openPreview = (
+        event: MouseEvent<HTMLAnchorElement>,
+        document: DocumentCard,
+    ) => {
+        if (isEmbed || !isPlainLeftClick(event)) {
+            return;
+        }
+        event.preventDefault();
+        dispatch(
+            setPreview({
+                type: 'document',
+                documentUuidOrSlug: document.uuid,
+                messageUuid: message.uuid,
+                threadUuid: message.threadUuid,
+                projectUuid,
+                agentUuid,
+            }),
+        );
+    };
+
     return (
         <Stack gap="xs">
             {[...documents.values()].map((document) => (
@@ -118,7 +156,14 @@ const AiDocumentCards: FC<Props> = ({
                     key={document.uuid}
                     component={Link}
                     to={document.href}
+                    onClick={(event: MouseEvent<HTMLAnchorElement>) =>
+                        openPreview(event, document)
+                    }
                     className={styles.artifactButton}
+                    data-artifact-open={
+                        currentPreview?.type === 'document' &&
+                        currentPreview.documentUuidOrSlug === document.uuid
+                    }
                 >
                     <Box className={styles.container}>
                         <Box className={styles.iconChip}>

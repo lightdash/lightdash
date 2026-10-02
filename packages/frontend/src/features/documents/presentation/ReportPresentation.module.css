@@ -22,6 +22,10 @@
     border-right: 1px solid var(--mantine-color-ldGray-2);
 }
 
+.withoutContents {
+    display: block;
+}
+
 .contentsNav {
     position: sticky;
     top: 0;
@@ -704,6 +708,10 @@
             }
         }
     }
+}
+
+.documentLayout.withoutContents {
+    min-height: 0;
 }
 
 @media (max-width: 48em) {
