@@ -39,6 +39,7 @@ import {
 } from '../../database/entities/userWarehouseCredentials';
 import Logger from '../../logging/logger';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { clearCachedWarehouseSignInStatus } from '../../utils/warehouseSignInStatusCache';
 
 type UserWarehouseCredentialsModelArguments = {
     database: Knex;
@@ -829,6 +830,7 @@ export class UserWarehouseCredentialsModel {
         if (!result) {
             throw new UnexpectedServerError('Could not save credentials.');
         }
+        clearCachedWarehouseSignInStatus(userWarehouseCredentialsUuid);
         return result.user_warehouse_credentials_uuid;
     }
 
@@ -843,6 +845,7 @@ export class UserWarehouseCredentialsModel {
                 userWarehouseCredentialsUuid,
             )
             .andWhere('user_uuid', userUuid);
+        clearCachedWarehouseSignInStatus(userWarehouseCredentialsUuid);
     }
 
     async deleteAllByUserAndWarehouseType(

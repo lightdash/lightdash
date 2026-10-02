@@ -7,10 +7,13 @@ import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useImpersonation } from '../../../hooks/user/useImpersonation';
+import { useWarehouseSignInStatus } from '../../../hooks/useWarehouseSignInStatus';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
+import { shouldShowWarehouseSignInBanner } from '../../NavBar/warehouseSignInBannerDecision';
 import { DocumentTitle } from '../DocumentTitle';
 import sidebarDrawerClasses from '../SidebarDrawer.module.css';
 import { StableContent } from '../StableContent';
@@ -130,7 +133,14 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
     const { isImpersonating } = useImpersonation();
-    const hasBanner = isCurrentProjectPreview || isImpersonating;
+    const routeProjectUuid = useProjectUuid();
+    const { data: warehouseSignInStatus } = useWarehouseSignInStatus(
+        withNavbar && routeProjectUuid ? activeProjectUuid : undefined,
+    );
+    const hasBanner =
+        isCurrentProjectPreview ||
+        isImpersonating ||
+        shouldShowWarehouseSignInBanner(warehouseSignInStatus);
 
     const withSidebar = !compact && (!!sidebar || !!rightSidebar);
     const reserveSidebarToggle =

@@ -213,6 +213,8 @@ describe('FeatureFlagModel', () => {
     describe.each([
         FeatureFlags.PreviewSsoCredentialSync,
         FeatureFlags.WarehouseSignInMark,
+        FeatureFlags.WarehouseSignInCheck,
+        FeatureFlags.LightGoogleReconnect,
     ])('%s', (featureFlagId) => {
         it('is on by default', async () => {
             const model = buildModel({}, buildFakeDatabase({}));

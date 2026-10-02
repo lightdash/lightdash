@@ -77,6 +77,7 @@ import {
     type ApiVerifiedContentListResponse,
     type ApiWarehouseConnectionTestBody,
     type ApiWarehouseConnectionTestResponse,
+    type ApiWarehouseSignInStatusResponse,
     type CalculateSubtotalsFromQuery,
     type CompileMergeQueryRequest,
     type CreateDashboard,
@@ -142,6 +143,22 @@ const isPositiveIntegerString = (value: string): boolean => /^\d+$/.test(value);
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class ProjectController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('{projectUuid}/user-warehouse-credentials/sign-in-status')
+    @OperationId('GetWarehouseSignInStatus')
+    async getWarehouseSignInStatus(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiWarehouseSignInStatusResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getWarehouseSignInStatus(req.account, projectUuid),
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('{projectUuid}/warehouse-credentials/shared-sign-in')
     @OperationId('GetSharedSignInStatus')

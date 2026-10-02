@@ -1,3 +1,4 @@
+import { OpenIdIdentityIssuerType } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     UserOAuthGrantProvider,
@@ -32,6 +33,15 @@ export class UserOAuthGrantsModel {
         this.database = args.database;
         this.encryptionUtil = args.encryptionUtil;
         this.userModel = args.userModel;
+    }
+
+    async getGoogleAccountEmail(userUuid: string): Promise<string | null> {
+        const grant = await this.database(UserOAuthGrantsTableName)
+            .select('provider_email')
+            .where('user_uuid', userUuid)
+            .where('provider', OpenIdIdentityIssuerType.GOOGLE)
+            .first();
+        return grant?.provider_email ?? null;
     }
 
     async upsertGrant(grant: UpsertUserOAuthGrant): Promise<void> {

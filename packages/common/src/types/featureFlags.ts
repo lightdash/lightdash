@@ -260,6 +260,10 @@ export enum FeatureFlags {
     SharedSignInReconnect = 'shared-sign-in-reconnect',
     /** On by default; kill switch for personal warehouse sign-in marks. */
     WarehouseSignInMark = 'warehouse-sign-in-mark',
+    /** On by default; kill switch only for personal warehouse sign-in checks. */
+    WarehouseSignInCheck = 'warehouse-sign-in-check',
+    /** On by default; kill switch only for light Google reconnect. */
+    LightGoogleReconnect = 'light-google-reconnect',
 
     /**
      * Cloud-only: let an organization send report/notification emails from

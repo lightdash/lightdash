@@ -13402,6 +13402,299 @@ describe('ProjectService.reconnectSharedSignIn', () => {
     );
 });
 
+describe('ProjectService.getWarehouseSignInStatus', () => {
+    const projectUuid = 'warehouse-status-project';
+    const credentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'analytics',
+        dataset: 'marts',
+        authenticationType: BigqueryAuthenticationType.SSO,
+        timeoutSeconds: 300,
+        priority: 'interactive',
+        retries: 3,
+        location: undefined,
+        maximumBytesBilled: undefined,
+        keyfileContents: { type: 'service_account' },
+        requireUserCredentials: true,
+    } as CreateBigqueryCredentials;
+    const personal = {
+        uuid: 'warehouse-status-credential',
+        needsSignIn: null,
+        credentials: {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            keyfileContents: {
+                type: 'authorized_user',
+                refresh_token: 'old-token',
+            },
+        },
+    } as UserWarehouseCredentialsWithSecrets;
+    const findForProjectWithSecrets = vi.fn<
+        UserWarehouseCredentialsModel['findForProjectWithSecrets']
+    >(async () => personal);
+    const markNeedsSignIn = vi.fn(async () => undefined);
+    const clearNeedsSignIn = vi.fn(async () => undefined);
+    const rotateRefreshToken = vi.fn(async () => true);
+    const flag = {
+        get: vi.fn(
+            async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
+                id: featureFlagId,
+                enabled: true,
+            }),
+        ),
+    };
+    const service = getMockedProjectService(lightdashConfigMock, {
+        featureFlagModel: flag as unknown as FeatureFlagModel,
+    });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        Object.assign(service.userWarehouseCredentialsModel, {
+            findForProjectWithSecrets,
+            markNeedsSignIn,
+            clearNeedsSignIn,
+            rotateRefreshToken,
+        });
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            projectUuid,
+        } as never);
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+            credentials,
+        );
+    });
+
+    it('returns null for shared credentials and no personal credential', async () => {
+        projectModel.getWarehouseCredentialsForProject.mockReset();
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce({
+            ...credentials,
+            requireUserCredentials: false,
+            allowUserCredentials: false,
+        });
+        expect(
+            await service.getWarehouseSignInStatus(
+                developerAccount,
+                projectUuid,
+            ),
+        ).toEqual({ signIn: null });
+        expect(findForProjectWithSecrets).not.toHaveBeenCalled();
+
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            projectUuid,
+        } as never);
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+            credentials,
+        );
+        findForProjectWithSecrets.mockResolvedValueOnce(undefined);
+        expect(
+            await service.getWarehouseSignInStatus(
+                developerAccount,
+                projectUuid,
+            ),
+        ).toEqual({ signIn: null });
+    });
+
+    it('does not inspect credentials when the check flag is off', async () => {
+        flag.get.mockResolvedValueOnce({
+            id: FeatureFlags.WarehouseSignInCheck,
+            enabled: false,
+        });
+        expect(
+            await service.getWarehouseSignInStatus(
+                developerAccount,
+                projectUuid,
+            ),
+        ).toEqual({ signIn: null });
+        expect(findForProjectWithSecrets).not.toHaveBeenCalled();
+    });
+
+    it('marks a definite Google rejection and caches it', async () => {
+        vi.useFakeTimers();
+        const check = vi.fn(async () => ({
+            succeeded: false,
+            rejection: WarehouseSignInRejection.INVALID_GRANT,
+        }));
+        Object.assign(service, { checkGoogleSignIn: check });
+        try {
+            const first = await service.getWarehouseSignInStatus(
+                developerAccount,
+                projectUuid,
+            );
+            expect(first.signIn?.expired).toBe(true);
+            expect(markNeedsSignIn).toHaveBeenCalledWith(
+                personal.uuid,
+                WarehouseSignInRejection.INVALID_GRANT,
+            );
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid,
+            } as never);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            vi.advanceTimersByTime(5 * 60 * 1000 - 1);
+            await service.getWarehouseSignInStatus(
+                developerAccount,
+                projectUuid,
+            );
+            expect(check).toHaveBeenCalledTimes(1);
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid,
+            } as never);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            vi.advanceTimersByTime(1);
+            await service.getWarehouseSignInStatus(
+                developerAccount,
+                projectUuid,
+            );
+            expect(check).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('does not clear a Google mark when the token endpoint is unavailable', async () => {
+        Object.assign(service, {
+            checkGoogleSignIn: vi.fn(async () => ({
+                succeeded: false,
+                rejection: null,
+            })),
+        });
+        findForProjectWithSecrets.mockResolvedValueOnce({
+            ...personal,
+            uuid: 'google-network-status-credential',
+        });
+        expect(
+            (
+                await service.getWarehouseSignInStatus(
+                    developerAccount,
+                    projectUuid,
+                )
+            ).signIn?.expired,
+        ).toBe(false);
+        expect(clearNeedsSignIn).not.toHaveBeenCalled();
+        expect(markNeedsSignIn).not.toHaveBeenCalled();
+    });
+
+    it('clears the advisory mark after a successful Google exchange', async () => {
+        Object.assign(service, {
+            checkGoogleSignIn: vi.fn(async () => ({
+                succeeded: true,
+                rejection: null,
+            })),
+        });
+        findForProjectWithSecrets.mockResolvedValueOnce({
+            ...personal,
+            uuid: 'google-restored-status-credential',
+        });
+        expect(
+            (
+                await service.getWarehouseSignInStatus(
+                    developerAccount,
+                    projectUuid,
+                )
+            ).signIn?.expired,
+        ).toBe(false);
+        expect(clearNeedsSignIn).toHaveBeenCalledWith(
+            'google-restored-status-credential',
+        );
+    });
+
+    it('persists a Snowflake refresh token rotation', async () => {
+        const snowflake = {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            requireUserCredentials: true,
+        } as CreateSnowflakeCredentials;
+        projectModel.getWarehouseCredentialsForProject.mockReset();
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+            snowflake,
+        );
+        findForProjectWithSecrets.mockResolvedValueOnce({
+            uuid: 'rotation-status-credential',
+            needsSignIn: null,
+            credentials: {
+                type: WarehouseTypes.SNOWFLAKE,
+                user: 'person',
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'old-token',
+            },
+        } as UserWarehouseCredentialsWithSecrets);
+        const generate = vi
+            .spyOn(UserService, 'generateSnowflakeAccessToken')
+            .mockResolvedValueOnce({
+                accessToken: 'new-access-token',
+                refreshToken: 'new-refresh-token',
+            });
+        try {
+            expect(
+                (
+                    await service.getWarehouseSignInStatus(
+                        developerAccount,
+                        projectUuid,
+                    )
+                ).signIn?.expired,
+            ).toBe(false);
+            expect(rotateRefreshToken).toHaveBeenCalledWith(
+                'rotation-status-credential',
+                'old-token',
+                'new-refresh-token',
+            );
+        } finally {
+            generate.mockRestore();
+        }
+    });
+
+    it('treats a network refresh error as healthy', async () => {
+        const snowflake = {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            requireUserCredentials: true,
+        } as CreateSnowflakeCredentials;
+        projectModel.getWarehouseCredentialsForProject.mockReset();
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+            snowflake,
+        );
+        findForProjectWithSecrets.mockResolvedValueOnce({
+            uuid: 'network-status-credential',
+            needsSignIn: null,
+            credentials: {
+                type: WarehouseTypes.SNOWFLAKE,
+                user: 'person',
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'old-token',
+            },
+        } as UserWarehouseCredentialsWithSecrets);
+        const refresh = vi.spyOn(
+            service as unknown as {
+                refreshCredentialsAndPersistRotation: (
+                    value: CreateWarehouseCredentials,
+                    userUuid: string,
+                    source: object,
+                ) => Promise<CreateWarehouseCredentials>;
+            },
+            'refreshCredentialsAndPersistRotation',
+        );
+        refresh.mockRejectedValueOnce(new SnowflakeTokenError('Network error'));
+        try {
+            expect(
+                (
+                    await service.getWarehouseSignInStatus(
+                        developerAccount,
+                        projectUuid,
+                    )
+                ).signIn?.expired,
+            ).toBe(false);
+        } finally {
+            refresh.mockRestore();
+        }
+    });
+});
+
 describe('ProjectService.getSharedSignInStatus', () => {
     const adminAccount = {
         ...developerAccount,
