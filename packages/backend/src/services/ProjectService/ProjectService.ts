@@ -184,6 +184,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     parseTableCalculationFunctions,
+    PersonSignInProvider,
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
@@ -224,6 +225,7 @@ import {
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    SignInSubjectBasis,
     SingleConnectionProjectError,
     snakeCaseName,
     SnowflakeAuthenticationType,
@@ -282,6 +284,8 @@ import {
     type ParameterFallbackSources,
     type ParametersValuesMap,
     type RunQueryTags,
+    type SharedSignInStatus,
+    type SignInSubject,
     type Tag,
     type UUID,
     type WarehouseLocation,
@@ -292,6 +296,7 @@ import {
     BigqueryWarehouseClient,
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     exchangeDatabricksOAuthCredentials,
+    getGoogleOauthTokenError,
     refreshDatabricksOAuthToken,
     SshTunnel,
     warehouseSqlBuilderFromType,
@@ -299,6 +304,7 @@ import {
 import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
+import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import fetch from 'node-fetch';
@@ -3281,6 +3287,195 @@ export class ProjectService extends BaseService {
         } catch (attributed) {
             if (isWarehouseTokenError(attributed)) throw attributed;
             throw error;
+        }
+    }
+
+    async getSharedSignInStatus(
+        account: Account,
+        projectUuid: string,
+    ): Promise<SharedSignInStatus | null> {
+        assertIsAccountWithOrg(account);
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const ability = this.createAuditedAbility(account);
+        const resource = subject('Project', {
+            organizationUuid: project.organizationUuid,
+            projectUuid: project.projectUuid,
+            upstreamProjectUuid: project.upstreamProjectUuid,
+            type: project.type,
+            createdByUserUuid: project.createdByUserUuid,
+        });
+        if (ability.cannot('view', resource)) throw new ForbiddenError();
+        const flag = await this.featureFlagModel.get({
+            user: { organizationUuid: project.organizationUuid },
+            featureFlagId: FeatureFlags.SharedSignInReconnect,
+        });
+        if (!flag.enabled || project.organizationWarehouseCredentialsUuid)
+            return null;
+        const credentials = project.warehouseConnection;
+        const signIn = credentials ? getPersonSignIn(credentials) : null;
+        if (!signIn) return null;
+        const {
+            provider,
+            subject: owner,
+            basis,
+        } = (await this.projectModel.getSharedSignInSubjectForToken(
+            projectUuid,
+            signIn.refreshToken,
+        )) ?? { provider: signIn.provider, subject: null, basis: null };
+        const expired =
+            provider === PersonSignInProvider.GOOGLE &&
+            credentials?.type === WarehouseTypes.BIGQUERY
+                ? await this.isGoogleSharedSignInExpired(
+                      credentials.keyfileContents,
+                  )
+                : false;
+        return {
+            provider,
+            subject: owner,
+            subjectBasis: basis,
+            expired,
+            canReconnect:
+                provider === PersonSignInProvider.GOOGLE &&
+                ability.can('update', resource) &&
+                this.canReconnectSharedSignIn(owner, basis, account.user.id),
+        };
+    }
+
+    private canReconnectSharedSignIn(
+        owner: SignInSubject | null,
+        basis: SignInSubjectBasis | null,
+        userUuid: string,
+    ): boolean {
+        return (
+            basis !== SignInSubjectBasis.RECORDED ||
+            owner?.userUuid === userUuid
+        );
+    }
+
+    private async isGoogleSharedSignInExpired(
+        keyfileContents: Record<string, string>,
+    ): Promise<boolean> {
+        try {
+            await new GoogleAuth({
+                credentials: keyfileContents,
+                scopes: ['https://www.googleapis.com/auth/bigquery'],
+            }).getAccessToken();
+            return false;
+        } catch (error) {
+            return getGoogleOauthTokenError(error)?.error === 'invalid_grant';
+        }
+    }
+
+    async reconnectSharedSignIn(
+        account: Account,
+        projectUuid: string,
+    ): Promise<void> {
+        assertIsAccountWithOrg(account);
+        const flag = await this.featureFlagModel.get({
+            user: { organizationUuid: account.organization.organizationUuid },
+            featureFlagId: FeatureFlags.SharedSignInReconnect,
+        });
+        if (!flag.enabled) throw new ForbiddenError();
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                }),
+            )
+        )
+            throw new ForbiddenError();
+        const credentials = project.warehouseConnection;
+        const signIn = credentials ? getPersonSignIn(credentials) : null;
+        if (
+            project.organizationWarehouseCredentialsUuid ||
+            credentials?.type !== WarehouseTypes.BIGQUERY ||
+            signIn?.provider !== PersonSignInProvider.GOOGLE
+        ) {
+            throw new ParameterError(
+                'This project does not use a shared Google sign-in for BigQuery.',
+            );
+        }
+        const owner = await this.projectModel.getSharedSignInSubjectForToken(
+            projectUuid,
+            signIn.refreshToken,
+        );
+        if (
+            !this.canReconnectSharedSignIn(
+                owner?.subject ?? null,
+                owner?.basis ?? null,
+                account.user.id,
+            )
+        ) {
+            throw new ForbiddenError(
+                `Only ${owner?.subject?.name || 'the sign-in owner'} can reconnect this project's sign-in`,
+            );
+        }
+        const newToken = await this.userOAuthGrantsModel
+            .getRefreshToken(account.user.id, OpenIdIdentityIssuerType.GOOGLE)
+            .catch(() => null);
+        if (!newToken || newToken === signIn.refreshToken) {
+            throw new ParameterError(
+                'Sign in with Google did not finish. Try again.',
+            );
+        }
+        const resolved = await this._resolveWarehouseClientCredentials(
+            {
+                warehouseConnection: {
+                    ...credentials,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents: {},
+                },
+            },
+            account.user.id,
+            project.organizationUuid,
+        );
+        const resolvedCredentials = resolved.warehouseConnection;
+        if (resolvedCredentials.type !== WarehouseTypes.BIGQUERY) {
+            throw new UnexpectedServerError(
+                'Could not resolve BigQuery sign-in.',
+            );
+        }
+        const pushToPreview = await this.getSsoPushToPreviews({
+            savedProject: project,
+            updatedProject: {
+                name: project.name,
+                dbtConnection: project.dbtConnection,
+                dbtVersion: project.dbtVersion,
+                warehouseConnection: resolvedCredentials,
+            },
+        });
+        const push = await this.projectModel.reconnectSharedSignIn(
+            projectUuid,
+            signIn.refreshToken,
+            owner?.basis === SignInSubjectBasis.RECORDED
+                ? (owner.subject?.userUuid ?? null)
+                : null,
+            resolvedCredentials.keyfileContents,
+            account.user.id,
+            pushToPreview
+                ? (next) =>
+                      ({ previewCredentials, previousUpstreamCredentials }) =>
+                          getPushedPreviewCredentials({
+                              previewCredentials,
+                              previousUpstreamCredentials,
+                              nextUpstreamCredentials: next,
+                          })
+                : null,
+        );
+        if (push.kind === 'failed') {
+            this.logger.error('Failed to push SSO credentials to previews', {
+                projectUuid,
+                error: getErrorMessage(push.error),
+            });
         }
     }
 

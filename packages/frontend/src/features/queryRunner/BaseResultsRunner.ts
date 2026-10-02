@@ -17,6 +17,7 @@ import {
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { type QueryClient } from '@tanstack/react-query';
+import { reportSharedSignInQueryFailure } from '../../hooks/useReconnectSharedSignIn';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 
 // TODO: clean up types
@@ -68,18 +69,23 @@ export class BaseResultsRunner implements IResultsRunner {
 
     private readonly runPivotQuery: RunPivotQuery;
 
+    private readonly projectUuid?: string;
+
     constructor({
         fields,
         rows,
         columnNames,
         runPivotQuery,
+        projectUuid,
     }: {
         rows: RawResultRow[];
         columnNames: string[];
         fields: SqlRunnerField[];
         runPivotQuery: RunPivotQuery;
+        projectUuid?: string;
     }) {
         this.runPivotQuery = runPivotQuery;
+        this.projectUuid = projectUuid;
 
         this.rows = rows;
 
@@ -120,10 +126,17 @@ export class BaseResultsRunner implements IResultsRunner {
             return emptyPivotChartData;
         }
 
-        return this.queryClient.fetchQuery({
-            queryKey: ['transformedData', query],
-            queryFn: () => this.runPivotQuery(query),
-        });
+        try {
+            return await this.queryClient.fetchQuery({
+                queryKey: ['transformedData', query],
+                queryFn: () => this.runPivotQuery(query),
+            });
+        } catch (error) {
+            if (this.projectUuid) {
+                reportSharedSignInQueryFailure(this.projectUuid, error);
+            }
+            throw error;
+        }
     }
 
     getPivotQueryDimensions(): VizIndexLayoutOptions[] {

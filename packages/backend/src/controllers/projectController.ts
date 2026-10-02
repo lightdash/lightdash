@@ -90,6 +90,7 @@ import {
     type ParametersValuesMap,
     type ProjectSummary,
     type RunMergeQueryRequest,
+    type SharedSignInStatus,
     type Tag,
     type UpdateAgentSqlScope,
     type UpdateMultipleDashboards,
@@ -141,6 +142,36 @@ const isPositiveIntegerString = (value: string): boolean => /^\d+$/.test(value);
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class ProjectController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('{projectUuid}/warehouse-credentials/shared-sign-in')
+    @OperationId('GetSharedSignInStatus')
+    async getSharedSignInStatus(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<SharedSignInStatus | null>> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getSharedSignInStatus(req.account, projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('{projectUuid}/warehouse-credentials/shared-sign-in')
+    @OperationId('ReconnectSharedSignIn')
+    async reconnectSharedSignIn(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getProjectService()
+            .reconnectSharedSignIn(req.account, projectUuid);
+        return { status: 'ok', results: undefined };
+    }
+
     /**
      * Get a project of an organiztion
      * @summary Get project

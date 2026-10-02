@@ -73,6 +73,7 @@ import {
     WarehouseCredentials,
     WarehouseTypes,
     type ConnectionRoute,
+    type CreateBigqueryCredentials,
     type PersonSignIn,
     type SignInSubject,
     type StoredSignInSubject,
@@ -5456,6 +5457,106 @@ export class ProjectModel {
             warehouseCredentialsCache?.del(projectUuid);
         }
         return swapped;
+    }
+
+    async reconnectSharedSignIn(
+        projectUuid: string,
+        expectedRefreshToken: string,
+        expectedSubjectUserUuid: string | null,
+        keyfileContents: CreateBigqueryCredentials['keyfileContents'],
+        actorUserUuid: string,
+        createPushToPreview:
+            | ((next: CreateWarehouseCredentials) => PushToPreview)
+            | null,
+    ): Promise<PreviewCredentialsPush> {
+        const push = await this.database.transaction(async (trx) => {
+            const row = await trx(WarehouseCredentialTableName)
+                .innerJoin(
+                    ProjectTableName,
+                    `${WarehouseCredentialTableName}.project_id`,
+                    `${ProjectTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select<
+                    {
+                        project_id: number;
+                        encrypted_credentials: Buffer;
+                        credential_subject_user_uuid: string | null;
+                        organization_warehouse_credentials_uuid: string | null;
+                    }[]
+                >([
+                    `${WarehouseCredentialTableName}.project_id`,
+                    `${WarehouseCredentialTableName}.encrypted_credentials`,
+                    `${WarehouseCredentialTableName}.credential_subject_user_uuid`,
+                    `${ProjectTableName}.organization_warehouse_credentials_uuid`,
+                ])
+                .forUpdate(WarehouseCredentialTableName)
+                .first();
+            const current = row
+                ? this.decryptWarehouseCredentials(row.encrypted_credentials)
+                : null;
+            if (
+                !row ||
+                row.organization_warehouse_credentials_uuid ||
+                current?.type !== WarehouseTypes.BIGQUERY ||
+                getPersonSignIn(current)?.refreshToken !==
+                    expectedRefreshToken ||
+                row.credential_subject_user_uuid !== expectedSubjectUserUuid
+            ) {
+                throw new ParameterError(
+                    'This connection changed while you were signing in. Reload the page and try again.',
+                );
+            }
+            const next: CreateWarehouseCredentials = {
+                ...current,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents,
+            };
+            await trx(WarehouseCredentialTableName)
+                .where('project_id', row.project_id)
+                .update({
+                    encrypted_credentials: this.encryptionUtil.encrypt(
+                        JSON.stringify(next),
+                    ),
+                    credential_subject_user_uuid: actorUserUuid,
+                });
+            if (!createPushToPreview) {
+                return { kind: 'skipped' } satisfies PreviewCredentialsPush;
+            }
+            try {
+                const previewProjectUuids = await trx.transaction((savepoint) =>
+                    this.rewritePreviewWarehouseCredentials(
+                        savepoint,
+                        projectUuid,
+                        {
+                            signIn: getPersonSignIn(next),
+                            subjectUserUuid: actorUserUuid,
+                        },
+                        (previewCredentials) =>
+                            createPushToPreview(next)({
+                                previewCredentials,
+                                previousUpstreamCredentials: current,
+                            }),
+                    ),
+                );
+                return {
+                    kind: 'pushed',
+                    previewProjectUuids,
+                } satisfies PreviewCredentialsPush;
+            } catch (error) {
+                return {
+                    kind: 'failed',
+                    error,
+                } satisfies PreviewCredentialsPush;
+            }
+        });
+        warehouseCredentialsCache?.del(projectUuid);
+        if (push.kind === 'pushed') {
+            push.previewProjectUuids.forEach((previewProjectUuid) =>
+                warehouseCredentialsCache?.del(previewProjectUuid),
+            );
+        }
+        return push;
     }
 
     async copyChartSlugMappingsToPreview(

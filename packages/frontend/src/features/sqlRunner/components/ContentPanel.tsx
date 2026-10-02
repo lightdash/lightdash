@@ -36,7 +36,14 @@ import {
     IconCode,
     IconTable,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
@@ -53,6 +60,7 @@ import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
@@ -98,6 +106,7 @@ const isPreviewWarehouseSignInExpiredError = (
 
 const useQueryErrorToast = (
     queryError: ApiErrorDetail | SerializedError | Error | undefined,
+    projectUuid: string | undefined,
 ) => {
     const { showToastError, showToastApiError } = useToaster();
     useEffect(() => {
@@ -105,6 +114,7 @@ const useQueryErrorToast = (
             showToastApiError({
                 title: 'Could not fetch SQL query results',
                 apiError: queryError,
+                projectUuid,
             });
         } else if (queryError) {
             showToastError({
@@ -114,7 +124,7 @@ const useQueryErrorToast = (
         } else {
             notifications.clean();
         }
-    }, [queryError, showToastError, showToastApiError]);
+    }, [queryError, projectUuid, showToastError, showToastApiError]);
 };
 
 export const ContentPanel: FC = () => {
@@ -131,6 +141,9 @@ export const ContentPanel: FC = () => {
         (state) => state.sqlRunner.queryIsLoading,
     );
     const queryError = useAppSelector((state) => state.sqlRunner.queryError);
+    const queryErrorProjectUuid = useAppSelector(
+        (state) => state.sqlRunner.queryErrorProjectUuid,
+    );
     const editorHighlightError = useAppSelector(
         (state) => state.sqlRunner.editorHighlightError,
     );
@@ -139,6 +152,11 @@ export const ContentPanel: FC = () => {
     );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
+    const lastFailedRun = useRef<
+        | { kind: 'sql'; args: Parameters<typeof runSqlQuery>[0] }
+        | { kind: 'visualization'; projectUuid: string }
+        | null
+    >(null);
 
     // Resolved palette from the org → project → space → dashboard cascade.
     // Falls back to org-level colors for brand-new (unsaved) SQL charts where
@@ -202,24 +220,38 @@ export const ContentPanel: FC = () => {
                 hasQueryResults
             ) {
                 // Already have results, just refresh pivot data
-                await dispatch(
+                const result = await dispatch(
                     prepareAndFetchChartData({ forceRefresh: true }),
                 );
+                lastFailedRun.current = prepareAndFetchChartData.rejected.match(
+                    result,
+                )
+                    ? { kind: 'visualization', projectUuid }
+                    : null;
             } else {
-                await dispatch(
-                    runSqlQuery({
-                        sql: sqlToUse,
-                        limit,
-                        projectUuid,
-                        parameterValues,
-                    }),
-                );
+                const args = {
+                    sql: sqlToUse,
+                    limit,
+                    projectUuid,
+                    parameterValues,
+                };
+                const result = await dispatch(runSqlQuery(args));
+                lastFailedRun.current = runSqlQuery.rejected.match(result)
+                    ? { kind: 'sql', args }
+                    : null;
 
                 // If we're on viz tab, also fetch chart data after SQL completes
-                if (activeEditorTab === EditorTabs.VISUALIZATION) {
-                    await dispatch(
+                if (
+                    activeEditorTab === EditorTabs.VISUALIZATION &&
+                    runSqlQuery.fulfilled.match(result)
+                ) {
+                    const vizResult = await dispatch(
                         prepareAndFetchChartData({ forceRefresh: true }),
                     );
+                    lastFailedRun.current =
+                        prepareAndFetchChartData.rejected.match(vizResult)
+                            ? { kind: 'visualization', projectUuid }
+                            : null;
                 }
             }
         },
@@ -233,7 +265,34 @@ export const ContentPanel: FC = () => {
         ],
     );
 
-    useQueryErrorToast(queryError);
+    useEffect(() => {
+        const retryFailedRun = (event: Event) => {
+            const failedRun = lastFailedRun.current;
+            if (
+                !(event instanceof CustomEvent) ||
+                event.detail !== projectUuid ||
+                !failedRun ||
+                (failedRun.kind === 'sql'
+                    ? failedRun.args.projectUuid !== projectUuid
+                    : failedRun.projectUuid !== projectUuid)
+            )
+                return;
+            lastFailedRun.current = null;
+            if (failedRun.kind === 'sql') {
+                void dispatch(runSqlQuery(failedRun.args));
+            } else {
+                void dispatch(prepareAndFetchChartData({ forceRefresh: true }));
+            }
+        };
+        window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
+        return () =>
+            window.removeEventListener(
+                SHARED_SIGN_IN_RECONNECTED,
+                retryFailedRun,
+            );
+    }, [dispatch, projectUuid]);
+
+    useQueryErrorToast(queryError, queryErrorProjectUuid);
 
     const handleFormatSql = useCallback(() => {
         if (!sql) return;

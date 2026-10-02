@@ -68,6 +68,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         super({
             fields,
             rows,
+            projectUuid,
             columnNames: fields.map((field) => field.name),
             runPivotQuery: getPivotQueryFunctionForSqlQuery({
                 projectUuid,

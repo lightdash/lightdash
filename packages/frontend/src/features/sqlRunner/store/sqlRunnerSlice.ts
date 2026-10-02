@@ -102,6 +102,7 @@ export interface SqlRunnerState {
     mode: 'default' | 'virtualView';
     queryIsLoading: boolean;
     queryError: ApiErrorDetail | SerializedError | Error | undefined;
+    queryErrorProjectUuid: string | undefined;
     editorHighlightError: MonacoHighlightChar | undefined;
     parameterValues: ParametersValuesMap;
     connectionRoute: SqlRunnerConnectionRoute;
@@ -156,6 +157,7 @@ export const initialState: SqlRunnerState = {
     fetchResultsOnLoad: false,
     queryIsLoading: false,
     queryError: undefined,
+    queryErrorProjectUuid: undefined,
     editorHighlightError: undefined,
     parameterValues: {},
     connectionRoute: { route: 'pending' },
@@ -369,6 +371,7 @@ export const sqlRunnerSlice = createSlice({
             .addCase(runSqlQuery.pending, (state) => {
                 state.queryIsLoading = true;
                 state.queryError = undefined;
+                state.queryErrorProjectUuid = undefined;
             })
             .addCase(runSqlQuery.fulfilled, (state, action) => {
                 state.queryIsLoading = false;
@@ -438,6 +441,7 @@ export const sqlRunnerSlice = createSlice({
             })
             .addCase(runSqlQuery.rejected, (state, action) => {
                 state.queryIsLoading = false;
+                state.queryErrorProjectUuid = action.meta.arg.projectUuid;
                 state.queryError =
                     action.payload ??
                     action.error ??

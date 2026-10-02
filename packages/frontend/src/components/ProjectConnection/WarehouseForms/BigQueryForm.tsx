@@ -216,7 +216,7 @@ export const BigQuerySchemaInput: FC<{
     );
 };
 
-const BigQuerySSOInput: FC<{
+export const BigQuerySSOInput: FC<{
     isAuthenticated: boolean;
     disabled: boolean;
     openLoginPopup: () => void;

@@ -1,6 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { store } from '.';
+import { SHARED_SIGN_IN_QUERY_FAILED } from '../../../hooks/useReconnectSharedSignIn';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { getPivotQueryFunctionForSqlQuery } from '../../queryRunner/sqlRunnerPivotQueries';
 import {
@@ -55,6 +56,29 @@ describe('SQL runner runs on the active connection', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         store.dispatch(resetState());
+    });
+
+    it('reports a failed run with its project', async () => {
+        const listener = vi.fn();
+        window.addEventListener(SHARED_SIGN_IN_QUERY_FAILED, listener);
+        vi.mocked(executeSqlQuery).mockRejectedValueOnce(new Error('expired'));
+        store.dispatch(setConnectionRoute({ route: 'single' }));
+
+        await run();
+
+        expect(store.getState().sqlRunner.queryErrorProjectUuid).toBe(
+            'project-uuid',
+        );
+
+        expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+                detail: {
+                    projectUuid: 'project-uuid',
+                    error: expect.any(Error),
+                },
+            }),
+        );
+        window.removeEventListener(SHARED_SIGN_IN_QUERY_FAILED, listener);
     });
 
     it('runs on the chosen extra connection in a multi project', async () => {

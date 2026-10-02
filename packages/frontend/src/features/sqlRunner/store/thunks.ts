@@ -15,6 +15,7 @@ import {
     selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
@@ -76,6 +77,7 @@ export const runSqlQuery = createAsyncThunk<
             );
             return { ...results, warehouseConnectionUuid };
         } catch (error) {
+            reportSharedSignInQueryFailure(projectUuid, error);
             if (isApiError(error)) {
                 return rejectWithValue(error.error);
             }

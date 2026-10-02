@@ -6,6 +6,8 @@ import {
     type VizColumn,
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { useAppSelector } from '../store/hooks';
 import { selectConnectionUuid } from '../store/sqlRunnerSlice';
@@ -36,7 +38,8 @@ export const useSqlQueryRun = (
     >,
 ) => {
     const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
-    return useMutation<
+    const lastFailedRun = useRef<UseSqlQueryRunParams | null>(null);
+    const mutation = useMutation<
         ResultsAndColumns | undefined,
         ApiError,
         UseSqlQueryRunParams
@@ -53,6 +56,33 @@ export const useSqlQueryRun = (
         {
             mutationKey: ['sqlRunner', 'run'],
             ...useMutationOptions,
+            onError: (error, variables, context) => {
+                lastFailedRun.current = variables;
+                useMutationOptions?.onError?.(error, variables, context);
+            },
+            onSuccess: (data, variables, context) => {
+                lastFailedRun.current = null;
+                useMutationOptions?.onSuccess?.(data, variables, context);
+            },
         },
     );
+    const { mutate } = mutation;
+    useEffect(() => {
+        const retryFailedRun = (event: Event) => {
+            if (
+                event instanceof CustomEvent &&
+                event.detail === projectUuid &&
+                lastFailedRun.current
+            ) {
+                mutate(lastFailedRun.current);
+            }
+        };
+        window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
+        return () =>
+            window.removeEventListener(
+                SHARED_SIGN_IN_RECONNECTED,
+                retryFailedRun,
+            );
+    }, [mutate, projectUuid]);
+    return mutation;
 };

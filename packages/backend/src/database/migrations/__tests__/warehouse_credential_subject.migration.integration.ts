@@ -118,6 +118,67 @@ describe('warehouse credential subject', () => {
                 )
         )?.credential_subject_user_uuid ?? null;
 
+    test('reconnect writes only the locked credentials when the authorised token and subject match', async () => {
+        const organization = await createOrganization();
+        const founder = await createUser('Fran');
+        const projectUuid = await model.create(
+            founder,
+            organization,
+            projectData(googleSignIn('old-token')),
+        );
+        await database('projects')
+            .where('project_uuid', projectUuid)
+            .update({ project_defaults: { case_sensitive: false } });
+        await model.updateWarehouseCredentialsIf(projectUuid, (current) => ({
+            ...current,
+            dataset: 'concurrent-dataset',
+        }));
+
+        await model.reconnectSharedSignIn(
+            projectUuid,
+            'old-token',
+            founder,
+            googleSignIn('new-token').keyfileContents,
+            founder,
+            null,
+        );
+        const updated = await model.getWithSensitiveFields(projectUuid);
+        expect(updated.warehouseConnection).toMatchObject({
+            dataset: 'concurrent-dataset',
+            project: 'analytics',
+            keyfileContents: { refresh_token: 'new-token' },
+        });
+        expect(
+            (
+                await database('projects')
+                    .where('project_uuid', projectUuid)
+                    .first('project_defaults')
+            )?.project_defaults,
+        ).toEqual({ case_sensitive: false });
+
+        await model.updateWarehouseCredentialsIf(projectUuid, (current) => ({
+            ...current,
+            keyfileContents: googleSignIn('replacement-token').keyfileContents,
+        }));
+        await expect(
+            model.reconnectSharedSignIn(
+                projectUuid,
+                'new-token',
+                founder,
+                googleSignIn('later-token').keyfileContents,
+                founder,
+                null,
+            ),
+        ).rejects.toThrow('This connection changed while you were signing in');
+        expect(
+            (await model.getWithSensitiveFields(projectUuid))
+                .warehouseConnection,
+        ).toMatchObject({
+            dataset: 'concurrent-dataset',
+            keyfileContents: { refresh_token: 'replacement-token' },
+        });
+    });
+
     const addMemberWithGoogleToken = async (
         organizationUuid: string,
         userUuid: string,
@@ -164,6 +225,29 @@ describe('warehouse credential subject', () => {
             subject: { userUuid: founder, name: 'Fran Person' },
             basis: SignInSubjectBasis.RECORDED,
         });
+    });
+
+    test('keeps the owner and stores the new token after a reconnect write', async () => {
+        const organization = await createOrganization();
+        const owner = await createUser('Owner');
+        await addMemberWithGoogleToken(organization, owner, 'new-token');
+        const projectUuid = await model.create(
+            owner,
+            organization,
+            projectData(googleSignIn('expired-token')),
+        );
+
+        await model.update(
+            projectUuid,
+            projectData(googleSignIn('new-token')),
+            owner,
+        );
+
+        const project = await model.getWithSensitiveFields(projectUuid);
+        expect(project.warehouseConnection).toMatchObject({
+            keyfileContents: { refresh_token: 'new-token' },
+        });
+        expect(await storedSubject(projectUuid)).toBe(owner);
     });
 
     test('keeps the subject when someone else saves the same sign-in, and moves it with a new one', async () => {

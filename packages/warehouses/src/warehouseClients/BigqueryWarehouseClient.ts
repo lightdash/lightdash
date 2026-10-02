@@ -411,7 +411,7 @@ const readString = (record: UnknownRecord, key: string): string | undefined => {
     return typeof value === 'string' ? value : undefined;
 };
 
-const getGoogleOauthTokenError = (
+export const getGoogleOauthTokenError = (
     error: unknown,
 ): GoogleOauthTokenError | undefined => {
     if (!isRecord(error)) return undefined;
