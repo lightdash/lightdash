@@ -1,3 +1,10 @@
+## [2.423.1](https://github.com/lightdash/lightdash/compare/2.423.0...2.423.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ai:** pass the project scope to the AI credit key lookup ([#30443](https://github.com/lightdash/lightdash/issues/30443)) ([7d8c69c](https://github.com/lightdash/lightdash/commit/7d8c69c914e278804698510904579950026d853d))
+
 # [2.423.0](https://github.com/lightdash/lightdash/compare/2.422.0...2.423.0) (2026-10-02)
 
 
