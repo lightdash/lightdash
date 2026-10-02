@@ -141,6 +141,24 @@ describe('analytics project gate', () => {
         },
     );
 
+    it('forwards table references after authorization', async () => {
+        overrides.set('org', true);
+        const resolve = vi.fn().mockResolvedValue({});
+        vi.mocked(createS3AnalyticsSourceResolver).mockReturnValue(resolve);
+        await createAnalyticsClient('org', flags);
+        const [config] = vi.mocked(DuckdbWarehouseClient).mock.calls[0];
+        if (!config || config.type !== 'duckdb_parquet')
+            throw new Error('Wrong client');
+        await config.resolveSource(['export_events']);
+        expect(resolve).toHaveBeenCalledWith(['export_events']);
+        resolve.mockClear();
+        overrides.set('org', false);
+        await expect(config.resolveSource(['export_events'])).rejects.toThrow(
+            /not enabled/,
+        );
+        expect(resolve).not.toHaveBeenCalled();
+    });
+
     it('rechecks Console flag changes on an existing client without a restart', async () => {
         const resolve = vi.fn().mockResolvedValue({});
         vi.mocked(createS3AnalyticsSourceResolver).mockReturnValue(resolve);

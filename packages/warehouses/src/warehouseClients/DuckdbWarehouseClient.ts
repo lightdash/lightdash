@@ -176,7 +176,9 @@ export type DuckdbParquetSource = {
 export type DuckdbParquetCredentials = {
     type: 'duckdb_parquet';
     /** Resolve again for every session so new files and refreshed credentials are visible. */
-    resolveSource: () => Promise<DuckdbParquetSource>;
+    resolveSource: (
+        referencedTables?: readonly string[],
+    ) => Promise<DuckdbParquetSource>;
 };
 
 export type DuckdbConnectionCredentials =
@@ -1084,11 +1086,45 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         };
     }
 
+    /** Parse dependencies without granting unvalidated SQL any file access. */
+    private static async getParquetQueryTables(
+        sql?: string,
+    ): Promise<readonly string[] | undefined> {
+        if (!sql) return undefined;
+        const parser = await DuckDBInstance.create(':memory:', {
+            enable_external_access: 'false',
+            autoload_known_extensions: 'false',
+            autoinstall_known_extensions: 'false',
+            threads: '1',
+            memory_limit: '32MB',
+        });
+        try {
+            const connection = await parser.connect();
+            try {
+                const names = connection.getTableNames(sql, false);
+                // Unbound USING joins can return no references. Keep the full
+                // source in that case; normal SQL validation still runs later.
+                return names.length > 0
+                    ? names.map((name) => name.toLowerCase())
+                    : undefined;
+            } finally {
+                connection.closeSync();
+            }
+        } catch {
+            return undefined;
+        } finally {
+            parser.closeSync();
+        }
+    }
+
     private async bootstrapParquetViews(
         db: DuckdbConnection,
         querySql?: string,
     ): Promise<void> {
-        const source = await this.parquetConfig!.resolveSource();
+        const references =
+            await DuckdbWarehouseClient.getParquetQueryTables(querySql);
+        const referencedTables = references ? new Set(references) : undefined;
+        const source = await this.parquetConfig!.resolveSource(references);
         const escape = DuckdbWarehouseClient.escapeDuckdbString;
         const literal = (value: string) => `'${escape(value)}'`;
         const scope = new URL(source.scope);
@@ -1211,13 +1247,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const files = source.tables.flatMap(({ urls }) => urls);
         await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
         await db.run('SET enable_external_access = false;');
-        // Binding a remote view reads its Parquet footers. Avoid opening every
-        // retained stream for a query that only needs one model and its joins.
-        // Resolve references after restricting file access; keep the full set
-        // when DuckDB cannot resolve them (for example, an unbound USING join).
-        const referencedTables = querySql
-            ? new Set(db.getTableNames(querySql, false))
-            : undefined;
+        // Only bind the dependencies resolved in the isolated parser above.
+        // Providers that do not support selective signing may still return all files.
         const tables = source.tables.filter(
             ({ name }) => !referencedTables?.size || referencedTables.has(name),
         );

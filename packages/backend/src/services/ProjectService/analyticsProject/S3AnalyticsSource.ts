@@ -31,7 +31,9 @@ const SIGNING_CONCURRENCY = 8;
 export const createS3AnalyticsSourceResolver = ({
     storage,
     organizationUuid,
-}: S3AnalyticsSourceConfig): (() => Promise<DuckdbParquetSource>) => {
+}: S3AnalyticsSourceConfig): ((
+    referencedTables?: readonly string[],
+) => Promise<DuckdbParquetSource>) => {
     const { bucket } = storage;
     if (
         !/^[a-z0-9][a-z0-9.-]{1,220}[a-z0-9]$/.test(bucket) ||
@@ -66,7 +68,10 @@ export const createS3AnalyticsSourceResolver = ({
         endpoint: endpoint.origin,
         forcePathStyle: true,
     };
-    return async () => {
+    return async (referencedTables) => {
+        const requested = referencedTables?.length
+            ? new Set(referencedTables)
+            : undefined;
         const client = createS3ClientFromConfig(config);
         const urlSigner = createObjectUrlSigner(client, config);
         const tables = new Map<string, string[]>();
@@ -117,7 +122,9 @@ export const createS3AnalyticsSourceResolver = ({
                             throw new Error(
                                 'Analytics manifest exceeds file limit',
                             );
-                        files.push({ key, tableName });
+                        if (!requested || requested.has(tableName)) {
+                            files.push({ key, tableName });
+                        }
                     }
                 }
                 // GCS workload identity signs each URL remotely. Bound each
