@@ -1,3 +1,10 @@
+## [2.418.1](https://github.com/lightdash/lightdash/compare/2.418.0...2.418.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **sdk:** drill down in place from embedded standalone charts ([#30374](https://github.com/lightdash/lightdash/issues/30374)) ([908f644](https://github.com/lightdash/lightdash/commit/908f644ea2096011f0c719571c110bb662185844))
+
 # [2.418.0](https://github.com/lightdash/lightdash/compare/2.417.0...2.418.0) (2026-10-02)
 
 
