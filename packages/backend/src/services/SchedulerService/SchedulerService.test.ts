@@ -8,6 +8,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SpaceMemberRole,
+    ThresholdOperator,
     UnexpectedGoogleSheetsError,
     type ChartScheduler,
     type SendNowScheduler,
@@ -1080,6 +1081,51 @@ describe('SchedulerService', () => {
                 schedulerUuid: chartSchedulerInPrivateSpace.schedulerUuid,
             });
         });
+
+        test.each([
+            [
+                [
+                    {
+                        fieldId: 'orders_count',
+                        operator: ThresholdOperator.GREATER_THAN,
+                        value: 10,
+                    },
+                ],
+                true,
+            ],
+            [[], false],
+            [undefined, false],
+        ])(
+            'should track scheduler.updated with thresholds %j as isThresholdAlert %s',
+            async (thresholds, isThresholdAlert) => {
+                const trackSpy = vi.spyOn(analyticsMock, 'track');
+                const { updateService, updateSchedulerModel } =
+                    buildUpdateService();
+                updateSchedulerModel.updateScheduler.mockResolvedValueOnce({
+                    ...chartSchedulerInPrivateSpace,
+                    format: SchedulerFormat.GSHEETS,
+                    targets: [],
+                    enabled: false,
+                    thresholds,
+                });
+
+                await updateService.updateScheduler(
+                    actorWithGoogleSheets,
+                    chartSchedulerInPrivateSpace.schedulerUuid,
+                    gsheetsUpdate,
+                    { validateGoogleSheet: false },
+                );
+
+                expect(trackSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'scheduler.updated',
+                        properties: expect.objectContaining({
+                            isThresholdAlert,
+                        }),
+                    }),
+                );
+            },
+        );
     });
 
     describe('createAppScheduler', () => {

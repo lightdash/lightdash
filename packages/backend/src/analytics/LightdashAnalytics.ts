@@ -1480,6 +1480,11 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         duplicated?: boolean;
         tabsCount?: number;
         parametersCount: number;
+        isDateZoomDisabled: boolean;
+        dateZoomGranularitiesCount: number;
+        defaultDateZoomGranularity: string | null;
+        dateZoomControlsCount: number;
+        dateZoomTileTargetsCount: number;
     };
 };
 
@@ -1922,6 +1927,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         timeZone: string | undefined;
         includeLinks: boolean;
         plainTextEmail: boolean;
+        isThresholdAlert: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {
