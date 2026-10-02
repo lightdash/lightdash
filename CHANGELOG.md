@@ -1,3 +1,10 @@
+# [2.419.0](https://github.com/lightdash/lightdash/compare/2.418.1...2.419.0) (2026-10-02)
+
+
+### Features
+
+* **ai:** named AI provider credentials schema and model ([#30365](https://github.com/lightdash/lightdash/issues/30365)) ([bb8494d](https://github.com/lightdash/lightdash/commit/bb8494d5209c59c07e58b7f757813e5bdc857454)), closes [#30318](https://github.com/lightdash/lightdash/issues/30318)
+
 ## [2.418.1](https://github.com/lightdash/lightdash/compare/2.418.0...2.418.1) (2026-10-02)
 
 
