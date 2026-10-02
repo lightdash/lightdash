@@ -8,6 +8,10 @@ import { IconPlugConnected } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import {
+    clearSharedSignInToastSuppression,
+    setSharedSignInToastSuppression,
+} from '../../hooks/toaster/sharedSignInToastSuppression';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { getSharedSignInStatus } from '../../hooks/useReconnectSharedSignIn';
@@ -36,6 +40,11 @@ export const SharedSignInExpiryListener: FC = () => {
     const [modalProjectUuid, setModalProjectUuid] = useState<string | null>(
         null,
     );
+
+    useEffect(() => {
+        if (!modalProjectUuid) return;
+        return () => clearSharedSignInToastSuppression(modalProjectUuid);
+    }, [modalProjectUuid]);
 
     useEffect(() => {
         const showExpiryToast = (error: unknown) => {
@@ -95,6 +104,11 @@ export const SharedSignInExpiryListener: FC = () => {
                         !dismissedProjects.current.has(projectUuid)
                     ) {
                         openProjects.current.add(projectUuid);
+                        setSharedSignInToastSuppression(
+                            projectUuid,
+                            status,
+                            userUuid,
+                        );
                         setModalProjectUuid(projectUuid);
                     } else {
                         showExpiryToast(error);
@@ -143,6 +157,7 @@ export const SharedSignInExpiryListener: FC = () => {
                 dismissedProjects.current.delete(modalProjectUuid);
             }}
             onClose={() => {
+                clearSharedSignInToastSuppression(modalProjectUuid);
                 dismissedProjects.current.add(modalProjectUuid);
                 openProjects.current.delete(modalProjectUuid);
                 setModalProjectUuid(null);

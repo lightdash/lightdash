@@ -12,7 +12,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import React, { useCallback, useRef, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
 import MantineIcon, {
@@ -20,6 +20,10 @@ import MantineIcon, {
 } from '../../components/common/MantineIcon';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
+import {
+    shouldSuppressSharedSignInToast,
+    subscribeToSharedSignInToastSuppression,
+} from './sharedSignInToastSuppression';
 import { type NotificationData, type ToastVariant } from './types';
 import styles from './useToaster.module.css';
 
@@ -73,6 +77,12 @@ const useToaster = () => {
                 ...rest
             }: NotificationData,
         ) => {
+            if (
+                variant === 'error' &&
+                rest.apiError &&
+                shouldSuppressSharedSignInToast(rest.apiError)
+            )
+                return;
             const variantConfig = TOAST_VARIANTS[variant];
 
             const commonProps = {
@@ -255,8 +265,35 @@ const useToaster = () => {
         [showToastError],
     );
 
+    useEffect(
+        () =>
+            subscribeToSharedSignInToastSuppression(() => {
+                Object.entries(currentErrors.current).forEach(
+                    ([key, errors]) => {
+                        const remaining = errors.filter(
+                            (error) =>
+                                !error.apiError ||
+                                !shouldSuppressSharedSignInToast(
+                                    error.apiError,
+                                ),
+                        );
+                        if (remaining.length !== errors.length) {
+                            currentErrors.current[key] = remaining;
+                            renderGroupedErrors(key);
+                        }
+                    },
+                );
+            }),
+        [renderGroupedErrors],
+    );
+
     const addToastError = useCallback(
         (notificationData: NotificationData) => {
+            if (
+                notificationData.apiError &&
+                shouldSuppressSharedSignInToast(notificationData.apiError)
+            )
+                return;
             const {
                 // By default errors will be grouped under 'error-list'.
                 // Consumers can override this by passing a custom key.

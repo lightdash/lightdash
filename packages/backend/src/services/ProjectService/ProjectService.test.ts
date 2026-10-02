@@ -12883,6 +12883,13 @@ describe('ProjectService expired shared sign-in', () => {
 });
 
 describe('ProjectService.reconnectSharedSignIn', () => {
+    const adminAccount = {
+        ...developerAccount,
+        user: {
+            ...developerAccount.user,
+            id: 'project-admin',
+        },
+    } as typeof developerAccount;
     const credentials = {
         type: WarehouseTypes.BIGQUERY,
         project: 'analytics',
@@ -12926,6 +12933,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         model.getSharedSignInSubjectForToken = vi.fn(async () => ({
             provider: PersonSignInProvider.GOOGLE,
             subject: { userUuid: developerAccount.user.id, name: 'Owner' },
+            basis: SignInSubjectBasis.RECORDED,
         }));
         vi.spyOn(UserService, 'generateGoogleAccessToken').mockResolvedValue(
             'access-token',
@@ -12964,27 +12972,50 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         );
     });
 
-    test('allows an unknown subject to reconnect', async () => {
+    test('allows an admin when nobody is known', async () => {
         model.getSharedSignInSubjectForToken.mockResolvedValue(null);
         await service.reconnectSharedSignIn(
-            developerAccount,
+            adminAccount,
             projectSummary.projectUuid,
         );
         expect(projectModel.update).toHaveBeenCalledOnce();
     });
 
-    test('refuses another subject without writing', async () => {
-        model.getSharedSignInSubjectForToken.mockResolvedValue({
-            provider: PersonSignInProvider.GOOGLE,
-            subject: { userUuid: 'someone-else', name: 'Owner' },
-        });
+    test('allows the recorded person but refuses an admin by name', async () => {
+        await service.reconnectSharedSignIn(
+            developerAccount,
+            projectSummary.projectUuid,
+        );
         await expect(
             service.reconnectSharedSignIn(
-                developerAccount,
+                adminAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow("Only Owner can reconnect this project's sign-in");
+        expect(projectModel.update).toHaveBeenCalledOnce();
+    });
+
+    test('allows the creator and an admin for a guessed creator, but refuses a viewer', async () => {
+        model.getSharedSignInSubjectForToken.mockResolvedValue({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: { userUuid: developerAccount.user.id, name: 'Owner' },
+            basis: SignInSubjectBasis.PROJECT_CREATOR,
+        });
+        await service.reconnectSharedSignIn(
+            developerAccount,
+            projectSummary.projectUuid,
+        );
+        await service.reconnectSharedSignIn(
+            adminAccount,
+            projectSummary.projectUuid,
+        );
+        await expect(
+            service.reconnectSharedSignIn(
+                viewerAccount,
                 projectSummary.projectUuid,
             ),
         ).rejects.toBeInstanceOf(ForbiddenError);
-        expect(projectModel.update).not.toHaveBeenCalled();
+        expect(projectModel.update).toHaveBeenCalledTimes(2);
     });
 
     test('refuses a viewer and a disabled flag', async () => {
@@ -13059,6 +13090,10 @@ describe('ProjectService.reconnectSharedSignIn', () => {
 });
 
 describe('ProjectService.getSharedSignInStatus', () => {
+    const adminAccount = {
+        ...developerAccount,
+        user: { ...developerAccount.user, id: 'project-admin' },
+    } as typeof developerAccount;
     const credentials = {
         type: WarehouseTypes.BIGQUERY,
         project: 'analytics',
@@ -13098,13 +13133,14 @@ describe('ProjectService.getSharedSignInStatus', () => {
         model.getSharedSignInSubjectForToken = vi.fn(async () => ({
             provider: PersonSignInProvider.GOOGLE,
             subject: owner,
+            basis: SignInSubjectBasis.RECORDED,
         }));
         Object.assign(service, {
             isGoogleSharedSignInExpired: vi.fn(async () => true),
         });
     });
 
-    test('reports an expired token and lets its subject reconnect', async () => {
+    test('allows the recorded person but not an admin', async () => {
         await expect(
             service.getSharedSignInStatus(
                 developerAccount,
@@ -13114,23 +13150,62 @@ describe('ProjectService.getSharedSignInStatus', () => {
             expired: true,
             canReconnect: true,
             subject: owner,
+            subjectBasis: SignInSubjectBasis.RECORDED,
         });
+        await expect(
+            service.getSharedSignInStatus(
+                adminAccount,
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toMatchObject({ canReconnect: false });
     });
 
-    test('allows an updater when the subject is unknown', async () => {
+    test('allows the creator and an admin for a guessed creator, but not a viewer', async () => {
+        model.getSharedSignInSubjectForToken.mockResolvedValue({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: owner,
+            basis: SignInSubjectBasis.PROJECT_CREATOR,
+        });
+        await Promise.all(
+            (
+                [
+                    [developerAccount, true],
+                    [adminAccount, true],
+                    [viewerAccount, false],
+                ] as const
+            ).map(([accountForTest, canReconnect]) =>
+                expect(
+                    service.getSharedSignInStatus(
+                        accountForTest,
+                        projectSummary.projectUuid,
+                    ),
+                ).resolves.toMatchObject({
+                    canReconnect,
+                    subjectBasis: SignInSubjectBasis.PROJECT_CREATOR,
+                }),
+            ),
+        );
+    });
+
+    test('allows an admin when nobody is known', async () => {
         model.getSharedSignInSubjectForToken.mockResolvedValue(null);
         await expect(
             service.getSharedSignInStatus(
-                developerAccount,
+                adminAccount,
                 projectSummary.projectUuid,
             ),
-        ).resolves.toMatchObject({ canReconnect: true, subject: null });
+        ).resolves.toMatchObject({
+            canReconnect: true,
+            subject: null,
+            subjectBasis: null,
+        });
     });
 
     test('does not allow another subject or a viewer', async () => {
         model.getSharedSignInSubjectForToken.mockResolvedValue({
             provider: PersonSignInProvider.GOOGLE,
             subject: { userUuid: 'someone-else', name: 'Other' },
+            basis: SignInSubjectBasis.RECORDED,
         });
         await expect(
             service.getSharedSignInStatus(
@@ -13141,6 +13216,7 @@ describe('ProjectService.getSharedSignInStatus', () => {
         model.getSharedSignInSubjectForToken.mockResolvedValue({
             provider: PersonSignInProvider.GOOGLE,
             subject: null,
+            basis: null,
         });
         await expect(
             service.getSharedSignInStatus(

@@ -29,6 +29,7 @@ export type SignInSubject = { userUuid: string; name: string };
 export type SharedSignInStatus = {
     provider: PersonSignInProvider;
     subject: SignInSubject | null;
+    subjectBasis: SignInSubjectBasis | null;
     expired: boolean;
     canReconnect: boolean;
 };

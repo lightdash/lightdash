@@ -225,6 +225,7 @@ import {
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    SignInSubjectBasis,
     SingleConnectionProjectError,
     snakeCaseName,
     SnowflakeAuthenticationType,
@@ -284,6 +285,7 @@ import {
     type ParametersValuesMap,
     type RunQueryTags,
     type SharedSignInStatus,
+    type SignInSubject,
     type Tag,
     type UUID,
     type WarehouseLocation,
@@ -3313,11 +3315,14 @@ export class ProjectService extends BaseService {
         const credentials = project.warehouseConnection;
         const signIn = credentials ? getPersonSignIn(credentials) : null;
         if (!signIn) return null;
-        const { provider, subject: owner } =
-            (await this.projectModel.getSharedSignInSubjectForToken(
-                projectUuid,
-                signIn.refreshToken,
-            )) ?? { provider: signIn.provider, subject: null };
+        const {
+            provider,
+            subject: owner,
+            basis,
+        } = (await this.projectModel.getSharedSignInSubjectForToken(
+            projectUuid,
+            signIn.refreshToken,
+        )) ?? { provider: signIn.provider, subject: null, basis: null };
         const expired =
             provider === PersonSignInProvider.GOOGLE &&
             credentials?.type === WarehouseTypes.BIGQUERY
@@ -3328,12 +3333,24 @@ export class ProjectService extends BaseService {
         return {
             provider,
             subject: owner,
+            subjectBasis: basis,
             expired,
             canReconnect:
                 provider === PersonSignInProvider.GOOGLE &&
                 ability.can('update', resource) &&
-                (owner === null || owner.userUuid === account.user.id),
+                this.canReconnectSharedSignIn(owner, basis, account.user.id),
         };
+    }
+
+    private canReconnectSharedSignIn(
+        owner: SignInSubject | null,
+        basis: SignInSubjectBasis | null,
+        userUuid: string,
+    ): boolean {
+        return (
+            basis !== SignInSubjectBasis.RECORDED ||
+            owner?.userUuid === userUuid
+        );
     }
 
     private async isGoogleSharedSignInExpired(
@@ -3391,9 +3408,15 @@ export class ProjectService extends BaseService {
             projectUuid,
             signIn.refreshToken,
         );
-        if (owner?.subject && owner.subject.userUuid !== account.user.id) {
+        if (
+            !this.canReconnectSharedSignIn(
+                owner?.subject ?? null,
+                owner?.basis ?? null,
+                account.user.id,
+            )
+        ) {
             throw new ForbiddenError(
-                `Only ${owner.subject.name || 'the sign-in owner'} can reconnect this project's sign-in`,
+                `Only ${owner?.subject?.name || 'the sign-in owner'} can reconnect this project's sign-in`,
             );
         }
         const newToken = await this.userOAuthGrantsModel
