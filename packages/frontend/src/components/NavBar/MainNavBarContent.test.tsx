@@ -47,6 +47,9 @@ vi.mock('./ProjectCredentialsSwitcher', () => ({ default: () => null }));
 vi.mock('./AutopilotNavButton', () => ({ AutopilotNavButton: () => null }));
 vi.mock('./MetricsLink', () => ({ MetricsLink: () => null }));
 vi.mock('./NotificationsMenu', () => ({ NotificationsMenu: () => null }));
+vi.mock('./SharedSignInExpiryListener', () => ({
+    SharedSignInExpiryListener: () => null,
+}));
 vi.mock('../../features/learn/LearnLink', () => ({ LearnLink: () => null }));
 
 describe('MainNavBarContent compact navigation', () => {

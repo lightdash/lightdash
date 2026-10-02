@@ -48,6 +48,7 @@ import type { DocumentQueryContext } from '../DocumentService/DocumentQueryConte
 
 export type CommonAsyncQueryArgs = {
     account: Account;
+    isEmbedOrigin?: boolean;
     projectUuid: string;
     invalidateCache?: boolean;
     usePreAggregateCache?: boolean;
@@ -285,6 +286,7 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 
 export type RunAsyncWarehouseQueryArgs = {
     projectUuid: string;
+    isEmbedOrigin?: boolean;
     userUuid: string;
     organizationUuid: string;
     isPreviewProject: boolean;

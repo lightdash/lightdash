@@ -386,7 +386,11 @@ export class InstanceConfigurationService extends BaseService {
                     dbtVersion: entry.dbtVersion ?? project.dbtVersion,
                 };
 
-                await this.projectModel.update(projectUuid, updatedProject);
+                await this.projectModel.update(
+                    projectUuid,
+                    updatedProject,
+                    null,
+                );
 
                 this.logger.info(
                     `Update instance: Updated project "${entry.name}" (${projectUuid})`,
@@ -627,7 +631,7 @@ export class InstanceConfigurationService extends BaseService {
                 dbtConnection: updatedDbtConnection ?? dbtConnection,
             };
 
-            await this.projectModel.update(projectUuid, updatedProject);
+            await this.projectModel.update(projectUuid, updatedProject, null);
 
             this.logger.info(
                 `Update instance: Updated configuration for project ${projectUuid}`,

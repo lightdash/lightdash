@@ -1,4 +1,9 @@
-import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
+import {
+    LightdashMode,
+    SignInSubjectBasis,
+    type ApiErrorDetail,
+    type SharedSignInExpiry,
+} from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -12,10 +17,12 @@ import {
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import { defaultContext } from '@tanstack/react-query';
+import { defaultContext, type QueryClient } from '@tanstack/react-query';
 import { useContext, useLayoutEffect, useRef, useState } from 'react';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
+import { getSharedSignInExpiry } from '../../components/ProjectConnection/SharedSignIn/sharedSignInCopy';
+import { SharedSignInExpiredMessage } from '../../components/ProjectConnection/SharedSignIn/SharedSignInExpiredMessage';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
@@ -26,10 +33,40 @@ import {
 } from '../../utils/networkDiagnostics';
 import { useGoogleLoginPopup } from '../gdrive/useGdrive';
 import useHealth from '../health/useHealth';
+import { LAST_PROJECT_KEY, LAST_USER_KEY } from '../useActiveProject';
+import { type UserWithAbility } from '../user/useUser';
 import styles from './ApiErrorDisplay.module.css';
 import { errorClipboardValue } from './errorClipboardValue';
 
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
+
+const sharedSignInSettingsHref = (
+    expiry: SharedSignInExpiry,
+    queryClient: QueryClient | undefined,
+): string | null => {
+    const userUuid = queryClient?.getQueryData<UserWithAbility>([
+        'user',
+    ])?.userUuid;
+    if (
+        !userUuid ||
+        expiry.subjectUserUuid !== userUuid ||
+        (expiry.subjectBasis !== SignInSubjectBasis.RECORDED &&
+            expiry.subjectBasis !== SignInSubjectBasis.PROJECT_CREATOR)
+    )
+        return null;
+    const cachedProjectUuid = queryClient?.getQueryData<string | null>([
+        'activeProject',
+        userUuid,
+    ]);
+    const projectUuid =
+        cachedProjectUuid ??
+        (localStorage.getItem(LAST_USER_KEY) === userUuid
+            ? localStorage.getItem(LAST_PROJECT_KEY)
+            : null);
+    return projectUuid
+        ? `/generalSettings/projectManagement/${projectUuid}/settings`
+        : null;
+};
 
 /** Clamped toast message; when the message overflows the clamp it can be
  *  expanded in place — the toast root grows in width and height via the
@@ -242,10 +279,24 @@ const PreviewSignInExpiredMessage = ({
 const ApiErrorDisplayStatic = ({
     apiError,
     defaultExpanded,
+    queryClient,
 }: {
     apiError: ApiErrorDetail;
     defaultExpanded?: boolean;
+    queryClient: QueryClient | undefined;
 }) => {
+    const sharedSignIn = getSharedSignInExpiry(apiError);
+    if (sharedSignIn) {
+        return (
+            <SharedSignInExpiredMessage
+                message={apiError.message}
+                settingsHref={sharedSignInSettingsHref(
+                    sharedSignIn,
+                    queryClient,
+                )}
+            />
+        );
+    }
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':
             return (
@@ -305,10 +356,12 @@ const ApiErrorDisplayWithHealth = ({
     apiError,
     onClose,
     defaultExpanded,
+    queryClient,
 }: {
     apiError: ApiErrorDetail;
     onClose?: () => void;
     defaultExpanded?: boolean;
+    queryClient: QueryClient;
 }) => {
     const isDark = useComputedColorScheme() === 'dark';
     const health = useHealth();
@@ -321,6 +374,20 @@ const ApiErrorDisplayWithHealth = ({
 
     const showSupportButton =
         (isCloudCustomer && isNotMultiTenantCloud) || isDevelopment;
+
+    const sharedSignIn = getSharedSignInExpiry(apiError);
+    if (sharedSignIn) {
+        return (
+            <SharedSignInExpiredMessage
+                message={apiError.message}
+                settingsHref={sharedSignInSettingsHref(
+                    sharedSignIn,
+                    queryClient,
+                )}
+                onNavigate={onClose}
+            />
+        );
+    }
 
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':
@@ -448,6 +515,7 @@ const ApiErrorDisplay = ({
             <ApiErrorDisplayStatic
                 apiError={apiError}
                 defaultExpanded={defaultExpanded}
+                queryClient={queryClient}
             />
         );
     }
@@ -457,6 +525,7 @@ const ApiErrorDisplay = ({
             apiError={apiError}
             onClose={onClose}
             defaultExpanded={defaultExpanded}
+            queryClient={queryClient}
         />
     );
 };

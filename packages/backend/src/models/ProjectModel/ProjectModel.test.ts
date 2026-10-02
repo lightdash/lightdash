@@ -1241,12 +1241,16 @@ describe('ProjectModel', () => {
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
 
-        await model.update(projectUuid, {
-            name: expectedProject.name,
-            dbtConnection: expectedProject.dbtConnection,
-            dbtVersion: expectedProject.dbtVersion,
-            warehouseConnection: nextCredentials,
-        });
+        await model.update(
+            projectUuid,
+            {
+                name: expectedProject.name,
+                dbtConnection: expectedProject.dbtConnection,
+                dbtVersion: expectedProject.dbtVersion,
+                warehouseConnection: nextCredentials,
+            },
+            null,
+        );
 
         expect(invalidate).toHaveBeenCalledWith(
             'md:analytics?motherduck_token=previous-token&saas_mode=true',
@@ -1271,14 +1275,18 @@ describe('ProjectModel', () => {
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
 
-        await model.update(projectUuid, {
-            name: expectedProject.name,
-            dbtConnection: expectedProject.dbtConnection,
-            dbtVersion: expectedProject.dbtVersion,
-            warehouseConnection: {
-                type: WarehouseTypes.BIGQUERY,
-            } as CreateWarehouseCredentials,
-        });
+        await model.update(
+            projectUuid,
+            {
+                name: expectedProject.name,
+                dbtConnection: expectedProject.dbtConnection,
+                dbtVersion: expectedProject.dbtVersion,
+                warehouseConnection: {
+                    type: WarehouseTypes.BIGQUERY,
+                } as CreateWarehouseCredentials,
+            },
+            null,
+        );
 
         expect(
             tracker.history.insert.some(({ sql }) =>

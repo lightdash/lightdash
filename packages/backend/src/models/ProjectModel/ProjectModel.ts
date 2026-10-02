@@ -27,6 +27,7 @@ import {
     getErrorMessage,
     getExploreSplitCandidates,
     getLtreePathFromSlug,
+    getPersonSignIn,
     GroupType,
     IdContentMapping,
     isExploreError,
@@ -37,6 +38,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    PersonSignInProvider,
     PreviewContentMapping,
     Project,
     ProjectDefaults,
@@ -45,11 +47,13 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    resolveSignInSubject,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     ServiceAccountProjectAccessInput,
     ServiceAccountProjectGrant,
     ServiceAccountScope,
+    SignInSubjectBasis,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
@@ -69,6 +73,9 @@ import {
     WarehouseCredentials,
     WarehouseTypes,
     type ConnectionRoute,
+    type PersonSignIn,
+    type SignInSubject,
+    type StoredSignInSubject,
     type SummaryExplore,
 } from '@lightdash/common';
 import {
@@ -80,6 +87,7 @@ import {
 import { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
+import { createHash } from 'node:crypto';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -260,6 +268,18 @@ const warehouseCredentialsCache =
               checkperiod: 60, // cleanup interval in seconds
           })
         : undefined;
+
+type SharedSignInSubjectLookup = {
+    provider: PersonSignIn['provider'];
+    subject: SignInSubject | null;
+    basis: SignInSubjectBasis | null;
+};
+
+const legacySignInSubjects = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+const pendingLegacySignInSubjects = new Map<
+    string,
+    Promise<SharedSignInSubjectLookup | null>
+>();
 
 const INSERT_BATCH_SIZE = 1000;
 
@@ -879,14 +899,52 @@ export class ProjectModel {
             .update({ provisioning_source: provisioningSource });
     }
 
+    private async getStoredSignInSubjects(
+        trx: Transaction,
+        projectIds: number[],
+    ): Promise<StoredSignInSubject[]> {
+        if (projectIds.length === 0) return [];
+        const rows = await trx('warehouse_credentials')
+            .whereIn('project_id', projectIds)
+            .select('encrypted_credentials', 'credential_subject_user_uuid');
+        return rows.map((row) => {
+            const credentials = this.decryptWarehouseCredentials(
+                row.encrypted_credentials,
+            );
+            return {
+                refreshToken: credentials
+                    ? (getPersonSignIn(credentials)?.refreshToken ?? null)
+                    : null,
+                subjectUserUuid: row.credential_subject_user_uuid,
+            };
+        });
+    }
+
     private async upsertWarehouseConnection(
         trx: Transaction,
         projectId: number,
         data: CreateWarehouseCredentials,
+        subjectSource: {
+            actorUserUuid: string | null;
+            inheritFromProjectId: number | null;
+        },
     ): Promise<void> {
         // Normalize on write too, so stored blobs never hold legacy values
         // that violate the credentials types
         const credentials = normalizeWarehouseCredentials(data);
+        const signIn = getPersonSignIn(credentials);
+        const subjectUserUuid = resolveSignInSubject({
+            signIn,
+            actorUserUuid: subjectSource.actorUserUuid,
+            stored: signIn
+                ? await this.getStoredSignInSubjects(
+                      trx,
+                      [projectId, subjectSource.inheritFromProjectId].filter(
+                          (id): id is number => id !== null,
+                      ),
+                  )
+                : [],
+        });
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
@@ -901,9 +959,259 @@ export class ProjectModel {
                 project_id: projectId,
                 warehouse_type: credentials.type,
                 encrypted_credentials: encryptedCredentials,
+                credential_subject_user_uuid: subjectUserUuid,
             })
             .onConflict('project_id')
             .merge();
+    }
+
+    async getSharedSignInSubjectForToken(
+        projectUuid: string,
+        refreshToken: string,
+    ): Promise<SharedSignInSubjectLookup | null> {
+        const row = await this.database('warehouse_credentials')
+            .innerJoin(
+                'projects',
+                'projects.project_id',
+                'warehouse_credentials.project_id',
+            )
+            .leftJoin(
+                'users as subject_user',
+                'subject_user.user_uuid',
+                'warehouse_credentials.credential_subject_user_uuid',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .whereNull('projects.organization_warehouse_credentials_uuid')
+            .first<
+                | {
+                      project_id: number;
+                      organization_id: number;
+                      created_by_user_uuid: string | null;
+                      encrypted_credentials: Buffer;
+                      credential_subject_user_uuid: string | null;
+                      first_name: string | null;
+                      last_name: string | null;
+                  }
+                | undefined
+            >(
+                'projects.project_id',
+                'projects.organization_id',
+                'projects.created_by_user_uuid',
+                'warehouse_credentials.encrypted_credentials',
+                'warehouse_credentials.credential_subject_user_uuid',
+                'subject_user.first_name',
+                'subject_user.last_name',
+            );
+        if (!row) return null;
+        const credentials = this.decryptWarehouseCredentials(
+            row.encrypted_credentials,
+        );
+        const signIn = credentials ? getPersonSignIn(credentials) : null;
+        if (!signIn || signIn.refreshToken !== refreshToken) return null;
+        const creatorFallback = async () => {
+            const creator = row.created_by_user_uuid
+                ? await this.database('organization_memberships')
+                      .innerJoin(
+                          'users',
+                          'users.user_id',
+                          'organization_memberships.user_id',
+                      )
+                      .where(
+                          'organization_memberships.organization_id',
+                          row.organization_id,
+                      )
+                      .where('users.user_uuid', row.created_by_user_uuid)
+                      .first<
+                          | {
+                                user_uuid: string;
+                                first_name: string | null;
+                                last_name: string | null;
+                            }
+                          | undefined
+                      >(
+                          'users.user_uuid',
+                          'users.first_name',
+                          'users.last_name',
+                      )
+                : null;
+            return {
+                provider: signIn.provider,
+                subject: creator
+                    ? {
+                          userUuid: creator.user_uuid,
+                          name: [creator.first_name, creator.last_name]
+                              .filter(Boolean)
+                              .join(' ')
+                              .trim(),
+                      }
+                    : null,
+                basis: creator ? SignInSubjectBasis.PROJECT_CREATOR : null,
+            };
+        };
+        if (row.credential_subject_user_uuid) {
+            return {
+                provider: signIn.provider,
+                subject: {
+                    userUuid: row.credential_subject_user_uuid,
+                    name: [row.first_name, row.last_name]
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim(),
+                },
+                basis: SignInSubjectBasis.RECORDED,
+            };
+        }
+        const cacheKey = `${projectUuid}:${createHash('sha256')
+            .update(refreshToken)
+            .digest('hex')}`;
+        const cached =
+            legacySignInSubjects.get<SharedSignInSubjectLookup>(cacheKey);
+        if (cached) return cached;
+        const pending = pendingLegacySignInSubjects.get(cacheKey);
+        if (pending) return pending;
+        const lookup = async (): Promise<SharedSignInSubjectLookup | null> => {
+            if (signIn.provider === PersonSignInProvider.DATABRICKS) {
+                return creatorFallback();
+            }
+            const members = await this.database('organization_memberships')
+                .innerJoin(
+                    'users',
+                    'users.user_id',
+                    'organization_memberships.user_id',
+                )
+                .leftJoin('user_oauth_grants', function joinGrants() {
+                    this.on(
+                        'user_oauth_grants.user_uuid',
+                        '=',
+                        'users.user_uuid',
+                    ).andOnVal(
+                        'user_oauth_grants.provider',
+                        '=',
+                        signIn.provider,
+                    );
+                })
+                .leftJoin('openid_identities', function joinIdentities() {
+                    this.on(
+                        'openid_identities.user_id',
+                        '=',
+                        'users.user_id',
+                    ).andOnVal(
+                        'openid_identities.issuer_type',
+                        '=',
+                        signIn.provider,
+                    );
+                })
+                .where(
+                    'organization_memberships.organization_id',
+                    row.organization_id,
+                )
+                .select(
+                    'users.user_uuid',
+                    'users.first_name',
+                    'users.last_name',
+                    'user_oauth_grants.encrypted_refresh_token',
+                    'openid_identities.refresh_token',
+                );
+            const matchingUserUuids = new Set<string>();
+            for (const member of members) {
+                let grantToken: string | null = null;
+                try {
+                    grantToken = member.encrypted_refresh_token
+                        ? this.encryptionUtil.decrypt(
+                              member.encrypted_refresh_token,
+                          )
+                        : null;
+                } catch {
+                    grantToken = null;
+                }
+                if (
+                    grantToken === refreshToken ||
+                    member.refresh_token === refreshToken
+                ) {
+                    matchingUserUuids.add(member.user_uuid);
+                }
+            }
+            if (matchingUserUuids.size !== 1) {
+                return creatorFallback();
+            }
+            const subjectUserUuid = [...matchingUserUuids][0];
+            const member = members.find(
+                (candidate) => candidate.user_uuid === subjectUserUuid,
+            );
+            const updated = await this.database('warehouse_credentials')
+                .where('project_id', row.project_id)
+                .whereNull('credential_subject_user_uuid')
+                .where('encrypted_credentials', row.encrypted_credentials)
+                .update({ credential_subject_user_uuid: subjectUserUuid });
+            if (updated === 0) {
+                const current = await this.database('warehouse_credentials')
+                    .leftJoin(
+                        'users as subject_user',
+                        'subject_user.user_uuid',
+                        'warehouse_credentials.credential_subject_user_uuid',
+                    )
+                    .where('warehouse_credentials.project_id', row.project_id)
+                    .first<
+                        | {
+                              encrypted_credentials: Buffer;
+                              credential_subject_user_uuid: string | null;
+                              first_name: string | null;
+                              last_name: string | null;
+                          }
+                        | undefined
+                    >(
+                        'warehouse_credentials.encrypted_credentials',
+                        'warehouse_credentials.credential_subject_user_uuid',
+                        'subject_user.first_name',
+                        'subject_user.last_name',
+                    );
+                const currentCredentials = current
+                    ? this.decryptWarehouseCredentials(
+                          current.encrypted_credentials,
+                      )
+                    : null;
+                const currentSignIn = currentCredentials
+                    ? getPersonSignIn(currentCredentials)
+                    : null;
+                if (currentSignIn?.refreshToken !== refreshToken) return null;
+                if (current?.credential_subject_user_uuid) {
+                    return {
+                        provider: currentSignIn.provider,
+                        subject: {
+                            userUuid: current.credential_subject_user_uuid,
+                            name: [current.first_name, current.last_name]
+                                .filter(Boolean)
+                                .join(' ')
+                                .trim(),
+                        },
+                        basis: SignInSubjectBasis.RECORDED,
+                    };
+                }
+                return null;
+            }
+            return {
+                provider: signIn.provider,
+                subject: {
+                    userUuid: subjectUserUuid,
+                    name: [member?.first_name, member?.last_name]
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim(),
+                },
+                basis: SignInSubjectBasis.RECORDED,
+            };
+        };
+        const resultPromise = lookup();
+        pendingLegacySignInSubjects.set(cacheKey, resultPromise);
+        try {
+            const result = await resultPromise;
+            if (result && result.basis !== SignInSubjectBasis.RECORDED) {
+                legacySignInSubjects.set(cacheKey, result);
+            }
+            return result;
+        } finally {
+            pendingLegacySignInSubjects.delete(cacheKey);
+        }
     }
 
     async hasAnyProjects(): Promise<boolean> {
@@ -1028,6 +1336,13 @@ export class ProjectModel {
                     trx,
                     project.project_id,
                     data.warehouseConnection,
+                    {
+                        actorUserUuid: userUuid,
+                        inheritFromProjectId:
+                            copiedProjects.length === 1
+                                ? copiedProjects[0].project_id
+                                : null,
+                    },
                 );
             }
 
@@ -1199,8 +1514,12 @@ export class ProjectModel {
             .update({ expires_at: expiresAt });
     }
 
-    async update(projectUuid: string, data: UpdateProject): Promise<void> {
-        await this.updateProject(projectUuid, data, null);
+    async update(
+        projectUuid: string,
+        data: UpdateProject,
+        actorUserUuid: string | null,
+    ): Promise<void> {
+        await this.updateProject(projectUuid, data, null, actorUserUuid);
     }
 
     /** Saves a project and, in the same transaction, rewrites each preview's credentials where `pushToPreview` returns new ones. The project's previous credentials are read under a row lock, so concurrent saves see each other's writes. */
@@ -1208,8 +1527,14 @@ export class ProjectModel {
         projectUuid: string,
         data: UpdateProject,
         pushToPreview: PushToPreview,
+        actorUserUuid: string | null,
     ): Promise<PreviewCredentialsPush> {
-        const push = await this.updateProject(projectUuid, data, pushToPreview);
+        const push = await this.updateProject(
+            projectUuid,
+            data,
+            pushToPreview,
+            actorUserUuid,
+        );
         warehouseCredentialsCache?.del(projectUuid);
         if (push.kind === 'pushed') {
             push.previewProjectUuids.forEach((previewProjectUuid) =>
@@ -1223,6 +1548,7 @@ export class ProjectModel {
         projectUuid: string,
         data: UpdateProject,
         pushToPreview: PushToPreview | null,
+        actorUserUuid: string | null,
     ): Promise<PreviewCredentialsPush> {
         let previousConnectionString: string | undefined;
         try {
@@ -1284,16 +1610,26 @@ export class ProjectModel {
                 trx,
                 project.project_id,
                 data.warehouseConnection,
+                { actorUserUuid, inheritFromProjectId: null },
             );
 
             if (!pushToPreview || !previousUpstreamCredentials) {
                 return { kind: 'skipped' } satisfies PreviewCredentialsPush;
             }
+            const upstreamSubject = await trx(WarehouseCredentialTableName)
+                .where('project_id', project.project_id)
+                .first('credential_subject_user_uuid');
             try {
                 const previewProjectUuids = await trx.transaction((savepoint) =>
                     this.rewritePreviewWarehouseCredentials(
                         savepoint,
                         projectUuid,
+                        {
+                            signIn: getPersonSignIn(data.warehouseConnection),
+                            subjectUserUuid:
+                                upstreamSubject?.credential_subject_user_uuid ??
+                                null,
+                        },
                         (previewCredentials) =>
                             pushToPreview({
                                 previewCredentials,
@@ -4942,6 +5278,10 @@ export class ProjectModel {
     private async rewritePreviewWarehouseCredentials(
         trx: Transaction,
         upstreamProjectUuid: string,
+        upstream: {
+            signIn: PersonSignIn | null;
+            subjectUserUuid: string | null;
+        },
         update: (
             credentials: CreateWarehouseCredentials,
         ) => CreateWarehouseCredentials | null,
@@ -4965,11 +5305,13 @@ export class ProjectModel {
                     project_uuid: string;
                     project_id: number;
                     encrypted_credentials: Buffer;
+                    credential_subject_user_uuid: string | null;
                 }[]
             >([
                 `${ProjectTableName}.project_uuid`,
                 `${WarehouseCredentialTableName}.project_id`,
                 `${WarehouseCredentialTableName}.encrypted_credentials`,
+                `${WarehouseCredentialTableName}.credential_subject_user_uuid`,
             ])
             .forUpdate(WarehouseCredentialTableName);
         const updated: string[] = [];
@@ -4985,6 +5327,25 @@ export class ProjectModel {
                     encrypted_credentials: this.encryptionUtil.encrypt(
                         JSON.stringify(next),
                     ),
+                    credential_subject_user_uuid: resolveSignInSubject({
+                        signIn: getPersonSignIn(next),
+                        actorUserUuid: null,
+                        stored: [
+                            {
+                                refreshToken:
+                                    upstream.signIn?.refreshToken ?? null,
+                                subjectUserUuid: upstream.subjectUserUuid,
+                            },
+                            {
+                                refreshToken: credentials
+                                    ? (getPersonSignIn(credentials)
+                                          ?.refreshToken ?? null)
+                                    : null,
+                                subjectUserUuid:
+                                    row.credential_subject_user_uuid,
+                            },
+                        ],
+                    }),
                 })
                 .where('project_id', row.project_id);
             updated.push(row.project_uuid);
@@ -5036,14 +5397,26 @@ export class ProjectModel {
                     'warehouse_credentials.project_id',
                     'projects.project_id',
                 )
+                .leftJoin(
+                    'projects as upstream',
+                    'upstream.project_uuid',
+                    'projects.copied_from_project_uuid',
+                )
                 .where('projects.project_uuid', projectUuid)
                 .select<
-                    { project_id: number; encrypted_credentials: Buffer }[]
+                    {
+                        project_id: number;
+                        encrypted_credentials: Buffer;
+                        credential_subject_user_uuid: string | null;
+                        upstream_project_id: number | null;
+                    }[]
                 >([
                     'warehouse_credentials.project_id',
                     'warehouse_credentials.encrypted_credentials',
+                    'warehouse_credentials.credential_subject_user_uuid',
+                    'upstream.project_id as upstream_project_id',
                 ])
-                .forUpdate()
+                .forUpdate('warehouse_credentials')
                 .first();
             if (!row) return false;
             const credentials = this.decryptWarehouseCredentials(
@@ -5051,11 +5424,30 @@ export class ProjectModel {
             );
             const next = credentials ? update(credentials) : null;
             if (!next) return false;
+            const stored = await this.getStoredSignInSubjects(
+                trx,
+                row.upstream_project_id ? [row.upstream_project_id] : [],
+            );
             await trx('warehouse_credentials')
                 .update({
                     encrypted_credentials: this.encryptionUtil.encrypt(
                         JSON.stringify(next),
                     ),
+                    credential_subject_user_uuid: resolveSignInSubject({
+                        signIn: getPersonSignIn(next),
+                        actorUserUuid: null,
+                        stored: [
+                            ...stored,
+                            {
+                                refreshToken: credentials
+                                    ? (getPersonSignIn(credentials)
+                                          ?.refreshToken ?? null)
+                                    : null,
+                                subjectUserUuid:
+                                    row.credential_subject_user_uuid,
+                            },
+                        ],
+                    }),
                 })
                 .where('project_id', row.project_id);
             return true;

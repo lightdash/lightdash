@@ -21,15 +21,22 @@ type DbWarehouseCredentials = {
     warehouse_type: WarehouseType;
     encrypted_credentials: Buffer;
     preview_owns_credentials: boolean | null;
+    credential_subject_user_uuid: string | null;
 };
 type DbWarehouseCredentialsIn = Omit<
     DbWarehouseCredentials,
-    'warehouse_credentials_id' | 'created_at' | 'preview_owns_credentials'
->;
+    | 'warehouse_credentials_id'
+    | 'created_at'
+    | 'preview_owns_credentials'
+    | 'credential_subject_user_uuid'
+> &
+    Partial<Pick<DbWarehouseCredentials, 'credential_subject_user_uuid'>>;
 type DbWarehouseCredentialsUpdate = Partial<
     Pick<
         DbWarehouseCredentials,
-        'encrypted_credentials' | 'preview_owns_credentials'
+        | 'encrypted_credentials'
+        | 'preview_owns_credentials'
+        | 'credential_subject_user_uuid'
     >
 >;
 

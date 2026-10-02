@@ -254,6 +254,9 @@ export enum FeatureFlags {
      */
     NewOnboarding = 'new-onboarding',
 
+    /** Kill switch for expired shared sign-in messages. On by default. */
+    SharedSignInExpiryMessage = 'shared-sign-in-expiry-message',
+
     /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
