@@ -34,7 +34,10 @@ import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
-import { type EmbedExploreChart } from '../src/ee/providers/Embed/types';
+import {
+    type EmbedExploreChart,
+    type EmbedExploreOptions,
+} from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
@@ -210,27 +213,99 @@ const getDashboardContainerStyles = (
         (theme ? 'var(--mantine-color-body)' : undefined),
 });
 
+type EmbedExploreNavigation = {
+    rootKey: string | undefined;
+    // Derived charts opened in place, each with the query it was opened from
+    frames: { chart: EmbedExploreChart; sourceChart?: EmbedExploreChart }[];
+    // The root Explore's query as it was before its first drill-down
+    restoredChart: EmbedExploreChart | undefined;
+};
+
+const getInitialNavigation = (
+    rootKey: string | undefined,
+): EmbedExploreNavigation => ({
+    rootKey,
+    frames: [],
+    restoredChart: undefined,
+});
+
 // Saved charts go to the host; derived charts (drill-downs) render in place.
-const useEmbedExploreNavigation = (onExplore: BaseProps['onExplore']) => {
-    const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
+// handleBack restores the query each drill-down was opened from;
+// handleBackToDashboard leaves every drill-down at once.
+const useEmbedExploreNavigation = (
+    onExplore: BaseProps['onExplore'],
+    rootKey?: string,
+) => {
+    const [state, setState] = useState(() => getInitialNavigation(rootKey));
+    // A new root chart from the host starts a fresh navigation
+    const navigation =
+        state.rootKey === rootKey ? state : getInitialNavigation(rootKey);
 
     const handleExplore = useCallback(
-        ({ chart }: { chart: EmbedExploreChart }) => {
+        ({ chart, sourceChart }: EmbedExploreOptions) => {
             if ('uuid' in chart) {
                 onExplore?.({ chart });
-            } else {
-                setExploreChart(chart);
+                return;
             }
+            setState((prev) => {
+                const current =
+                    prev.rootKey === rootKey
+                        ? prev
+                        : getInitialNavigation(rootKey);
+                return {
+                    ...current,
+                    frames: [...current.frames, { chart, sourceChart }],
+                };
+            });
         },
-        [onExplore],
+        [onExplore, rootKey],
+    );
+
+    const handleBack = useCallback(
+        () =>
+            setState((prev) => {
+                if (prev.rootKey !== rootKey) {
+                    return getInitialNavigation(rootKey);
+                }
+                const closing = prev.frames.at(-1);
+                if (!closing) {
+                    return prev;
+                }
+                const frames = prev.frames.slice(0, -1);
+                const previous = frames.at(-1);
+                if (previous) {
+                    return {
+                        ...prev,
+                        frames: [
+                            ...frames.slice(0, -1),
+                            {
+                                ...previous,
+                                chart: closing.sourceChart ?? previous.chart,
+                            },
+                        ],
+                    };
+                }
+                return {
+                    ...prev,
+                    frames,
+                    restoredChart: closing.sourceChart ?? prev.restoredChart,
+                };
+            }),
+        [rootKey],
     );
 
     const handleBackToDashboard = useCallback(
-        () => setExploreChart(undefined),
-        [],
+        () => setState(getInitialNavigation(rootKey)),
+        [rootKey],
     );
 
-    return { exploreChart, handleExplore, handleBackToDashboard };
+    return {
+        exploreChart: navigation.frames.at(-1)?.chart,
+        restoredChart: navigation.restoredChart,
+        handleExplore,
+        handleBack,
+        handleBackToDashboard,
+    };
 };
 
 const getAiAgentEmbedUrl = ({
@@ -664,8 +739,9 @@ const Explore: FC<
     savedChart,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
-    const { exploreChart, handleExplore, handleBackToDashboard } =
-        useEmbedExploreNavigation(onExplore);
+    const { exploreChart, restoredChart, handleExplore, handleBack } =
+        useEmbedExploreNavigation(onExplore, `${exploreId}:${savedChart.uuid}`);
+    const currentChart = exploreChart ?? restoredChart;
 
     if (!tokenContext) {
         return null;
@@ -684,13 +760,15 @@ const Explore: FC<
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
                 onExplore={handleExplore}
-                onBackToDashboard={
-                    exploreChart ? handleBackToDashboard : undefined
-                }
+                onBackToDashboard={exploreChart ? handleBack : undefined}
             >
                 <EmbedExplore
-                    exploreId={exploreChart?.tableName ?? exploreId}
-                    savedChart={exploreChart ?? savedChart}
+                    exploreId={currentChart?.tableName ?? exploreId}
+                    savedChart={currentChart ?? savedChart}
+                    runQueryOnLoad={
+                        exploreChart === undefined &&
+                        restoredChart !== undefined
+                    }
                     containerStyles={{
                         width: '100%',
                         height: '100%',

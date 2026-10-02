@@ -29,6 +29,8 @@ export type EmbedExploreChart = SavedChart | CreateSavedChartVersion;
 export type EmbedExploreOptions = {
     chart: EmbedExploreChart;
     customSqlProvenanceChartUuid?: UUID;
+    // The unsaved query of the Explore the chart was opened from, if any
+    sourceChart?: CreateSavedChartVersion;
 };
 
 export interface EmbedContext {
