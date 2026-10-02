@@ -408,6 +408,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         personal_access_token: 'new-dbt-token',
                     },
                 },
+                null,
             );
         });
 
@@ -453,6 +454,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         personal_access_token: 'new-dbt-token',
                     },
                 },
+                null,
             );
         });
     });
@@ -592,6 +594,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         ...nonGitProject.dbtConnection,
                     },
                 },
+                null,
             );
         });
     });
@@ -710,6 +713,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         personal_access_token: 'new-dbt-token',
                     },
                 },
+                null,
             );
         });
     });
@@ -811,6 +815,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         multiProjectSetup[0].warehouseConnection,
                     dbtConnection: multiProjectSetup[0].dbtConnection,
                 }),
+                null,
             );
             expect(service['projectModel'].update).toHaveBeenCalledWith(
                 'beta-uuid',
@@ -819,6 +824,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         multiProjectSetup[1].warehouseConnection,
                     dbtConnection: multiProjectSetup[1].dbtConnection,
                 }),
+                null,
             );
         });
 
