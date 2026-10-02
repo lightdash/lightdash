@@ -258,6 +258,7 @@ Freezing analytics/customer *deployments* is a different mechanism in a differen
 -   CASL abilities are **additive** - org-level permissions cannot be revoked by project-level custom roles
 -   If a permission should be restrictable via custom roles, do NOT add it to org-level developer/editor abilities
 -   **Changing the scope vocabulary (rename / split / merge / remove) requires a Knex migration against `scoped_roles`** — custom roles persist scope names as strings and do not auto-update. See the `ld-permissions` skill for the migration checklist and patterns.
+-   **Embed capabilities are scopes, not JWT flags**: gate new embedded features with an embed scope on the embed's write actor (user or service account), never a new boolean on the JWT `content`. See `packages/common/src/authorization/CLAUDE.md`.
 
 ## TypeScript Project References
 
