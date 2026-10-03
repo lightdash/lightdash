@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
+import { type Project } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { type LimitedProjectSettingsPage } from './projectSettingsAccess';
 import { type SettingsContext } from './types';
 import { useSettingsNavigation } from './useSettingsNavigation';
 
@@ -43,8 +45,9 @@ const settingsContext = (
     isGroupManagementEnabled: false,
     isWarehouseCredentialsEnabled: false,
     isGitProject: false,
-    projectSettingsAccess: 'none',
+    projectSettingsAccess: { type: 'none', defaultPage: null },
     isProjectSettingsAccessLoading: false,
+    projectSettingsAccessError: null,
     isContentReviewAvailable: false,
     isHealthLoading: false,
     healthError: null,
@@ -184,4 +187,63 @@ describe('AI credits settings navigation', () => {
         expect(aiCredits(true)?.label).toBe('AI credits');
         expect(aiCredits(false)).toBeUndefined();
     });
+});
+
+describe('limited project settings navigation', () => {
+    it.each([
+        {
+            pages: ['recentlyDeleted'] as LimitedProjectSettingsPage[],
+            expected: [
+                {
+                    label: 'Recently deleted',
+                    to: '/generalSettings/projectManagement/project/recentlyDeleted',
+                },
+            ],
+        },
+        {
+            pages: [
+                'validator',
+                'recentlyDeleted',
+            ] as LimitedProjectSettingsPage[],
+            expected: [
+                {
+                    label: 'Validator',
+                    to: '/generalSettings/projectManagement/project/validator',
+                },
+                {
+                    label: 'Recently deleted',
+                    to: '/generalSettings/projectManagement/project/recentlyDeleted',
+                },
+            ],
+        },
+    ])(
+        'lists only the allowed project settings pages ($pages)',
+        ({ pages, expected }) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({
+                        organization: {
+                            organizationUuid: 'org',
+                            name: 'Test organization',
+                        },
+                        project: {
+                            organizationUuid: 'org',
+                            projectUuid: 'project',
+                            name: 'Test project',
+                        } as Project,
+                        projectSettingsAccess: {
+                            type: 'limited',
+                            pages,
+                            defaultPage: pages[0],
+                        },
+                    }),
+                ),
+            );
+            expect(
+                result.current
+                    .find((section) => section.id === 'current-project')
+                    ?.items.map(({ label, to }) => ({ label, to })),
+            ).toEqual(expected);
+        },
+    );
 });

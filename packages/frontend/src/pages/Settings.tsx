@@ -204,6 +204,7 @@ const Settings: FC = () => {
         projectError,
         projectSettingsAccess,
         isProjectSettingsAccessLoading,
+        projectSettingsAccessError,
     } = context;
 
     const routes = useMemo<RouteObject[]>(() => {
@@ -514,7 +515,7 @@ const Settings: FC = () => {
             project &&
             organization &&
             !organization.needsProject &&
-            projectSettingsAccess !== 'none'
+            projectSettingsAccess.type !== 'none'
         ) {
             allowedRoutes.push({
                 path: '/projectManagement/:projectUuid/*',
@@ -524,9 +525,7 @@ const Settings: FC = () => {
                             externalSourcesEnabled={
                                 externalSourcesFlag?.enabled ?? false
                             }
-                            learnerCopyOnly={
-                                projectSettingsAccess === 'learnerCopy'
-                            }
+                            projectSettingsAccess={projectSettingsAccess}
                         />
                     </TrackPage>
                 ),
@@ -1030,14 +1029,21 @@ const Settings: FC = () => {
         return <PageSpinner />;
     }
 
-    if (userError || healthError || organizationError || projectError) {
+    if (
+        userError ||
+        healthError ||
+        organizationError ||
+        projectError ||
+        projectSettingsAccessError
+    ) {
         return (
             <ErrorState
                 error={
                     userError?.error ||
                     healthError?.error ||
                     organizationError?.error ||
-                    projectError?.error
+                    projectError?.error ||
+                    projectSettingsAccessError?.error
                 }
             />
         );
