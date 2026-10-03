@@ -3,7 +3,7 @@ import { useForm } from '@mantine/form';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type FC } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import MantineModal from '../MantineModal';
 import {
@@ -1054,4 +1054,73 @@ describe('GuidedTour and the menus a step opens', () => {
             }
         });
     });
+});
+
+describe('GuidedTour action recovery', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        Reflect.deleteProperty(document, 'elementsFromPoint');
+    });
+
+    it.each([
+        { disabled: true },
+        { 'aria-disabled': true as const },
+        { 'data-disabled': true },
+    ])(
+        'lets the learner retry before a disabled target (%j)',
+        async (disabledProps) => {
+            vi.useFakeTimers();
+            document.elementsFromPoint = () => [];
+            const onStepChange = vi.fn();
+            const retry = vi.fn();
+            const recoverySteps: GuidedTourStep[] = [
+                {
+                    target: '#save-chart',
+                    title: 'Save chart',
+                    body: '',
+                    interactive: true,
+                    advanceOnTargetClick: true,
+                    via: ['#run-query', '#unavailable-action'],
+                },
+                { target: null, title: 'Name chart', body: '' },
+            ];
+            const renderTour = (ready: boolean) => (
+                <>
+                    <Button id="run-query" onClick={retry}>
+                        Run query
+                    </Button>
+                    <Button id="unavailable-action" disabled>
+                        Unavailable
+                    </Button>
+                    <Button id="save-chart" {...(ready ? {} : disabledProps)}>
+                        Save
+                    </Button>
+                    <GuidedTour
+                        steps={recoverySteps}
+                        opened
+                        onClose={vi.fn()}
+                        onStepChange={onStepChange}
+                    />
+                </>
+            );
+            const { rerender } = renderWithProviders(renderTour(false));
+            await act(async () => vi.advanceTimersByTime(2000));
+            const run = screen.getByRole('button', { name: 'Run query' });
+            expect(run).toHaveAttribute('data-tour-active');
+            fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+            expect(onStepChange).not.toHaveBeenCalled();
+            fireEvent.click(run);
+            expect(retry).toHaveBeenCalledOnce();
+            expect(onStepChange).not.toHaveBeenCalled();
+
+            rerender(renderTour(true));
+            await act(async () => vi.advanceTimersByTime(300));
+            const save = screen.getByRole('button', {
+                name: 'Save',
+            });
+            expect(save).toHaveAttribute('data-tour-active');
+            fireEvent.click(save);
+            expect(onStepChange).toHaveBeenCalledWith(1, expect.anything());
+        },
+    );
 });
