@@ -251,7 +251,7 @@ describe('LearnPage analytics', () => {
         const { container } = renderPage();
         const { moduleCount, startedCount, completedCount } =
             viewEvents()[0].properties;
-        expect(moduleCount).toBe(46);
+        expect(moduleCount).toBe(48);
         expect(startedCount).toBe(1);
         expect(completedCount).toBe(1);
         expect(
