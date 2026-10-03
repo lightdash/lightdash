@@ -175,9 +175,11 @@ Read the CSV and use the **exact values** in your filter YAML. This applies to a
 ### Editing Metrics & Dimensions
 
 1. **Find the model YAML file** (dbt: `models/*.yml`, pure Lightdash: `lightdash/models/*.yml`)
-2. **Edit metrics/dimensions** using the appropriate syntax for your project type
-3. **Validate**: `lightdash lint` (pure Lightdash) or `dbt compile` (dbt projects)
-4. **Deploy**: `lightdash deploy`
+2. **Before adding a metric, check all existing field names on the model**: dimensions (including hidden and additional dimensions), column-level metrics, and model-level metrics. Never give a new metric the same name as its source dimension or any other field, even if the user requests that name. Default to `sum_<dimension>`, `count_distinct_<dimension>`, or `avg_<dimension>` (`type: average`), according to the aggregation. If the prefixed name is taken, choose a descriptive unique alternative and recheck; do not overwrite an existing field. See [Metric Naming](./resources/metrics-reference.md#metric-naming).
+3. **Edit metrics/dimensions** using the appropriate syntax for your project type
+4. **Validate locally**: `lightdash lint` (pure Lightdash) or `dbt compile` (dbt projects)
+5. **For new metrics, test with `lightdash preview --name "metric-changes"`** before deploying. Confirm the metric is present and there are no duplicate-field errors or skipped-metric warnings; local lint/dbt compile alone does not establish this. Fix conflicts and rerun the preview. If preview cannot run, report validation as incomplete rather than claiming success.
+6. **Deploy**: stop the preview with `lightdash stop-preview --name "metric-changes"`, verify the target project, then `lightdash deploy`
 
 See [Metrics Reference](./resources/metrics-reference.md) and [Dimensions Reference](./resources/dimensions-reference.md) for configuration options.
 
