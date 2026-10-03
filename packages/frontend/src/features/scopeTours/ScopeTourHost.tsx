@@ -32,6 +32,7 @@ import { LearnDoneModal } from '../learn/LearnDoneModal';
 import { libraryPath } from '../learn/libraryFilters';
 import { readLearnOrigin } from '../learn/origin';
 import { useLearnProgress, useLearnProgressActions } from '../learn/progress';
+import { SCOPE_TOUR_PARAM, SCOPE_TOUR_STORAGE_KEY } from './isScopeTourRunning';
 import { tourFor } from './tourFor';
 import {
     createTrainingPreview,
@@ -40,14 +41,8 @@ import {
     LEAVING_COPY_STATE,
 } from './trainingCopy';
 
-const TOUR_PARAM = 'tour';
-
-/**
- * The running tour, kept for the tab: some pages (Ask AI) live under another
- * layout, so the host remounts when the learner clicks into them, and a
- * reload would otherwise lose the tour while the copy it runs in remains.
- */
-const STORAGE_KEY = 'lightdash.scopeTour';
+const TOUR_PARAM = SCOPE_TOUR_PARAM;
+const STORAGE_KEY = SCOPE_TOUR_STORAGE_KEY;
 type StoredTour = {
     scope: string;
     projectUuid: string;
