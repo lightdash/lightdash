@@ -5,15 +5,14 @@ import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks'
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiCreditUsage } from '../../ee/features/aiCredits/hooks/useAiCreditUsage';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
-import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
 import { useProject } from '../useProject';
 import { useProjects } from '../useProjects';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
-import { getProjectSettingsAccess } from './projectSettingsAccess';
 import { type SettingsContext } from './types';
+import { useProjectSettingsAccess } from './useProjectSettingsAccess';
 
 /**
  * Single source for the settings page's runtime gating inputs: the current
@@ -133,13 +132,11 @@ export const useSettingsContext = (): SettingsContext => {
     } = useProject(settingsProjectUuid);
 
     const isGitProject = useIsGitProject(settingsProjectUuid ?? '');
-    const { isTrainingCopy, isLoading: isProjectSettingsAccessLoading } =
-        useIsTrainingCopy(project);
-    const projectSettingsAccess = getProjectSettingsAccess({
-        ability: user?.ability,
-        project,
-        isTrainingCopy,
-    });
+    const {
+        projectSettingsAccess,
+        isProjectSettingsAccessLoading,
+        projectSettingsAccessError,
+    } = useProjectSettingsAccess(project);
     const { isAvailable: isContentReviewAvailable } =
         useContentReviewAvailability();
 
@@ -262,6 +259,7 @@ export const useSettingsContext = (): SettingsContext => {
         isGitProject,
         projectSettingsAccess,
         isProjectSettingsAccessLoading,
+        projectSettingsAccessError,
         isContentReviewAvailable,
         isHealthLoading,
         healthError,
