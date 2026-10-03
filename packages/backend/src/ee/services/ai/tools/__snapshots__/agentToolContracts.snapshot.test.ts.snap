@@ -130,7 +130,9 @@ Grammar: <field> <operator form>
 - \`equals=<value>[,<value>...] [1+ values]\`
 - \`notEquals=<value>[,<value>...] [1+ values]\`
 - \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`doesNotStartWith=<value>[,<value>...] [1+ values]\`
 - \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`doesNotEndWith=<value>[,<value>...] [1+ values]\`
 - \`include=<value>[,<value>...] [1+ values]\`
 - \`doesNotInclude=<value>[,<value>...] [1+ values]\`
 
@@ -443,7 +445,9 @@ Grammar: <field> <operator form>
 - \`equals=<value>[,<value>...] [1+ values]\`
 - \`notEquals=<value>[,<value>...] [1+ values]\`
 - \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`doesNotStartWith=<value>[,<value>...] [1+ values]\`
 - \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`doesNotEndWith=<value>[,<value>...] [1+ values]\`
 - \`include=<value>[,<value>...] [1+ values]\`
 - \`doesNotInclude=<value>[,<value>...] [1+ values]\`
 
@@ -4531,7 +4535,7 @@ Recommended Dashboard Structure:
             "mergeConfig": {
               "anyOf": [
                 {
-                  "$ref": "#/definitions/__schema130",
+                  "$ref": "#/definitions/__schema132",
                 },
                 {
                   "type": "null",
@@ -4554,7 +4558,7 @@ Recommended Dashboard Structure:
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema118",
+                  "$ref": "#/definitions/__schema120",
                 },
                 "limit": {
                   "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -4581,7 +4585,7 @@ Recommended Dashboard Structure:
                 "tableCalculations": {
                   "anyOf": [
                     {
-                      "$ref": "#/definitions/__schema115",
+                      "$ref": "#/definitions/__schema117",
                     },
                     {
                       "type": "null",
@@ -4654,6 +4658,25 @@ Use them whenever the question needs math the metric query alone can't express: 
           ],
         },
         "__schema101": {
+          "additionalProperties": false,
+          "description": "Current-period settings.",
+          "properties": {
+            "completed": {
+              "const": false,
+              "description": "Always false for current-period filters.",
+              "type": "boolean",
+            },
+            "unitOfTime": {
+              "$ref": "#/definitions/__schema103",
+            },
+          },
+          "required": [
+            "completed",
+            "unitOfTime",
+          ],
+          "type": "object",
+        },
+        "__schema103": {
           "description": "Current period unit, e.g. weeks for this week.",
           "enum": [
             "days",
@@ -4664,7 +4687,7 @@ Use them whenever the question needs math the metric query alone can't express: 
           ],
           "type": "string",
         },
-        "__schema107": {
+        "__schema109": {
           "description": "Use for before/after comparisons against one explicit date or datetime.",
           "enum": [
             "lessThan",
@@ -4718,25 +4741,25 @@ Example B — "Revenue by month with year-over-year comparison"
   queryConfig.metrics: ["orders_revenue"]
   customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
         },
-        "__schema112": {
+        "__schema114": {
           "description": "Exactly one explicit ISO date/datetime threshold.",
           "items": {
-            "$ref": "#/definitions/__schema77",
+            "$ref": "#/definitions/__schema79",
           },
           "maxItems": 1,
           "minItems": 1,
           "type": "array",
         },
-        "__schema114": {
+        "__schema116": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
-            "$ref": "#/definitions/__schema77",
+            "$ref": "#/definitions/__schema79",
           },
           "maxItems": 2,
           "minItems": 2,
           "type": "array",
         },
-        "__schema115": {
+        "__schema117": {
           "items": {
             "additionalProperties": false,
             "properties": {
@@ -4803,56 +4826,6 @@ All branches of an IF must return the same type.",
             "type": "object",
           },
           "type": "array",
-        },
-        "__schema118": {
-          "additionalProperties": false,
-          "properties": {
-            "dimensions": {
-              "items": {
-                "$ref": "#/definitions/__schema121",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "metrics": {
-              "items": {
-                "$ref": "#/definitions/__schema121",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "tableCalculations": {
-              "items": {
-                "$ref": "#/definitions/__schema42",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "type": {
-              "description": "Type of filter group operation",
-              "enum": [
-                "and",
-                "or",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "type",
-            "dimensions",
-            "metrics",
-            "tableCalculations",
-          ],
-          "type": [
-            "object",
-            "null",
-          ],
         },
         "__schema12": {
           "items": {
@@ -4969,7 +4942,57 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema121": {
+        "__schema120": {
+          "additionalProperties": false,
+          "properties": {
+            "dimensions": {
+              "items": {
+                "$ref": "#/definitions/__schema123",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "metrics": {
+              "items": {
+                "$ref": "#/definitions/__schema123",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "tableCalculations": {
+              "items": {
+                "$ref": "#/definitions/__schema44",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "type": {
+              "description": "Type of filter group operation",
+              "enum": [
+                "and",
+                "or",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "type",
+            "dimensions",
+            "metrics",
+            "tableCalculations",
+          ],
+          "type": [
+            "object",
+            "null",
+          ],
+        },
+        "__schema123": {
           "anyOf": [
             {
               "$ref": "#/definitions/__schema14",
@@ -4978,10 +5001,10 @@ All branches of an IF must return the same type.",
               "$ref": "#/definitions/__schema26",
             },
             {
-              "$ref": "#/definitions/__schema42",
+              "$ref": "#/definitions/__schema44",
             },
             {
-              "$ref": "#/definitions/__schema66",
+              "$ref": "#/definitions/__schema68",
             },
           ],
         },
@@ -4998,10 +5021,10 @@ All branches of an IF must return the same type.",
                     "$ref": "#/definitions/__schema26",
                   },
                   {
-                    "$ref": "#/definitions/__schema42",
+                    "$ref": "#/definitions/__schema44",
                   },
                   {
-                    "$ref": "#/definitions/__schema66",
+                    "$ref": "#/definitions/__schema68",
                   },
                 ],
               },
@@ -5018,13 +5041,13 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema130": {
+        "__schema132": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema131",
+                "$ref": "#/definitions/__schema133",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -5032,7 +5055,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema132",
+                "$ref": "#/definitions/__schema134",
               },
               "minItems": 1,
               "type": "array",
@@ -5059,7 +5082,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema131": {
+        "__schema133": {
           "additionalProperties": false,
           "properties": {
             "id": {
@@ -5081,7 +5104,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema118",
+                  "$ref": "#/definitions/__schema120",
                 },
                 "metrics": {
                   "$ref": "#/definitions/__schema4",
@@ -5107,13 +5130,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema132": {
+        "__schema134": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema133",
+                "$ref": "#/definitions/__schema135",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -5131,7 +5154,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema133": {
+        "__schema135": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -5300,7 +5323,7 @@ All branches of an IF must return the same type.",
   fieldId: "orders_status"; // use the actual field id
   fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
   fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  operator: "equals" | "notEquals" | "startsWith" | "doesNotStartWith" | "endsWith" | "doesNotEndWith" | "include" | "doesNotInclude"; // | means or
   values: string[];
 }",
               "properties": {
@@ -5341,12 +5364,14 @@ All branches of an IF must return the same type.",
           ],
         },
         "__schema33": {
-          "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
+          "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/doesNotStartWith/endsWith/doesNotEndWith for prefixes/suffixes.",
           "enum": [
             "equals",
             "notEquals",
             "startsWith",
+            "doesNotStartWith",
             "endsWith",
+            "doesNotEndWith",
             "include",
             "doesNotInclude",
           ],
@@ -5360,7 +5385,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema42": {
+        "__schema44": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -5380,7 +5405,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema44",
+                  "$ref": "#/definitions/__schema46",
                 },
                 "operator": {
                   "description": "Use isNull for missing values, notNull for present values.",
@@ -5418,7 +5443,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema44",
+                  "$ref": "#/definitions/__schema46",
                 },
                 "operator": {
                   "description": "Use equals/notEquals for exact numeric matches.",
@@ -5464,10 +5489,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema44",
+                  "$ref": "#/definitions/__schema46",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema54",
+                  "$ref": "#/definitions/__schema56",
                 },
                 "values": {
                   "description": "Exactly one numeric threshold value.",
@@ -5507,7 +5532,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema44",
+                  "$ref": "#/definitions/__schema46",
                 },
                 "operator": {
                   "description": "Use for ranges between two numeric bounds.",
@@ -5538,7 +5563,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema44": {
+        "__schema46": {
           "enum": [
             "number",
             "percentile",
@@ -5554,7 +5579,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema54": {
+        "__schema56": {
           "description": "Use for threshold comparisons such as greater than 100.",
           "enum": [
             "lessThan",
@@ -5571,7 +5596,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema66": {
+        "__schema68": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -5648,7 +5673,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema76",
+                  "$ref": "#/definitions/__schema78",
                 },
               },
               "required": [
@@ -5690,13 +5715,13 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema80",
+                  "$ref": "#/definitions/__schema82",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema86",
+                  "$ref": "#/definitions/__schema88",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema84",
+                  "$ref": "#/definitions/__schema86",
                 },
               },
               "required": [
@@ -5739,10 +5764,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema94",
+                  "$ref": "#/definitions/__schema96",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema99",
+                  "$ref": "#/definitions/__schema101",
                 },
                 "values": {
                   "description": "Always [1] for current-period filters.",
@@ -5791,10 +5816,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema107",
+                  "$ref": "#/definitions/__schema109",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema112",
+                  "$ref": "#/definitions/__schema114",
                 },
               },
               "required": [
@@ -5837,7 +5862,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema114",
+                  "$ref": "#/definitions/__schema116",
                 },
               },
               "required": [
@@ -5877,35 +5902,35 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema76": {
+        "__schema78": {
           "description": "One or more explicit ISO dates/datetimes.",
           "items": {
-            "$ref": "#/definitions/__schema77",
+            "$ref": "#/definitions/__schema79",
           },
           "type": "array",
         },
-        "__schema77": {
+        "__schema79": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema78",
+              "$ref": "#/definitions/__schema80",
             },
             {
-              "$ref": "#/definitions/__schema79",
+              "$ref": "#/definitions/__schema81",
             },
           ],
           "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
         },
-        "__schema78": {
+        "__schema80": {
           "format": "date",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
           "type": "string",
         },
-        "__schema79": {
+        "__schema81": {
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
           "type": "string",
         },
-        "__schema80": {
+        "__schema82": {
           "description": "Use inThePast for last/past N periods, inTheNext for next N periods, notInThePast to exclude recent periods.",
           "enum": [
             "inThePast",
@@ -5914,7 +5939,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema84": {
+        "__schema86": {
           "description": "Exactly one positive number of periods, e.g. [2].",
           "items": {
             "exclusiveMinimum": 0,
@@ -5924,7 +5949,7 @@ All branches of an IF must return the same type.",
           "minItems": 1,
           "type": "array",
         },
-        "__schema86": {
+        "__schema88": {
           "additionalProperties": false,
           "description": "Relative period settings.",
           "properties": {
@@ -5933,7 +5958,7 @@ All branches of an IF must return the same type.",
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema88",
+              "$ref": "#/definitions/__schema90",
             },
           },
           "required": [
@@ -5942,7 +5967,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema88": {
+        "__schema90": {
           "description": "Period unit for the relative date filter.",
           "enum": [
             "days",
@@ -5953,32 +5978,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema94": {
+        "__schema96": {
           "description": "Use for this/current period or to exclude this/current period.",
           "enum": [
             "inTheCurrent",
             "notInTheCurrent",
           ],
           "type": "string",
-        },
-        "__schema99": {
-          "additionalProperties": false,
-          "description": "Current-period settings.",
-          "properties": {
-            "completed": {
-              "const": false,
-              "description": "Always false for current-period filters.",
-              "type": "boolean",
-            },
-            "unitOfTime": {
-              "$ref": "#/definitions/__schema101",
-            },
-          },
-          "required": [
-            "completed",
-            "unitOfTime",
-          ],
-          "type": "object",
         },
       },
       "properties": {
@@ -12444,6 +12450,25 @@ Example B — "Revenue by month with year-over-year comparison"
   customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
         },
         "__schema100": {
+          "additionalProperties": false,
+          "description": "Current-period settings.",
+          "properties": {
+            "completed": {
+              "const": false,
+              "description": "Always false for current-period filters.",
+              "type": "boolean",
+            },
+            "unitOfTime": {
+              "$ref": "#/definitions/__schema102",
+            },
+          },
+          "required": [
+            "completed",
+            "unitOfTime",
+          ],
+          "type": "object",
+        },
+        "__schema102": {
           "description": "Current period unit, e.g. weeks for this week.",
           "enum": [
             "days",
@@ -12454,7 +12479,7 @@ Example B — "Revenue by month with year-over-year comparison"
           ],
           "type": "string",
         },
-        "__schema106": {
+        "__schema108": {
           "description": "Use for before/after comparisons against one explicit date or datetime.",
           "enum": [
             "lessThan",
@@ -12579,25 +12604,25 @@ Example B — "Revenue by month with year-over-year comparison"
           },
           "type": "array",
         },
-        "__schema111": {
+        "__schema113": {
           "description": "Exactly one explicit ISO date/datetime threshold.",
           "items": {
-            "$ref": "#/definitions/__schema76",
+            "$ref": "#/definitions/__schema78",
           },
           "maxItems": 1,
           "minItems": 1,
           "type": "array",
         },
-        "__schema113": {
+        "__schema115": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
-            "$ref": "#/definitions/__schema76",
+            "$ref": "#/definitions/__schema78",
           },
           "maxItems": 2,
           "minItems": 2,
           "type": "array",
         },
-        "__schema114": {
+        "__schema116": {
           "items": {
             "additionalProperties": false,
             "properties": {
@@ -12665,12 +12690,12 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema117": {
+        "__schema119": {
           "additionalProperties": false,
           "properties": {
             "dimensions": {
               "items": {
-                "$ref": "#/definitions/__schema120",
+                "$ref": "#/definitions/__schema122",
               },
               "type": [
                 "array",
@@ -12679,7 +12704,7 @@ All branches of an IF must return the same type.",
             },
             "metrics": {
               "items": {
-                "$ref": "#/definitions/__schema120",
+                "$ref": "#/definitions/__schema122",
               },
               "type": [
                 "array",
@@ -12688,7 +12713,7 @@ All branches of an IF must return the same type.",
             },
             "tableCalculations": {
               "items": {
-                "$ref": "#/definitions/__schema41",
+                "$ref": "#/definitions/__schema43",
               },
               "type": [
                 "array",
@@ -12728,10 +12753,10 @@ All branches of an IF must return the same type.",
                     "$ref": "#/definitions/__schema25",
                   },
                   {
-                    "$ref": "#/definitions/__schema41",
+                    "$ref": "#/definitions/__schema43",
                   },
                   {
-                    "$ref": "#/definitions/__schema65",
+                    "$ref": "#/definitions/__schema67",
                   },
                 ],
               },
@@ -12748,7 +12773,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema120": {
+        "__schema122": {
           "anyOf": [
             {
               "$ref": "#/definitions/__schema13",
@@ -12757,10 +12782,10 @@ All branches of an IF must return the same type.",
               "$ref": "#/definitions/__schema25",
             },
             {
-              "$ref": "#/definitions/__schema41",
+              "$ref": "#/definitions/__schema43",
             },
             {
-              "$ref": "#/definitions/__schema65",
+              "$ref": "#/definitions/__schema67",
             },
           ],
         },
@@ -12859,7 +12884,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema130": {
+        "__schema132": {
           "anyOf": [
             {
               "type": "string",
@@ -12874,7 +12899,7 @@ All branches of an IF must return the same type.",
           ],
           "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
         },
-        "__schema132": {
+        "__schema134": {
           "additionalProperties": {
             "anyOf": [
               {
@@ -12934,13 +12959,13 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema134": {
+        "__schema136": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema135",
+                "$ref": "#/definitions/__schema137",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -12948,7 +12973,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema136",
+                "$ref": "#/definitions/__schema138",
               },
               "minItems": 1,
               "type": "array",
@@ -12975,7 +13000,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema135": {
+        "__schema137": {
           "additionalProperties": false,
           "properties": {
             "id": {
@@ -12997,7 +13022,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema117",
+                  "$ref": "#/definitions/__schema119",
                 },
                 "metrics": {
                   "$ref": "#/definitions/__schema3",
@@ -13023,13 +13048,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema136": {
+        "__schema138": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema137",
+                "$ref": "#/definitions/__schema139",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -13047,7 +13072,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema137": {
+        "__schema139": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -13113,7 +13138,7 @@ All branches of an IF must return the same type.",
   fieldId: "orders_status"; // use the actual field id
   fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
   fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  operator: "equals" | "notEquals" | "startsWith" | "doesNotStartWith" | "endsWith" | "doesNotEndWith" | "include" | "doesNotInclude"; // | means or
   values: string[];
 }",
               "properties": {
@@ -13162,18 +13187,20 @@ All branches of an IF must return the same type.",
           "type": "array",
         },
         "__schema32": {
-          "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
+          "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/doesNotStartWith/endsWith/doesNotEndWith for prefixes/suffixes.",
           "enum": [
             "equals",
             "notEquals",
             "startsWith",
+            "doesNotStartWith",
             "endsWith",
+            "doesNotEndWith",
             "include",
             "doesNotInclude",
           ],
           "type": "string",
         },
-        "__schema41": {
+        "__schema43": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -13193,7 +13220,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema43",
+                  "$ref": "#/definitions/__schema45",
                 },
                 "operator": {
                   "description": "Use isNull for missing values, notNull for present values.",
@@ -13231,7 +13258,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema43",
+                  "$ref": "#/definitions/__schema45",
                 },
                 "operator": {
                   "description": "Use equals/notEquals for exact numeric matches.",
@@ -13277,10 +13304,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema43",
+                  "$ref": "#/definitions/__schema45",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema53",
+                  "$ref": "#/definitions/__schema55",
                 },
                 "values": {
                   "description": "Exactly one numeric threshold value.",
@@ -13320,7 +13347,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema43",
+                  "$ref": "#/definitions/__schema45",
                 },
                 "operator": {
                   "description": "Use for ranges between two numeric bounds.",
@@ -13351,7 +13378,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema43": {
+        "__schema45": {
           "enum": [
             "number",
             "percentile",
@@ -13374,7 +13401,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema53": {
+        "__schema55": {
           "description": "Use for threshold comparisons such as greater than 100.",
           "enum": [
             "lessThan",
@@ -13410,7 +13437,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema65": {
+        "__schema67": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -13487,7 +13514,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema75",
+                  "$ref": "#/definitions/__schema77",
                 },
               },
               "required": [
@@ -13529,13 +13556,13 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema79",
+                  "$ref": "#/definitions/__schema81",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema85",
+                  "$ref": "#/definitions/__schema87",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema83",
+                  "$ref": "#/definitions/__schema85",
                 },
               },
               "required": [
@@ -13578,10 +13605,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema93",
+                  "$ref": "#/definitions/__schema95",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema98",
+                  "$ref": "#/definitions/__schema100",
                 },
                 "values": {
                   "description": "Always [1] for current-period filters.",
@@ -13630,10 +13657,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema106",
+                  "$ref": "#/definitions/__schema108",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema111",
+                  "$ref": "#/definitions/__schema113",
                 },
               },
               "required": [
@@ -13676,7 +13703,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema113",
+                  "$ref": "#/definitions/__schema115",
                 },
               },
               "required": [
@@ -13690,35 +13717,35 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema75": {
+        "__schema77": {
           "description": "One or more explicit ISO dates/datetimes.",
           "items": {
-            "$ref": "#/definitions/__schema76",
+            "$ref": "#/definitions/__schema78",
           },
           "type": "array",
         },
-        "__schema76": {
+        "__schema78": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema77",
+              "$ref": "#/definitions/__schema79",
             },
             {
-              "$ref": "#/definitions/__schema78",
+              "$ref": "#/definitions/__schema80",
             },
           ],
           "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
         },
-        "__schema77": {
+        "__schema79": {
           "format": "date",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
           "type": "string",
         },
-        "__schema78": {
+        "__schema80": {
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
           "type": "string",
         },
-        "__schema79": {
+        "__schema81": {
           "description": "Use inThePast for last/past N periods, inTheNext for next N periods, notInThePast to exclude recent periods.",
           "enum": [
             "inThePast",
@@ -13727,7 +13754,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema83": {
+        "__schema85": {
           "description": "Exactly one positive number of periods, e.g. [2].",
           "items": {
             "exclusiveMinimum": 0,
@@ -13737,7 +13764,7 @@ All branches of an IF must return the same type.",
           "minItems": 1,
           "type": "array",
         },
-        "__schema85": {
+        "__schema87": {
           "additionalProperties": false,
           "description": "Relative period settings.",
           "properties": {
@@ -13746,7 +13773,7 @@ All branches of an IF must return the same type.",
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema87",
+              "$ref": "#/definitions/__schema89",
             },
           },
           "required": [
@@ -13755,7 +13782,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema87": {
+        "__schema89": {
           "description": "Period unit for the relative date filter.",
           "enum": [
             "days",
@@ -13794,32 +13821,13 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema93": {
+        "__schema95": {
           "description": "Use for this/current period or to exclude this/current period.",
           "enum": [
             "inTheCurrent",
             "notInTheCurrent",
           ],
           "type": "string",
-        },
-        "__schema98": {
-          "additionalProperties": false,
-          "description": "Current-period settings.",
-          "properties": {
-            "completed": {
-              "const": false,
-              "description": "Always false for current-period filters.",
-              "type": "boolean",
-            },
-            "unitOfTime": {
-              "$ref": "#/definitions/__schema100",
-            },
-          },
-          "required": [
-            "completed",
-            "unitOfTime",
-          ],
-          "type": "object",
         },
       },
       "properties": {
@@ -13948,7 +13956,7 @@ All branches of an IF must return the same type.",
                 },
                 "fieldMapping": {
                   "additionalProperties": {
-                    "$ref": "#/definitions/__schema130",
+                    "$ref": "#/definitions/__schema132",
                   },
                   "description": "Binds each custom chart type slot to this query's fields: a field id for a single slot, or ordered unique field ids for a slot declared multiple. Every required slot must be bound.",
                   "type": "object",
@@ -13956,7 +13964,7 @@ All branches of an IF must return the same type.",
                 "options": {
                   "allOf": [
                     {
-                      "$ref": "#/definitions/__schema132",
+                      "$ref": "#/definitions/__schema134",
                     },
                   ],
                   "default": null,
@@ -13981,7 +13989,7 @@ All branches of an IF must return the same type.",
         "mergeConfig": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema134",
+              "$ref": "#/definitions/__schema136",
             },
             {
               "type": "null",
@@ -14004,7 +14012,7 @@ All branches of an IF must return the same type.",
               "type": "string",
             },
             "filters": {
-              "$ref": "#/definitions/__schema117",
+              "$ref": "#/definitions/__schema119",
             },
             "limit": {
               "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -14031,7 +14039,7 @@ All branches of an IF must return the same type.",
             "tableCalculations": {
               "anyOf": [
                 {
-                  "$ref": "#/definitions/__schema114",
+                  "$ref": "#/definitions/__schema116",
                 },
                 {
                   "type": "null",
@@ -15977,7 +15985,7 @@ Usage Tips:
             },
             "tableCalculations": {
               "items": {
-                "$ref": "#/definitions/__schema30",
+                "$ref": "#/definitions/__schema32",
               },
               "type": [
                 "array",
@@ -16002,21 +16010,32 @@ Usage Tips:
           "type": "object",
         },
         "__schema101": {
+          "description": "Exactly one explicit ISO date/datetime threshold.",
+          "items": {
+            "$ref": "#/definitions/__schema66",
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema103": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
-            "$ref": "#/definitions/__schema64",
+            "$ref": "#/definitions/__schema66",
           },
           "maxItems": 2,
           "minItems": 2,
           "type": "array",
         },
         "__schema21": {
-          "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
+          "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/doesNotStartWith/endsWith/doesNotEndWith for prefixes/suffixes.",
           "enum": [
             "equals",
             "notEquals",
             "startsWith",
+            "doesNotStartWith",
             "endsWith",
+            "doesNotEndWith",
             "include",
             "doesNotInclude",
           ],
@@ -16161,7 +16180,7 @@ Usage Tips:
   fieldId: "orders_status"; // use the actual field id
   fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
   fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  operator: "equals" | "notEquals" | "startsWith" | "doesNotStartWith" | "endsWith" | "doesNotEndWith" | "include" | "doesNotInclude"; // | means or
   values: string[];
 }",
               "properties": {
@@ -16200,7 +16219,7 @@ Usage Tips:
               "type": "object",
             },
             {
-              "$ref": "#/definitions/__schema30",
+              "$ref": "#/definitions/__schema32",
             },
             {
               "additionalProperties": false,
@@ -16277,7 +16296,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema63",
+                  "$ref": "#/definitions/__schema65",
                 },
               },
               "required": [
@@ -16319,13 +16338,13 @@ Usage Tips:
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema67",
+                  "$ref": "#/definitions/__schema69",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema73",
+                  "$ref": "#/definitions/__schema75",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema71",
+                  "$ref": "#/definitions/__schema73",
                 },
               },
               "required": [
@@ -16368,10 +16387,10 @@ Usage Tips:
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema81",
+                  "$ref": "#/definitions/__schema83",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema86",
+                  "$ref": "#/definitions/__schema88",
                 },
                 "values": {
                   "description": "Always [1] for current-period filters.",
@@ -16420,10 +16439,10 @@ Usage Tips:
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema94",
+                  "$ref": "#/definitions/__schema96",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema99",
+                  "$ref": "#/definitions/__schema101",
                 },
               },
               "required": [
@@ -16466,7 +16485,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema101",
+                  "$ref": "#/definitions/__schema103",
                 },
               },
               "required": [
@@ -16480,7 +16499,7 @@ Usage Tips:
             },
           ],
         },
-        "__schema30": {
+        "__schema32": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -16500,7 +16519,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema32",
+                  "$ref": "#/definitions/__schema34",
                 },
                 "operator": {
                   "description": "Use isNull for missing values, notNull for present values.",
@@ -16538,7 +16557,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema32",
+                  "$ref": "#/definitions/__schema34",
                 },
                 "operator": {
                   "description": "Use equals/notEquals for exact numeric matches.",
@@ -16584,10 +16603,10 @@ Usage Tips:
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema32",
+                  "$ref": "#/definitions/__schema34",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema42",
+                  "$ref": "#/definitions/__schema44",
                 },
                 "values": {
                   "description": "Exactly one numeric threshold value.",
@@ -16627,7 +16646,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema32",
+                  "$ref": "#/definitions/__schema34",
                 },
                 "operator": {
                   "description": "Use for ranges between two numeric bounds.",
@@ -16658,7 +16677,7 @@ Usage Tips:
             },
           ],
         },
-        "__schema32": {
+        "__schema34": {
           "enum": [
             "number",
             "percentile",
@@ -16674,7 +16693,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema42": {
+        "__schema44": {
           "description": "Use for threshold comparisons such as greater than 100.",
           "enum": [
             "lessThan",
@@ -16684,35 +16703,35 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema63": {
+        "__schema65": {
           "description": "One or more explicit ISO dates/datetimes.",
           "items": {
-            "$ref": "#/definitions/__schema64",
+            "$ref": "#/definitions/__schema66",
           },
           "type": "array",
         },
-        "__schema64": {
+        "__schema66": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema65",
+              "$ref": "#/definitions/__schema67",
             },
             {
-              "$ref": "#/definitions/__schema66",
+              "$ref": "#/definitions/__schema68",
             },
           ],
           "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
         },
-        "__schema65": {
+        "__schema67": {
           "format": "date",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
           "type": "string",
         },
-        "__schema66": {
+        "__schema68": {
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
           "type": "string",
         },
-        "__schema67": {
+        "__schema69": {
           "description": "Use inThePast for last/past N periods, inTheNext for next N periods, notInThePast to exclude recent periods.",
           "enum": [
             "inThePast",
@@ -16721,7 +16740,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema71": {
+        "__schema73": {
           "description": "Exactly one positive number of periods, e.g. [2].",
           "items": {
             "exclusiveMinimum": 0,
@@ -16731,7 +16750,7 @@ Usage Tips:
           "minItems": 1,
           "type": "array",
         },
-        "__schema73": {
+        "__schema75": {
           "additionalProperties": false,
           "description": "Relative period settings.",
           "properties": {
@@ -16740,7 +16759,7 @@ Usage Tips:
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema75",
+              "$ref": "#/definitions/__schema77",
             },
           },
           "required": [
@@ -16749,7 +16768,7 @@ Usage Tips:
           ],
           "type": "object",
         },
-        "__schema75": {
+        "__schema77": {
           "description": "Period unit for the relative date filter.",
           "enum": [
             "days",
@@ -16760,7 +16779,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema81": {
+        "__schema83": {
           "description": "Use for this/current period or to exclude this/current period.",
           "enum": [
             "inTheCurrent",
@@ -16768,7 +16787,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema86": {
+        "__schema88": {
           "additionalProperties": false,
           "description": "Current-period settings.",
           "properties": {
@@ -16778,7 +16797,7 @@ Usage Tips:
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema88",
+              "$ref": "#/definitions/__schema90",
             },
           },
           "required": [
@@ -16787,7 +16806,7 @@ Usage Tips:
           ],
           "type": "object",
         },
-        "__schema88": {
+        "__schema90": {
           "description": "Current period unit, e.g. weeks for this week.",
           "enum": [
             "days",
@@ -16798,7 +16817,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema94": {
+        "__schema96": {
           "description": "Use for before/after comparisons against one explicit date or datetime.",
           "enum": [
             "lessThan",
@@ -16807,15 +16826,6 @@ Usage Tips:
             "greaterThanOrEqual",
           ],
           "type": "string",
-        },
-        "__schema99": {
-          "description": "Exactly one explicit ISO date/datetime threshold.",
-          "items": {
-            "$ref": "#/definitions/__schema64",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
         },
       },
       "properties": {

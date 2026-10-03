@@ -44,6 +44,16 @@ describe('query metric filters', () => {
                         field: 'created_at',
                         operator: 'notNull',
                     },
+                    {
+                        field: 'status',
+                        operator: 'doesNotStartWith',
+                        value: ['test', 'demo'],
+                    },
+                    {
+                        field: 'status',
+                        operator: 'doesNotEndWith',
+                        value: ['test', 'demo'],
+                    },
                 ])
                 .metricFilters([
                     {
@@ -65,6 +75,16 @@ describe('query metric filters', () => {
                                 target: {
                                     fieldId: 'custom_roles_created_at',
                                 },
+                            }),
+                            expect.objectContaining({
+                                target: { fieldId: 'custom_roles_status' },
+                                operator: 'doesNotStartWith',
+                                values: ['test', 'demo'],
+                            }),
+                            expect.objectContaining({
+                                target: { fieldId: 'custom_roles_status' },
+                                operator: 'doesNotEndWith',
+                                values: ['test', 'demo'],
                             }),
                         ],
                     },

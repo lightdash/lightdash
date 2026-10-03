@@ -3677,7 +3677,7 @@
                                                                             },
                                                                             {
                                                                                 "additionalProperties": false,
-                                                                                "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"endsWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
+                                                                                "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"doesNotStartWith\" | \"endsWith\" | \"doesNotEndWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
                                                                                 "properties": {
                                                                                     "fieldFilterType": {
                                                                                         "const": "string",
@@ -3714,7 +3714,15 @@
                                                                                                 "type": "string"
                                                                                             },
                                                                                             {
+                                                                                                "const": "doesNotStartWith",
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            {
                                                                                                 "const": "endsWith",
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            {
+                                                                                                "const": "doesNotEndWith",
                                                                                                 "type": "string"
                                                                                             },
                                                                                             {
@@ -3726,7 +3734,7 @@
                                                                                                 "type": "string"
                                                                                             }
                                                                                         ],
-                                                                                        "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes."
+                                                                                        "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/doesNotStartWith/endsWith/doesNotEndWith for prefixes/suffixes."
                                                                                     },
                                                                                     "values": {
                                                                                         "description": "String values to match. Do not put natural-language date ranges here.",
@@ -4909,7 +4917,7 @@
                                                         },
                                                         {
                                                             "additionalProperties": false,
-                                                            "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"endsWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
+                                                            "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"doesNotStartWith\" | \"endsWith\" | \"doesNotEndWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
                                                             "properties": {
                                                                 "fieldFilterType": {
                                                                     "const": "string",
@@ -4946,7 +4954,15 @@
                                                                             "type": "string"
                                                                         },
                                                                         {
+                                                                            "const": "doesNotStartWith",
+                                                                            "type": "string"
+                                                                        },
+                                                                        {
                                                                             "const": "endsWith",
+                                                                            "type": "string"
+                                                                        },
+                                                                        {
+                                                                            "const": "doesNotEndWith",
                                                                             "type": "string"
                                                                         },
                                                                         {
@@ -4958,7 +4974,7 @@
                                                                             "type": "string"
                                                                         }
                                                                     ],
-                                                                    "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes."
+                                                                    "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/doesNotStartWith/endsWith/doesNotEndWith for prefixes/suffixes."
                                                                 },
                                                                 "values": {
                                                                     "description": "String values to match. Do not put natural-language date ranges here.",
@@ -6028,7 +6044,7 @@
                                                         },
                                                         {
                                                             "additionalProperties": false,
-                                                            "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"endsWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
+                                                            "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"doesNotStartWith\" | \"endsWith\" | \"doesNotEndWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
                                                             "properties": {
                                                                 "fieldFilterType": {
                                                                     "const": "string",
@@ -6065,7 +6081,15 @@
                                                                             "type": "string"
                                                                         },
                                                                         {
+                                                                            "const": "doesNotStartWith",
+                                                                            "type": "string"
+                                                                        },
+                                                                        {
                                                                             "const": "endsWith",
+                                                                            "type": "string"
+                                                                        },
+                                                                        {
+                                                                            "const": "doesNotEndWith",
                                                                             "type": "string"
                                                                         },
                                                                         {
@@ -6077,7 +6101,7 @@
                                                                             "type": "string"
                                                                         }
                                                                     ],
-                                                                    "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes."
+                                                                    "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/doesNotStartWith/endsWith/doesNotEndWith for prefixes/suffixes."
                                                                 },
                                                                 "values": {
                                                                     "description": "String values to match. Do not put natural-language date ranges here.",
@@ -7935,7 +7959,7 @@
                                                 },
                                                 {
                                                     "additionalProperties": false,
-                                                    "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"endsWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
+                                                    "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"doesNotStartWith\" | \"endsWith\" | \"doesNotEndWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
                                                     "properties": {
                                                         "fieldFilterType": {
                                                             "const": "string",
@@ -7972,7 +7996,15 @@
                                                                     "type": "string"
                                                                 },
                                                                 {
+                                                                    "const": "doesNotStartWith",
+                                                                    "type": "string"
+                                                                },
+                                                                {
                                                                     "const": "endsWith",
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "const": "doesNotEndWith",
                                                                     "type": "string"
                                                                 },
                                                                 {
@@ -7984,7 +8016,7 @@
                                                                     "type": "string"
                                                                 }
                                                             ],
-                                                            "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes."
+                                                            "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/doesNotStartWith/endsWith/doesNotEndWith for prefixes/suffixes."
                                                         },
                                                         "values": {
                                                             "description": "String values to match. Do not put natural-language date ranges here.",
@@ -9054,7 +9086,7 @@
                                                 },
                                                 {
                                                     "additionalProperties": false,
-                                                    "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"endsWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
+                                                    "description": "Use for text matching on string fields. For dates like \"last 2 weeks\", use a date filter instead. Type shape: {\n  fieldId: \"orders_status\"; // use the actual field id\n  fieldType: \"string\"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median\n  fieldFilterType: \"string\"; // one of: string, number, date, boolean; used to choose valid operators\n  operator: \"equals\" | \"notEquals\" | \"startsWith\" | \"doesNotStartWith\" | \"endsWith\" | \"doesNotEndWith\" | \"include\" | \"doesNotInclude\"; // | means or\n  values: string[];\n}",
                                                     "properties": {
                                                         "fieldFilterType": {
                                                             "const": "string",
@@ -9091,7 +9123,15 @@
                                                                     "type": "string"
                                                                 },
                                                                 {
+                                                                    "const": "doesNotStartWith",
+                                                                    "type": "string"
+                                                                },
+                                                                {
                                                                     "const": "endsWith",
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "const": "doesNotEndWith",
                                                                     "type": "string"
                                                                 },
                                                                 {
@@ -9103,7 +9143,7 @@
                                                                     "type": "string"
                                                                 }
                                                             ],
-                                                            "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes."
+                                                            "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/doesNotStartWith/endsWith/doesNotEndWith for prefixes/suffixes."
                                                         },
                                                         "values": {
                                                             "description": "String values to match. Do not put natural-language date ranges here.",

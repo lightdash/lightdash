@@ -46,12 +46,14 @@ const stringFilterSchema = z.union([
                     z.literal(FilterOperator.EQUALS),
                     z.literal(FilterOperator.NOT_EQUALS),
                     z.literal(FilterOperator.STARTS_WITH),
+                    z.literal(FilterOperator.NOT_STARTS_WITH),
                     z.literal(FilterOperator.ENDS_WITH),
+                    z.literal(FilterOperator.NOT_ENDS_WITH),
                     z.literal(FilterOperator.INCLUDE),
                     z.literal(FilterOperator.NOT_INCLUDE),
                 ])
                 .describe(
-                    `${filterOperatorList(FilterOperator.EQUALS, FilterOperator.NOT_EQUALS)} for exact matches; ${filterOperatorList(FilterOperator.INCLUDE, FilterOperator.NOT_INCLUDE)} for contains; ${filterOperatorList(FilterOperator.STARTS_WITH, FilterOperator.ENDS_WITH)} for prefixes/suffixes.`,
+                    `${filterOperatorList(FilterOperator.EQUALS, FilterOperator.NOT_EQUALS)} for exact matches; ${filterOperatorList(FilterOperator.INCLUDE, FilterOperator.NOT_INCLUDE)} for contains; ${filterOperatorList(FilterOperator.STARTS_WITH, FilterOperator.NOT_STARTS_WITH, FilterOperator.ENDS_WITH, FilterOperator.NOT_ENDS_WITH)} for prefixes/suffixes.`,
                 ),
             values: z
                 .array(z.string())
@@ -70,7 +72,9 @@ const stringFilterSchema = z.union([
                         FilterOperator.EQUALS,
                         FilterOperator.NOT_EQUALS,
                         FilterOperator.STARTS_WITH,
+                        FilterOperator.NOT_STARTS_WITH,
                         FilterOperator.ENDS_WITH,
+                        FilterOperator.NOT_ENDS_WITH,
                         FilterOperator.INCLUDE,
                         FilterOperator.NOT_INCLUDE,
                     ],

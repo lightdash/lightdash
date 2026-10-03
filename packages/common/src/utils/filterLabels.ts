@@ -135,7 +135,9 @@ export const getFilterOperatorOptions = (
                     FilterOperator.EQUALS,
                     FilterOperator.NOT_EQUALS,
                     FilterOperator.STARTS_WITH,
+                    FilterOperator.NOT_STARTS_WITH,
                     FilterOperator.ENDS_WITH,
+                    FilterOperator.NOT_ENDS_WITH,
                     FilterOperator.INCLUDE,
                     FilterOperator.NOT_INCLUDE,
                 ],
@@ -294,7 +296,9 @@ const getValueAsString = (
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                 case FilterOperator.STARTS_WITH:
+                case FilterOperator.NOT_STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
+                case FilterOperator.NOT_ENDS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.LESS_THAN:
