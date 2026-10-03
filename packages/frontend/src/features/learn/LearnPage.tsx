@@ -112,13 +112,9 @@ const ModuleCard: FC<{
                             <MantineIcon icon={IconCircleCheck} size={14} />
                             Complete
                         </span>
-                    ) : (
-                        <span>
-                            {module.available
-                                ? `${module.stepCount} steps`
-                                : 'Coming Soon'}
-                        </span>
-                    )}
+                    ) : module.available ? (
+                        <span>{module.stepCount} steps</span>
+                    ) : null}
                     {note && <span>{note}</span>}
                 </Box>
                 <Button
