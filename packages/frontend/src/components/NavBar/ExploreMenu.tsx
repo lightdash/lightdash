@@ -178,6 +178,9 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                     }
                                     icon={IconFileText}
                                     data-testid="ExploreMenu/NewDocumentButton"
+                                    // Navigation anchor for scope walkthroughs (data-tour-via)
+                                    data-tour-nav="new-document"
+                                    data-tour-hint="Choose Document"
                                 />
                             )}
 

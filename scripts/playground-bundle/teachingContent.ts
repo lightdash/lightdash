@@ -71,7 +71,27 @@ export const teachingContent = {
         durationMs: 412000,
         warehouseQueryCount: 9,
     },
+    documents: [
+        {
+            slug: 'monthly-orders-review',
+            name: 'Monthly orders review',
+            description:
+                'Orders and payments for the jaffle shop, with the charts behind them.',
+            markdown:
+                'How the jaffle shop\'s orders and payments look, with the live chart behind each section.\n\n# Orders\n\nOrder volume by month, from the orders table.\n\n<document-chart id="c1">\n\n# Payments\n\nRevenue by payment method, from the payments table.\n\n<document-chart id="c2">\n\n# Next steps\n\nCompare the busiest months with how customers paid in them.',
+            charts: {
+                c1: 'orders-over-time',
+                c2: 'revenue-by-payment-method',
+            },
+        },
+    ],
 } satisfies Pick<
     PlaygroundContent,
-    'pinned' | 'comments' | 'categories' | 'dataApps' | 'agent' | 'deepResearch'
+    | 'pinned'
+    | 'comments'
+    | 'categories'
+    | 'dataApps'
+    | 'agent'
+    | 'deepResearch'
+    | 'documents'
 >;

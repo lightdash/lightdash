@@ -93,6 +93,9 @@ const DocumentCreateModal = ({
                     form={FORM_ID}
                     loading={create.isLoading}
                     disabled={!hasDestination || !form.values.name.trim()}
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="document-create-submit"
+                    data-tour-hint="Click Create"
                 >
                     Create
                 </Button>
@@ -106,6 +109,11 @@ const DocumentCreateModal = ({
                         required
                         data-autofocus
                         disabled={create.isLoading}
+                        // Typed anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="document-name"
+                        data-tour-hint="Name the document"
+                        data-tour-input="true"
+                        data-tour-suggest="Quarterly revenue review"
                         {...form.getInputProps('name')}
                     />
                     <Textarea

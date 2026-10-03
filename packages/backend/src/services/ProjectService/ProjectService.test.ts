@@ -109,6 +109,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type DocumentModel } from '../../models/DocumentModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -549,6 +550,7 @@ const getMockedProjectService = (
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
         spaceModel: spaceModel as unknown as SpaceModel,
+        documentModel: {} as unknown as DocumentModel,
         sshKeyPairModel: {} as SshKeyPairModel,
         userAttributesModel:
             userAttributesModel as unknown as UserAttributesModel,

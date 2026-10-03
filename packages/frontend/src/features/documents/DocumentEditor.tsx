@@ -31,6 +31,7 @@ import MantineModal from '../../components/common/MantineModal';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { isLeavingTrainingCopy } from '../scopeTours/trainingCopy';
 import DocumentByline from './DocumentByline';
 import DocumentPageLayout from './DocumentPageLayout';
 import {
@@ -164,7 +165,12 @@ const DocumentEditor = ({
     const dirty = contentDirty || nameChanged;
     const saveError = rename.error ?? update.error;
     const blockNavigation = dirty || busy || chartEditor !== null;
-    const blocker = useBlocker(blockNavigation);
+    // A walkthrough leaving its training copy is let through: the copy, and
+    // whatever was being edited in it, is removed a moment later anyway
+    const blocker = useBlocker(
+        ({ nextLocation }) =>
+            blockNavigation && !isLeavingTrainingCopy(nextLocation),
+    );
     useBeforeUnload((event) => {
         if (blockNavigation) {
             event.preventDefault();
@@ -310,6 +316,9 @@ const DocumentEditor = ({
                                     size="lg"
                                     aria-label="Add chart"
                                     disabled={busy}
+                                    // Anchor for scope walkthroughs (data-tour-via)
+                                    data-tour-anchor="document-add-chart"
+                                    data-tour-hint="Click Add chart"
                                     onClick={() =>
                                         setChartEditor({
                                             mode: 'insert',
@@ -329,6 +338,16 @@ const DocumentEditor = ({
                                 aria-label="Save document"
                                 loading={busy}
                                 disabled={!dirty || !nameValid}
+                                // Walkthrough: write a document with a live
+                                // chart. See scripts/scope-tours.
+                                data-tour-scope="manage:Document"
+                                data-tour-step="2"
+                                data-tour-route="/projects/:projectUuid/documents/:documentUuidOrSlug"
+                                data-tour-label="Save the document"
+                                data-tour-title="Write a document with a live chart"
+                                data-tour-interactive="true"
+                                data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-document"] >> [data-tour-anchor="document-name"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="document-create-submit"] >> [data-tour-anchor="document-body"] >> [data-tour-anchor="document-add-chart"] >> [data-tour-anchor="explore-table"][data-tour-value="Country orders"] >> [data-tour-anchor="explore-metric"][data-tour-value="Order Count"] >> [data-tour-anchor="explore-dimension"][data-tour-value="Country"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="document-chart-name"] >> [data-tour-anchor="document-chart-apply"]'
+                                data-tour-docs="explore/documents.mdx#edit-a-document:p3:1"
                                 onClick={() => {
                                     void save();
                                 }}
@@ -384,6 +403,11 @@ const DocumentEditor = ({
                         <EditorContent
                             editor={editor}
                             className={styles.documentProse}
+                            // Typed anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="document-body"
+                            data-tour-hint="Write the opening line"
+                            data-tour-input="true"
+                            data-tour-suggest="Where our orders come from, by country."
                         />
                     </DocumentEditorProvider>
                 </Stack>

@@ -345,6 +345,7 @@ import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceE
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import { seedTrainingCopyDocuments } from '../../ee/services/ProjectService/seedPlaygroundDocuments';
 import { seedMissingTrainingCopyMetricsTrees } from '../../ee/services/ProjectService/seedPlaygroundMetricsTrees';
 import { errorHandler } from '../../errors';
 import {
@@ -358,6 +359,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import type { DocumentModel } from '../../models/DocumentModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -490,6 +492,7 @@ import {
     type CheckGoogleRefreshToken,
 } from './previewBigquerySsoCredentials';
 import { projectMergedManifest } from './projectMergedManifest';
+import { TRAINING_SPACE } from './provisionTrainingProject';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
 import {
@@ -562,6 +565,7 @@ export type ProjectServiceArguments = {
     jobModel: JobModel;
     emailClient: EmailClient;
     spaceModel: SpaceModel;
+    documentModel: DocumentModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
     s3CacheClient: S3CacheClient;
@@ -716,6 +720,8 @@ export class ProjectService extends BaseService {
 
     spaceModel: SpaceModel;
 
+    documentModel: DocumentModel;
+
     sshKeyPairModel: SshKeyPairModel;
 
     userAttributesModel: UserAttributesModel;
@@ -819,6 +825,7 @@ export class ProjectService extends BaseService {
         jobModel,
         emailClient,
         spaceModel,
+        documentModel,
         sshKeyPairModel,
         userAttributesModel,
         s3CacheClient,
@@ -874,6 +881,7 @@ export class ProjectService extends BaseService {
         this.jobModel = jobModel;
         this.emailClient = emailClient;
         this.spaceModel = spaceModel;
+        this.documentModel = documentModel;
         this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
         this.s3CacheClient = s3CacheClient;
@@ -14358,12 +14366,61 @@ export class ProjectService extends BaseService {
             }),
         );
 
+        // Samples the copy does not carry over from the training project.
+        // Best effort: a sample that fails to seed leaves the copy usable for
+        // every other walkthrough rather than failing a copy that now exists.
+        try {
+            await this.seedTrainingCopyDocuments(
+                user,
+                projectUuid,
+                training.createdByUserUuid,
+            );
+        } catch (error) {
+            Logger.error(
+                `Training copy ${projectUuid}: sample content could not be seeded`,
+                error,
+            );
+        }
+
         // The trainee layer on the new copy only exists in a freshly built
         // ability; the cached session user still reflects the old copies.
         this.userModel.invalidateSessionUserCache(user.userUuid);
 
         const preview = await this.projectModel.get(projectUuid);
         return { projectUuid, expiresAt: preview.expiresAt ?? null };
+    }
+
+    /**
+     * Copies carry no documents, so the sample a learner reads in the
+     * documents walkthrough is made in each copy, in the seeded space and
+     * credited to whoever enabled Learn. Skipped while documents are off.
+     */
+    private async seedTrainingCopyDocuments(
+        user: SessionUser,
+        projectUuid: string,
+        createdByUserUuid: string | null,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.Documents,
+        });
+        if (!enabled) return;
+        const [space] = await this.spaceModel.find({
+            projectUuid,
+            path: TRAINING_SPACE.path,
+        });
+        if (!space) {
+            Logger.warn(
+                `Training copy ${projectUuid} has no "${TRAINING_SPACE.path}" space; skipping its sample documents`,
+            );
+            return;
+        }
+        await seedTrainingCopyDocuments({
+            projectUuid,
+            spaceUuid: space.uuid,
+            createdByUserUuid,
+            documentModel: this.documentModel,
+        });
     }
 
     private static readonly TRAINING_PREVIEW_EXPIRES_IN_HOURS = 24;
