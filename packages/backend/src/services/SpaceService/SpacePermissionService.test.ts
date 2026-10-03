@@ -1,14 +1,15 @@
 import { Ability } from '@casl/ability';
 import {
     DirectSpaceAccessOrigin,
+    getUserAbilityBuilder,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     ProjectSpaceAccessOrigin,
     SpaceMemberRole,
     type DirectSpaceAccess,
-    type OrganizationMemberRole,
     type PossibleAbilities,
-    type ProjectMemberRole,
     type SessionUser,
     type SpaceAccess,
     type SpaceInheritanceChain,
@@ -21,6 +22,7 @@ import {
     type OrganizationSpaceAccessWithCustomRole,
     type ProjectSpaceAccessWithCustomRole,
 } from '../../models/SpacePermissionModel';
+import { type UserModel } from '../../models/UserModel';
 import { type DirectAccessFeatureGate } from '../DirectAccess/DirectAccessFeatureGate';
 import {
     SpacePermissionService,
@@ -89,6 +91,7 @@ const createMockSpacePermissionModel = () => ({
 });
 
 describe('SpacePermissionService', () => {
+    const mockUserModel = { findSessionUserAndOrgByUuid: vi.fn() };
     const mockPermissionModel = createMockSpacePermissionModel();
     const dashboardAccessModel = {
         getUserAccess: vi.fn(async () => ({})),
@@ -97,6 +100,7 @@ describe('SpacePermissionService', () => {
         isEnabledForUser: vi.fn(async () => false),
     };
     const service = new SpacePermissionService({
+        userModel: mockUserModel as unknown as UserModel,
         documentAccessModel: {
             getUserAccess: vi.fn().mockResolvedValue({}),
         } as never,
@@ -1437,6 +1441,10 @@ describe('SpacePermissionService', () => {
         const organizationUuid = 'organization-uuid';
 
         beforeEach(() => {
+            mockUserModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+                userUuid: 'recipient',
+                ability: new Ability<PossibleAbilities>([]),
+            });
             mockPermissionModel.getInheritanceChains.mockResolvedValue({
                 [spaceUuid]: {
                     chain: [
@@ -1453,6 +1461,146 @@ describe('SpacePermissionService', () => {
                 [spaceUuid]: { projectUuid, organizationUuid },
             });
         });
+
+        test.each([
+            {
+                name: 'custom role with full permissions',
+                scopes: [
+                    'manage:Dashboard@space',
+                    'manage:SavedChart@space',
+                    'manage:Space@assigned',
+                ],
+                spaceRole: SpaceMemberRole.ADMIN,
+                orgRole: OrganizationMemberRole.MEMBER,
+                expected: {
+                    canEditCharts: true,
+                    canEditDashboards: true,
+                    canManageSpace: true,
+                },
+            },
+            {
+                name: 'viewer with no editing permissions',
+                scopes: [],
+                spaceRole: SpaceMemberRole.ADMIN,
+                orgRole: OrganizationMemberRole.MEMBER,
+                expected: {
+                    canEditCharts: false,
+                    canEditDashboards: false,
+                    canManageSpace: false,
+                },
+            },
+            {
+                name: 'custom role with dashboard-only editing',
+                scopes: ['manage:Dashboard@space'],
+                spaceRole: SpaceMemberRole.ADMIN,
+                orgRole: OrganizationMemberRole.MEMBER,
+                expected: {
+                    canEditCharts: false,
+                    canEditDashboards: true,
+                    canManageSpace: false,
+                },
+            },
+            {
+                name: 'assigned management limited by editor space access',
+                scopes: [
+                    'manage:Dashboard@space',
+                    'manage:SavedChart@space',
+                    'manage:Space@assigned',
+                ],
+                spaceRole: SpaceMemberRole.EDITOR,
+                orgRole: OrganizationMemberRole.MEMBER,
+                expected: {
+                    canEditCharts: true,
+                    canEditDashboards: true,
+                    canManageSpace: false,
+                },
+            },
+            {
+                name: 'organization admin overrides limited project role',
+                scopes: [],
+                spaceRole: SpaceMemberRole.ADMIN,
+                orgRole: OrganizationMemberRole.ADMIN,
+                expected: {
+                    canEditCharts: true,
+                    canEditDashboards: true,
+                    canManageSpace: true,
+                },
+            },
+        ])(
+            'reports effective recipient permissions: $name',
+            async ({ scopes, spaceRole, orgRole, expected }) => {
+                const userUuid = 'recipient';
+                const { builder } = getUserAbilityBuilder({
+                    user: { userUuid, organizationUuid, role: orgRole },
+                    projectProfiles: [
+                        {
+                            userUuid,
+                            projectUuid,
+                            role: 'viewer' as ProjectMemberRole,
+                            roleUuid: 'custom-role',
+                        },
+                    ],
+                    customRoleScopes: { 'custom-role': scopes },
+                    customRolesEnabled: true,
+                    isEnterprise: true,
+                    permissionsConfig: {
+                        pat: { enabled: false, allowedOrgRoles: [] },
+                    },
+                });
+                mockUserModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+                    userUuid,
+                    ability: builder.build(),
+                });
+                mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
+                    [spaceUuid]: [
+                        {
+                            userUuid,
+                            spaceUuid,
+                            groupUuid: null,
+                            role: spaceRole,
+                            from: DirectSpaceAccessOrigin.USER_ACCESS,
+                        },
+                    ],
+                });
+                mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                    [spaceUuid]: [
+                        {
+                            userUuid,
+                            spaceUuid,
+                            role: 'viewer' as ProjectMemberRole,
+                            roleUuid: null,
+                            extraRoleUuids: [],
+                            from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                        },
+                    ],
+                });
+                mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue(
+                    {},
+                );
+                mockPermissionModel.getPaginatedUserMetadata.mockResolvedValue({
+                    data: [
+                        {
+                            userUuid,
+                            firstName: 'Custom',
+                            lastName: 'Role',
+                            email: 'custom@example.com',
+                            isInternal: false,
+                            avatarUrl: null,
+                            avatarGradient: null,
+                        },
+                    ],
+                });
+
+                const result = await service.getPaginatedSpaceAccess(
+                    spaceUuid,
+                    {},
+                );
+                expect(result.data[0]).toHaveProperty('permissions', expected);
+                expect(
+                    mockUserModel.findSessionUserAndOrgByUuid,
+                ).toHaveBeenCalledWith(userUuid, organizationUuid);
+            },
+        );
 
         test('passes pagination and user filters while merging admins in metadata order', async () => {
             const userUuids = ['direct-user', 'project-admin', 'org-admin'];
@@ -1926,6 +2074,7 @@ describe('resolveAccess', () => {
             isEnabledForUser: vi.fn(async () => enabled),
         };
         const service = new SpacePermissionService({
+            userModel: {} as UserModel,
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
@@ -2251,6 +2400,7 @@ describe('resolveAccessBatch', () => {
             isEnabledForUser: vi.fn(async () => enabled),
         };
         const service = new SpacePermissionService({
+            userModel: {} as UserModel,
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
@@ -2681,6 +2831,7 @@ describe('resolveAccess space-saved chart target', () => {
             getUserAccess: vi.fn(async () => grants),
         };
         const service = new SpacePermissionService({
+            userModel: {} as UserModel,
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
@@ -2792,6 +2943,7 @@ describe('resolveAccess saved SQL chart target', () => {
             getUserAccess: vi.fn(async () => grants),
         };
         const service = new SpacePermissionService({
+            userModel: {} as UserModel,
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
@@ -2914,6 +3066,7 @@ describe('resolveAccess chart ownership routing', () => {
             getUserAccess: vi.fn(async () => chartGrants),
         };
         const service = new SpacePermissionService({
+            userModel: {} as UserModel,
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
@@ -3057,6 +3210,7 @@ describe('Document access boundaries', () => {
                 }),
             };
             const service = new SpacePermissionService({
+                userModel: {} as UserModel,
                 spaceModel: {} as never,
                 spacePermissionModel: {} as never,
                 appAccessModel: {} as never,

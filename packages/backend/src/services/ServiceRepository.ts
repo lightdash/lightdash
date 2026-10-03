@@ -1350,6 +1350,7 @@ export class ServiceRepository
             'spacePermissionService',
             () =>
                 new SpacePermissionService({
+                    userModel: this.models.getUserModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionModel: this.models.getSpacePermissionModel(),
