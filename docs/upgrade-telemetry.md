@@ -35,6 +35,7 @@ explicit nulls.
 | `attempt` | Run-ledger attempt number. Takeover and preflight events use null. |
 | `outcome` | `succeeded`, `retrying`, `parked`, or null for non-terminal events and abandoned runs. |
 | `failure_class` | Stable failure category below, or null when no failure occurred. |
+| `error_class` | `transient` for PostgreSQL `55P03` or `40P01` anywhere in the error chain, else `deterministic`; null when no failure occurred. Transient failures retry against a time budget and a transient park retries after a cool-off. |
 | `failing_migration` | Migration filename or internal migration stage. |
 | `preceded_by_unlock` | Whether the acquired lease records a preceding operator unlock. |
 | `preceding_unlock_forced` | Whether that preceding unlock was forced; null when there was no preceding unlock. |

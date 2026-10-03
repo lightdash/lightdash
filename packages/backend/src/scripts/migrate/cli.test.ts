@@ -8,6 +8,7 @@ import {
 import {
     createMigrateCliContext,
     parseMigrateCliOptions,
+    parseMigrationTransientRetryConfig,
     parseMigrationWaitTimeoutMs,
     runMigrateCli,
     type MigrateCliContext,
@@ -65,9 +66,34 @@ const heldLease = (
     parkedMigration: null,
     parkedError: null,
     parkedRunUuid: null,
+    parkedErrorClass: null,
     expired: false,
     ...overrides,
 });
+
+const parkedLease = (overrides: Partial<MigrationLease> = {}): MigrationLease =>
+    heldLease({
+        claimToken: null,
+        holderHostname: null,
+        holderPodName: null,
+        appVersion: null,
+        startedAt: null,
+        currentMigration: null,
+        lastHeartbeat: null,
+        parkedAt: new Date('2026-08-10T10:00:05.000Z'),
+        parkedAppVersion: '1.2.3',
+        parkedMigration: '001_failing.ts',
+        parkedError: 'deterministic failure',
+        parkedRunUuid: 'run-3',
+        parkedErrorClass: 'deterministic',
+        ...overrides,
+    });
+
+const postgresError = (code: string, message: string) =>
+    Object.assign(new Error(message), { code });
+
+const lockTimeoutError = () =>
+    postgresError('55P03', 'canceling statement due to lock timeout');
 
 const readLease = (lease: MigrationLease | null): MigrationLeaseReadResult => ({
     initialized: true,
@@ -200,6 +226,7 @@ const upgradePropertyKeys = [
     'attempt',
     'duration_ms',
     'duration_seconds',
+    'error_class',
     'execution_mode',
     'failing_migration',
     'failure_class',
@@ -756,11 +783,206 @@ describe('runMigrateCli', () => {
             '1.2.3',
             '001_failing.ts',
             expect.stringContaining('deterministic failure'),
+            'deterministic',
         );
         expect(manager.completeRun).not.toHaveBeenCalled();
         expect(command.value.migrateOne).toHaveBeenCalledTimes(3);
+        expect(command.value.sleep).toHaveBeenCalledTimes(2);
         expect(command.value.sleep).toHaveBeenNthCalledWith(1, 1);
         expect(command.value.sleep).toHaveBeenNthCalledWith(2, 2);
+        expect(command.errors).toContain(
+            'MIGRATION_PARKED app_version=1.2.3 migration=001_failing.ts error_class=deterministic run=run-3 attempts=3 error=deterministic failure',
+        );
+    });
+
+    test('a transient failure keeps retrying past the attempt limit and succeeds inside the budget', async () => {
+        const manager = leaseManager();
+        const migrateOne = vi
+            .fn<MigrateCliContext['migrateOne']>()
+            .mockRejectedValueOnce(lockTimeoutError())
+            .mockRejectedValueOnce(lockTimeoutError())
+            .mockRejectedValueOnce(postgresError('40P01', 'deadlock detected'))
+            .mockRejectedValueOnce(lockTimeoutError())
+            .mockResolvedValue(undefined);
+        let pending = ['001_locked.ts'];
+        const findLockHolders = vi.fn<MigrateCliContext['findLockHolders']>(
+            async () => [
+                {
+                    pid: 4242,
+                    backendType: 'client backend',
+                    state: 'idle in transaction',
+                    transactionAgeSeconds: 9000,
+                    relations: 'public.projects',
+                    query: 'DELETE FROM projects\n WHERE project_uuid = $1',
+                },
+            ],
+        );
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () => migrationState(pending)),
+            migrateOne: vi.fn(async (name) => {
+                await migrateOne(name);
+                pending = [];
+            }),
+            findLockHolders,
+            random: () => 0.5,
+        });
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(manager.startRun).toHaveBeenCalledTimes(5);
+        expect(manager.recordRetry).toHaveBeenCalledTimes(4);
+        expect(manager.parkRun).not.toHaveBeenCalled();
+        expect(manager.completeRun).toHaveBeenCalledWith('claim-a', 'run-5');
+        expect(vi.mocked(command.value.sleep).mock.calls).toEqual([
+            [1_500],
+            [3_000],
+            [6_000],
+            [12_000],
+        ]);
+        expect(findLockHolders).toHaveBeenCalledTimes(3);
+        expect(command.errors).toContain(
+            'MIGRATION_LOCK_HOLDER migration=001_locked.ts pid=4242 backend_type="client backend" state="idle in transaction" xact_age_seconds=9000 relations=public.projects query="DELETE FROM projects WHERE project_uuid = $1"',
+        );
+        expect(
+            command.upgradeEvents
+                .filter(({ properties }) => properties.outcome === 'retrying')
+                .map(({ properties }) => properties.error_class),
+        ).toEqual(['transient', 'transient', 'transient', 'transient']);
+        expect(
+            command.errors.some((line) => line.startsWith('MIGRATION_PARKED')),
+        ).toBe(false);
+    });
+
+    test('an exhausted transient budget parks with the transient class', async () => {
+        const manager = leaseManager();
+        let clockMs = 0;
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState(['001_locked.ts']),
+            ),
+            migrateOne: vi.fn(async () => {
+                throw lockTimeoutError();
+            }),
+            now: () => clockMs,
+            sleep: vi.fn(async (durationMs: number) => {
+                clockMs += durationMs;
+            }),
+            random: () => 1,
+            transientRetryBudgetMs: 10_000,
+            transientRetryInitialDelayMs: 1_000,
+            transientRetryMaxDelayMs: 4_000,
+            transientParkCooloffMs: 120_000,
+        });
+
+        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+            'Migration parked after 5 attempts at 001_locked.ts (transient failure, 10s of 10s retry budget used): canceling statement due to lock timeout; a pod of this version retries after a 120s cool-off',
+        );
+
+        expect(vi.mocked(command.value.sleep).mock.calls).toEqual([
+            [1_000],
+            [2_000],
+            [4_000],
+            [3_000],
+        ]);
+        expect(manager.recordRetry).toHaveBeenCalledTimes(4);
+        expect(manager.parkRun).toHaveBeenCalledWith(
+            'claim-a',
+            'run-5',
+            '1.2.3',
+            '001_locked.ts',
+            expect.stringContaining('lock timeout'),
+            'transient',
+        );
+        expect(command.errors).toContain(
+            'MIGRATION_PARKED app_version=1.2.3 migration=001_locked.ts error_class=transient run=run-5 attempts=5 error=canceling statement due to lock timeout',
+        );
+        expect(
+            command.upgradeEvents.find(
+                ({ properties }) => properties.outcome === 'parked',
+            )?.properties,
+        ).toMatchObject({
+            failure_class: 'lock_timeout',
+            error_class: 'transient',
+        });
+    });
+
+    test('a deterministic failure after transient retries still parks after three deterministic attempts', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState(['001_failing.ts']),
+            ),
+            migrateOne: vi
+                .fn<MigrateCliContext['migrateOne']>()
+                .mockRejectedValueOnce(lockTimeoutError())
+                .mockRejectedValue(new Error('deterministic failure')),
+            random: () => 1,
+        });
+
+        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+            'Migration parked after 4 attempts at 001_failing.ts: deterministic failure',
+        );
+
+        expect(vi.mocked(command.value.sleep).mock.calls).toEqual([
+            [2_000],
+            [1],
+            [2],
+        ]);
+        expect(vi.mocked(manager.parkRun).mock.calls[0]?.[5]).toEqual(
+            'deterministic',
+        );
+    });
+
+    test('a lock diagnostics failure does not stop the retry', async () => {
+        const manager = leaseManager();
+        let pending = ['001_locked.ts'];
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () => migrationState(pending)),
+            migrateOne: vi
+                .fn<MigrateCliContext['migrateOne']>()
+                .mockRejectedValueOnce(lockTimeoutError())
+                .mockImplementation(async () => {
+                    pending = [];
+                }),
+            findLockHolders: vi.fn(async () => {
+                throw new Error('permission denied for pg_stat_activity');
+            }),
+        });
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(command.errors).toContain(
+            'Migration lock diagnostics failed: permission denied for pg_stat_activity',
+        );
+        expect(manager.completeRun).toHaveBeenCalledWith('claim-a', 'run-2');
+    });
+
+    test('the heartbeat keeps renewing the lease while a transient retry sleeps', async () => {
+        const manager = leaseManager();
+        let pending = ['001_locked.ts'];
+        const heartbeat = vi.fn(async () => true);
+        const command = context(manager, {
+            heartbeatLeaseManager: { heartbeat },
+            heartbeatIntervalMs: 2,
+            getMigrationState: vi.fn(async () => migrationState(pending)),
+            migrateOne: vi
+                .fn<MigrateCliContext['migrateOne']>()
+                .mockRejectedValueOnce(lockTimeoutError())
+                .mockImplementation(async () => {
+                    pending = [];
+                }),
+            sleep: async () => {
+                await new Promise<void>((resolve) => {
+                    setTimeout(resolve, 40);
+                });
+            },
+        });
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(heartbeat.mock.calls.length).toBeGreaterThanOrEqual(3);
+        expect(command.value.onLeaseLost).not.toHaveBeenCalled();
+        expect(manager.completeRun).toHaveBeenCalledWith('claim-a', 'run-2');
     });
 
     test('classifies a parked constraint failure without leaking raw error detail', async () => {
@@ -802,41 +1024,144 @@ describe('runMigrateCli', () => {
         );
     });
 
-    test('the same app version does not reclaim a parked migration', async () => {
+    test.each(['deterministic' as const, null])(
+        'the same app version does not reclaim a %s parked migration',
+        async (parkedErrorClass) => {
+            const manager = leaseManager();
+            const lease = parkedLease({ parkedErrorClass });
+            vi.mocked(manager.claim).mockResolvedValue({
+                status: 'held',
+                token: null,
+                lease,
+            });
+            vi.mocked(manager.read).mockResolvedValue(readLease(lease));
+            const command = context(manager, {
+                getMigrationState: vi.fn(async () =>
+                    migrationState(['001_failing.ts']),
+                ),
+            });
+
+            await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+                'Migration is parked for app version 1.2.3 at 001_failing.ts: deterministic failure; deploy a fixed version or run migrate unlock with operator attribution before retrying this version',
+            );
+
+            expect(manager.claim).toHaveBeenCalledExactlyOnceWith(
+                command.value.identity,
+                120_000,
+            );
+            expect(manager.startRun).not.toHaveBeenCalled();
+            expect(command.value.migrateOne).not.toHaveBeenCalled();
+            expect(command.value.sleep).not.toHaveBeenCalled();
+        },
+    );
+
+    test('the same app version retries a transient park after the cool-off', async () => {
         const manager = leaseManager();
-        const parkedLease = heldLease({
-            claimToken: null,
-            holderHostname: null,
-            holderPodName: null,
-            appVersion: null,
-            startedAt: null,
-            currentMigration: null,
-            lastHeartbeat: null,
-            parkedAt: new Date('2026-08-10T10:00:05.000Z'),
-            parkedAppVersion: '1.2.3',
-            parkedMigration: '001_failing.ts',
-            parkedError: 'deterministic failure',
-            parkedRunUuid: 'run-3',
+        const lease = parkedLease({
+            parkedMigration: '001_locked.ts',
+            parkedError: 'canceling statement due to lock timeout',
+            parkedErrorClass: 'transient',
         });
+        vi.mocked(manager.read).mockResolvedValue(readLease(lease));
         vi.mocked(manager.claim).mockResolvedValue({
-            status: 'held',
-            token: null,
-            lease: parkedLease,
+            status: 'acquired',
+            token: 'claim-a',
+            lease: { ...lease, claimToken: 'claim-a' },
         });
-        vi.mocked(manager.read).mockResolvedValue(readLease(parkedLease));
+        const states = [
+            migrationState(['001_locked.ts']),
+            migrationState(['001_locked.ts']),
+            migrationState(),
+        ];
         const command = context(manager, {
-            getMigrationState: vi.fn(async () =>
-                migrationState(['001_failing.ts']),
+            getMigrationState: vi.fn(
+                async () => states.shift() ?? migrationState(),
             ),
+            now: () => new Date('2026-08-10T10:03:00.000Z').getTime(),
         });
 
-        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
-            'Migration is parked for app version 1.2.3 at 001_failing.ts: deterministic failure; deploy a fixed version or run migrate unlock with operator attribution before retrying this version',
-        );
+        await runMigrateCli(['up'], command.value);
 
+        expect(command.errors).toContain(
+            'MIGRATION_PARK_RETRY app_version=1.2.3 migration=001_locked.ts parked_at=2026-08-10T10:00:05.000Z run=run-3',
+        );
+        expect(command.value.migrateOne).toHaveBeenCalledWith('001_locked.ts');
+        expect(manager.completeRun).toHaveBeenCalledWith('claim-a', 'run-1');
+    });
+
+    test('a same-version pod waits out the transient park cool-off before it claims', async () => {
+        const manager = leaseManager();
+        const lease = parkedLease({
+            parkedMigration: '001_locked.ts',
+            parkedError: 'canceling statement due to lock timeout',
+            parkedErrorClass: 'transient',
+        });
+        vi.mocked(manager.read).mockResolvedValue(readLease(lease));
+        vi.mocked(manager.claim)
+            .mockResolvedValueOnce({ status: 'held', token: null, lease })
+            .mockResolvedValueOnce({
+                status: 'acquired',
+                token: 'claim-b',
+                lease: { ...lease, claimToken: 'claim-b' },
+            });
+        let clockMs = new Date('2026-08-10T10:00:35.000Z').getTime();
+        let pending = ['001_locked.ts'];
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () => migrationState(pending)),
+            migrateOne: vi.fn(async () => {
+                pending = [];
+            }),
+            now: () => clockMs,
+            sleep: vi.fn(async (durationMs: number) => {
+                clockMs += durationMs;
+            }),
+            followerPollIntervalMs: 60_000,
+        });
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(command.lines).toContain(
+            'Migration is parked for app version 1.2.3 after transient failures at 001_locked.ts; retry allowed in 90s',
+        );
+        expect(command.lines).toContain(
+            'Migration is parked for app version 1.2.3 after transient failures at 001_locked.ts; retry allowed in 30s',
+        );
+        expect(vi.mocked(command.value.sleep).mock.calls).toEqual([
+            [60_000],
+            [60_000],
+        ]);
+        expect(manager.claim).toHaveBeenCalledTimes(2);
+        expect(command.lines).toContain(
+            'Promoted follower to migration lease holder',
+        );
+        expect(command.errors).toContainEqual(
+            expect.stringMatching(/^MIGRATION_PARK_RETRY app_version=1\.2\.3 /),
+        );
+        expect(manager.completeRun).toHaveBeenCalledWith('claim-b', 'run-1');
+    });
+
+    test('a transient park with no pending Knex work still keeps the pod waiting', async () => {
+        const manager = leaseManager();
+        const lease = parkedLease({
+            parkedMigration: 'graphile-worker',
+            parkedErrorClass: 'transient',
+        });
+        vi.mocked(manager.read).mockResolvedValue(readLease(lease));
+        vi.mocked(manager.claim).mockResolvedValue({
+            status: 'acquired',
+            token: 'claim-b',
+            lease: { ...lease, claimToken: 'claim-b' },
+        });
+        const command = context(manager, {
+            now: () => new Date('2026-08-10T10:10:00.000Z').getTime(),
+        });
+
+        await runMigrateCli(['wait'], command.value);
+
+        expect(command.lines).not.toContain('Database migrations are complete');
         expect(manager.claim).toHaveBeenCalledOnce();
-        expect(manager.startRun).not.toHaveBeenCalled();
-        expect(command.value.migrateOne).not.toHaveBeenCalled();
+        expect(command.value.runGraphileMigrations).toHaveBeenCalledOnce();
+        expect(manager.completeRun).toHaveBeenCalledWith('claim-b', 'run-1');
     });
 
     test('an up follower promotes through the same claim path after expiry', async () => {
@@ -1070,6 +1395,7 @@ describe('runMigrateCli', () => {
                     parkedMigration: '001_first.ts',
                     parkedError: 'deterministic failure',
                     parkedRunUuid: 'run-2',
+                    parkedErrorClass: 'deterministic',
                 }),
             ),
         );
@@ -1100,7 +1426,7 @@ describe('runMigrateCli', () => {
 
         expect(command.lines).toContain('Migration state: parked');
         expect(command.lines).toContain(
-            'Parked migration: version=1.2.3 migration=001_first.ts at=2026-08-10T10:00:05.000Z run=run-2 error=deterministic failure',
+            'Parked migration: version=1.2.3 migration=001_first.ts at=2026-08-10T10:00:05.000Z run=run-2 class=deterministic error=deterministic failure',
         );
         expect(command.lines).toContainEqual(
             expect.stringContaining(
@@ -1391,6 +1717,40 @@ describe('parseMigrationWaitTimeoutMs', () => {
             );
         },
     );
+});
+
+describe('parseMigrationTransientRetryConfig', () => {
+    test('uses the defaults when the environment sets nothing', () => {
+        expect(parseMigrationTransientRetryConfig({})).toEqual({
+            transientRetryBudgetMs: 15 * 60_000,
+            transientRetryMaxDelayMs: 60_000,
+            transientParkCooloffMs: 2 * 60_000,
+        });
+    });
+
+    test('reads positive integer overrides from the environment', () => {
+        expect(
+            parseMigrationTransientRetryConfig({
+                MIGRATION_TRANSIENT_RETRY_BUDGET_MS: '600000',
+                MIGRATION_TRANSIENT_RETRY_MAX_DELAY_MS: '30000',
+                MIGRATION_TRANSIENT_PARK_COOLOFF_MS: '300000',
+            }),
+        ).toEqual({
+            transientRetryBudgetMs: 600_000,
+            transientRetryMaxDelayMs: 30_000,
+            transientParkCooloffMs: 300_000,
+        });
+    });
+
+    test('rejects an invalid override', () => {
+        expect(() =>
+            parseMigrationTransientRetryConfig({
+                MIGRATION_TRANSIENT_PARK_COOLOFF_MS: '0',
+            }),
+        ).toThrow(
+            'MIGRATION_TRANSIENT_PARK_COOLOFF_MS must be a positive integer',
+        );
+    });
 });
 
 describe('parseMigrateCliOptions', () => {

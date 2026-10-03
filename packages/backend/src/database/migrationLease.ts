@@ -2,6 +2,7 @@ import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { DatabaseError } from 'pg';
 import { MIGRATION_LEASE_SCHEMA_SQL } from './migrationLeaseSchema';
+import { MIGRATION_PARK_CLASS_SCHEMA_SQL } from './migrationParkClassSchema';
 import { MIGRATION_RUN_LEDGER_SCHEMA_SQL } from './migrationRunLedgerSchema';
 
 export const MIGRATION_LEASE_TABLE_NAME = 'migration_lease';
@@ -28,7 +29,7 @@ const LEGACY_LEASE_COLUMNS = [
     'last_unlocked_at',
 ] as const;
 
-const LEASE_COLUMNS = [
+const LEDGER_LEASE_COLUMNS = [
     ...LEGACY_LEASE_COLUMNS,
     'last_unlock_forced',
     'parked_at',
@@ -36,6 +37,13 @@ const LEASE_COLUMNS = [
     'parked_migration',
     'parked_error',
     'parked_run_uuid',
+] as const;
+
+const PARKED_ERROR_CLASS_COLUMN = 'parked_error_class';
+
+const LEASE_COLUMNS = [
+    ...LEDGER_LEASE_COLUMNS,
+    PARKED_ERROR_CLASS_COLUMN,
 ] as const;
 
 const RUN_COLUMNS = [
@@ -74,11 +82,14 @@ type MigrationLeaseDatabaseRow = {
     parked_migration?: string | null;
     parked_error?: string | null;
     parked_run_uuid?: string | null;
+    parked_error_class?: MigrationErrorClass | null;
 };
 
 type MigrationLeaseStatusDatabaseRow = MigrationLeaseDatabaseRow & {
     expired: boolean;
 };
+
+export type MigrationErrorClass = 'transient' | 'deterministic';
 
 export type MigrationLeaseIdentity = {
     hostname: string;
@@ -103,6 +114,7 @@ export type MigrationLease = {
     parkedMigration: string | null;
     parkedError: string | null;
     parkedRunUuid: string | null;
+    parkedErrorClass: MigrationErrorClass | null;
     expired: boolean;
 };
 
@@ -242,6 +254,7 @@ const mapLease = (
     parkedMigration: row.parked_migration ?? null,
     parkedError: row.parked_error ?? null,
     parkedRunUuid: row.parked_run_uuid ?? null,
+    parkedErrorClass: row.parked_error_class ?? null,
     expired,
 });
 
@@ -298,6 +311,7 @@ export class MigrationLeaseManager {
             await this.database.raw(UUID_EXTENSION_SQL);
             await this.database.raw(MIGRATION_LEASE_SCHEMA_SQL);
             await this.database.raw(MIGRATION_RUN_LEDGER_SCHEMA_SQL);
+            await this.database.raw(MIGRATION_PARK_CLASS_SCHEMA_SQL);
         } catch (error) {
             if (
                 !isRetryableBootstrapError(error) ||
@@ -326,6 +340,7 @@ export class MigrationLeaseManager {
 
     async claim(
         identity: MigrationLeaseIdentity,
+        transientParkCooloffMs: number,
     ): Promise<MigrationLeaseClaimResult> {
         await this.ensureSchema();
         const token = this.tokenFactory();
@@ -335,7 +350,19 @@ export class MigrationLeaseManager {
             .andWhere((query) =>
                 query
                     .whereNull('parked_at')
-                    .orWhereNot('parked_app_version', identity.appVersion),
+                    .orWhereNot('parked_app_version', identity.appVersion)
+                    .orWhere((transientParkQuery) =>
+                        transientParkQuery
+                            .where(PARKED_ERROR_CLASS_COLUMN, 'transient')
+                            .andWhere(
+                                'parked_at',
+                                '<=',
+                                this.database.raw(
+                                    "CURRENT_TIMESTAMP - (? * INTERVAL '1 millisecond')",
+                                    [transientParkCooloffMs],
+                                ),
+                            ),
+                    ),
             )
             .update({
                 holder_hostname: identity.hostname,
@@ -501,6 +528,7 @@ export class MigrationLeaseManager {
                     parked_migration: null,
                     parked_error: null,
                     parked_run_uuid: null,
+                    parked_error_class: null,
                 })
                 .returning('lease_key')) as Array<{ lease_key: string }>;
             if (leaseRows.length !== 1) {
@@ -516,6 +544,7 @@ export class MigrationLeaseManager {
         appVersion: string,
         failingMigration: string,
         failureDetail: string,
+        errorClass: MigrationErrorClass,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
             const runRows = (await transaction(MIGRATION_RUN_LEDGER_TABLE_NAME)
@@ -554,6 +583,7 @@ export class MigrationLeaseManager {
                     parked_migration: failingMigration,
                     parked_error: failureDetail,
                     parked_run_uuid: runUuid,
+                    parked_error_class: errorClass,
                 })
                 .returning('lease_key')) as Array<{ lease_key: string }>;
             if (leaseRows.length !== 1) {
@@ -602,6 +632,7 @@ export class MigrationLeaseManager {
                 parked_migration: null,
                 parked_error: null,
                 parked_run_uuid: null,
+                parked_error_class: null,
             })
             .returning(LEASE_COLUMNS)) as MigrationLeaseDatabaseRow[];
         const lease = rows[0];
@@ -644,12 +675,7 @@ export class MigrationLeaseManager {
             return { initialized: false, lease: null };
         }
 
-        const ledgerInitialized = await this.database.schema.hasTable(
-            MIGRATION_RUN_LEDGER_TABLE_NAME,
-        );
-        const leaseColumns = ledgerInitialized
-            ? LEASE_COLUMNS
-            : LEGACY_LEASE_COLUMNS;
+        const leaseColumns = await this.readableLeaseColumns();
         const row = (await this.database(MIGRATION_LEASE_TABLE_NAME)
             .select(leaseColumns)
             .select(
@@ -665,6 +691,20 @@ export class MigrationLeaseManager {
             initialized: true,
             lease: row === undefined ? null : mapLease(row, row.expired),
         };
+    }
+
+    private async readableLeaseColumns(): Promise<readonly string[]> {
+        const ledgerInitialized = await this.database.schema.hasTable(
+            MIGRATION_RUN_LEDGER_TABLE_NAME,
+        );
+        if (!ledgerInitialized) {
+            return LEGACY_LEASE_COLUMNS;
+        }
+        const parkClassInitialized = await this.database.schema.hasColumn(
+            MIGRATION_LEASE_TABLE_NAME,
+            PARKED_ERROR_CLASS_COLUMN,
+        );
+        return parkClassInitialized ? LEASE_COLUMNS : LEDGER_LEASE_COLUMNS;
     }
 
     async readRunHistory(limit = 10): Promise<MigrationRunHistoryReadResult> {
