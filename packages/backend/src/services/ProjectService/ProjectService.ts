@@ -655,6 +655,16 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectService: ProjectService;
     }) => Promise<EnableLearnResults>;
+    /**
+     * Seeds a fresh training copy with the Enterprise samples copies do not
+     * carry (the training agent's knowledge document). Set by EE; core has
+     * none.
+     */
+    seedTrainingCopyEnterpriseContent?: (args: {
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string | null;
+    }) => Promise<void>;
 };
 
 const isValidDbtCloudWebhookSignature = (
@@ -819,6 +829,8 @@ export class ProjectService extends BaseService {
 
     provisionTrainingProject: ProjectServiceArguments['provisionTrainingProject'];
 
+    seedTrainingCopyEnterpriseContent: ProjectServiceArguments['seedTrainingCopyEnterpriseContent'];
+
     constructor({
         lightdashConfig,
         analytics,
@@ -873,6 +885,7 @@ export class ProjectService extends BaseService {
         onProjectCreated,
         provisionPlaygroundProject,
         provisionTrainingProject,
+        seedTrainingCopyEnterpriseContent,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -935,6 +948,8 @@ export class ProjectService extends BaseService {
         this.onProjectCreated = onProjectCreated;
         this.provisionPlaygroundProject = provisionPlaygroundProject;
         this.provisionTrainingProject = provisionTrainingProject;
+        this.seedTrainingCopyEnterpriseContent =
+            seedTrainingCopyEnterpriseContent;
     }
 
     /**
@@ -14400,6 +14415,11 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 training.createdByUserUuid,
             );
+            await this.seedTrainingCopyEnterpriseContent?.({
+                organizationUuid: user.organizationUuid,
+                projectUuid,
+                createdByUserUuid: training.createdByUserUuid,
+            });
         } catch (error) {
             // Reported as well as logged: the learner only sees a walkthrough
             // step waiting for a document that is not there.

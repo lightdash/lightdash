@@ -73,6 +73,9 @@ export const AgentPageHeader: FC<Props> = ({
                                 className={styles.action}
                                 to={settingsHref}
                                 state={settingsLinkState}
+                                // Anchor for scope walkthroughs (data-tour-via)
+                                data-tour-anchor="agent-settings"
+                                data-tour-hint="Open the agent's settings"
                                 leftSection={
                                     <MantineIcon
                                         icon={IconSettings}

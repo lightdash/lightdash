@@ -112,8 +112,8 @@ const actual = auditCoverage(
 assert.strictEqual(actual.ok, true, JSON.stringify(actual, null, 2));
 assert.strictEqual(actual.unclassified.length, 0);
 assert.deepStrictEqual(new Set(actual.comingSoon), new Set(COMING_SOON_SCOPES));
-assert.strictEqual(actual.generated.length, 44);
-assert.strictEqual(actual.comingSoon.length, 25);
+assert.strictEqual(actual.generated.length, 46);
+assert.strictEqual(actual.comingSoon.length, 23);
 assert.strictEqual(
     actual.comingSoon.some((scope) => actual.generated.includes(scope)),
     false,

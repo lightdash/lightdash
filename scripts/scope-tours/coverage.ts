@@ -20,8 +20,6 @@ const excluded = (reason: string, ticket = 'CS-212'): ScopeDisposition => ({
 // Content obligations outside the training role remain explicitly tracked.
 export const ADDITIONAL_CONTENT_SCOPES = [
     'view:Analytics',
-    'view:AiAgentDocument',
-    'manage:AiAgentDocument',
     'view:AiAgentSkill',
     'manage:AiAgentSkill',
 ];
