@@ -196,6 +196,13 @@ const LoadedDocumentModal = ({
                         data-color-mode={colorScheme}
                         h="100%"
                         className={classes.markdownViewer}
+                        // Walkthrough: a look at the document once it is open.
+                        // See scripts/scope-tours.
+                        data-tour-scope="manage:AiAgentDocument"
+                        data-tour-look="2"
+                        data-tour-after='[data-tour-anchor="knowledge-document-open"]'
+                        data-tour-label="Read the document"
+                        data-tour-docs="agents/effective-analytics-with-agents.mdx#open-a-document:2"
                     >
                         <MDEditor.Markdown
                             source={form.values.content}

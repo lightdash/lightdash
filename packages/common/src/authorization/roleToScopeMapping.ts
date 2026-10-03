@@ -316,13 +316,13 @@ export const TRAINING_PROJECT_EXCLUDED_SCOPES: readonly string[] = [
     'create:Project@preview',
     'create:DataApp@preview',
     'manage:DataApp@preview',
-    // Other people's data: every learner's threads, the usage analytics of
-    // colleagues, and agent knowledge documents. A learner reads and manages
-    // their own threads (`@self`) only.
+    // Other people's data: every learner's threads and the usage analytics of
+    // colleagues. A learner reads and manages their own threads (`@self`)
+    // only. Agent knowledge documents are not listed: in a training project
+    // or copy an agent only reaches documents of that project, never the
+    // organization's (AiAgentDocumentModel), so a learner sees the copy's own.
     'view:AiAgentThread',
     'manage:AiAgentThread',
-    'view:AiAgentDocument',
-    'manage:AiAgentDocument',
     'view:AiAgentSkill',
     'manage:AiAgentSkill',
     'view:Analytics',

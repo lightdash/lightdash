@@ -1,4 +1,5 @@
 import {
+    type AiAgentDocumentStructuredSummary,
     type CreateChartInSpace,
     type CreateDashboard,
     type CreateDashboardChartTile,
@@ -75,12 +76,27 @@ export type PlaygroundDataAppDefinition = {
     source: Record<string, string>;
 };
 
+/**
+ * A knowledge document on the training agent. Each learner's training copy
+ * gets its own when the copy is made, scoped to the copy and granted to the
+ * copy's agent.
+ */
+export type PlaygroundAgentKnowledgeDocumentDefinition = {
+    name: string;
+    originalFilename: string;
+    /** Markdown the agent can consult. */
+    content: string;
+    /** Written ahead of time, so seeding makes no model call. */
+    summary: AiAgentDocumentStructuredSummary;
+};
+
 /** The project's AI agent, the one the Ask AI walkthrough talks to. */
 export type PlaygroundAgentDefinition = {
     name: string;
     slug: string;
     description: string;
     instruction: string;
+    knowledgeDocuments?: PlaygroundAgentKnowledgeDocumentDefinition[];
 };
 
 /**

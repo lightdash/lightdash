@@ -62,6 +62,34 @@ export const teachingContent = {
             'Answers questions about the jaffle shop: customers, orders and payments.',
         instruction:
             'You are the analyst for a jaffle shop. Answer questions about customers, orders and payments from the orders, customers and payments tables. Prefer a chart when a trend or comparison is asked for, and say which table the answer came from.',
+        knowledgeDocuments: [
+            {
+                name: 'Jaffle shop glossary',
+                originalFilename: 'jaffle-shop-glossary.md',
+                content:
+                    '# Jaffle shop glossary\n\nWhat the order statuses and payment methods in the jaffle shop data mean.\n\n## Order statuses\n\n- **placed**: the order has been placed but has not yet left the warehouse.\n- **shipped**: the order has been shipped to the customer and is in transit.\n- **completed**: the customer has received the order.\n- **return_pending**: the customer wants to return the order, but it has not yet reached the warehouse.\n- **returned**: the customer returned the order and it reached the warehouse.\n\n## Payment methods\n\n- **credit_card**: paid by card.\n- **bank_transfer**: paid by bank transfer.\n- **gift_card**: paid with a gift card.\n- **coupon**: paid with a discount coupon.\n\nAn order can be paid with more than one method, so count orders, not payments, when the question is about orders.\n',
+                summary: {
+                    description:
+                        "Defines the jaffle shop's order statuses and payment methods.",
+                    definedTerms: [
+                        'placed',
+                        'shipped',
+                        'completed',
+                        'return_pending',
+                        'returned',
+                        'credit_card',
+                        'bank_transfer',
+                        'gift_card',
+                        'coupon',
+                    ],
+                    relatedExploreNames: ['orders', 'payments'],
+                    useWhen:
+                        'Questions that filter or group orders by status, or payments by method.',
+                    relevance: 'high',
+                    warning: null,
+                },
+            },
+        ],
     },
     deepResearch: {
         prompt: 'Why did returns rise in the spring, and what did the returned orders have in common?',
