@@ -766,6 +766,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     const latestRectRef = useRef<DOMRect | null>(null);
     const expandTimeoutRef = useRef<number | null>(null);
     useEffect(() => {
+        latestRectRef.current = rect;
         if (!rect) {
             // The control went away under a read step (a tile removed):
             // the card centres, with its buttons, rather than staying
@@ -774,7 +775,6 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 setCardRect(null);
             return;
         }
-        latestRectRef.current = rect;
         setShownRect(rect);
         if (beaconRef.current) {
             // the beacon travels to the new control and opens; the card
@@ -789,6 +789,8 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 // released, so unmount clears whichever is still pending.
                 expandTimeoutRef.current = window.setTimeout(() => {
                     expandTimeoutRef.current = null;
+                    // The target can move and settle while the card expands.
+                    setCardRect(latestRectRef.current);
                     setCardPhase('shown');
                 }, CARD_EXPAND_MS);
             }, GLIDE_MS);
