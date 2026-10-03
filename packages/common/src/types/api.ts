@@ -505,6 +505,7 @@ export enum RequestMethod {
     HEADLESS_BROWSER = 'HEADLESS_BROWSER',
     UNKNOWN = 'UNKNOWN',
     BACKEND = 'BACKEND',
+    DESKTOP = 'DESKTOP',
 }
 
 export const isRequestMethod = (
