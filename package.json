@@ -38,7 +38,7 @@
         "tsx": "4.23.12",
         "turbo": "2.9.14",
         "typescript": "7.0.2",
-        "smol-toml": "1.6.1"
+        "smol-toml": "1.7.1"
     },
     "scripts": {
         "test:playground-content": "tsx scripts/playground-bundle/content.test.ts && tsx scripts/playground-bundle/learnBundle.test.ts",
