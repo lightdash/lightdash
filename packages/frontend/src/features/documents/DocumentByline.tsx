@@ -23,7 +23,15 @@ const DocumentByline = ({
           'Unknown user'
         : null;
     return (
-        <Group gap="xs" wrap="nowrap">
+        <Group
+            gap="xs"
+            wrap="nowrap"
+            // Walkthrough: read a document. See scripts/scope-tours.
+            data-tour-scope="view:Document"
+            data-tour-result="1"
+            data-tour-label="See who wrote it and when"
+            data-tour-docs="explore/documents.mdx#read-a-document:3"
+        >
             {document.createdBy && (
                 <>
                     <Group

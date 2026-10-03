@@ -34,10 +34,12 @@ export type LearnGate =
     | 'dataApps'
     | 'aiAgents'
     | 'softDelete'
+    | 'documents'
     | 'sandbox';
 
 const SUBJECT_GATES: Record<string, LearnGate> = {
     DeletedContent: 'softDelete',
+    Document: 'documents',
     DataApp: 'dataApps',
     AiAgent: 'aiAgents',
     AiAgentThread: 'aiAgents',

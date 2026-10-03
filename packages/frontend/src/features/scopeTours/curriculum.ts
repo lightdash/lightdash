@@ -6,6 +6,7 @@
 export const CURRICULUM: string[] = [
     'view:Dashboard',
     'view:DashboardComments',
+    'view:Document',
     'view:Tags',
     'view:SpotlightTableConfig',
     'view:MetricsTree',
@@ -16,6 +17,7 @@ export const CURRICULUM: string[] = [
     'manage:Dashboard',
     'create:DashboardComments',
     'manage:DashboardComments',
+    'manage:Document',
     'manage:SavedChart',
     'manage:Tags',
     'create:Space',

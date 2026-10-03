@@ -101,6 +101,9 @@ const EditorSession = ({
                         type="submit"
                         form={CHART_FORM_ID}
                         disabled={!isValidQuery || !form.values.name.trim()}
+                        // Anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="document-chart-apply"
+                        data-tour-hint="Click Apply to Document"
                     >
                         Apply to Document
                     </Button>
@@ -134,6 +137,11 @@ const EditorSession = ({
                             <Group align="end">
                                 <TextInput
                                     label="Chart name"
+                                    // Typed anchor for scope walkthroughs (data-tour-via)
+                                    data-tour-anchor="document-chart-name"
+                                    data-tour-hint="Name the chart"
+                                    data-tour-input="true"
+                                    data-tour-suggest="Orders by country"
                                     {...form.getInputProps('name')}
                                 />
                                 <TextInput

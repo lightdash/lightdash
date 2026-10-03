@@ -124,7 +124,10 @@ const DocumentChartVisualization = ({
             }
         >
             {isLoading ? (
-                <EmptyStateLoader title="Loading live chart data" />
+                // The busy surface a walkthrough's closing step waits on
+                <Box data-tour-anchor="document-chart-loading" data-tour-status>
+                    <EmptyStateLoader title="Loading live chart data" />
+                </Box>
             ) : (
                 <MetricQueryDataProvider
                     tableName={chart.tableName}
@@ -158,7 +161,16 @@ const DocumentChartVisualization = ({
                         <DocumentRenderTargetContext.Provider
                             value={renderTarget}
                         >
-                            <Box h="100%" ref={measureRef}>
+                            <Box
+                                h="100%"
+                                ref={measureRef}
+                                // Walkthrough: read a document. See
+                                // scripts/scope-tours.
+                                data-tour-scope="view:Document"
+                                data-tour-result="2"
+                                data-tour-label="Charts show live results"
+                                data-tour-docs="explore/documents.mdx#read-a-document:p2:1"
+                            >
                                 <LightdashVisualization
                                     enableContextMenu={false}
                                     {...screenshotCallbacks}

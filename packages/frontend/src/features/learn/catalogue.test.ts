@@ -30,6 +30,12 @@ describe('learn catalogue gates', () => {
         );
     });
 
+    it('gates document modules on the documents flag', () => {
+        ['view:Document', 'manage:Document'].forEach((name) =>
+            expect(gateFor({ name, isEnterprise: false })).toBe('documents'),
+        );
+    });
+
     it('gates every AI module on the agents being available', () => {
         [
             'manage:AiAgent',

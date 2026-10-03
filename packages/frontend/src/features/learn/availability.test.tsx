@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
+    flags: [] as string[],
     health: {
         learnSandbox: { enabled: false },
         softDelete: { enabled: false },
@@ -16,8 +17,8 @@ vi.mock('../../providers/App/useApp', () => ({
     default: () => ({ health: { data: state.health } }),
 }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: false },
+    useServerFeatureFlag: (flag: string) => ({
+        data: { enabled: state.flags.includes(flag) },
         isLoading: false,
     }),
 }));
@@ -71,5 +72,26 @@ describe('useLearnAvailability sandbox gate', () => {
                 stepCount: 0,
             }),
         ).toBe(true);
+    });
+});
+
+describe('useLearnAvailability documents gate', () => {
+    beforeEach(() => {
+        state.flags = [];
+        state.health = {
+            learnSandbox: { enabled: false },
+            softDelete: { enabled: false },
+        };
+    });
+
+    it('is closed while the documents flag is off', () => {
+        const { result } = renderHook(() => useLearnAvailability());
+        expect(result.current.isGateOpen('documents')).toBe(false);
+    });
+
+    it('opens with the documents flag', () => {
+        state.flags = ['documents'];
+        const { result } = renderHook(() => useLearnAvailability());
+        expect(result.current.isGateOpen('documents')).toBe(true);
     });
 });
