@@ -13,7 +13,7 @@ import { type LearnGate, type LearnModule } from './catalogue';
  * is not there; the library leaves it out rather than tagging it. The gates
  * are the ones the product's own entry points use: the licence for
  * Enterprise scopes, the licence plus the data apps flag behind the Data App
- * menu item, the
+ * menu item, the documents flag behind New > Document, the
  * AI copilot switch and the agents' visibility setting behind Ask AI. Until
  * a gate has answered, its modules stay out, so the library never shows a
  * card it then takes away.
@@ -21,15 +21,19 @@ import { type LearnGate, type LearnModule } from './catalogue';
 export const useLearnAvailability = () => {
     const { health } = useApp();
     const dataApps = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const documents = useServerFeatureFlag(FeatureFlags.Documents);
     const copilot = useIsCopilotEnabled();
     const aiSettings = useAiOrganizationSettings();
     const isEnterprise = health.data?.license?.hasLicenseKey === true;
     const dataAppsOn = dataApps.data?.enabled === true;
+    const documentsOn = documents.data?.enabled === true;
     const copilotOn = copilot.isCopilotEnabled;
     const agentsVisible = aiSettings.data?.aiAgentsVisible === true;
     const open = useMemo<Record<LearnGate, boolean>>(
         () => ({
             softDelete: health.data?.softDelete.enabled === true,
+            // The same flag that shows New > Document and All documents.
+            documents: documentsOn,
             enterprise: isEnterprise,
             // Data apps are Enterprise as well as flagged: without a licence
             // the app endpoints refuse and nothing seeds an app to practise
@@ -41,6 +45,7 @@ export const useLearnAvailability = () => {
         [
             isEnterprise,
             dataAppsOn,
+            documentsOn,
             copilotOn,
             agentsVisible,
             health.data?.softDelete.enabled,
@@ -58,6 +63,9 @@ export const useLearnAvailability = () => {
     // other gates are their own requests. Until they have answered, isOpen
     // is provisional and anything counting the catalogue should wait.
     const isSettled =
-        !dataApps.isLoading && !copilot.isLoading && !aiSettings.isLoading;
+        !dataApps.isLoading &&
+        !documents.isLoading &&
+        !copilot.isLoading &&
+        !aiSettings.isLoading;
     return { isOpen, isGateOpen, isSettled };
 };

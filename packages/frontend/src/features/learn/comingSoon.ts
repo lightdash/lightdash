@@ -1,7 +1,5 @@
 /** Modules awaiting an interactive format. This inventory does not grant permissions. */
 export const COMING_SOON_SCOPES = [
-    'view:Document',
-    'manage:Document',
     'view:ContentAsCode',
     'create:ContentAsCode',
     'manage:ContentAsCode',

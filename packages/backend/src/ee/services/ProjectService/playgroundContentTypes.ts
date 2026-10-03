@@ -97,6 +97,21 @@ export type PlaygroundDeepResearchDefinition = {
     warehouseQueryCount: number;
 };
 
+/**
+ * A written report with live charts. Each learner's training copy gets its
+ * own when the copy is made, so the shared training project carries none.
+ * The body is markdown with a `<document-chart id="c1">` block wherever a
+ * chart sits; each block's chart is one of the bundle's charts, by key.
+ */
+export type PlaygroundDocumentDefinition = {
+    slug: string;
+    name: string;
+    description: string;
+    markdown: string;
+    /** Chart blocks by id (`c1`, `c2`, …), each naming a chart key. */
+    charts: Record<string, string>;
+};
+
 export type PlaygroundMetricsTreeDefinition = {
     name: string;
     slug: string;
@@ -128,4 +143,5 @@ export type PlaygroundContent = {
     dataApps?: PlaygroundDataAppDefinition[];
     agent?: PlaygroundAgentDefinition;
     deepResearch?: PlaygroundDeepResearchDefinition;
+    documents?: PlaygroundDocumentDefinition[];
 };

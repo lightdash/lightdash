@@ -211,6 +211,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         component={Link}
                         to={`/projects/${projectUrlIdentifier}/documents`}
                         leftSection={<MantineIcon icon={IconFileText} />}
+                        data-tour-nav="all-documents"
+                        data-tour-hint="Open All documents"
                     >
                         All documents
                     </Menu.Item>

@@ -811,6 +811,15 @@ const InfiniteResourceTable = ({
                           'data-tour-value': row.original.data.name,
                       }
                     : {}),
+                // ... and a document row, by name.
+                ...(isResourceViewDocumentItem(row.original)
+                    ? {
+                          'data-tour-anchor': 'document-row',
+                          'data-tour-hint': 'Open a document',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
                 // ... and a data app row, by name.
                 ...(isResourceViewDataAppItem(row.original)
                     ? {

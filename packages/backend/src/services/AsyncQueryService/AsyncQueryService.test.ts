@@ -84,6 +84,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentDraftModel } from '../../models/ContentDraftModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type DocumentModel } from '../../models/DocumentModel';
 import type { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import type { DownloadFileModel } from '../../models/DownloadFileModel';
 import type { EmailModel } from '../../models/EmailModel';
@@ -426,6 +427,7 @@ const getMockedAsyncQueryService = (
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
         spaceModel: spaceModel as unknown as SpaceModel,
+        documentModel: {} as unknown as DocumentModel,
         sshKeyPairModel: {} as SshKeyPairModel,
         userAttributesModel:
             userAttributesModel as unknown as UserAttributesModel,
