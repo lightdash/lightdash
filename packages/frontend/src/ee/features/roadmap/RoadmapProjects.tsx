@@ -774,19 +774,30 @@ export function RoadmapProjects({
         enabled: view === 'board' && !initializingInterest,
         statuses: projectBoard ? projectStatuses : mainStatuses,
     });
+    const withAcceptedFollow = (
+        group: RoadmapProjectGroup,
+    ): RoadmapProjectGroup =>
+        submittedProjectIds.includes(group.project.projectId)
+            ? { ...group, hasDirectNeed: true }
+            : group;
     const projects = (
         view === 'board'
             ? boardQueries.flatMap(
                   (column) => column.projects.data?.pages ?? [],
               )
             : (projectsQuery.data?.pages ?? [])
-    ).flatMap((page) => page.projects);
+    )
+        .flatMap((page) => page.projects)
+        .map(withAcceptedFollow);
     const projectDetails =
         projects.find(
             (group) =>
                 group.project.projectId ===
                 projectDetailsSelection?.project.projectId,
-        ) ?? projectDetailsSelection;
+        ) ??
+        (projectDetailsSelection
+            ? withAcceptedFollow(projectDetailsSelection)
+            : null);
     const tickets = (
         view === 'board'
             ? boardQueries.flatMap((column) => column.tickets.data?.pages ?? [])

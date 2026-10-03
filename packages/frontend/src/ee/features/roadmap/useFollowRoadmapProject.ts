@@ -14,7 +14,10 @@ export function useFollowRoadmapProject(cacheKey: string) {
     const { mutateAsync } = useMutation({
         mutationFn: roadmapApi.followProject,
         retry: false,
-        onSuccess: ({ message }, { projectId }) => {
+        onSuccess: async ({ message }, { projectId }) => {
+            await queryClient.cancelQueries({
+                queryKey: ['roadmap-projects', cacheKey],
+            });
             setSubmittedProjectIds((ids) => [...new Set([...ids, projectId])]);
             showToastSuccess({ title: 'Request sent', subtitle: message });
             void queryClient.invalidateQueries({
