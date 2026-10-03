@@ -248,9 +248,9 @@
         pointer-events: auto;
     }
 }
-/* Keeps long titles clear of the hover-revealed follow button. */
+/* Keeps long titles clear of the hover-revealed interest button. */
 .projectCard:has(.projectFollowAction) .projectTitle {
-    padding-right: 5rem;
+    padding-right: 8rem;
 }
 .projectCardBody {
     position: relative;

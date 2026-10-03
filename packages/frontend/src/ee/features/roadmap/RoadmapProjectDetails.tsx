@@ -101,7 +101,7 @@ export function RoadmapProjectDetails({
                         </Text>
                     </RoadmapRailRow>
                     {item && item.ownRequestCount > 0 && (
-                        <RoadmapRailRow label="Following">
+                        <RoadmapRailRow label="Linked tickets">
                             <Text className={styles.detailRailText}>
                                 {item.ownRequestCount}{' '}
                                 {item.ownRequestCount === 1
@@ -113,7 +113,7 @@ export function RoadmapProjectDetails({
                     {item?.hasDirectNeed && (
                         <RoadmapRailRow label="Interest">
                             <Text className={styles.detailRailText}>
-                                Following
+                                Interested
                             </Text>
                         </RoadmapRailRow>
                     )}

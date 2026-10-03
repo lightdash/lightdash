@@ -38,7 +38,7 @@ const renderRoadmap = (organizationUuid = 'org-1', canFollow = true) =>
         </MemoryRouter>,
     );
 
-describe('following roadmap projects', () => {
+describe('registering interest in roadmap projects', () => {
     beforeEach(() => {
         hasDirectNeed = false;
         showToastSuccess.mockReset();
@@ -104,7 +104,7 @@ describe('following roadmap projects', () => {
     const note = 'Our team needs this feature.';
     const submitNote = async () => {
         const dialog = await screen.findByRole('dialog', {
-            name: 'Follow "Project alpha"',
+            name: 'Register interest in "Project alpha"',
         });
         await userEvent.type(within(dialog).getByRole('textbox'), note);
         await userEvent.click(
@@ -113,14 +113,16 @@ describe('following roadmap projects', () => {
         return dialog;
     };
 
-    it('offers following only on unfollowed cards and keeps the card action independent', async () => {
+    it('offers interest requests only on projects without existing interest and keeps the card action independent', async () => {
         const follow = vi.spyOn(roadmapApi, 'followProject');
         renderRoadmap();
         await showAllProjects();
-        expect(screen.getAllByRole('button', { name: 'Follow' })).toHaveLength(
-            1,
-        );
-        const button = screen.getByRole('button', { name: 'Follow' });
+        expect(
+            screen.getAllByRole('button', { name: 'Register interest' }),
+        ).toHaveLength(1);
+        const button = screen.getByRole('button', {
+            name: 'Register interest',
+        });
         screen.getByRole('button', { name: 'Open Project alpha' }).focus();
         await userEvent.keyboard('{Tab}');
         expect(button).toHaveFocus();
@@ -129,7 +131,7 @@ describe('following roadmap projects', () => {
         await submitNote();
         await waitFor(() =>
             expect(
-                screen.queryByRole('button', { name: 'Follow' }),
+                screen.queryByRole('button', { name: 'Register interest' }),
             ).not.toBeInTheDocument(),
         );
         expect(follow).toHaveBeenCalledExactlyOnceWith({
@@ -142,7 +144,9 @@ describe('following roadmap projects', () => {
                 name: 'Open project board for Project alpha',
             }),
         ).not.toBeInTheDocument();
-        await userEvent.click(screen.getByRole('radio', { name: 'Following' }));
+        await userEvent.click(
+            screen.getByRole('radio', { name: 'Organization interests' }),
+        );
         expect(
             await screen.findByRole('button', { name: 'Open Project alpha' }),
         ).toBeInTheDocument();
@@ -162,18 +166,18 @@ describe('following roadmap projects', () => {
         renderRoadmap();
         await showAllProjects();
         const cardButton = screen.getByRole('button', {
-            name: 'Follow',
+            name: 'Register interest',
         });
         await userEvent.click(
             screen.getByRole('button', { name: 'Open Project alpha' }),
         );
         const dialog = await screen.findByRole('dialog');
         const modalButton = within(dialog).getByRole('button', {
-            name: 'Follow',
+            name: 'Register interest',
         });
         await userEvent.click(modalButton);
         const noteDialog = await screen.findByRole('dialog', {
-            name: 'Follow "Project alpha"',
+            name: 'Register interest in "Project alpha"',
         });
         await userEvent.type(within(noteDialog).getByRole('textbox'), note);
         const submitButton = within(noteDialog).getByRole('button', {
@@ -196,11 +200,11 @@ describe('following roadmap projects', () => {
         await waitFor(() =>
             expect(
                 within(dialog).queryByRole('button', {
-                    name: 'Follow',
+                    name: 'Register interest',
                 }),
             ).not.toBeInTheDocument(),
         );
-        expect(within(dialog).getByText('Following')).toBeInTheDocument();
+        expect(within(dialog).getByText('Interested')).toBeInTheDocument();
         expect(cardButton).not.toBeInTheDocument();
         expect(
             within(dialog).queryByRole('button', {
@@ -215,7 +219,9 @@ describe('following roadmap projects', () => {
             .mockRejectedValueOnce(new Error('Service unavailable'));
         renderRoadmap();
         await showAllProjects();
-        await userEvent.click(screen.getByRole('button', { name: 'Follow' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Register interest' }),
+        );
         const noteDialog = await submitNote();
         await waitFor(() =>
             expect(showToastError).toHaveBeenCalledWith(
@@ -231,7 +237,7 @@ describe('following roadmap projects', () => {
         await userEvent.click(retry);
         await waitFor(() =>
             expect(
-                screen.queryByRole('button', { name: 'Follow' }),
+                screen.queryByRole('button', { name: 'Register interest' }),
             ).not.toBeInTheDocument(),
         );
         expect(follow).toHaveBeenCalledTimes(2);
@@ -241,7 +247,9 @@ describe('following roadmap projects', () => {
         vi.mocked(roadmapApi.followProject).mockResolvedValue(confirmation);
         renderRoadmap();
         await showAllProjects();
-        await userEvent.click(screen.getByRole('button', { name: 'Follow' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Register interest' }),
+        );
         await submitNote();
         expect(
             await screen.findByRole('button', { name: 'Request sent' }),
@@ -257,14 +265,18 @@ describe('following roadmap projects', () => {
         expect(
             within(dialog).getByRole('button', { name: 'Request sent' }),
         ).toBeDisabled();
-        expect(within(dialog).queryByText('Following')).not.toBeInTheDocument();
+        expect(
+            within(dialog).queryByText('Interested'),
+        ).not.toBeInTheDocument();
         expect(hasDirectNeed).toBe(false);
     });
 
     it('loads interest from the server after remount and isolates organizations', async () => {
         const first = renderRoadmap();
         await showAllProjects();
-        await userEvent.click(screen.getByRole('button', { name: 'Follow' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Register interest' }),
+        );
         await submitNote();
         await waitFor(() => expect(hasDirectNeed).toBe(true));
         first.unmount();
@@ -273,27 +285,29 @@ describe('following roadmap projects', () => {
             await screen.findByRole('button', { name: 'Open Project alpha' }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Follow' }),
+            screen.queryByRole('button', { name: 'Register interest' }),
         ).not.toBeInTheDocument();
         second.unmount();
         hasDirectNeed = false;
         renderRoadmap('org-2');
         await showAllProjects();
-        expect(screen.getByRole('button', { name: 'Follow' })).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: 'Register interest' }),
+        ).toBeEnabled();
     });
 
-    it('does not offer follow requests without permission', async () => {
+    it('does not offer interest requests without permission', async () => {
         renderRoadmap('org-1', false);
         await showAllProjects();
         expect(
-            screen.queryByRole('button', { name: 'Follow' }),
+            screen.queryByRole('button', { name: 'Register interest' }),
         ).not.toBeInTheDocument();
         await userEvent.click(
             screen.getByRole('button', { name: 'Open Project alpha' }),
         );
         expect(
             within(await screen.findByRole('dialog')).queryByRole('button', {
-                name: 'Follow',
+                name: 'Register interest',
             }),
         ).not.toBeInTheDocument();
     });
@@ -315,26 +329,38 @@ describe('following roadmap projects', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('does not offer following inside an already followed project modal', async () => {
+    it('does not offer interest requests inside an already interested project modal', async () => {
         renderRoadmap();
         await userEvent.click(
             await screen.findByRole('button', { name: 'Open Project direct' }),
         );
         const dialog = await screen.findByRole('dialog');
         expect(
-            within(dialog).queryByRole('button', { name: 'Follow' }),
+            within(dialog).queryByRole('button', { name: 'Register interest' }),
         ).not.toBeInTheDocument();
-        expect(within(dialog).getByText('Following')).toBeInTheDocument();
+        expect(within(dialog).getByText('Interested')).toBeInTheDocument();
     });
 
-    it('requires a nonblank note and cancels without following or keeping the draft', async () => {
+    it('requires a nonblank note and cancels without sending interest or keeping the draft', async () => {
         const follow = vi.spyOn(roadmapApi, 'followProject');
         renderRoadmap();
         await showAllProjects();
-        await userEvent.click(screen.getByRole('button', { name: 'Follow' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Register interest' }),
+        );
         const dialog = await screen.findByRole('dialog', {
-            name: 'Follow "Project alpha"',
+            name: 'Register interest in "Project alpha"',
         });
+        expect(
+            within(dialog).getByText(
+                'Let the Lightdash team know your organization is interested in this project. Share your use case to help us prioritize.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(dialog).getByText(
+                'Your organization and user details, including your name and email address, will be shared with the Lightdash team along with your note.',
+            ),
+        ).toBeInTheDocument();
         const submit = within(dialog).getByRole('button', {
             name: 'Send request',
         });
@@ -351,9 +377,11 @@ describe('following roadmap projects', () => {
         );
         expect(follow).not.toHaveBeenCalled();
         expect(hasDirectNeed).toBe(false);
-        await userEvent.click(screen.getByRole('button', { name: 'Follow' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Register interest' }),
+        );
         const reopened = await screen.findByRole('dialog', {
-            name: 'Follow "Project alpha"',
+            name: 'Register interest in "Project alpha"',
         });
         expect(within(reopened).getByRole('textbox')).toHaveValue('');
     });

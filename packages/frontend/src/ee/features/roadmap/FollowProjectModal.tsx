@@ -1,5 +1,5 @@
 import { RoadmapFollowProjectRequestSchema } from '@lightdash/common';
-import { Box, Button, Textarea } from '@mantine/core';
+import { Box, Button, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import Callout from '../../../components/common/Callout';
@@ -28,7 +28,7 @@ export function FollowProjectModal({
     return (
         <MantineModal
             opened
-            title={`Follow "${projectTitle}"`}
+            title={`Register interest in "${projectTitle}"`}
             size="lg"
             onClose={() => {
                 if (!isLoading) onClose();
@@ -51,6 +51,10 @@ export function FollowProjectModal({
                 id="follow-roadmap-project-form"
                 onSubmit={handleSubmit}
             >
+                <Text fz="sm" mb="md">
+                    Let the Lightdash team know your organization is interested
+                    in this project. Share your use case to help us prioritize.
+                </Text>
                 <Textarea
                     label="Why are you interested in this feature?"
                     placeholder="Tell us how your team would use it."
