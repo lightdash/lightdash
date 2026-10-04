@@ -118,6 +118,7 @@ vi.mock('monaco-yaml', () => ({
     configureMonacoYaml: vi.fn(() => ({ update: vi.fn() })),
 }));
 
+import { configureMonacoYaml } from 'monaco-yaml';
 import WorkspaceEditor from './WorkspaceEditor';
 import { DBT_SCHEMA_FILE_MATCH } from './yamlSchemas';
 
@@ -610,6 +611,28 @@ describe('WorkspaceEditor', () => {
             '/models/**/*.yml',
             '/models/**/*.yaml',
         ]);
+    });
+
+    it('gives each kind of file its own schema: dbt for models, content as code for downloads', () => {
+        renderEditor();
+        const { schemas } = vi.mocked(configureMonacoYaml).mock.calls[0][1] as {
+            schemas: { uri: string; fileMatch: string[] }[];
+        };
+        expect(
+            schemas.map(({ uri, fileMatch }) => [
+                uri.split('/').pop(),
+                fileMatch,
+            ]),
+        ).toEqual([
+            ['lightdash-dbt-2.0.json', DBT_SCHEMA_FILE_MATCH],
+            ['chart-as-code.json', ['/lightdash/charts/*.yml']],
+            ['dashboard-as-code.json', ['/lightdash/dashboards/*.yml']],
+        ]);
+        // No pattern takes a space file, or a file deeper than a download
+        // writes: those keep YAML checks only.
+        expect(schemas.flatMap(({ fileMatch }) => fileMatch)).not.toContain(
+            '*.yml',
+        );
     });
 
     it('does not underline dbt key typos in a downloaded chart', () => {

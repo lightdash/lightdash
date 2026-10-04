@@ -1,5 +1,7 @@
 import {
+    chartAsCodeSchema,
     checkLearnLessonEntry,
+    dashboardAsCodeSchema,
     findYamlKeyTypos,
     type LearnLessonExpectation,
     lightdashDbtYamlSchema,
@@ -22,14 +24,20 @@ import {
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
 import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
-import { DBT_SCHEMA_FILE_MATCH } from './yamlSchemas';
+import {
+    CHART_SCHEMA_FILE_MATCH,
+    DASHBOARD_SCHEMA_FILE_MATCH,
+    DBT_SCHEMA_FILE_MATCH,
+} from './yamlSchemas';
 
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
  * configured instance per monaco module, so every editor must route
- * through that shared singleton rather than holding its own). Model files
- * only (DBT_SCHEMA_FILE_MATCH): a downloaded chart or dashboard is not a
- * dbt file, and the schema would flag every key in it. */
+ * through that shared singleton rather than holding its own). Each schema
+ * is tied to the files it describes (yamlSchemas.ts): the dbt schema to
+ * model files, and the content-as-code schemas to the charts and dashboards
+ * a download writes. The dbt schema on a downloaded chart would flag every
+ * key in it. */
 
 const configureLearnYaml = (monaco: Monaco) => {
     configureLightdashYaml(monaco, {
@@ -39,6 +47,16 @@ const configureLearnYaml = (monaco: Monaco) => {
                 uri: 'https://schemas.lightdash.com/lightdash/lightdash-dbt-2.0.json',
                 fileMatch: DBT_SCHEMA_FILE_MATCH,
                 schema: lightdashDbtYamlSchema as Record<string, unknown>,
+            },
+            {
+                uri: 'https://schemas.lightdash.com/lightdash/chart-as-code.json',
+                fileMatch: CHART_SCHEMA_FILE_MATCH,
+                schema: chartAsCodeSchema as Record<string, unknown>,
+            },
+            {
+                uri: 'https://schemas.lightdash.com/lightdash/dashboard-as-code.json',
+                fileMatch: DASHBOARD_SCHEMA_FILE_MATCH,
+                schema: dashboardAsCodeSchema as Record<string, unknown>,
             },
         ],
     });

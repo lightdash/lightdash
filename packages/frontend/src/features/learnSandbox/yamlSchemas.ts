@@ -6,3 +6,12 @@
  * code, not dbt, and stay out.
  */
 export const DBT_SCHEMA_FILE_MATCH = ['/models/**/*.yml', '/models/**/*.yaml'];
+
+/**
+ * What `lightdash download` writes: one file per chart and per dashboard,
+ * never deeper. Each kind has its own content-as-code schema, so the editor
+ * can check a learner's edit and explain a key on hover. A space file
+ * (`lightdash/spaces/*.space.yml`) has no schema and gets YAML checks only.
+ */
+export const CHART_SCHEMA_FILE_MATCH = ['/lightdash/charts/*.yml'];
+export const DASHBOARD_SCHEMA_FILE_MATCH = ['/lightdash/dashboards/*.yml'];
