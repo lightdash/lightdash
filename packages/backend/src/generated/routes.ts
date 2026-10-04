@@ -13,6 +13,8 @@ import type {
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AnalyticsProjectController } from './../controllers/analyticsProjectController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { AwsWebIdentityController } from './../controllers/awsWebIdentityController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BigquerySSOController } from './../controllers/bigquerySSOController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { CatalogController } from './../controllers/catalogController';
@@ -36718,7 +36720,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AthenaAuthenticationType: {
         dataType: 'refEnum',
-        enums: ['access_key', 'iam_role'],
+        enums: ['access_key', 'iam_role', 'web_identity'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateAthenaCredentials.Exclude_keyofCreateAthenaCredentials.SensitiveCredentialsFieldNames__':
@@ -36783,6 +36785,13 @@ const models: TsoaRoute.Models = {
                     },
                     s3StagingDir: { dataType: 'string', required: true },
                     s3DataDir: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    webIdentityAudience: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
@@ -37846,6 +37855,7 @@ const models: TsoaRoute.Models = {
                 numRetries: { dataType: 'double' },
                 threads: { dataType: 'double' },
                 workGroup: { dataType: 'string' },
+                webIdentityAudience: { dataType: 'string' },
                 assumeRoleExternalId: { dataType: 'string' },
                 assumeRoleArn: { dataType: 'string' },
                 sessionToken: { dataType: 'string' },
@@ -64565,6 +64575,29 @@ const models: TsoaRoute.Models = {
                     ref: 'BigqueryProjectRecommendation',
                     required: true,
                 },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AwsWebIdentityAudience: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                audience: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAwsWebIdentityAudienceResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'AwsWebIdentityAudience', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -128463,6 +128496,61 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAwsWebIdentityController_createAudience: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/aws/web-identity/audiences',
+        ...fetchMiddlewares<RequestHandler>(AwsWebIdentityController),
+        ...fetchMiddlewares<RequestHandler>(
+            AwsWebIdentityController.prototype.createAudience,
+        ),
+
+        async function AwsWebIdentityController_createAudience(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAwsWebIdentityController_createAudience,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AwsWebIdentityController>(
+                        AwsWebIdentityController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createAudience',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
                 });
             } catch (err) {
                 return next(err);

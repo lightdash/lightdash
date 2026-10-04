@@ -5,11 +5,14 @@ import {
     Anchor,
     Select,
     PasswordInput,
-    Button,
+    ActionIcon,
+    Tooltip,
 } from '@mantine/core';
+import { IconRefresh } from '@tabler/icons-react';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
+import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -279,17 +282,18 @@ const AthenaForm: FC<{
                                 isGeneratingAudience ? 'Generating…' : undefined
                             }
                             readOnly
-                            rightSectionWidth={170}
                             rightSection={
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    loading={isGeneratingAudience}
-                                    disabled={disabled}
-                                    onClick={() => generateAudience()}
-                                >
-                                    Generate new audience
-                                </Button>
+                                <Tooltip label="Generate new audience">
+                                    <ActionIcon
+                                        variant="subtle"
+                                        loading={isGeneratingAudience}
+                                        disabled={disabled}
+                                        onClick={() => generateAudience()}
+                                        aria-label="Generate new audience"
+                                    >
+                                        <MantineIcon icon={IconRefresh} />
+                                    </ActionIcon>
+                                </Tooltip>
                             }
                         />
                     </>
