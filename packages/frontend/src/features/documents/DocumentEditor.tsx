@@ -31,7 +31,7 @@ import MantineModal from '../../components/common/MantineModal';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { isLeavingTrainingCopy } from '../scopeTours/trainingCopy';
+import { isWalkthroughLeavingCopy } from '../scopeTours/trainingCopy';
 import DocumentByline from './DocumentByline';
 import DocumentPageLayout from './DocumentPageLayout';
 import {
@@ -168,8 +168,8 @@ const DocumentEditor = ({
     // A walkthrough leaving its training copy is let through: the copy, and
     // whatever was being edited in it, is removed a moment later anyway
     const blocker = useBlocker(
-        ({ nextLocation }) =>
-            blockNavigation && !isLeavingTrainingCopy(nextLocation),
+        (navigation) =>
+            blockNavigation && !isWalkthroughLeavingCopy(navigation),
     );
     useBeforeUnload((event) => {
         if (blockNavigation) {
