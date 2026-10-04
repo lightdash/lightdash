@@ -663,7 +663,7 @@ describe('LearnWorkspacePage', () => {
 
         await user.type(
             screen.getByLabelText('Command'),
-            'lightdash start-preview',
+            'lightdash start-preview --name my-preview',
         );
         await user.click(screen.getByRole('button', { name: 'Run' }));
 

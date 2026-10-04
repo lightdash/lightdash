@@ -899,16 +899,17 @@ export const buildLessonTours = (
                 `${cite(lesson.resultDocs)} **${fieldLabel}** is the ${lesson.result.kind} you just added.`,
                 [newMenu, newChart, search, table, fieldSearch],
             ),
-            // How the change reaches a team's real project: centered, since
-            // it happens outside Lightdash (a pull request and CI).
+            // How the change reaches a team's real project (a pull request
+            // and CI, outside Lightdash). The card stays on the new field:
+            // a centred step would leave the ring behind on the row.
             ...(lesson.shipDocs
                 ? [
                       look(
-                          null,
+                          fieldRow,
                           EXPLORE_ROUTE,
                           docsHeading(firstCitation(lesson.shipDocs)),
                           cite(lesson.shipDocs),
-                          [],
+                          [newMenu, newChart, search, table, fieldSearch],
                       ),
                   ]
                 : []),

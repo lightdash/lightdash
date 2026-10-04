@@ -859,7 +859,8 @@ export const Card = () => (
             '**Metrics and dimensions** available on the table you selected. **Average payment amount** is the metric you just added.',
         );
         // A lesson with shipDocs closes on how the change ships in a team:
-        // a centered look after the field, titled from its docs heading.
+        // a second look at the field row, titled from its docs heading. It
+        // keeps the row as its target, so the ring and the card stay together.
         const [shipTour] = buildLessonTours(
             [
                 {
@@ -872,14 +873,15 @@ export const Card = () => (
         );
         assert.strictEqual(shipTour.steps.length, 13);
         const ship = shipTour.steps[12];
-        assert.strictEqual(ship.target, null);
+        assert.strictEqual(ship.target, shipTour.steps[11].target);
+        assert.ok(ship.target?.includes('explore-metric'));
         assert.strictEqual(ship.interactive, false);
         assert.strictEqual(ship.title, 'Add previews to pull requests');
         assert.strictEqual(
             ship.body,
             "If you've connected Lightdash to GitHub, you can setup a **github action** and get Lightdash to create new dynamic **preview** projects automatically when a new **pull request** is created.",
         );
-        assert.deepStrictEqual(ship.via, []);
+        assert.deepStrictEqual(ship.via, shipTour.steps[11].via);
         assert.strictEqual(tour.steps.length, 12);
         // A dimension lesson ends on the dimension row and says so.
         const [dimensionTour] = buildLessonTours(

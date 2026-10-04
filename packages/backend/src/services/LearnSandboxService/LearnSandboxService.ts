@@ -31,7 +31,7 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import type { PersonalAccessTokenService } from '../PersonalAccessTokenService';
 import type { UserService } from '../UserService';
-import { buildArgv, toSpawnArgv } from './allowlist';
+import { buildArgv, previewName, toSpawnArgv } from './allowlist';
 import { OutputBuffer } from './outputBuffer';
 import {
     buildPartialParseBaseline,
@@ -580,15 +580,12 @@ export class LearnSandboxService extends BaseService {
                     : { LIGHTDASH_DBT_VERSION: dbtVersion }),
             };
             const isPreview = command.argv[1] === 'start-preview';
-            const previewName = isPreview
-                ? (await this.projectModel.getSummary(command.project_uuid))
-                      .name
-                : undefined;
             if (isPreview) {
-                // The real CLI's line when a preview of that name exists.
+                // The real CLI's line when a preview of that name exists:
+                // here the learner's copy is that preview.
                 buffer.push(
                     'stderr',
-                    `\nUpdating preview project: ${previewName}\n\n`,
+                    `\nUpdating preview project: ${previewName(command.argv)}\n\n`,
                 );
             }
             const [bin, ...args] = toSpawnArgv(command.argv);
@@ -655,7 +652,7 @@ export class LearnSandboxService extends BaseService {
                 if (isPreview) {
                     buffer.push(
                         'stderr',
-                        `Project updated on ${this.lightdashConfig.siteUrl.replace(/\/$/, '')}/projects/${command.project_uuid}/home\n`,
+                        `Project updated on ${this.lightdashConfig.siteUrl.replace(/\/$/, '')}/projects/${command.project_uuid}/tables\n`,
                     );
                 }
             } else {

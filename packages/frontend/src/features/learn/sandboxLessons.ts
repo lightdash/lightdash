@@ -62,6 +62,9 @@ export type SandboxLesson = {
  * change (the training copy is itself a preview project) and the last step
  * says how a pull request does that for them.
  */
+// The CLI requires a name for the preview; in the sandbox the learner's
+// copy is that preview, whatever it is called.
+const PREVIEW_COMMAND = 'lightdash start-preview --name my-preview';
 const PREVIEW_COMMAND_DOCS: DocsCitation =
     'workflow/preview-projects.mdx#lightdash-cli-tool-local:1';
 const PREVIEW_OUTPUT_DOCS: DocsCitation = [
@@ -90,7 +93,7 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
         // The section's second paragraph: the first is a glossary entry with
         // no subject once it leaves the page ("Takes the average...").
         snippetDocs: 'semantic-layer/metrics.mdx#average:p2:1',
-        command: 'lightdash start-preview',
+        command: PREVIEW_COMMAND,
         commandDocs: PREVIEW_COMMAND_DOCS,
         outputDocs: PREVIEW_OUTPUT_DOCS,
         result: {
@@ -118,7 +121,7 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
         // which the sandbox terminal does not offer yet.
         snippetDocs:
             'semantic-layer/dimensions.mdx#adding-dimensions-to-your-project:1',
-        command: 'lightdash start-preview',
+        command: PREVIEW_COMMAND,
         commandDocs: PREVIEW_COMMAND_DOCS,
         outputDocs: PREVIEW_OUTPUT_DOCS,
         result: {

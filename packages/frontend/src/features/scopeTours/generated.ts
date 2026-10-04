@@ -6194,7 +6194,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-anchor="workspace-file"][data-tour-value="models/payments.yml"]',
                 ],
-                suggestion: 'lightdash start-preview',
+                suggestion: 'lightdash start-preview --name my-preview',
             },
             {
                 target: '[data-tour-anchor="terminal-run"]',
@@ -6298,14 +6298,20 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 ],
             },
             {
-                target: null,
+                target: '[data-tour-anchor="explore-metric"][data-tour-value="Average payment amount"]',
                 route: '/projects/:projectUuid/tables/:tableName',
                 title: 'Add previews to pull requests',
                 body: "If you've connected Lightdash to GitHub, you can setup a **github action** and get Lightdash to create new dynamic **preview** projects automatically when a new **pull request** is created, and it will automatically delete the **preview** project when the **pull request** is closed or merged.",
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
-                via: [],
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                    '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
+                    '[data-tour-anchor="explore-field-search"]',
+                ],
             },
         ],
     },
@@ -6365,7 +6371,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-anchor="workspace-file"][data-tour-value="models/fm_buildings.yml"]',
                 ],
-                suggestion: 'lightdash start-preview',
+                suggestion: 'lightdash start-preview --name my-preview',
             },
             {
                 target: '[data-tour-anchor="terminal-run"]',
@@ -6469,14 +6475,20 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 ],
             },
             {
-                target: null,
+                target: '[data-tour-anchor="explore-dimension"][data-tour-value="Number of floors"]',
                 route: '/projects/:projectUuid/tables/:tableName',
                 title: 'Add previews to pull requests',
                 body: "If you've connected Lightdash to GitHub, you can setup a **github action** and get Lightdash to create new dynamic **preview** projects automatically when a new **pull request** is created, and it will automatically delete the **preview** project when the **pull request** is closed or merged.",
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
-                via: [],
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                    '[data-tour-anchor="explore-table"][data-tour-value="Fm buildings"]',
+                    '[data-tour-anchor="explore-field-search"]',
+                ],
             },
         ],
     },
