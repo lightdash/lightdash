@@ -185,6 +185,21 @@ const rawDocsHasBold = (ref: string): boolean => {
     return /\*\*[^*]+\*\*|`[^`]+`/.test(readFileSync(file, 'utf8'));
 };
 
+/**
+ * A step that waits on the page's "still working" surface (`busy`) while
+ * asking the learner to click or type. The tour only offers Try again on a
+ * look, so when the work fails (a command is refused or errors) such a step
+ * leaves the learner with nothing to press but Skip.
+ */
+export const waitsWithoutRetry = (
+    step: Pick<
+        ScopeTourDefinition['steps'][number],
+        'busy' | 'advanceOnTargetClick' | 'advanceOnTargetInput'
+    >,
+): boolean =>
+    step.busy !== undefined &&
+    (step.advanceOnTargetClick || step.advanceOnTargetInput);
+
 export const checkTours = (
     files: string[] = listTsx(frontendSrc),
     lessons: SandboxLesson[] = [],
@@ -440,6 +455,13 @@ export const checkTours = (
                 error(
                     file,
                     `${where}: is a typed step with nothing suggested on the card`,
+                    first?.line,
+                );
+            }
+            if (waitsWithoutRetry(step)) {
+                error(
+                    file,
+                    `${where}: waits on a busy surface but is not a look; only a look offers Try again when the work fails`,
                     first?.line,
                 );
             }

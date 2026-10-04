@@ -160,6 +160,7 @@ The lessons borrow anchors they do not own: the terminal's command box and Run b
 | --- | --- | --- |
 | `selector [data-tour-anchor="x"] does not resolve to a data-tour-nav or data-tour-anchor in the frontend` | A control on a walkthrough's path lost its attribute, or its value was renamed | Put the attribute back on the equivalent control, or update the path that names it |
 | `No data-tour-hint found for ...` / `... has no data-tour-hint` | An anchor kept `data-tour-anchor` but lost `data-tour-hint` in a refactor | Restore the hint; it is the step's title |
+| `waits on a busy surface but is not a look` | A step both waits for the page to finish working (`busy`) and asks for a click or typing | Give the wait its own look step before the click. Only a look offers Try again when the work fails, so a learner whose command was refused is not left with Skip |
 | `unknown scope ... in data-tour-scope` | A scope was renamed or removed from the registry | Update the marker to the new scope, or remove the walkthrough and add a disposition (above) |
 | `data-tour-step N is defined differently in A and B` | A marked element was duplicated (copied component, second render branch) with different attributes | Make the copies identical, or keep the marker on one |
 | `data-tour-route "..." is not a known project route` | A route in `Routes.tsx` or `CommercialRoutes.tsx` was renamed | Update `data-tour-route` to the new path |

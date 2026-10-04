@@ -217,7 +217,7 @@ const metricsLesson = {
 };
 
 const run = async () => {
-    const { checkTours } = await import('./check');
+    const { checkTours, waitsWithoutRetry } = await import('./check');
     const { buildTours, docsHeading, docsParagraph } = await import('./lib');
 
     // A curated set passes with no errors.
@@ -1354,6 +1354,23 @@ export const SavedCharts = () => (
             (f) => f.level === 'error',
         );
         assert.deepStrictEqual(errors, [], JSON.stringify(errors, null, 2));
+        // The checker refuses the shape that once stranded a learner: a
+        // click (or a typed step) that waits on a running command. Only a
+        // look offers Try again.
+        const look = create.steps[3];
+        assert.strictEqual(waitsWithoutRetry(look), false);
+        assert.strictEqual(
+            waitsWithoutRetry({ ...look, advanceOnTargetClick: true }),
+            true,
+        );
+        assert.strictEqual(
+            waitsWithoutRetry({ ...look, advanceOnTargetInput: true }),
+            true,
+        );
+        assert.strictEqual(
+            waitsWithoutRetry({ ...create.steps[4], busy: undefined }),
+            false,
+        );
 
         // The committed download fixture round-trips: Use it's edit passes
         // Check, an edited slug does not.
