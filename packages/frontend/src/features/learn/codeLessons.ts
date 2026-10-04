@@ -11,7 +11,7 @@ import type { DocsCitation } from './sandboxLessons';
  * does not have fails the build.
  */
 export type ContentAsCodeLesson = {
-    /** The scope the lesson teaches; its card and walkthrough go by it. */
+    /** The ContentAsCode scope the lesson teaches; its card and walkthrough go by it. */
     scope: string;
     /** The card's title. */
     title: string;
@@ -26,9 +26,10 @@ export type ContentAsCodeLesson = {
         /** On the look at its output: what it wrote. */
         outputDocs?: DocsCitation;
         /**
-         * The scope of the lesson that teaches this download. The command is
-         * run on the way, under one card that names that lesson, and not
-         * explained again.
+         * The scope of the lesson, declared before this one, that teaches
+         * this download. The command is run on the way under a card that
+         * names that lesson, and its output step shows that lesson's
+         * sentence: nothing is explained again.
          */
         taughtIn?: string;
     };
@@ -40,10 +41,8 @@ export type ContentAsCodeLesson = {
     edit?: { from: string; to: string; docs?: DocsCitation };
     upload?: {
         command: string;
-        /** On the step that types the command. */
+        /** On the step that types the command: what it does, flags included. */
         docs: DocsCitation;
-        /** On the Run step: why the command carries the flags it does. */
-        runDocs?: DocsCitation;
         /** On the look at its output. */
         outputDocs: DocsCitation;
     };
@@ -58,6 +57,26 @@ export type ContentAsCodeLesson = {
 // ts-unused-exports:disable-next-line
 export const CONTENT_AS_CODE_LESSONS: ContentAsCodeLesson[] = [];
 
+/**
+ * Where a scope's lesson sits among the content-as-code lessons, in the
+ * order they are declared (a lesson's teacher comes before it); -1 when the
+ * scope has none.
+ */
+export const codeLessonIndex = (scope: string): number =>
+    CONTENT_AS_CODE_LESSONS.findIndex((lesson) => lesson.scope === scope);
+
 /** Whether a scope's walkthrough is a content-as-code lesson. */
 export const hasCodeLesson = (scope: string): boolean =>
-    CONTENT_AS_CODE_LESSONS.some((lesson) => lesson.scope === scope);
+    codeLessonIndex(scope) !== -1;
+
+const subjectOf = (scope: string) => scope.split(':')[1]?.split('@')[0];
+
+/**
+ * Whether a scope shares its subject with a content-as-code lesson. Its card
+ * sits with those lessons whether or not it has one yet, so a module still
+ * to come is not left in another section as if it were something else.
+ */
+export const sitsWithCodeLessons = (scope: string): boolean =>
+    CONTENT_AS_CODE_LESSONS.some(
+        (lesson) => subjectOf(lesson.scope) === subjectOf(scope),
+    );

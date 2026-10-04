@@ -1,6 +1,6 @@
 /**
  * Developer lessons: one per semantic-layer docs page, practised in the
- * workspace of a training copy. The generator (scripts/scope-tours/lib.ts,
+ * workspace of a training copy. The generator (scripts/scope-tours/lessons.ts,
  * buildLessonTours) turns each entry into a tour under its id; the catalogue
  * lists each as a `docs` module in the Developer group. Only the snippet is
  * authored here; every sentence the learner reads is a cited docs sentence.

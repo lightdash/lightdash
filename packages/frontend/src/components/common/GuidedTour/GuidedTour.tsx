@@ -474,7 +474,12 @@ const useTargetInvalid = (
 export type TourEditable = {
     tourEditor?: {
         getValue: () => string;
-        setValue: (value: string) => void;
+        /**
+         * Puts the step's suggestion into the editor. `expect` is the step's
+         * own, for an editor that fills in differently by what is expected
+         * (typing lines in, or replacing one).
+         */
+        setValue: (value: string, expect?: Record<string, string>) => void;
         /**
          * Whether the editor holds what the step asked for: null when it
          * does, else one line saying what is missing. An editor that can
@@ -521,12 +526,16 @@ const aceEditorIn = (el: HTMLElement): AceLike | undefined => {
  * own listener advances the tour. A rich text editor (a contenteditable, or
  * a wrapper holding one) is typed into instead, which its own editor sees.
  */
-const fillTarget = (selector: string, value: string) => {
+const fillTarget = (
+    selector: string,
+    value: string,
+    expect?: Record<string, string>,
+) => {
     const el = document.querySelector<HTMLElement>(selector);
     if (!el) return;
     const own = (el as HTMLElement & TourEditable).tourEditor;
     if (own) {
-        own.setValue(value);
+        own.setValue(value, expect);
         el.dispatchEvent(new Event('input', { bubbles: true }));
         el.focus();
         return;
@@ -1177,7 +1186,11 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             onClick={() => {
                 setCheckMessage(null);
                 if (shownStep.target)
-                    fillTarget(shownStep.target, shownStep.suggestion!);
+                    fillTarget(
+                        shownStep.target,
+                        shownStep.suggestion!,
+                        shownStep.expect,
+                    );
                 // The editor may now be typing: hold the buttons from this
                 // click, not from the next poll of the page.
                 refreshTarget();

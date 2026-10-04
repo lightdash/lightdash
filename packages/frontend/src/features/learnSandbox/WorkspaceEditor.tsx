@@ -195,6 +195,63 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     // advance until the last character has landed.
     const typingRef = useRef<{ cancel: () => void } | null>(null);
     useEffect(() => () => typingRef.current?.cancel(), []);
+    // A content-as-code lesson's "Use it" sets one top-level line of the
+    // file (a chart's `name:`) rather than adding lines: the line is
+    // replaced in one edit and highlighted like an insertion. A file that
+    // has lost the key gets the line back at its end, and a line that
+    // already reads that way is left as it is.
+    const replaceInEditor = useCallback(
+        (value: string) => {
+            const ed = editorRef.current;
+            const model = ed?.getModel();
+            if (!ed || !model || typingRef.current) return;
+            const replacement = replacementFor(model.getValue(), value);
+            if (!replacement) return;
+            const from = model.getPositionAt(replacement.from);
+            const to = model.getPositionAt(replacement.to);
+            ed.executeEdits('learn-tour', [
+                {
+                    range: {
+                        startLineNumber: from.lineNumber,
+                        startColumn: from.column,
+                        endLineNumber: to.lineNumber,
+                        endColumn: to.column,
+                    },
+                    text: replacement.text,
+                    forceMoveMarkers: true,
+                },
+            ]);
+            report(model.getValue());
+            // The line the value now sits on: the one replaced, or the new
+            // last line when the key had gone.
+            const lineNumber =
+                model.getValue().split('\n').indexOf(value) + 1 ||
+                from.lineNumber;
+            ed.setPosition({ lineNumber, column: value.length + 1 });
+            ed.revealLineInCenter(lineNumber);
+            const changed = ed.createDecorationsCollection([
+                {
+                    range: {
+                        startLineNumber: lineNumber,
+                        startColumn: 1,
+                        endLineNumber: lineNumber,
+                        endColumn: 1,
+                    },
+                    options: {
+                        isWholeLine: true,
+                        className: styles.tourInsert,
+                    },
+                },
+            ]);
+            window.setTimeout(() => changed.clear(), TOUR_INSERT_HIGHLIGHT_MS);
+            wrapperRef.current?.dispatchEvent(
+                new Event('input', { bubbles: true }),
+            );
+            ed.focus();
+        },
+        [report],
+    );
+
     const appendToEditor = useCallback(
         (value: string) => {
             const ed = editorRef.current;
@@ -206,55 +263,6 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             // press Use it again without doubling the metric.
             if (typingRef.current) return;
             const before = model.getValue();
-            // A content-as-code lesson's edit sets one top-level line (a
-            // chart's `name:`) rather than adding lines: it is replaced in
-            // one edit and highlighted like an insertion.
-            const replacement = replacementFor(before, value);
-            if (replacement) {
-                const from = model.getPositionAt(replacement.from);
-                const to = model.getPositionAt(replacement.to);
-                ed.executeEdits('learn-tour', [
-                    {
-                        range: {
-                            startLineNumber: from.lineNumber,
-                            startColumn: from.column,
-                            endLineNumber: to.lineNumber,
-                            endColumn: to.column,
-                        },
-                        text: replacement.text,
-                        forceMoveMarkers: true,
-                    },
-                ]);
-                report(model.getValue());
-                ed.setPosition({
-                    lineNumber: from.lineNumber,
-                    column: replacement.text.length + 1,
-                });
-                ed.revealLineInCenter(from.lineNumber);
-                const changed = ed.createDecorationsCollection([
-                    {
-                        range: {
-                            startLineNumber: from.lineNumber,
-                            startColumn: 1,
-                            endLineNumber: from.lineNumber,
-                            endColumn: 1,
-                        },
-                        options: {
-                            isWholeLine: true,
-                            className: styles.tourInsert,
-                        },
-                    },
-                ]);
-                window.setTimeout(
-                    () => changed.clear(),
-                    TOUR_INSERT_HIGHLIGHT_MS,
-                );
-                wrapperRef.current?.dispatchEvent(
-                    new Event('input', { bubbles: true }),
-                );
-                ed.focus();
-                return;
-            }
             const point = insertionPoint(before, value);
             if (before.includes(point.text)) return;
             // What the file must read once the snippet is in, whatever happens
@@ -436,7 +444,13 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             if (wrapperRef.current) {
                 wrapperRef.current.tourEditor = {
                     getValue: () => ed.getValue(),
-                    setValue: appendToEditor,
+                    // A content-as-code step says so in what it expects:
+                    // its suggestion replaces a line; a dbt lesson's snippet
+                    // is typed in under the key it extends.
+                    setValue: (value, expect) =>
+                        isContentAsCodeExpectation(expect)
+                            ? replaceInEditor(value)
+                            : appendToEditor(value),
                     isBusy: () => typingRef.current !== null,
                     // A lesson says what it expects as facts about the dbt
                     // project; a step that carries none falls back to
@@ -453,7 +467,7 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             }
             ed.onDidBlurEditorText(() => onBlurRef.current());
         },
-        [appendToEditor],
+        [appendToEditor, replaceInEditor],
     );
 
     const state: EditorState = !editable

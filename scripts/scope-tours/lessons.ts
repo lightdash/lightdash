@@ -459,6 +459,13 @@ const validateCodeLesson = (
     const where = `${CODE_LESSON_SOURCE}: lesson ${lesson.scope}`;
     if (!getScopes({ isEnterprise: true }).some((s) => s.name === lesson.scope))
         throw new Error(`${where}: unknown scope`);
+    // The library gates a card by its scope's subject, and these lessons
+    // need the sandbox: only the content-as-code subject carries that gate.
+    if (lesson.scope.split(':')[1] !== 'ContentAsCode') {
+        throw new Error(
+            `${where}: a content-as-code lesson teaches a ContentAsCode scope`,
+        );
+    }
     if (lesson.title.trim() === '') throw new Error(`${where}: title is empty`);
     if (!charts.has(lesson.chart)) {
         throw new Error(
@@ -482,19 +489,28 @@ const validateCodeLesson = (
                 `${where}: "${command}" must name the chart (--charts ${lesson.chart})`,
             );
         }
+        // The lesson opens lightdash/charts/<chart>.yml, and the workspace
+        // keeps only what a download writes under lightdash/.
+        if (argv.includes('--path')) {
+            throw new Error(
+                `${where}: "${command}" must not use --path: the lesson works in lightdash/`,
+            );
+        }
     };
     commandFor(lesson.download.command, 'download');
     const { taughtIn } = lesson.download;
     if (taughtIn !== undefined) {
-        const teacher = lessons.find((other) => other.scope === taughtIn);
+        // Declared earlier, so the library offers the teacher first.
+        const teacher = lessons
+            .slice(0, lessons.indexOf(lesson))
+            .find((other) => other.scope === taughtIn);
         if (
             !teacher ||
-            teacher === lesson ||
             teacher.download.taughtIn !== undefined ||
             teacher.download.command !== lesson.download.command
         ) {
             throw new Error(
-                `${where}: taughtIn must name another lesson that teaches the same download`,
+                `${where}: taughtIn must name a lesson declared before this one that teaches the same download`,
             );
         }
         if (lesson.download.docs || lesson.download.outputDocs) {
@@ -546,12 +562,14 @@ const validateCodeLesson = (
 
 /**
  * One tour per content-as-code lesson, from a fixed template: an intro, then
- * type the download, run it and watch the output (or, for a download another
- * lesson teaches, one card naming that lesson), then open the file it wrote.
- * Without an edit the lesson ends on a look at the file. With one, Use it
- * replaces the chart's name line and Check must pass; then type the upload,
- * run it, watch the output, and find the chart under its new name in All
- * saved charts.
+ * type the download, run it and watch the output, then open the file it
+ * wrote. A download another lesson teaches is run the same way, under a card
+ * that names that lesson instead of explaining the command again. Without an
+ * edit the lesson ends on a look at the file. With one, Use it replaces the
+ * chart's name line and Check must pass; then type the upload, run it, watch
+ * the output, and find the chart under its new name in All saved charts.
+ * Every command is followed by a look at its output, so a run that fails or
+ * is refused offers Try again and returns to the step that can put it right.
  */
 export const buildContentAsCodeTours = (
     lessons: ContentAsCodeLesson[],
@@ -588,65 +606,45 @@ export const buildContentAsCodeTours = (
         const steps: ScopeTourStepDefinition[] = [
             look(null, WORKSPACE_ROUTE, lesson.title, cite(lesson.intro), []),
         ];
-        if (taughtIn === undefined) {
-            steps.push(
-                typed(
-                    command,
+        // The download's own lesson explains it; a later lesson runs it
+        // under a card naming that lesson, with the same output step.
+        const teacher =
+            taughtIn === undefined
+                ? lesson
+                : lessons.find((other) => other.scope === taughtIn)!;
+        steps.push(
+            typed(
+                command,
+                WORKSPACE_ROUTE,
+                hintFor(command, files),
+                taughtIn === undefined
+                    ? cite(lesson.download.docs!)
+                    : `First download the chart, as in **${teacher.title}**.`,
+                lesson.download.command,
+                [],
+            ),
+            click(run, WORKSPACE_ROUTE, hintFor(run, files), []),
+            {
+                ...look(
+                    output,
                     WORKSPACE_ROUTE,
-                    hintFor(command, files),
-                    cite(lesson.download.docs!),
-                    lesson.download.command,
+                    'See the result',
+                    cite(teacher.download.outputDocs!),
                     [],
+                    BUSY_OUTPUT,
                 ),
-                click(run, WORKSPACE_ROUTE, hintFor(run, files), []),
-                {
-                    ...look(
-                        output,
-                        WORKSPACE_ROUTE,
-                        'See the result',
-                        cite(lesson.download.outputDocs!),
-                        [],
-                        BUSY_OUTPUT,
-                    ),
-                    // A failed download goes back to the command.
-                    retryStep: 1,
-                },
-                click(fileRow, WORKSPACE_ROUTE, hintFor(fileRow, files), []),
-            );
-        } else {
-            const teacher = lessons.find((other) => other.scope === taughtIn)!;
-            steps.push(
-                // The bridge: the one card of the download, naming the lesson
-                // that explains it.
-                typed(
-                    command,
-                    WORKSPACE_ROUTE,
-                    hintFor(command, files),
-                    `First download the chart, as in **${teacher.title}**.`,
-                    lesson.download.command,
-                    [],
-                ),
-                click(run, WORKSPACE_ROUTE, hintFor(run, files), []),
-                // The file appears once the download is done; until then the
-                // running terminal is spotlit.
-                {
-                    ...click(
-                        fileRow,
-                        WORKSPACE_ROUTE,
-                        hintFor(fileRow, files),
-                        [],
-                    ),
-                    busy: BUSY_OUTPUT,
-                },
-            );
-        }
+                // A failed download goes back to the command.
+                retryStep: 1,
+            },
+            click(fileRow, WORKSPACE_ROUTE, hintFor(fileRow, files), []),
+        );
         if (!lesson.edit || !lesson.upload) {
             steps.push(
                 look(
                     editor,
                     WORKSPACE_ROUTE,
                     docsHeading(firstCitation(lesson.resultDocs)),
-                    cite(lesson.resultDocs),
+                    `${cite(lesson.resultDocs)} **${charts.get(lesson.chart)}** is the chart you just downloaded.`,
                     [fileRow],
                 ),
             );
@@ -658,6 +656,9 @@ export const buildContentAsCodeTours = (
             };
         }
         const name = NAME_LINE.exec(lesson.edit.to)![1];
+        const row = `[data-tour-anchor="chart-row"][data-tour-value="${name}"]`;
+        // Fails the build when the chart list no longer carries the anchor.
+        hintFor(row, files);
         const editStep = steps.length;
         steps.push(
             {
@@ -665,7 +666,7 @@ export const buildContentAsCodeTours = (
                     editor,
                     WORKSPACE_ROUTE,
                     hintFor(editor, files),
-                    `${lesson.edit.docs ? `${cite(lesson.edit.docs)} ` : ''}Let's rename the chart to **${name}**: change its **name** and keep its **slug**, which upload finds the chart by. Change the **name:** line to the highlighted one, or press Use it, then Check.`,
+                    `${lesson.edit.docs ? `${cite(lesson.edit.docs)} ` : ''}Let's rename the chart to **${name}**: change its **name** and keep its **slug**, which upload finds the chart by. Edit the **name:** line, or press Use it, then Check.`,
                     lesson.edit.to,
                     [fileRow],
                 ),
@@ -685,10 +686,7 @@ export const buildContentAsCodeTours = (
                 lesson.upload.command,
                 [fileRow],
             ),
-            {
-                ...click(run, WORKSPACE_ROUTE, hintFor(run, files), [fileRow]),
-                body: lesson.upload.runDocs ? cite(lesson.upload.runDocs) : '',
-            },
+            click(run, WORKSPACE_ROUTE, hintFor(run, files), [fileRow]),
             {
                 ...look(
                     output,
@@ -707,10 +705,10 @@ export const buildContentAsCodeTours = (
                 browse,
             ]),
             look(
-                `[data-tour-anchor="chart-row"][data-tour-value="${name}"]`,
+                row,
                 SAVED_CHARTS_ROUTE,
                 docsHeading(firstCitation(lesson.resultDocs)),
-                cite(lesson.resultDocs),
+                `${cite(lesson.resultDocs)} **${name}** is the chart you just renamed in code.`,
                 [browse, allCharts],
             ),
         );

@@ -180,8 +180,8 @@ generated teaching order (`curriculum.ts`) covers permissions and does not name 
 sorts them after every walkthrough. Start makes a copy the way a walkthrough does and opens
 `/projects/<copy>/learn/workspace?tour=<id>`.
 
-The tour itself is not authored. `buildLessonTours` in `scripts/scope-tours/lib.ts` turns each entry into the
-same twelve steps: read the page's introduction on a card with nothing spotlit, open the file, add the snippet, type the command, run it, watch the
+The tour itself is not authored. `buildLessonTours` in `scripts/scope-tours/lessons.ts` turns each entry into the
+same twelve steps (thirteen for a lesson that declares `shipDocs`, which closes on how the change ships in a team): read the page's introduction on a card with nothing spotlit, open the file, add the snippet, type the command, run it, watch the
 output to the end, then New, Chart, search for the table, open it, search for the field, and look at the field
 that now exists. The two searches are not decoration: both lists in Explore are virtualised, so neither the
 table nor the field is on the page until it has been searched for, and they are two different controls, because
@@ -232,6 +232,14 @@ browser, because the learner walks straight to the new field and a cached list w
 - **Lessons.** A developer lesson's tour sits in `SCOPE_TOURS` under its `docs:` id like any other, so the host,
   progress, library search and the completion dialog handle it with no special case. `curriculum.ts` covers
   permissions and does not name lessons, so the library sorts them after every walkthrough.
+- **Content-as-code lessons.** A second lesson kind, declared in `features/learn/codeLessons.ts` and built by
+  `buildContentAsCodeTours` in `scripts/scope-tours/lessons.ts`. Each is the walkthrough of the permission it
+  teaches (`view:ContentAsCode`, `create:ContentAsCode`), so its tour sits in `SCOPE_TOURS` under that scope, its
+  card leaves Coming Soon, and progress needs no new id. It runs in the workspace like a developer lesson: the
+  learner downloads a seeded chart with the real CLI, opens the file the download wrote, and (for a lesson with
+  an edit) renames the chart in the file and uploads it. The cards sit in the Developer group after the
+  developer lessons, in the order they are declared, behind the `contentAsCode` gate (an Enterprise licence and
+  the sandbox). `curriculum.ts` leaves them out, as it does developer lessons.
 
 ## Boundaries and invariants
 

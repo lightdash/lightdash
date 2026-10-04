@@ -127,12 +127,32 @@ describe('replaceLine', () => {
         );
     });
 
-    it('does nothing when the line already reads that way, or the key is absent', () => {
+    it('does nothing when the line already reads that way', () => {
         expect(
             replacementFor(chart, 'name: Revenue by payment method'),
         ).toBeNull();
-        expect(replacementFor(chart, 'title: Anything')).toBeNull();
-        expect(replaceLine(chart, 'title: Anything')).toBe(chart);
+        expect(replaceLine(chart, 'name: Revenue by payment method')).toBe(
+            chart,
+        );
+    });
+
+    it('puts the line back at the end of a file that has lost the key', () => {
+        const withoutName = chart.replace(
+            'name: Revenue by payment method\n',
+            '',
+        );
+        expect(replaceLine(withoutName, 'name: Revenue by payment type')).toBe(
+            `${withoutName}name: Revenue by payment type\n`,
+        );
+        // A file that does not end in a newline gets one first.
+        expect(replaceLine('slug: a', 'name: A')).toBe('slug: a\nname: A\n');
+        expect(replaceLine('', 'name: A')).toBe('name: A\n');
+    });
+
+    it('reads a Windows file line by line too', () => {
+        expect(replaceLine('name: Old\r\nslug: a\r\n', 'name: New')).toBe(
+            'name: New\nslug: a\r\n',
+        );
     });
 
     it('refuses a block, which is an insertion, not a one-line edit', () => {

@@ -99,8 +99,9 @@ export const holdsEntry = (content: string, snippet: string): boolean => {
 /**
  * Where a one-line edit lands: a content-as-code lesson sets one top-level
  * `key: value` line of a downloaded file (a chart's `name:`) to a new value.
- * The line is replaced whole, wherever the key sits; null when the file has
- * no such top-level key, or the line already reads that way.
+ * The line is replaced whole, wherever the key sits. A file that has lost
+ * the key gets the line back at its end. Null when the line already reads
+ * that way, or is not a single `key: value` line.
  */
 export const replacementFor = (
     content: string,
@@ -119,7 +120,12 @@ export const replacementFor = (
         }
         offset += current.length + 1;
     }
-    return null;
+    const opensNewLine = content === '' || content.endsWith('\n');
+    return {
+        from: content.length,
+        to: content.length,
+        text: `${opensNewLine ? '' : '\n'}${line}\n`,
+    };
 };
 
 /** The file with that one line set, as Use it leaves it. */

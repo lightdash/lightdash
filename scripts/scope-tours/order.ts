@@ -21,6 +21,7 @@ import {
     GROUP_ORDER,
     type LearnModule,
 } from '../../packages/frontend/src/features/learn/catalogue';
+import { hasCodeLesson } from '../../packages/frontend/src/features/learn/codeLessons';
 import { docsDir, findMarkers, frontendSrc, listTsx, slugify } from './lib';
 
 /**
@@ -145,8 +146,14 @@ const orderWithin = (
 
 export const curriculum = (): LearnModule[] => {
     const cite = citationForScope();
+    // Lessons are placed by the library itself, after every walkthrough
+    // (catalogue.ts): docs lessons are another kind, and content-as-code
+    // lessons are left out here.
     const modules = buildLearnCatalogue().filter(
-        (module) => module.kind === 'scope' && module.available,
+        (module) =>
+            module.kind === 'scope' &&
+            module.available &&
+            !hasCodeLesson(module.scope),
     );
     const nav = navOrder();
     // Fail loudly: a cited page missing from the sidebar sorts last, and the
