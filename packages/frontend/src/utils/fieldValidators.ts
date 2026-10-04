@@ -42,10 +42,11 @@ export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
         ? undefined
         : `${fieldName} should start with a "/"`;
 
-export const isAwsIamRoleArn: FieldValidator<string> = (fieldName) => (value) =>
-    !value || /^arn:aws[a-z-]*:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(value)
-        ? undefined
-        : `${fieldName} should look like arn:aws:iam::123456789012:role/name`;
+export const isAwsIamRoleArn: FieldValidator<string> =
+    (_fieldName) => (value) =>
+        !value || /^arn:aws[a-z-]*:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(value)
+            ? undefined
+            : 'Enter a role ARN, like arn:aws:iam::123456789012:role/lightdash-athena';
 
 export const startWithHTTPSProtocol: FieldValidator<string> =
     (fieldName) => (value) =>

@@ -38,10 +38,6 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
-import {
-    awsWebIdentityCredentialProvider,
-    type AwsWebIdentityOptions,
-} from './awsWebIdentityCredentials';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -303,12 +299,11 @@ export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+type AwsCredentialProvider = ReturnType<typeof fromTemporaryCredentials>;
+
 export type AthenaWarehouseClientOptions = {
-    // Set by the server for web identity auth after it checks the
-    // credentials' audience belongs to the connection's organization.
-    awsWebIdentity?: AwsWebIdentityOptions;
-    // Why web identity auth can't be used, when the server refused it.
-    awsWebIdentityUnavailableReason?: string;
+    // AWS credentials for web identity auth, resolved by the server.
+    awsCredentials?: AwsCredentialProvider;
 };
 
 const POLL_INTERVAL_MS = 500;
@@ -355,14 +350,17 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
             }
 
             if (authenticationType === AthenaAuthenticationType.WEB_IDENTITY) {
-                // The role ARN is assumed directly with the web identity token,
-                // so it is not wrapped with a second assume role below.
-                clientConfig.credentials = awsWebIdentityCredentialProvider({
-                    roleArn: credentials.assumeRoleArn,
-                    region: credentials.region,
-                    webIdentity: options?.awsWebIdentity,
-                    unavailableReason: options?.awsWebIdentityUnavailableReason,
-                });
+                // The server assumes the role with its own identity, so it is
+                // not wrapped with a second assume role below. Without server
+                // credentials, fail when they're first needed, so a client
+                // used only for SQL generation still works.
+                clientConfig.credentials =
+                    options?.awsCredentials ??
+                    (async () => {
+                        throw new WarehouseConnectionError(
+                            "Web identity isn't turned on for this Lightdash instance. Choose another authentication type, or contact support.",
+                        );
+                    });
             } else if (credentials.assumeRoleArn) {
                 // Wrap with assume role if configured
                 clientConfig.credentials = fromTemporaryCredentials({

@@ -1307,6 +1307,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     awsWebIdentityAudienceModel:
                         this.models.getAwsWebIdentityAudienceModel(),
+                    awsWebIdentityResolver:
+                        this.models.getProjectModel().awsWebIdentity,
                 }),
         );
     }

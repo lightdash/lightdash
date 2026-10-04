@@ -1,8 +1,10 @@
 import {
     ApiAwsWebIdentityAudienceResponse,
+    ApiAwsWebIdentityResponse,
     ApiErrorPayload,
 } from '@lightdash/common';
 import {
+    Get,
     Middlewares,
     OperationId,
     Post,
@@ -20,6 +22,25 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class AwsWebIdentityController extends BaseController {
+    /**
+     * Get this instance's identity for Athena web identity authentication.
+     * Add the subject to the IAM role's trust policy.
+     * @summary Get web identity subject
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Get('')
+    @OperationId('getAwsWebIdentity')
+    async getIdentity(
+        @Request() req: express.Request,
+    ): Promise<ApiAwsWebIdentityResponse> {
+        const results = await this.services
+            .getAwsWebIdentityService()
+            .getIdentity(req.account!);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
     /**
      * Generate an audience for Athena web identity authentication. Add it to
      * the IAM role's trust policy as accounts.google.com:oaud.

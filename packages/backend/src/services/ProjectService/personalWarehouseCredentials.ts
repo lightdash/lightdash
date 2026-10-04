@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    AthenaAuthenticationType,
     DuckdbConnectionType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -64,8 +65,32 @@ export function clearSecretsFromCredentials(
             };
         }
         case WarehouseTypes.ATHENA: {
+            // The user's own access keys replace the project's. A web
+            // identity project's role trusts Lightdash, not the user's keys,
+            // so the user's keys run as access keys without that role.
+            const {
+                accessKeyId,
+                secretAccessKey,
+                sessionToken,
+                webIdentityAudience,
+                ...rest
+            } = credentials;
+            if (
+                credentials.authenticationType ===
+                AthenaAuthenticationType.WEB_IDENTITY
+            ) {
+                const { assumeRoleArn, assumeRoleExternalId, ...connection } =
+                    rest;
+                return {
+                    ...connection,
+                    authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+                    accessKeyId: '',
+                    secretAccessKey: '',
+                };
+            }
             return {
-                ...credentials,
+                ...rest,
+                authenticationType: AthenaAuthenticationType.ACCESS_KEY,
                 accessKeyId: '',
                 secretAccessKey: '',
             };
@@ -135,6 +160,27 @@ export function mergePersonalWarehouseCredentials(
 ): CreateWarehouseCredentials {
     let credentials = projectCredentials;
     credentials = clearSecretsFromCredentials(credentials);
+
+    // Personal Athena credentials only contribute the user's keys, so a
+    // stored credential can't change how or where the project connects.
+    if (
+        credentials.type === WarehouseTypes.ATHENA &&
+        userWarehouseCredentials.credentials.type === WarehouseTypes.ATHENA
+    ) {
+        const { accessKeyId, secretAccessKey, sessionToken } =
+            userWarehouseCredentials.credentials as {
+                accessKeyId?: string;
+                secretAccessKey?: string;
+                sessionToken?: string;
+            };
+        return {
+            ...credentials,
+            accessKeyId: accessKeyId ?? '',
+            secretAccessKey: secretAccessKey ?? '',
+            ...(sessionToken ? { sessionToken } : {}),
+            requireUserCredentials: credentials.requireUserCredentials,
+        };
+    }
 
     // User has credentials - use them
     credentials = {

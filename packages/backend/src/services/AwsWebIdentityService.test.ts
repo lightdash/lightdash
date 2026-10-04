@@ -1,6 +1,7 @@
 import { ForbiddenError, type Account } from '@lightdash/common';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { type AwsWebIdentityAudienceModel } from '../models/AwsWebIdentityAudienceModel';
+import { type AwsWebIdentityResolver } from '../utils/awsWebIdentity/AwsWebIdentityResolver';
 import { AwsWebIdentityService } from './AwsWebIdentityService';
 
 const account = {
@@ -24,9 +25,26 @@ const buildService = (enabled: boolean) => {
         awsWebIdentityAudienceModel: {
             create,
         } as unknown as AwsWebIdentityAudienceModel,
+        awsWebIdentityResolver: {
+            getSubject: async () => '111429504119237381932',
+        } as unknown as AwsWebIdentityResolver,
     });
     return { service, create };
 };
+
+describe('AwsWebIdentityService.getIdentity', () => {
+    test("returns this instance's subject", async () => {
+        await expect(
+            buildService(true).service.getIdentity(account),
+        ).resolves.toEqual({ subject: '111429504119237381932' });
+    });
+
+    test('refuses when the instance has not enabled it', async () => {
+        await expect(
+            buildService(false).service.getIdentity(account),
+        ).rejects.toThrow(ForbiddenError);
+    });
+});
 
 describe('AwsWebIdentityService.createAudience', () => {
     test("generates an audience for the user's organization", async () => {
@@ -34,6 +52,7 @@ describe('AwsWebIdentityService.createAudience', () => {
 
         await expect(service.createAudience(account)).resolves.toEqual({
             audience: 'lightdash-generated',
+            subject: '111429504119237381932',
         });
         expect(create).toHaveBeenCalledWith('org-uuid', 'user-uuid');
     });

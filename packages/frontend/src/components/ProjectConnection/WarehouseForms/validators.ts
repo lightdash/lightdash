@@ -297,10 +297,11 @@ export const createWarehouseValueValidators: Record<
             hasNoWhiteSpaces,
             isAwsIamRoleArn,
         ),
-        webIdentityAudience: requiredWhen(
-            'Audience',
-            athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY),
-        ),
+        webIdentityAudience: ((value, values) =>
+            athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY)(values) &&
+            !value
+                ? 'Generate an audience to continue.'
+                : undefined) satisfies CreateValidator,
     },
     [WarehouseTypes.DUCKDB]: {
         database: requiredWhen('Database', isMotherduck, hasNoWhiteSpaces),

@@ -408,6 +408,8 @@ import {
     TrackingParams,
 } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import { AWS_IAM_ROLE_ARN_PATTERN } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
+import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
@@ -685,9 +687,6 @@ type PreparedExploreStream = {
 };
 
 type PreparedMultiConnectionSave = MultiConnectionSave & { warnings: string[] };
-
-const AWS_IAM_ROLE_ARN_PATTERN =
-    /^arn:aws[a-z-]*:iam::\d{12}:role\/[\w+=,.@/-]+$/;
 
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
@@ -4433,6 +4432,10 @@ export class ProjectService extends BaseService {
             newProjectData.warehouseConnection,
             internalProvisioning,
         );
+        await this.assertAwsWebIdentityAudienceBelongsTo(
+            newProjectData.warehouseConnection,
+            user.organizationUuid,
+        );
 
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
@@ -4740,6 +4743,10 @@ export class ProjectService extends BaseService {
             data.warehouseConnection,
         );
         ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
+        await this.assertAwsWebIdentityAudienceBelongsTo(
+            data.warehouseConnection,
+            user.organizationUuid,
+        );
 
         this.assertCanUseOrganizationWarehouseCredentials(
             user,
@@ -5333,6 +5340,18 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /** Refuses web identity audiences generated for another organization. */
+    private async assertAwsWebIdentityAudienceBelongsTo(
+        credentials: CreateWarehouseCredentials | undefined,
+        organizationUuid: string,
+    ): Promise<void> {
+        if (!usesAwsWebIdentity(credentials)) return;
+        await this.projectModel.awsWebIdentity.assertAudienceBelongsTo(
+            credentials,
+            organizationUuid,
+        );
+    }
+
     private static assertEmbeddedCredentialsAreInternal(
         credentials: CreateWarehouseCredentialsWithOptionalSecrets | undefined,
         internalProvisioning?: InternalProvisioning,
@@ -5505,21 +5524,26 @@ export class ProjectService extends BaseService {
                             .enabled
                     ) {
                         throw new ParameterError(
-                            'Athena web identity authentication is not enabled on this Lightdash instance',
+                            AWS_WEB_IDENTITY_MESSAGES.notEnabled,
+                        );
+                    }
+                    if (!project.warehouseConnection.assumeRoleArn) {
+                        throw new ParameterError(
+                            AWS_WEB_IDENTITY_MESSAGES.missingRoleArn,
                         );
                     }
                     if (
                         !AWS_IAM_ROLE_ARN_PATTERN.test(
-                            project.warehouseConnection.assumeRoleArn ?? '',
+                            project.warehouseConnection.assumeRoleArn,
                         )
                     ) {
                         throw new ParameterError(
-                            'Athena web identity authentication requires an IAM role ARN, like arn:aws:iam::123456789012:role/lightdash',
+                            AWS_WEB_IDENTITY_MESSAGES.invalidRoleArn,
                         );
                     }
                     if (!project.warehouseConnection.webIdentityAudience) {
                         throw new ParameterError(
-                            'Athena web identity authentication requires an audience. Generate one in the connection settings.',
+                            AWS_WEB_IDENTITY_MESSAGES.missingAudience,
                         );
                     }
                 }
@@ -5543,6 +5567,10 @@ export class ProjectService extends BaseService {
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
+        await this.assertAwsWebIdentityAudienceBelongsTo(
+            data.warehouseConnection,
+            savedProject.organizationUuid,
+        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -5722,6 +5750,10 @@ export class ProjectService extends BaseService {
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
+        await this.assertAwsWebIdentityAudienceBelongsTo(
+            data.warehouseConnection,
+            savedProject.organizationUuid,
+        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -6244,11 +6276,22 @@ export class ProjectService extends BaseService {
                 usesAwsWebIdentity(warehouseCredentials)
                     ? await this.projectModel.getWarehouseClientIdentityOptions(
                           warehouseCredentials,
-                          user.organizationUuid,
+                          projectUuid === null
+                              ? user.organizationUuid
+                              : (
+                                    await this.projectModel.getSummary(
+                                        projectUuid,
+                                    )
+                                ).organizationUuid,
                       )
                     : undefined,
             );
             await adapter.test();
+            if (usesAwsWebIdentity(warehouseCredentials)) {
+                await this.projectModel.awsWebIdentity.assertRoleRequiresAudience(
+                    warehouseCredentials,
+                );
+            }
             this.analytics.track({
                 event: 'warehouse_connection.tested',
                 userId: user.userUuid,
@@ -6420,6 +6463,11 @@ export class ProjectService extends BaseService {
                             : undefined,
                     );
                 await warehouseClient.test();
+                if (usesAwsWebIdentity(tunnelCredentials)) {
+                    await this.projectModel.awsWebIdentity.assertRoleRequiresAudience(
+                        tunnelCredentials,
+                    );
+                }
                 return buildConnectionTestResults([
                     ...tunnelHops,
                     { stage: 'database', status: 'ok', message: null },
@@ -6471,6 +6519,8 @@ export class ProjectService extends BaseService {
         // the just-typed credentials.
         let effectiveCredentials: CreateWarehouseCredentials;
         let projectTimezone = 'UTC';
+        // The organization that owns the connection being previewed.
+        let connectionOrganizationUuid = account.organization.organizationUuid;
         if (body.mode === 'edit') {
             const stored = await this.projectModel.getWithSensitiveFields(
                 body.projectUuid,
@@ -6492,6 +6542,7 @@ export class ProjectService extends BaseService {
                 ...stored.warehouseConnection,
                 dataTimezone: body.dataTimezone ?? undefined,
             };
+            connectionOrganizationUuid = stored.organizationUuid;
             projectTimezone = await this.getQueryTimezoneForProject(
                 body.projectUuid,
             );
@@ -6529,7 +6580,7 @@ export class ProjectService extends BaseService {
                     usesAwsWebIdentity(tunnelCredentials)
                         ? await this.projectModel.getWarehouseClientIdentityOptions(
                               tunnelCredentials,
-                              account.organization.organizationUuid,
+                              connectionOrganizationUuid,
                           )
                         : undefined,
                 );

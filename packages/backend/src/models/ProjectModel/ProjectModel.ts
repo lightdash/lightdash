@@ -69,7 +69,6 @@ import {
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     USER_MANAGED_EXPLORE_TYPES,
-    usesAwsWebIdentity,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
@@ -203,6 +202,11 @@ import {
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
+import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
+import {
+    defaultGoogleIdentityTokenSource,
+    type GoogleIdentityTokenSource,
+} from '../../utils/awsWebIdentity/googleIdentityTokenSource';
 import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
@@ -260,6 +264,7 @@ export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
+    googleIdentityTokenSource?: GoogleIdentityTokenSource;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -502,7 +507,7 @@ export class ProjectModel {
 
     private connectionRouter: WarehouseConnectionRouter;
 
-    private awsWebIdentityAudienceModel: AwsWebIdentityAudienceModel;
+    readonly awsWebIdentity: AwsWebIdentityResolver;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
@@ -511,8 +516,15 @@ export class ProjectModel {
         this.connectionRouter = new WarehouseConnectionRouter({
             database: args.database,
         });
-        this.awsWebIdentityAudienceModel = new AwsWebIdentityAudienceModel({
-            database: args.database,
+        this.awsWebIdentity = new AwsWebIdentityResolver({
+            enabled:
+                args.lightdashConfig.athenaWarehouseWebIdentityAuth.enabled,
+            audienceModel: new AwsWebIdentityAudienceModel({
+                database: args.database,
+            }),
+            tokenSource:
+                args.googleIdentityTokenSource ??
+                defaultGoogleIdentityTokenSource,
         });
     }
 
@@ -7289,51 +7301,18 @@ export class ProjectModel {
 
     /**
      * Identity options for warehouse clients that authenticate as this
-     * instance. The credentials name an audience; it is only used when it was
-     * generated for the organization that owns the connection, so a
-     * connection can't use another organization's audience.
+     * instance. A web identity audience is only used for the organization it
+     * was generated for, so a connection can't use another organization's.
      */
     async getWarehouseClientIdentityOptions(
         credentials: CreateWarehouseCredentials | undefined,
         organizationUuid: string | undefined,
-    ): Promise<
-        Pick<
-            WarehouseClientOptions,
-            'awsWebIdentity' | 'awsWebIdentityUnavailableReason'
-        >
-    > {
-        if (!usesAwsWebIdentity(credentials)) return {};
-        if (!this.lightdashConfig.athenaWarehouseWebIdentityAuth.enabled) {
-            return {
-                awsWebIdentityUnavailableReason:
-                    'Web identity authentication is not enabled on this Lightdash instance.',
-            };
-        }
-        const audience =
-            credentials?.type === WarehouseTypes.ATHENA
-                ? credentials.webIdentityAudience
-                : undefined;
-        const audienceOrganizationUuid = audience
-            ? await this.awsWebIdentityAudienceModel.getOrganizationUuid(
-                  audience,
-              )
-            : null;
-        if (
-            !audience ||
-            !organizationUuid ||
-            audienceOrganizationUuid !== organizationUuid
-        ) {
-            return {
-                awsWebIdentityUnavailableReason:
-                    "This connection has no valid audience for your organization. Generate a new audience in the connection settings and add it to your role's trust policy.",
-            };
-        }
-        return {
-            awsWebIdentity: {
-                audience,
-                roleSessionName: `lightdash-${organizationUuid}`,
-            },
-        };
+    ): Promise<Pick<WarehouseClientOptions, 'awsCredentials'>> {
+        const awsCredentials = await this.awsWebIdentity.resolveCredentials(
+            credentials,
+            organizationUuid,
+        );
+        return awsCredentials ? { awsCredentials } : {};
     }
 
     // Easier to mock in ProjectService

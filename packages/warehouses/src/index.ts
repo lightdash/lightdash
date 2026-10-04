@@ -3,7 +3,6 @@ export * from './types';
 export * from './validateWarehouseColumnReferences';
 export * from './warehouseClientFromCredentials';
 export * from './warehouseClients/AthenaWarehouseClient';
-export * from './warehouseClients/awsWebIdentityCredentials';
 export * from './warehouseClients/BigqueryWarehouseClient';
 export * from './warehouseClients/DatabricksWarehouseClient';
 export * from './warehouseClients/DuckdbWarehouseClient';

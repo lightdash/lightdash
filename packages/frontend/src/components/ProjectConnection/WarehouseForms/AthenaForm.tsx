@@ -1,25 +1,15 @@
 import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import {
-    TextInput,
-    Stack,
-    Anchor,
-    Select,
-    PasswordInput,
-    ActionIcon,
-    Tooltip,
-} from '@mantine/core';
-import { IconRefresh } from '@tabler/icons-react';
+import { TextInput, Stack, Anchor, Select, PasswordInput } from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
-import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
-import { useCreateAwsWebIdentityAudience } from './awsWebIdentityHooks';
+import AthenaWebIdentityFields from './AthenaWebIdentityFields';
 import { AthenaDefaultValues } from './defaultValues';
 
 export const AthenaSchemaInput: FC<{
@@ -114,33 +104,26 @@ const AthenaForm: FC<{
     const isWebIdentityAuthentication =
         authenticationType === AthenaAuthenticationType.WEB_IDENTITY;
 
-    const createAudience = useCreateAwsWebIdentityAudience({
-        onSuccess: ({ audience }) => {
-            form.setFieldValue('warehouse.webIdentityAudience', audience);
-        },
-    });
-    const { mutate: generateAudience, isLoading: isGeneratingAudience } =
-        createAudience;
-    const hasAudience = !!warehouse.webIdentityAudience;
+    const savedAudience =
+        savedProject?.warehouseConnection?.type === WarehouseTypes.ATHENA
+            ? savedProject.warehouseConnection.webIdentityAudience
+            : undefined;
 
-    useEffect(() => {
-        if (
-            isWebIdentityAuthentication &&
-            !hasAudience &&
-            !disabled &&
-            !isGeneratingAudience &&
-            !createAudience.isError
-        ) {
-            generateAudience();
+    const authenticationTypeInput = form.getInputProps(
+        'warehouse.authenticationType',
+    );
+    const onAuthenticationTypeChange = (value: string | null) => {
+        const isSwitchingWebIdentity =
+            (value === AthenaAuthenticationType.WEB_IDENTITY) !==
+            isWebIdentityAuthentication;
+        // Each mode uses the role differently, so a role set for one must not
+        // carry over to the other.
+        if (isSwitchingWebIdentity) {
+            form.setFieldValue('warehouse.assumeRoleArn', '');
+            form.setFieldValue('warehouse.assumeRoleExternalId', '');
         }
-    }, [
-        isWebIdentityAuthentication,
-        hasAudience,
-        disabled,
-        isGeneratingAudience,
-        createAudience.isError,
-        generateAudience,
-    ]);
+        authenticationTypeInput.onChange(value);
+    };
 
     return (
         <>
@@ -225,13 +208,14 @@ const AthenaForm: FC<{
                                 ? [
                                       {
                                           value: AthenaAuthenticationType.WEB_IDENTITY,
-                                          label: 'Lightdash identity (no keys)',
+                                          label: 'Web Identity (No Keys)',
                                       },
                                   ]
                                 : []),
                         ]}
                         defaultValue={fallbackAuthenticationType}
-                        {...form.getInputProps('warehouse.authenticationType')}
+                        {...authenticationTypeInput}
+                        onChange={onAuthenticationTypeChange}
                         required
                         disabled={disabled}
                     />
@@ -268,39 +252,10 @@ const AthenaForm: FC<{
                 )}
 
                 {isWebIdentityAuthentication && (
-                    <>
-                        <TextInput
-                            name="warehouse.assumeRoleArn"
-                            label="IAM Role ARN"
-                            description="The role Lightdash assumes. Its trust policy must allow accounts.google.com with the audience below."
-                            required
-                            {...form.getInputProps('warehouse.assumeRoleArn')}
-                            placeholder="arn:aws:iam::123456789012:role/lightdash-athena"
-                            disabled={disabled}
-                        />
-                        <TextInput
-                            label="Audience"
-                            description="Use this as accounts.google.com:oaud in the role's trust policy. Lightdash support gives you the subject. A new audience stops this connection until you update the trust policy."
-                            value={warehouse.webIdentityAudience ?? ''}
-                            placeholder={
-                                isGeneratingAudience ? 'Generating…' : undefined
-                            }
-                            readOnly
-                            rightSection={
-                                <Tooltip label="Generate new audience">
-                                    <ActionIcon
-                                        variant="subtle"
-                                        loading={isGeneratingAudience}
-                                        disabled={disabled}
-                                        onClick={() => generateAudience()}
-                                        aria-label="Generate new audience"
-                                    >
-                                        <MantineIcon icon={IconRefresh} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            }
-                        />
-                    </>
+                    <AthenaWebIdentityFields
+                        disabled={disabled}
+                        savedAudience={savedAudience}
+                    />
                 )}
 
                 <FormSection isOpen={isOpen} name="advanced">
