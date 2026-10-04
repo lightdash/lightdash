@@ -56,6 +56,13 @@ const SLUG_FLAGS: Record<string, Flag> = {
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_SLUGS = 8;
 const MAX_SLUG_LENGTH = 255;
+/**
+ * Said when a slug flag is given something else: the CLI also takes ids and
+ * URLs there, and a learner who pastes one should hear what works here.
+ */
+export const SLUGS_REQUIRED =
+    '--charts and --dashboards take one to eight slugs here (lowercase words joined by hyphens), each flag once, for example: --charts revenue-by-payment-method';
+const rejectSlugs = { ok: false as const, message: SLUGS_REQUIRED };
 
 // Plain object literals inherit `toString`/`constructor`/`__proto__` from
 // Object.prototype, so a naive `RULES[request.tool]` or `tools[subcommand]`
@@ -92,6 +99,7 @@ export const buildArgv = (
     if (!allowed) return reject;
     const argv = [request.tool, request.subcommand];
     const args = [...request.args];
+    const slugKinds = new Set<Flag>();
     while (args.length > 0) {
         const flag = args.shift() as string;
         if (flag === '--select' && allowed.includes('select')) {
@@ -107,14 +115,19 @@ export const buildArgv = (
             while (args.length > 0 && !args[0].startsWith('-')) {
                 slugs.push(args.shift() as string);
             }
+            // Once per kind: the CLI adds a repeated flag's values together,
+            // which would carry more than the eight a flag may name.
+            const kind = SLUG_FLAGS[flag];
             if (
+                slugKinds.has(kind) ||
                 slugs.length === 0 ||
                 slugs.length > MAX_SLUGS ||
                 !slugs.every(
                     (slug) => slug.length <= MAX_SLUG_LENGTH && SLUG.test(slug),
                 )
             )
-                return reject;
+                return rejectSlugs;
+            slugKinds.add(kind);
             argv.push(flag, ...slugs);
         } else if (flag === '--force' && allowed.includes('force')) {
             argv.push(flag);
