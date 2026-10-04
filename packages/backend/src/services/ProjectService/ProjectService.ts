@@ -14407,14 +14407,22 @@ export class ProjectService extends BaseService {
         );
 
         // Samples the copy does not carry over from the training project.
-        // Best effort: a sample that fails to seed leaves the copy usable for
-        // every other walkthrough rather than failing a copy that now exists.
+        // Best effort, each on its own: a sample that fails to seed leaves the
+        // copy usable for every other walkthrough, the other sample included,
+        // rather than failing a copy that now exists.
         try {
             await this.seedSampleDocumentsInCopy(
                 user,
                 projectUuid,
                 training.createdByUserUuid,
             );
+        } catch (error) {
+            Logger.error(
+                `Training copy ${projectUuid}: the sample document could not be seeded`,
+                error,
+            );
+        }
+        try {
             await this.seedTrainingCopyEnterpriseContent?.({
                 organizationUuid: user.organizationUuid,
                 projectUuid,
@@ -14424,7 +14432,7 @@ export class ProjectService extends BaseService {
             // Reported as well as logged: the learner only sees a walkthrough
             // step waiting for a document that is not there.
             Logger.error(
-                `Training copy ${projectUuid}: sample content could not be seeded`,
+                `Training copy ${projectUuid}: the sample knowledge document could not be seeded`,
                 error,
             );
             Sentry.captureException(error);
