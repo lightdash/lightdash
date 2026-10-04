@@ -1,3 +1,10 @@
+# [2.424.0](https://github.com/lightdash/lightdash/compare/2.423.2...2.424.0) (2026-10-04)
+
+
+### Features
+
+* **ai:** attach text documents to agent conversations ([#30317](https://github.com/lightdash/lightdash/issues/30317)) ([b1900e9](https://github.com/lightdash/lightdash/commit/b1900e9eff2a504841f92622610cbc368230ad76))
+
 ## [2.423.2](https://github.com/lightdash/lightdash/compare/2.423.1...2.423.2) (2026-10-02)
 
 
