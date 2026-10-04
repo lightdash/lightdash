@@ -23,6 +23,7 @@ const QUICK_COMMANDS = [
     'dbt parse',
     'lightdash compile',
     'lightdash deploy',
+    'lightdash start-preview',
     'lightdash validate',
 ];
 

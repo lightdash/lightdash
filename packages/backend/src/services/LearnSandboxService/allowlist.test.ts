@@ -1,5 +1,5 @@
 import { LEARN_TERMINAL_SUBCOMMANDS } from '@lightdash/common';
-import { buildArgv, LEARN_TERMINAL_REJECTION } from './allowlist';
+import { buildArgv, LEARN_TERMINAL_REJECTION, toSpawnArgv } from './allowlist';
 
 describe('the shared subcommand list', () => {
     it('is exactly what buildArgv accepts, so the browser and the server agree', () => {
@@ -198,5 +198,47 @@ describe('buildArgv', () => {
             ok: true,
             argv: ['dbt', 'ls', ...args],
         });
+    });
+});
+
+describe('lightdash start-preview', () => {
+    it('is accepted with a selector and stored as typed', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'start-preview',
+                    args: ['--select', 'payments'],
+                },
+                ws,
+            ),
+        ).toEqual({
+            ok: true,
+            argv: ['lightdash', 'start-preview', '--select', 'payments'],
+        });
+    });
+
+    it("refuses --name: the preview is always the learner's own copy", () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'start-preview',
+                    args: ['--name', 'mine'],
+                },
+                ws,
+            ),
+        ).toEqual({ ok: false, message: LEARN_TERMINAL_REJECTION });
+    });
+
+    it('spawns as a deploy to the copy, keeping its flags', () => {
+        expect(
+            toSpawnArgv(['lightdash', 'start-preview', '--select', 'payments']),
+        ).toEqual(['lightdash', 'deploy', '--select', 'payments']);
+        expect(toSpawnArgv(['lightdash', 'deploy'])).toEqual([
+            'lightdash',
+            'deploy',
+        ]);
+        expect(toSpawnArgv(['dbt', 'parse'])).toEqual(['dbt', 'parse']);
     });
 });

@@ -657,6 +657,21 @@ describe('LearnWorkspacePage', () => {
         );
     });
 
+    it('drops the cached explores once a lightdash start-preview has finished', async () => {
+        const user = userEvent.setup();
+        const { invalidateQueries } = renderPage();
+
+        await user.type(
+            screen.getByLabelText('Command'),
+            'lightdash start-preview',
+        );
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(invalidateQueries).toHaveBeenCalledWith(['tables']),
+        );
+    });
+
     it('leaves the cached explores alone when the finished command was not a deploy', async () => {
         const user = userEvent.setup();
         const { invalidateQueries } = renderPage();
