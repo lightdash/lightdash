@@ -1,15 +1,23 @@
 import { WarehouseTypes } from '@lightdash/common';
 import {
+    Alert,
     Button,
     Code,
+    Collapse,
     Group,
     Input,
     Stack,
     Text,
     TextInput,
 } from '@mantine/core';
+import {
+    IconAlertTriangle,
+    IconChevronDown,
+    IconChevronUp,
+} from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
+import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { useFormContext } from '../formContext';
 import {
@@ -17,7 +25,7 @@ import {
     useCreateAwsWebIdentityAudience,
 } from './awsWebIdentityHooks';
 
-const SUBJECT_PLACEHOLDER = '<subject from Lightdash support>';
+const SUBJECT_PLACEHOLDER = '<SUBJECT>';
 
 const buildTrustPolicy = (subject: string, audience: string) =>
     JSON.stringify(
@@ -54,6 +62,7 @@ const AthenaWebIdentityFields: FC<{
             ? warehouse.webIdentityAudience
             : '';
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isPolicyOpen, setIsPolicyOpen] = useState(false);
 
     const identity = useAwsWebIdentity(!disabled);
     const createAudience = useCreateAwsWebIdentityAudience({
@@ -88,6 +97,7 @@ const AthenaWebIdentityFields: FC<{
 
     const subject =
         createAudience.data?.subject ?? identity.data?.subject ?? null;
+    const isSubjectUnavailable = !subject && !identity.isLoading;
     const trustPolicy = buildTrustPolicy(
         subject ?? SUBJECT_PLACEHOLDER,
         audience || '<audience>',
@@ -105,13 +115,21 @@ const AthenaWebIdentityFields: FC<{
 
     return (
         <>
+            {isSubjectUnavailable && (
+                <Alert
+                    color="orange"
+                    icon={<MantineIcon icon={IconAlertTriangle} />}
+                >
+                    Web identity isn&apos;t available on this Lightdash
+                    instance, because it couldn&apos;t read its own identity.
+                    Choose another authentication type, or contact support.
+                </Alert>
+            )}
             <TextInput
                 label="Subject"
                 description="This Lightdash instance's identity. Use it as accounts.google.com:sub and accounts.google.com:aud."
                 value={subject ?? ''}
-                placeholder={
-                    identity.isLoading ? 'Loading…' : 'Ask Lightdash support'
-                }
+                placeholder={identity.isLoading ? 'Loading…' : 'Unavailable'}
                 readOnly
                 rightSection={
                     subject ? (
@@ -165,15 +183,36 @@ const AthenaWebIdentityFields: FC<{
                 label="Trust policy"
                 description="Give this to whoever manages IAM in your AWS account. Paste it in the role's trust policy JSON editor. Don't use the Audience box in the IAM console's role wizard."
             >
-                <Group align="flex-start" gap="xs" wrap="nowrap" mt={4}>
-                    <Code block flex={1} miw={0}>
-                        {trustPolicy}
-                    </Code>
+                <Group gap="xs" mt={4}>
+                    <Button
+                        variant="subtle"
+                        size="compact-sm"
+                        leftSection={
+                            <MantineIcon
+                                icon={
+                                    isPolicyOpen
+                                        ? IconChevronUp
+                                        : IconChevronDown
+                                }
+                            />
+                        }
+                        onClick={() => setIsPolicyOpen((open) => !open)}
+                        aria-expanded={isPolicyOpen}
+                    >
+                        {isPolicyOpen
+                            ? 'Hide trust policy'
+                            : 'Show trust policy'}
+                    </Button>
                     <CopyActionIcon
                         value={trustPolicy}
                         copyLabel="Copy trust policy"
                     />
                 </Group>
+                <Collapse expanded={isPolicyOpen}>
+                    <Code block mt={4}>
+                        {trustPolicy}
+                    </Code>
+                </Collapse>
             </Input.Wrapper>
             <TextInput
                 name="warehouse.assumeRoleArn"
