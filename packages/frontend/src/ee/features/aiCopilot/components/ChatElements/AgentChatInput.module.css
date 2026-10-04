@@ -345,3 +345,29 @@
 .skillMenuItem {
     padding: 6px var(--mantine-spacing-sm);
 }
+
+.dropTarget {
+    position: relative;
+}
+
+/* Covers the composer while files are dragged over the window. */
+.dropOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed var(--mantine-color-ldGray-3);
+    border-radius: rem(24px);
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-body) 80%,
+        var(--mantine-color-default-hover)
+    );
+    pointer-events: auto;
+}
+
+.dropOverlay[data-variant='inline'] {
+    border-radius: rem(18px);
+}
