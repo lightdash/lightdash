@@ -1,0 +1,45 @@
+chartConfig:
+  config:
+    eChartsConfig:
+      series:
+        - encode:
+            xRef:
+              field: payments_payment_method
+            yRef:
+              field: payments_total_revenue
+          type: bar
+          yAxisIndex: 0
+    layout:
+      flipAxes: true
+      xField: payments_payment_method
+      yField:
+        - payments_total_revenue
+  type: cartesian
+contentType: chart
+description: Revenue split across each payment method
+metricQuery:
+  additionalMetrics: []
+  customDimensions: []
+  dimensions:
+    - payments_payment_method
+  exploreName: payments
+  filters: {}
+  limit: 10
+  metricOverrides: {}
+  metrics:
+    - payments_total_revenue
+  sorts:
+    - descending: true
+      fieldId: payments_total_revenue
+  tableCalculations: []
+  timezone: project_timezone
+name: Revenue by payment method
+slug: revenue-by-payment-method
+spaceSlug: training
+tableConfig:
+  columnOrder:
+    - payments_payment_method
+    - payments_total_revenue
+tableName: payments
+verification: null
+version: 1

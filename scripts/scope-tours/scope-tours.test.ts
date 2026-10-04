@@ -3,10 +3,12 @@
  * a temp directory: a small "frontend" with markers and anchors, and a docs
  * page they cite. Run with `npx tsx scripts/scope-tours.test.ts`.
  */
+import { checkContentAsCodeEntry } from '@lightdash/common';
 import * as assert from 'assert';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { replaceLine } from '../../packages/frontend/src/features/learnSandbox/snippetInsertion';
 
 const fixtures = mkdtempSync(path.join(tmpdir(), 'scope-tours-'));
 const docs = path.join(fixtures, 'docs');
@@ -743,7 +745,8 @@ export const Card = () => (
 
     // A lesson becomes a fixed twelve-step tour over the workspace and the explore.
     {
-        const { buildLessonTours, docsCardTitle } = await import('./lib');
+        const { docsCardTitle } = await import('./lib');
+        const { buildLessonTours } = await import('./lessons');
         const files = [
             write('Workspace.tsx', workspace),
             write('Explore.tsx', explore),
@@ -1129,6 +1132,373 @@ export const Card = () => (
         assert.throws(
             () => buildLessonTours([metricsLesson, metricsLesson], files),
             /duplicate lesson id/,
+        );
+    }
+
+    // A content-as-code lesson becomes its scope's walkthrough over the
+    // terminal, the file tree, the editor and All saved charts.
+    {
+        const {
+            buildAllTours,
+            buildContentAsCodeTours,
+            CODE_LESSON_SOURCE,
+            downloadFixture,
+        } = await import('./lessons');
+        mkdirSync(path.join(docs, 'workflow'), { recursive: true });
+        writeFileSync(
+            path.join(docs, 'workflow/content-as-code.mdx'),
+            `---
+title: "Content as code"
+---
+
+## Choosing a workflow
+
+### Disposable editing (recommended)
+
+Treat the downloaded YAML as temporary working files. This keeps the application as your source of truth.
+
+#### Making changes
+
+1. **Edit the YAML files** — make changes to chart files in the \`lightdash/\` directory.
+2. **Upload to the preview** — run \`lightdash upload --force\` to push your changes.
+
+#### CI/CD setup
+
+- **Deploy on merge to main** — run \`lightdash upload --force\` in CI.
+
+## \`lightdash download\`
+
+You can use the command \`lightdash download\` to download charts as code. They are written as .yml files to a \`lightdash\` directory.
+
+## \`lightdash upload\`
+
+\`lightdash upload\` updates any content as code to your project.
+
+You must specify the chart using the chart's SLUG.
+`,
+        );
+        const savedCharts = `
+export const SavedCharts = () => (
+    <div>
+        <a data-tour-nav="browse" data-tour-hint="Click Browse" />
+        <a data-tour-nav="all-charts" data-tour-hint="Open All saved charts" />
+        <a data-tour-anchor="chart-row" data-tour-hint="Open the chart" data-tour-hint-named="Open {value}" data-tour-value="Revenue by payment type" />
+    </div>
+);
+`;
+        const files = [
+            write('CodeWorkspace.tsx', workspace),
+            write('SavedCharts.tsx', savedCharts),
+        ];
+        const page = 'workflow/content-as-code.mdx';
+        const download =
+            'lightdash download --charts revenue-by-payment-method';
+        const viewLesson = {
+            scope: 'view:ContentAsCode',
+            title: 'Download a chart as code',
+            chart: 'revenue-by-payment-method',
+            intro: `${page}#disposable-editing-recommended:1`,
+            download: {
+                command: download,
+                docs: `${page}#lightdash-download:1`,
+                outputDocs: `${page}#lightdash-download:2`,
+            },
+            resultDocs: `${page}#making-changes:li1`,
+        };
+        const createLesson = {
+            scope: 'create:ContentAsCode',
+            title: 'Change a chart in code and upload it',
+            chart: 'revenue-by-payment-method',
+            intro: `${page}#making-changes:li1`,
+            download: { command: download, taughtIn: 'view:ContentAsCode' },
+            edit: {
+                from: 'name: Revenue by payment method',
+                to: 'name: Revenue by payment type',
+            },
+            upload: {
+                command:
+                    'lightdash upload --force --charts revenue-by-payment-method',
+                docs: [`${page}#lightdash-upload:1`, `${page}#lightdash-upload:p2:1`],
+                runDocs: `${page}#cicd-setup:li1`,
+                outputDocs: `${page}#making-changes:li2`,
+            },
+            resultDocs: `${page}#disposable-editing-recommended:2`,
+        };
+        const fileRow =
+            '[data-tour-anchor="workspace-file"][data-tour-value="lightdash/charts/revenue-by-payment-method.yml"]';
+
+        // Download only: intro, the command, its output, the file, and a
+        // closing look at the file in the editor.
+        const [view, create] = buildContentAsCodeTours(
+            [viewLesson, createLesson],
+            files,
+        );
+        assert.strictEqual(view.scope, 'view:ContentAsCode');
+        assert.deepStrictEqual(view.sources, [CODE_LESSON_SOURCE]);
+        assert.deepStrictEqual(
+            view.steps.map((step) => step.title),
+            [
+                'Download a chart as code',
+                'Type the command',
+                'Run the command',
+                'See the result',
+                'Open lightdash/charts/revenue-by-payment-method.yml',
+                'Making changes',
+            ],
+        );
+        assert.strictEqual(view.steps[1].suggestion, download);
+        assert.strictEqual(
+            view.steps[3].busy,
+            '[data-tour-anchor="terminal-running"]',
+        );
+        assert.strictEqual(view.steps[3].retryStep, 1);
+        assert.strictEqual(view.steps[4].target, fileRow);
+        assert.strictEqual(
+            view.steps[5].target,
+            '[data-tour-anchor="workspace-editor"]',
+        );
+        assert.strictEqual(
+            view.steps[0].body,
+            'Treat the downloaded YAML as temporary working files.',
+        );
+
+        // With an edit: the download another lesson teaches is one card
+        // naming it, Use it replaces the name line and Check tests the file,
+        // then the upload, and the chart under its new name.
+        assert.deepStrictEqual(
+            create.steps.map((step) => step.title),
+            [
+                'Change a chart in code and upload it',
+                'Type the command',
+                'Run the command',
+                'Open lightdash/charts/revenue-by-payment-method.yml',
+                'Edit the file',
+                'Type the command',
+                'Run the command',
+                'See the result',
+                'Click Browse',
+                'Open All saved charts',
+                'Disposable editing (recommended)',
+            ],
+        );
+        assert.strictEqual(
+            create.steps[1].body,
+            'First download the chart, as in **Download a chart as code**.',
+        );
+        assert.strictEqual(
+            create.steps[3].busy,
+            '[data-tour-anchor="terminal-running"]',
+        );
+        assert.strictEqual(
+            create.steps[4].suggestion,
+            'name: Revenue by payment type',
+        );
+        assert.deepStrictEqual(create.steps[4].expect, {
+            kind: 'contentAsCode',
+            slug: 'revenue-by-payment-method',
+            name: 'Revenue by payment type',
+        });
+        assert.strictEqual(
+            create.steps[5].suggestion,
+            'lightdash upload --force --charts revenue-by-payment-method',
+        );
+        assert.strictEqual(
+            create.steps[5].body,
+            "**lightdash upload** updates any content as code to your project. You must specify the chart using the chart's SLUG.",
+        );
+        assert.match(create.steps[6].body, /Deploy on merge to main/);
+        // A failed upload goes back to the edit.
+        assert.strictEqual(create.steps[7].retryStep, 4);
+        assert.strictEqual(
+            create.steps[10].target,
+            '[data-tour-anchor="chart-row"][data-tour-value="Revenue by payment type"]',
+        );
+        assert.deepStrictEqual(create.steps[10].via, [
+            '[data-tour-nav="browse"]',
+            '[data-tour-nav="all-charts"]',
+        ]);
+        assert.strictEqual(
+            create.steps[10].route,
+            '/projects/:projectUuid/saved',
+        );
+
+        // The checker finds nothing wrong with either.
+        const errors = checkTours(files, [], [viewLesson, createLesson]).filter(
+            (f) => f.level === 'error',
+        );
+        assert.deepStrictEqual(errors, [], JSON.stringify(errors, null, 2));
+
+        // The committed download fixture round-trips: Use it's edit passes
+        // Check, an edited slug does not.
+        const fixture = downloadFixture('revenue-by-payment-method');
+        assert.ok(fixture, 'the revenue-by-payment-method fixture is committed');
+        assert.ok(
+            fixture.split('\n').includes('name: Revenue by payment method'),
+        );
+        const renamed = replaceLine(fixture, 'name: Revenue by payment type');
+        const expected = {
+            slug: 'revenue-by-payment-method',
+            name: 'Revenue by payment type',
+        };
+        assert.strictEqual(checkContentAsCodeEntry(renamed, expected), null);
+        assert.notStrictEqual(checkContentAsCodeEntry(fixture, expected), null);
+        assert.match(
+            checkContentAsCodeEntry(
+                renamed.replace(
+                    'slug: revenue-by-payment-method',
+                    'slug: revenue-by-payment-type',
+                ),
+                expected,
+            ) ?? '',
+            /Keep the slug/,
+        );
+
+        // A lesson is validated before anything is built.
+        const fails = (lessons: unknown[], pattern: RegExp) =>
+            assert.throws(
+                () =>
+                    buildContentAsCodeTours(
+                        lessons as (typeof viewLesson)[],
+                        files,
+                    ),
+                pattern,
+            );
+        fails([{ ...viewLesson, chart: 'no-such-chart' }], /not a seeded chart/);
+        fails([{ ...viewLesson, scope: 'view:Nothing' }], /unknown scope/);
+        fails(
+            [
+                {
+                    ...viewLesson,
+                    download: {
+                        ...viewLesson.download,
+                        command: 'lightdash download --charts Revenue',
+                    },
+                },
+            ],
+            /refuses/,
+        );
+        fails(
+            [
+                {
+                    ...viewLesson,
+                    download: {
+                        ...viewLesson.download,
+                        command: 'lightdash download --project abc',
+                    },
+                },
+            ],
+            /refuses/,
+        );
+        fails(
+            [
+                {
+                    ...viewLesson,
+                    download: {
+                        ...viewLesson.download,
+                        command: 'lightdash download --charts top-customers',
+                    },
+                },
+            ],
+            /must name the chart/,
+        );
+        fails(
+            [
+                {
+                    ...viewLesson,
+                    download: {
+                        ...viewLesson.download,
+                        command:
+                            'lightdash upload --charts revenue-by-payment-method',
+                    },
+                },
+            ],
+            /must be lightdash download/,
+        );
+        fails(
+            [
+                viewLesson,
+                {
+                    ...createLesson,
+                    edit: { ...createLesson.edit, from: 'name: Something else' },
+                },
+            ],
+            /has no line "name: Something else"/,
+        );
+        fails(
+            [
+                viewLesson,
+                {
+                    ...createLesson,
+                    edit: { ...createLesson.edit, to: 'slug: renamed' },
+                },
+            ],
+            /plain name: line/,
+        );
+        // The new name goes into the closing step's selector.
+        fails(
+            [
+                viewLesson,
+                {
+                    ...createLesson,
+                    edit: { ...createLesson.edit, to: 'name: Revenue "by" type' },
+                },
+            ],
+            /plain name: line/,
+        );
+        fails(
+            [
+                viewLesson,
+                {
+                    ...createLesson,
+                    upload: {
+                        ...createLesson.upload,
+                        command: 'lightdash upload --force',
+                    },
+                },
+            ],
+            /must name the chart/,
+        );
+        fails([createLesson], /taughtIn must name another lesson/);
+        fails(
+            [
+                viewLesson,
+                {
+                    ...createLesson,
+                    download: {
+                        ...createLesson.download,
+                        docs: `${page}#lightdash-download:1`,
+                    },
+                },
+            ],
+            /not explained again/,
+        );
+        fails(
+            [{ ...viewLesson, download: { command: download } }],
+            /needs docs and outputDocs/,
+        );
+        fails(
+            [viewLesson, { ...createLesson, upload: undefined }],
+            /come together/,
+        );
+        fails([viewLesson, viewLesson], /duplicate lesson/);
+
+        // A content-as-code lesson is its scope's walkthrough: markers must
+        // not describe one for the same scope.
+        assert.throws(
+            () =>
+                buildAllTours(
+                    [
+                        ...files,
+                        write('CodeNav.tsx', nav('Click Browse')),
+                        write(
+                            'CodePin.tsx',
+                            marker('explore/homepage.mdx#pin-content:2'),
+                        ),
+                    ],
+                    [],
+                    [{ ...viewLesson, scope: 'manage:PinnedItems' }],
+                ),
+            /manage:PinnedItems already has a walkthrough from markers/,
         );
     }
 

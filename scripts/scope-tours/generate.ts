@@ -107,11 +107,17 @@
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { CONTENT_AS_CODE_LESSONS } from '../../packages/frontend/src/features/learn/codeLessons';
 import { SANDBOX_LESSONS } from '../../packages/frontend/src/features/learn/sandboxLessons';
-import { buildTours, outputPath, root } from './lib';
+import { buildAllTours } from './lessons';
+import { outputPath, root } from './lib';
 
 const main = () => {
-    const { tours, markers } = buildTours(undefined, SANDBOX_LESSONS);
+    const { tours, markers } = buildAllTours(
+        undefined,
+        SANDBOX_LESSONS,
+        CONTENT_AS_CODE_LESSONS,
+    );
     const body = tours
         .map(
             (tour) =>

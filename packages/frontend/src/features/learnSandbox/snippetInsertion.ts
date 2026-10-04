@@ -95,3 +95,39 @@ export const holdsEntry = (content: string, snippet: string): boolean => {
         content.split('\n').some((line) => line.trim() === entry)
     );
 };
+
+/**
+ * Where a one-line edit lands: a content-as-code lesson sets one top-level
+ * `key: value` line of a downloaded file (a chart's `name:`) to a new value.
+ * The line is replaced whole, wherever the key sits; null when the file has
+ * no such top-level key, or the line already reads that way.
+ */
+export const replacementFor = (
+    content: string,
+    line: string,
+): { from: number; to: number; text: string } | null => {
+    const key = /^([A-Za-z_][\w-]*):\s/.exec(line)?.[1];
+    if (!key || line.includes('\n')) return null;
+    const sameKey = new RegExp(`^${escapeRegExp(key)}:(?:\\s|$)`);
+    let offset = 0;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const current of content.split('\n')) {
+        if (sameKey.test(current)) {
+            return current === line
+                ? null
+                : { from: offset, to: offset + current.length, text: line };
+        }
+        offset += current.length + 1;
+    }
+    return null;
+};
+
+/** The file with that one line set, as Use it leaves it. */
+export const replaceLine = (content: string, line: string): string => {
+    const replacement = replacementFor(content, line);
+    return replacement
+        ? content.slice(0, replacement.from) +
+              replacement.text +
+              content.slice(replacement.to)
+        : content;
+};

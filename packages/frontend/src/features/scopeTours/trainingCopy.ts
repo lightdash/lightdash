@@ -1,6 +1,7 @@
 import { type CreateTrainingPreviewResults } from '@lightdash/common';
 import { NavigationType } from 'react-router';
 import { lightdashApi } from '../../api';
+import { hasCodeLesson } from '../learn/codeLessons';
 
 /** A learner's own fresh copy of the training project, for one walkthrough. */
 export const createTrainingPreview = (trainingProjectUuid: string) =>
@@ -17,8 +18,13 @@ export const deleteTrainingPreviews = (trainingProjectUuid: string) =>
         body: undefined,
     });
 
-/** Docs lessons run on the workspace page; scope walkthroughs start at home. */
-export const isDocsModule = (scope: string) => scope.startsWith('docs:');
+/**
+ * Lessons run on the workspace page (docs lessons, and the content-as-code
+ * lessons that are their scopes' walkthroughs); other walkthroughs start at
+ * home.
+ */
+export const opensInWorkspace = (scope: string) =>
+    scope.startsWith('docs:') || hasCodeLesson(scope);
 
 /** The URL that opens a walkthrough inside a copy, straight from anywhere. */
 export const tourUrlInCopy = (
@@ -27,7 +33,7 @@ export const tourUrlInCopy = (
     from: 'learn' | 'home',
 ) =>
     `/projects/${copyProjectUuid}/${
-        isDocsModule(scope) ? 'learn/workspace' : 'home'
+        opensInWorkspace(scope) ? 'learn/workspace' : 'home'
     }?tour=${encodeURIComponent(scope)}&copy=1${
         from === 'learn' ? '&from=learn' : ''
     }`;

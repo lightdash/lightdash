@@ -1,6 +1,8 @@
 import {
     chartAsCodeSchema,
+    checkContentAsCodeEntry,
     checkLearnLessonEntry,
+    isContentAsCodeExpectation,
     findYamlKeyTypos,
     type LearnLessonExpectation,
     lightdashDbtYamlSchema,
@@ -27,7 +29,12 @@ import {
 } from '../sqlRunner/utils/monaco';
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
-import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
+import {
+    holdsEntry,
+    insertSnippet,
+    insertionPoint,
+    replacementFor,
+} from './snippetInsertion';
 import {
     CHART_SCHEMA_FILE_MATCH,
     DASHBOARD_SCHEMA_FILE_MATCH,
@@ -199,6 +206,55 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             // press Use it again without doubling the metric.
             if (typingRef.current) return;
             const before = model.getValue();
+            // A content-as-code lesson's edit sets one top-level line (a
+            // chart's `name:`) rather than adding lines: it is replaced in
+            // one edit and highlighted like an insertion.
+            const replacement = replacementFor(before, value);
+            if (replacement) {
+                const from = model.getPositionAt(replacement.from);
+                const to = model.getPositionAt(replacement.to);
+                ed.executeEdits('learn-tour', [
+                    {
+                        range: {
+                            startLineNumber: from.lineNumber,
+                            startColumn: from.column,
+                            endLineNumber: to.lineNumber,
+                            endColumn: to.column,
+                        },
+                        text: replacement.text,
+                        forceMoveMarkers: true,
+                    },
+                ]);
+                report(model.getValue());
+                ed.setPosition({
+                    lineNumber: from.lineNumber,
+                    column: replacement.text.length + 1,
+                });
+                ed.revealLineInCenter(from.lineNumber);
+                const changed = ed.createDecorationsCollection([
+                    {
+                        range: {
+                            startLineNumber: from.lineNumber,
+                            startColumn: 1,
+                            endLineNumber: from.lineNumber,
+                            endColumn: 1,
+                        },
+                        options: {
+                            isWholeLine: true,
+                            className: styles.tourInsert,
+                        },
+                    },
+                ]);
+                window.setTimeout(
+                    () => changed.clear(),
+                    TOUR_INSERT_HIGHLIGHT_MS,
+                );
+                wrapperRef.current?.dispatchEvent(
+                    new Event('input', { bubbles: true }),
+                );
+                ed.focus();
+                return;
+            }
             const point = insertionPoint(before, value);
             if (before.includes(point.text)) return;
             // What the file must read once the snippet is in, whatever happens
@@ -386,11 +442,13 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                     // project; a step that carries none falls back to
                     // looking for the snippet's entry line.
                     check: (suggestion, expect) =>
-                        isLessonExpectation(expect)
-                            ? checkLearnLessonEntry(ed.getValue(), expect)
-                            : holdsEntry(ed.getValue(), suggestion)
-                              ? null
-                              : 'Add the highlighted lines, then check again',
+                        isContentAsCodeExpectation(expect)
+                            ? checkContentAsCodeEntry(ed.getValue(), expect)
+                            : isLessonExpectation(expect)
+                              ? checkLearnLessonEntry(ed.getValue(), expect)
+                              : holdsEntry(ed.getValue(), suggestion)
+                                ? null
+                                : 'Add the highlighted lines, then check again',
                 };
             }
             ed.onDidBlurEditorText(() => onBlurRef.current());
