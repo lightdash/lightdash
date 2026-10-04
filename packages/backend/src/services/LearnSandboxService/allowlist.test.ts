@@ -75,13 +75,18 @@ describe('buildArgv', () => {
             buildArgv({ tool: 'dbt', subcommand: 'parse', args: [] }, ws),
         ).toEqual({ ok: true, argv: ['dbt', 'parse'] });
     });
-    it('accepts download with charts and a path inside the workspace', () => {
+    it('accepts download with a chart slug and a path inside the workspace', () => {
         expect(
             buildArgv(
                 {
                     tool: 'lightdash',
                     subcommand: 'download',
-                    args: ['--charts', '--path', 'lightdash/charts'],
+                    args: [
+                        '--charts',
+                        'revenue-by-payment-method',
+                        '--path',
+                        'lightdash/charts',
+                    ],
                 },
                 ws,
             ),
@@ -91,8 +96,59 @@ describe('buildArgv', () => {
                 'lightdash',
                 'download',
                 '--charts',
+                'revenue-by-payment-method',
                 '--path',
                 'lightdash/charts',
+            ],
+        });
+    });
+    it('accepts short flags and several slugs, as the CLI does', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'download',
+                    args: [
+                        '-c',
+                        'orders-over-time',
+                        'top-customers',
+                        '-d',
+                        'jaffle-shop-overview',
+                    ],
+                },
+                ws,
+            ),
+        ).toEqual({
+            ok: true,
+            argv: [
+                'lightdash',
+                'download',
+                '-c',
+                'orders-over-time',
+                'top-customers',
+                '-d',
+                'jaffle-shop-overview',
+            ],
+        });
+    });
+    it('accepts --force on upload', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'upload',
+                    args: ['--force', '--charts', 'revenue-by-payment-method'],
+                },
+                ws,
+            ),
+        ).toEqual({
+            ok: true,
+            argv: [
+                'lightdash',
+                'upload',
+                '--force',
+                '--charts',
+                'revenue-by-payment-method',
             ],
         });
     });
@@ -112,6 +168,71 @@ describe('buildArgv', () => {
         });
     });
     it.each([
+        [
+            'bare --charts',
+            { tool: 'lightdash', subcommand: 'download', args: ['--charts'] },
+        ],
+        ['bare -d', { tool: 'lightdash', subcommand: 'upload', args: ['-d'] }],
+        [
+            '--force on download',
+            {
+                tool: 'lightdash',
+                subcommand: 'download',
+                args: ['--force', '--charts', 'orders-over-time'],
+            },
+        ],
+        [
+            'a slug that looks like a flag',
+            {
+                tool: 'lightdash',
+                subcommand: 'download',
+                args: ['--charts', '-x'],
+            },
+        ],
+        [
+            'an uppercase slug',
+            {
+                tool: 'lightdash',
+                subcommand: 'download',
+                args: ['--charts', 'Orders'],
+            },
+        ],
+        [
+            'a slug with a slash',
+            {
+                tool: 'lightdash',
+                subcommand: 'download',
+                args: ['--charts', 'charts/orders'],
+            },
+        ],
+        [
+            'a slug that walks up',
+            { tool: 'lightdash', subcommand: 'upload', args: ['-c', '..'] },
+        ],
+        [
+            'more than eight slugs',
+            {
+                tool: 'lightdash',
+                subcommand: 'download',
+                args: ['--charts', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+            },
+        ],
+        [
+            'a slug over 255 characters',
+            {
+                tool: 'lightdash',
+                subcommand: 'download',
+                args: ['--charts', 'a'.repeat(256)],
+            },
+        ],
+        [
+            'charts on compile',
+            {
+                tool: 'lightdash',
+                subcommand: 'compile',
+                args: ['--charts', 'orders-over-time'],
+            },
+        ],
         ['unknown tool', { tool: 'bash' as never, subcommand: 'x', args: [] }],
         ['dbt run', { tool: 'dbt', subcommand: 'run', args: [] }],
         ['dbt seed', { tool: 'dbt', subcommand: 'seed', args: [] }],

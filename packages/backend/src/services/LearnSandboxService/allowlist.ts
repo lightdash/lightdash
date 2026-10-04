@@ -13,7 +13,7 @@ export { LEARN_TERMINAL_REJECTION };
 // parser/argv, so it's rejected outright rather than parsed.
 const MAX_ARGS = 16;
 
-type Flag = 'select' | 'charts' | 'dashboards' | 'path' | 'name';
+type Flag = 'select' | 'charts' | 'dashboards' | 'path' | 'name' | 'force';
 // Keys are the shared LEARN_TERMINAL_SUBCOMMANDS; the test pins the two together.
 const RULES: Record<'lightdash' | 'dbt', Record<string, Flag[]>> = {
     lightdash: {
@@ -26,7 +26,9 @@ const RULES: Record<'lightdash' | 'dbt', Record<string, Flag[]>> = {
         validate: [],
         lint: [],
         download: ['charts', 'dashboards', 'path'],
-        upload: ['charts', 'dashboards', 'path'],
+        // --force: each sandbox command rebuilds its files, so the CLI's
+        // timestamp-based change detection cannot tell an edit from a copy.
+        upload: ['charts', 'dashboards', 'path', 'force'],
     },
     // dbt parse takes no selector (dbt answers "No such option '--select'"),
     // so offering one would only trade our refusal for dbt's usage error.
@@ -41,6 +43,19 @@ const PREVIEW_NAME = /^[A-Za-z0-9][A-Za-z0-9 ._:-]{0,63}$/;
 /** The CLI's own words for a start-preview without a name, plus a way out. */
 export const PREVIEW_NAME_REQUIRED =
     '--name argument is required, for example: lightdash start-preview --name my-preview';
+
+// `--charts`/`--dashboards` (and `-c`/`-d`) take one or more content slugs,
+// as the CLI does. A slug is lowercase words joined by hyphens, so no value
+// can be a path, a flag or a shell word.
+const SLUG_FLAGS: Record<string, Flag> = {
+    '--charts': 'charts',
+    '-c': 'charts',
+    '--dashboards': 'dashboards',
+    '-d': 'dashboards',
+};
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MAX_SLUGS = 8;
+const MAX_SLUG_LENGTH = 255;
 
 // Plain object literals inherit `toString`/`constructor`/`__proto__` from
 // Object.prototype, so a naive `RULES[request.tool]` or `tools[subcommand]`
@@ -85,9 +100,23 @@ export const buildArgv = (
                 return reject;
             argv.push(flag, value);
         } else if (
-            (flag === '--charts' || flag === '--dashboards') &&
-            allowed.includes(flag.slice(2) as Flag)
+            hasOwn(SLUG_FLAGS, flag) &&
+            allowed.includes(SLUG_FLAGS[flag])
         ) {
+            const slugs: string[] = [];
+            while (args.length > 0 && !args[0].startsWith('-')) {
+                slugs.push(args.shift() as string);
+            }
+            if (
+                slugs.length === 0 ||
+                slugs.length > MAX_SLUGS ||
+                !slugs.every(
+                    (slug) => slug.length <= MAX_SLUG_LENGTH && SLUG.test(slug),
+                )
+            )
+                return reject;
+            argv.push(flag, ...slugs);
+        } else if (flag === '--force' && allowed.includes('force')) {
             argv.push(flag);
         } else if (flag === '--name' && allowed.includes('name')) {
             const value = args.shift();
