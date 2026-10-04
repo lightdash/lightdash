@@ -7,6 +7,7 @@ import { AiUsageLedgerModel } from './AiUsageLedgerModel';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
+import { AwsWebIdentityAudienceModel } from './AwsWebIdentityAudienceModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { ContentAsCodeProjectSettingsModel } from './ContentAsCodeProjectSettingsModel';
@@ -171,6 +172,7 @@ export type ModelManifest = {
     spaceModel: SpaceModel;
     spacePermissionModel: SpacePermissionModel;
     sshKeyPairModel: SshKeyPairModel;
+    awsWebIdentityAudienceModel: AwsWebIdentityAudienceModel;
     userAttributesModel: UserAttributesModel;
     userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
@@ -928,6 +930,13 @@ export class ModelRepository
         return this.getModel(
             'spacePermissionModel',
             () => new SpacePermissionModel(this.database),
+        );
+    }
+
+    public getAwsWebIdentityAudienceModel(): AwsWebIdentityAudienceModel {
+        return this.getModel(
+            'awsWebIdentityAudienceModel',
+            () => new AwsWebIdentityAudienceModel({ database: this.database }),
         );
     }
 

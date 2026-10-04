@@ -208,7 +208,6 @@ export {
     DEFAULT_PROJECT_DBT_SOURCE_NAME,
     DbtProjectType,
     DbtVersionOptionLatest,
-    getAwsWebIdentityAudience,
     usesAwsWebIdentity,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
@@ -369,6 +368,7 @@ export * from './types/space';
 export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
+export * from './types/awsWebIdentity';
 export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';

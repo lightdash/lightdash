@@ -24,7 +24,6 @@ import {
     ExploreType,
     ExternalSourceScope,
     generateSlug,
-    getAwsWebIdentityAudience,
     getErrorMessage,
     getExploreSplitCandidates,
     getLtreePathFromSlug,
@@ -70,6 +69,7 @@ import {
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     USER_MANAGED_EXPLORE_TYPES,
+    usesAwsWebIdentity,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
@@ -217,6 +217,7 @@ import {
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
     remapRowBinding,
@@ -501,11 +502,16 @@ export class ProjectModel {
 
     private connectionRouter: WarehouseConnectionRouter;
 
+    private awsWebIdentityAudienceModel: AwsWebIdentityAudienceModel;
+
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
         this.connectionRouter = new WarehouseConnectionRouter({
+            database: args.database,
+        });
+        this.awsWebIdentityAudienceModel = new AwsWebIdentityAudienceModel({
             database: args.database,
         });
     }
@@ -7283,21 +7289,48 @@ export class ProjectModel {
 
     /**
      * Identity options for warehouse clients that authenticate as this
-     * instance. Derived from the organization that owns the connection, never
-     * from credentials, so one organization can't use another's identity.
+     * instance. The credentials name an audience; it is only used when it was
+     * generated for the organization that owns the connection, so a
+     * connection can't use another organization's audience.
      */
-    getWarehouseClientIdentityOptions(
+    async getWarehouseClientIdentityOptions(
+        credentials: CreateWarehouseCredentials | undefined,
         organizationUuid: string | undefined,
-    ): Pick<WarehouseClientOptions, 'awsWebIdentity'> {
+    ): Promise<
+        Pick<
+            WarehouseClientOptions,
+            'awsWebIdentity' | 'awsWebIdentityUnavailableReason'
+        >
+    > {
+        if (!usesAwsWebIdentity(credentials)) return {};
+        if (!this.lightdashConfig.athenaWarehouseWebIdentityAuth.enabled) {
+            return {
+                awsWebIdentityUnavailableReason:
+                    'Web identity authentication is not enabled on this Lightdash instance.',
+            };
+        }
+        const audience =
+            credentials?.type === WarehouseTypes.ATHENA
+                ? credentials.webIdentityAudience
+                : undefined;
+        const audienceOrganizationUuid = audience
+            ? await this.awsWebIdentityAudienceModel.getOrganizationUuid(
+                  audience,
+              )
+            : null;
         if (
+            !audience ||
             !organizationUuid ||
-            !this.lightdashConfig.athenaWarehouseWebIdentityAuth.enabled
+            audienceOrganizationUuid !== organizationUuid
         ) {
-            return {};
+            return {
+                awsWebIdentityUnavailableReason:
+                    "This connection has no valid audience for your organization. Generate a new audience in the connection settings and add it to your role's trust policy.",
+            };
         }
         return {
             awsWebIdentity: {
-                audience: getAwsWebIdentityAudience(organizationUuid),
+                audience,
                 roleSessionName: `lightdash-${organizationUuid}`,
             },
         };
@@ -7306,18 +7339,13 @@ export class ProjectModel {
     // Easier to mock in ProjectService
     getWarehouseClientFromCredentials(
         credentials: CreateWarehouseCredentials,
-        options?: Omit<WarehouseClientOptions, 'awsWebIdentity'> & {
-            // The organization that owns the connection.
-            organizationUuid?: string;
-        },
+        options?: Parameters<typeof warehouseClientFromCredentials>[1],
     ) {
-        const { organizationUuid, ...clientOptions } = options ?? {};
         return warehouseClientFromCredentials(credentials, {
             // The client is shared by all concurrent async query jobs
             maxOpenConnections:
                 this.lightdashConfig.natsWorker.workerConcurrency,
-            ...clientOptions,
-            ...this.getWarehouseClientIdentityOptions(organizationUuid),
+            ...options,
         });
     }
 

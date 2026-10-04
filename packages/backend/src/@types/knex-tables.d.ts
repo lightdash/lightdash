@@ -29,6 +29,10 @@ import {
     AppVersionsTableName,
 } from '../database/entities/apps';
 import {
+    AwsWebIdentityAudiencesTable,
+    AwsWebIdentityAudiencesTableName,
+} from '../database/entities/awsWebIdentityAudiences';
+import {
     CatalogTable,
     CatalogTableName,
     CatalogTagsTable,
@@ -801,6 +805,7 @@ declare module 'knex/types/tables' {
         [GroupMembershipTableName]: GroupMembershipTable;
         [HeadlessBrowserLoginGrantsTableName]: HeadlessBrowserLoginGrantTable;
         [SshKeyPairTableName]: SshKeyPairTable;
+        [AwsWebIdentityAudiencesTableName]: AwsWebIdentityAudiencesTable;
         [UserAttributesTable]: UserAttributeTable;
         [OrganizationMemberUserAttributesTable]: OrganizationMemberUserAttributeTable;
         [GroupUserAttributesTable]: GroupUserAttributeTable;

@@ -264,13 +264,13 @@ describe('AthenaWarehouseClient', () => {
             expect(mockFromTemporaryCredentials).not.toHaveBeenCalled();
         });
 
-        test('should ignore an audience in the credentials', async () => {
+        test('should use the server-checked audience, not the credentials field', async () => {
             // eslint-disable-next-line no-new
             new AthenaWarehouseClient(
                 {
                     ...webIdentityCredentials,
                     webIdentityAudience: 'lightdash:org-b',
-                } as CreateAthenaCredentials,
+                },
                 { awsWebIdentity },
             );
 
@@ -290,6 +290,18 @@ describe('AthenaWarehouseClient', () => {
             );
             expect(fetchMock).not.toHaveBeenCalled();
             expect(mockFromWebToken).not.toHaveBeenCalled();
+        });
+
+        test('should report why the server refused the identity', async () => {
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(webIdentityCredentials, {
+                awsWebIdentityUnavailableReason: 'No valid audience',
+            });
+
+            await expect(getCredentialProvider()()).rejects.toThrow(
+                'No valid audience',
+            );
+            expect(fetchMock).not.toHaveBeenCalled();
         });
 
         test('should explain an AWS access denied error', async () => {

@@ -152,6 +152,7 @@ import {
 import { type ApiGetSpotlightTableConfig } from './api/spotlight';
 import { type ApiSuccessEmpty } from './api/success';
 import { type Account } from './auth';
+import { type ApiAwsWebIdentityAudienceResponse } from './awsWebIdentity';
 import { type BigqueryProjectRecommendation } from './bigQuerySSO';
 import {
     type ApiCatalogAnalyticsResults,
@@ -1488,6 +1489,7 @@ type ApiResults =
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results']
+    | ApiAwsWebIdentityAudienceResponse['results']
     | MostPopularAndRecentlyUpdated
     | ApiCalculateTotalResponse['results']
     | Record<string, DbtExposure>

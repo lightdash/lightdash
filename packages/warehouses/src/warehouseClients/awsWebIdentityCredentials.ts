@@ -10,7 +10,7 @@ const METADATA_TIMEOUT_MS = 5_000;
 const MAX_ROLE_SESSION_NAME_LENGTH = 64;
 
 export type AwsWebIdentityOptions = {
-    /** Server-derived audience, see getAwsWebIdentityAudience. */
+    /** An audience the server has checked belongs to the connection's organization. */
     audience: string;
     /** Shown in the customer's CloudTrail as the assumed role session. */
     roleSessionName: string;
@@ -59,17 +59,20 @@ export const awsWebIdentityCredentialProvider = ({
     roleArn,
     region,
     webIdentity,
+    unavailableReason,
 }: {
     roleArn: string | undefined;
     region: string;
     webIdentity: AwsWebIdentityOptions | undefined;
+    unavailableReason?: string;
 }): AwsCredentialIdentityProvider => {
     // Fail when credentials are first needed rather than at construction, so
     // a client used only for SQL generation still works.
     if (!webIdentity) {
         return async () => {
             throw new WarehouseConnectionError(
-                'Web identity authentication is not enabled on this Lightdash instance.',
+                unavailableReason ??
+                    'Web identity authentication is not enabled on this Lightdash instance.',
             );
         };
     }

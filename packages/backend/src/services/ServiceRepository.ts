@@ -25,6 +25,7 @@ import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProj
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
+import { AwsWebIdentityService } from './AwsWebIdentityService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
@@ -159,6 +160,7 @@ interface ServiceManifest {
     shareService: ShareService;
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
+    awsWebIdentityService: AwsWebIdentityService;
     spacePermissionService: SpacePermissionService;
     spaceService: SpaceService;
     unfurlService: UnfurlService;
@@ -1293,6 +1295,18 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     shareModel: this.models.getShareModel(),
+                }),
+        );
+    }
+
+    public getAwsWebIdentityService(): AwsWebIdentityService {
+        return this.getService(
+            'awsWebIdentityService',
+            () =>
+                new AwsWebIdentityService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    awsWebIdentityAudienceModel:
+                        this.models.getAwsWebIdentityAudienceModel(),
                 }),
         );
     }

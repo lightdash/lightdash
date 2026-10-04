@@ -304,8 +304,11 @@ export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
 }
 
 export type AthenaWarehouseClientOptions = {
-    // Set by the server for web identity auth; never read from credentials.
+    // Set by the server for web identity auth after it checks the
+    // credentials' audience belongs to the connection's organization.
     awsWebIdentity?: AwsWebIdentityOptions;
+    // Why web identity auth can't be used, when the server refused it.
+    awsWebIdentityUnavailableReason?: string;
 };
 
 const POLL_INTERVAL_MS = 500;
@@ -358,6 +361,7 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                     roleArn: credentials.assumeRoleArn,
                     region: credentials.region,
                     webIdentity: options?.awsWebIdentity,
+                    unavailableReason: options?.awsWebIdentityUnavailableReason,
                 });
             } else if (credentials.assumeRoleArn) {
                 // Wrap with assume role if configured

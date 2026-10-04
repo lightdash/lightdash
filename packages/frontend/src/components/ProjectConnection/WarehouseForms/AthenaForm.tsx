@@ -1,19 +1,22 @@
+import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
-    AthenaAuthenticationType,
-    getAwsWebIdentityAudience,
-    WarehouseTypes,
-} from '@lightdash/common';
-import { TextInput, Stack, Anchor, Select, PasswordInput } from '@mantine/core';
+    TextInput,
+    Stack,
+    Anchor,
+    Select,
+    PasswordInput,
+    Button,
+} from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
+import { useCreateAwsWebIdentityAudience } from './awsWebIdentityHooks';
 import { AthenaDefaultValues } from './defaultValues';
 
 export const AthenaSchemaInput: FC<{
@@ -42,7 +45,6 @@ const AthenaForm: FC<{
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const health = useHealth();
-    const { data: organization } = useOrganization();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.ATHENA;
     const form = useFormContext();
@@ -104,6 +106,34 @@ const AthenaForm: FC<{
         authenticationType === AthenaAuthenticationType.ACCESS_KEY;
     const isWebIdentityAuthentication =
         authenticationType === AthenaAuthenticationType.WEB_IDENTITY;
+
+    const createAudience = useCreateAwsWebIdentityAudience({
+        onSuccess: ({ audience }) => {
+            form.setFieldValue('warehouse.webIdentityAudience', audience);
+        },
+    });
+    const { mutate: generateAudience, isLoading: isGeneratingAudience } =
+        createAudience;
+    const hasAudience = !!warehouse.webIdentityAudience;
+
+    useEffect(() => {
+        if (
+            isWebIdentityAuthentication &&
+            !hasAudience &&
+            !disabled &&
+            !isGeneratingAudience &&
+            !createAudience.isError
+        ) {
+            generateAudience();
+        }
+    }, [
+        isWebIdentityAuthentication,
+        hasAudience,
+        disabled,
+        isGeneratingAudience,
+        createAudience.isError,
+        generateAudience,
+    ]);
 
     return (
         <>
@@ -243,15 +273,24 @@ const AthenaForm: FC<{
                         />
                         <TextInput
                             label="Audience"
-                            description="Use this as accounts.google.com:oaud in the role's trust policy. Lightdash support gives you the subject."
-                            value={
-                                organization
-                                    ? getAwsWebIdentityAudience(
-                                          organization.organizationUuid,
-                                      )
-                                    : ''
+                            description="Use this as accounts.google.com:oaud in the role's trust policy. Lightdash support gives you the subject. A new audience stops this connection until you update the trust policy."
+                            value={warehouse.webIdentityAudience ?? ''}
+                            placeholder={
+                                isGeneratingAudience ? 'Generating…' : undefined
                             }
                             readOnly
+                            rightSectionWidth={170}
+                            rightSection={
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    loading={isGeneratingAudience}
+                                    disabled={disabled}
+                                    onClick={() => generateAudience()}
+                                >
+                                    Generate new audience
+                                </Button>
+                            }
                         />
                     </>
                 )}

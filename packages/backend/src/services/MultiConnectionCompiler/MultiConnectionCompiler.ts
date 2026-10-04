@@ -159,6 +159,7 @@ export class MultiConnectionCompiler {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         return this.projectModel.getWarehouseClientIdentityOptions(
+            credentials,
             organizationUuid,
         );
     }

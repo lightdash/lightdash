@@ -3235,16 +3235,20 @@ export class ProjectService extends BaseService {
                 (projectUuids.length === 0 &&
                     emptyAllowlistEnablesAllProjects));
         // Only web identity auth needs the owning organization.
-        const organizationUuid = usesAwsWebIdentity(credentialsWithOverrides)
-            ? (await this.projectModel.getSummary(projectUuid)).organizationUuid
-            : undefined;
+        const identityOptions = usesAwsWebIdentity(credentialsWithOverrides)
+            ? await this.projectModel.getWarehouseClientIdentityOptions(
+                  credentialsWithOverrides,
+                  (await this.projectModel.getSummary(projectUuid))
+                      .organizationUuid,
+              )
+            : {};
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithOverrides,
             {
                 enableInstanceCache,
                 projectUuid,
                 logger: this.logger,
-                organizationUuid,
+                ...identityOptions,
             },
         );
         this.warehouseClients[cacheKey] = client;
@@ -5513,6 +5517,11 @@ export class ProjectService extends BaseService {
                             'Athena web identity authentication requires an IAM role ARN, like arn:aws:iam::123456789012:role/lightdash',
                         );
                     }
+                    if (!project.warehouseConnection.webIdentityAudience) {
+                        throw new ParameterError(
+                            'Athena web identity authentication requires an audience. Generate one in the connection settings.',
+                        );
+                    }
                 }
                 break;
             default:
@@ -6233,7 +6242,8 @@ export class ProjectService extends BaseService {
                 this.analytics,
                 undefined,
                 usesAwsWebIdentity(warehouseCredentials)
-                    ? this.projectModel.getWarehouseClientIdentityOptions(
+                    ? await this.projectModel.getWarehouseClientIdentityOptions(
+                          warehouseCredentials,
                           user.organizationUuid,
                       )
                     : undefined,
@@ -6402,7 +6412,12 @@ export class ProjectService extends BaseService {
                 const warehouseClient =
                     this.projectModel.getWarehouseClientFromCredentials(
                         tunnelCredentials,
-                        { organizationUuid },
+                        usesAwsWebIdentity(tunnelCredentials)
+                            ? await this.projectModel.getWarehouseClientIdentityOptions(
+                                  tunnelCredentials,
+                                  organizationUuid,
+                              )
+                            : undefined,
                     );
                 await warehouseClient.test();
                 return buildConnectionTestResults([
@@ -6511,7 +6526,12 @@ export class ProjectService extends BaseService {
             const warehouseClient =
                 this.projectModel.getWarehouseClientFromCredentials(
                     tunnelCredentials,
-                    { organizationUuid: account.organization.organizationUuid },
+                    usesAwsWebIdentity(tunnelCredentials)
+                        ? await this.projectModel.getWarehouseClientIdentityOptions(
+                              tunnelCredentials,
+                              account.organization.organizationUuid,
+                          )
+                        : undefined,
                 );
             const adapterType = warehouseClient.getAdapterType();
             // A fixed wall-clock, read through the session timezone the client
@@ -6863,7 +6883,8 @@ export class ProjectService extends BaseService {
         const warehouseClientOptions = usesAwsWebIdentity(
             project.warehouseConnection,
         )
-            ? this.projectModel.getWarehouseClientIdentityOptions(
+            ? await this.projectModel.getWarehouseClientIdentityOptions(
+                  project.warehouseConnection,
                   project.organizationUuid,
               )
             : undefined;

@@ -295,6 +295,10 @@ export const createWarehouseValueValidators: Record<
             athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY),
             hasNoWhiteSpaces,
         ),
+        webIdentityAudience: requiredWhen(
+            'Audience',
+            athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY),
+        ),
     },
     [WarehouseTypes.DUCKDB]: {
         database: requiredWhen('Database', isMotherduck, hasNoWhiteSpaces),
