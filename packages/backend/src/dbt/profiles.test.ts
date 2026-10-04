@@ -101,3 +101,70 @@ describe('a dbt source compiles against its own warehouse location', () => {
         });
     });
 });
+
+describe('BigQuery key file in dbt profiles', () => {
+    const bigqueryCredentials = (
+        keyfileContents: Record<string, string>,
+    ): CreateWarehouseCredentials => ({
+        type: WarehouseTypes.BIGQUERY,
+        project: 'project',
+        dataset: 'dataset',
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        keyfileContents,
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+    });
+
+    it('only writes known key file fields and uses the default token endpoint', () => {
+        const { profile, environment } = profileFromCredentials(
+            bigqueryCredentials({
+                type: 'service_account',
+                project_id: 'project',
+                private_key: 'private-key',
+                client_email: 'robot@project.iam.gserviceaccount.com',
+                token_uri: 'https://example.com/token',
+                auth_uri: 'https://example.com/auth',
+                unexpected: 'value',
+            }),
+            '/tmp/profiles',
+        );
+        const target = (
+            yaml.load(profile) as Record<
+                string,
+                { outputs: Record<string, Record<string, unknown>> }
+            >
+        )[LIGHTDASH_PROFILE_NAME].outputs[LIGHTDASH_TARGET_NAME];
+
+        expect(Object.keys(target.keyfile_json as object).sort()).toEqual([
+            'client_email',
+            'private_key',
+            'project_id',
+            'token_uri',
+            'type',
+        ]);
+        expect(environment).toEqual({
+            LIGHTDASH_DBT_PROFILE_VAR_TYPE: 'service_account',
+            LIGHTDASH_DBT_PROFILE_VAR_PROJECT_ID: 'project',
+            LIGHTDASH_DBT_PROFILE_VAR_PRIVATE_KEY: 'private-key',
+            LIGHTDASH_DBT_PROFILE_VAR_CLIENT_EMAIL:
+                'robot@project.iam.gserviceaccount.com',
+            LIGHTDASH_DBT_PROFILE_VAR_TOKEN_URI:
+                'https://oauth2.googleapis.com/token',
+        });
+    });
+
+    it('rejects unsupported key file types', () => {
+        expect(() =>
+            profileFromCredentials(
+                bigqueryCredentials({
+                    type: 'external_account',
+                    audience: 'audience',
+                }),
+                '/tmp/profiles',
+            ),
+        ).toThrow('BigQuery key file must be a service account key');
+    });
+});

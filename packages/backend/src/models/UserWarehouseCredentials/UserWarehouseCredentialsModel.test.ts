@@ -178,6 +178,36 @@ describe('UserWarehouseCredentialsModel', () => {
             ).toThrow(ParameterError);
         });
 
+        test('accepts BigQuery user credentials', () => {
+            expect(normalize(validBigqueryCredentials).credentials).toEqual(
+                validBigqueryCredentials,
+            );
+        });
+
+        test('rejects unsupported BigQuery key file types', () => {
+            expect(() =>
+                normalize({
+                    ...validBigqueryCredentials,
+                    keyfileContents: {
+                        ...validBigqueryCredentials.keyfileContents,
+                        type: 'external_account',
+                    },
+                }),
+            ).toThrow(ParameterError);
+        });
+
+        test('rejects BigQuery key files with non-string values', () => {
+            expect(() =>
+                normalize({
+                    ...validBigqueryCredentials,
+                    keyfileContents: {
+                        ...validBigqueryCredentials.keyfileContents,
+                        credential_source: { url: 'https://example.com' },
+                    },
+                }),
+            ).toThrow(ParameterError);
+        });
+
         test('leaves other warehouse types untouched', () => {
             const postgres = {
                 type: WarehouseTypes.POSTGRES,
