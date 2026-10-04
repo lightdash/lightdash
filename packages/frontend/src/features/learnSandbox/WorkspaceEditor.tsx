@@ -26,14 +26,17 @@ import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
  * configured instance per monaco module, so every editor must route
- * through that shared singleton rather than holding its own). */
+ * through that shared singleton rather than holding its own). Model files
+ * only: a downloaded chart or dashboard is not a dbt file, and the schema
+ * would flag every key in it. monaco-yaml matches a pattern against the end
+ * of the file's URI, `*` spanning folders. */
 const configureLearnYaml = (monaco: Monaco) => {
     configureLightdashYaml(monaco, {
         enableSchemaRequest: false,
         schemas: [
             {
                 uri: 'https://schemas.lightdash.com/lightdash/lightdash-dbt-2.0.json',
-                fileMatch: ['*.yml', '*.yaml'],
+                fileMatch: ['/models/*.yml', '/models/*.yaml'],
                 schema: lightdashDbtYamlSchema as Record<string, unknown>,
             },
         ],
@@ -97,6 +100,10 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const keyTypoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // The dbt key-typo check suits model files only; a downloaded chart or
+    // dashboard is content as code, whose keys are not dbt's.
+    const pathRef = useRef(path);
+    pathRef.current = path;
     useEffect(
         () => () => {
             if (keyTypoTimer.current) clearTimeout(keyTypoTimer.current);
@@ -306,13 +313,16 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             const markKeyTypos = () => {
                 const model = ed.getModel();
                 if (!model) return;
+                const typos = pathRef.current.startsWith('models/')
+                    ? findYamlKeyTypos(
+                          model.getValue(),
+                          lightdashDbtYamlSchema as Record<string, unknown>,
+                      )
+                    : [];
                 monaco.editor.setModelMarkers(
                     model,
                     KEY_TYPO_MARKERS,
-                    findYamlKeyTypos(
-                        model.getValue(),
-                        lightdashDbtYamlSchema as Record<string, unknown>,
-                    ).map((typo) => ({
+                    typos.map((typo) => ({
                         severity: monaco.MarkerSeverity.Warning,
                         message: `Unknown key "${typo.key}". Did you mean "${typo.suggestion}"?`,
                         startLineNumber: typo.line,

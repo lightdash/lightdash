@@ -20,7 +20,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import execaDefault from 'execa';
-import { readdir, rm, stat } from 'node:fs/promises';
+import { lstat, readdir, readFile, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fromSession } from '../../auth/account/account';
@@ -49,6 +49,8 @@ import {
     type LearnSandboxRuntime,
 } from './runtime';
 import {
+    DOWNLOADED_CONTENT_FOLDERS,
+    isDownloadedContentPath,
     isEditablePath,
     loadLearnBundle,
     materialiseWorkspace,
@@ -290,6 +292,109 @@ export class LearnSandboxService extends BaseService {
             content: bundleFile.content,
             editable: isEditablePath(filePath),
         };
+    }
+
+    /**
+     * Keeps what a `lightdash download` wrote, so the learner can open,
+     * edit and upload it: the command's directory is removed when it ends.
+     * Only regular files at the CLI's own content paths are read, in real
+     * directories (a symlink on the way would point the reads elsewhere),
+     * within the same limits as a save; anything else is left to be removed.
+     */
+    private async keepDownloadedFiles(
+        projectUuid: string,
+        projectDir: string,
+        buffer: OutputBuffer,
+    ): Promise<void> {
+        const isRealDirectory = async (dir: string) =>
+            (await lstat(dir).catch(() => undefined))?.isDirectory() === true;
+        const found = (await isRealDirectory(
+            path.join(projectDir, 'lightdash'),
+        ))
+            ? (
+                  await Promise.all(
+                      DOWNLOADED_CONTENT_FOLDERS.map(async (folder) => {
+                          const dir = path.join(
+                              projectDir,
+                              ...folder.split('/'),
+                          );
+                          if (!(await isRealDirectory(dir))) return [];
+                          const entries = await readdir(dir, {
+                              withFileTypes: true,
+                          }).catch(() => []);
+                          return entries
+                              .filter((entry) => entry.isFile())
+                              .map((entry) => `${folder}/${entry.name}`);
+                      }),
+                  )
+              )
+                  .flat()
+                  .filter(isDownloadedContentPath)
+                  .sort()
+            : [];
+        // The overlay's paths, read once: a file already there is updated in
+        // place, a new one takes a free slot, and once the slots are gone
+        // the rest is counted without being read.
+        const saved = new Set(
+            await this.learnWorkspaceModel.listFilePaths(projectUuid),
+        );
+        let free = Math.max(0, MAX_OVERLAY_FILES - saved.size);
+        let kept = 0;
+        let skipped = 0;
+        // eslint-disable-next-line no-restricted-syntax
+        for (const relative of found) {
+            const isNew = !saved.has(relative);
+            const content =
+                isNew && free === 0
+                    ? undefined
+                    : // eslint-disable-next-line no-await-in-loop
+                      await LearnSandboxService.readDownloadedFile(
+                          relative,
+                          path.join(projectDir, ...relative.split('/')),
+                      );
+            if (content === undefined) {
+                skipped += 1;
+            } else {
+                // eslint-disable-next-line no-await-in-loop
+                await this.learnWorkspaceModel.upsertFile(
+                    projectUuid,
+                    relative,
+                    content,
+                );
+                if (isNew) {
+                    saved.add(relative);
+                    free -= 1;
+                }
+                kept += 1;
+            }
+        }
+        buffer.push(
+            'stderr',
+            `Kept ${kept} downloaded file${kept === 1 ? '' : 's'} in your workspace${
+                skipped > 0
+                    ? `; ${skipped} skipped (over the size or file limits, or not valid YAML)`
+                    : ''
+            }.\n`,
+        );
+    }
+
+    /**
+     * A downloaded file's content when it can be kept: a regular file within
+     * the save limits that parses as YAML, as a save requires.
+     */
+    private static async readDownloadedFile(
+        relative: string,
+        absolute: string,
+    ): Promise<string | undefined> {
+        if (relative.length > MAX_PATH_LENGTH) return undefined;
+        const info = await lstat(absolute).catch(() => undefined);
+        if (!info || !info.isFile() || info.size > MAX_FILE_BYTES) {
+            return undefined;
+        }
+        const content = await readFile(absolute, 'utf8').catch(() => undefined);
+        return content !== undefined && validateYaml(content) === null
+            ? content
+            : undefined;
     }
 
     async saveFile(
@@ -649,6 +754,16 @@ export class LearnSandboxService extends BaseService {
                 );
             } else if (result.exitCode === 0) {
                 status = 'done';
+                if (
+                    command.argv[0] === 'lightdash' &&
+                    command.argv[1] === 'download'
+                ) {
+                    await this.keepDownloadedFiles(
+                        command.project_uuid,
+                        projectDir,
+                        buffer,
+                    );
+                }
                 if (isPreview) {
                     buffer.push(
                         'stderr',

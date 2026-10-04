@@ -33,7 +33,10 @@ import { useCommandOutput } from './hooks/useCommandOutput';
 import { useRunCommand } from './hooks/useRunCommand';
 import { useSaveWorkspaceFile } from './hooks/useSaveWorkspaceFile';
 import { useWorkspaceFile } from './hooks/useWorkspaceFile';
-import { useWorkspaceFiles } from './hooks/useWorkspaceFiles';
+import {
+    useWorkspaceFiles,
+    workspaceFilesQueryKey,
+} from './hooks/useWorkspaceFiles';
 // eslint-disable-next-line css-modules/no-unused-class -- classes shared across learnSandbox files
 import styles from './LearnWorkspace.module.css';
 import { activeCommandFromError, parseCommand } from './parseCommand';
@@ -158,6 +161,23 @@ const Workspace: FC<WorkspaceProps> = ({
             return;
         void queryClient.invalidateQueries(EXPLORE_QUERY_KEY);
     }, [output.status, activeCommand, queryClient]);
+
+    // A download keeps the files it wrote in the workspace (under
+    // lightdash/), so the tree and any open file are refetched.
+    useEffect(() => {
+        if (output.status !== 'done') return;
+        if (
+            activeCommand?.tool !== 'lightdash' ||
+            activeCommand.subcommand !== 'download'
+        )
+            return;
+        void queryClient.invalidateQueries(workspaceFilesQueryKey(projectUuid));
+        void queryClient.invalidateQueries([
+            'learnSandbox',
+            'workspaceFile',
+            projectUuid,
+        ]);
+    }, [output.status, activeCommand, projectUuid, queryClient]);
 
     const handleChange = useCallback(
         (content: string) => {

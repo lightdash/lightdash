@@ -55,6 +55,11 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
 }));
 
 vi.mock('./hooks/useWorkspaceFiles', () => ({
+    workspaceFilesQueryKey: (projectUuid: string) => [
+        'learnSandbox',
+        'workspaceFiles',
+        projectUuid,
+    ],
     useWorkspaceFiles: () => ({
         data: state.files,
         error: state.filesError,
@@ -670,6 +675,31 @@ describe('LearnWorkspacePage', () => {
         await waitFor(() =>
             expect(invalidateQueries).toHaveBeenCalledWith(['tables']),
         );
+    });
+
+    it('refetches the file tree and open files once a lightdash download has finished', async () => {
+        const user = userEvent.setup();
+        const { invalidateQueries } = renderPage();
+
+        await user.type(
+            screen.getByLabelText('Command'),
+            'lightdash download --charts revenue-by-payment-method',
+        );
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(invalidateQueries).toHaveBeenCalledWith([
+                'learnSandbox',
+                'workspaceFiles',
+                'copy-1',
+            ]),
+        );
+        expect(invalidateQueries).toHaveBeenCalledWith([
+            'learnSandbox',
+            'workspaceFile',
+            'copy-1',
+        ]);
+        expect(invalidateQueries).not.toHaveBeenCalledWith(['tables']);
     });
 
     it('leaves the cached explores alone when the finished command was not a deploy', async () => {

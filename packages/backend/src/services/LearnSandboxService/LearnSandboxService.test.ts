@@ -764,6 +764,7 @@ describe('LearnSandboxService.sweep', () => {
 describe('LearnSandboxService.runCommand', () => {
     const files = {
         listFiles: vi.fn(),
+        listFilePaths: vi.fn(),
         getFile: vi.fn(),
         countFiles: vi.fn(),
         upsertFile: vi.fn(),
@@ -1055,6 +1056,172 @@ describe('LearnSandboxService.runCommand', () => {
             'c-v',
             expect.objectContaining({ status: 'done', exit_code: 0 }),
         );
+    });
+
+    describe('keeping what lightdash download wrote', () => {
+        // A fake CLI that writes what a real download writes, plus files a
+        // download never writes, into the command's project directory.
+        const fakeDownload = (exitCode: number, extra: string[] = []) =>
+            [
+                '#!/bin/sh',
+                'mkdir -p lightdash/charts lightdash/dashboards lightdash/spaces',
+                "printf 'name: Revenue by payment method\\nslug: revenue-by-payment-method\\n' > lightdash/charts/revenue-by-payment-method.yml",
+                "printf 'name: Overview\\n' > lightdash/dashboards/jaffle-shop-overview.yml",
+                "printf 'name: Training\\n' > lightdash/spaces/training.space.yml",
+                "printf '{}' > lightdash/.lightdash-metadata.json",
+                ...extra,
+                `exit ${exitCode}`,
+                '',
+            ].join('\n');
+        const runDownload = async (
+            script: string,
+            {
+                fileCount = 0,
+                saved = [],
+            }: { fileCount?: number; saved?: string[] } = {},
+        ) => {
+            await writeFile(path.join(bin, 'lightdash'), script, {
+                mode: 0o755,
+            });
+            const appended: { stream: string; text: string }[] = [];
+            files.getCommand.mockResolvedValue({
+                command_uuid: 'c-download',
+                project_uuid: 'copy',
+                user_uuid: user.userUuid,
+                status: 'queued',
+                argv: [
+                    'lightdash',
+                    'download',
+                    '--charts',
+                    'revenue-by-payment-method',
+                ],
+                pat_uuid: null,
+            });
+            files.listFiles.mockResolvedValue([]);
+            // What the overlay already holds: `fileCount` other files, then
+            // any of the download's own paths saved before.
+            files.listFilePaths.mockResolvedValue([
+                ...Array.from(
+                    { length: fileCount - saved.length },
+                    (_, i) => `models/other_${i}.yml`,
+                ),
+                ...saved,
+            ]);
+            files.appendOutput.mockImplementation(async (_id, chunks) => {
+                appended.push(...chunks);
+            });
+            const { service } = buildService();
+            await service.runCommand({
+                commandUuid: 'c-download',
+                projectUuid: 'copy',
+                organizationUuid: 'org',
+                userUuid: user.userUuid,
+            });
+            return appended.map((c) => c.text).join('');
+        };
+        const keptPaths = () =>
+            files.upsertFile.mock.calls.map(([, filePath]) => filePath);
+
+        it('keeps the chart, dashboard and space files exactly as written, but not the metadata file', async () => {
+            const text = await runDownload(fakeDownload(0));
+            expect(keptPaths()).toEqual([
+                'lightdash/charts/revenue-by-payment-method.yml',
+                'lightdash/dashboards/jaffle-shop-overview.yml',
+                'lightdash/spaces/training.space.yml',
+            ]);
+            expect(files.upsertFile).toHaveBeenCalledWith(
+                'copy',
+                'lightdash/charts/revenue-by-payment-method.yml',
+                'name: Revenue by payment method\nslug: revenue-by-payment-method\n',
+            );
+            expect(text).toContain(
+                'Kept 3 downloaded files in your workspace.',
+            );
+        });
+
+        it('skips a file over the size limit and a symlink, and says so', async () => {
+            const text = await runDownload(
+                fakeDownload(0, [
+                    "head -c 70000 /dev/zero | tr '\\0' a > lightdash/charts/huge.yml",
+                    'ln -s ../../profiles.yml lightdash/charts/link.yml',
+                ]),
+            );
+            expect(keptPaths()).not.toContain('lightdash/charts/huge.yml');
+            expect(keptPaths()).not.toContain('lightdash/charts/link.yml');
+            expect(text).toContain(
+                '1 skipped (over the size or file limits, or not valid YAML)',
+            );
+        });
+
+        it('skips a file that is not valid YAML, as a save would', async () => {
+            const text = await runDownload(
+                fakeDownload(0, [
+                    "printf 'name: [unclosed\\n' > lightdash/charts/broken.yml",
+                ]),
+            );
+            expect(keptPaths()).not.toContain('lightdash/charts/broken.yml');
+            expect(keptPaths()).toContain(
+                'lightdash/charts/revenue-by-payment-method.yml',
+            );
+            expect(text).toContain('Kept 3 downloaded files');
+            expect(text).toContain('1 skipped');
+        });
+
+        it('reads nothing from a folder that is a symlink', async () => {
+            await runDownload(
+                fakeDownload(0, [
+                    'mkdir -p elsewhere',
+                    "printf 'name: Leak\\n' > elsewhere/leak.yml",
+                    'rm -rf lightdash/dashboards',
+                    'ln -s ../elsewhere lightdash/dashboards',
+                ]),
+            );
+            expect(keptPaths()).toEqual([
+                'lightdash/charts/revenue-by-payment-method.yml',
+                'lightdash/spaces/training.space.yml',
+            ]);
+        });
+
+        it('stops at the workspace file cap without reading what it cannot keep', async () => {
+            const text = await runDownload(fakeDownload(0), {
+                fileCount: 200,
+            });
+            expect(files.upsertFile).not.toHaveBeenCalled();
+            expect(files.listFilePaths).toHaveBeenCalledTimes(1);
+            expect(text).toContain(
+                'Kept 0 downloaded files in your workspace; 3 skipped',
+            );
+        });
+
+        it('still updates a file the workspace already holds when the cap is full', async () => {
+            const text = await runDownload(fakeDownload(0), {
+                fileCount: 200,
+                saved: ['lightdash/charts/revenue-by-payment-method.yml'],
+            });
+            expect(keptPaths()).toEqual([
+                'lightdash/charts/revenue-by-payment-method.yml',
+            ]);
+            expect(text).toContain(
+                'Kept 1 downloaded file in your workspace; 2 skipped',
+            );
+        });
+
+        it('takes only the free slots', async () => {
+            const text = await runDownload(fakeDownload(0), {
+                fileCount: 199,
+            });
+            expect(keptPaths()).toEqual([
+                'lightdash/charts/revenue-by-payment-method.yml',
+            ]);
+            expect(text).toContain(
+                'Kept 1 downloaded file in your workspace; 2 skipped',
+            );
+        });
+
+        it('keeps nothing from a download that failed', async () => {
+            await runDownload(fakeDownload(1));
+            expect(files.upsertFile).not.toHaveBeenCalled();
+        });
     });
 
     it("runs start-preview as a deploy to the learner's copy, without the name, and reports the named preview", async () => {

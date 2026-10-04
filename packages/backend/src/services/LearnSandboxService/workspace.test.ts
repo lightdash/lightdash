@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import {
+    isDownloadedContentPath,
     isEditablePath,
     loadLearnBundle,
     materialiseWorkspace,
@@ -12,11 +13,38 @@ import {
 } from './workspace';
 
 describe('workspace helpers', () => {
-    it('isEditablePath allows models yml only', () => {
+    it('isEditablePath allows the files lightdash download writes, one level deep', () => {
+        [
+            'lightdash/charts/revenue-by-payment-method.yml',
+            'lightdash/dashboards/jaffle-shop-overview.yml',
+            'lightdash/spaces/training.space.yml',
+        ].forEach((p) => {
+            expect(isEditablePath(p)).toBe(true);
+            expect(isDownloadedContentPath(p)).toBe(true);
+        });
+        [
+            'lightdash/.lightdash-metadata.json',
+            'lightdash/charts/nested/a.yml',
+            'lightdash/charts/../../profiles.yml',
+            'lightdash/spaces/training.yml',
+            'lightdash/other/a.yml',
+            '.config/lightdash/config.yaml',
+            'models/orders.yml',
+        ].forEach((p) => expect(isDownloadedContentPath(p)).toBe(false));
+        expect(isEditablePath('lightdash/charts/../../profiles.yml')).toBe(
+            false,
+        );
+        expect(isEditablePath('lightdash/.lightdash-metadata.json')).toBe(
+            false,
+        );
+    });
+
+    it('isEditablePath allows models yml', () => {
         expect(isEditablePath('models/orders.yml')).toBe(true);
         expect(isEditablePath('models/nested/a.yml')).toBe(true);
         expect(isEditablePath('models/orders.sql')).toBe(false);
         expect(isEditablePath('dbt_project.yml')).toBe(false);
+        expect(isEditablePath('lightdash/charts/a.sql')).toBe(false);
         expect(isEditablePath('models/../dbt_project.yml')).toBe(false);
         expect(isEditablePath('/models/a.yml')).toBe(false);
     });
