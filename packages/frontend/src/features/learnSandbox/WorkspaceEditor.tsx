@@ -1,11 +1,15 @@
 import {
     chartAsCodeSchema,
     checkLearnLessonEntry,
-    dashboardAsCodeSchema,
     findYamlKeyTypos,
     type LearnLessonExpectation,
     lightdashDbtYamlSchema,
 } from '@lightdash/common';
+// Imported by path, not from the package index: the index is built into the
+// file every page loads, and only this page, loaded on demand, needs the
+// dashboard schema. (The chart schema is already in that file: the document
+// helpers use it.)
+import dashboardAsCodeSchema from '@lightdash/common/src/schemas/dashboardAsCodeSchema';
 import { Box, Text } from '@mantine/core';
 import type { editor } from 'monaco-editor';
 import { useCallback, useEffect, useRef, type FC } from 'react';
