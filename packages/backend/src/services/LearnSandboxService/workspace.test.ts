@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import {
+    DOWNLOADED_CONTENT_FOLDERS,
     isDownloadedContentPath,
     isEditablePath,
     loadLearnBundle,
@@ -122,6 +123,84 @@ describe('workspace helpers', () => {
             await rm(dir, { recursive: true, force: true });
         }
     });
+    it('materialises kept downloads where the CLI looks for them, and refuses anything else under lightdash/', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'learn-ws-'));
+        const bundle = { version: 1 as const, files: [] };
+        const profiles = { databasePath: '/data/jaffle_shop.duckdb' };
+        const kept = [
+            {
+                path: 'lightdash/charts/revenue-by-payment-method.yml',
+                content: 'name: Revenue by payment type\n',
+            },
+            {
+                path: 'lightdash/dashboards/jaffle-shop-overview.yml',
+                content: 'name: Overview\n',
+            },
+            {
+                path: 'lightdash/spaces/training.space.yml',
+                content: 'name: Training\n',
+            },
+        ];
+        try {
+            await materialiseWorkspace({
+                bundle,
+                overlay: kept,
+                workspaceDir: dir,
+                profiles,
+            });
+            await Promise.all(
+                kept.map(async (file) =>
+                    expect(
+                        await readFile(
+                            path.join(dir, 'project', ...file.path.split('/')),
+                            'utf8',
+                        ),
+                    ).toBe(file.content),
+                ),
+            );
+            await expect(
+                materialiseWorkspace({
+                    bundle,
+                    overlay: [
+                        {
+                            path: 'lightdash/.lightdash-metadata.json',
+                            content: '{}',
+                        },
+                    ],
+                    workspaceDir: dir,
+                    profiles,
+                }),
+            ).rejects.toThrow('non-editable overlay path');
+        } finally {
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('accepts one file kind per download folder, and no other folder', () => {
+        expect(DOWNLOADED_CONTENT_FOLDERS).toEqual([
+            'lightdash/charts',
+            'lightdash/dashboards',
+            'lightdash/spaces',
+        ]);
+        const names = ['a.yml', 'a.space.yml'];
+        const accepted = [
+            ...DOWNLOADED_CONTENT_FOLDERS,
+            'lightdash/apps',
+            'lightdash',
+        ].flatMap((folder) =>
+            names
+                .map((name) => `${folder}/${name}`)
+                .filter(isDownloadedContentPath),
+        );
+        expect(accepted).toEqual([
+            'lightdash/charts/a.yml',
+            'lightdash/charts/a.space.yml',
+            'lightdash/dashboards/a.yml',
+            'lightdash/dashboards/a.space.yml',
+            'lightdash/spaces/a.space.yml',
+        ]);
+    });
+
     it('writeCliConfig puts the token where the CLI reads it, readable by the owner only', async () => {
         const dir = await mkdtemp(path.join(tmpdir(), 'learn-ws-'));
         try {

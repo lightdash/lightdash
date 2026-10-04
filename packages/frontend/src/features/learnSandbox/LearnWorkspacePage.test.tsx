@@ -31,6 +31,8 @@ const state = vi.hoisted(() => ({
     saveIsLoading: false,
     runIsLoading: false,
     pollerAnswered: true,
+    // What the server's record says the watched command was.
+    commandArgv: null as string[] | null,
     calls: [] as string[],
     saveMutateAsync: vi.fn(),
     runMutateAsync: vi.fn(),
@@ -72,6 +74,11 @@ vi.mock('./hooks/useWorkspaceFiles', () => ({
 // mock reports it as still loading rather than handing back the previous
 // selection's data (there is no `keepPreviousData` any more).
 vi.mock('./hooks/useWorkspaceFile', () => ({
+    workspaceFileQueryKeyPrefix: (projectUuid: string) => [
+        'learnSandbox',
+        'workspaceFile',
+        projectUuid,
+    ],
     useWorkspaceFile: (projectUuid: string, path: string | null) => {
         state.useWorkspaceFile(projectUuid, path);
         const data =
@@ -107,6 +114,7 @@ vi.mock('./hooks/useCommandOutput', () => ({
         state.useCommandOutput(projectUuid, commandUuid);
         const answered = commandUuid !== null && state.pollerAnswered;
         return {
+            argv: answered ? state.commandArgv : null,
             status: answered ? 'done' : null,
             exitCode: answered ? 0 : null,
             startedAt: null,
@@ -158,6 +166,7 @@ vi.mock('./FileTree', () => ({
 vi.mock('./WorkspaceEditor', () => ({
     default: ({
         path,
+        revision,
         content,
         editable,
         saving,
@@ -167,6 +176,7 @@ vi.mock('./WorkspaceEditor', () => ({
         onBlur,
     }: {
         path: string;
+        revision: number;
         content: string;
         editable: boolean;
         saving: boolean;
@@ -178,6 +188,7 @@ vi.mock('./WorkspaceEditor', () => ({
         <div
             data-testid="editor"
             data-path={path}
+            data-revision={revision}
             data-editable={String(editable)}
             data-saving={String(saving)}
             data-dirty={String(dirty)}
@@ -281,10 +292,22 @@ describe('LearnWorkspacePage', () => {
             state.calls.push('save');
             return undefined;
         });
-        state.runMutateAsync = vi.fn(async () => {
-            state.calls.push('run');
-            return { commandUuid: 'command-1' };
-        });
+        state.commandArgv = null;
+        state.runMutateAsync = vi.fn(
+            async (request: {
+                tool: string;
+                subcommand: string;
+                args: string[];
+            }) => {
+                state.calls.push('run');
+                state.commandArgv = [
+                    request.tool,
+                    request.subcommand,
+                    ...request.args,
+                ];
+                return { commandUuid: 'command-1' };
+            },
+        );
     });
 
     it('renders the tree, the terminal and the empty editor state when ready', () => {
@@ -700,6 +723,68 @@ describe('LearnWorkspacePage', () => {
             'copy-1',
         ]);
         expect(invalidateQueries).not.toHaveBeenCalledWith(['tables']);
+        // Once per download: a second fetch would only repeat the first.
+        expect(
+            invalidateQueries.mock.calls.filter(
+                ([key]) => (key as string[])[1] === 'workspaceFiles',
+            ),
+        ).toHaveLength(1);
+    });
+
+    it('hands the editor the downloaded file as a new one, even if it held that text before', async () => {
+        const user = userEvent.setup();
+        state.file = {
+            data: {
+                path: 'models/orders.yml',
+                content: 'version: 2\n',
+                editable: true,
+            },
+        };
+        renderPage();
+        await user.click(
+            screen.getByRole('button', { name: 'models/orders.yml' }),
+        );
+        const revisionBefore = (
+            await screen.findByTestId('editor')
+        ).getAttribute('data-revision');
+
+        await user.type(
+            screen.getByLabelText('Command'),
+            'lightdash download --charts revenue-by-payment-method',
+        );
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(
+                screen.getByTestId('editor').getAttribute('data-revision'),
+            ).not.toBe(revisionBefore),
+        );
+    });
+
+    it('refetches after a download it only attached to, read from the command record', async () => {
+        const user = userEvent.setup();
+        state.commandArgv = ['lightdash', 'download', '-c', 'orders'];
+        state.runMutateAsync = vi.fn(() =>
+            Promise.reject({
+                status: 'error',
+                error: {
+                    name: 'ParameterError',
+                    message: `A command is already running (command ${ACTIVE_UUID})`,
+                },
+            }),
+        );
+        const { invalidateQueries } = renderPage();
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(invalidateQueries).toHaveBeenCalledWith([
+                'learnSandbox',
+                'workspaceFiles',
+                'copy-1',
+            ]),
+        );
     });
 
     it('leaves the cached explores alone when the finished command was not a deploy', async () => {

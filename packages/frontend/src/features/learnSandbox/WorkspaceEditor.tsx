@@ -22,21 +22,22 @@ import {
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
 import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
+import { DBT_SCHEMA_FILE_MATCH } from './yamlSchemas';
 
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
  * configured instance per monaco module, so every editor must route
  * through that shared singleton rather than holding its own). Model files
- * only: a downloaded chart or dashboard is not a dbt file, and the schema
- * would flag every key in it. monaco-yaml matches a pattern against the end
- * of the file's URI, `*` spanning folders. */
+ * only (DBT_SCHEMA_FILE_MATCH): a downloaded chart or dashboard is not a
+ * dbt file, and the schema would flag every key in it. */
+
 const configureLearnYaml = (monaco: Monaco) => {
     configureLightdashYaml(monaco, {
         enableSchemaRequest: false,
         schemas: [
             {
                 uri: 'https://schemas.lightdash.com/lightdash/lightdash-dbt-2.0.json',
-                fileMatch: ['/models/*.yml', '/models/*.yaml'],
+                fileMatch: DBT_SCHEMA_FILE_MATCH,
                 schema: lightdashDbtYamlSchema as Record<string, unknown>,
             },
         ],
@@ -55,6 +56,12 @@ const STATE_LABELS: Record<EditorState, string> = {
 
 type WorkspaceEditorProps = {
     path: string;
+    /**
+     * Bumped when the file was replaced from outside the editor (a download
+     * rewrote it): the editor then takes `content` even if it once reported
+     * that very text itself.
+     */
+    revision?: number;
     content: string;
     editable: boolean;
     saving: boolean;
@@ -89,6 +96,7 @@ const KEY_TYPO_DELAY_MS = 400;
 
 const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     path,
+    revision = 0,
     content,
     editable,
     saving,
@@ -125,12 +133,18 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     // editor's, which drops those keystrokes and throws the cursor to the end
     // of the file. Text the editor itself reported is never new to it, so it
     // is not handed back; anything else (a file loading) is.
-    const reportedRef = useRef<{ path: string; values: Set<string> }>({
-        path,
-        values: new Set(),
-    });
-    if (reportedRef.current.path !== path) {
-        reportedRef.current = { path, values: new Set() };
+    // A file replaced from outside (a download; `revision` says so) is new to
+    // the editor even when it reads like something typed earlier.
+    const reportedRef = useRef<{
+        path: string;
+        revision: number;
+        values: Set<string>;
+    }>({ path, revision, values: new Set() });
+    if (
+        reportedRef.current.path !== path ||
+        reportedRef.current.revision !== revision
+    ) {
+        reportedRef.current = { path, revision, values: new Set() };
     }
     const report = useCallback((next: string) => {
         const { values } = reportedRef.current;
