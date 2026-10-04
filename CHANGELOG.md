@@ -1,3 +1,10 @@
+# [2.425.0](https://github.com/lightdash/lightdash/compare/2.424.0...2.425.0) (2026-10-04)
+
+
+### Features
+
+* **ai:** drag and drop files onto the agent composer ([#30452](https://github.com/lightdash/lightdash/issues/30452)) ([c293efa](https://github.com/lightdash/lightdash/commit/c293efa66e307d27b43ca9052d018ea235374e82))
+
 # [2.424.0](https://github.com/lightdash/lightdash/compare/2.423.2...2.424.0) (2026-10-04)
 
 
