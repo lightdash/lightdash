@@ -5,9 +5,11 @@ import { tourUrlInCopy } from '../scopeTours/trainingCopy';
 import {
     buildLearnCatalogue,
     DEVELOPER,
+    DOCS_LESSON_SCOPE,
     focusModules,
     holds,
     isComplete,
+    sortForLearner,
 } from './catalogue';
 import { SANDBOX_LESSONS } from './sandboxLessons';
 describe('walkthrough catalogue', () => {
@@ -27,6 +29,42 @@ describe('walkthrough catalogue', () => {
             );
         },
     );
+
+    it('lays out the Developer shelf as the docs do: the semantic layer, then content as code', () => {
+        const developer = buildLearnCatalogue().filter(
+            (module) => module.group === DEVELOPER,
+        );
+        // A learner who holds every lesson, so only the teaching order sorts.
+        const held = new Set([
+            DOCS_LESSON_SCOPE,
+            ...developer.map((module) => module.scope),
+        ]);
+        expect(
+            sortForLearner(held, developer).map((module) => module.title),
+        ).toEqual([
+            'Metrics',
+            'Dimensions',
+            'Download a chart as code',
+            // Runs the download the lesson before it teaches.
+            'Change a chart in code and upload it',
+            // Still to come, kept with its siblings.
+            'Download and upload any content as code',
+        ]);
+    });
+
+    it('shows every card a blurb in plain text, with no markdown left in it', () => {
+        const marked = buildLearnCatalogue().filter((module) =>
+            /\]\(|\*\*/.test(module.blurb),
+        );
+        expect(marked.map((module) => module.scope)).toEqual([]);
+        expect(
+            buildLearnCatalogue().find(
+                (module) => module.scope === 'create:ContentAsCode',
+            )?.blurb,
+        ).toMatch(
+            /^From the Lightdash CLI, you can use the command lightdash upload/,
+        );
+    });
 
     it.each([
         'manage:VerifiedContent',
