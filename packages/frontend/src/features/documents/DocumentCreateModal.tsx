@@ -113,7 +113,7 @@ const DocumentCreateModal = ({
                         data-tour-anchor="document-name"
                         data-tour-hint="Name the document"
                         data-tour-input="true"
-                        data-tour-suggest="Quarterly revenue review"
+                        data-tour-suggest="Country orders review"
                         {...form.getInputProps('name')}
                     />
                     <Textarea

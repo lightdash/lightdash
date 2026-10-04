@@ -15,7 +15,12 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { type ReactNode } from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import {
+    createMemoryRouter,
+    RouterProvider,
+    type InitialEntry,
+} from 'react-router';
+import { LEAVING_COPY_STATE } from '../scopeTours/trainingCopy';
 import DocumentEditor from './DocumentEditor';
 
 const mocks = vi.hoisted(() => ({
@@ -171,7 +176,11 @@ beforeAll(() => {
 });
 
 const clients: QueryClient[] = [];
-const renderEditor = (document = report, newerVersionSaved = false) => {
+const renderEditor = (
+    document = report,
+    newerVersionSaved = false,
+    history?: { initialEntries: InitialEntry[]; initialIndex: number },
+) => {
     const client = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -180,19 +189,22 @@ const renderEditor = (document = report, newerVersionSaved = false) => {
         logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
     });
     clients.push(client);
-    const router = createMemoryRouter([
-        {
-            path: '/',
-            element: (
-                <DocumentEditor
-                    document={document}
-                    newerVersionSaved={newerVersionSaved}
-                    onClose={mocks.close}
-                />
-            ),
-        },
-        { path: '/away', element: <div>Away</div> },
-    ]);
+    const router = createMemoryRouter(
+        [
+            {
+                path: '/',
+                element: (
+                    <DocumentEditor
+                        document={document}
+                        newerVersionSaved={newerVersionSaved}
+                        onClose={mocks.close}
+                    />
+                ),
+            },
+            { path: '/away', element: <div>Away</div> },
+        ],
+        history,
+    );
     return {
         router,
         ...render(
@@ -555,5 +567,56 @@ describe('drag handle', () => {
         expect(
             await screen.findByRole('button', { name: 'Drag chart Orders' }),
         ).toBeInTheDocument();
+    });
+});
+
+describe('leaving a training copy mid-edit', () => {
+    const makeDirty = async () =>
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Remove chart Orders' }),
+        );
+
+    it('lets a walkthrough leave its copy without asking', async () => {
+        const { router } = renderEditor();
+        await makeDirty();
+        await act(async () => {
+            await router.navigate('/away', { state: LEAVING_COPY_STATE });
+        });
+        await waitFor(() =>
+            expect(router.state.location.pathname).toBe('/away'),
+        );
+        expect(
+            screen.queryByText('Discard unsaved changes?'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('still asks on Back to a history entry that kept the walkthrough flag', async () => {
+        const { router } = renderEditor(report, false, {
+            initialEntries: [
+                { pathname: '/away', state: LEAVING_COPY_STATE },
+                '/',
+            ],
+            initialIndex: 1,
+        });
+        await makeDirty();
+        await act(async () => {
+            await router.navigate(-1);
+        });
+        expect(
+            await screen.findByText('Discard unsaved changes?'),
+        ).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe('/');
+    });
+
+    it('still asks on an ordinary navigation', async () => {
+        const { router } = renderEditor();
+        await makeDirty();
+        await act(async () => {
+            await router.navigate('/away');
+        });
+        expect(
+            await screen.findByText('Discard unsaved changes?'),
+        ).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe('/');
     });
 });

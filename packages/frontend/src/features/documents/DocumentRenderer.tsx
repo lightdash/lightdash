@@ -49,17 +49,6 @@ const DocumentRenderer = ({
     return (
         <DocumentReportLayout
             title={document.name}
-            // Walkthrough: read a document. See scripts/scope-tours.
-            headerProps={{
-                'data-tour-scope': 'view:Document',
-                'data-tour-step': '1',
-                'data-tour-route':
-                    '/projects/:projectUuid/documents/:documentUuidOrSlug',
-                'data-tour-label': 'A document is a report with live charts',
-                'data-tour-docs': 'explore/documents.mdx#intro:1',
-                'data-tour-return': 'none',
-                'data-tour-resultdocs': 'explore/documents.mdx#intro:3',
-            }}
             contentsLabel={null}
             headings={headings}
             variant="document"

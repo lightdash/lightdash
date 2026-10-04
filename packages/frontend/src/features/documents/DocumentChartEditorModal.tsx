@@ -132,7 +132,16 @@ const EditorSession = ({
                     }
                     {...rightSidebar}
                 >
-                    <Stack gap="md">
+                    <Stack
+                        gap="md"
+                        // Walkthrough: write a document. A look at the dialog
+                        // before its clicks. See scripts/scope-tours.
+                        data-tour-scope="manage:Document"
+                        data-tour-look="1"
+                        data-tour-after='[data-tour-anchor="document-add-chart"]'
+                        data-tour-label="The Add chart dialog is a full Explore view"
+                        data-tour-docs="explore/documents.mdx#add-and-arrange-charts:2"
+                    >
                         <form id={CHART_FORM_ID} onSubmit={applyChart}>
                             <Group align="end">
                                 <TextInput

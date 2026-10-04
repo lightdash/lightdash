@@ -14370,16 +14370,19 @@ export class ProjectService extends BaseService {
         // Best effort: a sample that fails to seed leaves the copy usable for
         // every other walkthrough rather than failing a copy that now exists.
         try {
-            await this.seedTrainingCopyDocuments(
+            await this.seedSampleDocumentsInCopy(
                 user,
                 projectUuid,
                 training.createdByUserUuid,
             );
         } catch (error) {
+            // Reported as well as logged: the learner only sees a walkthrough
+            // step waiting for a document that is not there.
             Logger.error(
                 `Training copy ${projectUuid}: sample content could not be seeded`,
                 error,
             );
+            Sentry.captureException(error);
         }
 
         // The trainee layer on the new copy only exists in a freshly built
@@ -14395,7 +14398,7 @@ export class ProjectService extends BaseService {
      * documents walkthrough is made in each copy, in the seeded space and
      * credited to whoever enabled Learn. Skipped while documents are off.
      */
-    private async seedTrainingCopyDocuments(
+    private async seedSampleDocumentsInCopy(
         user: SessionUser,
         projectUuid: string,
         createdByUserUuid: string | null,

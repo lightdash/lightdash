@@ -139,6 +139,22 @@ describe('Learn on the community edition schema', () => {
                 .count<{ count: string }[]>('* as count')
                 .first(),
         ).not.toEqual({ count: '0' });
+        // The copy carries the sample document the Documents walkthroughs
+        // open, with its charts: a seed that failed would only be logged.
+        const [sample] = await database('documents')
+            .where('project_uuid', first.projectUuid)
+            .select('document_id', 'name', 'slug');
+        expect(sample).toMatchObject({
+            name: 'Monthly orders review',
+            slug: 'monthly-orders-review',
+        });
+        const [version] = await database('document_versions')
+            .where('document_id', sample.document_id)
+            .select('markdown', 'chart_data');
+        expect(version.markdown).toContain('<document-chart');
+        expect(
+            Object.keys(version.chart_data as Record<string, unknown>),
+        ).toHaveLength(2);
 
         // Starting again replaces the learner's copy (the Resume path), once
         // the cooldown between copies has passed.

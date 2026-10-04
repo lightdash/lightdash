@@ -26,9 +26,11 @@ const DocumentByline = ({
         <Group
             gap="xs"
             wrap="nowrap"
-            // Walkthrough: read a document. See scripts/scope-tours.
+            // Walkthrough: read a document, a look before the jump. See
+            // scripts/scope-tours.
             data-tour-scope="view:Document"
-            data-tour-result="1"
+            data-tour-look="1"
+            data-tour-after='[data-tour-anchor="document-row"][data-tour-value="Monthly orders review"]'
             data-tour-label="See who wrote it and when"
             data-tour-docs="explore/documents.mdx#read-a-document:3"
         >

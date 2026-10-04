@@ -59,7 +59,9 @@ export const getPlaygroundDocumentContent = (
 /**
  * Creates the bundle's sample documents in a project's space, attributed to
  * the given user. A document whose slug the project already has is left
- * alone, so seeding the same project twice adds nothing.
+ * alone, so seeding the same project twice adds nothing. A soft-deleted
+ * document still holds its slug, so seeding over one fails; a training copy
+ * is new, so its seed never meets one.
  */
 export const seedPlaygroundDocuments = async ({
     projectUuid,
