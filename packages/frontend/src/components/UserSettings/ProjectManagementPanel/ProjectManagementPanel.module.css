@@ -84,6 +84,18 @@
     color: var(--mantine-color-foreground);
 }
 
+/* A block of code scrolls instead of wrapping by default, which would take a
+   long command's copy icon out of view. */
+.copyableCommand {
+    cursor: pointer;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.copyIcon {
+    flex-shrink: 0;
+}
+
 /* Copy success flash */
 .copyFlash {
     transition: background-color 0.3s ease;
