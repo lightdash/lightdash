@@ -680,9 +680,16 @@ export class ProjectModel {
                 dataPath: mergedDataPath,
             } as T;
         }
+        // A saved SSH private key only pairs with the saved public key.
+        const sshKeyUnchanged =
+            (incompleteConfig as AnyType).sshTunnelPublicKey ===
+            (completeConfig as AnyType).sshTunnelPublicKey;
         return {
             ...incompleteConfig,
             ...sensitiveCredentialsFieldNames.reduce((sum, secretKey) => {
+                if (secretKey === 'sshTunnelPrivateKey' && !sshKeyUnchanged) {
+                    return sum;
+                }
                 const newConfigSecretValue = (incompleteConfig as AnyType)[
                     secretKey
                 ];
