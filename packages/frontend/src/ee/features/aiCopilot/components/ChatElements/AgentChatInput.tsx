@@ -5,6 +5,7 @@ import {
     FeatureFlags,
     getExternalSourceDisplayName,
     isSpaceRestrictedAgent,
+    isTabularThreadFileName,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -20,6 +21,7 @@ import {
     Group,
     Menu,
     Paper,
+    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -29,6 +31,7 @@ import {
     IconBolt,
     IconCheck,
     IconFileText,
+    IconFolderSearch,
     IconPaperclip,
     IconPlayerStop,
     IconPlus,
@@ -75,6 +78,7 @@ import { useAgentSkills } from '../../hooks/useAiAgentSkills';
 import { useCsvSourceAttachment } from '../../hooks/useCsvSourceAttachment';
 import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
 import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
+import { useFileDropTarget } from '../../hooks/useFileDropTarget';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
@@ -867,6 +871,41 @@ export const AgentChatInput = ({
         !canSteer,
     );
     const canUseAttachControl = showAttachControl && composerMode === 'ask';
+    // Dropped files take the same routes as the menu: CSV/TSV go to the
+    // external-source flow when it is available, everything else (and CSV when
+    // it is not) is attached as a text document.
+    const handleDroppedFiles = useCallback(
+        (files: File[]) => {
+            const csvFiles = canAttachExternalSource
+                ? files.filter((file) => isTabularThreadFileName(file.name))
+                : [];
+            const documentFiles = files.filter(
+                (file) => !csvFiles.includes(file),
+            );
+            if (csvFiles.length > 0) void attachCsvFiles(csvFiles);
+            if (documentFiles.length > 0) void attachThreadFiles(documentFiles);
+        },
+        [attachCsvFiles, attachThreadFiles, canAttachExternalSource],
+    );
+    const { isDraggingFiles, dropTargetProps } = useFileDropTarget({
+        enabled: canUseAttachControl,
+        onDropFiles: handleDroppedFiles,
+    });
+    const renderDropOverlay = (variant: 'card' | 'inline') =>
+        isDraggingFiles ? (
+            <Box className={styles.dropOverlay} data-variant={variant}>
+                <Stack align="center" gap={6}>
+                    <MantineIcon
+                        icon={IconFolderSearch}
+                        size={28}
+                        color="dimmed"
+                    />
+                    <Text size="sm" fw={500} c="dimmed">
+                        Drop files to analyze them
+                    </Text>
+                </Stack>
+            </Box>
+        ) : null;
     const showDeepResearchInComposerMenu = canStartDeepResearch && !disabled;
     const showComposerActionsMenu = Boolean(
         showSqlModeControl ||
@@ -1458,23 +1497,26 @@ export const AgentChatInput = ({
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
-                    <PromptComposer
-                        {...composerCommonProps}
-                        variant="inline"
-                        attachments={renderedAttachments}
-                        toolbarLeft={
-                            <Group gap={4} align="center" wrap="nowrap">
-                                {renderComposerActionsMenu()}
-                                {renderFastModeButton()}
-                                {renderThemeButton()}
-                            </Group>
-                        }
-                        toolbarRight={
-                            <Group gap={4} align="center" wrap="nowrap">
-                                {renderComposerAction('sm')}
-                            </Group>
-                        }
-                    />
+                    <Box className={styles.dropTarget} {...dropTargetProps}>
+                        <PromptComposer
+                            {...composerCommonProps}
+                            variant="inline"
+                            attachments={renderedAttachments}
+                            toolbarLeft={
+                                <Group gap={4} align="center" wrap="nowrap">
+                                    {renderComposerActionsMenu()}
+                                    {renderFastModeButton()}
+                                    {renderThemeButton()}
+                                </Group>
+                            }
+                            toolbarRight={
+                                <Group gap={4} align="center" wrap="nowrap">
+                                    {renderComposerAction('sm')}
+                                </Group>
+                            }
+                        />
+                        {renderDropOverlay('inline')}
+                    </Box>
                 </Box>
 
                 {!isThreadInput &&
@@ -1506,67 +1548,73 @@ export const AgentChatInput = ({
         >
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-            <PromptComposer
-                {...composerCommonProps}
-                variant="card"
-                size={dense ? 'sm' : 'lg'}
-                className={styles.agentComposer}
-                onMouseDown={handleInputCardMouseDown}
-                attachments={renderedAttachments}
-                toolbarLeft={
-                    <Group gap="xs" align="center" wrap="nowrap">
-                        {renderComposerActionsMenu()}
-                        {renderFastModeButton()}
-                        {renderThemeButton()}
-                    </Group>
-                }
-                toolbarRight={
-                    <Group gap="xs" align="center" wrap="nowrap">
-                        <Box className={styles.toolbarSelectors}>
-                            {showAgentSelector && (
-                                <Box
-                                    className={styles.controlsReveal}
-                                    data-visible={hasClickedInput}
-                                >
-                                    <Group
-                                        gap="xs"
-                                        align="center"
-                                        wrap="nowrap"
+            <Box className={styles.dropTarget} {...dropTargetProps}>
+                <PromptComposer
+                    {...composerCommonProps}
+                    variant="card"
+                    size={dense ? 'sm' : 'lg'}
+                    className={styles.agentComposer}
+                    onMouseDown={handleInputCardMouseDown}
+                    attachments={renderedAttachments}
+                    toolbarLeft={
+                        <Group gap="xs" align="center" wrap="nowrap">
+                            {renderComposerActionsMenu()}
+                            {renderFastModeButton()}
+                            {renderThemeButton()}
+                        </Group>
+                    }
+                    toolbarRight={
+                        <Group gap="xs" align="center" wrap="nowrap">
+                            <Box className={styles.toolbarSelectors}>
+                                {showAgentSelector && (
+                                    <Box
+                                        className={styles.controlsReveal}
+                                        data-visible={hasClickedInput}
                                     >
-                                        <AgentSelector
-                                            projectUuid={projectUuid!}
-                                            agents={agents!}
-                                            selectedAgent={selectedAgent!}
-                                            compact
-                                        />
-                                    </Group>
-                                </Box>
-                            )}
-
-                            {(showModelSelector || onExtendedThinkingChange) &&
-                                models &&
-                                onModelChange && (
-                                    <Box className={styles.modelGroup}>
-                                        <ModelSelector
-                                            models={models}
-                                            value={selectedModelId ?? null}
-                                            onChange={onModelChange}
-                                            variant="subtle"
-                                            color="gray"
-                                            size="xs"
-                                            reasoningEnabled={extendedThinking}
-                                            onReasoningChange={
-                                                onExtendedThinkingChange
-                                            }
-                                        />
+                                        <Group
+                                            gap="xs"
+                                            align="center"
+                                            wrap="nowrap"
+                                        >
+                                            <AgentSelector
+                                                projectUuid={projectUuid!}
+                                                agents={agents!}
+                                                selectedAgent={selectedAgent!}
+                                                compact
+                                            />
+                                        </Group>
                                     </Box>
                                 )}
-                        </Box>
 
-                        {renderComposerAction('lg')}
-                    </Group>
-                }
-            />
+                                {(showModelSelector ||
+                                    onExtendedThinkingChange) &&
+                                    models &&
+                                    onModelChange && (
+                                        <Box className={styles.modelGroup}>
+                                            <ModelSelector
+                                                models={models}
+                                                value={selectedModelId ?? null}
+                                                onChange={onModelChange}
+                                                variant="subtle"
+                                                color="gray"
+                                                size="xs"
+                                                reasoningEnabled={
+                                                    extendedThinking
+                                                }
+                                                onReasoningChange={
+                                                    onExtendedThinkingChange
+                                                }
+                                            />
+                                        </Box>
+                                    )}
+                            </Box>
+
+                            {renderComposerAction('lg')}
+                        </Group>
+                    }
+                />
+                {renderDropOverlay('card')}
+            </Box>
 
             {!isThreadInput &&
                 renderChipRow(
