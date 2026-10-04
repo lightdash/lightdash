@@ -167,6 +167,8 @@ describe('BigQuery key file in dbt profiles', () => {
                 '/tmp/profiles',
             ),
         ).toThrow('BigQuery key file must be a service account key');
+    });
+});
 
 describe('Athena web identity profile', () => {
     it('passes no AWS credentials or role to dbt', () => {
