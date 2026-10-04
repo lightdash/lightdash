@@ -63114,15 +63114,47 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AwsWebIdentityAudience": {
+            "AwsWebIdentity": {
                 "properties": {
-                    "audience": {
+                    "subject": {
                         "type": "string",
-                        "description": "Pinned as accounts.google.com:oaud in the role's trust policy."
+                        "nullable": true,
+                        "description": "This instance's Google subject, pinned as accounts.google.com:sub and\naccounts.google.com:aud. Null when the instance can't read it."
                     }
                 },
-                "required": ["audience"],
+                "required": ["subject"],
                 "type": "object"
+            },
+            "ApiAwsWebIdentityResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AwsWebIdentity"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AwsWebIdentityAudience": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AwsWebIdentity"
+                    },
+                    {
+                        "properties": {
+                            "audience": {
+                                "type": "string",
+                                "description": "Pinned as accounts.google.com:oaud in the role's trust policy."
+                            }
+                        },
+                        "required": ["audience"],
+                        "type": "object"
+                    }
+                ]
             },
             "ApiAwsWebIdentityAudienceResponse": {
                 "properties": {
@@ -105805,6 +105837,38 @@
                 },
                 "description": "Check if user is authenticated with BigQuery",
                 "summary": "Check BigQuery authentication",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/aws/web-identity": {
+            "get": {
+                "operationId": "getAwsWebIdentity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAwsWebIdentityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get this instance's identity for Athena web identity authentication.\nAdd the subject to the IAM role's trust policy.",
+                "summary": "Get web identity subject",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
