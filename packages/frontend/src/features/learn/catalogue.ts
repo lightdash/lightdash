@@ -108,7 +108,8 @@ export const GROUP_DESCRIPTIONS: Record<LearnGroup, string> = {
     [ScopeGroup.SPOTLIGHT]: 'Learn timely product areas and advanced workflows',
     [ScopeGroup.ORGANIZATION_MANAGEMENT]:
         'Administer people, roles, and organisation settings',
-    [DEVELOPER]: 'Model the semantic layer and ship it with the CLI',
+    [DEVELOPER]:
+        'Model the semantic layer and manage content as code with the CLI',
 };
 
 export const GROUP_LABELS: Record<LearnGroup, string> = {

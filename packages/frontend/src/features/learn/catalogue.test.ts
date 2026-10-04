@@ -254,7 +254,7 @@ describe('docs modules', () => {
         expect(GROUP_ORDER).toContain(DEVELOPER);
         expect(GROUP_LABELS[DEVELOPER]).toBe('Developer');
         expect(GROUP_DESCRIPTIONS[DEVELOPER]).toBe(
-            'Model the semantic layer and ship it with the CLI',
+            'Model the semantic layer and manage content as code with the CLI',
         );
     });
 });
