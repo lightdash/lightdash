@@ -24,6 +24,7 @@ import {
     ExploreType,
     ExternalSourceScope,
     generateSlug,
+    getAwsWebIdentityAudience,
     getErrorMessage,
     getExploreSplitCandidates,
     getLtreePathFromSlug,
@@ -84,6 +85,7 @@ import {
     MotherduckInstanceCache,
     WarehouseCatalog,
     warehouseClientFromCredentials,
+    type WarehouseClientOptions,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
@@ -595,10 +597,12 @@ export class ProjectModel {
             (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
                 incompleteConfig.authenticationType ===
                     BigqueryAuthenticationType.ADC) ||
-            // Athena IAM role authentication should not merge old access keys
+            // Athena IAM role and web identity authentication should not merge old access keys
             (incompleteConfig.type === WarehouseTypes.ATHENA &&
-                incompleteConfig.authenticationType ===
-                    AthenaAuthenticationType.IAM_ROLE)
+                (incompleteConfig.authenticationType ===
+                    AthenaAuthenticationType.IAM_ROLE ||
+                    incompleteConfig.authenticationType ===
+                        AthenaAuthenticationType.WEB_IDENTITY))
         ) {
             return incompleteConfig;
         }
@@ -7277,16 +7281,43 @@ export class ProjectModel {
         return upstreamDashboard?.dashboard_uuid ?? null;
     }
 
+    /**
+     * Identity options for warehouse clients that authenticate as this
+     * instance. Derived from the organization that owns the connection, never
+     * from credentials, so one organization can't use another's identity.
+     */
+    getWarehouseClientIdentityOptions(
+        organizationUuid: string | undefined,
+    ): Pick<WarehouseClientOptions, 'awsWebIdentity'> {
+        if (
+            !organizationUuid ||
+            !this.lightdashConfig.athenaWarehouseWebIdentityAuth.enabled
+        ) {
+            return {};
+        }
+        return {
+            awsWebIdentity: {
+                audience: getAwsWebIdentityAudience(organizationUuid),
+                roleSessionName: `lightdash-${organizationUuid}`,
+            },
+        };
+    }
+
     // Easier to mock in ProjectService
     getWarehouseClientFromCredentials(
         credentials: CreateWarehouseCredentials,
-        options?: Parameters<typeof warehouseClientFromCredentials>[1],
+        options?: Omit<WarehouseClientOptions, 'awsWebIdentity'> & {
+            // The organization that owns the connection.
+            organizationUuid?: string;
+        },
     ) {
+        const { organizationUuid, ...clientOptions } = options ?? {};
         return warehouseClientFromCredentials(credentials, {
             // The client is shared by all concurrent async query jobs
             maxOpenConnections:
                 this.lightdashConfig.natsWorker.workerConcurrency,
-            ...options,
+            ...clientOptions,
+            ...this.getWarehouseClientIdentityOptions(organizationUuid),
         });
     }
 

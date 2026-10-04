@@ -290,6 +290,11 @@ export const createWarehouseValueValidators: Record<
             'AWS Secret Access Key',
             athenaAuthIs(AthenaAuthenticationType.ACCESS_KEY),
         ),
+        assumeRoleArn: requiredWhen(
+            'IAM Role ARN',
+            athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY),
+            hasNoWhiteSpaces,
+        ),
     },
     [WarehouseTypes.DUCKDB]: {
         database: requiredWhen('Database', isMotherduck, hasNoWhiteSpaces),

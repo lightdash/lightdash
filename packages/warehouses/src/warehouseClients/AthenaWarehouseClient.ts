@@ -38,6 +38,10 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
+import {
+    awsWebIdentityCredentialProvider,
+    type AwsWebIdentityOptions,
+} from './awsWebIdentityCredentials';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -299,13 +303,21 @@ export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+export type AthenaWarehouseClientOptions = {
+    // Set by the server for web identity auth; never read from credentials.
+    awsWebIdentity?: AwsWebIdentityOptions;
+};
+
 const POLL_INTERVAL_MS = 500;
 const MAX_POLL_ATTEMPTS = 1200; // 10 minutes max wait
 
 export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCredentials> {
     client: AthenaClient;
 
-    constructor(credentials: CreateAthenaCredentials) {
+    constructor(
+        credentials: CreateAthenaCredentials,
+        options?: AthenaWarehouseClientOptions,
+    ) {
         super(credentials, new AthenaSqlBuilder(credentials.startOfWeek));
 
         try {
@@ -339,8 +351,16 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                 };
             }
 
-            // Wrap with assume role if configured
-            if (credentials.assumeRoleArn) {
+            if (authenticationType === AthenaAuthenticationType.WEB_IDENTITY) {
+                // The role ARN is assumed directly with the web identity token,
+                // so it is not wrapped with a second assume role below.
+                clientConfig.credentials = awsWebIdentityCredentialProvider({
+                    roleArn: credentials.assumeRoleArn,
+                    region: credentials.region,
+                    webIdentity: options?.awsWebIdentity,
+                });
+            } else if (credentials.assumeRoleArn) {
+                // Wrap with assume role if configured
                 clientConfig.credentials = fromTemporaryCredentials({
                     masterCredentials: clientConfig.credentials,
                     params: {

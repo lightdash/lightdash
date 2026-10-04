@@ -22,12 +22,14 @@ vi.mock('@aws-sdk/client-athena', async () => ({
     AthenaClient: mockAthenaClient,
 }));
 
-const { mockFromTemporaryCredentials } = vi.hoisted(() => ({
+const { mockFromTemporaryCredentials, mockFromWebToken } = vi.hoisted(() => ({
     mockFromTemporaryCredentials: vi.fn(() => 'sts-credentials'),
+    mockFromWebToken: vi.fn(),
 }));
 
 vi.mock('@aws-sdk/credential-providers', () => ({
     fromTemporaryCredentials: mockFromTemporaryCredentials,
+    fromWebToken: mockFromWebToken,
 }));
 
 // eslint-disable-next-line import/first -- Must import after mocks are set up
@@ -196,6 +198,126 @@ describe('AthenaWarehouseClient', () => {
                 region: 'us-east-1',
                 credentials: 'sts-credentials',
             });
+        });
+    });
+
+    describe('web identity', () => {
+        const roleArn = 'arn:aws:iam::123456789012:role/lightdash';
+        const webIdentityCredentials: CreateAthenaCredentials = {
+            ...baseCredentials,
+            authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+            accessKeyId: undefined,
+            secretAccessKey: undefined,
+            assumeRoleArn: roleArn,
+        };
+        const awsWebIdentity = {
+            audience: 'lightdash:org-a',
+            roleSessionName: 'lightdash-org-a',
+        };
+        const fetchMock = vi.fn();
+
+        const getCredentialProvider = () => {
+            const config = mockAthenaClient.mock.calls[0][0] as {
+                credentials: () => Promise<unknown>;
+            };
+            return config.credentials;
+        };
+
+        beforeEach(() => {
+            vi.stubGlobal('fetch', fetchMock);
+            fetchMock.mockResolvedValue({
+                ok: true,
+                text: async () => 'google-id-token',
+            });
+            mockFromWebToken.mockReturnValue(async () => ({
+                accessKeyId: 'ASIA',
+                secretAccessKey: 'SECRET',
+            }));
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+        });
+
+        test('should assume the role with a token for the server-provided audience', async () => {
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(webIdentityCredentials, {
+                awsWebIdentity,
+            });
+
+            await expect(getCredentialProvider()()).resolves.toEqual({
+                accessKeyId: 'ASIA',
+                secretAccessKey: 'SECRET',
+            });
+            expect(fetchMock).toHaveBeenCalledWith(
+                expect.stringContaining('audience=lightdash%3Aorg-a&'),
+                expect.objectContaining({
+                    headers: { 'Metadata-Flavor': 'Google' },
+                }),
+            );
+            expect(mockFromWebToken).toHaveBeenCalledWith({
+                roleArn,
+                webIdentityToken: 'google-id-token',
+                roleSessionName: 'lightdash-org-a',
+                clientConfig: { region: 'us-east-1' },
+            });
+            expect(mockFromTemporaryCredentials).not.toHaveBeenCalled();
+        });
+
+        test('should ignore an audience in the credentials', async () => {
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(
+                {
+                    ...webIdentityCredentials,
+                    webIdentityAudience: 'lightdash:org-b',
+                } as CreateAthenaCredentials,
+                { awsWebIdentity },
+            );
+
+            await getCredentialProvider()();
+            expect(fetchMock).toHaveBeenCalledWith(
+                expect.stringContaining('audience=lightdash%3Aorg-a&'),
+                expect.anything(),
+            );
+        });
+
+        test('should fail without server-provided identity options', async () => {
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(webIdentityCredentials);
+
+            await expect(getCredentialProvider()()).rejects.toThrow(
+                WarehouseConnectionError,
+            );
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(mockFromWebToken).not.toHaveBeenCalled();
+        });
+
+        test('should explain an AWS access denied error', async () => {
+            const denied = new Error('Not authorized');
+            denied.name = 'AccessDenied';
+            mockFromWebToken.mockReturnValue(async () => {
+                throw denied;
+            });
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(webIdentityCredentials, {
+                awsWebIdentity,
+            });
+
+            await expect(getCredentialProvider()()).rejects.toThrow(
+                /trust policy.*"lightdash:org-a"/,
+            );
+        });
+
+        test('should explain an unreachable metadata server', async () => {
+            fetchMock.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(webIdentityCredentials, {
+                awsWebIdentity,
+            });
+
+            await expect(getCredentialProvider()()).rejects.toThrow(
+                /requires Lightdash to run on Google Cloud/,
+            );
         });
     });
 

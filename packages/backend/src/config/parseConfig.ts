@@ -1834,6 +1834,9 @@ export type LightdashConfig = {
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
     };
+    athenaWarehouseWebIdentityAuth: {
+        enabled: boolean;
+    };
     saveCredentialsForm: {
         enabled: boolean;
     };
@@ -3885,6 +3888,11 @@ export const parseConfig = (): LightdashConfig => {
         },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',
+        },
+        // Only for instances whose pods run as their own Google service
+        // account: every organization on the instance shares that identity.
+        athenaWarehouseWebIdentityAuth: {
+            enabled: process.env.ATHENA_WAREHOUSE_WEB_IDENTITY_AUTH === 'true',
         },
         saveCredentialsForm: {
             enabled: process.env.SAVE_CREDENTIALS_FORM_ENABLED === 'true',

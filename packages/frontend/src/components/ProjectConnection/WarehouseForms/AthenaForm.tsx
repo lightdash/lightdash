@@ -1,8 +1,13 @@
-import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import {
+    AthenaAuthenticationType,
+    getAwsWebIdentityAudience,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { TextInput, Stack, Anchor, Select, PasswordInput } from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -37,6 +42,7 @@ const AthenaForm: FC<{
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const health = useHealth();
+    const { data: organization } = useOrganization();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.ATHENA;
     const form = useFormContext();
@@ -49,6 +55,19 @@ const AthenaForm: FC<{
 
     const isIamRoleAuthEnabled =
         health.data?.isAthenaWarehouseIamRoleAuthEnabled ?? false;
+    const isWebIdentityAuthEnabled =
+        health.data?.isAthenaWarehouseWebIdentityAuthEnabled ?? false;
+    const enabledAuthenticationTypes = [
+        AthenaAuthenticationType.ACCESS_KEY,
+        ...(isIamRoleAuthEnabled ? [AthenaAuthenticationType.IAM_ROLE] : []),
+        ...(isWebIdentityAuthEnabled
+            ? [AthenaAuthenticationType.WEB_IDENTITY]
+            : []),
+    ];
+    const isAuthenticationTypeEnabled = (
+        type: AthenaAuthenticationType | undefined,
+    ): type is AthenaAuthenticationType =>
+        type !== undefined && enabledAuthenticationTypes.includes(type);
 
     const savedAuthenticationType =
         savedProject?.warehouseConnection?.type === WarehouseTypes.ATHENA
@@ -58,32 +77,33 @@ const AthenaForm: FC<{
     const defaultAuthenticationType =
         savedAuthenticationType ?? AthenaAuthenticationType.ACCESS_KEY;
 
-    useEffect(() => {
-        const currentType = warehouse.authenticationType;
-        const nextType = isIamRoleAuthEnabled
-            ? defaultAuthenticationType
-            : AthenaAuthenticationType.ACCESS_KEY;
-
-        if (
-            currentType === undefined ||
-            (!isIamRoleAuthEnabled &&
-                currentType !== AthenaAuthenticationType.ACCESS_KEY)
-        ) {
-            form.setFieldValue('warehouse.authenticationType', nextType);
-        }
-    }, [
+    const fallbackAuthenticationType = isAuthenticationTypeEnabled(
         defaultAuthenticationType,
-        form,
-        warehouse.authenticationType,
-        isIamRoleAuthEnabled,
-    ]);
-
-    const authenticationType = isIamRoleAuthEnabled
-        ? (warehouse.authenticationType ?? defaultAuthenticationType)
+    )
+        ? defaultAuthenticationType
         : AthenaAuthenticationType.ACCESS_KEY;
+
+    useEffect(() => {
+        // Wait for health so a saved type isn't reset before it is known.
+        if (!health.data) return;
+        if (!isAuthenticationTypeEnabled(warehouse.authenticationType)) {
+            form.setFieldValue(
+                'warehouse.authenticationType',
+                fallbackAuthenticationType,
+            );
+        }
+    });
+
+    const authenticationType = isAuthenticationTypeEnabled(
+        warehouse.authenticationType,
+    )
+        ? warehouse.authenticationType
+        : fallbackAuthenticationType;
 
     const isAccessKeyAuthentication =
         authenticationType === AthenaAuthenticationType.ACCESS_KEY;
+    const isWebIdentityAuthentication =
+        authenticationType === AthenaAuthenticationType.WEB_IDENTITY;
 
     return (
         <>
@@ -145,23 +165,35 @@ const AthenaForm: FC<{
                     placeholder="s3://your-bucket/data/"
                     disabled={disabled}
                 />
-                {isIamRoleAuthEnabled && (
+                {enabledAuthenticationTypes.length > 1 && (
                     <Select
                         allowDeselect={false}
                         name="warehouse.authenticationType"
                         label="Authentication Type"
-                        description="Choose whether to authenticate using AWS access keys or the runtime IAM role."
+                        description="Choose how Lightdash authenticates to AWS."
                         data={[
                             {
                                 value: AthenaAuthenticationType.ACCESS_KEY,
                                 label: 'Access Keys',
                             },
-                            {
-                                value: AthenaAuthenticationType.IAM_ROLE,
-                                label: 'IAM Role',
-                            },
+                            ...(isIamRoleAuthEnabled
+                                ? [
+                                      {
+                                          value: AthenaAuthenticationType.IAM_ROLE,
+                                          label: 'IAM Role',
+                                      },
+                                  ]
+                                : []),
+                            ...(isWebIdentityAuthEnabled
+                                ? [
+                                      {
+                                          value: AthenaAuthenticationType.WEB_IDENTITY,
+                                          label: 'Lightdash identity (no keys)',
+                                      },
+                                  ]
+                                : []),
                         ]}
-                        defaultValue={defaultAuthenticationType}
+                        defaultValue={fallbackAuthenticationType}
                         {...form.getInputProps('warehouse.authenticationType')}
                         required
                         disabled={disabled}
@@ -198,25 +230,57 @@ const AthenaForm: FC<{
                     </>
                 )}
 
-                <FormSection isOpen={isOpen} name="advanced">
-                    <Stack mt="sm">
+                {isWebIdentityAuthentication && (
+                    <>
                         <TextInput
                             name="warehouse.assumeRoleArn"
-                            label="Assume Role ARN"
-                            description="Optional IAM role ARN to assume after authenticating. Works with any authentication type."
+                            label="IAM Role ARN"
+                            description="The role Lightdash assumes. Its trust policy must allow accounts.google.com with the audience below."
+                            required
                             {...form.getInputProps('warehouse.assumeRoleArn')}
-                            placeholder="arn:aws:iam::123456789012:role/my-athena-role"
+                            placeholder="arn:aws:iam::123456789012:role/lightdash-athena"
                             disabled={disabled}
                         />
                         <TextInput
-                            name="warehouse.assumeRoleExternalId"
-                            label="Assume Role External ID"
-                            description="Optional external ID for the assume role trust policy."
-                            {...form.getInputProps(
-                                'warehouse.assumeRoleExternalId',
-                            )}
-                            disabled={disabled}
+                            label="Audience"
+                            description="Use this as accounts.google.com:oaud in the role's trust policy. Lightdash support gives you the subject."
+                            value={
+                                organization
+                                    ? getAwsWebIdentityAudience(
+                                          organization.organizationUuid,
+                                      )
+                                    : ''
+                            }
+                            readOnly
                         />
+                    </>
+                )}
+
+                <FormSection isOpen={isOpen} name="advanced">
+                    <Stack mt="sm">
+                        {!isWebIdentityAuthentication && (
+                            <>
+                                <TextInput
+                                    name="warehouse.assumeRoleArn"
+                                    label="Assume Role ARN"
+                                    description="Optional IAM role ARN to assume after authenticating. Works with any authentication type."
+                                    {...form.getInputProps(
+                                        'warehouse.assumeRoleArn',
+                                    )}
+                                    placeholder="arn:aws:iam::123456789012:role/my-athena-role"
+                                    disabled={disabled}
+                                />
+                                <TextInput
+                                    name="warehouse.assumeRoleExternalId"
+                                    label="Assume Role External ID"
+                                    description="Optional external ID for the assume role trust policy."
+                                    {...form.getInputProps(
+                                        'warehouse.assumeRoleExternalId',
+                                    )}
+                                    disabled={disabled}
+                                />
+                            </>
+                        )}
                         <TextInput
                             name="warehouse.workGroup"
                             label="Workgroup"

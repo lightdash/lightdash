@@ -259,6 +259,7 @@ import {
     UserAttributeValueMap,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
+    usesAwsWebIdentity,
     validateMergeQuery,
     VizAggregationOptions,
     VizColumn,
@@ -302,6 +303,7 @@ import {
     refreshDatabricksOAuthToken,
     SshTunnel,
     warehouseSqlBuilderFromType,
+    type WarehouseClientOptions,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
@@ -683,6 +685,9 @@ type PreparedExploreStream = {
 };
 
 type PreparedMultiConnectionSave = MultiConnectionSave & { warnings: string[] };
+
+const AWS_IAM_ROLE_ARN_PATTERN =
+    /^arn:aws[a-z-]*:iam::\d{12}:role\/[\w+=,.@/-]+$/;
 
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
@@ -3229,9 +3234,18 @@ export class ProjectService extends BaseService {
             (projectUuids.includes(projectUuid) ||
                 (projectUuids.length === 0 &&
                     emptyAllowlistEnablesAllProjects));
+        // Only web identity auth needs the owning organization.
+        const organizationUuid = usesAwsWebIdentity(credentialsWithOverrides)
+            ? (await this.projectModel.getSummary(projectUuid)).organizationUuid
+            : undefined;
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithOverrides,
-            { enableInstanceCache, projectUuid, logger: this.logger },
+            {
+                enableInstanceCache,
+                projectUuid,
+                logger: this.logger,
+                organizationUuid,
+            },
         );
         this.warehouseClients[cacheKey] = client;
         return {
@@ -5478,6 +5492,28 @@ export class ProjectService extends BaseService {
                         'Athena access key authentication requires accessKeyId and secretAccessKey',
                     );
                 }
+                if (
+                    athenaAuthenticationType ===
+                    AthenaAuthenticationType.WEB_IDENTITY
+                ) {
+                    if (
+                        !this.lightdashConfig.athenaWarehouseWebIdentityAuth
+                            .enabled
+                    ) {
+                        throw new ParameterError(
+                            'Athena web identity authentication is not enabled on this Lightdash instance',
+                        );
+                    }
+                    if (
+                        !AWS_IAM_ROLE_ARN_PATTERN.test(
+                            project.warehouseConnection.assumeRoleArn ?? '',
+                        )
+                    ) {
+                        throw new ParameterError(
+                            'Athena web identity authentication requires an IAM role ARN, like arn:aws:iam::123456789012:role/lightdash',
+                        );
+                    }
+                }
                 break;
             default:
                 break;
@@ -6195,6 +6231,12 @@ export class ProjectService extends BaseService {
                       })
                     : null,
                 this.analytics,
+                undefined,
+                usesAwsWebIdentity(warehouseCredentials)
+                    ? this.projectModel.getWarehouseClientIdentityOptions(
+                          user.organizationUuid,
+                      )
+                    : undefined,
             );
             await adapter.test();
             this.analytics.track({
@@ -6309,7 +6351,10 @@ export class ProjectService extends BaseService {
             account.user.userUuid,
             savedProject.organizationUuid,
         );
-        return this.runWarehouseConnectionHops(resolved.warehouseConnection);
+        return this.runWarehouseConnectionHops(
+            resolved.warehouseConnection,
+            savedProject.organizationUuid,
+        );
     }
 
     async testWarehouseConnectionCredentials(
@@ -6332,11 +6377,15 @@ export class ProjectService extends BaseService {
             account.user.userUuid,
             organizationUuid,
         );
-        return this.runWarehouseConnectionHops(resolved.warehouseConnection);
+        return this.runWarehouseConnectionHops(
+            resolved.warehouseConnection,
+            organizationUuid,
+        );
     }
 
     private async runWarehouseConnectionHops(
         credentials: CreateWarehouseCredentials,
+        organizationUuid: string,
     ): Promise<WarehouseConnectionTestResults> {
         const usesTunnel =
             (credentials.type === WarehouseTypes.POSTGRES ||
@@ -6353,6 +6402,7 @@ export class ProjectService extends BaseService {
                 const warehouseClient =
                     this.projectModel.getWarehouseClientFromCredentials(
                         tunnelCredentials,
+                        { organizationUuid },
                     );
                 await warehouseClient.test();
                 return buildConnectionTestResults([
@@ -6461,6 +6511,7 @@ export class ProjectService extends BaseService {
             const warehouseClient =
                 this.projectModel.getWarehouseClientFromCredentials(
                     tunnelCredentials,
+                    { organizationUuid: account.organization.organizationUuid },
                 );
             const adapterType = warehouseClient.getAdapterType();
             // A fixed wall-clock, read through the session timezone the client
@@ -6627,6 +6678,7 @@ export class ProjectService extends BaseService {
         cachedWarehouse: CachedWarehouse;
         dbtVersionOption: DbtVersionOption;
         dbtPartialParse: boolean;
+        warehouseClientOptions: WarehouseClientOptions | undefined;
     }> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -6808,6 +6860,13 @@ export class ProjectService extends BaseService {
         const dbtVersionOption =
             project.dbtVersion || DefaultSupportedDbtVersion;
         const dbtPartialParse = await this.isDbtPartialParseEnabled(user);
+        const warehouseClientOptions = usesAwsWebIdentity(
+            project.warehouseConnection,
+        )
+            ? this.projectModel.getWarehouseClientIdentityOptions(
+                  project.organizationUuid,
+              )
+            : undefined;
         const adapter = await projectAdapterFromConfig(
             dbtConnection,
             sshTunnel.overrideCredentials,
@@ -6821,6 +6880,8 @@ export class ProjectService extends BaseService {
                   })
                 : null,
             this.analytics,
+            undefined,
+            warehouseClientOptions,
         );
         return {
             adapter,
@@ -6829,6 +6890,7 @@ export class ProjectService extends BaseService {
             cachedWarehouse,
             dbtVersionOption,
             dbtPartialParse,
+            warehouseClientOptions,
         };
     }
 
@@ -6848,6 +6910,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials: CreateWarehouseCredentials;
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
+            warehouseClientOptions?: WarehouseClientOptions;
         },
         partialParseBaselinePath: string | null,
     ): Promise<ProjectAdapter> {
@@ -6867,6 +6930,8 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.dbt.environmentVariableAllowlist,
             partialParseBaselinePath,
             this.analytics,
+            undefined,
+            shared.warehouseClientOptions,
         );
     }
 
@@ -7073,6 +7138,7 @@ export class ProjectService extends BaseService {
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
+            warehouseClientOptions?: WarehouseClientOptions;
         };
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
@@ -7081,6 +7147,7 @@ export class ProjectService extends BaseService {
             warehouseCredentials: primary.warehouseCredentials,
             cachedWarehouse: primary.cachedWarehouse,
             dbtVersionOption: primary.dbtVersionOption,
+            warehouseClientOptions: primary.warehouseClientOptions,
         };
 
         // The primary git adapter is only read for its manifest here; the merged
@@ -7443,6 +7510,7 @@ export class ProjectService extends BaseService {
                     projectDir: primary.adapter.dbtProjectDir,
                     selectedModelIds,
                 },
+                shared.warehouseClientOptions,
             ),
             stagedMergedManifest,
         };

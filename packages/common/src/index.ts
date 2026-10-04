@@ -208,6 +208,8 @@ export {
     DEFAULT_PROJECT_DBT_SOURCE_NAME,
     DbtProjectType,
     DbtVersionOptionLatest,
+    getAwsWebIdentityAudience,
+    usesAwsWebIdentity,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
     DucklakeCatalogType,

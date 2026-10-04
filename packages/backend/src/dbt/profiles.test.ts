@@ -1,5 +1,6 @@
 import {
     applyWarehouseLocation,
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -166,5 +167,22 @@ describe('BigQuery key file in dbt profiles', () => {
                 '/tmp/profiles',
             ),
         ).toThrow('BigQuery key file must be a service account key');
+
+describe('Athena web identity profile', () => {
+    it('passes no AWS credentials or role to dbt', () => {
+        const target = targetFor({
+            type: WarehouseTypes.ATHENA,
+            region: 'eu-west-1',
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            s3StagingDir: 's3://bucket/results/',
+            authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+            assumeRoleArn: 'arn:aws:iam::123456789012:role/lightdash',
+        });
+
+        expect(target.type).toBe(WarehouseTypes.ATHENA);
+        expect(target).not.toHaveProperty('aws_access_key_id');
+        expect(target).not.toHaveProperty('aws_secret_access_key');
+        expect(target).not.toHaveProperty('aws_assume_role_arn');
     });
 });

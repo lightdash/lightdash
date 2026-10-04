@@ -275,6 +275,8 @@ export class HealthService extends BaseService {
                 this.lightdashConfig.organizationWarehouseCredentials.enabled,
             isAthenaWarehouseIamRoleAuthEnabled:
                 this.lightdashConfig.athenaWarehouseIamRoleAuth.enabled,
+            isAthenaWarehouseWebIdentityAuthEnabled:
+                this.lightdashConfig.athenaWarehouseWebIdentityAuth.enabled,
             isSaveCredentialsFormEnabled:
                 this.lightdashConfig.saveCredentialsForm.enabled,
             isCustomRolesEnabled:

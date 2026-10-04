@@ -137,7 +137,28 @@ export enum DatabricksAuthenticationType {
 export enum AthenaAuthenticationType {
     ACCESS_KEY = 'access_key',
     IAM_ROLE = 'iam_role',
+    // Lightdash's Google workload identity, exchanged for credentials on
+    // `assumeRoleArn` with sts:AssumeRoleWithWebIdentity.
+    WEB_IDENTITY = 'web_identity',
 }
+
+/**
+ * The audience Lightdash requests for an organization's Google identity token
+ * under Athena web identity auth. Customers pin it as `accounts.google.com:oaud`
+ * in their role's trust policy, so only this organization's connections can
+ * assume the role. The server always derives it; it is never read from
+ * credentials.
+ */
+export const getAwsWebIdentityAudience = (organizationUuid: string) =>
+    `lightdash:${organizationUuid}`;
+
+export const usesAwsWebIdentity = (
+    credentials:
+        | { type: WarehouseTypes; authenticationType?: string }
+        | undefined,
+) =>
+    credentials?.type === WarehouseTypes.ATHENA &&
+    credentials.authenticationType === AthenaAuthenticationType.WEB_IDENTITY;
 
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;

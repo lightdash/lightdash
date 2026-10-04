@@ -4,6 +4,7 @@ import {
     isExploreError,
     NotFoundError,
     ParameterError,
+    usesAwsWebIdentity,
     type CompilationHistoryReport,
     type CreateWarehouseCredentials,
     type DbtManifest,
@@ -150,6 +151,18 @@ export class MultiConnectionCompiler {
         });
     }
 
+    private async getWarehouseClientOptions(
+        projectUuid: string,
+        credentials: CreateWarehouseCredentials,
+    ) {
+        if (!usesAwsWebIdentity(credentials)) return undefined;
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return this.projectModel.getWarehouseClientIdentityOptions(
+            organizationUuid,
+        );
+    }
+
     private static async fetchSourceManifests(
         sources: CompilableDbtSource[],
         warehouseCredentials: CreateWarehouseCredentials,
@@ -213,6 +226,10 @@ export class MultiConnectionCompiler {
                     const warning = `Connection "${plan.connectionName}" skipped listed database "${database}": it does not exist.`;
                     if (!warnings.includes(warning)) warnings.push(warning);
                 },
+                await this.getWarehouseClientOptions(
+                    projectUuid,
+                    warehouseCredentials,
+                ),
             );
             await warehouseClient.test();
             const sourceManifests =
@@ -339,6 +356,10 @@ export class MultiConnectionCompiler {
                         `Connection "${originalPlan.connectionName}" skipped listed database "${database}": it does not exist.`,
                     );
                 },
+                await this.getWarehouseClientOptions(
+                    projectUuid,
+                    primary.warehouseCredentials,
+                ),
             ),
             cachedWarehouse: primary.cachedWarehouse,
             dbtVersion,
