@@ -9,6 +9,7 @@ import {
 import {
     everyValidator,
     hasNoWhiteSpaces,
+    isAwsIamRoleArn,
     isRequired,
     isUppercase,
     startWithHTTPSProtocol,
@@ -294,6 +295,7 @@ export const createWarehouseValueValidators: Record<
             'IAM Role ARN',
             athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY),
             hasNoWhiteSpaces,
+            isAwsIamRoleArn,
         ),
         webIdentityAudience: requiredWhen(
             'Audience',

@@ -88,16 +88,20 @@ const AthenaForm: FC<{
         ? defaultAuthenticationType
         : AthenaAuthenticationType.ACCESS_KEY;
 
+    const isCurrentTypeEnabled = isAuthenticationTypeEnabled(
+        warehouse.authenticationType,
+    );
+    const hasHealth = !!health.data;
+
     useEffect(() => {
         // Wait for health so a saved type isn't reset before it is known.
-        if (!health.data) return;
-        if (!isAuthenticationTypeEnabled(warehouse.authenticationType)) {
+        if (hasHealth && !isCurrentTypeEnabled) {
             form.setFieldValue(
                 'warehouse.authenticationType',
                 fallbackAuthenticationType,
             );
         }
-    });
+    }, [hasHealth, isCurrentTypeEnabled, fallbackAuthenticationType, form]);
 
     const authenticationType = isAuthenticationTypeEnabled(
         warehouse.authenticationType,
