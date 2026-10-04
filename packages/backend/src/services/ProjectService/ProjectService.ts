@@ -14406,37 +14406,12 @@ export class ProjectService extends BaseService {
             }),
         );
 
-        // Samples the copy does not carry over from the training project.
-        // Best effort, each on its own: a sample that fails to seed leaves the
-        // copy usable for every other walkthrough, the other sample included,
-        // rather than failing a copy that now exists.
-        try {
-            await this.seedSampleDocumentsInCopy(
-                user,
-                projectUuid,
-                training.createdByUserUuid,
-            );
-        } catch (error) {
-            Logger.error(
-                `Training copy ${projectUuid}: the sample document could not be seeded`,
-                error,
-            );
-        }
-        try {
-            await this.seedTrainingCopyEnterpriseContent?.({
-                organizationUuid: user.organizationUuid,
-                projectUuid,
-                createdByUserUuid: training.createdByUserUuid,
-            });
-        } catch (error) {
-            // Reported as well as logged: the learner only sees a walkthrough
-            // step waiting for a document that is not there.
-            Logger.error(
-                `Training copy ${projectUuid}: the sample knowledge document could not be seeded`,
-                error,
-            );
-            Sentry.captureException(error);
-        }
+        await this.seedSamplesInCopy(
+            user,
+            user.organizationUuid,
+            projectUuid,
+            training.createdByUserUuid,
+        );
 
         // The trainee layer on the new copy only exists in a freshly built
         // ability; the cached session user still reflects the old copies.
@@ -14444,6 +14419,50 @@ export class ProjectService extends BaseService {
 
         const preview = await this.projectModel.get(projectUuid);
         return { projectUuid, expiresAt: preview.expiresAt ?? null };
+    }
+
+    /**
+     * Samples a copy does not carry over from the training project. Best
+     * effort, each on its own: a sample that fails to seed leaves the copy
+     * usable for every other walkthrough, the other sample included, rather
+     * than failing a copy that now exists. A failure is reported as well as
+     * logged, because the learner only sees a walkthrough step waiting for
+     * something that is not there.
+     */
+    private async seedSamplesInCopy(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        createdByUserUuid: string | null,
+    ): Promise<void> {
+        const bestEffort = async (
+            sample: string,
+            seed: () => Promise<void> | undefined,
+        ) => {
+            try {
+                await seed();
+            } catch (error) {
+                Logger.error(
+                    `Training copy ${projectUuid}: the sample ${sample} could not be seeded`,
+                    error,
+                );
+                Sentry.captureException(error);
+            }
+        };
+        await bestEffort('document', () =>
+            this.seedSampleDocumentsInCopy(
+                user,
+                projectUuid,
+                createdByUserUuid,
+            ),
+        );
+        await bestEffort('knowledge document', () =>
+            this.seedTrainingCopyEnterpriseContent?.({
+                organizationUuid,
+                projectUuid,
+                createdByUserUuid,
+            }),
+        );
     }
 
     /**

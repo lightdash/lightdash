@@ -1,6 +1,7 @@
 import { AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES } from '@lightdash/common';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import Logger from '../../../logging/logger';
 import { type AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import { loadPlaygroundContent } from './loadPlaygroundContent';
@@ -38,7 +39,12 @@ export const seedPlaygroundAgentDocuments = async ({
         projectUuid,
         slugs: [content.agent.slug],
     });
-    if (!agent) return;
+    if (!agent) {
+        Logger.warn(
+            `Project ${projectUuid} has no "${content.agent.slug}" agent; skipping its sample knowledge documents`,
+        );
+        return;
+    }
     const existing = await aiAgentDocumentModel.findAllForAgent({
         organizationUuid,
         agentUuid: agent.uuid,
@@ -55,6 +61,9 @@ export const seedPlaygroundAgentDocuments = async ({
             used + Buffer.byteLength(definition.content, 'utf8') >
             AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES
         ) {
+            Logger.warn(
+                `Project ${projectUuid}: the organization is at its knowledge document quota; skipping the sample "${definition.name}"`,
+            );
             return;
         }
         await aiAgentDocumentModel.create({

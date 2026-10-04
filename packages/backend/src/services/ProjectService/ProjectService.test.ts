@@ -92,6 +92,7 @@ import {
     SshTunnel,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -201,6 +202,14 @@ import { TRAINING_SPACE } from './provisionTrainingProject';
 // formatRows runs in a Worker thread for large result sets, but the Worker
 // constructor requires the built JS file which only exists after `pnpm build`.
 // This mock runs formatRows synchronously in the main thread instead.
+vi.mock('@sentry/node', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@sentry/node')>();
+    return {
+        ...actual,
+        captureException: vi.fn(),
+    };
+});
+
 vi.mock('worker_threads', async () => {
     const { formatRows } =
         await vi.importActual<typeof import('@lightdash/common')>(
@@ -528,6 +537,7 @@ const getMockedProjectService = (
             | 'spacePermissionService'
             | 'provisionPlaygroundProject'
             | 'provisionTrainingProject'
+            | 'seedTrainingCopyEnterpriseContent'
             | 'downloadFileModel'
             | 'getAiAgentService'
             | 'getAppGenerateService'
@@ -637,6 +647,8 @@ const getMockedProjectService = (
         } as never,
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
         provisionTrainingProject: overrides.provisionTrainingProject,
+        seedTrainingCopyEnterpriseContent:
+            overrides.seedTrainingCopyEnterpriseContent,
         getAiAgentService: overrides.getAiAgentService,
         getAppGenerateService: overrides.getAppGenerateService,
         getDataAppCustomSqlProvenance:
@@ -860,8 +872,14 @@ describe('ProjectService', () => {
         );
 
         describe('sample documents in a new training copy', () => {
-            const withDocumentsFlag = (enabled: boolean) =>
+            const withDocumentsFlag = (
+                enabled: boolean,
+                seedTrainingCopyEnterpriseContent?: NonNullable<
+                    Parameters<typeof getMockedProjectService>[1]
+                >['seedTrainingCopyEnterpriseContent'],
+            ) =>
                 getMockedProjectService(lightdashConfigMock, {
+                    seedTrainingCopyEnterpriseContent,
                     featureFlagModel: {
                         get: vi.fn(async ({ featureFlagId }) => ({
                             id: featureFlagId,
@@ -918,6 +936,66 @@ describe('ProjectService', () => {
                 spaceModel.find.mockResolvedValueOnce([]);
                 await seed(withDocumentsFlag(true));
                 expect(documentModel.create).not.toHaveBeenCalled();
+            });
+
+            describe('with the Enterprise samples', () => {
+                const seedAll = (learnService: ProjectService) =>
+                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                    learnService['seedSamplesInCopy'](
+                        learnUser,
+                        'organization-uuid',
+                        'copy',
+                        'creator',
+                    );
+                const reported = vi.mocked(Sentry.captureException);
+
+                beforeEach(() => {
+                    reported.mockClear();
+                });
+
+                test('seeds the knowledge document for the copy, credited the same way', async () => {
+                    const enterprise = vi.fn(async () => undefined);
+                    spaceModel.find.mockResolvedValueOnce([
+                        { uuid: 'training-space' },
+                    ] as never);
+                    await seedAll(withDocumentsFlag(true, enterprise));
+                    expect(documentModel.create).toHaveBeenCalledTimes(1);
+                    expect(enterprise).toHaveBeenCalledExactlyOnceWith({
+                        organizationUuid: 'organization-uuid',
+                        projectUuid: 'copy',
+                        createdByUserUuid: 'creator',
+                    });
+                    expect(reported).not.toHaveBeenCalled();
+                });
+
+                test('a document sample that fails is reported and does not skip the knowledge document', async () => {
+                    const enterprise = vi.fn(async () => undefined);
+                    const failure = new Error('no documents table');
+                    spaceModel.find.mockRejectedValueOnce(failure);
+                    await expect(
+                        seedAll(withDocumentsFlag(true, enterprise)),
+                    ).resolves.toBeUndefined();
+                    expect(enterprise).toHaveBeenCalledTimes(1);
+                    expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
+                });
+
+                test('a knowledge document that fails is reported and still hands over the copy', async () => {
+                    const failure = new Error('quota lookup failed');
+                    const enterprise = vi.fn(async () => {
+                        throw failure;
+                    });
+                    await expect(
+                        seedAll(withDocumentsFlag(false, enterprise)),
+                    ).resolves.toBeUndefined();
+                    expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
+                });
+
+                test('does nothing more on an instance without the Enterprise seed', async () => {
+                    await expect(
+                        seedAll(withDocumentsFlag(false)),
+                    ).resolves.toBeUndefined();
+                    expect(reported).not.toHaveBeenCalled();
+                });
             });
         });
 

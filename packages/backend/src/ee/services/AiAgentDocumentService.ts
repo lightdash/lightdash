@@ -286,7 +286,7 @@ export class AiAgentDocumentService extends BaseService {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
         this.assertCanManageDocuments(user, organizationUuid, projectUuid);
-        await this.assertNotTrainingProject(projectUuid, 'Editing documents');
+        await this.assertNotTrainingProject(projectUuid, 'edited');
         const agent = await this.aiAgentService.getAgent(
             user,
             agentUuid,
@@ -454,14 +454,14 @@ export class AiAgentDocumentService extends BaseService {
      */
     private async assertNotTrainingProject(
         projectUuid: string | null,
-        action: string,
+        action: 'added' | 'edited',
     ): Promise<void> {
         if (
             projectUuid &&
             (await this.aiAgentDocumentModel.isTrainingProject(projectUuid))
         ) {
             throw new ForbiddenError(
-                `${action} isn't available in a training copy`,
+                `Knowledge documents cannot be ${action} in the training project`,
             );
         }
     }
@@ -476,10 +476,7 @@ export class AiAgentDocumentService extends BaseService {
             projectExplores: Explore[];
         },
     ): Promise<AiAgentDocument> {
-        await this.assertNotTrainingProject(
-            scope.projectUuid,
-            'Adding documents',
-        );
+        await this.assertNotTrainingProject(scope.projectUuid, 'added');
         const contentBytes = Buffer.byteLength(body.content, 'utf8');
         if (contentBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
             throw new PayloadTooLargeError(

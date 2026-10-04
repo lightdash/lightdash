@@ -634,7 +634,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 'data-tour-label':
                                                     'Turn on Always include in context',
                                                 'data-tour-title':
-                                                    'Give an agent a knowledge document',
+                                                    'Always include a knowledge document in context',
                                                 'data-tour-interactive': 'true',
                                                 'data-tour-covers':
                                                     'view:AiAgentDocument',

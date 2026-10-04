@@ -223,8 +223,9 @@ export class AiAgentDocumentModel {
     }
 
     /**
-     * Whether a project is the organization's Learn training project or a
-     * learner's copy of it (a preview the training flow made).
+     * SQL that holds unless the project is the organization's Learn training
+     * project or a learner's copy of it (a preview the training flow made).
+     * The same rule as `isTrainingProject`, negated, for use inside a scope.
      */
     private static notTrainingProjectSubquery(qb: Knex, projectUuid: string) {
         return qb.raw(

@@ -202,7 +202,7 @@ const LoadedDocumentModal = ({
                         data-tour-look="2"
                         data-tour-after='[data-tour-anchor="knowledge-document-open"]'
                         data-tour-label="Read the document"
-                        data-tour-docs="agents/effective-analytics-with-agents.mdx#open-a-document:2"
+                        data-tour-docs="agents/effective-analytics-with-agents.mdx#how-they-work:li1:1-2"
                     >
                         <MDEditor.Markdown
                             source={form.values.content}

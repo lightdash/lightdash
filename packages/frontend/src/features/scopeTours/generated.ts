@@ -3527,7 +3527,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
     },
     'manage:AiAgentDocument': {
         scope: 'manage:AiAgentDocument',
-        title: 'Give an agent a knowledge document',
+        title: 'Always include a knowledge document in context',
         sources: [
             'packages/frontend/src/ee/features/aiCopilot/components/AiAgentKnowledgeDocumentModal.tsx',
             'packages/frontend/src/ee/features/aiCopilot/components/AiAgentKnowledgeFilesSection.tsx',
@@ -3633,7 +3633,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:AiAgentDocument"][data-tour-look="2"]',
                 title: 'Read the document',
-                body: 'Read the document there, or click **Download** to save a copy of the current file.',
+                body: "**The agent decides when to open a document.** If your document is never being used, the summary probably isn't specific enough about what it's for.",
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
@@ -5790,7 +5790,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
     },
     'view:AiAgentDocument': {
         scope: 'view:AiAgentDocument',
-        title: 'Give an agent a knowledge document',
+        title: 'Always include a knowledge document in context',
         sources: [
             'packages/frontend/src/ee/features/aiCopilot/components/AiAgentKnowledgeDocumentModal.tsx',
             'packages/frontend/src/ee/features/aiCopilot/components/AiAgentKnowledgeFilesSection.tsx',
@@ -5896,7 +5896,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:AiAgentDocument"][data-tour-look="2"]',
                 title: 'Read the document',
-                body: 'Read the document there, or click **Download** to save a copy of the current file.',
+                body: "**The agent decides when to open a document.** If your document is never being used, the summary probably isn't specific enough about what it's for.",
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,

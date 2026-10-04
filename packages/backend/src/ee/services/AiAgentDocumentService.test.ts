@@ -35,7 +35,22 @@ const projectAdmin = {
     ),
 } as unknown as SessionUser;
 
+const organizationAdmin = {
+    userId: 2,
+    userUuid,
+    organizationUuid,
+    abilityRules: [],
+    ability: defineUserAbility(
+        { userUuid, role: OrganizationMemberRole.ADMIN, organizationUuid },
+        [],
+    ),
+} as unknown as SessionUser;
+
 const PAST_THE_CHECK = 'past the training-copy check';
+const REFUSED_ADD =
+    'Knowledge documents cannot be added in the training project';
+const REFUSED_EDIT =
+    'Knowledge documents cannot be edited in the training project';
 
 const setup = ({ isTrainingProject }: { isTrainingProject: boolean }) => {
     const aiAgentDocumentModel = {
@@ -81,7 +96,7 @@ describe('AiAgentDocumentService in a Learn training project or copy', () => {
                 { projectUuid, agentUuid },
                 upload as never,
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(new ForbiddenError(REFUSED_ADD));
         expect(aiAgentDocumentModel.isTrainingProject).toHaveBeenCalledWith(
             projectUuid,
         );
@@ -99,14 +114,32 @@ describe('AiAgentDocumentService in a Learn training project or copy', () => {
                 ...upload,
                 projectUuid,
             } as never),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(new ForbiddenError(REFUSED_ADD));
+        expect(aiAgentDocumentModel.isTrainingProject).toHaveBeenCalledWith(
+            projectUuid,
+        );
         expect(
             aiAgentDocumentModel.getOrganizationContentSize,
         ).not.toHaveBeenCalled();
     });
 
+    it('does not ask about training for an organization document with no project', async () => {
+        const { service, aiAgentDocumentModel } = setup({
+            isTrainingProject: true,
+        });
+        await expect(
+            service.createOrganizationDocument(organizationAdmin, {
+                ...upload,
+                projectUuid: null,
+            } as never),
+        ).rejects.toThrow(PAST_THE_CHECK);
+        expect(aiAgentDocumentModel.isTrainingProject).not.toHaveBeenCalled();
+    });
+
     it('refuses rewriting a document', async () => {
-        const { service, aiAgentService } = setup({ isTrainingProject: true });
+        const { service, aiAgentService, aiAgentDocumentModel } = setup({
+            isTrainingProject: true,
+        });
         await expect(
             service.updateDocumentContent(
                 projectAdmin,
@@ -114,7 +147,10 @@ describe('AiAgentDocumentService in a Learn training project or copy', () => {
                 'document-uuid',
                 { name: 'Glossary', content: 'More terms' } as never,
             ),
-        ).rejects.toThrow("Editing documents isn't available");
+        ).rejects.toThrow(new ForbiddenError(REFUSED_EDIT));
+        expect(aiAgentDocumentModel.isTrainingProject).toHaveBeenCalledWith(
+            projectUuid,
+        );
         expect(aiAgentService.getAgent).not.toHaveBeenCalled();
     });
 
