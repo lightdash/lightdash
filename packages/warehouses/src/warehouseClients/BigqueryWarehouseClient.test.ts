@@ -844,3 +844,42 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
         await expect(warehouse.test()).rejects.toThrow(BigqueryTokenError);
     });
 });
+
+describe('BigqueryWarehouseClient key file credentials', () => {
+    const getClientCredentials = (warehouse: BigqueryWarehouseClient) =>
+        (warehouse.client.authClient as unknown as { jsonContent: unknown })
+            .jsonContent;
+
+    it('only passes known key file fields to the client', () => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            keyfileContents: {
+                type: 'service_account',
+                client_email: 'robot@example.iam.gserviceaccount.com',
+                private_key: 'private-key',
+                token_uri: 'https://example.com/token',
+                unexpected: 'value',
+            },
+        });
+
+        expect(getClientCredentials(warehouse)).toEqual({
+            type: 'service_account',
+            client_email: 'robot@example.iam.gserviceaccount.com',
+            private_key: 'private-key',
+        });
+    });
+
+    it('rejects unsupported key file types', () => {
+        expect(
+            () =>
+                new BigqueryWarehouseClient({
+                    ...credentials,
+                    keyfileContents: {
+                        type: 'external_account',
+                        audience: 'audience',
+                    },
+                }),
+        ).toThrow(WarehouseConnectionError);
+    });
+});

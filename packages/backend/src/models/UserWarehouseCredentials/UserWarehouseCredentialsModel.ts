@@ -6,6 +6,7 @@ import {
     DatabricksAuthenticationType,
     databricksOauthU2mUserCredentialsSchema,
     DatabricksTokenError,
+    getBigqueryKeyfileError,
     LightdashError,
     NotFoundError,
     ParameterError,
@@ -552,7 +553,12 @@ export class UserWarehouseCredentialsModel {
             const result = bigquerySsoUserCredentialsSchema.safeParse(
                 data.credentials,
             );
-            if (!result.success) {
+            if (
+                !result.success ||
+                getBigqueryKeyfileError(data.credentials.keyfileContents, {
+                    requireType: 'authorized_user',
+                }) !== undefined
+            ) {
                 throw new ParameterError(
                     'BigQuery credentials require a valid keyfile. Please reauthenticate with Google.',
                 );

@@ -8542,6 +8542,104 @@ describe('ProjectService', () => {
                 'Bigquery refresh token is required for SSO authentication',
             );
         });
+
+        it('allows a user credentials keyfile for SSO authentication', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile(
+                        authorizedUserKeyfile,
+                        BigqueryAuthenticationType.SSO,
+                    ),
+                ),
+            ).not.toThrowError();
+        });
+
+        it.each([
+            'external_account',
+            'external_account_authorized_user',
+            'impersonated_service_account',
+        ])('rejects unsupported key file types: %s', (type) => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile({
+                        ...serviceAccountKeyfile,
+                        type,
+                    }),
+                ),
+            ).toThrowError('BigQuery key file must be a service account key');
+        });
+
+        it('rejects an SSO keyfile that is not user credentials', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile(
+                        {
+                            ...authorizedUserKeyfile,
+                            type: 'external_account_authorized_user',
+                        },
+                        BigqueryAuthenticationType.SSO,
+                    ),
+                ),
+            ).toThrowError('BigQuery key file must be a service account key');
+        });
+
+        it('rejects a service account keyfile without a client email', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile({
+                        type: 'service_account',
+                        private_key: 'test-private-key',
+                    }),
+                ),
+            ).toThrowError('BigQuery key file is missing "client_email"');
+        });
+
+        it('rejects unsupported key file types when a connection is written', () => {
+            expect(() =>
+                service.assertCanWriteWarehouseConnection(
+                    developerAccount,
+                    {
+                        organizationUuid: 'organization-uuid',
+                        provisioningSource: null,
+                    },
+                    {
+                        warehouseConnection: projectWithBigqueryKeyfile({
+                            ...serviceAccountKeyfile,
+                            type: 'external_account',
+                        }).warehouseConnection,
+                    },
+                ),
+            ).toThrowError('BigQuery key file must be a service account key');
+        });
+
+        it('leaves empty key files to be filled from saved secrets when a connection is written', () => {
+            expect(() =>
+                service.assertCanWriteWarehouseConnection(
+                    developerAccount,
+                    {
+                        organizationUuid: 'organization-uuid',
+                        provisioningSource: null,
+                    },
+                    {
+                        warehouseConnection: projectWithBigqueryKeyfile({})
+                            .warehouseConnection,
+                    },
+                ),
+            ).not.toThrowError();
+        });
+
+        it('rejects keyfiles with nested values', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile({
+                        ...serviceAccountKeyfile,
+                        credential_source: {
+                            url: 'https://example.com',
+                        },
+                    } as unknown as { [key: string]: string }),
+                ),
+            ).toThrowError(ParameterError);
+        });
     });
 
     describe('compileMergeQuery', () => {

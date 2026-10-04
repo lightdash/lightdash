@@ -391,6 +391,7 @@ export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
+export * from './utils/bigqueryKeyfile';
 export * from './utils/charts';
 export * from './utils/chartValidation';
 export * from './utils/colors';

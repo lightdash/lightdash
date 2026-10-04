@@ -2,11 +2,13 @@ import {
     AnyType,
     assertUnreachable,
     AthenaAuthenticationType,
+    BIGQUERY_SERVICE_ACCOUNT_TOKEN_URI,
     BigqueryAuthenticationType,
     CreateWarehouseCredentials,
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    getBigqueryKeyfileCredentials,
     ParameterError,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
@@ -64,16 +66,23 @@ const credentialsTarget = (
                             'BigQuery private key/SSO authentication requires keyfileContents to be provided',
                         );
                     }
+                    const keyfile = getBigqueryKeyfileCredentials(
+                        credentials.keyfileContents,
+                    );
+                    if (keyfile.private_key !== undefined) {
+                        keyfile.token_uri = BIGQUERY_SERVICE_ACCOUNT_TOKEN_URI;
+                    }
                     bqResult.target.keyfile_json = Object.fromEntries(
-                        Object.keys(credentials.keyfileContents).map((key) => [
+                        Object.keys(keyfile).map((key) => [
                             key,
                             envVarReference(key),
                         ]),
                     );
                     bqResult.environment = Object.fromEntries(
-                        Object.entries(credentials.keyfileContents).map(
-                            ([key, value]) => [envVar(key), value],
-                        ),
+                        Object.entries(keyfile).map(([key, value]) => [
+                            envVar(key),
+                            value,
+                        ]),
                     );
                     return bqResult;
                 case BigqueryAuthenticationType.ADC:
