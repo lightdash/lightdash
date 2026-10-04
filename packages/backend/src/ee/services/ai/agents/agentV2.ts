@@ -115,6 +115,7 @@ import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
+import { getReadAttachments } from '../tools/readAttachments';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
@@ -1965,6 +1966,12 @@ export const getAgentTools = (
         readPinnedThread: dependencies.readPinnedThread,
     });
 
+    const readAttachments = args.enableReadAttachments
+        ? getReadAttachments({
+              readAttachments: dependencies.readAttachments,
+          })
+        : null;
+
     const loadSkill =
         args.availableSkills.length > 0
             ? getLoadSkill({
@@ -2073,6 +2080,7 @@ export const getAgentTools = (
         ...(syncDbtProject ? { syncDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
+        ...(readAttachments ? { readAttachments } : {}),
         ...(discoverRepos ? { discoverRepos } : {}),
         ...(listWorkstreams ? { listWorkstreams } : {}),
         ...(closePullRequest ? { closePullRequest } : {}),

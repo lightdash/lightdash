@@ -9,6 +9,7 @@ const REFERENCE_TOOLS = new Set([
     'getKnowledgeDocumentContent',
     'loadProjectContext',
     'readPinnedThread',
+    'readAttachments',
     'resolveUrl',
     'getProjectInfo',
     'listProjects',

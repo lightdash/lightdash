@@ -18784,6 +18784,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "listKnowledgeDocuments",
   "getKnowledgeDocumentContent",
   "readPinnedThread",
+  "readAttachments",
   "submitResearchReport",
   "delegateResearchTask",
   "submitWorkerFindings",

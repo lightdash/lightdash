@@ -131,7 +131,12 @@ describe('AgentChatInput Deep Research mode', () => {
             screen
                 .getAllByRole('menuitem')
                 .map((menuItem) => menuItem.textContent),
-        ).toEqual(['Attach a CSV', 'SQL Runner', 'Deep research']);
+        ).toEqual([
+            'Attach a CSV',
+            'Attach a document',
+            'SQL Runner',
+            'Deep research',
+        ]);
         expect(
             screen.getByRole('menuitem', { name: 'Enable SQL Runner' }),
         ).toBeInTheDocument();
@@ -318,12 +323,17 @@ describe('AgentChatInput Deep Research mode', () => {
         ).toBeInTheDocument();
     });
 
-    it('hides the action menu when no actions are available', () => {
+    it('still offers document attachment when no other actions are available', async () => {
         renderInput({ onStartDeepResearch: null });
 
+        await openComposerOptions();
+
         expect(
-            screen.queryByRole('button', { name: 'Composer options' }),
-        ).not.toBeInTheDocument();
+            screen
+                .getAllByRole('menuitem')
+                .map((menuItem) => menuItem.textContent),
+        ).toEqual(['Attach a document']);
+        expect(screen.queryByRole('separator')).not.toBeInTheDocument();
     });
 
     it('hides the action menu while the composer is disabled', () => {

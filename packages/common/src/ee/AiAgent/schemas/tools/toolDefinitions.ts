@@ -272,6 +272,11 @@ import {
     mcpRunSqlStructuredOutputSchema,
 } from './toolQueryResultSchemas';
 import {
+    TOOL_READ_ATTACHMENTS_DESCRIPTION,
+    toolReadAttachmentsArgsSchema,
+    toolReadAttachmentsOutputSchema,
+} from './toolReadAttachmentsArgs';
+import {
     TOOL_READ_CONTENT_DESCRIPTION,
     toolReadContentArgsSchema,
     toolReadContentOutputSchema,
@@ -1387,6 +1392,20 @@ export const getKnowledgeDocumentContentToolDefinition: ToolDefinitionWithoutMcp
     agent: { outputSchema: toolGetKnowledgeDocumentContentOutputSchema },
 });
 
+export const readAttachmentsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'readAttachments',
+    typeof toolReadAttachmentsArgsSchema,
+    typeof toolReadAttachmentsArgsSchema,
+    typeof toolReadAttachmentsOutputSchema
+> = defineTool({
+    name: 'readAttachments',
+    title: 'Read attached documents',
+    description: TOOL_READ_ATTACHMENTS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolReadAttachmentsArgsSchema,
+    agent: { outputSchema: toolReadAttachmentsOutputSchema },
+});
+
 export const readPinnedThreadToolDefinition: ToolDefinitionWithoutMcpOutput<
     'readPinnedThread',
     typeof toolReadPinnedThreadArgsSchema,
@@ -1890,6 +1909,7 @@ type AgentToolDefinitionsByName = {
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
+    readAttachments: typeof readAttachmentsToolDefinition;
     submitResearchReport: typeof submitResearchReportToolDefinition;
     delegateResearchTask: typeof delegateResearchTaskToolDefinition;
     submitWorkerFindings: typeof submitWorkerFindingsToolDefinition;
@@ -1948,6 +1968,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
+    readAttachments: readAttachmentsToolDefinition,
     submitResearchReport: submitResearchReportToolDefinition,
     delegateResearchTask: delegateResearchTaskToolDefinition,
     submitWorkerFindings: submitWorkerFindingsToolDefinition,
@@ -2013,6 +2034,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
+    readAttachmentsToolDefinition,
     submitResearchReportToolDefinition,
     delegateResearchTaskToolDefinition,
     submitWorkerFindingsToolDefinition,

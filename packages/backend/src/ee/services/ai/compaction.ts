@@ -246,6 +246,8 @@ export class Compaction {
                 return `skill /${item.name}${item.arguments ? ` with arguments "${item.arguments}"` : ''}${item.versionNumber ? ` (v${item.versionNumber})` : ''}`;
             case 'design':
                 return `theme ${item.displayName ?? item.designUuid} (${item.designSlug ?? item.designUuid})`;
+            case 'thread_file':
+                return `attached document ${item.fileName} (${item.sizeBytes} bytes; read it with readAttachments)`;
             default:
                 return assertUnreachable(
                     item,

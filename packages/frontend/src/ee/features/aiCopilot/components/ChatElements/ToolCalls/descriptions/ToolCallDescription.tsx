@@ -394,6 +394,7 @@ export const ToolCallDescription: FC<{
         case 'setupPreviewDeploy':
         case 'runSavedChart':
         case 'readPinnedThread':
+        case 'readAttachments':
         case 'submitResearchReport':
         case 'delegateResearchTask':
         case 'submitWorkerFindings':

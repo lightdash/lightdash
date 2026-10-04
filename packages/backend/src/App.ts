@@ -1,5 +1,6 @@
 import './tracing/bootstrap'; // Must run before modules that can load Knex
 import {
+    AI_THREAD_FILE_MAX_BYTES,
     AnyType,
     ApiError,
     getErrorMessage,
@@ -525,6 +526,14 @@ export default class App {
                 next();
             }
         });
+        // Agent conversation documents arrive as a raw body of any content
+        // type. Parsing them here keeps the global JSON parser from consuming
+        // (or rejecting) `application/json` uploads, and body-parser aborts
+        // the request at the size limit instead of draining it.
+        expressApp.use(
+            '/api/v1/aiAgents/thread-files',
+            express.raw({ type: () => true, limit: AI_THREAD_FILE_MAX_BYTES }),
+        );
         expressApp.use(
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
         );
