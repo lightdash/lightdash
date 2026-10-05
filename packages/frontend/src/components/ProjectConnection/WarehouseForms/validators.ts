@@ -35,6 +35,38 @@ const sshTunnelPublicKeyValidator: Validator = (value, values) =>
         ? SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE
         : undefined;
 
+const requiredWhen =
+    (
+        fieldName: string,
+        predicate: (values: ProjectConnectionForm) => boolean,
+        ...validators: FieldValidator<string>[]
+    ): CreateValidator =>
+    (value, values) =>
+        everyValidator(
+            fieldName,
+            ...(predicate(values) ? [isRequired, ...validators] : validators),
+        )(value);
+
+const athenaAuthIs =
+    (...types: AthenaAuthenticationType[]) =>
+    (values: ProjectConnectionForm) =>
+        values.warehouse.type === WarehouseTypes.ATHENA &&
+        values.warehouse.authenticationType !== undefined &&
+        types.includes(values.warehouse.authenticationType);
+
+const athenaWebIdentityValidators = {
+    assumeRoleArn: requiredWhen(
+        'IAM Role ARN',
+        athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY),
+        hasNoWhiteSpaces,
+        isAwsIamRoleArn,
+    ),
+    webIdentityAudience: ((value, values) =>
+        athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY)(values) && !value
+            ? 'Generate an audience to continue.'
+            : undefined) satisfies CreateValidator,
+};
+
 export const warehouseValueValidators: Record<
     WarehouseTypes,
     Record<string, Validator>
@@ -94,6 +126,7 @@ export const warehouseValueValidators: Record<
         database: hasNoWhiteSpaces('Catalog'),
         schema: hasNoWhiteSpaces('Database'),
         s3StagingDir: hasNoWhiteSpaces('S3 Staging Directory'),
+        ...athenaWebIdentityValidators,
     },
     [WarehouseTypes.DUCKDB]: {
         database: hasNoWhiteSpaces('Database'),
@@ -112,18 +145,6 @@ const required = (
     ...validators: FieldValidator<string>[]
 ): CreateValidator => everyValidator(fieldName, isRequired, ...validators);
 
-const requiredWhen =
-    (
-        fieldName: string,
-        predicate: (values: ProjectConnectionForm) => boolean,
-        ...validators: FieldValidator<string>[]
-    ): CreateValidator =>
-    (value, values) =>
-        everyValidator(
-            fieldName,
-            ...(predicate(values) ? [isRequired, ...validators] : validators),
-        )(value);
-
 const snowflakeAuthIs =
     (...types: SnowflakeAuthenticationType[]) =>
     (values: ProjectConnectionForm) =>
@@ -135,13 +156,6 @@ const databricksAuthIs =
     (...types: DatabricksAuthenticationType[]) =>
     (values: ProjectConnectionForm) =>
         values.warehouse.type === WarehouseTypes.DATABRICKS &&
-        values.warehouse.authenticationType !== undefined &&
-        types.includes(values.warehouse.authenticationType);
-
-const athenaAuthIs =
-    (...types: AthenaAuthenticationType[]) =>
-    (values: ProjectConnectionForm) =>
-        values.warehouse.type === WarehouseTypes.ATHENA &&
         values.warehouse.authenticationType !== undefined &&
         types.includes(values.warehouse.authenticationType);
 
@@ -291,17 +305,7 @@ export const createWarehouseValueValidators: Record<
             'AWS Secret Access Key',
             athenaAuthIs(AthenaAuthenticationType.ACCESS_KEY),
         ),
-        assumeRoleArn: requiredWhen(
-            'IAM Role ARN',
-            athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY),
-            hasNoWhiteSpaces,
-            isAwsIamRoleArn,
-        ),
-        webIdentityAudience: ((value, values) =>
-            athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY)(values) &&
-            !value
-                ? 'Generate an audience to continue.'
-                : undefined) satisfies CreateValidator,
+        ...athenaWebIdentityValidators,
     },
     [WarehouseTypes.DUCKDB]: {
         database: requiredWhen('Database', isMotherduck, hasNoWhiteSpaces),

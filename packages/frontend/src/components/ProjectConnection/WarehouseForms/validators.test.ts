@@ -1,4 +1,6 @@
 import {
+    AthenaAuthenticationType,
+    AWS_IAM_ROLE_ARN_INVALID_MESSAGE,
     DbtProjectType,
     RedshiftAuthenticationType,
     WarehouseTypes,
@@ -6,7 +8,11 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { type ProjectConnectionForm } from '../types';
-import { PostgresDefaultValues, RedshiftDefaultValues } from './defaultValues';
+import {
+    AthenaDefaultValues,
+    PostgresDefaultValues,
+    RedshiftDefaultValues,
+} from './defaultValues';
 import {
     createWarehouseValueValidators,
     SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE,
@@ -146,5 +152,37 @@ describe('createWarehouseValueValidators[REDSHIFT]', () => {
         expect(workgroupName('', values)).toBeUndefined();
         expect(user('', values)).toBeUndefined();
         expect(password('', values)).toBeUndefined();
+    });
+});
+
+describe('athena web identity validation', () => {
+    const validators = [
+        ['update', warehouseValueValidators[WarehouseTypes.ATHENA]],
+        ['create', createWarehouseValueValidators[WarehouseTypes.ATHENA]],
+    ] as const;
+    const webIdentity = formValues({
+        ...AthenaDefaultValues,
+        authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+    });
+
+    it.each(validators)('%s form rejects a malformed role ARN', (_form, v) => {
+        expect(v.assumeRoleArn('not-an-arn', webIdentity)).toBe(
+            AWS_IAM_ROLE_ARN_INVALID_MESSAGE,
+        );
+        expect(
+            v.assumeRoleArn(
+                'arn:aws:iam::123456789012:role/lightdash-athena',
+                webIdentity,
+            ),
+        ).toBeUndefined();
+    });
+
+    it.each(validators)('%s form requires an audience', (_form, v) => {
+        expect(v.webIdentityAudience('', webIdentity)).toBe(
+            'Generate an audience to continue.',
+        );
+        expect(
+            v.webIdentityAudience('lightdash-abc', webIdentity),
+        ).toBeUndefined();
     });
 });
