@@ -46,6 +46,7 @@ import {
     buildTableRows,
     catalogHasViews,
     filterTablesBySchema,
+    isActiveSchema,
     type SchemaTables,
     type TableRow,
     type TableTypeFilter,
@@ -137,7 +138,9 @@ const TableItem: FC<TableItemProps> = memo(
                             );
                         }
 
-                        dispatch(toggleActiveTable({ table, schema }));
+                        dispatch(
+                            toggleActiveTable({ table, schema, database }),
+                        );
                     }}
                     w="100%"
                     fz="sm"
@@ -195,33 +198,77 @@ const TableItem: FC<TableItemProps> = memo(
 );
 
 const SchemaItem: FC<{
+    id: string;
     schema: string;
+    databaseLabel: string | null;
     isExpanded: boolean;
     count: number | null;
-    onToggle: (schema: string, isExpanded: boolean) => void;
-}> = memo(({ schema, isExpanded, count, onToggle }) => (
-    <UnstyledButton
-        onClick={() => onToggle(schema, isExpanded)}
-        className={styles.schemaButton}
-        ff="inherit"
-    >
-        <Group wrap="nowrap" gap="xs">
-            <MantineIcon
-                icon={isExpanded ? IconChevronDown : IconChevronRight}
-                size="sm"
-                className={styles.chevron}
-            />
-            <Text fz="sm" fw={500} truncate>
-                {schema}
-            </Text>
-            {count !== null && (
-                <Text fz="xs" c="dimmed" ml="auto" pr="xs">
-                    {count}
-                </Text>
-            )}
-        </Group>
-    </UnstyledButton>
-));
+    onToggle: (schemaRowId: string, isExpanded: boolean) => void;
+}> = memo(({ id, schema, databaseLabel, isExpanded, count, onToggle }) => {
+    const { ref: databaseRef, isTruncated: isDatabaseTruncated } =
+        useIsTruncated<HTMLParagraphElement>();
+    const { ref: schemaRef, isTruncated: isSchemaTruncated } =
+        useIsTruncated<HTMLParagraphElement>();
+    return (
+        <UnstyledButton
+            onClick={() => onToggle(id, isExpanded)}
+            className={styles.schemaButton}
+            ff="inherit"
+        >
+            <Group wrap="nowrap" gap="xs">
+                <MantineIcon
+                    icon={isExpanded ? IconChevronDown : IconChevronRight}
+                    size="sm"
+                    className={styles.chevron}
+                />
+                <Tooltip
+                    label={
+                        databaseLabel === null
+                            ? schema
+                            : `${databaseLabel}.${schema}`
+                    }
+                    disabled={!isDatabaseTruncated && !isSchemaTruncated}
+                    multiline
+                    maw={300}
+                    classNames={{ tooltip: styles.labelTooltip }}
+                >
+                    <Box className={styles.schemaLabel}>
+                        {databaseLabel !== null && (
+                            <>
+                                <Text
+                                    ref={databaseRef}
+                                    fz="sm"
+                                    c="dimmed"
+                                    truncate
+                                    className={styles.databaseLabel}
+                                >
+                                    {databaseLabel}
+                                </Text>
+                                <Text fz="sm" c="dimmed" flex="0 0 auto">
+                                    .
+                                </Text>
+                            </>
+                        )}
+                        <Text
+                            ref={schemaRef}
+                            fz="sm"
+                            fw={500}
+                            truncate
+                            className={styles.schemaName}
+                        >
+                            {schema}
+                        </Text>
+                    </Box>
+                </Tooltip>
+                {count !== null && (
+                    <Text fz="xs" c="dimmed" ml="auto" pr="xs">
+                        {count}
+                    </Text>
+                )}
+            </Group>
+        </UnstyledButton>
+    );
+});
 
 // Manual expand/collapse choices, keyed by the search and type filter they were made under
 type SchemaExpansion = {
@@ -277,23 +324,25 @@ const VirtualRow: FC<{
     row: TableRow;
     search: string;
     showCounts: boolean;
-    database: string;
     activeTable: string | undefined;
     activeSchema: string | undefined;
-    onToggleSchema: (schema: string, isExpanded: boolean) => void;
+    activeDatabase: string | undefined;
+    onToggleSchema: (schemaRowId: string, isExpanded: boolean) => void;
 }> = ({
     row,
     search,
     showCounts,
-    database,
     activeTable,
     activeSchema,
+    activeDatabase,
     onToggleSchema,
 }) => {
     if (row.type === 'schema') {
         return (
             <SchemaItem
+                id={row.id}
                 schema={row.schema}
+                databaseLabel={row.databaseLabel}
                 isExpanded={row.isExpanded}
                 count={showCounts ? row.tableCount : null}
                 onToggle={onToggleSchema}
@@ -304,9 +353,12 @@ const VirtualRow: FC<{
         <TableItem
             table={row.table}
             schema={row.schema}
-            database={database}
+            database={row.database}
             search={search}
-            isActive={row.table === activeTable && row.schema === activeSchema}
+            isActive={
+                row.table === activeTable &&
+                isActiveSchema(row, { activeDatabase, activeSchema })
+            }
             partitionColumn={row.partitionColumn}
             tableType={row.tableType}
         />
@@ -318,6 +370,9 @@ export const Tables: FC = () => {
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
     const activeSchema = useAppSelector(
         (state) => state.sqlRunner.activeSchema,
+    );
+    const activeDatabase = useAppSelector(
+        (state) => state.sqlRunner.activeDatabase,
     );
 
     const [search, setSearch] = useState<string>('');
@@ -341,12 +396,12 @@ export const Tables: FC = () => {
         [expansion, filterKey],
     );
     const toggleSchema = useCallback(
-        (schema: string, isExpanded: boolean) => {
+        (schemaRowId: string, isExpanded: boolean) => {
             setExpansion((previous) => ({
                 key: filterKey,
                 overrides: {
                     ...(previous.key === filterKey ? previous.overrides : {}),
-                    [schema]: !isExpanded,
+                    [schemaRowId]: !isExpanded,
                 },
             }));
         },
@@ -356,18 +411,24 @@ export const Tables: FC = () => {
     const { data, isLoading, isSuccess } = useTables({ projectUuid });
 
     const catalog = useMemo<
-        { database: string; tablesBySchema: SchemaTables[] } | undefined
+        | { hasSeveralDatabases: boolean; tablesBySchema: SchemaTables[] }
+        | undefined
     >(() => {
         if (!data || isEmpty(data)) return undefined;
-        const [database] = Object.keys(data);
-        if (database === undefined) return undefined;
-        const tablesBySchema = Object.entries(data).flatMap(([, schemas]) =>
-            Object.entries(schemas).map(([schema, tables]) => ({
-                schema,
-                tables,
-            })),
+        const tablesBySchema = Object.entries(data).flatMap(
+            ([database, schemas]) =>
+                Object.entries(schemas).map(([schema, tables]) => ({
+                    database,
+                    schema,
+                    tables,
+                })),
         );
-        return { database, tablesBySchema };
+        return {
+            hasSeveralDatabases:
+                new Set(tablesBySchema.map(({ database }) => database)).size >
+                1,
+            tablesBySchema,
+        };
     }, [data]);
 
     const hasViews = useMemo(
@@ -387,8 +448,17 @@ export const Tables: FC = () => {
         // Filtering expands every matching schema; otherwise only the active one
         return buildTableRows(
             tablesBySchema,
-            (schema) =>
-                overrides[schema] ?? (isFiltering || schema === activeSchema),
+            (schemaRowId, { database, schema }) =>
+                overrides[schemaRowId] ??
+                (isFiltering ||
+                    isActiveSchema(
+                        { database, schema: String(schema) },
+                        {
+                            activeDatabase,
+                            activeSchema,
+                        },
+                    )),
+            catalog.hasSeveralDatabases,
         );
     }, [
         catalog,
@@ -397,6 +467,7 @@ export const Tables: FC = () => {
         typeFilter,
         overrides,
         activeSchema,
+        activeDatabase,
     ]);
 
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -499,9 +570,9 @@ export const Tables: FC = () => {
                                         row={row}
                                         search={effectiveSearch}
                                         showCounts={typeFilter !== null}
-                                        database={catalog.database}
                                         activeTable={activeTable}
                                         activeSchema={activeSchema}
+                                        activeDatabase={activeDatabase}
                                         onToggleSchema={toggleSchema}
                                     />
                                 </Box>

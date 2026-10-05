@@ -6,19 +6,24 @@ import {
 import Fuse from 'fuse.js';
 import { type TablesBySchema } from '../hooks/useTables';
 
-export type SchemaTables = NonNullable<TablesBySchema>[number];
+export type SchemaTables = NonNullable<TablesBySchema>[number] & {
+    database: string;
+};
 
 export type TableRow =
     | {
           type: 'schema';
           id: string;
+          database: string;
           schema: string;
+          databaseLabel: string | null;
           isExpanded: boolean;
           tableCount: number;
       }
     | {
           type: 'table';
           id: string;
+          database: string;
           schema: string;
           table: string;
           partitionColumn: PartitionColumn | undefined;
@@ -70,12 +75,13 @@ export const filterTablesBySchema = (
     typeFilter: TableTypeFilter | null,
 ): SchemaTables[] =>
     tablesBySchema
-        .map(({ schema, tables }) => {
+        .map(({ database, schema, tables }) => {
             const typed = Object.keys(tables).filter((table) =>
                 matchesTableTypeFilter(tables[table].tableType, typeFilter),
             );
             const matches = searchTableNames(typed, search);
             return {
+                database,
                 schema,
                 tables: Object.fromEntries(
                     matches.map((table) => [table, tables[table]]),
@@ -84,19 +90,38 @@ export const filterTablesBySchema = (
         })
         .filter(({ tables }) => Object.keys(tables).length > 0);
 
+// An active table saved without its database matches the schema in any database
+export const isActiveSchema = (
+    { database, schema }: { database: string; schema: string },
+    active: {
+        activeDatabase: string | undefined;
+        activeSchema: string | undefined;
+    },
+): boolean =>
+    schema === active.activeSchema &&
+    (active.activeDatabase === undefined || database === active.activeDatabase);
+
 // Flattens the schema tree into the rows the virtualized list renders
 export const buildTableRows = (
     tablesBySchema: SchemaTables[],
-    isSchemaExpanded: (schema: string) => boolean,
+    isSchemaExpanded: (
+        schemaRowId: string,
+        schemaTables: SchemaTables,
+    ) => boolean,
+    showDatabase: boolean,
 ): TableRow[] =>
-    tablesBySchema.flatMap(({ schema, tables }) => {
+    tablesBySchema.flatMap((schemaTables) => {
+        const { database, schema, tables } = schemaTables;
         const schemaName = String(schema);
+        const id = `schema:${database}.${schemaName}`;
         const tableNames = Object.keys(tables);
-        const isExpanded = isSchemaExpanded(schemaName);
+        const isExpanded = isSchemaExpanded(id, schemaTables);
         const header: TableRow = {
             type: 'schema',
-            id: `schema:${schemaName}`,
+            id,
+            database,
             schema: schemaName,
+            databaseLabel: showDatabase && database !== '' ? database : null,
             isExpanded,
             tableCount: tableNames.length,
         };
@@ -106,7 +131,8 @@ export const buildTableRows = (
             ...tableNames.map(
                 (table): TableRow => ({
                     type: 'table',
-                    id: `table:${schemaName}.${table}`,
+                    id: `table:${database}.${schemaName}.${table}`,
+                    database,
                     schema: schemaName,
                     table,
                     partitionColumn: tables[table].partitionColumn,

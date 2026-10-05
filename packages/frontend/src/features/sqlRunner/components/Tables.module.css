@@ -10,6 +10,31 @@
     background-color: var(--mantine-color-default-hover);
 }
 
+.schemaLabel {
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* The database gives up its width first so the schema stays readable */
+.databaseLabel {
+    flex: 0 1 auto;
+    min-width: 2ch;
+}
+
+.schemaName {
+    flex: 0 0 auto;
+    max-width: 100%;
+}
+
+.databaseLabel ~ .schemaName {
+    max-width: calc(100% - 3ch);
+}
+
+.labelTooltip {
+    overflow-wrap: anywhere;
+}
+
 .chevron {
     flex-shrink: 0;
     color: var(--mantine-color-dimmed);
