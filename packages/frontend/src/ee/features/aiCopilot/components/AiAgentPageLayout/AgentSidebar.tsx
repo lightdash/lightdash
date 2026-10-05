@@ -24,7 +24,6 @@ import {
 import {
     IconBrandSlack,
     IconChevronDown,
-    IconDots,
     IconInfoCircle,
     IconPencil,
     IconPin,
@@ -151,7 +150,6 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
 
     return (
         <NavLink
-            color="gray"
             component={Link}
             key={thread.uuid}
             to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
@@ -165,10 +163,10 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             py={rem(4)}
             className={classes.threadNavLink}
             classNames={{ section: classes.threadSection }}
-            data-slack={thread.createdFrom === 'slack' ? true : undefined}
             label={
                 <TruncatedText
                     inline
+                    className={classes.threadTitle}
                     display="block"
                     maxWidth="100%"
                     tooltipMaxWidth={400}
@@ -215,7 +213,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                                     <Menu.Target>
                                         <ActionIcon
                                             size="xs"
-                                            color="ldGray"
+                                            color="gray"
                                             variant="subtle"
                                             aria-label="Thread options"
                                             onClick={(event) => {
@@ -224,8 +222,8 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                                             }}
                                         >
                                             <MantineIcon
-                                                icon={IconDots}
-                                                size={12}
+                                                icon={IconChevronDown}
+                                                size={14}
                                             />
                                         </ActionIcon>
                                     </Menu.Target>

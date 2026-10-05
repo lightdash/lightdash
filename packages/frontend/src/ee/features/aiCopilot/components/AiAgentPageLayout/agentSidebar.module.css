@@ -55,73 +55,27 @@
 }
 
 .threadNavLink {
-    position: relative;
-    --thread-action-bg: var(--mantine-color-ldGray-1);
     border-radius: rem(6px);
-    transition:
-        background-color 150ms ease,
-        color 150ms ease;
-
-    @mixin dark {
-        --thread-action-bg: var(--mantine-color-ldDark-3);
-    }
-
-    /* Don't override Mantine's active background when also hovered. */
-    &:not([data-active]):hover {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-1);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-3);
-        }
-    }
-
-    &[data-active] {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-1);
-        }
-
-        @mixin dark {
-            background-color: var(--mantine-color-dark-5);
-            --thread-action-bg: var(--mantine-color-dark-5);
-        }
-    }
+    min-height: rem(28px);
 }
 
 .threadSection[data-position='right'] {
+    position: relative;
     margin-inline-start: 0;
 }
 
 .threadMenuButton {
     position: absolute;
+    right: 100%;
     top: 50%;
-    right: var(--mantine-spacing-xs);
     translate: 0 -50%;
-    z-index: 1;
+    display: flex;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 150ms ease;
-
-    &::before {
-        content: '';
-        position: absolute;
-        inset: 0 0 0 rem(-8px);
-        z-index: -1;
-        background: linear-gradient(
-            to right,
-            transparent,
-            var(--thread-action-bg) rem(6px)
-        );
-    }
-
-    .threadNavLink[data-slack] & {
-        right: calc(var(--mantine-spacing-xs) + rem(22px));
-    }
 
     .threadNavLink:hover &,
     .threadNavLink[data-active] &,
     .threadNavLink:focus-within &,
-    &:focus-visible,
     &:has([aria-expanded='true']) {
         opacity: 1;
         pointer-events: auto;
@@ -130,5 +84,25 @@
     @media (hover: none) {
         opacity: 1;
         pointer-events: auto;
+    }
+}
+
+.threadNavLink:has(.threadMenuButton) .threadTitle {
+    mask-image: linear-gradient(
+        to right,
+        black calc(100% - rem(28px)),
+        transparent calc(100% - rem(20px))
+    );
+}
+
+@media (hover: hover) {
+    .threadNavLink:not(
+            :hover,
+            [data-active],
+            :focus-within,
+            :has([aria-expanded='true'])
+        )
+        .threadTitle {
+        mask-image: none;
     }
 }
