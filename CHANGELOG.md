@@ -1,3 +1,10 @@
+## [2.426.1](https://github.com/lightdash/lightdash/compare/2.426.0...2.426.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **sdk:** restore unsaved query on back after embedded Explore drill-down ([#30444](https://github.com/lightdash/lightdash/issues/30444)) ([cc1bb5b](https://github.com/lightdash/lightdash/commit/cc1bb5baefab4273b393be316935ad59d3c283d2))
+
 # [2.426.0](https://github.com/lightdash/lightdash/compare/2.425.0...2.426.0) (2026-10-05)
 
 
