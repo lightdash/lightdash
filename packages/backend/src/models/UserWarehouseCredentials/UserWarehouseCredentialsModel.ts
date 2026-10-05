@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    AthenaAuthenticationType,
     bigquerySsoUserCredentialsSchema,
     BigqueryTokenError,
     CreateWarehouseCredentials,
@@ -583,6 +584,31 @@ export class UserWarehouseCredentialsModel {
                 );
             }
             return { ...data, credentials };
+        }
+
+        if (data.credentials.type === WarehouseTypes.ATHENA) {
+            // Personal Athena credentials are the user's own access keys. The
+            // connection settings (authentication type, role, region) stay
+            // with the project.
+            const { authenticationType } = data.credentials as {
+                authenticationType?: unknown;
+            };
+            if (
+                authenticationType !== undefined &&
+                authenticationType !== AthenaAuthenticationType.ACCESS_KEY
+            ) {
+                throw new ParameterError(
+                    'Personal Athena credentials must be AWS access keys.',
+                );
+            }
+            return {
+                ...data,
+                credentials: {
+                    type: WarehouseTypes.ATHENA,
+                    accessKeyId: data.credentials.accessKeyId,
+                    secretAccessKey: data.credentials.secretAccessKey,
+                },
+            };
         }
 
         if (

@@ -10131,6 +10131,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
             expect.objectContaining({ schema: 'source_schema' }),
+            undefined,
         );
     });
 

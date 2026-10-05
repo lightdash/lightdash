@@ -35307,7 +35307,7 @@
                 "type": "string"
             },
             "AthenaAuthenticationType": {
-                "enum": ["access_key", "iam_role"],
+                "enum": ["access_key", "iam_role", "web_identity"],
                 "type": "string"
             },
             "Pick_CreateAthenaCredentials.Exclude_keyofCreateAthenaCredentials.SensitiveCredentialsFieldNames__": {
@@ -35355,6 +35355,9 @@
                         "type": "string"
                     },
                     "s3DataDir": {
+                        "type": "string"
+                    },
+                    "webIdentityAudience": {
                         "type": "string"
                     },
                     "workGroup": {
@@ -36571,6 +36574,9 @@
                         "format": "double"
                     },
                     "workGroup": {
+                        "type": "string"
+                    },
+                    "webIdentityAudience": {
                         "type": "string"
                     },
                     "assumeRoleExternalId": {
@@ -63098,6 +63104,62 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/BigqueryProjectRecommendation"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AwsWebIdentity": {
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "This instance's Google subject, pinned as accounts.google.com:sub and\naccounts.google.com:aud. Null when the instance can't read it."
+                    }
+                },
+                "required": ["subject"],
+                "type": "object"
+            },
+            "ApiAwsWebIdentityResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AwsWebIdentity"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AwsWebIdentityAudience": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AwsWebIdentity"
+                    },
+                    {
+                        "properties": {
+                            "audience": {
+                                "type": "string",
+                                "description": "Pinned as accounts.google.com:oaud in the role's trust policy."
+                            }
+                        },
+                        "required": ["audience"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAwsWebIdentityAudienceResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AwsWebIdentityAudience"
                     },
                     "status": {
                         "type": "string",
@@ -105769,6 +105831,70 @@
                 },
                 "description": "Check if user is authenticated with BigQuery",
                 "summary": "Check BigQuery authentication",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/aws/web-identity": {
+            "get": {
+                "operationId": "getAwsWebIdentity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAwsWebIdentityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get this instance's identity for Athena web identity authentication.\nAdd the subject to the IAM role's trust policy.",
+                "summary": "Get web identity subject",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/aws/web-identity/audiences": {
+            "post": {
+                "operationId": "createAwsWebIdentityAudience",
+                "responses": {
+                    "201": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAwsWebIdentityAudienceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Generate an audience for Athena web identity authentication. Add it to\nthe IAM role's trust policy as accounts.google.com:oaud.",
+                "summary": "Generate web identity audience",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []

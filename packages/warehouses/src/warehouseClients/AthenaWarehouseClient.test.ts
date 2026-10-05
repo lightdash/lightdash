@@ -199,6 +199,47 @@ describe('AthenaWarehouseClient', () => {
         });
     });
 
+    describe('web identity', () => {
+        const webIdentityCredentials: CreateAthenaCredentials = {
+            ...baseCredentials,
+            authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+            accessKeyId: undefined,
+            secretAccessKey: undefined,
+            assumeRoleArn: 'arn:aws:iam::123456789012:role/lightdash',
+        };
+
+        const getCredentialProvider = () => {
+            const config = mockAthenaClient.mock.calls[0][0] as {
+                credentials: () => Promise<unknown>;
+            };
+            return config.credentials;
+        };
+
+        test('should use the credentials the server resolved', async () => {
+            const awsCredentials = vi.fn(async () => ({
+                accessKeyId: 'ASIA',
+                secretAccessKey: 'SECRET',
+            }));
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(webIdentityCredentials, {
+                awsCredentials,
+            });
+
+            expect(getCredentialProvider()).toBe(awsCredentials);
+            expect(mockFromTemporaryCredentials).not.toHaveBeenCalled();
+        });
+
+        test('should fail when the server resolved no credentials', async () => {
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(webIdentityCredentials);
+
+            await expect(getCredentialProvider()()).rejects.toThrow(
+                WarehouseConnectionError,
+            );
+            expect(mockFromTemporaryCredentials).not.toHaveBeenCalled();
+        });
+    });
+
     describe('error translation', () => {
         // Synthesizes an error with the shape produced by the AWS SDK:
         // an Error subclass whose `name` is the AWS error code, with optional

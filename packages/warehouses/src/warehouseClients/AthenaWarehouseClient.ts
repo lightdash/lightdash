@@ -12,6 +12,7 @@ import { fromTemporaryCredentials } from '@aws-sdk/credential-providers';
 import {
     AnyType,
     AthenaAuthenticationType,
+    AWS_WEB_IDENTITY_NOT_ENABLED_MESSAGE,
     CreateAthenaCredentials,
     DimensionType,
     getErrorMessage,
@@ -299,13 +300,23 @@ export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+type AwsCredentialProvider = ReturnType<typeof fromTemporaryCredentials>;
+
+export type AthenaWarehouseClientOptions = {
+    // AWS credentials for web identity auth, resolved by the server.
+    awsCredentials?: AwsCredentialProvider;
+};
+
 const POLL_INTERVAL_MS = 500;
 const MAX_POLL_ATTEMPTS = 1200; // 10 minutes max wait
 
 export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCredentials> {
     client: AthenaClient;
 
-    constructor(credentials: CreateAthenaCredentials) {
+    constructor(
+        credentials: CreateAthenaCredentials,
+        options?: AthenaWarehouseClientOptions,
+    ) {
         super(credentials, new AthenaSqlBuilder(credentials.startOfWeek));
 
         try {
@@ -339,8 +350,20 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                 };
             }
 
-            // Wrap with assume role if configured
-            if (credentials.assumeRoleArn) {
+            if (authenticationType === AthenaAuthenticationType.WEB_IDENTITY) {
+                // The server assumes the role with its own identity, so it is
+                // not wrapped with a second assume role below. Without server
+                // credentials, fail when they're first needed, so a client
+                // used only for SQL generation still works.
+                clientConfig.credentials =
+                    options?.awsCredentials ??
+                    (async () => {
+                        throw new WarehouseConnectionError(
+                            AWS_WEB_IDENTITY_NOT_ENABLED_MESSAGE,
+                        );
+                    });
+            } else if (credentials.assumeRoleArn) {
+                // Wrap with assume role if configured
                 clientConfig.credentials = fromTemporaryCredentials({
                     masterCredentials: clientConfig.credentials,
                     params: {

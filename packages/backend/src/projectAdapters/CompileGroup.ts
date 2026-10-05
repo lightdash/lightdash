@@ -14,6 +14,7 @@ import {
 import {
     ListedDatabasesPostgresWarehouseClient,
     warehouseClientFromCredentials,
+    type WarehouseClientOptions,
     type WarehouseListedDatabases,
 } from '@lightdash/warehouses';
 import { type BoundProjectDbtSource } from '../models/ProjectDbtSourcesModel';
@@ -274,6 +275,7 @@ export const warehouseClientForCompileGroup = (
     credentials: CreateWarehouseCredentials,
     listedDatabases: WarehouseListedDatabases,
     onSkippedDatabase: (database: string) => void,
+    options?: WarehouseClientOptions,
 ): WarehouseClient =>
     credentials.type === WarehouseTypes.POSTGRES
         ? new ListedDatabasesPostgresWarehouseClient(
@@ -281,4 +283,4 @@ export const warehouseClientForCompileGroup = (
               listedDatabases,
               onSkippedDatabase,
           )
-        : warehouseClientFromCredentials(credentials);
+        : warehouseClientFromCredentials(credentials, options);

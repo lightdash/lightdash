@@ -208,6 +208,7 @@ export {
     DEFAULT_PROJECT_DBT_SOURCE_NAME,
     DbtProjectType,
     DbtVersionOptionLatest,
+    usesAwsWebIdentity,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
     DucklakeCatalogType,
@@ -367,6 +368,7 @@ export * from './types/space';
 export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
+export * from './types/awsWebIdentity';
 export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';
@@ -391,6 +393,7 @@ export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
+export * from './utils/awsWebIdentity';
 export * from './utils/bigqueryKeyfile';
 export * from './utils/charts';
 export * from './utils/chartValidation';

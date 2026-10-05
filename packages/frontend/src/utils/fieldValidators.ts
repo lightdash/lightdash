@@ -1,4 +1,8 @@
-import { isValidFrequency } from '@lightdash/common';
+import {
+    AWS_IAM_ROLE_ARN_INVALID_MESSAGE,
+    isAwsIamRoleArn as matchesAwsIamRoleArn,
+    isValidFrequency,
+} from '@lightdash/common';
 
 export type FieldValidator<T> = (
     fieldName: string,
@@ -41,6 +45,12 @@ export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
     !value || value.match(/^\/.*/)
         ? undefined
         : `${fieldName} should start with a "/"`;
+
+export const isAwsIamRoleArn: FieldValidator<string> =
+    (_fieldName) => (value) =>
+        !value || matchesAwsIamRoleArn(value)
+            ? undefined
+            : AWS_IAM_ROLE_ARN_INVALID_MESSAGE;
 
 export const startWithHTTPSProtocol: FieldValidator<string> =
     (fieldName) => (value) =>

@@ -5,7 +5,10 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { WarehouseClient } from './types';
-import { AthenaWarehouseClient } from './warehouseClients/AthenaWarehouseClient';
+import {
+    AthenaWarehouseClient,
+    type AthenaWarehouseClientOptions,
+} from './warehouseClients/AthenaWarehouseClient';
 import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
 import {
     ClickhouseWarehouseClient,
@@ -22,7 +25,8 @@ import { SnowflakeWarehouseClient } from './warehouseClients/SnowflakeWarehouseC
 import { TrinoWarehouseClient } from './warehouseClients/TrinoWarehouseClient';
 
 export type WarehouseClientOptions = DuckdbWarehouseClientOptions &
-    ClickhouseWarehouseClientOptions;
+    ClickhouseWarehouseClientOptions &
+    AthenaWarehouseClientOptions;
 
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,
@@ -44,7 +48,7 @@ export const warehouseClientFromCredentials = (
         case WarehouseTypes.CLICKHOUSE:
             return new ClickhouseWarehouseClient(credentials, options);
         case WarehouseTypes.ATHENA:
-            return new AthenaWarehouseClient(credentials);
+            return new AthenaWarehouseClient(credentials, options);
         case WarehouseTypes.DUCKDB:
             return new DuckdbWarehouseClient(credentials, options);
         default:

@@ -23,6 +23,7 @@ import {
     ExploreSplitError,
     ExploreType,
     ExternalSourceScope,
+    FeatureFlags,
     generateSlug,
     getErrorMessage,
     getExploreSplitCandidates,
@@ -84,6 +85,7 @@ import {
     MotherduckInstanceCache,
     WarehouseCatalog,
     warehouseClientFromCredentials,
+    type WarehouseClientOptions,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
@@ -201,6 +203,11 @@ import {
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
+import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
+import {
+    defaultGoogleIdentityTokenSource,
+    type GoogleIdentityTokenSource,
+} from '../../utils/awsWebIdentity/googleIdentityTokenSource';
 import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
@@ -215,6 +222,8 @@ import {
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
+import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
     remapRowBinding,
@@ -257,6 +266,7 @@ export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
+    googleIdentityTokenSource?: GoogleIdentityTokenSource;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -499,12 +509,33 @@ export class ProjectModel {
 
     private connectionRouter: WarehouseConnectionRouter;
 
+    readonly awsWebIdentity: AwsWebIdentityResolver;
+
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
         this.connectionRouter = new WarehouseConnectionRouter({
             database: args.database,
+        });
+        const featureFlagModel = new FeatureFlagModel({
+            database: args.database,
+            lightdashConfig: args.lightdashConfig,
+        });
+        this.awsWebIdentity = new AwsWebIdentityResolver({
+            isEnabledFor: async (organizationUuid) =>
+                (
+                    await featureFlagModel.get({
+                        user: { organizationUuid },
+                        featureFlagId: FeatureFlags.AthenaWebIdentityAuth,
+                    })
+                ).enabled,
+            audienceModel: new AwsWebIdentityAudienceModel({
+                database: args.database,
+            }),
+            tokenSource:
+                args.googleIdentityTokenSource ??
+                defaultGoogleIdentityTokenSource,
         });
     }
 
@@ -595,10 +626,12 @@ export class ProjectModel {
             (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
                 incompleteConfig.authenticationType ===
                     BigqueryAuthenticationType.ADC) ||
-            // Athena IAM role authentication should not merge old access keys
+            // Athena IAM role and web identity authentication should not merge old access keys
             (incompleteConfig.type === WarehouseTypes.ATHENA &&
-                incompleteConfig.authenticationType ===
-                    AthenaAuthenticationType.IAM_ROLE)
+                (incompleteConfig.authenticationType ===
+                    AthenaAuthenticationType.IAM_ROLE ||
+                    incompleteConfig.authenticationType ===
+                        AthenaAuthenticationType.WEB_IDENTITY))
         ) {
             return incompleteConfig;
         }
@@ -7275,6 +7308,22 @@ export class ProjectModel {
             .first();
 
         return upstreamDashboard?.dashboard_uuid ?? null;
+    }
+
+    /**
+     * Identity options for warehouse clients that authenticate as this
+     * instance. A web identity audience is only used for the organization it
+     * was generated for, so a connection can't use another organization's.
+     */
+    async getWarehouseClientIdentityOptions(
+        credentials: CreateWarehouseCredentials | undefined,
+        organizationUuid: string | undefined,
+    ): Promise<Pick<WarehouseClientOptions, 'awsCredentials'>> {
+        const awsCredentials = await this.awsWebIdentity.resolveCredentials(
+            credentials,
+            organizationUuid,
+        );
+        return awsCredentials ? { awsCredentials } : {};
     }
 
     // Easier to mock in ProjectService

@@ -7,7 +7,10 @@ import {
     ParameterError,
     resolveDbtVersion,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import {
+    warehouseClientFromCredentials,
+    type WarehouseClientOptions,
+} from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
@@ -38,12 +41,15 @@ export const projectAdapterFromConfig = async (
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
     // Ignored by every other adapter type.
     manifestOptions?: { projectDir?: string; selectedModelIds?: string[] },
+    warehouseClientOptions?: WarehouseClientOptions,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
     );
-    const warehouseClient =
-        warehouseClientFromCredentials(warehouseCredentials);
+    const warehouseClient = warehouseClientFromCredentials(
+        warehouseCredentials,
+        warehouseClientOptions,
+    );
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
 

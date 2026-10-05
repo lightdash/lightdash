@@ -1,4 +1,5 @@
 import {
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
     ParameterError,
@@ -136,6 +137,33 @@ describe('UserWarehouseCredentialsModel', () => {
                 name: 'Default',
                 credentials: credentials as never,
             });
+
+        test('keeps only the access keys of Athena credentials', () => {
+            expect(
+                normalize({
+                    type: WarehouseTypes.ATHENA,
+                    accessKeyId: 'AKIA',
+                    secretAccessKey: 'secret',
+                    authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+                    assumeRoleArn: 'arn:aws:iam::123456789012:role/other',
+                    webIdentityAudience: 'lightdash-other',
+                }).credentials,
+            ).toEqual({
+                type: WarehouseTypes.ATHENA,
+                accessKeyId: 'AKIA',
+                secretAccessKey: 'secret',
+            });
+        });
+
+        test('rejects Athena credentials that are not access keys', () => {
+            expect(() =>
+                normalize({
+                    type: WarehouseTypes.ATHENA,
+                    authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+                    webIdentityAudience: 'lightdash-other',
+                }),
+            ).toThrow(ParameterError);
+        });
 
         test('defaults an omitted Snowflake authentication type to password', () => {
             expect(
