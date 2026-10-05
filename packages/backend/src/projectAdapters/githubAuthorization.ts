@@ -27,6 +27,14 @@ export const assertGithubInstallationResolved = (
     }
 };
 
+const GITHUB_APP_INSTALLATION_GONE_MESSAGE =
+    'This project is set to authenticate with the Lightdash GitHub App, but its installation no longer exists on GitHub. Reinstall the app from Settings > Integrations > GitHub, or switch the project to a personal access token.';
+
+// GitHub answers 404 when asked to mint a token for an installation that has
+// been uninstalled; the client surfaces it as "Not Found - https://docs…".
+const isInstallationNotFound = (error: unknown): boolean =>
+    error instanceof Error && /^Not Found\b/.test(error.message);
+
 /**
  * The credential the adapter should clone with. For a GitHub App connection
  * that is always a freshly minted installation token; a stored PAT is never
@@ -39,5 +47,14 @@ export const getGithubToken = async (
         return config.personal_access_token;
     }
     assertGithubInstallationResolved(config);
-    return getInstallationToken(config.installation_id as string);
+    try {
+        return await getInstallationToken(config.installation_id as string);
+    } catch (error) {
+        // A stored id that outlived its installation used to fail refresh
+        // with GitHub's bare "Not Found", which tells the user nothing.
+        if (isInstallationNotFound(error)) {
+            throw new ParameterError(GITHUB_APP_INSTALLATION_GONE_MESSAGE);
+        }
+        throw error;
+    }
 };

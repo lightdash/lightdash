@@ -1,6 +1,7 @@
 import {
     DbtProjectType,
     ParameterError,
+    UnexpectedGitError,
     type DbtGithubProjectConfig,
 } from '@lightdash/common';
 import { getInstallationToken } from '../clients/github/Github';
@@ -30,7 +31,11 @@ const oauthConnection: DbtGithubProjectConfig = {
 };
 
 describe('getGithubToken', () => {
-    beforeEach(() => vi.mocked(getInstallationToken).mockReset());
+    // Block body on purpose: vitest calls whatever beforeEach returns as a
+    // cleanup, and mockReset() returns the mock itself.
+    beforeEach(() => {
+        vi.mocked(getInstallationToken).mockReset();
+    });
 
     test('mints an installation token for a GitHub App connection', async () => {
         vi.mocked(getInstallationToken).mockResolvedValue('ghs_minted');
@@ -59,6 +64,35 @@ describe('getGithubToken', () => {
                 personal_access_token: undefined,
             }),
         ).resolves.toBeUndefined();
+    });
+
+    test('explains that the installation is gone when GitHub answers Not Found', async () => {
+        // What the GitHub client throws when the app has been uninstalled.
+        vi.mocked(getInstallationToken).mockRejectedValue(
+            new UnexpectedGitError(
+                'Not Found - https://docs.github.com/rest/reference/apps#create-an-installation-access-token-for-an-app',
+            ),
+        );
+
+        const error = await getGithubToken(oauthConnection).catch(
+            (e: unknown) => e,
+        );
+
+        expect(error).toBeInstanceOf(ParameterError);
+        expect((error as Error).message).toMatch(
+            /installation no longer exists on GitHub/,
+        );
+    });
+
+    test('passes other GitHub errors through unchanged', async () => {
+        const badCredentials = new UnexpectedGitError('Bad credentials');
+        vi.mocked(getInstallationToken).mockRejectedValue(badCredentials);
+
+        const error = await getGithubToken(oauthConnection).catch(
+            (e: unknown) => e,
+        );
+
+        expect(error).toBe(badCredentials);
     });
 });
 
