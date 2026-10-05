@@ -6,6 +6,7 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
+import { buildUsageDashboards } from './usageDashboards';
 
 type SampleChart = Omit<
     ChartAsCode,
@@ -293,7 +294,7 @@ export const analyticsSampleDashboards = [
     },
 ];
 
-export const analyticsContentAsCode: {
+const legacyContentAsCode: {
     dashboard: DashboardAsCode;
     charts: ChartAsCode[];
 }[] = analyticsSampleDashboards.map((bundle) => {
@@ -339,3 +340,5 @@ export const analyticsContentAsCode: {
         },
     };
 });
+
+export const analyticsContentAsCode = buildUsageDashboards(legacyContentAsCode);

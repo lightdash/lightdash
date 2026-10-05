@@ -1,4 +1,8 @@
-import { CartesianSeriesType, ChartType } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    ChartType,
+    DashboardTileTypes,
+} from '@lightdash/common';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     analyticsContentAsCode,
@@ -9,9 +13,13 @@ describe('analytics sample content', () => {
     it('exports portable content-as-code with dashboard-owned chart references', () => {
         for (const { dashboard, charts } of analyticsContentAsCode) {
             expect(dashboard.version).toBe(1);
-            expect(dashboard.tiles.map((tile) => tile.properties)).toEqual(
-                charts.map(({ slug }) => ({ chartSlug: slug })),
-            );
+            expect(
+                dashboard.tiles
+                    .filter(
+                        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+                    )
+                    .map((tile) => tile.properties),
+            ).toEqual(charts.map(({ slug }) => ({ chartSlug: slug })));
             expect(
                 charts.every((chart) => chart.dashboardSlug === dashboard.slug),
             ).toBe(true);
@@ -27,7 +35,11 @@ describe('analytics sample content', () => {
                 expect(tile.x + tile.w).toBeLessThanOrEqual(36);
             }
         }
-        expect(analyticsContentAsCode[1].dashboard.tiles.at(-1)?.w).toBe(36);
+        expect(
+            analyticsContentAsCode[1].dashboard.tiles
+                .filter((tile) => tile.tabSlug === 'overview')
+                .at(-1)?.w,
+        ).toBe(36);
     });
     it('uses unique stable keys and fields available in the system explores', () => {
         const explores = createAnalyticsExplores();
