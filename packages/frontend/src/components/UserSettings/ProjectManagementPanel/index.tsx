@@ -39,6 +39,7 @@ import {
     IconTrash,
     IconUser,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import {
@@ -96,15 +97,12 @@ const CopyableCommand: FC<{ label: string; command: string }> = ({
                             block
                             fz="xs"
                             p="xs"
-                            className={
+                            className={clsx(
+                                classes.copyableCommand,
                                 copied
                                     ? classes.copyFlashActive
-                                    : classes.copyFlash
-                            }
-                            style={{
-                                cursor: 'pointer',
-                                wordBreak: 'break-all',
-                            }}
+                                    : classes.copyFlash,
+                            )}
                         >
                             <Group
                                 gap="xs"
@@ -118,6 +116,7 @@ const CopyableCommand: FC<{ label: string; command: string }> = ({
                                     icon={copied ? IconCheck : IconCopy}
                                     size="sm"
                                     color={copied ? 'teal.6' : 'ldGray.5'}
+                                    className={classes.copyIcon}
                                 />
                             </Group>
                         </Code>
@@ -1042,7 +1041,7 @@ const ProjectManagementPanel: FC = () => {
                 onClose={() => setCliProject(undefined)}
                 title={`CLI reference: ${cliProject?.name ?? ''}`}
                 icon={IconTerminal2}
-                size="lg"
+                size="xl"
             >
                 {cliProject && (
                     <Stack gap="md">
@@ -1056,7 +1055,7 @@ const ProjectManagementPanel: FC = () => {
                         />
                         <CopyableCommand
                             label="Start a preview from this project"
-                            command={`lightdash start-preview --project ${cliProject.projectUuid}`}
+                            command={`LIGHTDASH_PROJECT=${cliProject.projectUuid} lightdash start-preview --name <name>`}
                         />
                         <CopyableCommand
                             label="Validate this project"
