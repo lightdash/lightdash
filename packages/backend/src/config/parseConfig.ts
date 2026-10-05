@@ -957,7 +957,10 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
 /** GCS does not sign a URL that lasts longer than 7 days. */
 const GCS_MAX_EXPIRATION_TIME_SECONDS = 604800;
 
-const parseS3AuthMode = (value: string | undefined): S3AuthMode => {
+const parseS3AuthMode = (
+    value: string | undefined,
+    envVarName = 'S3_AUTH_MODE',
+): S3AuthMode => {
     const authMode = value?.trim().toLowerCase();
     if (!authMode || authMode === 'default') {
         return 'default';
@@ -966,7 +969,7 @@ const parseS3AuthMode = (value: string | undefined): S3AuthMode => {
         return 'gcp_oauth';
     }
     throw new ParseError(
-        `Invalid S3_AUTH_MODE: "${value}". Expected "default" or "gcp_oauth".`,
+        `Invalid ${envVarName}: "${value}". Expected "default" or "gcp_oauth".`,
         {},
     );
 };
@@ -1092,6 +1095,15 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     const forcePathStyle = resultsForcePathStyle
         ? resultsForcePathStyle === 'true'
         : baseForcePathStyle;
+    // The results bucket can live outside the base object store, such as a
+    // customer's own AWS S3 bucket while the rest of the deployment uses GCS
+    // through workload identity. Each store then needs its own signing mode.
+    const authMode = process.env.RESULTS_S3_AUTH_MODE?.trim()
+        ? parseS3AuthMode(
+              process.env.RESULTS_S3_AUTH_MODE,
+              'RESULTS_S3_AUTH_MODE',
+          )
+        : baseAuthMode;
 
     return {
         endpoint,
@@ -1100,7 +1112,7 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         region,
         accessKey,
         secretKey,
-        authMode: baseAuthMode,
+        authMode,
         useCredentialsFrom: baseUseCredentialsFrom,
     };
 };
@@ -2079,7 +2091,8 @@ export type S3Config = {
      * with SigV4. `gcp_oauth` sends a Google OAuth bearer token instead, which
      * lets Lightdash reach GCS from a workload identity service account
      * without static keys. Set this value with S3_AUTH_MODE. Every storage
-     * configuration shares it.
+     * configuration shares it, except the results cache, which
+     * RESULTS_S3_AUTH_MODE can override.
      */
     authMode?: S3AuthMode;
     /**
