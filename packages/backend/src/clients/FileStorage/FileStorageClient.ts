@@ -21,6 +21,12 @@ export interface FileStorageClient {
 
     uploadTxt(txt: Buffer, id: string, expiresIn?: number): Promise<string>;
 
+    uploadTextFile(
+        contents: Buffer,
+        id: string,
+        extension: 'json' | 'sql',
+    ): Promise<string>;
+
     uploadImage(
         image: Buffer,
         imageId: string,

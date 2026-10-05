@@ -135,6 +135,17 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         );
     }
 
+    async uploadTextFile(
+        contents: Buffer,
+        id: string,
+        extension: 'json' | 'sql',
+    ): Promise<string> {
+        return this.uploadFile(`${id}.${extension}`, contents, {
+            contentType:
+                extension === 'json' ? 'application/json' : 'text/plain',
+        });
+    }
+
     async uploadImage(
         image: Buffer,
         imageId: string,

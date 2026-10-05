@@ -1,3 +1,8 @@
+import {
+    AI_IDENTITY_NOT_READY_CODE,
+    getAiIdentityPersonMessage,
+    type AiIdentityState,
+} from './aiIdentity';
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
@@ -54,6 +59,16 @@ export class ForbiddenError extends LightdashError {
             name: 'ForbiddenError',
             statusCode: 403,
             data,
+        });
+    }
+}
+
+export class AiIdentityNotReadyError extends ForbiddenError {
+    constructor(state: AiIdentityState) {
+        super(getAiIdentityPersonMessage(state), {
+            code: AI_IDENTITY_NOT_READY_CODE,
+            state,
+            settingsUrl: '/generalSettings/myWarehouseConnections',
         });
     }
 }

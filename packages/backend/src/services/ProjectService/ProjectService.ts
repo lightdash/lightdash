@@ -3,6 +3,8 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    AiIdentityNotReadyError,
+    AiIdentityState,
     AiIdentityStatus,
     allowsOptionalUserCredentials,
     AlreadyExistsError,
@@ -34,6 +36,7 @@ import {
     calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
+    classifyAiIdentityFailure,
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
@@ -186,6 +189,7 @@ import {
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
+    normalizeSnowflakeAccount,
     normalizeWarehouseCredentials,
     NotFoundError,
     omitDisallowedParameterValues,
@@ -233,6 +237,7 @@ import {
     ResultsCacheProjectSettings,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
+    SCHEDULER_TASKS,
     SessionUser,
     SignInSubjectBasis,
     SingleConnectionProjectError,
@@ -2444,37 +2449,45 @@ export class ProjectService extends BaseService {
         context: QueryExecutionContext;
         warehouseConnectionUuid: string | undefined;
     }): Promise<Extract<AiAccessIdentity, { kind: 'snowflake_ai_twin' }>> {
-        const { aiIdentityModel } = this;
-        const refuseTwin = (): never => {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const identityAccount = await this.aiIdentityModel.getOrCreateAccount(
+            project.organizationUuid,
+            normalizeSnowflakeAccount(credentials.account),
+        );
+        const refuseTwin = (state: AiIdentityState): never => {
             this.logger.warn('AI access query refused', {
                 projectUuid,
                 userUuid: userId,
                 reason: 'no_ready_ai_identity',
+                state,
                 surface,
                 warehouseType: credentials.type,
             });
-            throw new AiAccessRestrictionsError(
-                "Your AI identity isn't set up yet. Ask your admin.",
-            );
+            throw new AiIdentityNotReadyError(state);
         };
-        if (!isRegisteredUser || isServiceAccount) refuseTwin();
-        let identity = await aiIdentityModel.findWithPrivateKey({
-            projectUuid,
+        if (!isRegisteredUser || isServiceAccount)
+            refuseTwin(AiIdentityState.NEEDS_SIGN_IN);
+        let identity = await this.aiIdentityModel.findWithPrivateKey({
+            aiIdentityAccountUuid: identityAccount.aiIdentityAccountUuid,
             userUuid: userId,
         });
+        let createdIdentity = false;
         if (identity === null) {
-            const keys = generateAiIdentityKeyPair();
-            await aiIdentityModel.create({
-                projectUuid,
+            await this.aiIdentityModel.upsertForUsers(
+                identityAccount.aiIdentityAccountUuid,
+                [userId],
+            );
+            identity = await this.aiIdentityModel.findWithPrivateKey({
+                aiIdentityAccountUuid: identityAccount.aiIdentityAccountUuid,
                 userUuid: userId,
-                snowflakeLogin: null,
-                publicKey: keys.publicKey,
-                privateKey: keys.privateKey,
             });
-            return refuseTwin();
+            createdIdentity = true;
         }
-        let { snowflakeLogin } = identity;
-        if (snowflakeLogin === null && credentials.requireUserCredentials) {
+        if (identity === null) return refuseTwin(AiIdentityState.NEEDS_SIGN_IN);
+        if (
+            identity.snowflakeLogin === null &&
+            credentials.requireUserCredentials
+        ) {
             try {
                 const personal = warehouseConnectionUuid
                     ? await this.findUserCredentialsForExtraConnection({
@@ -2520,50 +2533,62 @@ export class ProjectService extends BaseService {
                         );
                         const value = result.rows[0]?.SNOWFLAKE_LOGIN;
                         if (typeof value === 'string' && value.length > 0) {
-                            snowflakeLogin = value;
-                            await aiIdentityModel.setSnowflakeLogin(
-                                identity.aiIdentityUuid,
+                            await this.aiIdentityModel.setSnowflakeLogin(
+                                project.organizationUuid,
+                                userId,
                                 value,
                             );
+                            identity =
+                                await this.aiIdentityModel.findWithPrivateKey({
+                                    aiIdentityAccountUuid:
+                                        identityAccount.aiIdentityAccountUuid,
+                                    userUuid: userId,
+                                });
                         }
                     }
                 }
             } catch {
-                refuseTwin();
+                return refuseTwin(AiIdentityState.NEEDS_SIGN_IN);
             }
         }
-        const { twinNameTemplate } =
-            await aiIdentityModel.getSettings(projectUuid);
-        const twinName = resolveAiTwinName({
-            twinNameOverride: identity.twinNameOverride,
-            twinNameTemplate: twinNameTemplate ?? DEFAULT_AI_TWIN_NAME_TEMPLATE,
-            snowflakeLogin,
-        });
-        if (twinName === null) return refuseTwin();
+        if (identity === null || identity.twinName === null)
+            return refuseTwin(AiIdentityState.NEEDS_SIGN_IN);
+        if (identity.privateKey === null) {
+            await this.aiIdentityModel.setKeys(
+                identity.aiIdentityUuid,
+                generateAiIdentityKeyPair(),
+            );
+            return refuseTwin(AiIdentityState.PENDING);
+        }
+        if (createdIdentity) return refuseTwin(identity.state);
         const twinCredentials = buildAiTwinCredentials({
             projectCredentials: credentials,
-            twinName,
+            twinName: identity.twinName,
             privateKey: identity.privateKey,
         });
         const shouldCheck =
-            identity.status === AiIdentityStatus.PENDING ||
-            (identity.status === AiIdentityStatus.FAILED &&
+            identity.state === AiIdentityState.PENDING ||
+            (identity.state === AiIdentityState.FAILED &&
                 (identity.checkedAt === null ||
                     identity.checkedAt.getTime() < Date.now() - 5 * 60_000));
         if (shouldCheck) {
             const check = await checkAiTwinConnection(twinCredentials);
-            const status = await aiIdentityModel.updateStatus(
+            const status = await this.aiIdentityModel.updateStatus(
                 identity.aiIdentityUuid,
                 {
                     status: check.ok
                         ? AiIdentityStatus.READY
                         : AiIdentityStatus.FAILED,
+                    failureReason: check.ok
+                        ? null
+                        : classifyAiIdentityFailure(check.message),
                     statusMessage: check.ok ? null : check.message,
                 },
             );
             identity = { ...status, privateKey: identity.privateKey };
         }
-        if (identity.status !== AiIdentityStatus.READY) refuseTwin();
+        if (identity.state !== AiIdentityState.READY)
+            return refuseTwin(identity.state);
         this.logger.info('AI access query uses the AI twin', {
             projectUuid,
             userUuid: userId,
@@ -2611,7 +2636,17 @@ export class ProjectService extends BaseService {
                     projectUuid,
                 );
             if (warehouseCredentials.type === WarehouseTypes.SNOWFLAKE) {
-                return true;
+                const identityAccount =
+                    await this.aiIdentityModel.getOrCreateAccount(
+                        project.organizationUuid,
+                        normalizeSnowflakeAccount(warehouseCredentials.account),
+                    );
+                const identity = await this.aiIdentityModel.find({
+                    aiIdentityAccountUuid:
+                        identityAccount.aiIdentityAccountUuid,
+                    userUuid: userId,
+                });
+                return identity?.state === AiIdentityState.READY;
             }
         }
         try {
@@ -2625,7 +2660,11 @@ export class ProjectService extends BaseService {
             });
             return true;
         } catch (error) {
-            if (error instanceof AiAccessRestrictionsError) return false;
+            if (
+                error instanceof AiAccessRestrictionsError ||
+                error instanceof AiIdentityNotReadyError
+            )
+                return false;
             throw error;
         }
     }
@@ -15801,10 +15840,25 @@ export class ProjectService extends BaseService {
                 'AI access restrictions are not enabled for this organization',
             );
         }
+        const wasEnabled =
+            await this.projectModel.getAiAccessRestrictions(projectUuid);
         await this.projectModel.updateAiAccessRestrictions(
             projectUuid,
             body.enabled,
         );
+        if (body.enabled && !wasEnabled) {
+            void this.schedulerClient
+                .scheduleTask(SCHEDULER_TASKS.AI_IDENTITY_SYNC_PROJECT, {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                })
+                .catch((error) => {
+                    this.logger.warn('Could not enqueue AI identity sync', {
+                        projectUuid,
+                        error,
+                    });
+                });
+        }
         this.analytics.track({
             event: 'ai_access_restrictions.updated',
             userId: account.user.id,

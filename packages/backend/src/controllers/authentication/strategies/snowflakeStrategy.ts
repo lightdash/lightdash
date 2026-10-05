@@ -11,6 +11,20 @@ import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import Logger from '../../../logging/logger';
 
+export const enqueueAiIdentitySignIn = (
+    req: Express.Request,
+    userUuid: string,
+    organizationUuid: string | undefined,
+): void => {
+    if (!organizationUuid) return;
+    void req.services
+        .getAiIdentityService()
+        .scheduleSignIn(organizationUuid, userUuid)
+        .catch((error) => {
+            Logger.warn('Could not enqueue AI identity sign-in update', error);
+        });
+};
+
 export const snowflakePassportStrategy = !(
     lightdashConfig.auth.snowflake.clientId &&
     lightdashConfig.auth.snowflake.clientSecret &&
@@ -82,6 +96,14 @@ export const snowflakePassportStrategy = !(
                   await userService.createSnowflakeWarehouseCredentials(
                       loggedUser,
                       refreshToken,
+                  );
+                  const organizationUuid =
+                      req.account?.organization.organizationUuid ??
+                      loggedUser.organizationUuid;
+                  enqueueAiIdentitySignIn(
+                      req,
+                      loggedUser.userUuid,
+                      organizationUuid,
                   );
 
                   done(null, loggedUser);

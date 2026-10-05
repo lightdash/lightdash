@@ -2,6 +2,7 @@ import { Ability, subject } from '@casl/ability';
 import {
     Account,
     AiIdentity,
+    AiIdentityState,
     AiIdentityStatus,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
@@ -9368,6 +9369,8 @@ describe('Snowflake AI twin query routing', () => {
     } as const satisfies CreateSnowflakeCredentials;
     const readyIdentity: AiIdentity & { privateKey: string } = {
         aiIdentityUuid: 'identity-uuid',
+        aiIdentityAccountUuid: 'account-uuid',
+        snowflakeAccount: 'ACCOUNT',
         userUuid: 'user-uuid',
         email: 'analyst@example.com',
         firstName: 'Analyst',
@@ -9378,18 +9381,23 @@ describe('Snowflake AI twin query routing', () => {
         publicKey: 'public-key',
         publicKeyFingerprint: 'SHA256:fingerprint',
         privateKey: 'private-key',
-        status: AiIdentityStatus.READY,
+        state: AiIdentityState.READY,
+        stale: false,
+        failureReason: null,
         statusMessage: null,
         checkedAt: new Date(),
+        createdAt: new Date(),
     };
     const identityModel = {
+        getOrCreateAccount: vi.fn(async () => ({
+            aiIdentityAccountUuid: 'account-uuid',
+        })),
+        find: vi.fn(async () => readyIdentity),
         findWithPrivateKey: vi.fn(
             async (): Promise<typeof readyIdentity | null> => readyIdentity,
         ),
-        create: vi.fn(async () => readyIdentity),
-        getSettings: vi.fn(async () => ({
-            twinNameTemplate: '{snowflake_login}_AI',
-        })),
+        upsertForUsers: vi.fn(async () => undefined),
+        setKeys: vi.fn(async () => readyIdentity),
         setSnowflakeLogin: vi.fn(async () => undefined),
         updateStatus: vi.fn(async () => readyIdentity),
     };
@@ -9441,7 +9449,7 @@ describe('Snowflake AI twin query routing', () => {
             true,
         );
         identityModel.findWithPrivateKey.mockClear();
-        identityModel.create.mockClear();
+        identityModel.upsertForUsers.mockClear();
         identityModel.updateStatus.mockClear();
         identityModel.findWithPrivateKey.mockResolvedValue(readyIdentity);
         identityModel.updateStatus.mockResolvedValue(readyIdentity);
@@ -9474,23 +9482,33 @@ describe('Snowflake AI twin query routing', () => {
     );
 
     it('creates a missing identity and refuses the query', async () => {
-        identityModel.findWithPrivateKey.mockResolvedValueOnce(null);
-        await expect(resolve(makeService(), false)).rejects.toThrow(
-            "Your AI identity isn't set up yet. Ask your admin.",
-        );
-        expect(identityModel.create).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: projectSummary.projectUuid,
-                userUuid: 'user-uuid',
+        identityModel.findWithPrivateKey
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({
+                ...readyIdentity,
                 snowflakeLogin: null,
-            }),
+                twinName: null,
+                state: AiIdentityState.NEEDS_SIGN_IN,
+            });
+        await expect(resolve(makeService(), false)).rejects.toMatchObject({
+            message:
+                'Sign in to Snowflake once so Lightdash can set up your AI identity.',
+            data: {
+                code: 'ai_identity_not_ready',
+                state: AiIdentityState.NEEDS_SIGN_IN,
+                settingsUrl: '/generalSettings/myWarehouseConnections',
+            },
+        });
+        expect(identityModel.upsertForUsers).toHaveBeenCalledWith(
+            'account-uuid',
+            ['user-uuid'],
         );
     });
 
     it('checks a pending twin before using it', async () => {
         identityModel.findWithPrivateKey.mockResolvedValueOnce({
             ...readyIdentity,
-            status: AiIdentityStatus.PENDING,
+            state: AiIdentityState.PENDING,
         });
         vi.mocked(checkAiTwinConnection).mockResolvedValueOnce({
             ok: true,
@@ -9504,6 +9522,7 @@ describe('Snowflake AI twin query routing', () => {
             'identity-uuid',
             {
                 status: AiIdentityStatus.READY,
+                failureReason: null,
                 statusMessage: null,
             },
         );
@@ -9563,7 +9582,8 @@ describe('Snowflake AI twin query routing', () => {
             credentials: { user: 'ANALYST_AI' },
         });
         expect(identityModel.setSnowflakeLogin).toHaveBeenCalledWith(
-            'identity-uuid',
+            projectSummary.organizationUuid,
+            'user-uuid',
             'ANALYST',
         );
     });
@@ -9571,10 +9591,10 @@ describe('Snowflake AI twin query routing', () => {
     it('refuses a recently failed twin without retrying', async () => {
         identityModel.findWithPrivateKey.mockResolvedValueOnce({
             ...readyIdentity,
-            status: AiIdentityStatus.FAILED,
+            state: AiIdentityState.FAILED,
         });
         await expect(resolve(makeService(), true)).rejects.toThrow(
-            "Your AI identity isn't set up yet. Ask your admin.",
+            "Your AI identity isn't set up yet. Ask an admin to set it up.",
         );
         expect(checkAiTwinConnection).not.toHaveBeenCalled();
     });
@@ -9584,16 +9604,23 @@ describe('Snowflake AI twin query routing', () => {
         expect(identityModel.findWithPrivateKey).not.toHaveBeenCalled();
     });
 
-    it('advertises raw SQL for a Snowflake project before the twin is ready', async () => {
+    it('only advertises raw SQL after the Snowflake AI identity is ready', async () => {
         vi.spyOn(
             projectModel,
             'getWarehouseCredentialsForProject',
         ).mockResolvedValue(snowflakeCredentials);
         const service = makeService();
+        identityModel.find.mockResolvedValueOnce({
+            ...readyIdentity,
+            state: AiIdentityState.PENDING,
+        });
+        await expect(
+            service.canUseAiRawSql(projectSummary.projectUuid, 'user-uuid'),
+        ).resolves.toBe(false);
+        identityModel.find.mockResolvedValueOnce(readyIdentity);
         await expect(
             service.canUseAiRawSql(projectSummary.projectUuid, 'user-uuid'),
         ).resolves.toBe(true);
-        expect(identityModel.findWithPrivateKey).not.toHaveBeenCalled();
     });
 });
 

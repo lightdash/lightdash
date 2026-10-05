@@ -1,18 +1,19 @@
-import { AiIdentityStatus } from '@lightdash/common';
+import { AiIdentityFailureReason, AiIdentityStatus } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AiIdentitiesTableName = 'ai_identities';
 
 export type DbAiIdentity = {
     ai_identity_uuid: string;
-    project_uuid: string;
+    ai_identity_account_uuid: string;
     user_uuid: string;
     snowflake_login: string | null;
     twin_name_override: string | null;
-    public_key: string;
-    public_key_fingerprint: string;
-    encrypted_private_key: Buffer;
+    public_key: string | null;
+    public_key_fingerprint: string | null;
+    encrypted_private_key: Buffer | null;
     status: AiIdentityStatus;
+    failure_reason: AiIdentityFailureReason | null;
     status_message: string | null;
     checked_at: Date | null;
     created_at: Date;
@@ -21,27 +22,14 @@ export type DbAiIdentity = {
 
 export type AiIdentitiesTable = Knex.CompositeTableType<
     DbAiIdentity,
-    Pick<
-        DbAiIdentity,
-        | 'project_uuid'
-        | 'user_uuid'
-        | 'snowflake_login'
-        | 'public_key'
-        | 'public_key_fingerprint'
-        | 'encrypted_private_key'
-    >,
+    Pick<DbAiIdentity, 'ai_identity_account_uuid' | 'user_uuid'>,
     Partial<
-        Pick<
+        Omit<
             DbAiIdentity,
-            | 'snowflake_login'
-            | 'twin_name_override'
-            | 'public_key'
-            | 'public_key_fingerprint'
-            | 'encrypted_private_key'
-            | 'status'
-            | 'status_message'
-            | 'checked_at'
-            | 'updated_at'
+            | 'ai_identity_uuid'
+            | 'ai_identity_account_uuid'
+            | 'user_uuid'
+            | 'created_at'
         >
     >
 >;

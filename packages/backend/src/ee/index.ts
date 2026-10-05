@@ -1510,6 +1510,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiRouterService:
                         repository.getAiRouterService<AiRouterService>(),
                     aiWritebackService: repository.getAiWritebackService(),
+                    aiIdentityService: repository.getAiIdentityService(),
                 }),
             slackService: ({ repository, clients }) =>
                 new CommercialSlackService({

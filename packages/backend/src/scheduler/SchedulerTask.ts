@@ -182,6 +182,7 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
+import { AiIdentityService } from '../services/AiIdentityService/AiIdentityService';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -237,6 +238,7 @@ type SlackDeliveryFile = NonNullable<
 >[number];
 
 export type SchedulerTaskArguments = {
+    aiIdentityService?: AiIdentityService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerAiAugmentation?: SchedulerAiAugmentationRunner;
@@ -505,6 +507,7 @@ export async function processSequentiallyWithPacing<T>(
 }
 
 export default class SchedulerTask {
+    protected readonly aiIdentityService?: AiIdentityService;
     protected readonly lightdashConfig: LightdashConfig;
 
     protected readonly analytics: LightdashAnalytics;
@@ -568,6 +571,7 @@ export default class SchedulerTask {
     protected readonly learnSandboxService: LearnSandboxService;
 
     constructor(args: SchedulerTaskArguments) {
+        this.aiIdentityService = args.aiIdentityService;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.schedulerAiAugmentation = args.schedulerAiAugmentation;

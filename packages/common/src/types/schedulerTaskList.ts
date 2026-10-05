@@ -231,6 +231,10 @@ export const EE_SCHEDULER_TASKS = {
 } as const;
 
 export const SCHEDULER_TASKS = {
+    AI_IDENTITY_JOB: 'aiIdentityJob',
+    AI_IDENTITY_DAILY_CHECK: 'aiIdentityDailyCheck',
+    AI_IDENTITY_SIGN_IN: 'aiIdentitySignIn',
+    AI_IDENTITY_SYNC_PROJECT: 'aiIdentitySyncProject',
     HANDLE_SCHEDULED_DELIVERY: 'handleScheduledDelivery',
     // Legacy individual notification tasks (deprecated, kept for backwards compatibility)
     SEND_SLACK_NOTIFICATION: 'sendSlackNotification',
@@ -281,8 +285,27 @@ export const SCHEDULER_TASKS = {
 export const ALL_TASK_NAMES: SchedulerTaskName[] =
     Object.values(SCHEDULER_TASKS);
 
+export type AiIdentityTaskPayload = {
+    organizationUuid?: string;
+    projectUuid?: string;
+    userUuid?: string;
+    schedulerUuid?: string;
+};
+
 // Map each task to its payload type
 export interface TaskPayloadMap {
+    [SCHEDULER_TASKS.AI_IDENTITY_JOB]: AiIdentityTaskPayload & {
+        jobUuid: string;
+    };
+    [SCHEDULER_TASKS.AI_IDENTITY_DAILY_CHECK]: AiIdentityTaskPayload;
+    [SCHEDULER_TASKS.AI_IDENTITY_SIGN_IN]: AiIdentityTaskPayload & {
+        organizationUuid: string;
+        userUuid: string;
+    };
+    [SCHEDULER_TASKS.AI_IDENTITY_SYNC_PROJECT]: AiIdentityTaskPayload & {
+        organizationUuid: string;
+        projectUuid: string;
+    };
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: ScheduledDeliveryPayload;
     // Legacy individual notification tasks (deprecated)
     [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: SlackNotificationPayload;

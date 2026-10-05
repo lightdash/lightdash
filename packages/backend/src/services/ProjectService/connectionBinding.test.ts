@@ -53,7 +53,11 @@ describe('connection bindings at warehouse credential call sites', () => {
                 .filter(({ calls }) => calls > 0);
             expect(unroutedCallers).toEqual([
                 { file: 'models/ProjectModel/ProjectModel.ts', calls: 2 },
-                { file: 'services/ProjectService/ProjectService.ts', calls: 2 },
+                {
+                    file: 'services/AiIdentityService/AiIdentityService.ts',
+                    calls: 1,
+                },
+                { file: 'services/ProjectService/ProjectService.ts', calls: 3 },
                 {
                     file: 'services/WarehouseConnectionService/WarehouseConnectionService.ts',
                     calls: 4,

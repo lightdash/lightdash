@@ -1991,6 +1991,8 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
+                    schedulerClient: this.clients.getSchedulerClient(),
+                    fileStorageClient: this.clients.getFileStorageClient(),
                 }),
         );
     }

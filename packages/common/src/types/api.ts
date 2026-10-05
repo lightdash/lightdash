@@ -128,10 +128,14 @@ import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
-    type ApiAiIdentitiesResponse,
-    type ApiAiIdentitiesSqlResponse,
+    type ApiAiAccessForUserResponse,
+    type ApiAiIdentityAccountResponse,
+    type ApiAiIdentityAccountsResponse,
+    type ApiAiIdentityDetailResponse,
+    type ApiAiIdentityEventsResponse,
+    type ApiAiIdentityJobResponse,
+    type ApiAiIdentityListResponse,
     type ApiAiIdentityResponse,
-    type ApiAiIdentitySettingsResponse,
 } from './aiIdentity';
 import {
     type ApiUserActivityDownloadCsv,
@@ -1365,10 +1369,14 @@ type ApiResults =
     | ApiWarehouseConnectionUserCredentialsResponse['results']
     | ApiWarehouseConnectionsForUserCredentialsResponse['results']
     | ApiSqlRunnerWarehouseConnectionsResponse['results']
-    | ApiAiIdentitiesResponse['results']
+    | ApiAiIdentityAccountsResponse['results']
+    | ApiAiIdentityAccountResponse['results']
+    | ApiAiIdentityListResponse['results']
     | ApiAiIdentityResponse['results']
-    | ApiAiIdentitySettingsResponse['results']
-    | ApiAiIdentitiesSqlResponse['results']
+    | ApiAiIdentityDetailResponse['results']
+    | ApiAiIdentityJobResponse['results']
+    | ApiAiIdentityEventsResponse['results']
+    | ApiAiAccessForUserResponse['results']
     | ApiWarehouseDatabaseListing['results']
     | Document
     | DocumentList

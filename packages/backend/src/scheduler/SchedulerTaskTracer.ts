@@ -23,6 +23,18 @@ const getTagsForTask: {
         payload: TaskPayloadMap[K],
     ) => Record<string, string>;
 } = {
+    [SCHEDULER_TASKS.AI_IDENTITY_JOB]: (payload) => ({
+        'ai_identity_job.uuid': payload.jobUuid,
+    }),
+    [SCHEDULER_TASKS.AI_IDENTITY_DAILY_CHECK]: () => ({}),
+    [SCHEDULER_TASKS.AI_IDENTITY_SIGN_IN]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+    }),
+    [SCHEDULER_TASKS.AI_IDENTITY_SYNC_PROJECT]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+    }),
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AiIdentityStatus } from '../types/aiIdentity';
+import { AiIdentityState } from '../types/aiIdentity';
 import { buildAiTwinProvisioningSql } from './aiIdentitySql';
 
 describe('buildAiTwinProvisioningSql', () => {
@@ -8,6 +8,8 @@ describe('buildAiTwinProvisioningSql', () => {
             identities: [
                 {
                     aiIdentityUuid: 'id',
+                    aiIdentityAccountUuid: 'account',
+                    snowflakeAccount: 'SNOWFLAKE',
                     userUuid: 'user',
                     email: "a'b@example.com",
                     firstName: 'A',
@@ -17,9 +19,12 @@ describe('buildAiTwinProvisioningSql', () => {
                     twinName: 'A"B',
                     publicKey: 'KEY',
                     publicKeyFingerprint: 'SHA256:KEY',
-                    status: AiIdentityStatus.PENDING,
+                    state: AiIdentityState.PENDING,
+                    stale: false,
+                    failureReason: null,
                     statusMessage: null,
                     checkedAt: null,
+                    createdAt: new Date(),
                 },
             ],
             roleForTwin: 'ROLE',
@@ -39,6 +44,8 @@ describe('buildAiTwinProvisioningSql', () => {
             identities: [
                 {
                     aiIdentityUuid: 'id',
+                    aiIdentityAccountUuid: 'account',
+                    snowflakeAccount: 'SNOWFLAKE',
                     userUuid: 'user',
                     email: 'person@example.com',
                     firstName: 'A',
@@ -48,9 +55,12 @@ describe('buildAiTwinProvisioningSql', () => {
                     twinName: 'person_AI',
                     publicKey: 'KEY',
                     publicKeyFingerprint: 'SHA256:KEY',
-                    status: AiIdentityStatus.PENDING,
+                    state: AiIdentityState.PENDING,
+                    stale: false,
+                    failureReason: null,
                     statusMessage: null,
                     checkedAt: null,
+                    createdAt: new Date(),
                 },
             ],
             roleForTwin: 'analyst_no_pii',

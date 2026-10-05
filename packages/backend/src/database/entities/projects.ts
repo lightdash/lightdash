@@ -50,7 +50,6 @@ export type DbProject = {
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
     ai_access_restrictions: boolean;
-    ai_twin_name_template: string | null;
     playground_bundle_version: string | null;
 };
 
@@ -101,7 +100,6 @@ type UpdateDbProject = Partial<
         | 'provisioning_source'
         | 'agent_sql_scope'
         | 'ai_access_restrictions'
-        | 'ai_twin_name_template'
         | 'playground_bundle_version'
     >
 >;
