@@ -356,6 +356,18 @@
         background: var(--ld-color-page);
     }
 
+    /* Dark mode inverts the pairing: the rail takes the lighter surface and
+       the document beside it sits on the darker canvas */
+    @mixin dark {
+        &:has(> .contentsRail) {
+            background: var(--ld-color-page);
+        }
+
+        .contentsRail {
+            background: var(--mantine-color-body);
+        }
+    }
+
     .contentsNav {
         padding: var(--mantine-spacing-xxl) var(--mantine-spacing-lg);
     }
