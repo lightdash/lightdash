@@ -23,6 +23,10 @@ vi.mock('../../../config/lightdashConfig', () => ({
     },
 }));
 
+vi.mock('../../../logging/logger', () => ({
+    default: { info: vi.fn() },
+}));
+
 const verify = (
     snowflakeAiPassportStrategy as unknown as {
         _verify: (
@@ -44,7 +48,11 @@ const callVerify = async (
     if (agentSession === 'error') {
         check.mockRejectedValue(new Error('Snowflake query failed'));
     } else {
-        check.mockResolvedValue(agentSession);
+        check.mockResolvedValue({
+            agentActivated: agentSession,
+            currentRole: agentSession ? 'ANALYST' : null,
+            activeRestrictedSessionScopes: agentSession ? 'READ' : null,
+        });
     }
     const upsertAiSnowflakeCredential = vi.fn(async () => undefined);
     const get = vi.fn(async () => ({
