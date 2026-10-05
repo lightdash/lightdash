@@ -74,7 +74,7 @@ const ErrorBoundary: FC<
 > = ({ children, wrapper, fallbackWrapper, onError }) => {
     return (
         <Sentry.ErrorBoundary
-            onError={onError ? (error) => onError(error) : undefined}
+            onError={onError}
             fallback={({ eventId, error }) => {
                 const fallback = (
                     <ErrorFallback
