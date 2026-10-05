@@ -1,3 +1,10 @@
+## [2.435.1](https://github.com/lightdash/lightdash/compare/2.435.0...2.435.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ai-agents:** let embedded agents stop and steer streaming answers ([#30502](https://github.com/lightdash/lightdash/issues/30502)) ([7c8cd34](https://github.com/lightdash/lightdash/commit/7c8cd34154b8ffeb9005fe9a8c52ecd2b4ae6313))
+
 # [2.435.0](https://github.com/lightdash/lightdash/compare/2.434.0...2.435.0) (2026-10-05)
 
 
