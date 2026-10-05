@@ -1,3 +1,10 @@
+# [2.432.0](https://github.com/lightdash/lightdash/compare/2.431.1...2.432.0) (2026-10-05)
+
+
+### Features
+
+* **embed:** control SQL and download quick actions on embedded AI answers ([#30473](https://github.com/lightdash/lightdash/issues/30473)) ([41ad90e](https://github.com/lightdash/lightdash/commit/41ad90e93846f727ac87b84ee933152413387524))
+
 ## [2.431.1](https://github.com/lightdash/lightdash/compare/2.431.0...2.431.1) (2026-10-05)
 
 
