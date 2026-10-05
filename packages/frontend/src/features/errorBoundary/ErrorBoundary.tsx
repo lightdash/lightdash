@@ -69,10 +69,12 @@ const ErrorBoundary: FC<
     PropsWithChildren & {
         wrapper?: FlexProps;
         fallbackWrapper?: (fallback: ReactElement) => ReactElement;
+        onError?: (error: unknown) => void;
     }
-> = ({ children, wrapper, fallbackWrapper }) => {
+> = ({ children, wrapper, fallbackWrapper, onError }) => {
     return (
         <Sentry.ErrorBoundary
+            onError={onError ? (error) => onError(error) : undefined}
             fallback={({ eventId, error }) => {
                 const fallback = (
                     <ErrorFallback
