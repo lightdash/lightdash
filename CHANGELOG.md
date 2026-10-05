@@ -1,3 +1,23 @@
+# [2.431.0](https://github.com/lightdash/lightdash/compare/2.430.0...2.431.0) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ai:** clarify thread menu hover affordance ([#30480](https://github.com/lightdash/lightdash/issues/30480)) ([5a543fa](https://github.com/lightdash/lightdash/commit/5a543fa66f5577f4c6ee90f5e4438ecde2f50a94))
+* **ai:** collapse the sidebar below 170px ([#30479](https://github.com/lightdash/lightdash/issues/30479)) ([e54a857](https://github.com/lightdash/lightdash/commit/e54a857bba0709e884cba243210cabed2ef494fc))
+* **ai:** compact the sidebar header and clarify controls ([#30422](https://github.com/lightdash/lightdash/issues/30422)) ([ada9b0f](https://github.com/lightdash/lightdash/commit/ada9b0f3c4714a6541777c51e042e4a37b48ae32))
+* **ai:** enlarge and animate the default agent star ([#30478](https://github.com/lightdash/lightdash/issues/30478)) ([ae10817](https://github.com/lightdash/lightdash/commit/ae1081781f9ae09bfec38b9e718d2dab76e18bbe))
+* **ai:** prevent sidebar pagination overlap ([#30420](https://github.com/lightdash/lightdash/issues/30420)) ([f44b0c1](https://github.com/lightdash/lightdash/commit/f44b0c19232277386a28c1412eb3c7c915793796))
+* **ai:** separate pinned and recent threads ([#30488](https://github.com/lightdash/lightdash/issues/30488)) ([bb67dd3](https://github.com/lightdash/lightdash/commit/bb67dd373261e79f184154a590b6014dbcfdea12))
+* **ai:** show complete sidebar thread titles ([#30421](https://github.com/lightdash/lightdash/issues/30421)) ([69a29d0](https://github.com/lightdash/lightdash/commit/69a29d0e1ab886c5242c570b04886379abcc989c))
+* **ai:** soften dark-mode chat surfaces ([#30481](https://github.com/lightdash/lightdash/issues/30481)) ([2512aa6](https://github.com/lightdash/lightdash/commit/2512aa626378679d29f7d2bdbab1e0e54b9b850d))
+* **sidebar:** reuse scroll fades across navigation ([#30434](https://github.com/lightdash/lightdash/issues/30434)) ([b16c790](https://github.com/lightdash/lightdash/commit/b16c790f649ce345f7222eaad330dc89e8e24d37))
+
+
+### Features
+
+* **athena:** authenticate with Lightdash's Google workload identity ([#30461](https://github.com/lightdash/lightdash/issues/30461)) ([4208e35](https://github.com/lightdash/lightdash/commit/4208e356a1574578c9b17fe50efcb49d091eb093))
+
 # [2.430.0](https://github.com/lightdash/lightdash/compare/2.429.0...2.430.0) (2026-10-05)
 
 

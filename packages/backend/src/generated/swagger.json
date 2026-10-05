@@ -63170,6 +63170,21 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "CreateAwsWebIdentityAudience": {
+                "properties": {
+                    "projectUuid": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UUID"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The project whose connection uses the audience. Null for a new project."
+                    }
+                },
+                "required": ["projectUuid"],
+                "type": "object"
+            },
             "AnalyticsProjectStatus": {
                 "properties": {
                     "project": {
@@ -69228,7 +69243,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.430.0",
+        "version": "2.431.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -105863,7 +105878,7 @@
                 },
                 "description": "Get this instance's identity for Athena web identity authentication.\nAdd the subject to the IAM role's trust policy.",
                 "summary": "Get web identity subject",
-                "tags": ["Projects"],
+                "tags": ["AWS Web Identity"],
                 "security": [],
                 "parameters": []
             }
@@ -105895,9 +105910,19 @@
                 },
                 "description": "Generate an audience for Athena web identity authentication. Add it to\nthe IAM role's trust policy as accounts.google.com:oaud.",
                 "summary": "Generate web identity audience",
-                "tags": ["Projects"],
+                "tags": ["AWS Web Identity"],
                 "security": [],
-                "parameters": []
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAwsWebIdentityAudience"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/analytics-project": {
