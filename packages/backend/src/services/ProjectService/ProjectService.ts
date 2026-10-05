@@ -698,12 +698,15 @@ type PreparedExploreStream = {
 type PreparedMultiConnectionSave = MultiConnectionSave & { warnings: string[] };
 
 export class AiAccessRestrictionsError extends ForbiddenError {
-    constructor() {
-        super(
-            'AI access restrictions are on for this project. Sign in to Snowflake for AI in My warehouse connections to use the AI agent and MCP here.',
-        );
+    constructor(
+        message: string = 'AI access restrictions are on for this project. Sign in to Snowflake for AI in My warehouse connections to use the AI agent and MCP here.',
+    ) {
+        super(message);
     }
 }
+
+export const AI_RAW_SQL_OFF_MESSAGE =
+    'AI access restrictions are on for this project, so raw SQL from AI is off. Ask the question through the semantic layer instead.';
 
 type AiAccessIdentity =
     | {
@@ -2276,6 +2279,22 @@ export class ProjectService extends BaseService {
         const restrictionsEnabled =
             restrictionsFlag.enabled &&
             (await this.projectModel.getAiAccessRestrictions(projectUuid));
+        const surface =
+            context === QueryExecutionContext.MCP_RUN_SQL ||
+            context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
+            context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
+                ? 'mcp'
+                : (aiSurface ?? 'ai_agent');
+        if (restrictionsEnabled && rawSql === true) {
+            this.logger.warn('AI access query refused', {
+                projectUuid,
+                userUuid: userId,
+                reason: 'raw_sql_off',
+                surface,
+                warehouseType: credentials.type,
+            });
+            throw new AiAccessRestrictionsError(AI_RAW_SQL_OFF_MESSAGE);
+        }
         const snowflakeSso =
             credentials.type === WarehouseTypes.SNOWFLAKE &&
             credentials.authenticationType === SnowflakeAuthenticationType.SSO;
@@ -2286,12 +2305,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 userUuid: userId,
                 reason: 'no_limiting_identity',
-                surface:
-                    context === QueryExecutionContext.MCP_RUN_SQL ||
-                    context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
-                    context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
-                        ? 'mcp'
-                        : (aiSurface ?? 'ai_agent'),
+                surface,
                 warehouseType: credentials.type,
             });
             throw new AiAccessRestrictionsError();

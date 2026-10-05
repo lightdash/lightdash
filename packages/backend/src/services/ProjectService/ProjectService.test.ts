@@ -13782,7 +13782,7 @@ describe('Snowflake AI query credentials', () => {
         authenticationType: SnowflakeAuthenticationType.SSO,
         requireUserCredentials: true,
     } as CreateWarehouseCredentials;
-    it('refuses restricted AI raw SQL without a limiting identity', async () => {
+    it('turns raw SQL from AI off under restrictions', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
                 get: vi.fn(async () => ({ enabled: true })),
@@ -13825,15 +13825,76 @@ describe('Snowflake AI query credentials', () => {
                     rawSql: true,
                     aiSurface: 'slack_agent',
                 }),
-            ).rejects.toThrow('AI access restrictions are on for this project');
+            ).rejects.toThrow('raw SQL from AI is off');
             expect(warn).toHaveBeenCalledExactlyOnceWith(
                 'AI access query refused',
                 {
                     projectUuid: projectSummary.projectUuid,
                     userUuid: 'user-uuid',
-                    reason: 'no_limiting_identity',
+                    reason: 'raw_sql_off',
                     surface: 'slack_agent',
                     warehouseType: WarehouseTypes.POSTGRES,
+                },
+            );
+        } finally {
+            getRestrictions.mockRestore();
+            warn.mockRestore();
+        }
+    });
+
+    it('turns raw SQL from AI off on Snowflake even with a sign-in for AI', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getRestrictions = vi
+            .spyOn(projectModel, 'getAiAccessRestrictions')
+            .mockResolvedValue(true);
+        const warn = vi.spyOn(
+            Reflect.get(service, 'logger') as {
+                warn: (...args: unknown[]) => void;
+            },
+            'warn',
+        );
+        try {
+            await expect(
+                (
+                    service as unknown as {
+                        resolveAiAccessIdentity: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            isServiceAccount: boolean;
+                            context: QueryExecutionContext;
+                            credentials: CreateWarehouseCredentials;
+                            rawSql: boolean;
+                            aiSurface: 'slack_agent';
+                        }) => Promise<unknown>;
+                    }
+                ).resolveAiAccessIdentity({
+                    projectUuid: projectSummary.projectUuid,
+                    userId: 'user-uuid',
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                    context: QueryExecutionContext.AI,
+                    credentials: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        requireUserCredentials: true,
+                    } as CreateWarehouseCredentials,
+                    rawSql: true,
+                    aiSurface: 'slack_agent',
+                }),
+            ).rejects.toThrow('raw SQL from AI is off');
+            expect(warn).toHaveBeenCalledExactlyOnceWith(
+                'AI access query refused',
+                {
+                    projectUuid: projectSummary.projectUuid,
+                    userUuid: 'user-uuid',
+                    reason: 'raw_sql_off',
+                    surface: 'slack_agent',
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
                 },
             );
         } finally {
