@@ -238,7 +238,7 @@ type SlackDeliveryFile = NonNullable<
 >[number];
 
 export type SchedulerTaskArguments = {
-    aiIdentityService?: AiIdentityService;
+    aiIdentityService: AiIdentityService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerAiAugmentation?: SchedulerAiAugmentationRunner;
@@ -507,7 +507,7 @@ export async function processSequentiallyWithPacing<T>(
 }
 
 export default class SchedulerTask {
-    protected readonly aiIdentityService?: AiIdentityService;
+    protected readonly aiIdentityService: AiIdentityService;
     protected readonly lightdashConfig: LightdashConfig;
 
     protected readonly analytics: LightdashAnalytics;

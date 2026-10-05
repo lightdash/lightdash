@@ -813,26 +813,18 @@ export class SchedulerWorker extends SchedulerTask {
     protected getFullTaskList(): TypedTaskList {
         return {
             [SCHEDULER_TASKS.AI_IDENTITY_JOB]: async (payload) => {
-                if (!this.aiIdentityService)
-                    throw new Error('AI identity service unavailable');
                 await this.aiIdentityService.runJob(payload.jobUuid);
             },
             [SCHEDULER_TASKS.AI_IDENTITY_DAILY_CHECK]: async () => {
-                if (!this.aiIdentityService)
-                    throw new Error('AI identity service unavailable');
                 await this.aiIdentityService.scheduleDailyChecks();
             },
             [SCHEDULER_TASKS.AI_IDENTITY_SIGN_IN]: async (payload) => {
-                if (!this.aiIdentityService)
-                    throw new Error('AI identity service unavailable');
                 await this.aiIdentityService.processSignIn(
                     payload.organizationUuid,
                     payload.userUuid,
                 );
             },
             [SCHEDULER_TASKS.AI_IDENTITY_SYNC_PROJECT]: async (payload) => {
-                if (!this.aiIdentityService)
-                    throw new Error('AI identity service unavailable');
                 await this.aiIdentityService.scheduleSyncForProject(
                     payload.organizationUuid,
                     payload.projectUuid,

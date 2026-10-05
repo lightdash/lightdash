@@ -134,6 +134,7 @@ const schedulerWorkerFactory = (context: {
     prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
+        aiIdentityService: context.serviceRepository.getAiIdentityService(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
