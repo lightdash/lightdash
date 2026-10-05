@@ -235,10 +235,13 @@ vi.mock('../src/pages/MetricsCatalog', async () => {
         await import('../src/components/common/DocumentTitle');
 
     return {
-        default: () => (
+        default: ({ hiddenFilters }: { hiddenFilters?: string[] }) => (
             <>
                 <DocumentTitle title="Metrics" />
-                <div data-testid="metrics-catalog-page" />
+                <div
+                    data-testid="metrics-catalog-page"
+                    data-hidden-filters={hiddenFilters?.join(',')}
+                />
             </>
         ),
     };
@@ -770,6 +773,23 @@ describe('SDK metrics catalog', () => {
         });
 
         expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('passes hidden filters to the metrics catalog', async () => {
+        const { getByTestId } = render(
+            <MetricsCatalog
+                token={mockToken}
+                instanceUrl="http://localhost:3000"
+                hiddenFilters={['owners', 'tables']}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('metrics-catalog-page')).toHaveAttribute(
+                'data-hidden-filters',
+                'owners,tables',
+            );
+        });
     });
 
     it('SDK elements do not override document title', async () => {
