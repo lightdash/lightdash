@@ -2634,9 +2634,6 @@ export class MetricQueryBuilder {
         return warnings;
     }
 
-    /**
-     * Helper function to replace metric references in SQL with CTE references
-     */
     private metricReadsRawColumns(metric: CompiledMetric): boolean {
         return getAllReferences(metric.sql).some((reference) => {
             if (reference === 'TABLE') {
@@ -2654,6 +2651,9 @@ export class MetricQueryBuilder {
         });
     }
 
+    /**
+     * Helper function to replace metric references in SQL with CTE references
+     */
     private replaceMetricReferencesWithCteReferences(
         metric: CompiledMetric,
         metricCtes: Array<{ name: string; metrics: string[] }>,
@@ -2936,23 +2936,13 @@ export class MetricQueryBuilder {
                 }" instead.`,
             );
         };
-        // Includes metrics that are only referenced by a selected metric
-        const distinctMetricsWithTableReference = Array.from(
-            nonAggReferencingDd,
-        )
-            .map((metricId) => this.getMetricFromId(metricId))
+        metricsWithTableReference
             .filter(
                 (metric) =>
-                    metric.tablesReferences?.some(
-                        (table) => table !== metric.table,
-                    ) && getAllReferences(metric.sql).includes('TABLE'),
-            );
-        [
-            ...distinctMetricsWithTableReference,
-            ...metricsWithTableReference.filter((metric) =>
-                nestedAggOuterIds.has(getItemId(metric)),
-            ),
-        ].forEach(throwTableReferenceError);
+                    nonAggReferencingDd.has(getItemId(metric)) ||
+                    nestedAggOuterIds.has(getItemId(metric)),
+            )
+            .forEach(throwTableReferenceError);
 
         // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];

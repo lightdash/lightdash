@@ -2286,6 +2286,32 @@ export const EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES: Explore = {
                     tablesReferences: ['customers'],
                     hidden: false,
                 },
+                amount_per_customer: {
+                    type: MetricType.NUMBER,
+                    name: 'amount_per_customer',
+                    label: 'Amount Per Customer',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${orders.total_order_amount} / NULLIF(${customers.total_customers}, 0)',
+                    compiledSql:
+                        'SUM("orders".amount) / NULLIF(COUNT("customers".customer_id), 0)',
+                    tablesReferences: ['customers', 'orders'],
+                    hidden: false,
+                },
+                customers_with_orders: {
+                    type: MetricType.NUMBER,
+                    name: 'customers_with_orders',
+                    label: 'Customers With Orders',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: 'COUNT(CASE WHEN ${orders.order_id} IS NOT NULL THEN 1 END)',
+                    compiledSql:
+                        'COUNT(CASE WHEN "orders".order_id IS NOT NULL THEN 1 END)',
+                    tablesReferences: ['customers', 'orders'],
+                    hidden: false,
+                },
                 credit_per_order_amount: {
                     type: MetricType.NUMBER,
                     name: 'credit_per_order_amount',
@@ -2311,10 +2337,15 @@ export const EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES: Explore = {
                     'SUM(${TABLE}.amount) / NULLIF(${customers.distinct_credit}, 0)',
                     'SUM("orders".amount) / NULLIF(SUM("customers".credit), 0)',
                 ),
-                amount_per_distinct_credit_percent: crossTableNumberMetric(
-                    'amount_per_distinct_credit_percent',
-                    '${orders.amount_per_distinct_credit} * 100',
-                    '(SUM("orders".amount) / NULLIF(SUM("customers".credit), 0)) * 100',
+                order_id_times_distinct_credit: crossTableNumberMetric(
+                    'order_id_times_distinct_credit',
+                    '${TABLE}.order_id * ${customers.distinct_credit}',
+                    '"orders".order_id * SUM("customers".credit)',
+                ),
+                order_id_times_distinct_credit_percent: crossTableNumberMetric(
+                    'order_id_times_distinct_credit_percent',
+                    '${orders.order_id_times_distinct_credit} * 100',
+                    '("orders".order_id * SUM("customers".credit)) * 100',
                 ),
                 customers_on_large_orders: crossTableNumberMetric(
                     'customers_on_large_orders',
@@ -2329,6 +2360,14 @@ export const EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES: Explore = {
             },
         },
     },
+};
+
+// Same explore without fan-out, so only the nested aggregate flow builds CTEs
+export const EXPLORE_WITH_TABLE_REFERENCE_WITHOUT_FANOUT: Explore = {
+    ...EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+    joinedTables: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES.joinedTables.map(
+        (join) => ({ ...join, relationship: JoinRelationship.ONE_TO_ONE }),
+    ),
 };
 
 export const METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE: CompiledMetricQuery = {
