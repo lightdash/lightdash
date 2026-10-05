@@ -25,15 +25,22 @@ export const toolLoadSkillArgsSchema = z.object({
 });
 
 /** Which skill and version the model was served; a thread reviewer reads this. */
+// Declared as a plain type so TSOA can resolve it in API responses.
+export type ServedSkillMetadata = {
+    name: string;
+    builtIn: boolean;
+    uuid: string | null;
+    versionNumber: number | null;
+    contentHash: string | null;
+};
+
 export const servedSkillMetadataSchema = z.object({
     name: z.string(),
     builtIn: z.boolean(),
     uuid: z.string().nullable(),
     versionNumber: z.number().nullable(),
     contentHash: z.string().nullable(),
-});
-
-export type ServedSkillMetadata = z.infer<typeof servedSkillMetadataSchema>;
+}) satisfies z.ZodType<ServedSkillMetadata>;
 const toolLoadSkillResourceReferenceSchema = z.object({
     name: z
         .string()
