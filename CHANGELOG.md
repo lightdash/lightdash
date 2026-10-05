@@ -1,3 +1,10 @@
+## [2.428.3](https://github.com/lightdash/lightdash/compare/2.428.2...2.428.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ai:** allow disabling Anthropic context management for gateways ([#30247](https://github.com/lightdash/lightdash/issues/30247)) ([a039c76](https://github.com/lightdash/lightdash/commit/a039c766c4525b13f342b06af10d7430c3d29c19))
+
 ## [2.428.2](https://github.com/lightdash/lightdash/compare/2.428.1...2.428.2) (2026-10-05)
 
 
