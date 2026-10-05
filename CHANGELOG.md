@@ -1,3 +1,10 @@
+## [2.427.3](https://github.com/lightdash/lightdash/compare/2.427.2...2.427.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* remove Lightdash wording from error messages and embeddable UI ([#30471](https://github.com/lightdash/lightdash/issues/30471)) ([6c85530](https://github.com/lightdash/lightdash/commit/6c855309a44f9ed17d815d42ce76c4cfe3759338))
+
 ## [2.427.2](https://github.com/lightdash/lightdash/compare/2.427.1...2.427.2) (2026-10-05)
 
 
