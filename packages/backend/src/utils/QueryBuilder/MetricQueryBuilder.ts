@@ -2637,6 +2637,23 @@ export class MetricQueryBuilder {
     /**
      * Helper function to replace metric references in SQL with CTE references
      */
+    private metricReadsRawColumns(metric: CompiledMetric): boolean {
+        return getAllReferences(metric.sql).some((reference) => {
+            if (reference === 'TABLE') {
+                return true;
+            }
+            const { refTable, refName } = getParsedReference(
+                reference,
+                metric.table,
+            );
+            return (
+                this.exploreDimensions[
+                    getItemId({ table: refTable, name: refName })
+                ] !== undefined
+            );
+        });
+    }
+
     private replaceMetricReferencesWithCteReferences(
         metric: CompiledMetric,
         metricCtes: Array<{ name: string; metrics: string[] }>,
@@ -3025,8 +3042,12 @@ export class MetricQueryBuilder {
                     (t) => t !== metric.table,
                 );
                 if (referencesAnotherTable) {
-                    if (isNonAggregateMetric(metric)) {
-                        // These will be part of the final select. The SQL will be processed later to replace metric references with CTE references
+                    // Metric references are replaced with CTE references in the
+                    // final select; raw columns stay in the inflated scan.
+                    if (
+                        isNonAggregateMetric(metric) &&
+                        !this.metricReadsRawColumns(metric)
+                    ) {
                         return;
                     }
                     // We don't support other scenarios yet

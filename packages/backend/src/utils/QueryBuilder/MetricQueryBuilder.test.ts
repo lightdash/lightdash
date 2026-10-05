@@ -2138,6 +2138,43 @@ LIMIT 10`;
             },
         );
 
+        test('Should warn about inflation when a metric using ${TABLE} is on a table fanned out by a join', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                    metrics: ['customers_credit_per_order_amount'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'SUM("customers".credit) / NULLIF(SUM("orders".amount), 0) AS "customers_credit_per_order_amount"',
+            );
+            expect(result.warnings).toEqual([
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Metric **"Credit Per Order Amount"** that references a joined table might have inflation',
+                    ),
+                    fields: ['customers_credit_per_order_amount'],
+                }),
+            ]);
+        });
+
+        test('Should not warn about inflation for a cross-table metric that only references metrics', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_CROSS_TABLE_METRICS,
+                compiledMetricQuery: METRIC_QUERY_CROSS_TABLE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings).toEqual([]);
+        });
+
         test('Should treat a field named TABLE on another table as an ordinary reference', () => {
             expect(() =>
                 buildQuery({

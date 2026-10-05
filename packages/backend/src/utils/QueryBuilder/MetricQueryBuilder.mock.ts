@@ -2286,6 +2286,19 @@ export const EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES: Explore = {
                     tablesReferences: ['customers'],
                     hidden: false,
                 },
+                credit_per_order_amount: {
+                    type: MetricType.NUMBER,
+                    name: 'credit_per_order_amount',
+                    label: 'Credit Per Order Amount',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: 'SUM(${TABLE}.credit) / NULLIF(${orders.total_order_amount}, 0)',
+                    compiledSql:
+                        'SUM("customers".credit) / NULLIF(SUM("orders".amount), 0)',
+                    tablesReferences: ['customers', 'orders'],
+                    hidden: false,
+                },
             },
         },
         orders: {
