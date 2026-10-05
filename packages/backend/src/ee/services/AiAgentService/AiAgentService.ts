@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AgentSuggestion,
     AgentSummaryContext,
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
@@ -125,6 +126,7 @@ import {
     isDashboardChartTileType,
     isGithubMcpServerUrl,
     isGitProjectType,
+    isJwtUser,
     isMetric,
     isSlackMessageTooLongError,
     isSlackPrompt,
@@ -250,7 +252,7 @@ import {
     ContentVerificationEvent,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
-import { fromSession } from '../../../auth/account';
+import { fromSession, toSessionUser } from '../../../auth/account';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
     getInstallationToken,
@@ -7876,18 +7878,43 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    private async getThreadControlUser(
+        account: Account,
+        projectUuid: string,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<SessionUser> {
+        if (!isJwtUser(account)) return toSessionUser(account);
+
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
+        return user;
+    }
+
     async interruptAgentThreadMessage(
-        user: SessionUser,
+        account: Account,
         {
+            projectUuid,
             agentUuid,
             threadUuid,
             messageUuid,
         }: {
+            projectUuid: string;
             agentUuid: string;
             threadUuid: string;
             messageUuid: string;
         },
     ): Promise<void> {
+        const user = await this.getThreadControlUser(
+            account,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+        );
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
@@ -7948,19 +7975,27 @@ export class AiAgentService extends BaseService {
     }
 
     async createAgentThreadMessageSteer(
-        user: SessionUser,
+        account: Account,
         {
+            projectUuid,
             agentUuid,
             threadUuid,
             messageUuid,
             message,
         }: {
+            projectUuid: string;
             agentUuid: string;
             threadUuid: string;
             messageUuid: string;
             message: string;
         },
     ): Promise<AiPromptSteer> {
+        const user = await this.getThreadControlUser(
+            account,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+        );
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }

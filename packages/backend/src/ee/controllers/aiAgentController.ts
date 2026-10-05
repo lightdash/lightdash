@@ -1500,14 +1500,9 @@ export class AiAgentController extends BaseController {
         @Path() threadUuid: string,
         @Path() messageUuid: string,
     ): Promise<ApiAiAgentThreadMessageInterruptResponse> {
-        assertRegisteredAccount(req.account);
         await this.getAiAgentService().interruptAgentThreadMessage(
-            toSessionUser(req.account),
-            {
-                agentUuid,
-                threadUuid,
-                messageUuid,
-            },
+            req.account!,
+            { projectUuid, agentUuid, threadUuid, messageUuid },
         );
         this.setStatus(200);
         return {
@@ -1528,11 +1523,11 @@ export class AiAgentController extends BaseController {
         @Path() messageUuid: string,
         @Body() body: ApiCreateAiAgentThreadMessageSteer,
     ): Promise<ApiAiAgentThreadMessageSteerResponse> {
-        assertRegisteredAccount(req.account);
         const steer =
             await this.getAiAgentService().createAgentThreadMessageSteer(
-                toSessionUser(req.account),
+                req.account!,
                 {
+                    projectUuid,
                     agentUuid,
                     threadUuid,
                     messageUuid,
