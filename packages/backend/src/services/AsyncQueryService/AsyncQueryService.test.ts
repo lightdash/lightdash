@@ -1,4 +1,4 @@
-import { Ability } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     Account,
     AnyType,
@@ -47,11 +47,13 @@ import {
     VizIndexType,
     WarehouseClient,
     WarehouseTypes,
+    type CaslSubjectNames,
     type CreateBigqueryCredentials,
     type Document,
     type DocumentQueryReference,
     type Explore,
     type ItemsMap,
+    type MemberAbility,
     type MergeFieldTypes,
     type MergeQuery,
     type MergeTypedColumn,
@@ -60,6 +62,7 @@ import {
     type PivotConfiguration,
     type ProjectDefaults,
     type RegisteredAccount,
+    type SessionUser,
     type UserAccessControls,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
@@ -12737,6 +12740,194 @@ describe('chart embed token query history access', () => {
             await expect(run(service, account, operation)).rejects.toThrow(
                 ForbiddenError,
             );
+        },
+    );
+});
+
+describe('embedded AI agent result downloads', () => {
+    const writeActorUuid = 'write-actor-uuid';
+
+    const buildAiAgentAccount = (actorScopes: CaslSubjectNames[]) => {
+        const actorAbility = new AbilityBuilder<MemberAbility>(Ability);
+        actorScopes.forEach((resource) =>
+            actorAbility.can('view', resource, { projectUuid }),
+        );
+        return fromJwt({
+            decodedToken: {
+                user: { externalId: 'external-user-123' },
+                content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
+                writeActions: {
+                    userUuid: writeActorUuid,
+                    spaceUuid: 'space-uuid',
+                },
+            },
+            embed: {
+                projectUuid,
+                organization: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    name: 'Test Organization',
+                    createdAt: new Date('2024-01-01'),
+                },
+                encodedSecret: 'test-encoded-secret',
+                dashboardUuids: [],
+                allowAllDashboards: false,
+                chartUuids: [],
+                allowAllCharts: false,
+                allowAllApps: false,
+                appUuids: [],
+                createdAt: '2024-01-01',
+                user: null,
+            },
+            source: 'test-jwt-token',
+            content: {
+                type: 'aiAgent',
+                agentUuid: 'agent-uuid',
+                chartUuids: [],
+                explores: [],
+            },
+            userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+            embedWriteUser: {
+                ...sessionAccount.user,
+                userUuid: writeActorUuid,
+                ability: actorAbility.build(),
+            } as unknown as SessionUser,
+            embedWriteContext: {
+                canUpdateDashboard: false,
+                canUpdateSavedChart: false,
+                canCreateSavedChart: false,
+                canUseAiAgent: true,
+            },
+        });
+    };
+
+    const buildFixture = (actorScopes: CaslSubjectNames[]) => {
+        const account = buildAiAgentAccount(actorScopes);
+        const history: QueryHistory = {
+            queryUuid: 'ai-query-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            context: QueryExecutionContext.AI,
+            status: QueryHistoryStatus.READY,
+            requestParameters: {} as QueryHistory['requestParameters'],
+            metricQuery: metricQueryMock,
+            fields: validExplore.tables.a.dimensions,
+            columns: expectedColumns,
+            resultsFileName: 'results.jsonl',
+            resultsExpiresAt: new Date(Date.now() + 60_000),
+            totalRowCount: 1,
+            defaultPageSize: 10,
+            createdAt: new Date(),
+            createdBy: writeActorUuid,
+            createdByUserUuid: writeActorUuid,
+            createdByAccount: null,
+            createdByActorType: account.authentication.type,
+            warehouseQueryId: null,
+            warehouseQueryMetadata: null,
+            compiledSql: 'select 1',
+            usedParameters: null,
+            warehouseExecutionTimeMs: null,
+            error: null,
+            erroredAt: null,
+            cacheKey: 'cache-key',
+            pivotConfiguration: null,
+            pivotValuesColumns: null,
+            pivotTotalColumnCount: null,
+            resultsCreatedAt: new Date(),
+            resultsUpdatedAt: new Date(),
+            originalColumns: expectedColumns,
+            preAggregateCompiledSql: null,
+            preAggregateExecution: null,
+            preAggregateFallbackReason: null,
+            processingStartedAt: null,
+        };
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);
+        service.exportsStorageClient = {
+            isEnabled: () => true,
+        } as FileStorageClient;
+        const scheduleDownload = vi.fn(async () => ({
+            jobId: 'export-job-uuid',
+        }));
+        (service as AnyType).schedulerClient = {
+            downloadAsyncQueryResults: scheduleDownload,
+        };
+        const formatFile = vi
+            .spyOn(
+                service as unknown as {
+                    downloadAsyncQueryResultsAsFormattedFile: () => Promise<{
+                        fileUrl: string;
+                        truncated: boolean;
+                    }>;
+                },
+                'downloadAsyncQueryResultsAsFormattedFile',
+            )
+            .mockResolvedValue({ fileUrl: 'export.csv', truncated: false });
+        vi.spyOn(
+            service as unknown as {
+                pollForQueryCompletion: () => Promise<void>;
+            },
+            'pollForQueryCompletion',
+        ).mockResolvedValue(undefined);
+        return { account, service, scheduleDownload, formatFile };
+    };
+
+    const operations = ['schedule', 'download', 'downloadSync'] as const;
+
+    const run = (
+        service: AsyncQueryService,
+        account: Account,
+        operation: (typeof operations)[number],
+    ) => {
+        const args = {
+            account,
+            projectUuid,
+            queryUuid: 'ai-query-uuid',
+            type: DownloadFileType.CSV,
+        };
+        switch (operation) {
+            case 'schedule':
+                return service.scheduleDownloadAsyncQueryResults(args);
+            case 'download':
+                return service.download({
+                    ...args,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                });
+            case 'downloadSync':
+                return service.downloadSyncQueryResults({
+                    ...args,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                });
+            default:
+                return assertUnreachable(operation, 'Unknown query operation');
+        }
+    };
+
+    it.each(operations)(
+        'allows %s when the embed holds the download scope',
+        async (operation) => {
+            const { account, service, scheduleDownload, formatFile } =
+                buildFixture(['EmbedAiAgentDownload']);
+            await run(service, account, operation);
+            if (operation === 'schedule') {
+                expect(scheduleDownload).toHaveBeenCalled();
+            } else {
+                expect(formatFile).toHaveBeenCalled();
+            }
+        },
+    );
+
+    it.each(operations)(
+        'refuses %s when the embed lacks the download scope',
+        async (operation) => {
+            const { account, service, scheduleDownload, formatFile } =
+                buildFixture([]);
+            await expect(run(service, account, operation)).rejects.toThrow(
+                ForbiddenError,
+            );
+            expect(scheduleDownload).not.toHaveBeenCalled();
+            expect(formatFile).not.toHaveBeenCalled();
         },
     );
 });

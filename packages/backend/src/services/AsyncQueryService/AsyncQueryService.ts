@@ -222,6 +222,7 @@ import {
 } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { sanitizeDuckdbError } from '../../utils/duckdb/sanitizeDuckdbError';
+import { isAiAgentEmbedAccount } from '../../utils/embedAiAgentAccount';
 import {
     processFieldsForExport,
     streamJsonlData,
@@ -1526,6 +1527,27 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    private assertEmbedAiAgentCanDownload(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+    ): void {
+        if (
+            isAiAgentEmbedAccount(account) &&
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('EmbedAiAgentDownload', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Embed token is not allowed to download AI agent results',
+            );
+        }
+    }
+
     async getAsyncQueryResults({
         account,
         projectUuid,
@@ -1946,6 +1968,11 @@ export class AsyncQueryService extends ProjectService {
             project.organizationUuid,
             queryHistory,
         );
+        this.assertEmbedAiAgentCanDownload(
+            account,
+            project.organizationUuid,
+            payload.projectUuid,
+        );
 
         const userUuid = account.user.id;
 
@@ -2138,6 +2165,11 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             organizationUuid,
             queryHistory,
+        );
+        this.assertEmbedAiAgentCanDownload(
+            account,
+            organizationUuid,
+            projectUuid,
         );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
