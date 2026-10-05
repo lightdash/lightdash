@@ -1,0 +1,56 @@
+/* Apply to the vertical scroll container. Override --scroll-fade-size to
+   change the distance. Fades grow with the scroll offset and disappear at
+   the corresponding edge; unsupported browsers keep hard edges. */
+@property --scroll-fade-top {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --scroll-fade-bottom {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+.scrollFade {
+    --scroll-fade-size: var(--mantine-spacing-xl);
+
+    mask-image: linear-gradient(
+        to bottom,
+        transparent,
+        black var(--scroll-fade-top),
+        black calc(100% - var(--scroll-fade-bottom)),
+        transparent
+    );
+}
+
+@supports (animation-timeline: scroll()) {
+    .scrollFade {
+        animation:
+            fadeTop linear both,
+            fadeBottom linear both;
+        animation-timeline: scroll(self);
+        animation-range:
+            0px var(--scroll-fade-size),
+            calc(100% - var(--scroll-fade-size)) 100%;
+    }
+}
+
+@keyframes fadeTop {
+    from {
+        --scroll-fade-top: 0px;
+    }
+    to {
+        --scroll-fade-top: var(--scroll-fade-size);
+    }
+}
+
+@keyframes fadeBottom {
+    from {
+        --scroll-fade-bottom: var(--scroll-fade-size);
+    }
+    to {
+        --scroll-fade-bottom: 0px;
+    }
+}

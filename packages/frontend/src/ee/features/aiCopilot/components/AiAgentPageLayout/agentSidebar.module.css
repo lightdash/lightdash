@@ -40,8 +40,14 @@
 .threadList {
     flex-grow: 1;
     min-height: 0;
-    overflow-y: auto;
-    padding-right: 2px;
+}
+
+.threadListViewport {
+    composes: scrollFade from '../../../../../styles/scrollFade.module.css';
+}
+
+.threadListContent {
+    composes: verticalContent from '../../../../../styles/ScrollArea.module.css';
 }
 
 .threadItems {
