@@ -884,6 +884,52 @@ describe('S3_AUTH_MODE', () => {
         expect(() => parseConfig()).toThrow('Invalid S3_AUTH_MODE');
     });
 
+    it('lets the results bucket keep SigV4 under gcp_oauth', () => {
+        process.env.S3_AUTH_MODE = 'gcp_oauth';
+        process.env.RESULTS_S3_AUTH_MODE = 'default';
+        process.env.RESULTS_S3_ENDPOINT =
+            'https://s3.ap-southeast-2.amazonaws.com';
+        process.env.RESULTS_S3_BUCKET = 'customer_bucket';
+        process.env.RESULTS_S3_REGION = 'ap-southeast-2';
+        process.env.RESULTS_S3_ACCESS_KEY = 'customer_access_key';
+        process.env.RESULTS_S3_SECRET_KEY = 'customer_secret_key';
+
+        const config = parseConfig();
+
+        expect(config.s3?.authMode).toEqual('gcp_oauth');
+        expect(config.results.s3).toEqual({
+            endpoint: 'https://s3.ap-southeast-2.amazonaws.com',
+            bucket: 'customer_bucket',
+            region: 'ap-southeast-2',
+            accessKey: 'customer_access_key',
+            secretKey: 'customer_secret_key',
+            forcePathStyle: false,
+            authMode: 'default',
+        });
+    });
+
+    it('lets the results bucket use gcp_oauth on its own', () => {
+        process.env.RESULTS_S3_AUTH_MODE = 'gcp_oauth';
+
+        const config = parseConfig();
+
+        expect(config.s3?.authMode).toEqual('default');
+        expect(config.results.s3?.authMode).toEqual('gcp_oauth');
+    });
+
+    it('treats an empty results mode as unset', () => {
+        process.env.S3_AUTH_MODE = 'gcp_oauth';
+        process.env.RESULTS_S3_AUTH_MODE = ' ';
+
+        expect(parseConfig().results.s3?.authMode).toEqual('gcp_oauth');
+    });
+
+    it('rejects a results mode it does not know', () => {
+        process.env.RESULTS_S3_AUTH_MODE = 'aws_oauth';
+
+        expect(() => parseConfig()).toThrow('Invalid RESULTS_S3_AUTH_MODE');
+    });
+
     it('rejects an expiration time GCS would refuse to sign', () => {
         process.env.S3_AUTH_MODE = 'gcp_oauth';
         process.env.S3_EXPIRATION_TIME = '604801';
