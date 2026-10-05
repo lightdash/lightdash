@@ -30,6 +30,8 @@ export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'parent_operation_id', type: 'VARCHAR' },
     { name: 'initiating_actor_type', type: 'VARCHAR' },
     { name: 'scheduler_id', type: 'VARCHAR' },
+    { name: 'semantic_lineage_status', type: 'VARCHAR' },
+    { name: 'semantic_field_references', type: 'VARCHAR' },
     { name: 'cache_hit', type: 'BOOLEAN' },
     { name: 'execution_source', type: 'VARCHAR' },
     { name: 'warehouse_type', type: 'VARCHAR' },
@@ -80,6 +82,10 @@ const projectQueryCompletedEvent = (
             parent_operation_id: properties.parentOperationId ?? null,
             initiating_actor_type: properties.initiatingActorType ?? null,
             scheduler_id: properties.schedulerId ?? null,
+            semantic_lineage_status: properties.semanticUsage?.status ?? null,
+            semantic_field_references: properties.semanticUsage
+                ? JSON.stringify(properties.semanticUsage.references)
+                : null,
             cache_hit: properties.cacheHit,
             execution_source: properties.executionSource,
             warehouse_type: properties.warehouseType,

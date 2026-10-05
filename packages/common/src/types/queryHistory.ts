@@ -38,6 +38,24 @@ export type PreAggregateFallbackReason =
     | 'duckdb_execution_error'
     | 'external_execution_error';
 
+/** A direct semantic field reference captured at query execution time. */
+export type SemanticFieldReference = {
+    fieldId: string;
+    fieldName: string;
+    tableName: string;
+    fieldLabel: string;
+    fieldKind: 'metric' | 'dimension';
+    fieldOrigin: 'model' | 'custom';
+    definitionHash: string;
+    role: 'selected' | 'filter' | 'group' | 'sort';
+};
+
+/** Direct runtime references only, not the dependencies inside field SQL. */
+export type SemanticQueryUsage = {
+    status: 'captured' | 'partial' | 'unavailable';
+    references: SemanticFieldReference[];
+};
+
 /** Server-owned attribution persisted with a query for background workers. */
 export type QueryUsageMetadata = {
     startedAtMs: number;
@@ -49,6 +67,7 @@ export type QueryUsageMetadata = {
     appVersion?: number | null;
     dashboardTileId: string | null;
     schedulerId: string | null;
+    semanticUsage?: SemanticQueryUsage;
 };
 
 export type QueryHistory = {

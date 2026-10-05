@@ -80,6 +80,7 @@ describe('createAnalyticsExplores', () => {
             'content_health',
             'agent_requests',
             'agent_request_events',
+            'semantic_usage',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

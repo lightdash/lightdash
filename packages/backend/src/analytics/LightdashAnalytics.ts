@@ -67,6 +67,7 @@ import {
     type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
+    type SemanticQueryUsage,
     type WarehousePhaseTimings,
 } from '@lightdash/common';
 import Analytics, {
@@ -682,6 +683,8 @@ export type QueryCompletedEvent = BaseTrack & {
         parentOperationId?: string | null;
         initiatingActorType?: string | null;
         schedulerId?: string | null;
+        /** Usage-store only; stripped before product analytics/event metrics. */
+        semanticUsage?: SemanticQueryUsage;
         warehouseExecutionTimeMs: number | null;
         // Phase breakdown of warehouseExecutionTimeMs. Absent phases mean the
         // adapter does not report them.
@@ -4807,9 +4810,10 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track<T extends BaseTrack>(
-        payload: TypedEvent | UntypedEvent<T>,
+        originalPayload: TypedEvent | UntypedEvent<T>,
         contentView?: ContentViewMetadata,
     ) {
+        let payload = originalPayload;
         // Enrich only the usage copy; RudderStack and event metrics retain their payloads.
         this.eventStreamSink?.handle(
             contentView
@@ -4826,6 +4830,16 @@ export class LightdashAnalytics extends Analytics {
                   }
                 : payload,
         );
+
+        if (
+            payload.event === 'query.completed' &&
+            payload.properties &&
+            'semanticUsage' in payload.properties
+        ) {
+            const { semanticUsage, ...properties } =
+                payload.properties as QueryCompletedEvent['properties'];
+            payload = { ...payload, properties } as QueryCompletedEvent;
+        }
 
         if (
             this.lightdashConfig.prometheus.enabled &&

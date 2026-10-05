@@ -69,5 +69,6 @@ export const queryUsageProperties = (
         parentOperationId: usage?.parentOperationId ?? null,
         initiatingActorType: usage?.actorType ?? null,
         schedulerId: usage?.schedulerId ?? null,
+        semanticUsage: usage?.semanticUsage,
     };
 };

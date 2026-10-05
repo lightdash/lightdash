@@ -11,6 +11,7 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
     type PivotConfiguration,
+    type SemanticQueryUsage,
     type SortField,
     type WarehouseClient,
 } from '@lightdash/common';
@@ -47,6 +48,10 @@ export type SqlQueryComposerArguments = {
  * the base facade so metric queries and SQL charts share one getSql() seam.
  */
 export class SqlQueryComposer extends QueryComposer {
+    override getSemanticUsage(): SemanticQueryUsage {
+        return { status: 'unavailable', references: [] };
+    }
+
     private readonly sqlQueryBuilder: SqlQueryBuilder;
 
     private readonly appliedDashboardFilters: DashboardFilters | undefined;
