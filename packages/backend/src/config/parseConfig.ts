@@ -1263,6 +1263,10 @@ const getProviderSupportsStreaming = (envVar: string): boolean =>
 const isEnabledBoolean = (value: string | undefined): boolean =>
     value !== undefined && ['1', 'true'].includes(value.trim().toLowerCase());
 
+// Default-on: disabled by 'false' or '0', ignoring case and surrounding whitespace
+const isDisabledBoolean = (value: string | undefined): boolean =>
+    value !== undefined && ['0', 'false'].includes(value.trim().toLowerCase());
+
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
     const baseUrl = process.env.BEDROCK_BASE_URL
         ? normalizeLlmGatewayBaseUrl(
@@ -1447,6 +1451,9 @@ export const getAiConfig = () => ({
                       ),
                       supportsStreaming: getProviderSupportsStreaming(
                           'ANTHROPIC_SUPPORTS_STREAMING',
+                      ),
+                      supportsContextManagement: !isDisabledBoolean(
+                          process.env.ANTHROPIC_SUPPORTS_CONTEXT_MANAGEMENT,
                       ),
                   }
                 : undefined,
