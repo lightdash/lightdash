@@ -36,11 +36,12 @@ const CheckpointHarness: FC<{ onContinue: () => void }> = ({ onContinue }) => {
     return (
         <>
             <button type="button" onClick={() => checkpoint.guard(onContinue)}>
-                Test connection
+                Submit
             </button>
             <EgressIpCheckpointModal
                 checkpoint={checkpoint}
                 title="Allow Lightdash to reach your warehouse"
+                confirmLabel="Test connection"
                 onClose={checkpoint.back}
             />
             <HealthLoaded />
@@ -154,14 +155,16 @@ describe('EgressIpCheckpointModal', () => {
         [
             '35.245.81.252',
             'Lightdash connects to your warehouse from this IP address. Add it to your firewall or allowlist before you continue.',
+            'this IP address',
         ],
         [
             '35.1.1.1,35.2.2.2',
             'Lightdash connects to your warehouse from these IP addresses. Add them to your firewall or allowlist before you continue.',
+            'these IP addresses',
         ],
     ])(
-        'stops a new connection at the IP step for %s',
-        async (staticIp, text) => {
+        'tests a new connection only after the allowlist is confirmed for %s',
+        async (staticIp, text, noun) => {
             const user = userEvent.setup();
             const onContinue = vi.fn();
             renderWithProviders(<CheckpointHarness onContinue={onContinue} />, {
@@ -169,13 +172,19 @@ describe('EgressIpCheckpointModal', () => {
             });
             await screen.findByText('health loaded');
 
-            await user.click(
-                screen.getByRole('button', { name: 'Test connection' }),
-            );
+            await user.click(screen.getByRole('button', { name: 'Submit' }));
             expect(await screen.findByText(text)).toBeInTheDocument();
-            expect(onContinue).not.toHaveBeenCalled();
+            const testButton = screen.getByRole('button', {
+                name: 'Test connection',
+            });
+            expect(testButton).toBeDisabled();
 
-            await user.click(screen.getByRole('button', { name: 'Continue' }));
+            await user.click(
+                screen.getByRole('checkbox', {
+                    name: `My warehouse allows connections from ${noun}`,
+                }),
+            );
+            await user.click(testButton);
             expect(onContinue).toHaveBeenCalledTimes(1);
         },
     );
@@ -188,9 +197,7 @@ describe('EgressIpCheckpointModal', () => {
         });
         await screen.findByText('health loaded');
 
-        await user.click(
-            screen.getByRole('button', { name: 'Test connection' }),
-        );
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
 
         expect(onContinue).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole('dialog')).toBeNull();

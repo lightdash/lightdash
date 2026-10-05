@@ -296,6 +296,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             </form>
             <EgressIpCheckpointModal
                 checkpoint={checkpoint}
+                confirmLabel="Test connection"
                 title="Allow Lightdash to reach your warehouse"
                 onClose={checkpoint.back}
             />

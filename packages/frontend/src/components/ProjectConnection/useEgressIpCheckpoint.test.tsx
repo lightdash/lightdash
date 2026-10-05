@@ -34,20 +34,25 @@ describe('useEgressIpCheckpoint', () => {
         expect(result.current.isOpen).toBe(false);
     });
 
-    it('waits for the user to continue, then lets later submits through', async () => {
+    it('waits for the allowlist confirmation, and asks again on the next submit', async () => {
         const { result } = await renderCheckpoint('35.1.1.1');
         const onContinue = vi.fn();
 
         act(() => result.current.guard(onContinue));
         expect(result.current.isOpen).toBe(true);
+
+        act(() => result.current.confirm());
         expect(onContinue).not.toHaveBeenCalled();
 
+        act(() => result.current.setIsAllowlistConfirmed(true));
         act(() => result.current.confirm());
         expect(onContinue).toHaveBeenCalledTimes(1);
         expect(result.current.isOpen).toBe(false);
 
         act(() => result.current.guard(onContinue));
-        expect(onContinue).toHaveBeenCalledTimes(2);
+        expect(result.current.isOpen).toBe(true);
+        expect(result.current.isAllowlistConfirmed).toBe(true);
+        expect(onContinue).toHaveBeenCalledTimes(1);
     });
 
     it('does not continue when the user goes back', async () => {

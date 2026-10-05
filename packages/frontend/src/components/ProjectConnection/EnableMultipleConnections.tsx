@@ -198,6 +198,7 @@ const EnableMultipleConnectionsModal: FC<{
         return (
             <EgressIpCheckpointModal
                 checkpoint={checkpoint}
+                confirmLabel="Test connection"
                 title="Enable multiple connections"
                 onClose={onClose}
             />

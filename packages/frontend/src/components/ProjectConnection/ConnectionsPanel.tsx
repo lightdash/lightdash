@@ -171,6 +171,7 @@ const AddConnectionModal: FC<{
         return (
             <EgressIpCheckpointModal
                 checkpoint={checkpoint}
+                confirmLabel="Test connection"
                 title="Add a connection"
                 onClose={onClose}
             />

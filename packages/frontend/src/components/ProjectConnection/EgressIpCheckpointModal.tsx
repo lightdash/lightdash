@@ -1,4 +1,4 @@
-import { Stack, Text } from '@mantine/core';
+import { Checkbox, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../common/MantineModal';
 import { EgressIpList } from './EgressIpNotice';
@@ -10,8 +10,9 @@ import {
 export const EgressIpCheckpointModal: FC<{
     checkpoint: EgressIpCheckpoint;
     title: string;
+    confirmLabel: string;
     onClose: () => void;
-}> = ({ checkpoint, title, onClose }) => {
+}> = ({ checkpoint, title, confirmLabel, onClose }) => {
     const { noun, pronoun } = describeEgressIps(checkpoint.ips.length);
 
     return (
@@ -19,7 +20,8 @@ export const EgressIpCheckpointModal: FC<{
             opened={checkpoint.isOpen}
             onClose={onClose}
             title={title}
-            confirmLabel="Continue"
+            confirmLabel={confirmLabel}
+            confirmDisabled={!checkpoint.isAllowlistConfirmed}
             onConfirm={checkpoint.confirm}
             cancelLabel="Back"
             onCancel={checkpoint.back}
@@ -30,6 +32,15 @@ export const EgressIpCheckpointModal: FC<{
                     {pronoun} to your firewall or allowlist before you continue.
                 </Text>
                 <EgressIpList ips={checkpoint.ips} />
+                <Checkbox
+                    label={`My warehouse allows connections from ${noun}`}
+                    checked={checkpoint.isAllowlistConfirmed}
+                    onChange={(event) =>
+                        checkpoint.setIsAllowlistConfirmed(
+                            event.currentTarget.checked,
+                        )
+                    }
+                />
             </Stack>
         </MantineModal>
     );

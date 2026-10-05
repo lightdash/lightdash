@@ -186,6 +186,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
             </FormProvider>
             <EgressIpCheckpointModal
                 checkpoint={checkpoint}
+                confirmLabel="Continue"
                 title="Allow Lightdash to reach your warehouse"
                 onClose={checkpoint.back}
             />

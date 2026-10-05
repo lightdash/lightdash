@@ -18,10 +18,10 @@ export const useEgressIps = (): string[] => {
 export const useEgressIpCheckpoint = () => {
     const ips = useEgressIps();
     const [pending, setPending] = useState<(() => void) | null>(null);
-    const [isConfirmed, setIsConfirmed] = useState(false);
+    const [isAllowlistConfirmed, setIsAllowlistConfirmed] = useState(false);
 
     const guard = (onContinue: () => void) => {
-        if (ips.length === 0 || isConfirmed) {
+        if (ips.length === 0) {
             onContinue();
             return;
         }
@@ -29,14 +29,22 @@ export const useEgressIpCheckpoint = () => {
     };
 
     const confirm = () => {
-        setIsConfirmed(true);
+        if (!isAllowlistConfirmed) return;
         setPending(null);
         pending?.();
     };
 
     const back = () => setPending(null);
 
-    return { ips, isOpen: pending !== null, guard, confirm, back };
+    return {
+        ips,
+        isOpen: pending !== null,
+        isAllowlistConfirmed,
+        setIsAllowlistConfirmed,
+        guard,
+        confirm,
+        back,
+    };
 };
 
 export type EgressIpCheckpoint = ReturnType<typeof useEgressIpCheckpoint>;
