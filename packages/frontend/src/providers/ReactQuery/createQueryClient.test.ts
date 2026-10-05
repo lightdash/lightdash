@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { getQueryRetryDelay, shouldRetryQuery } from './createQueryClient';
+import { describe, expect, it, vi } from 'vitest';
+import {
+    createQueryClient,
+    getQueryRetryDelay,
+    shouldRetryQuery,
+} from './createQueryClient';
 
 const networkError = { error: { name: 'NetworkError', statusCode: 500 } };
 const serverError = {
@@ -34,5 +38,36 @@ describe('getQueryRetryDelay', () => {
         expect(getQueryRetryDelay(2)).toBe(4000);
         expect(getQueryRetryDelay(3)).toBe(8000);
         expect(getQueryRetryDelay(4)).toBe(8000);
+    });
+});
+
+describe('createQueryClient onError', () => {
+    it('reports failed queries and mutations with their key', async () => {
+        const onError = vi.fn();
+        const queryClient = createQueryClient(
+            { queries: { retry: false } },
+            onError,
+        );
+
+        await queryClient
+            .fetchQuery({
+                queryKey: ['embed-dashboard', 'project'],
+                queryFn: () => Promise.reject(notFound),
+            })
+            .catch(() => undefined);
+        await queryClient
+            .getMutationCache()
+            .build(queryClient, {
+                mutationKey: ['dashboard_create'],
+                mutationFn: () => Promise.reject(serverError),
+            })
+            .execute()
+            .catch(() => undefined);
+
+        expect(onError).toHaveBeenCalledWith(notFound, [
+            'embed-dashboard',
+            'project',
+        ]);
+        expect(onError).toHaveBeenCalledWith(serverError, ['dashboard_create']);
     });
 });

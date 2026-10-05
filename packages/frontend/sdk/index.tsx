@@ -66,6 +66,14 @@ import {
     type ListAiAgentThreadsOptions,
     type ListContentOptions,
 } from './api';
+import {
+    createSdkErrorReporter,
+    toSdkError,
+    toSdkRequestError,
+    type SdkError,
+    type SdkErrorHandler,
+    type SdkErrorKind,
+} from './errors';
 import { useLightdashAiAgentThreads, useLightdashContent } from './hooks';
 import { SDK_SCOPE_CLASS } from './styles/scope.json';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
@@ -84,6 +92,7 @@ type BaseProps = {
     contentOverrides?: LanguageMap;
     uiOverrides?: SdkUiOverrides;
     onExplore?: (options: { chart: SavedChart }) => void;
+    onError?: SdkErrorHandler;
 };
 
 type DashboardProps = BaseProps & {
@@ -103,7 +112,7 @@ type ChartProps = Omit<BaseProps, 'filters'> & {
 
 type AiAgentProps = Omit<
     BaseProps,
-    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore' | 'onError'
 > & {
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
@@ -156,11 +165,14 @@ const persistInstanceUrl = (instanceUrl: string) => {
 const useEmbedTokenContext = (
     instanceUrl: string,
     tokenOrTokenPromise: BaseProps['token'],
+    onError?: SdkErrorHandler,
 ) => {
     const [tokenContext, setTokenContext] = useState<{
         token: string;
         projectUuid: string;
     } | null>(null);
+    const onErrorRef = useRef(onError);
+    onErrorRef.current = onError;
 
     useEffect(() => {
         // Flipped by cleanup on unmount and whenever the token prop changes,
@@ -192,7 +204,14 @@ const useEmbedTokenContext = (
             })
             .catch((error) => {
                 console.error(error);
-                throw new Error('Error retrieving token');
+                if (isCurrent) {
+                    onErrorRef.current?.(
+                        toSdkError(error, {
+                            fatal: true,
+                            kind: 'invalid_token',
+                        }),
+                    );
+                }
             });
 
         return () => {
@@ -350,9 +369,15 @@ const SdkProviders: FC<
         styles?: { backgroundColor?: string; fontFamily?: string };
         theme?: 'light' | 'dark';
         projectUuid?: string;
+        onError?: SdkErrorHandler;
     }>
-> = ({ children, styles, theme, projectUuid }) => {
+> = ({ children, styles, theme, projectUuid, onError }) => {
     const colorScheme = theme ?? 'light';
+    const onErrorRef = useRef(onError);
+    onErrorRef.current = onError;
+    const [reportError] = useState(() =>
+        createSdkErrorReporter(() => onErrorRef.current),
+    );
     const rootRef = useRef<HTMLDivElement>(null);
     const getRootElement = useCallback(() => rootRef.current ?? undefined, []);
     // Each mounted component gets its own class for Mantine's CSS variables,
@@ -409,7 +434,11 @@ const SdkProviders: FC<
                 />,
                 document.body,
             )}
-            <ReactQueryProvider>
+            <ReactQueryProvider
+                onError={(error, key) =>
+                    reportError(toSdkRequestError(error, key))
+                }
+            >
                 <MantineProvider
                     themeOverride={themeOverride}
                     notificationsLimit={0}
@@ -435,6 +464,14 @@ const SdkProviders: FC<
                                         >
                                             <ErrorBoundary
                                                 wrapper={{ mt: '4xl' }}
+                                                onError={(error) =>
+                                                    reportError(
+                                                        toSdkError(error, {
+                                                            fatal: true,
+                                                            kind: 'render',
+                                                        }),
+                                                    )
+                                                }
                                             >
                                                 <MemoryRouter
                                                     initialEntries={[route]}
@@ -475,11 +512,16 @@ const Dashboard: FC<DashboardProps> = ({
     contentOverrides,
     uiOverrides,
     onExplore,
+    onError,
     paletteUuid,
     isEditMode,
     onEditModeChange,
 }) => {
-    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const tokenContext = useEmbedTokenContext(
+        instanceUrl,
+        tokenOrTokenPromise,
+        onError,
+    );
     const { exploreChart, handleExplore, handleBackToDashboard } =
         useEmbedExploreNavigation(onExplore);
 
@@ -492,6 +534,7 @@ const Dashboard: FC<DashboardProps> = ({
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
+            onError={onError}
         >
             <EmbedProvider
                 embedToken={tokenContext.token}
@@ -639,12 +682,17 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     contentOverrides,
     uiOverrides,
     onExplore,
+    onError,
     paletteUuid,
     isEditMode,
     onEditModeChange,
     onDashboardReady,
 }) => {
-    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const tokenContext = useEmbedTokenContext(
+        instanceUrl,
+        tokenOrTokenPromise,
+        onError,
+    );
     const { exploreChart, handleExplore, handleBackToDashboard } =
         useEmbedExploreNavigation(onExplore);
 
@@ -657,6 +705,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
+            onError={onError}
         >
             <EmbedProvider
                 embedToken={tokenContext.token}
@@ -704,10 +753,15 @@ const Explore: FC<
     contentOverrides,
     uiOverrides,
     onExplore,
+    onError,
     exploreId,
     savedChart,
 }) => {
-    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const tokenContext = useEmbedTokenContext(
+        instanceUrl,
+        tokenOrTokenPromise,
+        onError,
+    );
     const {
         exploreChart,
         restoredChart,
@@ -725,6 +779,7 @@ const Explore: FC<
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
+            onError={onError}
         >
             <EmbedProvider
                 embedToken={tokenContext.token}
@@ -820,10 +875,15 @@ const Chart: FC<ChartProps> = ({
     contentOverrides,
     uiOverrides,
     onExplore,
+    onError,
     id,
     isEditMode,
 }) => {
-    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const tokenContext = useEmbedTokenContext(
+        instanceUrl,
+        tokenOrTokenPromise,
+        onError,
+    );
     const { exploreChart, handleExplore, handleBackToDashboard } =
         useEmbedExploreNavigation(onExplore);
 
@@ -846,6 +906,7 @@ const Chart: FC<ChartProps> = ({
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
+            onError={onError}
         >
             <EmbedProvider
                 embedToken={tokenContext.token}
@@ -951,8 +1012,13 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
     theme,
     token: tokenOrTokenPromise,
     hiddenFilters,
+    onError,
 }) => {
-    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const tokenContext = useEmbedTokenContext(
+        instanceUrl,
+        tokenOrTokenPromise,
+        onError,
+    );
     const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
 
     if (!tokenContext) {
@@ -964,6 +1030,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
+            onError={onError}
         >
             <EmbedProvider
                 embedToken={tokenContext.token}
@@ -1023,6 +1090,8 @@ export {
 };
 export type {
     MetricsCatalogFilter,
+    SdkError,
+    SdkErrorKind,
     SdkUiOverrides,
     UiStringKey,
     LightdashAiAgentThread,

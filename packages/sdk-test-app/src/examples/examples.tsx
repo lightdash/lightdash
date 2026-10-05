@@ -4,6 +4,7 @@ import { AiAgentExamplePage } from './AiAgentExamplePage';
 import { ChartExamplePage } from './ChartExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
+import { ErrorHandlingExamplePage } from './ErrorHandlingExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { HostStylesExamplePage } from './HostStylesExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
@@ -116,6 +117,16 @@ export const examples: ExampleDefinition[] = [
         sourcePath:
             'packages/sdk-test-app/src/examples/TokenRotationExamplePage.tsx',
         component: TokenRotationExamplePage,
+    },
+    {
+        slug: 'error-handling',
+        path: '/examples/error-handling',
+        title: 'Error handling demo',
+        description:
+            'Receive SDK errors through onError and replace fatal failures with a host-owned error screen and retry.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/ErrorHandlingExamplePage.tsx',
+        component: ErrorHandlingExamplePage,
     },
     {
         slug: 'host-styles',

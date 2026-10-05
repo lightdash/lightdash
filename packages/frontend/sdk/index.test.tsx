@@ -468,6 +468,27 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         expect(mockNavigate).not.toHaveBeenCalled();
     });
 
+    it('reports an invalid token to onError instead of failing silently', async () => {
+        const onError = vi.fn();
+        render(
+            <Dashboard
+                token="not-a-jwt"
+                instanceUrl={mockInstanceUrl}
+                onError={onError}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(onError).toHaveBeenCalledWith({
+                kind: 'invalid_token',
+                status: null,
+                message: 'Invalid JWT token',
+                retryable: false,
+                fatal: true,
+            });
+        });
+    });
+
     it('should handle explore navigation without syncing URL', async () => {
         const mockOnExplore = vi.fn();
 
