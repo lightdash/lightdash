@@ -1,3 +1,10 @@
+## [2.428.1](https://github.com/lightdash/lightdash/compare/2.428.0...2.428.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **documents:** swap rail and content backgrounds in dark mode ([#30476](https://github.com/lightdash/lightdash/issues/30476)) ([c5d2aa3](https://github.com/lightdash/lightdash/commit/c5d2aa3419ff99e7ec5563151692e0f2bcfa0eeb))
+
 # [2.428.0](https://github.com/lightdash/lightdash/compare/2.427.4...2.428.0) (2026-10-05)
 
 
