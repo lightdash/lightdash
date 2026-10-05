@@ -13,6 +13,7 @@ import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProjec
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { dbtDefaults } from '../DbtForms/defaultValues';
+import { EgressIpNotice } from '../EgressIpNotice';
 import { FormProvider, useForm } from '../formContext';
 import { ProjectFormProvider } from '../ProjectFormProvider';
 import { type ProjectConnectionForm } from '../types';
@@ -157,6 +158,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                                     through Lightdash without receiving its
                                     credentials.
                                 </Text>
+                                <EgressIpNotice />
                             </div>
                             <ProjectFormProvider>
                                 <WarehouseSettingsForm

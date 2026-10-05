@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Stack, Text, TextInput } from '@mantine/core';
 import { type FC } from 'react';
+import { EgressIpNotice } from './EgressIpNotice';
 import { FormProvider, type Form } from './formContext';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
@@ -37,6 +38,7 @@ export const ConnectionFields: FC<{
                 <Text size="sm" c="dimmed">
                     {intro}
                 </Text>
+                <EgressIpNotice />
                 {showName && (
                     <TextInput
                         ref={nameRef}
