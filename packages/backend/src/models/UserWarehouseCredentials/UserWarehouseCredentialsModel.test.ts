@@ -4,6 +4,7 @@ import {
     BigqueryTokenError,
     ParameterError,
     SnowflakeAuthenticationType,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -48,6 +49,7 @@ const makeRow = (
     created_at: new Date(),
     updated_at: new Date(),
     project_uuid: null,
+    purpose: UserWarehouseCredentialPurpose.DEFAULT,
     project_name: null,
     project_type: null,
 });
@@ -60,9 +62,11 @@ const makeRow = (
 const createModel = ({
     preferredRow,
     fallbackRows,
+    whereCalls,
 }: {
     preferredRow: object | undefined;
     fallbackRows: object[];
+    whereCalls?: unknown[][];
 }) => {
     const makeBuilder = (result: {
         firstRow?: object;
@@ -77,7 +81,11 @@ const createModel = ({
             'orderByRaw',
             'orderBy',
         ].forEach((method) => {
-            builder[method] = vi.fn(() => builder);
+            builder[method] = vi.fn((...args: unknown[]) => {
+                if (method === 'where' || method === 'andWhere')
+                    whereCalls?.push(args);
+                return builder;
+            });
         });
         builder.first = vi.fn(async () => result.firstRow);
         builder.then = (
@@ -103,6 +111,35 @@ const createModel = ({
 };
 
 describe('UserWarehouseCredentialsModel', () => {
+    test('the application list queries only default credentials', async () => {
+        const calls: unknown[][] = [];
+        const builder: Record<string, unknown> = {};
+        for (const method of [
+            'leftJoin',
+            'select',
+            'where',
+            'andWhere',
+            'orderBy',
+        ]) {
+            builder[method] = vi.fn((...args: unknown[]) => {
+                calls.push(args);
+                return builder;
+            });
+        }
+        builder.then = (resolve: (rows: object[]) => unknown) =>
+            Promise.resolve([]).then(resolve);
+        const database = vi.fn(() => builder) as unknown as Knex;
+        const model = new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: passthroughEncryption,
+        });
+        await model.getAllByUserUuid('user-1');
+        expect(calls).toContainEqual([
+            'user_warehouse_credentials.purpose',
+            UserWarehouseCredentialPurpose.DEFAULT,
+        ]);
+    });
+
     describe('getQueryTimeValidationError', () => {
         test('accepts a BigQuery credential with a refresh token', () => {
             expect(
@@ -285,6 +322,60 @@ describe('UserWarehouseCredentialsModel', () => {
     });
 
     describe('findForProjectWithSecrets', () => {
+        test('filters both preferred and fallback credentials to the default purpose', async () => {
+            const whereCalls: unknown[][] = [];
+            const model = createModel({
+                preferredRow: undefined,
+                fallbackRows: [],
+                whereCalls,
+            });
+            await model.findForProjectWithSecrets(
+                'project-1',
+                'user-1',
+                WarehouseTypes.BIGQUERY,
+            );
+            expect(
+                whereCalls.filter(
+                    ([column]) =>
+                        column === 'user_warehouse_credentials.purpose',
+                ),
+            ).toEqual([
+                [
+                    'user_warehouse_credentials.purpose',
+                    UserWarehouseCredentialPurpose.DEFAULT,
+                ],
+                [
+                    'user_warehouse_credentials.purpose',
+                    UserWarehouseCredentialPurpose.DEFAULT,
+                ],
+            ]);
+        });
+
+        test('AI lookup asks only for the AI purpose', async () => {
+            const row = makeRow('ai-credential', {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'ai-refresh-token',
+            });
+            const where = vi.fn();
+            const builder = { where, first: vi.fn(async () => row) };
+            where.mockReturnValue(builder);
+            const database = vi.fn(() => builder) as unknown as Knex;
+            const model = new UserWarehouseCredentialsModel({
+                database,
+                encryptionUtil: passthroughEncryption,
+            });
+            const result = await model.findAiCredentialWithSecrets({
+                userUuid: 'user-1',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            expect(result?.uuid).toBe('ai-credential');
+            expect(where).toHaveBeenCalledWith({
+                user_uuid: 'user-1',
+                warehouse_type: WarehouseTypes.SNOWFLAKE,
+                purpose: UserWarehouseCredentialPurpose.AI,
+            });
+        });
         test('returns the preferred credential when it is valid', async () => {
             const model = createModel({
                 preferredRow: makeRow('preferred', validBigqueryCredentials),

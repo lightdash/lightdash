@@ -59,6 +59,7 @@ import {
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
     SupportedDbtAdapter,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     WeekDay,
     type AiExecutionPlan,
@@ -14105,5 +14106,60 @@ describe('AI principal credential routing', () => {
         await first.sshTunnel.disconnect();
         await second.sshTunnel.disconnect();
         await again.sshTunnel.disconnect();
+    });
+});
+
+describe('Snowflake AI query credentials', () => {
+    it('persists an AI refresh-token rotation to the AI row', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const rotateRefreshToken = vi.fn(async () => true);
+        (
+            service as unknown as {
+                userWarehouseCredentialsModel: {
+                    rotateRefreshToken: typeof rotateRefreshToken;
+                };
+            }
+        ).userWarehouseCredentialsModel = { rotateRefreshToken };
+        const generateToken = vi
+            .spyOn(UserService, 'generateSnowflakeAccessToken')
+            .mockResolvedValue({
+                accessToken: 'access-token',
+                refreshToken: 'rotated-token',
+            });
+        try {
+            await (
+                service as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        credentials: CreateWarehouseCredentials,
+                        userUuid: string,
+                        source: {
+                            kind: 'user';
+                            userWarehouseCredentialsUuid: string;
+                            purpose: UserWarehouseCredentialPurpose.AI;
+                        },
+                    ) => Promise<CreateWarehouseCredentials>;
+                }
+            ).refreshCredentialsAndPersistRotation(
+                {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    refreshToken: 'old-token',
+                } as CreateWarehouseCredentials,
+                'user-uuid',
+                {
+                    kind: 'user',
+                    userWarehouseCredentialsUuid: 'ai-credential',
+                    purpose: UserWarehouseCredentialPurpose.AI,
+                },
+            );
+            expect(generateToken).toHaveBeenCalledWith('old-token', 'ai');
+            expect(rotateRefreshToken).toHaveBeenCalledWith(
+                'ai-credential',
+                'old-token',
+                'rotated-token',
+            );
+        } finally {
+            generateToken.mockRestore();
+        }
     });
 });
