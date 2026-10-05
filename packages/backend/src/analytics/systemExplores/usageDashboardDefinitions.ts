@@ -119,7 +119,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Active people',
                         description:
-                            'Observed actors provide an activity numerator, not a census of eligible business users. Team classification and historical eligibility are not captured.',
+                            'People with recorded activity. This does not include everyone with access or distinguish business users from the data team.',
                         charts: [
                             'observed-active-people',
                             'daily-observed-active-people',
@@ -153,7 +153,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Activity history',
                         description:
-                            'Bounded detail across retained streams. Stable identities remain in the query and exports; names use the latest snapshot. Access history and group membership are not captured.',
+                            'Recent recorded activity by person and project. This does not show past access or group membership.',
                         charts: [
                             'observed-history-stable-user-and-project-uuids',
                         ],
@@ -174,7 +174,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Content audience',
                         description:
-                            'Distinct qualifying backend-fetch viewers alongside views. Refetches affect views; browser-cache-only visits are not observed.',
+                            'People who viewed content, alongside recorded views. Reloads may add views; visits served entirely from the browser cache are not counted.',
                         charts: [
                             'content-reach-distinct-people-not-just-views',
                             'who-visited-which-dashboard',
@@ -252,7 +252,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Observed app use',
                         description:
-                            'Loads count captured HTML fetches, including reloads. Distinct viewers exclude anonymous actors; previews are not a complete capture surface.',
+                            'Recorded app loads, including reloads. Viewer counts exclude anonymous visitors, and preview activity may be incomplete.',
                         charts: [
                             'total-loads',
                             'distinct-viewers',
@@ -268,7 +268,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Popular apps',
                         description:
-                            'Names and projects come from the latest inventory. Unknown or removed apps remain in totals.',
+                            'Most-used apps and their projects. Unknown or removed apps remain in totals.',
                         charts: ['top-apps'],
                     },
                 ],
@@ -280,7 +280,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'App audiences',
                         description:
-                            'Compare observed loads and app reach by person; stable IDs keep identically named users separate.',
+                            'See who uses each app, how often they load it and how many apps they use.',
                         charts: ['top-people', 'user-app-detail'],
                     },
                 ],
@@ -300,7 +300,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Generation consumption',
                         description:
-                            'AI usage for app generation only, by builder, week and model. A reliable invocation-to-app/build join is still missing.',
+                            'AI usage for app generation, by builder, week and AI model. Usage cannot yet be attributed to individual apps or builds.',
                         charts: ['app-generation-consumption'],
                     },
                 ],
@@ -338,7 +338,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Tool usage',
                         description:
-                            'Distinct call identities by person, client and tool. Historical unknown outcomes and service principals are retained; error rates exclude unknown outcomes.',
+                            'Tool calls by person, client and tool, including service accounts. Error rates exclude calls whose outcome is unknown.',
                         charts: ['mcp-users-clients-tools-and-error-rates'],
                     },
                 ],

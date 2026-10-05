@@ -5,7 +5,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'daily-trend',
         name: 'Daily app loads and viewers',
         description:
-            'App activity across retained history. Names come from the current inventory; historical or unknown apps retain their identity.',
+            'Recorded app activity over the available history, including unknown or removed apps.',
         explore: 'data_app_events',
         dimensions: ['data_app_events_event_ts_day'],
         metrics: [
@@ -36,7 +36,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'distinct-viewers',
         name: 'Distinct app viewers',
         description:
-            'App activity across retained history. Names come from the current inventory; historical or unknown apps retain their identity.',
+            'Recorded app activity over the available history, including unknown or removed apps.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_unique_viewers'],
@@ -59,7 +59,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'top-apps',
         name: 'Most-used apps',
         description:
-            'App names and projects come from the latest content inventory; historical or unknown apps retain their identity. Loads include reloads and do not represent distinct human sessions.',
+            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
         explore: 'data_app_events',
         dimensions: [
             'lightdash_apps_name',
@@ -89,7 +89,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'top-people',
         name: 'Most active app viewers',
         description:
-            'App activity across retained history. Names come from the current inventory; historical or unknown apps retain their identity.',
+            'Recorded app activity over the available history, including unknown or removed apps.',
         explore: 'data_app_events',
         dimensions: ['lightdash_users_name', 'data_app_events_user_id'],
         metrics: ['data_app_events_total_views', 'data_app_events_unique_apps'],
@@ -111,7 +111,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'total-loads',
         name: 'Recorded app loads',
         description:
-            'App activity across retained history. Names come from the current inventory; historical or unknown apps retain their identity.',
+            'Recorded app activity over the available history, including unknown or removed apps.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_total_views'],
@@ -134,7 +134,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'user-app-detail',
         name: 'Who uses which app? · user-by-app detail',
         description:
-            'App names and projects come from the latest content inventory; historical or unknown apps retain their identity. Loads include reloads and do not represent distinct human sessions.',
+            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
         explore: 'data_app_events',
         dimensions: [
             'lightdash_users_name',
@@ -163,7 +163,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'viewed-apps',
         name: 'Apps with recorded loads',
         description:
-            'App activity across retained history. Names come from the current inventory; historical or unknown apps retain their identity.',
+            'Recorded app activity over the available history, including unknown or removed apps.',
         explore: 'data_app_events',
         dimensions: [],
         metrics: ['data_app_events_unique_apps'],
@@ -289,7 +289,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'app-generation-consumption',
         name: 'App generation · weekly tokens by builder and model',
         description:
-            'AI usage for the data-app feature only, grouped by builder, week and model. Token consumption is not currency spend; a reliable invocation-to-app/build join is still missing.',
+            'AI usage for app generation, by builder, week and AI model. Tokens do not measure monetary spend, and usage cannot yet be attributed to individual apps or builds.',
         explore: 'ai_usage',
         dimensions: [
             'lightdash_users_name',
@@ -321,7 +321,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'app-lifecycle-build-activity-versus-loads',
         name: 'App lifecycle · build activity versus loads',
         description:
-            'App names and projects come from the latest content inventory; historical or unknown apps retain their identity. Loads include reloads and do not represent distinct human sessions.',
+            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
         explore: 'data_app_events',
         dimensions: [
             'lightdash_apps_name',
@@ -343,7 +343,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'apps-loads-and-observed-viewers',
         name: 'Apps · loads and observed viewers',
         description:
-            'App names and projects come from the latest content inventory; historical or unknown apps retain their identity. Loads include reloads and do not represent distinct human sessions.',
+            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
         explore: 'data_app_events',
         dimensions: [
             'lightdash_apps_name',
@@ -456,7 +456,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'data-app-builders-creation-and-iterations-by-week',
         name: 'Data App builders · creation and iterations by week',
         description:
-            'Only captured created/iterated events. Uploaders are excluded from this builder definition. Names/UUIDs retained; bounded display.',
+            'People who created or iterated on apps, grouped by week. Uploads are excluded.',
         explore: 'data_app_events',
         dimensions: [
             'lightdash_users_name',
@@ -630,7 +630,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'observed-active-people',
         name: 'Observed active people',
         description:
-            'Distinct identified users across captured streams. Background activity may be included; not eligible-user adoption.',
+            'Distinct people with recorded activity. Background activity may be included; this is not the percentage of people with access who use Lightdash.',
         explore: 'user_activity',
         dimensions: [],
         metrics: ['user_activity_unique_users'],
@@ -671,7 +671,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'observed-history-stable-user-and-project-uuids',
         name: 'Observed history · people, date and activity stream',
         description:
-            'A bounded preview of retained activity. Full history exports require all retained files or paginated output; stable UUIDs support customer joins.',
+            'Recent recorded activity by person and project. The table shows up to 5,000 results.',
         explore: 'user_activity',
         dimensions: [
             'lightdash_users_name',

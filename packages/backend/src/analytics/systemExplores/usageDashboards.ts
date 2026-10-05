@@ -4,7 +4,6 @@ import {
     CustomFormatType,
     DashboardTileTypes,
     FilterOperator,
-    friendlyName,
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
@@ -233,35 +232,6 @@ export const buildUsageDashboards = (
                 });
                 y += isKpiRow ? 3 : sectionCharts.length * 6;
             }
-        }
-        dashboard.tabs.push({
-            slug: 'definitions',
-            name: 'Models & definitions',
-            order: dashboard.tabs.length,
-        });
-        dashboard.tiles.push(
-            note(
-                'definitions',
-                0,
-                4,
-                '### Build your own\n\nDuplicate a chart to preserve its Explore, dimensions, metrics, filters and sorting. Stable identity keys are hidden in tables to keep names readable without combining different people or items. Names reflect the latest inventory snapshot.\n\nCharts use retained captured history, which varies by stream. Distinct users cannot be summed across dates or content. App loads are not human sessions; tokens are not monetary cost. Scheduling delivery outcomes, embedded audiences and field-level semantic usage are not captured by this collection.',
-            ),
-        );
-        let guideY = 4;
-        for (const item of charts) {
-            const query = item.metricQuery;
-            const fields = [...query.dimensions, ...query.metrics]
-                .map((field) => `\`${field}\``)
-                .join(', ');
-            dashboard.tiles.push(
-                note(
-                    'definitions',
-                    guideY,
-                    4,
-                    `### ${item.name}\n\n**Explore:** ${friendlyName(query.exploreName)} (\`${query.exploreName}\`). **Fields:** ${fields}. **Row limit:** ${query.limit}.\n\n${item.description ?? ''} Duplicate the chart to retain its filters and grouping.`,
-                ),
-            );
-            guideY += 4;
         }
         return { dashboard, charts };
     });
