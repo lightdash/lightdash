@@ -66,7 +66,8 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-query-activity',
         name: 'Queries',
-        description: 'Query performance, failures, origins and caching.',
+        description:
+            'Query performance, failures, origins, caching and the metrics and dimensions people use.',
         tabs: [
             {
                 key: 'latency',
@@ -101,6 +102,30 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             'Compare warehouse execution and recorded cache use. Cache savings and warehouse currency costs are not captured.',
                         charts: ['warehouse-versus-cached-demand'],
+                    },
+                ],
+            },
+            {
+                key: 'fields',
+                name: 'Metrics & dimensions',
+                sections: [
+                    {
+                        title: 'Most-used fields',
+                        description:
+                            'Metrics and dimensions referenced by queries, including filters and sorting. Each query counts once per field, including cached and failed attempts. Counts across fields overlap; absence here does not prove a field is unused.',
+                        charts: ['most-used-fields'],
+                    },
+                    {
+                        title: 'People and content',
+                        description:
+                            'See who uses each field and the charts, dashboards or apps associated with those queries. Names are shown where available; missing names and content attribution remain visible.',
+                        charts: ['people-using-fields', 'content-using-fields'],
+                    },
+                    {
+                        title: 'Available field details',
+                        description:
+                            'Captured means direct field references were recorded; partial means some could not be recorded. Unavailable includes SQL queries, while not captured includes older history. Collection begins after the feature is enabled and deployed; this is not a complete field inventory.',
+                        charts: ['field-capture-coverage'],
                     },
                 ],
             },

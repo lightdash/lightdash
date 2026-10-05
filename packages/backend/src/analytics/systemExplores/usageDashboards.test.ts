@@ -68,6 +68,116 @@ describe('built-in usage dashboards', () => {
             }
             for (const chart of charts)
                 await db.runAndReadAll(compile(chart).query);
+            const references = [
+                {
+                    fieldId: 'orders_revenue',
+                    fieldLabel: 'Revenue',
+                    fieldName: 'revenue',
+                    tableName: 'orders',
+                    fieldKind: 'metric',
+                    fieldOrigin: 'model',
+                    role: 'selected',
+                },
+                {
+                    fieldId: 'orders_revenue',
+                    fieldLabel: 'Revenue',
+                    fieldName: 'revenue',
+                    tableName: 'orders',
+                    fieldKind: 'metric',
+                    fieldOrigin: 'model',
+                    role: 'sort',
+                },
+                {
+                    fieldId: 'orders_status',
+                    fieldLabel: 'Status',
+                    fieldName: 'status',
+                    tableName: 'orders',
+                    fieldKind: 'dimension',
+                    fieldOrigin: 'model',
+                    role: 'selected',
+                },
+                {
+                    fieldId: 'orders_status',
+                    fieldLabel: 'Status',
+                    fieldName: 'status',
+                    tableName: 'orders',
+                    fieldKind: 'dimension',
+                    fieldOrigin: 'model',
+                    role: 'group',
+                },
+            ];
+            await db.run(`INSERT INTO query_events (org_id, project_id, query_id, user_id, event_ts, chart_id, dashboard_id, app_id, context, semantic_lineage_status, semantic_field_references) VALUES
+                ('org-a','project-a','q1','person-a',CURRENT_TIMESTAMP,'semantic-chart','semantic-dashboard','semantic-app','dashboard','captured','${JSON.stringify(references)}'),
+                ('org-a','project-a','q2',NULL,CURRENT_TIMESTAMP,NULL,NULL,NULL,'api',NULL,NULL),
+                ('org-a','project-a','q3',NULL,CURRENT_TIMESTAMP,NULL,NULL,NULL,'exploreView','partial','${JSON.stringify([references[2]])}'),
+                ('org-a','project-a','q4','person-a',CURRENT_TIMESTAMP,NULL,NULL,NULL,'sqlRunner','unavailable','[]')`);
+            await db.run(
+                "INSERT INTO query_events SELECT * FROM query_events WHERE query_id = 'q1'",
+            );
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name) VALUES
+                ('org-a','person-a','Alex'),('org-b','person-a','Other organization')`);
+            await db.run(`INSERT INTO lightdash_charts (org_id,chart_id,name) VALUES
+                ('org-a','semantic-chart','Revenue chart'),('org-b','semantic-chart','Other organization')`);
+            await db.run(`INSERT INTO lightdash_dashboards (org_id,dashboard_id,name) VALUES
+                ('org-a','semantic-dashboard','Sales'),('org-b','semantic-dashboard','Other organization')`);
+            await db.run(`INSERT INTO lightdash_content (org_id,project_id,content_type,content_id,content_name) VALUES
+                ('org-a','project-a','data_app','semantic-app','Sales app'),
+                ('org-b','project-a','data_app','semantic-app','Other organization')`);
+            const semanticRows = new Map<string, Record<string, unknown>[]>();
+            for (const chart of charts.filter(
+                ({ tableName }) => tableName === 'semantic_usage',
+            )) {
+                const rows = (
+                    await db.runAndReadAll(compile(chart).query)
+                ).getRowObjects();
+                semanticRows.set(chart.slug, rows);
+                expect(
+                    JSON.stringify(rows, (_, value) =>
+                        typeof value === 'bigint' ? value.toString() : value,
+                    ),
+                ).not.toContain('Other organization');
+            }
+            const prefix = 'lightdash-analytics-query-activity-';
+            expect(semanticRows.get(`${prefix}most-used-fields`)).toEqual([
+                expect.objectContaining({
+                    semantic_usage_field_label: 'Status',
+                    semantic_usage_total_queries: 2n,
+                }),
+                expect.objectContaining({
+                    semantic_usage_field_label: 'Revenue',
+                    semantic_usage_total_queries: 1n,
+                }),
+            ]);
+            expect(
+                semanticRows.get(`${prefix}people-using-fields`),
+            ).toHaveLength(3);
+            expect(semanticRows.get(`${prefix}people-using-fields`)).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        lightdash_users_name: 'Unknown user',
+                        semantic_usage_user_id: null,
+                        semantic_usage_total_queries: 1n,
+                    }),
+                ]),
+            );
+            expect(semanticRows.get(`${prefix}content-using-fields`)).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        lightdash_charts_name: 'Revenue chart',
+                        lightdash_dashboards_name: 'Sales',
+                        lightdash_apps_name: 'Sales app',
+                        semantic_usage_total_queries: 1n,
+                    }),
+                ]),
+            );
+            expect(
+                semanticRows.get(`${prefix}field-capture-coverage`),
+            ).toHaveLength(4);
+            expect(
+                semanticRows
+                    .get(`${prefix}field-capture-coverage`)
+                    ?.every((row) => row.semantic_usage_total_queries === 1n),
+            ).toBe(true);
             await db.run(`INSERT INTO data_app_events (org_id, project_id, app_id, user_id, event_name, event_ts) VALUES
                 ('org-a','project-a','app-a','person-a','data_app.view',CURRENT_TIMESTAMP),
                 ('org-a','project-a','app-a',NULL,'data_app.view',CURRENT_TIMESTAMP),
