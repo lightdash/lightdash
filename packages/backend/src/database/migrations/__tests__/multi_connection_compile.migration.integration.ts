@@ -36,6 +36,7 @@ import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
 import { DeploySessionModel } from '../../../models/DeploySessionModel';
+import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
@@ -3238,6 +3239,10 @@ describe('Multi-connection compile on the real schema', () => {
                 analytics: { track: vi.fn() } as never,
                 projectModel,
                 projectDbtSourcesModel,
+                githubAppInstallationsModel: new GithubAppInstallationsModel({
+                    database,
+                    encryptionUtil,
+                }),
             });
 
         const salesConnection = {

@@ -2114,6 +2114,8 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     projectDbtSourcesModel:
                         this.models.getProjectDbtSourcesModel(),
+                    githubAppInstallationsModel:
+                        this.models.getGithubAppInstallationsModel(),
                 }),
         );
     }
