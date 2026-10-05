@@ -1,3 +1,10 @@
+# [2.436.0](https://github.com/lightdash/lightdash/compare/2.435.1...2.436.0) (2026-10-05)
+
+
+### Features
+
+* **ai-agents:** release custom agent skills to every organization ([#30501](https://github.com/lightdash/lightdash/issues/30501)) ([eed2ad3](https://github.com/lightdash/lightdash/commit/eed2ad390bf3f49ecea2356573b3feb1a08273e8))
+
 ## [2.435.1](https://github.com/lightdash/lightdash/compare/2.435.0...2.435.1) (2026-10-05)
 
 
