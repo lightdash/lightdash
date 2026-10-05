@@ -32,7 +32,7 @@ export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
 ] as const satisfies readonly CaslSubjectNames[];
 
 export const DEVELOPER_EMBED_SUBJECTS = [
-    'EmbedAiAgentSql',
+    'EmbedCompiledSql',
 ] as const satisfies readonly CaslSubjectNames[];
 
 interface Project {
@@ -70,7 +70,7 @@ export type CaslSubjectNames =
     | 'EmbedAiAgent'
     | 'EmbedAiAgentDebug'
     | 'EmbedAiAgentDownload'
-    | 'EmbedAiAgentSql'
+    | 'EmbedCompiledSql'
     | 'EmbedDashboardFilters'
     | 'EmbedDashboardFilterAddition'
     | 'EmbedDashboardParameters'

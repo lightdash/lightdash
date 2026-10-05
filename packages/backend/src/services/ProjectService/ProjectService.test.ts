@@ -13369,7 +13369,7 @@ describe('ProjectService.compileQueryForResponse', () => {
                     ...(sqlScopeProjectUuid
                         ? [
                               {
-                                  subject: 'EmbedAiAgentSql' as const,
+                                  subject: 'EmbedCompiledSql' as const,
                                   action: 'view' as const,
                                   conditions: {
                                       organizationUuid,

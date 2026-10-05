@@ -1435,17 +1435,11 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
-        name: 'view:EmbedAiAgentSql',
-        description:
-            'View the compiled SQL query behind embedded AI agent chart answers',
+        name: 'view:EmbedCompiledSql',
+        description: 'View compiled SQL in embeds',
         isEnterprise: true,
         group: ScopeGroup.EMBED,
-        dependencies: [
-            {
-                name: 'view:EmbedAiAgent',
-                description: 'Use embedded AI agents',
-            },
-        ],
+        dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
     {

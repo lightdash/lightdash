@@ -44,7 +44,7 @@ describe('walkthrough catalogue', () => {
         'view:EmbedDataApps',
         'view:EmbedAiAgent',
         'view:EmbedAiAgentDebug',
-        'view:EmbedAiAgentSql',
+        'view:EmbedCompiledSql',
         'view:EmbedAiAgentDownload',
         'manage:DeletedContent',
     ])('keeps %s visible as coming soon', (scope) => {

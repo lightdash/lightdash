@@ -137,7 +137,7 @@ const BASE_ROLE_SCOPES = {
         'manage:CustomSql',
         'manage:CustomFields',
         'view:CompiledSql',
-        'view:EmbedAiAgentSql',
+        'view:EmbedCompiledSql',
         'manage:CustomSqlTableCalculations',
         'manage:SqlRunner',
         'manage:Validation',

@@ -7842,7 +7842,7 @@ export class ProjectService extends BaseService {
         }
     }
 
-    private cannotViewEmbedAiAgentSql(
+    private cannotViewEmbedCompiledSql(
         account: Account,
         projectUuid: string,
     ): boolean {
@@ -7850,7 +7850,7 @@ export class ProjectService extends BaseService {
             isAiAgentEmbedAccount(account) &&
             this.createAuditedAbility(account).cannot(
                 'view',
-                subject('EmbedAiAgentSql', {
+                subject('EmbedCompiledSql', {
                     organizationUuid:
                         account.embed.organization.organizationUuid,
                     projectUuid,
@@ -7871,7 +7871,7 @@ export class ProjectService extends BaseService {
     }): Promise<ApiCompiledQueryResults> {
         const { parameterReferences, query, pivotQuery } =
             await this.compileQuery(args);
-        if (this.cannotViewEmbedAiAgentSql(args.account, args.projectUuid)) {
+        if (this.cannotViewEmbedCompiledSql(args.account, args.projectUuid)) {
             return { query: '', parameterReferences };
         }
         return {
