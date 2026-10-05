@@ -1,4 +1,5 @@
 import { assertUnreachable, type CreateEmbedJwt } from '@lightdash/common';
+import { type EmbedBackDestination } from '../../providers/Embed/types';
 
 export const EMBED_BACK_URL_PARAM = 'embedBackUrl';
 
@@ -26,6 +27,26 @@ const getEmbedContentPath = (
         case 'apiAccess':
         case undefined:
             return base;
+        default:
+            return assertUnreachable(content, 'Unknown embed content');
+    }
+};
+
+export const getEmbedBackDestination = (
+    content: CreateEmbedJwt['content'] | undefined,
+): EmbedBackDestination => {
+    switch (content?.type) {
+        case 'aiAgent':
+            return 'aiAgent';
+        case 'metricsCatalog':
+            return 'metricsCatalog';
+        case 'chart':
+            return 'chart';
+        case 'dashboard':
+        case 'dataApp':
+        case 'apiAccess':
+        case undefined:
+            return 'dashboard';
         default:
             return assertUnreachable(content, 'Unknown embed content');
     }

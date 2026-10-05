@@ -29,6 +29,7 @@ function useEmbed(): EmbedContext {
             languageMap: undefined,
             onExplore: (_options: { chart: EmbedExploreChart }) => {},
             t: (_input: UiStringKey) => undefined,
+            backDestination: 'dashboard',
             mode: 'direct',
             theme: 'light',
             backgroundColor: null,

@@ -74,6 +74,7 @@ const embed: EmbedContext = {
     projectUuid: 'project-uuid',
     embedToken: 'token',
     t: () => undefined,
+    backDestination: 'dashboard',
     mode: 'sdk',
     theme: 'light',
     backgroundColor: null,
