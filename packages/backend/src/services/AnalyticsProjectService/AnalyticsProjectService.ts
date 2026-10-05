@@ -23,7 +23,7 @@ import { ProjectService } from '../ProjectService/ProjectService';
 type Dependencies = {
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
     dashboardModel: Pick<DashboardModel, 'find'>;
-    savedChartModel: Pick<SavedChartModel, 'get'>;
+    savedChartModel: Pick<SavedChartModel, 'get' | 'find'>;
     projectModel: Pick<
         ProjectModel,
         | 'getAllByOrganizationUuid'
@@ -71,7 +71,10 @@ export class AnalyticsProjectService extends BaseService {
         const dashboardSlugs = analyticsContentAsCode.map(
             ({ dashboard }) => dashboard.slug,
         );
-        const [exploreNames, dashboards] = await Promise.all([
+        const chartSlugs = analyticsContentAsCode.flatMap(({ charts }) =>
+            charts.map(({ slug }) => slug),
+        );
+        const [exploreNames, dashboards, charts] = await Promise.all([
             this.dependencies.projectModel.getCachedExploreNames(
                 project.projectUuid,
             ),
@@ -79,8 +82,12 @@ export class AnalyticsProjectService extends BaseService {
                 projectUuid: project.projectUuid,
                 slugs: dashboardSlugs,
             }),
+            this.dependencies.savedChartModel.find({
+                projectUuid: project.projectUuid,
+                slugs: chartSlugs,
+            }),
         ]);
-        // Ignore custom models and dashboards when checking managed content.
+        // Ignore custom models, dashboards and charts when checking managed content.
         const managedModelCount = exploreNames.filter((name) =>
             analyticsExploreNames.some((expected) => expected === name),
         ).length;
@@ -93,7 +100,8 @@ export class AnalyticsProjectService extends BaseService {
                 createdAt: new Date(project.createdAt).toISOString(),
                 hasContentUpdates:
                     managedModelCount !== analyticsExploreNames.length ||
-                    dashboards.length !== dashboardSlugs.length,
+                    dashboards.length !== dashboardSlugs.length ||
+                    charts.length !== chartSlugs.length,
             },
         };
     }
