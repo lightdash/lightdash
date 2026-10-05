@@ -1,3 +1,10 @@
+## [2.427.1](https://github.com/lightdash/lightdash/compare/2.427.0...2.427.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ai:** read hyphenated BigQuery project IDs in the agent data scope check ([#30425](https://github.com/lightdash/lightdash/issues/30425)) ([08c2d6c](https://github.com/lightdash/lightdash/commit/08c2d6c0fb3313c6a19c8d69b826fe1ad13ebb46))
+
 # [2.427.0](https://github.com/lightdash/lightdash/compare/2.426.1...2.427.0) (2026-10-05)
 
 
