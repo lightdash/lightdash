@@ -1,3 +1,10 @@
+# [2.427.0](https://github.com/lightdash/lightdash/compare/2.426.1...2.427.0) (2026-10-05)
+
+
+### Features
+
+* **sdk:** let embeds hide built-in Metrics Catalog filters ([#30469](https://github.com/lightdash/lightdash/issues/30469)) ([eff09f8](https://github.com/lightdash/lightdash/commit/eff09f8083319bfc761bd8cafcfd872053fcb77d))
+
 ## [2.426.1](https://github.com/lightdash/lightdash/compare/2.426.0...2.426.1) (2026-10-05)
 
 
