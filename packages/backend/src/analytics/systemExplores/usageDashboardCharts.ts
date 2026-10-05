@@ -2,6 +2,105 @@ import type { UsageChartSpec } from './usageDashboardTypes';
 
 export const usageChartSpecs: UsageChartSpec[] = [
     {
+        key: 'most-used-fields',
+        name: 'Most-used metrics and dimensions',
+        description:
+            'Distinct query attempts per field, including selected, filtered, grouped and sorted references. Names are those captured at execution; a renamed label can appear separately. Field totals overlap.',
+        explore: 'semantic_usage',
+        dimensions: [
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'semantic_usage_field_kind',
+            'semantic_usage_field_origin',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+        ],
+        metrics: [
+            'semantic_usage_total_queries',
+            'semantic_usage_unique_users',
+            'semantic_usage_unique_charts',
+            'semantic_usage_unique_dashboards',
+            'semantic_usage_unique_apps',
+        ],
+        filters: [
+            {
+                field: 'semantic_usage_field_kind',
+                values: ['metric', 'dimension'],
+            },
+        ],
+        limit: 40,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+    },
+    {
+        key: 'people-using-fields',
+        name: 'Who uses each metric and dimension?',
+        description:
+            'Recorded users and fields, with distinct query attempts. A missing user name does not imply anonymous activity. One query can use several fields.',
+        explore: 'semantic_usage',
+        dimensions: [
+            'lightdash_users_name',
+            'semantic_usage_user_id',
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'semantic_usage_field_kind',
+            'semantic_usage_field_origin',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+        ],
+        metrics: ['semantic_usage_total_queries'],
+        filters: [
+            {
+                field: 'semantic_usage_field_kind',
+                values: ['metric', 'dimension'],
+            },
+        ],
+        limit: 50,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+    },
+    {
+        key: 'content-using-fields',
+        name: 'Where are metrics and dimensions used?',
+        description:
+            'Charts, dashboards and apps associated with recorded field use. Direct exploration and other queries can have no saved-content attribution. Query counts overlap across fields.',
+        explore: 'semantic_usage',
+        dimensions: [
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'semantic_usage_field_origin',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+            'lightdash_charts_name',
+            'semantic_usage_chart_id',
+            'lightdash_dashboards_name',
+            'semantic_usage_dashboard_id',
+            'lightdash_apps_name',
+            'semantic_usage_app_id',
+            'semantic_usage_context',
+        ],
+        metrics: ['semantic_usage_total_queries'],
+        filters: [
+            {
+                field: 'semantic_usage_field_kind',
+                values: ['metric', 'dimension'],
+            },
+        ],
+        limit: 50,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+    },
+    {
+        key: 'field-capture-coverage',
+        name: 'Queries with field details',
+        description:
+            'Distinct query attempts by available field detail, including old history and SQL queries. Partial capture can identify some fields; missing details are not evidence of no field use.',
+        explore: 'semantic_usage',
+        dimensions: ['semantic_usage_lineage_status'],
+        metrics: ['semantic_usage_total_queries'],
+        limit: 10,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+        visualization: 'bar',
+        flipAxes: true,
+    },
+    {
         key: 'daily-trend',
         name: 'Daily app loads and viewers',
         description:

@@ -36,11 +36,12 @@ describe('AnalyticsProjectService', () => {
     const upsertChart = vi.fn();
     const upsertDashboard = vi.fn();
     const findDashboard = vi.fn();
+    const findCharts = vi.fn();
     const getChart = vi.fn();
     const service = new AnalyticsProjectService({
         coderService: { upsertChart, upsertDashboard },
         dashboardModel: { find: findDashboard },
-        savedChartModel: { get: getChart },
+        savedChartModel: { get: getChart, find: findCharts },
         projectModel: {
             getAllByOrganizationUuid,
             saveExploresToCache,
@@ -65,6 +66,11 @@ describe('AnalyticsProjectService', () => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
         findDashboard.mockResolvedValue([{ uuid: 'existing-dashboard' }]);
+        findCharts.mockResolvedValue(
+            analyticsContentAsCode.flatMap(({ charts }) =>
+                charts.map(({ slug }) => ({ slug })),
+            ),
+        );
         getCachedExploreNames.mockResolvedValue([
             ...analyticsExplores.analyticsExploreNames,
         ]);
@@ -111,6 +117,12 @@ describe('AnalyticsProjectService', () => {
         });
         expect(saveExploresToCache).not.toHaveBeenCalled();
         expect(upsertDashboard).not.toHaveBeenCalled();
+        expect(findCharts).toHaveBeenCalledExactlyOnceWith({
+            projectUuid: analyticsProject.projectUuid,
+            slugs: analyticsContentAsCode.flatMap(({ charts }) =>
+                charts.map(({ slug }) => slug),
+            ),
+        });
     });
 
     it('flags missing models even when all managed dashboards exist', async () => {
@@ -132,6 +144,26 @@ describe('AnalyticsProjectService', () => {
         expect((await service.getStatus(user)).project?.hasContentUpdates).toBe(
             true,
         );
+    });
+
+    it('flags new charts in an existing dashboard when models and dashboards are current', async () => {
+        findDashboard.mockResolvedValue(
+            analyticsContentAsCode.map(({ dashboard }) => ({
+                slug: dashboard.slug,
+            })),
+        );
+        findCharts.mockResolvedValue(
+            analyticsContentAsCode.flatMap(({ charts }) =>
+                charts
+                    .filter(({ tableName }) => tableName !== 'semantic_usage')
+                    .map(({ slug }) => ({ slug })),
+            ),
+        );
+        expect((await service.getStatus(user)).project?.hasContentUpdates).toBe(
+            true,
+        );
+        expect(upsertChart).not.toHaveBeenCalled();
+        expect(upsertDashboard).not.toHaveBeenCalled();
     });
 
     it('ignores custom models when managed counts match', async () => {
@@ -156,6 +188,7 @@ describe('AnalyticsProjectService', () => {
         await expect(service.getStatus(user)).rejects.toThrow('Not allowed');
         expect(getCachedExploreNames).not.toHaveBeenCalled();
         expect(findDashboard).not.toHaveBeenCalled();
+        expect(findCharts).not.toHaveBeenCalled();
     });
 
     it('returns null without provisioning when no analytics project exists', async () => {
@@ -165,6 +198,7 @@ describe('AnalyticsProjectService', () => {
         });
         expect(getCachedExploreNames).not.toHaveBeenCalled();
         expect(findDashboard).not.toHaveBeenCalled();
+        expect(findCharts).not.toHaveBeenCalled();
         expect(ensureAnalyticsProject).not.toHaveBeenCalled();
     });
 
