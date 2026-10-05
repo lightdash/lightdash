@@ -1,3 +1,15 @@
+# [2.430.0](https://github.com/lightdash/lightdash/compare/2.429.0...2.430.0) (2026-10-05)
+
+
+### Bug Fixes
+
+* **backend:** clear error for a dead GitHub App installation; check dbt sources on save ([#30470](https://github.com/lightdash/lightdash/issues/30470)) ([6c99932](https://github.com/lightdash/lightdash/commit/6c99932648e7f076dd5a9b74d06815054e074d05))
+
+
+### Features
+
+* expose semantic field usage analytics ([#30483](https://github.com/lightdash/lightdash/issues/30483)) ([f0a6663](https://github.com/lightdash/lightdash/commit/f0a6663e3dee290852d029410b84fd3c8e681ab6))
+
 # [2.429.0](https://github.com/lightdash/lightdash/compare/2.428.6...2.429.0) (2026-10-05)
 
 
