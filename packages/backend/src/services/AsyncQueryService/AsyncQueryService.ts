@@ -8172,6 +8172,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         warehouseConnectionUuid: requestedConnectionUuid,
+        aiSurface,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
@@ -8272,6 +8273,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             userAttributeOverrides,
             requestedConnectionUuid,
+            aiSurface,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -10634,6 +10636,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid,
         userAttributeOverrides,
         requestedConnectionUuid = null,
+        aiSurface,
     }: {
         account: Account;
         projectUuid: string;
@@ -10651,6 +10654,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid?: string;
         userAttributeOverrides?: UserAttributeValueMap;
         requestedConnectionUuid?: string | null;
+        aiSurface?: 'ai_agent' | 'slack_agent';
     }) {
         const startTime = performance.now();
 
@@ -10673,6 +10677,8 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
                 context,
+                rawSql: true,
+                aiSurface,
             }),
             this.getUserAttributes({ account }),
         ]);

@@ -27,6 +27,7 @@ const settingsContext = (
     isScimTokenManagementEnabled: undefined,
     isServiceAccountsEnabled: false,
     isAiCopilotEnabledOrTrial: true,
+    aiAccessRestrictionsFlag: undefined,
     shouldShowAiAgentReviews: false,
     canManageOrgAiAgent: true,
     hasAnyAiAgentAccess: true,

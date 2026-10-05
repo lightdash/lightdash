@@ -32,6 +32,9 @@ export const useSettingsContext = (): SettingsContext => {
     );
 
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    const { data: aiAccessRestrictionsFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAccessRestrictions,
+    );
     const isAiCopilotEnabledOrTrial =
         aiOrganizationSettingsQuery.isSuccess &&
         (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
@@ -242,6 +245,7 @@ export const useSettingsContext = (): SettingsContext => {
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        aiAccessRestrictionsFlag,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,

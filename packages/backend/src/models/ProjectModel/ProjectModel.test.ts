@@ -116,6 +116,28 @@ describe('ProjectModel', () => {
         tracker.reset();
         vi.restoreAllMocks();
     });
+    test('gets and updates AI access restrictions', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid, 1]))
+            .response([{ ai_access_restrictions: true }]);
+        tracker.on
+            .update(queryMatcher(ProjectTableName, [false, projectUuid]))
+            .response(1);
+
+        await expect(model.getAiAccessRestrictions(projectUuid)).resolves.toBe(
+            true,
+        );
+        await expect(
+            model.updateAiAccessRestrictions(projectUuid, false),
+        ).resolves.toBeUndefined();
+        expect(tracker.history.select[0].sql).toContain(
+            'ai_access_restrictions',
+        );
+        expect(tracker.history.update[0].sql).toContain(
+            'ai_access_restrictions',
+        );
+    });
+
     test('should get project with no sensitive properties', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))

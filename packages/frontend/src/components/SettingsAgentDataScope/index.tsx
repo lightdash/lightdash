@@ -7,6 +7,7 @@ import {
     type MultiSelectProps,
     Paper,
     Stack,
+    Switch,
     Text,
     Title,
 } from '@mantine/core';
@@ -17,7 +18,9 @@ import { useCallback, useMemo, type FC } from 'react';
 import { useTables } from '../../features/sqlRunner/hooks/useTables';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
+    useAiAccessRestrictions,
     useAgentSqlScope,
+    useProjectUpdateAiAccessRestrictions,
     useProjectUpdateAgentSqlScope,
 } from '../../hooks/useProject';
 import Callout from '../common/Callout';
@@ -27,6 +30,8 @@ import classes from './SettingsAgentDataScope.module.css';
 
 type SettingsAgentDataScopeProps = {
     projectUuid: string;
+    showAiAccessRestrictions: boolean;
+    rawSqlUnavailable: boolean;
 };
 
 type AgentDataScopeFormValues = {
@@ -164,6 +169,8 @@ const AgentDataScopeForm: FC<{
 
 const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
     projectUuid,
+    showAiAccessRestrictions,
+    rawSqlUnavailable,
 }) => {
     const { showToastError, showToastSuccess } = useToaster();
     const { data: scope, isInitialLoading: isLoadingScope } =
@@ -174,6 +181,11 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
         projectUuid,
     });
     const mutation = useProjectUpdateAgentSqlScope(projectUuid);
+    const { data: aiAccessRestrictions } = useAiAccessRestrictions(
+        projectUuid,
+        showAiAccessRestrictions,
+    );
+    const aiAccessMutation = useProjectUpdateAiAccessRestrictions(projectUuid);
 
     const isLoading = isLoadingScope || isLoadingCatalog;
 
@@ -247,62 +259,94 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
     );
 
     return (
-        <SettingsCard p="xl" pos="relative">
-            <LoadingOverlay visible={isLoading} />
-
-            <Stack gap="lg">
-                <Group align="flex-start" gap="xs" wrap="nowrap">
-                    <Paper p="xxs" radius="sm">
-                        <MantineIcon icon={IconLock} size="md" />
-                    </Paper>
-                    <Stack gap={2}>
-                        <Title order={5}>Warehouse access</Title>
-                        <Text size="xs" c="dimmed">
-                            Control which warehouse schemas and catalogs AI
-                            agents can query with SQL.
-                        </Text>
-                    </Stack>
-                </Group>
-
-                <Callout
-                    variant="info"
-                    color="gray"
-                    title="How agent data scope works"
-                >
-                    <Text fz="xs">
-                        Leave every field empty to let AI agents query the
-                        entire warehouse connection.
-                    </Text>
-                    <Text fz="xs" mt="xs">
-                        Use exclusions to block known schemas or catalogs. Use
-                        allow lists when agents should query only an approved
-                        set; newly added schemas are not included automatically.
-                    </Text>
-                    <Text fz="xs" mt="xs">
-                        Agents query the semantic layer by default; direct SQL
-                        requires approval for every query and is available only
-                        to users with SQL Runner access. These rules apply to AI
-                        agents only. They do not change warehouse permissions or
-                        restrict SQL Runner users. Use warehouse grants to
-                        enforce security.
-                    </Text>
-                </Callout>
-
-                {!isLoading && (
-                    // Remounting when the saved scope changes resets the form to
-                    // it — the React-recommended way to reset state on new data,
-                    // rather than syncing state in an effect.
-                    <AgentDataScopeForm
-                        key={JSON.stringify(initialValues)}
-                        isLoading={mutation.isLoading}
-                        initialValues={initialValues}
-                        schemaOptions={schemaOptions}
-                        catalogOptions={catalogOptions}
-                        onSubmit={handleSubmit}
+        <Stack gap="lg">
+            {showAiAccessRestrictions && (
+                <SettingsCard p="xl">
+                    <Switch
+                        label="AI access restrictions"
+                        description="When on, raw SQL from AI agents and MCP runs only through a sign-in that limits AI access. Without one, it is refused."
+                        checked={aiAccessRestrictions?.enabled ?? false}
+                        disabled={
+                            !aiAccessRestrictions || aiAccessMutation.isLoading
+                        }
+                        onChange={async (event) => {
+                            try {
+                                await aiAccessMutation.mutateAsync(
+                                    event.currentTarget.checked,
+                                );
+                            } catch (error) {
+                                showToastError({
+                                    title: 'Failed to update AI access restrictions',
+                                    subtitle: getErrorMessage(error),
+                                });
+                            }
+                        }}
                     />
-                )}
-            </Stack>
-        </SettingsCard>
+                    {rawSqlUnavailable && aiAccessRestrictions?.enabled && (
+                        <Text size="xs" c="dimmed" mt="sm">
+                            Raw SQL from AI is off on this connection.
+                        </Text>
+                    )}
+                </SettingsCard>
+            )}
+            <SettingsCard p="xl" pos="relative">
+                <LoadingOverlay visible={isLoading} />
+
+                <Stack gap="lg">
+                    <Group align="flex-start" gap="xs" wrap="nowrap">
+                        <Paper p="xxs" radius="sm">
+                            <MantineIcon icon={IconLock} size="md" />
+                        </Paper>
+                        <Stack gap={2}>
+                            <Title order={5}>Warehouse access</Title>
+                            <Text size="xs" c="dimmed">
+                                Control which warehouse schemas and catalogs AI
+                                agents can query with SQL.
+                            </Text>
+                        </Stack>
+                    </Group>
+
+                    <Callout
+                        variant="info"
+                        color="gray"
+                        title="How agent data scope works"
+                    >
+                        <Text fz="xs">
+                            Leave every field empty to let AI agents query the
+                            entire warehouse connection.
+                        </Text>
+                        <Text fz="xs" mt="xs">
+                            Use exclusions to block known schemas or catalogs.
+                            Use allow lists when agents should query only an
+                            approved set; newly added schemas are not included
+                            automatically.
+                        </Text>
+                        <Text fz="xs" mt="xs">
+                            Agents query the semantic layer by default; direct
+                            SQL requires approval for every query and is
+                            available only to users with SQL Runner access.
+                            These rules apply to AI agents only. They do not
+                            change warehouse permissions or restrict SQL Runner
+                            users. Use warehouse grants to enforce security.
+                        </Text>
+                    </Callout>
+
+                    {!isLoading && (
+                        // Remounting when the saved scope changes resets the form to
+                        // it — the React-recommended way to reset state on new data,
+                        // rather than syncing state in an effect.
+                        <AgentDataScopeForm
+                            key={JSON.stringify(initialValues)}
+                            isLoading={mutation.isLoading}
+                            initialValues={initialValues}
+                            schemaOptions={schemaOptions}
+                            catalogOptions={catalogOptions}
+                            onSubmit={handleSubmit}
+                        />
+                    )}
+                </Stack>
+            </SettingsCard>
+        </Stack>
     );
 };
 

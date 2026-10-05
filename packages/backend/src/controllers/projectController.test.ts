@@ -8,6 +8,46 @@ import { type ServiceRepository } from '../services/ServiceRepository';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { ProjectController } from './projectController';
 
+describe('ProjectController AI access restrictions', () => {
+    test('gets and updates the setting through ProjectService', async () => {
+        const getAiAccessRestrictions = vi.fn(async () => ({
+            enabled: true,
+        }));
+        const updateAiAccessRestrictions = vi.fn(async () => undefined);
+        const controller = new ProjectController({
+            getProjectService: () => ({
+                getAiAccessRestrictions,
+                updateAiAccessRestrictions,
+            }),
+        } as unknown as ServiceRepository);
+        const account = buildAccount();
+        const request = { account } as express.Request;
+
+        await expect(
+            controller.getAiAccessRestrictions('project-uuid', request),
+        ).resolves.toEqual({
+            status: 'ok',
+            results: { enabled: true },
+        });
+        await expect(
+            controller.updateAiAccessRestrictions(
+                'project-uuid',
+                { enabled: false },
+                request,
+            ),
+        ).resolves.toEqual({ status: 'ok', results: undefined });
+        expect(getAiAccessRestrictions).toHaveBeenCalledWith(
+            account,
+            'project-uuid',
+        );
+        expect(updateAiAccessRestrictions).toHaveBeenCalledWith(
+            account,
+            'project-uuid',
+            { enabled: false },
+        );
+    });
+});
+
 describe('ProjectController merged manifest', () => {
     test('requires session or API key authentication', () => {
         expect(

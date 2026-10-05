@@ -376,6 +376,43 @@ export const useProjectUpdateAgentSqlScope = (uuid: string) => {
     );
 };
 
+const getAiAccessRestrictions = async (uuid: string) =>
+    lightdashApi<{ enabled: boolean }>({
+        url: `/projects/${uuid}/aiAccessRestrictions`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiAccessRestrictions = (uuid: string, enabled: boolean) =>
+    useQuery<{ enabled: boolean }, ApiError>({
+        queryKey: ['project_ai_access_restrictions', uuid],
+        queryFn: () => getAiAccessRestrictions(uuid),
+        enabled,
+    });
+
+const updateAiAccessRestrictions = async (uuid: string, enabled: boolean) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/aiAccessRestrictions`,
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+    });
+
+export const useProjectUpdateAiAccessRestrictions = (uuid: string) => {
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, boolean>(
+        (enabled) => updateAiAccessRestrictions(uuid, enabled),
+        {
+            mutationKey: ['project_ai_access_restrictions_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'project_ai_access_restrictions',
+                    uuid,
+                ]);
+            },
+        },
+    );
+};
+
 const updateDefaultUserSpaces = async (
     uuid: string,
     data: UpdateDefaultUserSpaces,

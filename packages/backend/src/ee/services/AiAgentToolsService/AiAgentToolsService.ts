@@ -207,6 +207,7 @@ export type AiAgentToolsRuntimeContext = {
     enableDocuments?: boolean;
     catalogSearchContext: CatalogSearchContext;
     defaultQueryExecutionContext: QueryExecutionContext;
+    aiSurface?: 'ai_agent' | 'slack_agent';
     tags: string[] | null;
     spaceAccess: string[] | null;
     sqlScope?: AgentSqlScope | null;
@@ -3100,6 +3101,7 @@ export class AiAgentToolsService extends BaseService {
                         sql,
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        aiSurface: context.aiSurface,
                     });
 
                 const maxWaitMs = 5 * 60 * 1000;

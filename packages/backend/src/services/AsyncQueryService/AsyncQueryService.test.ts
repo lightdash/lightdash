@@ -136,7 +136,10 @@ import { PersistentDownloadFileService } from '../PersistentDownloadFileService/
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import * as analyticsClient from '../ProjectService/analyticsProject/analyticsProjectClient';
 import { type CheckGoogleRefreshToken } from '../ProjectService/previewBigquerySsoCredentials';
-import type { ProjectService } from '../ProjectService/ProjectService';
+import {
+    AiAccessRestrictionsError,
+    type ProjectService,
+} from '../ProjectService/ProjectService';
 import {
     allExplores,
     buildAccount,
@@ -269,6 +272,7 @@ const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
+    getAgentSqlScope: vi.fn(async () => null),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
@@ -6728,6 +6732,33 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        it('refuses AI raw SQL before opening a warehouse connection', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const warehouse = vi.spyOn(service, '_getWarehouseClient');
+            const resolveCredentials = vi
+                .fn()
+                .mockRejectedValue(new AiAccessRestrictionsError());
+            (
+                service as unknown as {
+                    getWarehouseCredentialsWithConnection: typeof resolveCredentials;
+                }
+            ).getWarehouseCredentialsWithConnection = resolveCredentials;
+
+            await expect(
+                service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.AI,
+                }),
+            ).rejects.toThrow(AiAccessRestrictionsError);
+
+            expect(resolveCredentials).toHaveBeenCalledWith(
+                expect.objectContaining({ rawSql: true }),
+            );
+            expect(warehouse).not.toHaveBeenCalled();
+        });
+
         it('rejects managed analytics SQL before accessing the warehouse', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             projectModel.getSummary.mockResolvedValueOnce({
