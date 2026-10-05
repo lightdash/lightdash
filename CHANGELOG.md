@@ -1,3 +1,10 @@
+## [2.427.4](https://github.com/lightdash/lightdash/compare/2.427.3...2.427.4) (2026-10-05)
+
+
+### Bug Fixes
+
+* **connections:** keep sign-in names out of stored query errors ([#30418](https://github.com/lightdash/lightdash/issues/30418)) ([c81bc57](https://github.com/lightdash/lightdash/commit/c81bc57ebee26ec0ebc5924795efcf4b1f75a417))
+
 ## [2.427.3](https://github.com/lightdash/lightdash/compare/2.427.2...2.427.3) (2026-10-05)
 
 
