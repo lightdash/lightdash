@@ -40,7 +40,7 @@ describe('buildTableRows', () => {
                 id: 'schema:warehouse.jaffle',
                 database: 'warehouse',
                 schema: 'jaffle',
-                label: 'jaffle',
+                databaseLabel: null,
                 isExpanded: false,
                 tableCount: 3,
             },
@@ -49,7 +49,7 @@ describe('buildTableRows', () => {
                 id: 'schema:warehouse.staging',
                 database: 'warehouse',
                 schema: 'staging',
-                label: 'staging',
+                databaseLabel: null,
                 isExpanded: false,
                 tableCount: 1,
             },
@@ -114,11 +114,21 @@ describe('buildTableRows', () => {
     it('labels schemas with their database only when asked to', () => {
         const labels = (showDatabase: boolean) =>
             buildTableRows(twoDatabases, () => false, showDatabase).map((row) =>
-                row.type === 'schema' ? row.label : null,
+                row.type === 'schema' ? row.databaseLabel : null,
             );
 
-        expect(labels(true)).toEqual(['dev.main', 'prod.main']);
-        expect(labels(false)).toEqual(['main', 'main']);
+        expect(labels(true)).toEqual(['dev', 'prod']);
+        expect(labels(false)).toEqual([null, null]);
+    });
+
+    it('leaves a database without a name unlabelled', () => {
+        const rows = buildTableRows(
+            [{ database: '', schema: 'main', tables: { orders: {} } }],
+            () => false,
+            true,
+        );
+
+        expect(rows).toMatchObject([{ type: 'schema', databaseLabel: null }]);
     });
 });
 

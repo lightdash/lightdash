@@ -16,7 +16,7 @@ export type TableRow =
           id: string;
           database: string;
           schema: string;
-          label: string;
+          databaseLabel: string | null;
           isExpanded: boolean;
           tableCount: number;
       }
@@ -107,7 +107,7 @@ export const buildTableRows = (
             id,
             database,
             schema: schemaName,
-            label: showDatabase ? `${database}.${schemaName}` : schemaName,
+            databaseLabel: showDatabase && database !== '' ? database : null,
             isExpanded,
             tableCount: tableNames.length,
         };
