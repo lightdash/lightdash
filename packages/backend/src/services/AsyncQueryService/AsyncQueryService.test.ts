@@ -7735,9 +7735,10 @@ describe('AsyncQueryService', () => {
                     })),
                 } as unknown as SpaceModel,
                 dashboardModel: {
-                    getDashboardParametersByIdOrSlug: vi.fn(
-                        async () => undefined,
-                    ),
+                    getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                        parameters: null,
+                        parameterControls: null,
+                    })),
                 } as unknown as DashboardModel,
             });
             const internals = service as AnyType;
@@ -7891,11 +7892,13 @@ describe('AsyncQueryService', () => {
                 chartStatus,
                 dashboardStatus,
                 requestStatus,
+                takenOutTileUuid = null,
             }: {
                 statusDefault: string | null;
                 chartStatus: string;
                 dashboardStatus: string | null;
                 requestStatus: string | null;
+                takenOutTileUuid?: string | null;
             }) => {
                 const { service } = buildService();
                 const internals = service as AnyType;
@@ -7908,16 +7911,30 @@ describe('AsyncQueryService', () => {
                     })),
                 };
                 internals.dashboardModel = {
-                    getDashboardParametersByIdOrSlug: vi.fn(async () =>
-                        dashboardStatus === null
-                            ? undefined
-                            : {
-                                  status: {
-                                      parameterName: 'status',
-                                      value: dashboardStatus,
+                    getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                        parameters:
+                            dashboardStatus === null
+                                ? null
+                                : {
+                                      status: {
+                                          parameterName: 'status',
+                                          value: dashboardStatus,
+                                      },
                                   },
-                              },
-                    ),
+                        parameterControls:
+                            takenOutTileUuid === null
+                                ? null
+                                : [
+                                      {
+                                          id: 'control-1',
+                                          label: 'Status',
+                                          parameterKeys: ['status'],
+                                          tileTargets: {
+                                              [takenOutTileUuid]: false,
+                                          },
+                                      },
+                                  ],
+                    })),
                 };
                 internals.projectParametersModel = {
                     find: vi.fn(async () => [
@@ -8010,6 +8027,36 @@ describe('AsyncQueryService', () => {
                     ).resolves.toEqual({ status: 'Returned' });
                 },
             );
+
+            test.each([
+                ['all', 'Cancelled'],
+                [null, 'Expired'],
+            ])(
+                'a tile taken out of the control keeps its chart value (default %s, chart %s)',
+                async (statusDefault, chartStatus) => {
+                    await expect(
+                        runTile({
+                            statusDefault,
+                            chartStatus,
+                            dashboardStatus: 'Shipped',
+                            requestStatus: 'Returned',
+                            takenOutTileUuid: 'tile-1',
+                        }),
+                    ).resolves.toEqual({ status: chartStatus });
+                },
+            );
+
+            test('a control that takes out another tile still sets this one', async () => {
+                await expect(
+                    runTile({
+                        statusDefault: null,
+                        chartStatus: 'Expired',
+                        dashboardStatus: 'Shipped',
+                        requestStatus: null,
+                        takenOutTileUuid: 'tile-2',
+                    }),
+                ).resolves.toEqual({ status: 'Shipped' });
+            });
         });
 
         test('the field value search query records the resolved connection', async () => {
@@ -8861,9 +8908,10 @@ describe('AsyncQueryService', () => {
                     })),
                 } as unknown as SpaceModel,
                 dashboardModel: {
-                    getDashboardParametersByIdOrSlug: vi.fn(
-                        async () => undefined,
-                    ),
+                    getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                        parameters: null,
+                        parameterControls: null,
+                    })),
                 } as unknown as DashboardModel,
             });
             service.getExploreWithUserAccessControls = vi
@@ -8953,8 +9001,11 @@ describe('AsyncQueryService', () => {
                 })),
             };
             internals.dashboardModel = {
-                getDashboardParametersByIdOrSlug: vi.fn(async () => ({
-                    tier: { parameterName: 'tier', value: 'gold' },
+                getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                    parameters: {
+                        tier: { parameterName: 'tier', value: 'gold' },
+                    },
+                    parameterControls: null,
                 })),
             };
             internals.projectParametersModel = {

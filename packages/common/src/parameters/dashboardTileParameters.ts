@@ -1,4 +1,5 @@
 import {
+    type DashboardParameterControl,
     type ParameterDefinitions,
     type ParametersValuesMap,
 } from '../types/parameters';
@@ -19,7 +20,95 @@ export type DashboardTileParameterInputs = {
     dashboardValues: ParametersValuesMap;
     chartSavedValues: ParametersValuesMap;
     isTargeted: boolean;
+    // Keys this tile keeps for itself while taking the rest from the dashboard
+    takenOutKeys?: string[];
 };
+
+// Keys of the controls this tile is taken out of; they resolve like an untargeted tile's.
+export const getTakenOutParameterKeys = (
+    parameterControls: DashboardParameterControl[] | undefined,
+    tileUuid: string,
+): string[] => [
+    ...new Set(
+        (parameterControls ?? [])
+            .filter((control) => control.tileTargets[tileUuid] === false)
+            .flatMap((control) => control.parameterKeys),
+    ),
+];
+
+// Dashboard-level values a tile may read: none of the keys it is taken out of.
+export const omitTakenOutParameterValues = (
+    values: ParametersValuesMap,
+    takenOutKeys: string[],
+): ParametersValuesMap =>
+    takenOutKeys.length === 0
+        ? values
+        : Object.fromEntries(
+              Object.entries(values).filter(
+                  ([key]) => !takenOutKeys.includes(key),
+              ),
+          );
+
+// What a tile runs with for a key it is taken out of: the chart's own saved
+// value, else the definition's default. The server resolves a saved take-out
+// the same way.
+export const resolveTakenOutParameterValue = ({
+    key,
+    chartSavedValues,
+    definitions,
+}: {
+    key: string;
+    chartSavedValues: ParametersValuesMap;
+    definitions: ParameterDefinitions;
+}): ParametersValuesMap[string] | undefined => {
+    const ownValue = chartSavedValues[key];
+    if (ownValue !== undefined) return ownValue;
+    const definition = definitions[key];
+    return definition ? resolveParameterDefault(definition) : undefined;
+};
+
+// The dashboard parameter values a tile's request carries. Keys the tile is
+// taken out of are left out: the server resolves a saved take-out itself. A
+// take-out the server does not know yet (unsaved, or a previewed draft) would
+// be resolved from the dashboard's saved value instead, so the request
+// carries the value the tile should run with, when there is one.
+export const getDashboardTileRequestParameters = ({
+    dashboardValues,
+    chartSavedValues,
+    definitions,
+    takenOutKeys,
+    savedTakenOutKeys,
+}: {
+    dashboardValues: ParametersValuesMap;
+    chartSavedValues: ParametersValuesMap;
+    definitions: ParameterDefinitions;
+    // From the controls as they are on screen
+    takenOutKeys: string[];
+    // From the controls as they are saved
+    savedTakenOutKeys: string[];
+}): ParametersValuesMap => {
+    const kept = omitTakenOutParameterValues(dashboardValues, takenOutKeys);
+    return takenOutKeys
+        .filter((key) => !savedTakenOutKeys.includes(key))
+        .reduce<ParametersValuesMap>((acc, key) => {
+            const value = resolveTakenOutParameterValue({
+                key,
+                chartSavedValues,
+                definitions,
+            });
+            return value === undefined ? acc : { ...acc, [key]: value };
+        }, kept);
+};
+
+// Keys a tile is taken out of as far as its query goes: the take-outs on
+// screen, and the saved ones the server keeps applying until the next save
+export const getEffectiveTakenOutParameterKeys = ({
+    takenOutKeys,
+    savedTakenOutKeys,
+}: {
+    takenOutKeys: string[];
+    savedTakenOutKeys: string[];
+}): string[] => [...new Set([...takenOutKeys, ...savedTakenOutKeys])];
 
 const resolveDefinitionDefaults = (
     definitions: ParameterDefinitions,
@@ -81,12 +170,13 @@ export const canUseChartSavedParameterValue = ({
     definitions[key]?.default === undefined;
 
 // Targeted: dashboard value, else chart-saved only when the definition has no default.
-// Untargeted: chart-saved values only.
+// Untargeted tile or taken-out key: chart-saved value only.
 export const getDashboardTileParameterOverrides = ({
     definitions,
     dashboardValues: rawDashboardValues,
     chartSavedValues: rawChartSavedValues,
     isTargeted,
+    takenOutKeys = [],
 }: DashboardTileParameterInputs & {
     definitions: ParameterDefinitions;
 }): ParametersValuesMap => {
@@ -106,6 +196,10 @@ export const getDashboardTileParameterOverrides = ({
         ...Object.keys(dashboardValues),
     ]);
     return [...keys].reduce<ParametersValuesMap>((acc, key) => {
+        if (takenOutKeys.includes(key)) {
+            const ownValue = chartSavedValues[key];
+            return ownValue === undefined ? acc : { ...acc, [key]: ownValue };
+        }
         const dashboardValue = dashboardValues[key];
         if (dashboardValue !== undefined) {
             return { ...acc, [key]: dashboardValue };
@@ -159,7 +253,9 @@ export const getDashboardTileParameterSource = ({
         inputs.dashboardValues,
         inputs.definitions,
     );
-    return inputs.isTargeted && dashboardValues[key] !== undefined
+    return inputs.isTargeted &&
+        !inputs.takenOutKeys?.includes(key) &&
+        dashboardValues[key] !== undefined
         ? DashboardTileParameterSource.DASHBOARD
         : DashboardTileParameterSource.CHART;
 };
@@ -167,6 +263,8 @@ export const getDashboardTileParameterSource = ({
 export type DashboardTileParameterState = {
     parameterReferences: string[];
     chartSavedValues: ParametersValuesMap;
+    // Keys this tile is taken out of, so dashboard values do not resolve them
+    takenOutKeys?: string[];
 };
 
 export type DashboardParameterStatusInputs = {
@@ -175,7 +273,7 @@ export type DashboardParameterStatusInputs = {
     definitions: ParameterDefinitions;
 };
 
-// Referenced keys with no dashboard value and no definition default, paired with
+// Referenced keys a tile gets no dashboard value or definition default for, paired with
 // whether each referencing tile has a chart-saved value for them.
 const getKeysResolvedPerTile = ({
     tiles,
@@ -196,7 +294,9 @@ const getKeysResolvedPerTile = ({
                 isReservedParameterName(key) ||
                 !canUseChartSavedParameterValue({
                     key,
-                    dashboardValues,
+                    dashboardValues: tile.takenOutKeys?.includes(key)
+                        ? {}
+                        : dashboardValues,
                     definitions,
                 })
             ) {
@@ -211,7 +311,7 @@ const getKeysResolvedPerTile = ({
     }, new Map<string, boolean[]>());
 };
 
-// A key is missing when any referencing tile has no dashboard value, default or chart-saved value.
+// A key is missing when any referencing tile has no dashboard value (or is taken out of it), default or chart-saved value.
 export const getMissingRequiredDashboardParameters = (
     inputs: DashboardParameterStatusInputs,
 ): string[] =>

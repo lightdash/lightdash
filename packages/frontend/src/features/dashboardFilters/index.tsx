@@ -11,6 +11,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { useDashboardControls } from '../dashboardControls/context';
 import ActiveFilters from './ActiveFilters';
 import AddFilterButton from './AddFilterButton';
 
@@ -23,6 +24,11 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const { track } = useTracking();
     const projectUuid = useProjectUuid();
     const [openPopoverId, setPopoverId] = useState<string>();
+    const controls = useDashboardControls();
+    const isAuthoringControls = controls.isEnabled && isEditMode;
+    // While viewing, a control is a temporary filter drafted from the bar
+    const isDraftingTemporaryFilters =
+        controls.draftsTemporaryFilters && !isEditMode;
 
     const project = useProject(projectUuid);
 
@@ -103,15 +109,19 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
             activeTabUuid={activeTabUuid}
             parameterValues={parameterValues}
         >
-            <AddFilterButton
-                isEditMode={isEditMode}
-                activeTabUuid={activeTabUuid}
-                openPopoverId={openPopoverId}
-                onPopoverOpen={handlePopoverOpen}
-                onPopoverClose={handlePopoverClose}
-                onSave={handleSaveNew}
-                onResetDashboardFilters={resetDashboardFilters}
-            />
+            {/* With dashboard controls "Add control" follows every pill, in
+                the bar */}
+            {!isAuthoringControls && !isDraftingTemporaryFilters && (
+                <AddFilterButton
+                    isEditMode={isEditMode}
+                    activeTabUuid={activeTabUuid}
+                    openPopoverId={openPopoverId}
+                    onPopoverOpen={handlePopoverOpen}
+                    onPopoverClose={handlePopoverClose}
+                    onSave={handleSaveNew}
+                    onResetDashboardFilters={resetDashboardFilters}
+                />
+            )}
 
             <ActiveFilters
                 isEditMode={isEditMode}

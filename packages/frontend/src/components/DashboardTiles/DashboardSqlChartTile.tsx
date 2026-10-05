@@ -1,12 +1,15 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    getDashboardTileRequestParameters,
     getParameterReferences,
+    getTakenOutParameterKeys,
     isVizBigNumberConfig,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
     type DashboardSqlChartTile,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import { Box, Menu } from '@mantine/core';
 import {
@@ -81,6 +84,9 @@ const DashboardOptions = memo(
     ),
 );
 
+// A SQL chart saves no parameter values of its own
+const NO_CHART_SAVED_VALUES: ParametersValuesMap = {};
+
 const SqlChartTile: FC<Props> = ({
     tile,
     isEditMode,
@@ -107,7 +113,42 @@ const SqlChartTile: FC<Props> = ({
     const updateSqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.updateSqlChartTilesMetadata,
     );
-    const parameters = useDashboardContext((c) => c.parameterValues);
+    const dashboardParameterValues = useDashboardContext(
+        (c) => c.parameterValues,
+    );
+    const parameterControls = useDashboardContext((c) => c.parameterControls);
+    const savedParameterControls = useDashboardContext(
+        (c) => c.dashboard?.config?.parameterControls,
+    );
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+    // A tile taken out of a control does not send that control's values. A
+    // take-out not saved yet sends the parameter's default instead: a SQL
+    // chart saves no value of its own.
+    const parameters = useMemo(
+        () =>
+            getDashboardTileRequestParameters({
+                dashboardValues: dashboardParameterValues,
+                chartSavedValues: NO_CHART_SAVED_VALUES,
+                definitions: parameterDefinitions,
+                takenOutKeys: getTakenOutParameterKeys(
+                    parameterControls,
+                    tile.uuid,
+                ),
+                savedTakenOutKeys: getTakenOutParameterKeys(
+                    savedParameterControls,
+                    tile.uuid,
+                ),
+            }),
+        [
+            dashboardParameterValues,
+            parameterDefinitions,
+            parameterControls,
+            savedParameterControls,
+            tile.uuid,
+        ],
+    );
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );

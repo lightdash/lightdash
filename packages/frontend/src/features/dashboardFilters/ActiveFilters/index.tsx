@@ -19,6 +19,7 @@ import { Group, Skeleton, useMantineTheme } from '@mantine/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { useDashboardControls } from '../../dashboardControls/context';
 import {
     doesFilterApplyToAnyTile,
     getTabsForFilterRule,
@@ -118,6 +119,8 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     dropdownClassName,
 }) => {
     const getUiString = useUiStrings();
+    // A selected pill stays in the bar even when no tile on this tab uses it
+    const { selectedId: selectedFilterId } = useDashboardControls();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
@@ -295,7 +298,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
                     // Hide filter if it doesn't apply to the current tab
                     // But always show orphaned filters so users can see and fix them
-                    if (!appliedToCurrentTab && !isOrphanedFilter) {
+                    if (
+                        !appliedToCurrentTab &&
+                        !isOrphanedFilter &&
+                        item.id !== selectedFilterId
+                    ) {
                         return null;
                     }
 
@@ -375,7 +382,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
                     // Hide filter if it doesn't apply to the current tab
                     // But always show orphaned filters so users can see and fix them
-                    if (!appliedToCurrentTab && !isOrphanedFilter) {
+                    if (
+                        !appliedToCurrentTab &&
+                        !isOrphanedFilter &&
+                        item.id !== selectedFilterId
+                    ) {
                         return null;
                     }
 
@@ -440,7 +451,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
                 // Hide filter if it doesn't apply to the current tab
                 // But always show orphaned filters so users can see and fix them
-                if (!appliedToCurrentTab && !isOrphanedFilter) {
+                if (
+                    !appliedToCurrentTab &&
+                    !isOrphanedFilter &&
+                    item.id !== selectedFilterId
+                ) {
                     return null;
                 }
 
@@ -495,7 +510,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
                 // Hide filter if it doesn't apply to the current tab
                 // But always show orphaned filters so users can see and fix them
-                if (!appliedToCurrentTab && !isOrphanedFilter) {
+                if (
+                    !appliedToCurrentTab &&
+                    !isOrphanedFilter &&
+                    item.id !== selectedFilterId
+                ) {
                     return null;
                 }
 

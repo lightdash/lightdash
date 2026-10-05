@@ -202,6 +202,7 @@ export const useSavedDashboardFiltersOverrides = (
     const addSavedFilterOverride = (
         {
             tileTargets,
+            additionalTargets,
             lockedTabUuids,
             required,
             requiredGroupId,
@@ -219,6 +220,7 @@ export const useSavedDashboardFiltersOverrides = (
     const removeSavedFilterOverride = (
         {
             tileTargets,
+            additionalTargets,
             lockedTabUuids,
             required,
             requiredGroupId,

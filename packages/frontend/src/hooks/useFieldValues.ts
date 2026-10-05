@@ -138,7 +138,7 @@ const getEmbedFilterValues = async (options: {
     });
 };
 
-const getFieldValues = async (
+export const getFieldValues = async (
     projectId: string,
     table: string | undefined,
     fieldId: string,
@@ -536,13 +536,17 @@ export const useFieldValues = (
     const activeResultValueMap = shouldUseStaticValues
         ? staticResultValueMap
         : resultValueMap;
-    const results = useMemo(
-        () =>
-            [...activeResultValueMap.values()].sort((a, b) =>
-                a.value.localeCompare(b.value),
-            ),
-        [activeResultValueMap],
-    );
+    const results = useMemo(() => {
+        // Initial options that arrive after mount join the fetched values
+        const lateOptions = shouldUseStaticValues
+            ? []
+            : initialOptions.filter(
+                  (option) => !activeResultValueMap.has(option.value),
+              );
+        return [...activeResultValueMap.values(), ...lateOptions].sort((a, b) =>
+            a.value.localeCompare(b.value),
+        );
+    }, [activeResultValueMap, initialOptions, shouldUseStaticValues]);
 
     return {
         ...query,

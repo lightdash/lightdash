@@ -481,14 +481,24 @@ describe('DashboardModel', () => {
         const parameters = {
             test_parameter: 'test value',
         };
-        tracker.on.select(DashboardsTableName).response([{ parameters }]);
+        const parameterControls = [
+            {
+                id: 'control-1',
+                label: 'Test',
+                parameterKeys: ['test_parameter'],
+                tileTargets: { 'tile-1': false },
+            },
+        ];
+        tracker.on
+            .select(DashboardsTableName)
+            .response([{ parameters, config: { parameterControls } }]);
 
-        const result = await model.getDashboardParametersByIdOrSlug(
+        const result = await model.getDashboardParameterStateByIdOrSlug(
             dashboardUuid,
             projectUuid,
         );
 
-        expect(result).toEqual(parameters);
+        expect(result).toEqual({ parameters, parameterControls });
         expect(tracker.history.select).toHaveLength(1);
         expect(tracker.history.select[0].sql).toContain(
             '"dashboards"."project_uuid"',

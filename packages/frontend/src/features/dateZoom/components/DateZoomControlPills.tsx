@@ -1,5 +1,4 @@
 import {
-    DateGranularity,
     getControlActiveGranularity,
     isStandardDateGranularity,
     pruneDateZoomConfig,
@@ -23,21 +22,32 @@ import {
     IconSettings,
     IconTrash,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
-import { v4 as uuid4 } from 'uuid';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
-import { getGranularityLabel } from '../utils';
+import { getGranularityLabel, getNewDateZoomControl } from '../utils';
 import styles from './DateZoom.module.css';
 import { DateZoomControlConfig } from './DateZoomControlConfig';
 
 type Props = {
     isEditMode: boolean;
+    // The control whose config is open, held by the parent so a new one can
+    // also be started from outside
+    editingControl: DateZoomControl | undefined;
+    setEditingControl: (control: DateZoomControl | undefined) => void;
+    // False when a new control is started elsewhere: its config opens under
+    // the end of the pills
+    hasAddButton: boolean;
 };
 
-export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
+export const DateZoomControlPills: FC<Props> = ({
+    isEditMode,
+    editingControl,
+    setEditingControl,
+    hasAddButton,
+}) => {
     const getUiString = useUiStrings();
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
@@ -83,7 +93,6 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
         [dateZoomGranularities, availableCustomGranularities, getUiString],
     );
 
-    const [editingControl, setEditingControl] = useState<DateZoomControl>();
     // Inner Select dropdowns portal outside the config popover; track them so a
     // click on one doesn't dismiss the popover.
     const [isSubPopoverOpen, { open: openSubPopover, close: closeSubPopover }] =
@@ -358,23 +367,27 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
             {isEditMode && (
                 <Popover opened={isAddingNew} {...popoverProps}>
                     <Popover.Target>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            classNames={{ root: styles.addControl }}
-                            onClick={() =>
-                                setEditingControl({
-                                    uuid: uuid4(),
-                                    name: 'Date zoom',
-                                    granularity:
-                                        defaultDateZoomGranularity ??
-                                        dateZoomGranularities[0] ??
-                                        DateGranularity.MONTH,
-                                })
-                            }
-                        >
-                            Add date zoom
-                        </Button>
+                        {hasAddButton ? (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                classNames={{ root: styles.addControl }}
+                                onClick={() =>
+                                    setEditingControl(
+                                        getNewDateZoomControl({
+                                            defaultGranularity:
+                                                defaultDateZoomGranularity,
+                                            granularities:
+                                                dateZoomGranularities,
+                                        }),
+                                    )
+                                }
+                            >
+                                Add date zoom
+                            </Button>
+                        ) : (
+                            <Box />
+                        )}
                     </Popover.Target>
                     <Popover.Dropdown>
                         {isAddingNew && editingControl && (

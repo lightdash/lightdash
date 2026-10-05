@@ -4,7 +4,10 @@ import { type FilterableDimension, type Metric } from './field';
 import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type AdditionalMetric } from './metricQuery';
-import { type DashboardParameters } from './parameters';
+import {
+    type DashboardParameterControl,
+    type DashboardParameters,
+} from './parameters';
 import { type ProjectType } from './projects';
 import {
     type ChartKind,
@@ -248,6 +251,8 @@ export type DashboardConfig = {
     isAddFilterDisabled?: boolean;
     pinnedParameters?: string[];
     parameterOrder?: string[];
+    /** Absent on dashboards never saved from the controls surface. */
+    parameterControls?: DashboardParameterControl[];
     dateZoomGranularities?: (DateGranularity | string)[];
     defaultDateZoomGranularity?: DateGranularity | string;
     dateZoomConfig?: DateZoomConfig;

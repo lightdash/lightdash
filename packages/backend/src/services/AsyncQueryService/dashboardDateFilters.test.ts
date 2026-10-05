@@ -3,6 +3,7 @@ import {
     FieldType,
     FilterOperator,
     getDashboardFiltersForTile,
+    getDashboardFiltersForTileAndTables,
     SupportedDbtAdapter,
     TimeFrames,
     UnitOfTime,
@@ -118,6 +119,51 @@ describe('dashboard date filter periods', () => {
                 settings: { sourceTarget, selectedPeriod: UnitOfTime.months },
             }),
         );
+    });
+
+    it('retains a full month when the tile takes the rule through an additional target', async () => {
+        const additionalTarget = {
+            fieldId: 'payments_day',
+            tableName: 'payments',
+        };
+        const filter: DashboardFilterRule = {
+            ...monthFilter,
+            tileTargets: undefined,
+            additionalTargets: [additionalTarget],
+        };
+        findExploreContainingTable.mockResolvedValue(explore);
+        const paymentsExplore = createExplore('payments', [
+            dateDimension('payments', 'day', TimeFrames.DAY),
+        ]);
+
+        const resolved = await resolve(
+            dashboardFilters(filter),
+            paymentsExplore,
+        );
+
+        expect(resolved).toEqual(
+            dashboardFilters({
+                ...filter,
+                settings: { selectedPeriod: UnitOfTime.months },
+            }),
+        );
+        expect(
+            getDashboardFiltersForTileAndTables(
+                'tile',
+                ['payments_day'],
+                resolved,
+            ).dimensions,
+        ).toEqual([
+            {
+                ...monthFilter,
+                tileTargets: undefined,
+                target: additionalTarget,
+                settings: {
+                    sourceTarget,
+                    selectedPeriod: UnitOfTime.months,
+                },
+            },
+        ]);
     });
 
     it.each([TimeFrames.MONTH, TimeFrames.QUARTER, TimeFrames.YEAR])(

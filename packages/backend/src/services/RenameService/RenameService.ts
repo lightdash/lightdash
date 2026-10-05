@@ -404,6 +404,9 @@ export class RenameService extends BaseService {
             ];
             for (const filter of allFilters) {
                 tableNames.add(filter.target.tableName);
+                filter.additionalTargets?.forEach((target) =>
+                    tableNames.add(target.tableName),
+                );
                 if (filter.tileTargets) {
                     for (const tileTarget of Object.values(
                         filter.tileTargets,

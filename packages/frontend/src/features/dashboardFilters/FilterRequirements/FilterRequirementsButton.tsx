@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    Box,
     Button,
     CloseButton,
     getDefaultZIndex,
@@ -113,7 +114,19 @@ const RuleCard: FC<RuleCardProps> = ({
     </Stack>
 );
 
-const FilterRequirementsButton: FC = () => {
+type Props = {
+    // Which edge of the button the popover lines up with; "end" when the
+    // button sits at the right end of the bar
+    align?: 'start' | 'end';
+    // "anchor" when something else opens the rules: only a point for the
+    // popover to open under is rendered
+    trigger?: 'button' | 'anchor';
+};
+
+const FilterRequirementsButton: FC<Props> = ({
+    align = 'start',
+    trigger = 'button',
+}) => {
     const [isLocalPopoverOpen, { open: openLocal, close: closeLocal }] =
         useDisclosure(false);
     const popovers = useFilterBarPopovers();
@@ -339,7 +352,7 @@ const FilterRequirementsButton: FC = () => {
 
     return (
         <Popover
-            position="bottom-start"
+            position={align === 'end' ? 'bottom-end' : 'bottom-start'}
             opened={isPopoverOpen}
             onClose={handleClose}
             onDismiss={handleClose}
@@ -347,32 +360,43 @@ const FilterRequirementsButton: FC = () => {
             // clicks would otherwise count as outside clicks and close the
             // popover, discarding staged edits
             closeOnClickOutside={memberIdPendingRemoval === null}
-            transitionProps={{ transition: 'pop-top-left' }}
+            transitionProps={{
+                transition: align === 'end' ? 'pop-top-right' : 'pop-top-left',
+            }}
             withArrow
             offset={1}
             arrowOffset={14}
         >
             <Popover.Target>
-                <Button
-                    size="xs"
-                    variant="default"
-                    radius={100}
-                    className={clsx(
-                        classes.requirementsButton,
-                        requirementCount > 0 &&
-                            classes.requirementsButtonActive,
-                    )}
-                    rightSection={
-                        requirementCount > 0 ? (
-                            <Badge size="xs" color="yellow" autoContrast circle>
-                                {requirementCount}
-                            </Badge>
-                        ) : undefined
-                    }
-                    onClick={() => (isPopoverOpen ? handleClose() : open())}
-                >
-                    Filter rules
-                </Button>
+                {trigger === 'anchor' ? (
+                    <Box />
+                ) : (
+                    <Button
+                        size="xs"
+                        variant="default"
+                        radius={100}
+                        className={clsx(
+                            classes.requirementsButton,
+                            requirementCount > 0 &&
+                                classes.requirementsButtonActive,
+                        )}
+                        rightSection={
+                            requirementCount > 0 ? (
+                                <Badge
+                                    size="xs"
+                                    color="yellow"
+                                    autoContrast
+                                    circle
+                                >
+                                    {requirementCount}
+                                </Badge>
+                            ) : undefined
+                        }
+                        onClick={() => (isPopoverOpen ? handleClose() : open())}
+                    >
+                        Filter rules
+                    </Button>
+                )}
             </Popover.Target>
 
             <Popover.Dropdown p={0}>

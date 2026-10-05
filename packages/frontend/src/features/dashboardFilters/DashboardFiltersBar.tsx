@@ -28,6 +28,12 @@ import { useCompactContentHeader } from '../../components/common/Page/useCompact
 import PinnedParameters from '../../components/PinnedParameters';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { useDashboardControls } from '../dashboardControls/context';
+import { ParameterControlPills } from '../dashboardControls/ControlPills';
+import ControlsBarEnd, {
+    ControlsBarStart,
+} from '../dashboardControls/ControlsBarEnd';
+import ControlsBarMenu from '../dashboardControls/ControlsBarMenu';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import classes from './DashboardFiltersBar.module.css';
@@ -88,7 +94,35 @@ export const DashboardFiltersBar: FC<Props> = ({
         allFilters.dimensions.length > 0 ||
         allFilters.metrics.length > 0 ||
         allFilters.tableCalculations.length > 0;
-    const hasParameters = Object.keys(parameters).length > 0;
+    const controls = useDashboardControls();
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    // With dashboard controls only parameter controls have pills
+    // With dashboard controls, filter rules show only once there is a filter
+    // to make a rule for; a control still being drafted is not one yet
+    const hasFilterRules =
+        dashboardFilters.dimensions.length > 0 ||
+        dashboardFilters.metrics.length > 0 ||
+        dashboardFilters.tableCalculations.length > 0;
+    // Authoring controls: one group of pills, then "Add control", and one
+    // menu for what the bar is set to
+    const isAuthoringControls = controls.isEnabled && isEditMode;
+    // Filters and parameters read as one group of controls. The compact
+    // drawer keeps today's bar.
+    // Viewing with the controls surface on. It stays on in a narrowed window
+    // for as long as a control is open, and the drawer waits.
+    const isViewDrafting = controls.draftsTemporaryFilters && !isEditMode;
+    const isOneGroup =
+        isAuthoringControls ||
+        (controls.isEnabled && (!compact || isViewDrafting));
+    const hasParameters = controls.isEnabled
+        ? isEditMode
+            ? controls.parameterControls.length > 0
+            : controls.parameterControls.some((control) =>
+                  control.parameterKeys.some(
+                      (key) => parameters[key] !== undefined,
+                  ),
+              )
+        : Object.keys(parameters).length > 0;
 
     const parametersSeparator: ReactNode = (
         <FilterGroupSeparator
@@ -113,6 +147,11 @@ export const DashboardFiltersBar: FC<Props> = ({
         <div className={classes.content}>
             <Group
                 className={classes.bar}
+                // An open control dims the rest of the bar
+                data-control-open={
+                    (isAuthoringControls && controls.draft !== null) ||
+                    undefined
+                }
                 justify="space-between"
                 align="flex-start"
                 wrap={compact ? 'wrap' : 'nowrap'}
@@ -136,11 +175,14 @@ export const DashboardFiltersBar: FC<Props> = ({
                     {hasTilesThatSupportFilters && (
                         <Group
                             className={classes.filters}
+                            // Pressing its buttons never takes the place of
+                            // an open control that has changes
+                            data-control-guard={controls.isEnabled || undefined}
                             align="flex-start"
                             gap="xs"
                             wrap="wrap"
                         >
-                            {renderFilters && (
+                            {!isOneGroup && renderFilters && (
                                 <FilterGroupSeparator
                                     icon={IconFilter}
                                     tooltipLabel={
@@ -156,44 +198,80 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     }
                                 />
                             )}
+                            {(isAuthoringControls || isViewDrafting) && (
+                                <ControlsBarStart isEditMode={isEditMode} />
+                            )}
                             <DashboardFilters
                                 isEditMode={isEditMode}
                                 activeTabUuid={activeTabUuid}
                             />
 
-                            {isEditMode && <FilterRequirementsButton />}
+                            {isEditMode && !controls.isEnabled && (
+                                <FilterRequirementsButton />
+                            )}
 
                             {hasDashboardTiles && hasParameters && (
                                 <>
-                                    {renderFilters && (
+                                    {!isOneGroup && renderFilters && (
                                         <Divider orientation="vertical" />
                                     )}
 
-                                    <Parameters
-                                        isEditMode={isEditMode}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onClearAll={onParameterClearAll}
-                                        parameters={parameters}
-                                        shadowedReservedNames={
-                                            shadowedReservedNames
-                                        }
-                                        isLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        parameterOrder={parameterOrder}
-                                        onParameterReorder={onParameterReorder}
-                                        separator={
-                                            compact
-                                                ? undefined
-                                                : parametersSeparator
-                                        }
-                                    />
-                                    <PinnedParameters isEditMode={isEditMode} />
+                                    {controls.isEnabled ? (
+                                        <>
+                                            {!isOneGroup &&
+                                                !compact &&
+                                                parametersSeparator}
+                                            <ParameterControlPills
+                                                isEditMode={isEditMode}
+                                                activeTabParameters={parameters}
+                                                missingRequiredParameters={
+                                                    missingRequiredParameters
+                                                }
+                                            />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Parameters
+                                                isEditMode={isEditMode}
+                                                parameterValues={
+                                                    parameterValues
+                                                }
+                                                onParameterChange={
+                                                    onParameterChange
+                                                }
+                                                onClearAll={onParameterClearAll}
+                                                parameters={parameters}
+                                                shadowedReservedNames={
+                                                    shadowedReservedNames
+                                                }
+                                                isLoading={isParameterLoading}
+                                                missingRequiredParameters={
+                                                    missingRequiredParameters
+                                                }
+                                                pinnedParameters={
+                                                    pinnedParameters
+                                                }
+                                                onParameterPin={onParameterPin}
+                                                parameterOrder={parameterOrder}
+                                                onParameterReorder={
+                                                    onParameterReorder
+                                                }
+                                                separator={
+                                                    compact
+                                                        ? undefined
+                                                        : parametersSeparator
+                                                }
+                                            />
+                                            <PinnedParameters
+                                                isEditMode={isEditMode}
+                                            />
+                                        </>
+                                    )}
                                 </>
+                            )}
+
+                            {(isAuthoringControls || isViewDrafting) && (
+                                <ControlsBarEnd isEditMode={isEditMode} />
                             )}
                         </Group>
                     )}
@@ -201,7 +279,17 @@ export const DashboardFiltersBar: FC<Props> = ({
 
                 {/* Right section - date zoom and hide button */}
                 <Group gap="xs" ml="auto" wrap={compact ? 'wrap' : 'nowrap'}>
-                    {hasDashboardTiles &&
+                    {isAuthoringControls && hasDashboardTiles && (
+                        <DateZoom isEditMode={isEditMode} />
+                    )}
+                    {isAuthoringControls && (
+                        <ControlsBarMenu
+                            hasFilterRules={hasFilterRules}
+                            hasDateZoom={hasDashboardTiles}
+                        />
+                    )}
+                    {!isAuthoringControls &&
+                        hasDashboardTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
                                 <Divider orientation="vertical" />
@@ -260,6 +348,8 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     size="xs"
                                     variant="subtle"
                                     color="gray"
+                                    // An open control stays in the bar
+                                    disabled={controls.draft !== null}
                                     rightSection={
                                         <MantineIcon icon={IconChevronUp} />
                                     }
@@ -275,7 +365,7 @@ export const DashboardFiltersBar: FC<Props> = ({
         </div>
     );
 
-    if (!compact || isEditMode) return content;
+    if (!compact || isEditMode || isViewDrafting) return content;
 
     return (
         <Box px="sm" py="xs">

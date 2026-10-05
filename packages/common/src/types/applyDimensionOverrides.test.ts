@@ -742,6 +742,59 @@ describe('applyDimensionOverrides', () => {
     // required / requiredGroupId are set by the dashboard editor; an override
     // (shared link, embed JWT, scheduler) must not be able to strip or inject
     // them.
+    describe('additional targets are saved-dashboard-owned', () => {
+        const additionalTargets = [
+            { fieldId: 'payments_status', tableName: 'payments' },
+        ];
+        const saved = (rule: DashboardFilterRule): DashboardFilters => ({
+            dimensions: [rule],
+            metrics: [],
+            tableCalculations: [],
+        });
+
+        it('keeps the saved additional targets when the override has none', () => {
+            const [result] = applyDimensionOverrides(
+                saved({
+                    ...createBaseDashboardFilter(
+                        'filter-1',
+                        'orders_status',
+                        'orders',
+                    ),
+                    additionalTargets,
+                }),
+                [createOverrideFilter('filter-1', 'orders_status', 'orders')],
+            );
+
+            expect(result.values).toEqual(['overrideValue']);
+            expect(result.additionalTargets).toEqual(additionalTargets);
+        });
+
+        it('drops additional targets the saved rule no longer has', () => {
+            const [result] = applyDimensionOverrides(
+                saved(
+                    createBaseDashboardFilter(
+                        'filter-1',
+                        'orders_status',
+                        'orders',
+                    ),
+                ),
+                [
+                    {
+                        ...createOverrideFilter(
+                            'stale-id',
+                            'orders_status',
+                            'orders',
+                        ),
+                        additionalTargets,
+                    },
+                ],
+            );
+
+            expect(result.id).toBe('filter-1');
+            expect(result.additionalTargets).toBeUndefined();
+        });
+    });
+
     describe('requirement flags are saved-dashboard-owned', () => {
         it('keeps the saved requirement flags when an override omits them', () => {
             const savedFilters: DashboardFilters = {

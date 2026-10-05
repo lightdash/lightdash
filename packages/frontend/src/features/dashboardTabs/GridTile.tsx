@@ -14,6 +14,8 @@ import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile'
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../components/DashboardTiles/UnmetRequirementsPlaceholder';
+import { useIsTileHostingControl } from '../dashboardControls/context';
+import ControlTile from '../dashboardControls/ControlTile';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 
 type GridTileProps = Pick<
@@ -79,10 +81,21 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
     }
 });
 
-const GridTile: FC<GridTileProps> = (props) => (
-    <ErrorBoundary wrapper={{ h: '100%', w: '100%' }}>
-        <GridTileInner {...props} />
-    </ErrorBoundary>
-);
+const GridTile: FC<GridTileProps> = (props) => {
+    // While a dashboard control is open the tile hosts its mapping
+    const isHostingControl = useIsTileHostingControl(props.tile);
+    return (
+        <ErrorBoundary wrapper={{ h: '100%', w: '100%' }}>
+            {isHostingControl ? (
+                <ControlTile tile={props.tile}>
+                    {/* Backdrop or preview, the chart alone: no drag handle or edit actions */}
+                    <GridTileInner {...props} isEditMode={false} />
+                </ControlTile>
+            ) : (
+                <GridTileInner {...props} />
+            )}
+        </ErrorBoundary>
+    );
+};
 
 export default GridTile;

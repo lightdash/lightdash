@@ -31,6 +31,32 @@ describe('applyMetricOverrides', () => {
         tableCalculations: [],
     });
 
+    it('keeps the saved additional targets when the override has none or stale ones', () => {
+        const savedAdditionalTargets = [
+            { fieldId: 'payments_total', tableName: 'payments' },
+        ];
+        const savedFilters = createDashboardFilters([
+            {
+                ...createMetricFilter('metric-1', 'orders_total'),
+                additionalTargets: savedAdditionalTargets,
+            },
+            createMetricFilter('metric-2', 'orders_count'),
+        ]);
+
+        const result = applyMetricOverrides(savedFilters, [
+            createMetricFilter('metric-1', 'orders_total', ['999']),
+            {
+                ...createMetricFilter('metric-2', 'orders_count', ['5']),
+                additionalTargets: savedAdditionalTargets,
+            },
+        ]);
+
+        expect(result[0].values).toEqual(['999']);
+        expect(result[0].additionalTargets).toEqual(savedAdditionalTargets);
+        expect(result[1].values).toEqual(['5']);
+        expect(result[1].additionalTargets).toBeUndefined();
+    });
+
     it('applies override values while keeping saved-dashboard-owned fields', () => {
         const savedTileTargets = {
             'tile-1': { fieldId: 'orders_total', tableName: 'orders' },

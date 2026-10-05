@@ -870,13 +870,14 @@ export class ValidationService extends BaseService {
 
                     const dashboardTileTargets = dashboardFilterRules.reduce<
                         DashboardTileTarget[]
-                    >((acc, t) => {
-                        if (t.tileTargets) {
-                            const targets = Object.values(t.tileTargets);
-                            return [...acc, ...targets];
-                        }
-                        return acc;
-                    }, []);
+                    >(
+                        (acc, t) => [
+                            ...acc,
+                            ...Object.values(t.tileTargets ?? {}),
+                            ...(t.additionalTargets ?? []),
+                        ],
+                        [],
+                    );
                     const tileTargetErrors = dashboardTileTargets.reduce<
                         CreateDashboardValidation[]
                     >(

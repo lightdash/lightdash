@@ -65,6 +65,7 @@ import {
     getMetrics,
     getMetricsWithValidParameters,
     getPivotValueColumnName,
+    getTakenOutParameterKeys,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAgentContent,
@@ -94,6 +95,7 @@ import {
     NotFoundError,
     NotImplementedError,
     NotSupportedError,
+    omitTakenOutParameterValues,
     OrganizationAccessStatus,
     ParameterError,
     ParseError,
@@ -7346,8 +7348,8 @@ export class AsyncQueryService extends ProjectService {
                 formatRefusedMergeDashboardFilters(refusedDashboardFilters),
             );
         }
-        const rawDashboardParameters =
-            await this.dashboardModel.getDashboardParametersByIdOrSlug(
+        const dashboardParameterState =
+            await this.dashboardModel.getDashboardParameterStateByIdOrSlug(
                 dashboardUuid,
                 projectUuid,
             );
@@ -7356,12 +7358,16 @@ export class AsyncQueryService extends ProjectService {
             explores: Object.values(exploreBySourceId),
             dashboardValues: {
                 ...convertDashboardParametersToValuesMap(
-                    rawDashboardParameters,
+                    dashboardParameterState.parameters ?? undefined,
                 ),
                 ...parameters,
             },
             chartSavedValues: savedChart.parameters ?? {},
             isTargeted: true,
+            takenOutKeys: getTakenOutParameterKeys(
+                dashboardParameterState.parameterControls ?? undefined,
+                tileUuid,
+            ),
         });
         const outcome = await this.executeAsyncMergeQuery({
             account,
@@ -7604,7 +7610,7 @@ export class AsyncQueryService extends ProjectService {
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             { warehouseCredentials, warehouseConnectionUuid, connectionRoute },
-            rawDashboardParameters,
+            dashboardParameterState,
             projectParameters,
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
@@ -7616,7 +7622,7 @@ export class AsyncQueryService extends ProjectService {
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
-            this.dashboardModel.getDashboardParametersByIdOrSlug(
+            this.dashboardModel.getDashboardParameterStateByIdOrSlug(
                 resolvedDashboardUuid,
                 projectUuid,
             ),
@@ -7634,12 +7640,16 @@ export class AsyncQueryService extends ProjectService {
             explore,
             dashboardValues: {
                 ...convertDashboardParametersToValuesMap(
-                    rawDashboardParameters,
+                    dashboardParameterState.parameters ?? undefined,
                 ),
                 ...parameters,
             },
             chartSavedValues: savedChart.parameters ?? {},
             isTargeted: true,
+            takenOutKeys: getTakenOutParameterKeys(
+                dashboardParameterState.parameterControls ?? undefined,
+                tileUuid,
+            ),
             preloadedProjectParameters: projectParameters,
         });
 
@@ -10910,24 +10920,31 @@ export class AsyncQueryService extends ProjectService {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
 
-        const [rawDashboardParameters, projectParameters] = await Promise.all([
-            this.dashboardModel.getDashboardParametersByIdOrSlug(
+        const [dashboardParameterState, projectParameters] = await Promise.all([
+            this.dashboardModel.getDashboardParameterStateByIdOrSlug(
                 resolvedDashboardUuid,
                 projectUuid,
             ),
             this.projectParametersModel.find(projectUuid),
         ]);
 
-        const dashboardParameters = convertDashboardParametersToValuesMap(
-            rawDashboardParameters,
+        // SQL charts save no parameter values, so a taken-out key falls back to its default
+        const takenOutKeys = getTakenOutParameterKeys(
+            dashboardParameterState.parameterControls ?? undefined,
+            tileUuid,
         );
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             undefined,
-            args.parameters,
-            dashboardParameters,
+            omitTakenOutParameterValues(args.parameters ?? {}, takenOutKeys),
+            omitTakenOutParameterValues(
+                convertDashboardParametersToValuesMap(
+                    dashboardParameterState.parameters ?? undefined,
+                ) ?? {},
+                takenOutKeys,
+            ),
             projectParameters,
         );
 

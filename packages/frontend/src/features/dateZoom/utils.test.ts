@@ -1,5 +1,5 @@
 import { DateGranularity } from '@lightdash/common';
-import { getGranularityLabel } from './utils';
+import { getGranularityLabel, getNewDateZoomControl } from './utils';
 
 describe('getGranularityLabel', () => {
     it('returns the override for a standard grain when present', () => {
@@ -20,5 +20,36 @@ describe('getGranularityLabel', () => {
                 fiscal_quarter: 'Fiscal Quarter',
             }),
         ).toBe('Fiscal Quarter');
+    });
+});
+
+describe('getNewDateZoomControl', () => {
+    it('starts on the default grain, else the first enabled one, else month', () => {
+        const granularities = [DateGranularity.WEEK, DateGranularity.YEAR];
+        expect(
+            getNewDateZoomControl({
+                defaultGranularity: DateGranularity.YEAR,
+                granularities,
+            }),
+        ).toMatchObject({ name: 'Date zoom', granularity: 'Year' });
+        expect(
+            getNewDateZoomControl({
+                defaultGranularity: undefined,
+                granularities,
+            }).granularity,
+        ).toBe(DateGranularity.WEEK);
+        expect(
+            getNewDateZoomControl({
+                defaultGranularity: undefined,
+                granularities: [],
+            }).granularity,
+        ).toBe(DateGranularity.MONTH);
+    });
+
+    it('gives every new control its own id', () => {
+        const args = { defaultGranularity: undefined, granularities: [] };
+        expect(getNewDateZoomControl(args).uuid).not.toBe(
+            getNewDateZoomControl(args).uuid,
+        );
     });
 });

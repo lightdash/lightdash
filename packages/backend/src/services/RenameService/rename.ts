@@ -616,6 +616,13 @@ export const renameDashboardFilterRules = (
             fieldId: replaceId(filterRule.target.fieldId),
             tableName: replaceFull(filterRule.target.tableName),
         },
+        ...(filterRule.additionalTargets && {
+            additionalTargets: filterRule.additionalTargets.map((target) => ({
+                ...target,
+                fieldId: replaceId(target.fieldId),
+                tableName: replaceFull(target.tableName),
+            })),
+        }),
         tileTargets: filterRule.tileTargets
             ? Object.fromEntries(
                   Object.entries(filterRule.tileTargets).map(([key, value]) => [

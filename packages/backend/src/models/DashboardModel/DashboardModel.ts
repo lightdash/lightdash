@@ -39,6 +39,7 @@ import {
     type DashboardBasicDetailsWithTileTypes,
     type DashboardConfig,
     type DashboardFilters,
+    type DashboardParameterControl,
     type DashboardParameters,
     type DashboardVersionSummary,
 } from '@lightdash/common';
@@ -146,6 +147,11 @@ export type GetChartTileQuery = Pick<
 > &
     Pick<SavedChartTable['base'], 'saved_query_uuid'>;
 
+export type DashboardParameterState = {
+    parameters: DashboardParameters | null;
+    parameterControls: DashboardParameterControl[] | null;
+};
+
 type DashboardModelArguments = {
     database: Knex;
     contentVerificationModel?: ContentVerificationModel;
@@ -203,7 +209,7 @@ export class DashboardModel {
         dashboardId: number,
         version: DashboardVersionedFields,
     ): Promise<void> {
-        // Narrow date-zoom control tileTargets to tiles present in this version,
+        // Narrow date-zoom and parameter control tileTargets to tiles present in this version,
         // mirroring the filter tileTargets narrowing below. This drops targets
         // for tiles removed on any deletion path (tile/tab/batch delete) without
         // any frontend wiring. Control-level pruning stays a frontend concern.
@@ -212,21 +218,33 @@ export class DashboardModel {
                 .map((tile) => tile.uuid)
                 .filter((uuid): uuid is string => !!uuid),
         );
-        const config = version.config?.dateZoomConfig
-            ? {
-                  ...version.config,
-                  dateZoomConfig: {
-                      ...version.config.dateZoomConfig,
-                      tileTargets: Object.fromEntries(
-                          Object.entries(
-                              version.config.dateZoomConfig.tileTargets,
-                          ).filter(([tileUuid]) =>
-                              savedTileUuids.has(tileUuid),
-                          ),
-                      ),
-                  },
-              }
-            : version.config;
+        const narrowTileTargets = <T>(
+            tileTargets: Record<string, T>,
+        ): Record<string, T> =>
+            Object.fromEntries(
+                Object.entries(tileTargets).filter(([tileUuid]) =>
+                    savedTileUuids.has(tileUuid),
+                ),
+            );
+        const config = version.config && {
+            ...version.config,
+            ...(version.config.dateZoomConfig && {
+                dateZoomConfig: {
+                    ...version.config.dateZoomConfig,
+                    tileTargets: narrowTileTargets(
+                        version.config.dateZoomConfig.tileTargets,
+                    ),
+                },
+            }),
+            ...(version.config.parameterControls && {
+                parameterControls: version.config.parameterControls.map(
+                    (control) => ({
+                        ...control,
+                        tileTargets: narrowTileTargets(control.tileTargets),
+                    }),
+                ),
+            }),
+        };
 
         const [versionId] = await trx(DashboardVersionsTableName).insert(
             {
@@ -1631,14 +1649,14 @@ export class DashboardModel {
     }
 
     /**
-     * Lightweight query to fetch only dashboard parameters without loading
-     * tiles, tabs, verification, or other dashboard metadata.
+     * Lightweight query to fetch only dashboard parameters and their controls
+     * without loading tiles, tabs, verification, or other dashboard metadata.
      * Used by dashboard chart query execution where only parameters are needed.
      */
-    async getDashboardParametersByIdOrSlug(
+    async getDashboardParameterStateByIdOrSlug(
         dashboardUuidOrSlug: string,
         projectUuid: string,
-    ): Promise<DashboardParameters | undefined> {
+    ): Promise<DashboardParameterState> {
         const query = this.database(DashboardsTableName)
             .innerJoin(
                 DashboardVersionsTableName,
@@ -1650,8 +1668,15 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardViewsTableName}.dashboard_version_id`,
             )
-            .select<{ parameters: DashboardParameters | null } | undefined>(
+            .select<
+                | {
+                      parameters: DashboardParameters | null;
+                      config: DashboardConfig | null;
+                  }
+                | undefined
+            >(
                 `${DashboardViewsTableName}.parameters`,
+                `${DashboardVersionsTableName}.config`,
             )
             .where(`${DashboardsTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
@@ -1682,7 +1707,10 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
-        return row.parameters ?? undefined;
+        return {
+            parameters: row.parameters ?? null,
+            parameterControls: row.config?.parameterControls ?? null,
+        };
     }
 
     /*

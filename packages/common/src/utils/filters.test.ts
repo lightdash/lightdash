@@ -24,9 +24,14 @@ import {
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     excludeTilesFromTabScopedFilters,
+    getAvailableDashboardFilterTarget,
     getDashboardFilterableFieldKey,
     getDashboardFilterField,
+    getDashboardFilterRulesForTables,
+    getDashboardFilterRulesForTile,
     getDashboardFilterRulesForTileAndReferences,
+    getDashboardFilterRulesForTileAndTables,
+    getDashboardFilterTargetForTile,
     getFilterExpression,
     getFilterRuleFromFieldWithDefaultValue,
     getFilterRulesFromGroup,
@@ -2926,5 +2931,201 @@ describe('getDashboardFilterableFieldKey', () => {
         expect(
             getDashboardFilterableFieldKey({ ...field, tableLabel: 'Other' }),
         ).not.toBe(getDashboardFilterableFieldKey(field));
+    });
+});
+
+describe('dashboard filter additional targets', () => {
+    const status = { fieldId: 'orders_status', tableName: 'orders' };
+    const paymentStatus = { fieldId: 'payments_status', tableName: 'payments' };
+    const refundStatus = { fieldId: 'refunds_status', tableName: 'refunds' };
+
+    const rule = (
+        overrides: Partial<DashboardFilterRule> = {},
+    ): DashboardFilterRule => ({
+        id: 'f-status',
+        target: status,
+        operator: FilterOperator.EQUALS,
+        values: ['completed'],
+        label: undefined,
+        ...overrides,
+    });
+
+    describe('getAvailableDashboardFilterTarget', () => {
+        test('prefers the target over additional targets', () => {
+            expect(
+                getAvailableDashboardFilterTarget(
+                    rule({ additionalTargets: [paymentStatus] }),
+                    ['payments_status', 'orders_status'],
+                ),
+            ).toEqual(status);
+        });
+
+        test('falls back to the first additional target the chart has', () => {
+            expect(
+                getAvailableDashboardFilterTarget(
+                    rule({ additionalTargets: [paymentStatus, refundStatus] }),
+                    ['refunds_status', 'payments_status'],
+                ),
+            ).toEqual(paymentStatus);
+        });
+
+        test('is undefined when the chart has none of the fields', () => {
+            expect(
+                getAvailableDashboardFilterTarget(
+                    rule({ additionalTargets: [paymentStatus] }),
+                    ['customers_name'],
+                ),
+            ).toBeUndefined();
+        });
+    });
+
+    describe('getDashboardFilterTargetForTile', () => {
+        const mapped = rule({
+            additionalTargets: [paymentStatus],
+            tileTargets: { 't-excluded': false, 't-explicit': refundStatus },
+        });
+
+        test('a tile with no entry uses the first field its chart has', () => {
+            expect(
+                getDashboardFilterTargetForTile(mapped, 't-new', [
+                    'payments_status',
+                ]),
+            ).toEqual(paymentStatus);
+            expect(
+                getDashboardFilterTargetForTile(mapped, 't-new', [
+                    'customers_name',
+                ]),
+            ).toBeUndefined();
+        });
+
+        test('an excluded tile uses no field', () => {
+            expect(
+                getDashboardFilterTargetForTile(mapped, 't-excluded', [
+                    'orders_status',
+                    'payments_status',
+                ]),
+            ).toBeUndefined();
+        });
+
+        test('an explicit entry is not replaced by another mapped field', () => {
+            expect(
+                getDashboardFilterTargetForTile(mapped, 't-explicit', [
+                    'refunds_status',
+                    'orders_status',
+                ]),
+            ).toEqual(refundStatus);
+            expect(
+                getDashboardFilterTargetForTile(mapped, 't-explicit', [
+                    'orders_status',
+                    'payments_status',
+                ]),
+            ).toBeUndefined();
+        });
+    });
+
+    describe('getDashboardFilterRulesForTileAndTables', () => {
+        test('a tile picks the filter up through an additional target', () => {
+            const [applied, ...rest] = getDashboardFilterRulesForTileAndTables(
+                't-new',
+                ['payments_status'],
+                [rule({ additionalTargets: [paymentStatus] })],
+            );
+            expect(rest).toEqual([]);
+            expect(applied).toEqual({
+                ...rule(),
+                target: paymentStatus,
+                settings: { sourceTarget: status },
+            });
+        });
+
+        test('keeps the target when the chart has it', () => {
+            const withAdditional = rule({ additionalTargets: [paymentStatus] });
+            expect(
+                getDashboardFilterRulesForTileAndTables(
+                    't-new',
+                    ['orders_status', 'payments_status'],
+                    [withAdditional],
+                ),
+            ).toEqual([withAdditional]);
+        });
+
+        test('an excluded tile does not pick it up through an additional target', () => {
+            expect(
+                getDashboardFilterRulesForTileAndTables(
+                    't-1',
+                    ['payments_status'],
+                    [
+                        rule({
+                            additionalTargets: [paymentStatus],
+                            tileTargets: { 't-1': false },
+                        }),
+                    ],
+                ),
+            ).toEqual([]);
+        });
+
+        test('an explicit tile target does not fall back to additional targets', () => {
+            const explicit = rule({
+                additionalTargets: [paymentStatus],
+                tileTargets: { 't-1': refundStatus },
+            });
+            expect(
+                getDashboardFilterRulesForTileAndTables(
+                    't-1',
+                    ['payments_status'],
+                    [explicit],
+                ),
+            ).toEqual([]);
+            expect(
+                getDashboardFilterRulesForTileAndTables(
+                    't-1',
+                    ['refunds_status'],
+                    [explicit],
+                ).map((applied) => applied.target),
+            ).toEqual([refundStatus]);
+        });
+
+        test('resolving twice gives the same rule', () => {
+            const once = getDashboardFilterRulesForTileAndTables(
+                't-new',
+                ['payments_status'],
+                [rule({ additionalTargets: [paymentStatus] })],
+            );
+            expect(
+                getDashboardFilterRulesForTileAndTables(
+                    't-new',
+                    ['payments_status'],
+                    once,
+                ),
+            ).toEqual(once);
+        });
+    });
+
+    describe('without additional targets', () => {
+        const explicit = rule({ tileTargets: { 't-1': paymentStatus } });
+
+        test('tile rules are unchanged', () => {
+            const plain = rule();
+            expect(getDashboardFilterRulesForTile('t-1', [plain])[0]).toBe(
+                plain,
+            );
+            expect(getDashboardFilterRulesForTile('t-1', [explicit])).toEqual([
+                {
+                    ...explicit,
+                    target: paymentStatus,
+                    settings: { sourceTarget: status },
+                },
+            ]);
+        });
+
+        test('table rules are the same objects, matched on the target only', () => {
+            const plain = rule();
+            expect(
+                getDashboardFilterRulesForTables(['orders_status'], [plain])[0],
+            ).toBe(plain);
+            expect(
+                getDashboardFilterRulesForTables(['payments_status'], [plain]),
+            ).toEqual([]);
+        });
     });
 });

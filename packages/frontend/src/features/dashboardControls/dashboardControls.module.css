@@ -1,0 +1,212 @@
+/* The open control's pill: the selected ring. Beats the theme's default-variant border on specificity */
+button.editorPill[data-variant='default']:not([data-disabled], :disabled) {
+    flex: 0 1 auto;
+    min-width: 0;
+    border-color: var(--mantine-color-text);
+    box-shadow: 0 0 0 1px var(--mantine-color-text);
+}
+
+/* One field or parameter of the open control */
+.mappingLine {
+    cursor: default;
+}
+
+/* A line's tile count: one right-aligned column down the list */
+.count {
+    flex: 0 0 auto;
+    min-width: 4.25rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A suggestion's count: the same box, nothing to press */
+.countStatic {
+    pointer-events: none;
+    font-weight: 400;
+    color: var(--mantine-color-dimmed);
+}
+
+/* Takes the room of a remove button on a line that has none */
+.lineSpacer {
+    flex: 0 0 auto;
+    visibility: hidden;
+}
+
+/* Shown tiles on a dashboard tab: the ink of their outline */
+.shownBadge[data-variant='filled'] {
+    background-color: var(--mantine-color-text);
+    color: var(--mantine-color-body);
+}
+
+/* The shrunk popover's line: opens the popover again */
+.shrunkLabel {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: min(360px, 50vw);
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+
+    &:hover,
+    &:focus-visible {
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+/* The first step's list of fields and parameters */
+.choiceList {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.choiceCount {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.tile {
+    height: 100%;
+    padding: var(--mantine-spacing-sm);
+    overflow: hidden;
+    cursor: default;
+}
+
+.tileBody {
+    display: flex;
+    flex: 0 0 auto;
+    justify-content: center;
+    min-height: 0;
+}
+
+/* Not previewed: the tile's last chart, faded, with the mapping on top */
+.tileStage {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.tileBackdrop {
+    position: absolute;
+    inset: 0;
+    opacity: 0.3;
+    pointer-events: none;
+    user-select: none;
+}
+
+.tileBlockLayer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+/* A solid surface, so the mapping never competes with the chart behind it */
+.tileBlock {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: calc(320px + 2 * var(--mantine-spacing-sm));
+    max-height: 100%;
+    overflow-y: auto;
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-default);
+    background-color: var(--mantine-color-body);
+    pointer-events: auto;
+}
+
+.tilePreview {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* The chart body only: the tile's own title and actions stay out */
+.tilePreview,
+.tileBackdrop {
+    & [data-has-actions] {
+        display: none;
+    }
+
+    & [data-with-edit-mode] {
+        padding: 0 !important;
+        box-shadow: none;
+        background: transparent !important;
+    }
+}
+
+.tilePicker {
+    width: 100%;
+    max-width: 320px;
+
+    /* Room for the running value. Keep in step with rightSectionWidth in
+       ControlTileMapping.tsx */
+    &[data-run-value] [data-position='right'] {
+        width: min(55%, 176px);
+    }
+
+    /* The running value, then the clear button */
+    &[data-run-value] [data-combined-clear-section] {
+        flex-direction: row-reverse;
+        justify-content: flex-start;
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+.tilePickerValue {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.tileHighlighted {
+    outline: 2px solid var(--mantine-color-text);
+    /* Drawn inside the tile, where no grid or tile ancestor can clip it */
+    outline-offset: -2px;
+    border-radius: var(--mantine-radius-sm);
+}
+
+/* The slot at the start of every control pill: the icon of its kind, and
+   over it the drag grip of a pill that can be dragged. Both sit in the same
+   cell, so swapping them never changes the pill's width. */
+.kindSlot {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 0.875rem;
+    height: 0.875rem;
+}
+
+.kindIcon,
+.kindGrip {
+    grid-area: 1 / 1;
+}
+
+.kindGrip {
+    opacity: 0;
+}
+
+/* Hover or keyboard focus of a draggable pill: the grip takes the icon's place */
+button:hover .kindSlot[data-draggable] .kindIcon,
+button:focus-visible .kindSlot[data-draggable] .kindIcon {
+    opacity: 0;
+}
+
+button:hover .kindSlot[data-draggable] .kindGrip,
+button:focus-visible .kindSlot[data-draggable] .kindGrip {
+    opacity: 1;
+}
+
+/* A dashboard tab's count: room that is always there, so no tab changes
+   width when a control opens or a tile count is clicked */
+.tabSlot {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    width: 3.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* The dashed outline the bar's add button has always had */
+button.addControl[data-variant='default'] {
+    border-style: dashed;
+}

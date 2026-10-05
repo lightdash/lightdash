@@ -46,6 +46,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
+import { copyParameterControlTileTargets } from '../dashboardControls/parameterMapping';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
@@ -349,6 +350,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
+    const parameterControls = useDashboardContext((c) => c.parameterControls);
+    const setParameterControls = useDashboardContext(
+        (c) => c.setParameterControls,
+    );
     const unmetFilterRequirements = useDashboardContext(
         (c) => c.unmetFilterRequirements,
     );
@@ -927,6 +932,26 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 );
                 if (nextDateZoomConfig !== dateZoomConfig) {
                     setDateZoomConfig(nextDateZoomConfig);
+                }
+
+                // And for parameter controls: a copy stays out of the
+                // controls its source tile is taken out of.
+                if (parameterControls) {
+                    const nextParameterControls =
+                        copyParameterControlTileTargets(
+                            parameterControls,
+                            Object.fromEntries(
+                                [...tileUuidMapping].map(
+                                    ([fromTileUuid, toTileUuid]) => [
+                                        toTileUuid,
+                                        fromTileUuid,
+                                    ],
+                                ),
+                            ),
+                        );
+                    if (nextParameterControls !== parameterControls) {
+                        setParameterControls(nextParameterControls);
+                    }
                 }
             }
         }

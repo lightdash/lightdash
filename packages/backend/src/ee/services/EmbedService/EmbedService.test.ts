@@ -168,6 +168,17 @@ describe('EmbedService', () => {
                             },
                             region: { parameterName: 'region', value: 'EU' },
                         },
+                        config: {
+                            isDateZoomDisabled: false,
+                            parameterControls: [
+                                {
+                                    id: 'control-1',
+                                    label: 'Status',
+                                    parameterKeys: ['status'],
+                                    tileTargets: { 'tile-out': false },
+                                },
+                            ],
+                        },
                     }),
                 },
                 projectService: {
@@ -175,7 +186,10 @@ describe('EmbedService', () => {
                     combineParameters,
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
-            const combine = (dashboardUuid: string | null) =>
+            const combine = (
+                dashboardUuid: string | null,
+                tileUuid: string | null = null,
+            ) =>
                 (
                     embedService as unknown as {
                         _combineSavedChartParameters(args: {
@@ -183,6 +197,7 @@ describe('EmbedService', () => {
                             explore: Explore;
                             chart: SavedChartDAO;
                             dashboardUuid: string | null;
+                            tileUuid: string | null;
                             acceptedUserParameters: ParametersValuesMap;
                         }): Promise<ParametersValuesMap>;
                     }
@@ -191,6 +206,7 @@ describe('EmbedService', () => {
                     explore: validExplore,
                     chart,
                     dashboardUuid,
+                    tileUuid,
                     acceptedUserParameters: { region: 'US' },
                 });
             return {
@@ -203,17 +219,30 @@ describe('EmbedService', () => {
         test('a dashboard tile resolves its chart values against the dashboard', async () => {
             const { combine, resolveDashboardTileParameters } = buildService();
 
-            await expect(combine('dashboard-uuid')).resolves.toEqual({
-                status: 'resolved',
-            });
+            await expect(combine('dashboard-uuid', 'tile-in')).resolves.toEqual(
+                {
+                    status: 'resolved',
+                },
+            );
             expect(resolveDashboardTileParameters).toHaveBeenCalledWith({
                 projectUuid: mockProjectUuid,
                 explore: validExplore,
                 dashboardValues: { status: 'Shipped', region: 'US' },
                 chartSavedValues: { status: 'Cancelled' },
                 isTargeted: true,
+                takenOutKeys: [],
                 preloadedProjectParameters: null,
             });
+        });
+
+        test('a tile taken out of a control keeps those keys for itself', async () => {
+            const { combine, resolveDashboardTileParameters } = buildService();
+
+            await combine('dashboard-uuid', 'tile-out');
+
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith(
+                expect.objectContaining({ takenOutKeys: ['status'] }),
+            );
         });
 
         test('a chart embed keeps the request values over the fallback chain', async () => {

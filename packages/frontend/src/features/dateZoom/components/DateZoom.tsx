@@ -3,6 +3,7 @@ import {
     getTileControl,
     interpolateUiString,
     isStandardDateGranularity,
+    type DateZoomControl,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -28,7 +29,8 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { getGranularityLabel } from '../utils';
+import { useDashboardControls } from '../../dashboardControls/context';
+import { getGranularityLabel, getNewDateZoomControl } from '../utils';
 import styles from './DateZoom.module.css';
 import { DateZoomControlPills } from './DateZoomControlPills';
 import { DateZoomCrossTabFieldsLoader } from './DateZoomCrossTabFieldsLoader';
@@ -129,6 +131,9 @@ type Props = {
 export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
+    const [editingControl, setEditingControl] = useState<DateZoomControl>();
+    // With dashboard controls "Add date zoom" is the last item of the menu
+    const isAddInMenu = useDashboardControls().isEnabled && isEditMode;
 
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
@@ -462,6 +467,27 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                             )}
                                         </>
                                     )}
+                                    {isAddInMenu && (
+                                        <>
+                                            <Menu.Divider />
+                                            <Menu.Item
+                                                fz="xs"
+                                                closeMenuOnClick
+                                                onClick={() =>
+                                                    setEditingControl(
+                                                        getNewDateZoomControl({
+                                                            defaultGranularity:
+                                                                defaultDateZoomGranularity,
+                                                            granularities:
+                                                                dateZoomGranularities,
+                                                        }),
+                                                    )
+                                                }
+                                            >
+                                                Add date zoom
+                                            </Menu.Item>
+                                        </>
+                                    )}
                                 </>
                             ) : (
                                 <>
@@ -559,7 +585,12 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                         </Menu.Dropdown>
                     </Menu>
                 )}
-                <DateZoomControlPills isEditMode={isEditMode} />
+                <DateZoomControlPills
+                    isEditMode={isEditMode}
+                    editingControl={editingControl}
+                    setEditingControl={setEditingControl}
+                    hasAddButton={!isAddInMenu}
+                />
             </Group>
             {isEditMode && <DateZoomCrossTabFieldsLoader />}
         </Group>

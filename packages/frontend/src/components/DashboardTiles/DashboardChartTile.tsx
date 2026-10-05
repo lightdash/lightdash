@@ -27,6 +27,8 @@ import {
     getPivotConfig,
     getMergeDefinitionQueryExploreNames,
     getShowColumnTotalsFromChartConfig,
+    getEffectiveTakenOutParameterKeys,
+    getTakenOutParameterKeys,
     getVisibleFields,
     isCartesianChartConfig,
     isCompleteLayout,
@@ -128,6 +130,9 @@ import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAg
 import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { DashboardTileComments } from '../../features/comments';
+import TileParameterControlPrompt, {
+    TileMissingParametersPrompt,
+} from '../../features/dashboardControls/TileParameterControlPrompt';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -842,6 +847,28 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
 
         const parameterDefinitions = useDashboardContext(
             (c) => c.parameterDefinitions,
+        );
+        const parameterControls = useDashboardContext(
+            (c) => c.parameterControls,
+        );
+        const savedParameterControls = useDashboardContext(
+            (c) => c.dashboard?.config?.parameterControls,
+        );
+        // What the query ran with: a take-out on screen reaches it at once,
+        // a saved one keeps applying until the dashboard is saved again
+        const effectiveTakenOutKeys = useMemo(
+            () =>
+                getEffectiveTakenOutParameterKeys({
+                    takenOutKeys: getTakenOutParameterKeys(
+                        parameterControls,
+                        tileUuid,
+                    ),
+                    savedTakenOutKeys: getTakenOutParameterKeys(
+                        savedParameterControls,
+                        tileUuid,
+                    ),
+                }),
+            [parameterControls, savedParameterControls, tileUuid],
         );
 
         const preAggregateStatuses = useDashboardTileStatusContext(
@@ -1603,37 +1630,58 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         chart.parameters ??
                                                                         {},
                                                                     isTargeted: true,
+                                                                    takenOutKeys:
+                                                                        effectiveTakenOutKeys,
                                                                 },
                                                             ),
                                                             getUiString,
                                                         );
                                                     return (
-                                                        <Text
+                                                        <Group
                                                             key={key}
-                                                            size="xs"
-                                                            c="dimmed"
+                                                            gap="xs"
+                                                            wrap="nowrap"
                                                         >
-                                                            <Text span fw={600}>
-                                                                {parameterDefinitions[
-                                                                    key
-                                                                ]?.label || key}
-                                                                :
-                                                            </Text>{' '}
-                                                            {Array.isArray(
-                                                                value,
-                                                            )
-                                                                ? value.join(
-                                                                      ', ',
-                                                                  )
-                                                                : value}{' '}
                                                             <Text
-                                                                span
-                                                                inherit
-                                                                fs="italic"
+                                                                size="xs"
+                                                                c="dimmed"
                                                             >
-                                                                {`(${sourceLabel})`}
+                                                                <Text
+                                                                    span
+                                                                    fw={600}
+                                                                >
+                                                                    {parameterDefinitions[
+                                                                        key
+                                                                    ]?.label ||
+                                                                        key}
+                                                                    :
+                                                                </Text>{' '}
+                                                                {Array.isArray(
+                                                                    value,
+                                                                )
+                                                                    ? value.join(
+                                                                          ', ',
+                                                                      )
+                                                                    : value}{' '}
+                                                                <Text
+                                                                    span
+                                                                    inherit
+                                                                    fs="italic"
+                                                                >
+                                                                    {`(${sourceLabel})`}
+                                                                </Text>
                                                             </Text>
-                                                        </Text>
+                                                            {isEditMode && (
+                                                                <TileParameterControlPrompt
+                                                                    tileUuid={
+                                                                        tileUuid
+                                                                    }
+                                                                    parameterKey={
+                                                                        key
+                                                                    }
+                                                                />
+                                                            )}
+                                                        </Group>
                                                     );
                                                 })}
                                             </Stack>
@@ -2608,6 +2656,12 @@ export const GenericDashboardChartTile: FC<
                     description={
                         getDashboardTileErrorMessage(error) ||
                         'Error running query'
+                    }
+                    action={
+                        <TileMissingParametersPrompt
+                            tileUuid={tile.uuid}
+                            errorMessage={getDashboardTileErrorMessage(error)}
+                        />
                     }
                 />
             </TileBase>

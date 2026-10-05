@@ -58,6 +58,9 @@ import {
     useRebaseDraftMutation,
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
+import { useDashboardControls } from '../features/dashboardControls/context';
+import DashboardControlsProvider from '../features/dashboardControls/DashboardControlsProvider';
+import { copyParameterControlTileTargets } from '../features/dashboardControls/parameterMapping';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
@@ -238,6 +241,20 @@ const Dashboard: FC = () => {
         (c) => c.setPinnedParameters,
     );
     const parameterOrder = useDashboardContext((c) => c.parameterOrder);
+    const savedOrEditedParameterControls = useDashboardContext(
+        (c) => c.parameterControls,
+    );
+    const haveParameterControlsChanged = useDashboardContext(
+        (c) => c.haveParameterControlsChanged,
+    );
+    const setParameterControls = useDashboardContext(
+        (c) => c.setParameterControls,
+    );
+    const resetParameterControls = useDashboardContext(
+        (c) => c.resetParameterControls,
+    );
+    const dashboardControls = useDashboardControls();
+    const hasUnappliedControlChanges = dashboardControls.hasChanges;
     const setParameterOrder = useDashboardContext((c) => c.setParameterOrder);
     const hasParameterOrderChanged = useDashboardContext(
         (c) => c.hasParameterOrderChanged,
@@ -552,6 +569,21 @@ const Dashboard: FC = () => {
                 if (nextDateZoomConfig !== dateZoomConfig) {
                     setDateZoomConfig(nextDateZoomConfig);
                 }
+
+                // And for parameter controls: a copy stays out of the
+                // controls its source tile is taken out of.
+                if (savedOrEditedParameterControls) {
+                    const nextParameterControls =
+                        copyParameterControlTileTargets(
+                            savedOrEditedParameterControls,
+                            tileUuidMapping,
+                        );
+                    if (
+                        nextParameterControls !== savedOrEditedParameterControls
+                    ) {
+                        setParameterControls(nextParameterControls);
+                    }
+                }
             } else if (dashboardTiles) {
                 // Tab-aware auto-apply: a filter that already excludes every
                 // chart tile on the target tab is scoped away from that tab,
@@ -580,6 +612,8 @@ const Dashboard: FC = () => {
             setHaveFiltersChanged,
             dateZoomConfig,
             setDateZoomConfig,
+            savedOrEditedParameterControls,
+            setParameterControls,
         ],
     );
 
@@ -701,6 +735,7 @@ const Dashboard: FC = () => {
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
         setHasParameterOrderChanged(false);
+        resetParameterControls();
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
                 Object.values(DateGranularity),
@@ -751,6 +786,7 @@ const Dashboard: FC = () => {
         setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
         setRequiredFiltersNote,
+        resetParameterControls,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -774,10 +810,12 @@ const Dashboard: FC = () => {
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
             if (
-                isEditMode &&
-                (haveTilesChanged ||
-                    haveFiltersChanged ||
-                    haveCustomMetricsChanged)
+                (isEditMode &&
+                    (haveTilesChanged ||
+                        haveFiltersChanged ||
+                        haveCustomMetricsChanged)) ||
+                // An open dashboard control with changes not applied yet
+                hasUnappliedControlChanges
             ) {
                 const message =
                     'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
@@ -792,6 +830,7 @@ const Dashboard: FC = () => {
         haveFiltersChanged,
         haveCustomMetricsChanged,
         isEditMode,
+        hasUnappliedControlChanges,
     ]);
 
     const hasDashboardChanged =
@@ -806,6 +845,7 @@ const Dashboard: FC = () => {
         parametersHaveChanged ||
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
+        haveParameterControlsChanged ||
         haveDateZoomGranularitiesChanged ||
         hasDefaultDateZoomGranularityChanged ||
         hasDateZoomConfigChanged;
@@ -835,6 +875,22 @@ const Dashboard: FC = () => {
         ) {
             return true; //blocks navigation
         }
+        // An open dashboard control with changes not applied yet, while
+        // editing or viewing
+        if (
+            hasUnappliedControlChanges &&
+            !isLeavingTrainingCopy(nextLocation) &&
+            nextLocation.state?.saveDashboardBeforeChartEdit !== true &&
+            !isSameDashboardRoute({
+                location: nextLocation,
+                projectUuid,
+                projectSlug: projectUrlIdentifier,
+                dashboardUuid,
+                dashboardSlug: dashboardIdentifier,
+            })
+        ) {
+            return true;
+        }
         return false; // allow navigation
     });
 
@@ -849,6 +905,7 @@ const Dashboard: FC = () => {
             setHaveCustomMetricsChanged(false);
             setHaveFiltersChanged(false);
             setHavePinnedParametersChanged(false);
+            resetParameterControls();
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
             setHasDateZoomConfigChanged(false);
@@ -892,6 +949,7 @@ const Dashboard: FC = () => {
         setHasDefaultDateZoomGranularityChanged,
         setHasDateZoomConfigChanged,
         setRequiredFiltersNote,
+        resetParameterControls,
         dashboardTabs,
         activeTab,
     ]);
@@ -1288,6 +1346,10 @@ const Dashboard: FC = () => {
                 pinnedParameters,
                 parameterOrder,
                 hasParameterOrderChanged,
+                // Saving from the controls surface persists the controls it shows
+                parameterControls: dashboardControls.isEnabled
+                    ? dashboardControls.parameterControls
+                    : savedOrEditedParameterControls,
                 dateZoomGranularities,
                 haveDateZoomGranularitiesChanged,
                 defaultDateZoomGranularity,
@@ -1633,7 +1695,9 @@ const DashboardPage: FC = () => {
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAiAgentContextBridge />
             </SentryErrorBoundary>
-            <Dashboard />
+            <DashboardControlsProvider>
+                <Dashboard />
+            </DashboardControlsProvider>
         </DashboardProvider>
     );
 };

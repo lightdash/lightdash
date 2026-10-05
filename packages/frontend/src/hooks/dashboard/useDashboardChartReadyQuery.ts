@@ -3,6 +3,8 @@ import {
     getChartZoomableFields,
     getDateZoomCapabilities,
     getDateZoomXAxisFieldId,
+    getTakenOutParameterKeys,
+    getDashboardTileRequestParameters,
     hasReservedParameterReference,
     QueryExecutionContext,
     resolveTileDateZoom,
@@ -81,7 +83,16 @@ export const useDashboardChartReadyQuery = (
     );
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const dashboardParameterValues = useDashboardContext(
+        (c) => c.parameterValues,
+    );
+    const parameterControls = useDashboardContext((c) => c.parameterControls);
+    const savedParameterControls = useDashboardContext(
+        (c) => c.dashboard?.config?.parameterControls,
+    );
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -137,6 +148,33 @@ export const useDashboardChartReadyQuery = (
     });
 
     const chartSavedParameters = chartQuery.data?.parameters;
+    // A tile taken out of a control does not send that control's values. A
+    // take-out not saved yet sends the value the tile runs with instead: the
+    // server would resolve the key from the saved dashboard value.
+    const parameterValues = useMemo(
+        () =>
+            getDashboardTileRequestParameters({
+                dashboardValues: dashboardParameterValues,
+                chartSavedValues: chartSavedParameters ?? {},
+                definitions: parameterDefinitions,
+                takenOutKeys: getTakenOutParameterKeys(
+                    parameterControls,
+                    tileUuid,
+                ),
+                savedTakenOutKeys: getTakenOutParameterKeys(
+                    savedParameterControls,
+                    tileUuid,
+                ),
+            }),
+        [
+            dashboardParameterValues,
+            chartSavedParameters,
+            parameterDefinitions,
+            parameterControls,
+            savedParameterControls,
+            tileUuid,
+        ],
+    );
     useEffect(() => {
         if (chartQuery.data) {
             setTileChartSavedParameters(tileUuid, chartSavedParameters ?? {});

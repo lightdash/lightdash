@@ -21,6 +21,7 @@ const baseArgs = {
     pinnedParameters: [],
     parameterOrder: [],
     hasParameterOrderChanged: false,
+    parameterControls: undefined,
     dateZoomGranularities: [],
     haveDateZoomGranularitiesChanged: false,
     defaultDateZoomGranularity: undefined,
@@ -119,6 +120,7 @@ describe('buildDashboardConfig', () => {
             isAddFilterDisabled: true,
             pinnedParameters: true,
             parameterOrder: true,
+            parameterControls: true,
             dateZoomGranularities: true,
             defaultDateZoomGranularity: true,
             dateZoomConfig: true,
@@ -128,5 +130,44 @@ describe('buildDashboardConfig', () => {
         expect(Object.keys(result).sort()).toEqual(
             Object.keys(expectedKeys).sort(),
         );
+    });
+
+    it('writes the parameter controls it is given and omits them when absent', () => {
+        const parameterControls = [
+            {
+                id: 'currency',
+                label: 'Currency',
+                parameterKeys: ['orders.currency'],
+                tileTargets: { 'tile-1': false as const },
+            },
+        ];
+        expect(
+            buildDashboardConfig({ ...baseArgs, parameterControls })
+                .parameterControls,
+        ).toEqual(parameterControls);
+        expect(
+            buildDashboardConfig(baseArgs).parameterControls,
+        ).toBeUndefined();
+    });
+
+    it('does not save a parameter control that has no parameter', () => {
+        const mapped = {
+            id: 'currency',
+            label: 'Currency',
+            parameterKeys: ['orders.currency'],
+            tileTargets: {},
+        };
+        const neverMapped = {
+            id: 'new',
+            label: '',
+            parameterKeys: [],
+            tileTargets: {},
+        };
+        expect(
+            buildDashboardConfig({
+                ...baseArgs,
+                parameterControls: [mapped, neverMapped],
+            }).parameterControls,
+        ).toEqual([mapped]);
     });
 });

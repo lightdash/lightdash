@@ -1,12 +1,20 @@
-import { type ParameterDefinitions } from '../types/parameters';
+import {
+    type DashboardParameterControl,
+    type ParameterDefinitions,
+} from '../types/parameters';
 import {
     canUseChartSavedParameterValue,
     DashboardTileParameterSource,
     getDashboardTileParameterOverrides,
     getDashboardTileParameterSource,
+    getDashboardTileRequestParameters,
+    getEffectiveTakenOutParameterKeys,
     getMissingRequiredDashboardParameters,
+    getTakenOutParameterKeys,
+    omitTakenOutParameterValues,
     resolveDashboardTileParameters,
     resolveFallbackParameterValues,
+    resolveTakenOutParameterValue,
     type DashboardParameterStatusInputs,
     type ParameterFallbackSources,
 } from './dashboardTileParameters';
@@ -578,5 +586,317 @@ describe("values outside a parameter's fixed options", () => {
                 ],
             }),
         ).toEqual(['region']);
+    });
+});
+
+describe('per-key parameter targeting', () => {
+    const controls: DashboardParameterControl[] = [
+        {
+            id: 'c-status',
+            label: 'Status',
+            parameterKeys: ['status', 'order_status'],
+            tileTargets: { 'tile-out': false },
+        },
+        {
+            id: 'c-region',
+            label: 'Region',
+            parameterKeys: ['region'],
+            tileTargets: {},
+        },
+    ];
+
+    describe('getTakenOutParameterKeys', () => {
+        it('returns every key of the controls the tile is taken out of', () => {
+            expect(getTakenOutParameterKeys(controls, 'tile-out')).toEqual([
+                'status',
+                'order_status',
+            ]);
+        });
+
+        it('takes nothing out for a tile without a false entry', () => {
+            expect(getTakenOutParameterKeys(controls, 'tile-new')).toEqual([]);
+        });
+
+        it('takes nothing out when the dashboard has no controls', () => {
+            expect(getTakenOutParameterKeys(undefined, 'tile-out')).toEqual([]);
+        });
+    });
+
+    it('drops only taken-out keys from dashboard-level values', () => {
+        const values = { status: 'Shipped', region: 'US' };
+        expect(omitTakenOutParameterValues(values, ['status'])).toEqual({
+            region: 'US',
+        });
+        expect(omitTakenOutParameterValues(values, [])).toBe(values);
+    });
+
+    it('keeps the chart value for a taken-out key while another key takes the dashboard value', () => {
+        expect(
+            resolveDashboardTileParameters({
+                fallbackSources: fallbackSources({
+                    exploreDefinitions: {
+                        ...statusWithoutDefault,
+                        region: { label: 'Region' },
+                    },
+                }),
+                dashboardValues: { status: 'Shipped', region: 'US' },
+                chartSavedValues: { status: 'Cancelled', region: 'EU' },
+                isTargeted: true,
+                takenOutKeys: getTakenOutParameterKeys(controls, 'tile-out'),
+            }),
+        ).toEqual({ status: 'Cancelled', region: 'US' });
+    });
+
+    it('resolves a taken-out key like an untargeted tile: chart value, else the fallback chain', () => {
+        const inputs = {
+            fallbackSources: fallbackSources({
+                exploreDefinitions: {
+                    ...statusWithDefault,
+                    region: { label: 'Region', default: 'EU' },
+                    tier: { label: 'Tier' },
+                },
+            }),
+            dashboardValues: { status: 'Shipped', region: 'US', tier: 'gold' },
+            chartSavedValues: { status: 'Cancelled' },
+        };
+        expect(
+            resolveDashboardTileParameters({
+                ...inputs,
+                isTargeted: true,
+                takenOutKeys: ['status', 'region', 'tier'],
+            }),
+        ).toEqual(
+            resolveDashboardTileParameters({ ...inputs, isTargeted: false }),
+        );
+    });
+
+    it('matches the result without takenOutKeys when nothing is taken out', () => {
+        const inputs = {
+            definitions: { ...statusWithDefault, region: { label: 'Region' } },
+            dashboardValues: { region: 'US' },
+            chartSavedValues: { status: 'Cancelled', region: 'EU' },
+            isTargeted: true,
+        };
+        expect(
+            getDashboardTileParameterOverrides({
+                ...inputs,
+                takenOutKeys: getTakenOutParameterKeys(undefined, 'tile-out'),
+            }),
+        ).toEqual(getDashboardTileParameterOverrides(inputs));
+    });
+
+    it('reports the source per key', () => {
+        const inputs = {
+            definitions: {
+                ...statusWithoutDefault,
+                region: { label: 'Region' },
+            },
+            dashboardValues: { status: 'Shipped', region: 'US', tier: 'gold' },
+            chartSavedValues: { status: 'Cancelled', region: 'EU' },
+            isTargeted: true,
+            takenOutKeys: ['status', 'tier'],
+        };
+        expect(
+            getDashboardTileParameterSource({ ...inputs, key: 'status' }),
+        ).toBe(DashboardTileParameterSource.CHART);
+        expect(
+            getDashboardTileParameterSource({ ...inputs, key: 'region' }),
+        ).toBe(DashboardTileParameterSource.DASHBOARD);
+        expect(
+            getDashboardTileParameterSource({ ...inputs, key: 'tier' }),
+        ).toBe(DashboardTileParameterSource.DEFAULT);
+    });
+
+    describe('missing parameters', () => {
+        const definitions: ParameterDefinitions = {
+            status: { label: 'Status' },
+            currency: { label: 'Currency', default: 'USD' },
+        };
+
+        it('flags a taken-out key the dashboard value no longer resolves', () => {
+            expect(
+                getMissingRequiredDashboardParameters({
+                    tiles: [
+                        {
+                            parameterReferences: ['status'],
+                            chartSavedValues: {},
+                        },
+                        {
+                            parameterReferences: ['status'],
+                            chartSavedValues: {},
+                            takenOutKeys: ['status'],
+                        },
+                    ],
+                    dashboardValues: { status: 'Completed' },
+                    definitions,
+                }),
+            ).toEqual(['status']);
+        });
+
+        it('does not flag a taken-out key with a chart-saved value or a default', () => {
+            expect(
+                getMissingRequiredDashboardParameters({
+                    tiles: [
+                        {
+                            parameterReferences: ['status', 'currency'],
+                            chartSavedValues: { status: 'Cancelled' },
+                            takenOutKeys: ['status', 'currency'],
+                        },
+                    ],
+                    dashboardValues: { status: 'Completed' },
+                    definitions,
+                }),
+            ).toEqual([]);
+        });
+    });
+});
+
+describe('resolveTakenOutParameterValue', () => {
+    it('uses the chart saved value before the default', () => {
+        expect(
+            resolveTakenOutParameterValue({
+                key: 'status',
+                chartSavedValues: { status: 'shipped' },
+                definitions: statusWithDefault,
+            }),
+        ).toBe('shipped');
+    });
+
+    it('falls back to the definition default', () => {
+        expect(
+            resolveTakenOutParameterValue({
+                key: 'status',
+                chartSavedValues: {},
+                definitions: statusWithDefault,
+            }),
+        ).toBe(statusWithDefault.status.default);
+    });
+
+    it('has nothing with neither a chart value nor a default', () => {
+        expect(
+            resolveTakenOutParameterValue({
+                key: 'status',
+                chartSavedValues: {},
+                definitions: statusWithoutDefault,
+            }),
+        ).toBeUndefined();
+        expect(
+            resolveTakenOutParameterValue({
+                key: 'unknown',
+                chartSavedValues: {},
+                definitions: {},
+            }),
+        ).toBeUndefined();
+    });
+
+    it('agrees with how the server resolves a saved take-out', () => {
+        const inputs = {
+            chartSavedValues: { status: 'shipped' },
+            definitions: statusWithDefault,
+        };
+        expect(
+            getDashboardTileParameterOverrides({
+                ...inputs,
+                dashboardValues: { status: 'completed' },
+                isTargeted: true,
+                takenOutKeys: ['status'],
+            }).status,
+        ).toBe(resolveTakenOutParameterValue({ key: 'status', ...inputs }));
+    });
+});
+
+describe('getDashboardTileRequestParameters', () => {
+    const base = {
+        dashboardValues: { status: 'completed', region: 'EU' },
+        chartSavedValues: { status: 'shipped' },
+        definitions: statusWithDefault,
+    };
+
+    it('sends every dashboard value when the tile is taken out of nothing', () => {
+        expect(
+            getDashboardTileRequestParameters({
+                ...base,
+                takenOutKeys: [],
+                savedTakenOutKeys: [],
+            }),
+        ).toEqual(base.dashboardValues);
+    });
+
+    it('leaves a saved take-out out: the server resolves it', () => {
+        expect(
+            getDashboardTileRequestParameters({
+                ...base,
+                takenOutKeys: ['status'],
+                savedTakenOutKeys: ['status'],
+            }),
+        ).toEqual({ region: 'EU' });
+    });
+
+    it('sends the chart saved value for an unsaved take-out', () => {
+        expect(
+            getDashboardTileRequestParameters({
+                ...base,
+                takenOutKeys: ['status'],
+                savedTakenOutKeys: [],
+            }),
+        ).toEqual({ region: 'EU', status: 'shipped' });
+    });
+
+    it('sends the default for an unsaved take-out with no chart value', () => {
+        expect(
+            getDashboardTileRequestParameters({
+                ...base,
+                chartSavedValues: {},
+                takenOutKeys: ['status'],
+                savedTakenOutKeys: [],
+            }),
+        ).toEqual({
+            region: 'EU',
+            status: statusWithDefault.status.default,
+        });
+    });
+
+    it('sends it even when the dashboard holds no unsaved value for the key', () => {
+        expect(
+            getDashboardTileRequestParameters({
+                ...base,
+                dashboardValues: { region: 'EU' },
+                takenOutKeys: ['status'],
+                savedTakenOutKeys: [],
+            }),
+        ).toEqual({ region: 'EU', status: 'shipped' });
+    });
+
+    it('omits an unsaved take-out with neither a chart value nor a default', () => {
+        expect(
+            getDashboardTileRequestParameters({
+                ...base,
+                chartSavedValues: {},
+                definitions: statusWithoutDefault,
+                takenOutKeys: ['status'],
+                savedTakenOutKeys: [],
+            }),
+        ).toEqual({ region: 'EU' });
+    });
+
+    it('sends the dashboard value for a tile put back in while its take-out is still saved', () => {
+        expect(
+            getDashboardTileRequestParameters({
+                ...base,
+                takenOutKeys: [],
+                savedTakenOutKeys: ['status'],
+            }),
+        ).toEqual(base.dashboardValues);
+    });
+});
+
+describe('getEffectiveTakenOutParameterKeys', () => {
+    it('joins the take-outs on screen with the saved ones, once each', () => {
+        expect(
+            getEffectiveTakenOutParameterKeys({
+                takenOutKeys: ['status', 'region'],
+                savedTakenOutKeys: ['region', 'date'],
+            }),
+        ).toEqual(['status', 'region', 'date']);
     });
 });

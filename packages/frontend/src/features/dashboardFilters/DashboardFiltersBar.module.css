@@ -13,6 +13,15 @@
     padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
+/* Dashboard controls, a control open: everything in the bar but its pill is
+   dimmed. Still clickable. */
+.bar[data-control-open]
+    .filters
+    > *:not([aria-pressed='true'], :has([aria-pressed='true'])),
+.bar[data-control-open] > *:last-child {
+    opacity: 0.6;
+}
+
 @container (width < 600px) {
     .bar {
         flex-direction: column;

@@ -3,9 +3,11 @@ import {
     pruneDateZoomConfig,
     type AdditionalMetric,
     type DashboardConfig,
+    type DashboardParameterControl,
     type DateGranularity,
     type DateZoomConfig,
 } from '@lightdash/common';
+import { withoutEmptyParameterControls } from '../features/dashboardControls/parameterMapping';
 
 type BuildDashboardConfigArgs = {
     existingConfig: DashboardConfig | undefined;
@@ -14,6 +16,7 @@ type BuildDashboardConfigArgs = {
     pinnedParameters: string[];
     parameterOrder: string[];
     hasParameterOrderChanged: boolean;
+    parameterControls: DashboardParameterControl[] | undefined;
     dateZoomGranularities: (DateGranularity | string)[];
     haveDateZoomGranularitiesChanged: boolean;
     defaultDateZoomGranularity: DateGranularity | string | undefined;
@@ -35,6 +38,7 @@ export const buildDashboardConfig = ({
     pinnedParameters,
     parameterOrder,
     hasParameterOrderChanged,
+    parameterControls,
     dateZoomGranularities,
     haveDateZoomGranularitiesChanged,
     defaultDateZoomGranularity,
@@ -60,6 +64,10 @@ export const buildDashboardConfig = ({
         parameterOrder: hasParameterOrderChanged
             ? parameterOrder
             : existingConfig?.parameterOrder,
+        // A control with no parameter exists only while it is being edited
+        parameterControls: parameterControls
+            ? withoutEmptyParameterControls(parameterControls)
+            : undefined,
         dateZoomGranularities: haveDateZoomGranularitiesChanged
             ? dateZoomGranularities
             : existingConfig?.dateZoomGranularities,

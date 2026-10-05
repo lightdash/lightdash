@@ -10,6 +10,7 @@ import {
     getFilterInteractivityValue,
     getItemId,
     getMissingRequiredDashboardParameters,
+    getTakenOutParameterKeys,
     getUnmetFilterRequirements,
     isDashboardChartTileType,
     isFilterLockedOnTab,
@@ -24,6 +25,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameterControl,
     type DashboardParameters,
     type DateZoomConfig,
     type FilterableDimension,
@@ -61,6 +63,10 @@ import {
     useGetComments,
     type useDashboardCommentsCheck,
 } from '../../features/comments';
+import {
+    getDerivedParameterControls,
+    haveParameterControlsChanged,
+} from '../../features/dashboardControls/parameterMapping';
 import { hasSavedFilterValueChanged } from '../../features/dashboardFilters/FilterConfiguration/utils';
 import {
     excludeLockedFilterRequirements,
@@ -356,6 +362,46 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const [pinnedParameters, setPinnedParametersState] = useState<string[]>([]);
     const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
         useState<boolean>(false);
+
+    // Parameter controls: unsaved edits win over the saved config value
+    const [editedParameterControls, setEditedParameterControls] = useState<
+        DashboardParameterControl[] | null
+    >(null);
+    const parameterControls =
+        editedParameterControls ?? currentDashboardConfig?.parameterControls;
+    const setParameterControls = useCallback(
+        (controls: DashboardParameterControl[]) =>
+            setEditedParameterControls(controls),
+        [],
+    );
+    const resetParameterControls = useCallback(
+        () => setEditedParameterControls(null),
+        [],
+    );
+    const savedDashboardParameters = (dashboard ?? embedDashboard)?.parameters;
+    // Changed only when the edits differ by value from the saved controls,
+    // or from the ones derived for a dashboard that has none saved
+    const hasChangedParameterControls = useMemo(
+        () =>
+            haveParameterControlsChanged(
+                editedParameterControls,
+                currentDashboardConfig?.parameterControls ??
+                    getDerivedParameterControls({
+                        savedValueKeys: Object.keys(
+                            savedDashboardParameters ?? {},
+                        ),
+                        pinnedKeys: pinnedParameters,
+                        definitions: translatedParameterDefinitions,
+                    }),
+            ),
+        [
+            editedParameterControls,
+            currentDashboardConfig?.parameterControls,
+            savedDashboardParameters,
+            pinnedParameters,
+            translatedParameterDefinitions,
+        ],
+    );
 
     // Parameter order state
     const [parameterOrder, setParameterOrderState] = useState<string[]>([]);
@@ -812,6 +858,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 ([tileUuid, parameterReferences]) => ({
                     parameterReferences,
                     chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
+                    takenOutKeys: getTakenOutParameterKeys(
+                        parameterControls,
+                        tileUuid,
+                    ),
                 }),
             ),
             dashboardValues: appliedParameterValues,
@@ -822,6 +872,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         tileChartSavedParameters,
         appliedParameterValues,
         translatedParameterDefinitions,
+        parameterControls,
     ]);
 
     const missingRequiredParameters = useMemo(
@@ -1957,8 +2008,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboardParameterReferences,
         addParameterReferences,
         tileParameterReferences,
+        tileChartSavedParameters,
         setTileChartSavedParameters,
         missingRequiredParameters,
+        parameterControls,
+        setParameterControls,
+        resetParameterControls,
+        haveParameterControlsChanged: hasChangedParameterControls,
         pinnedParameters,
         setPinnedParameters,
         toggleParameterPin,

@@ -10,9 +10,16 @@ import {
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import {
+    type Dispatch,
+    type FC,
+    type ReactNode,
+    type SetStateAction,
+} from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
+import { useHasControlTabSlot } from '../dashboardControls/context';
+import ControlTabCount from '../dashboardControls/ControlTabCount';
 
 type DraggableTabProps = {
     idx: number;
@@ -40,6 +47,18 @@ const DraggableTab: FC<DraggableTabProps> = ({
     setDeletingTab,
 }) => {
     const { ref, isTruncated } = useIsTruncated('span');
+    // With dashboard controls every tab keeps room for the open control's
+    // count, after its name and before its menu
+    const hasCountSlot = useHasControlTabSlot();
+    const withCountSlot = (menu: ReactNode): ReactNode =>
+        hasCountSlot ? (
+            <Group gap="xxs" wrap="nowrap">
+                <ControlTabCount tabUuid={tab.uuid} />
+                {menu}
+            </Group>
+        ) : (
+            menu
+        );
 
     return (
         <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
@@ -61,6 +80,8 @@ const DraggableTab: FC<DraggableTabProps> = ({
                             ref={ref}
                             key={idx}
                             value={tab.uuid}
+                            // Switching tab keeps an open control's popover
+                            data-keeps-control-popover
                             maw={`${100 / (sortedTabs.length || 1)}vw`}
                             opacity={isEditMode && tab.hidden ? 0.55 : 1}
                             styles={{
@@ -81,7 +102,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                     </ActionIcon>
                                 ) : null
                             }
-                            rightSection={
+                            rightSection={withCountSlot(
                                 isEditMode ? (
                                     <Menu position="bottom" withArrow>
                                         <Menu.Target>
@@ -169,8 +190,8 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                             )}
                                         </Menu.Dropdown>
                                     </Menu>
-                                ) : null
-                            }
+                                ) : null,
+                            )}
                         >
                             {isEditMode && tab.hidden ? (
                                 <Group gap={4} wrap="nowrap">

@@ -23,7 +23,7 @@ import {
     type PopoverProps,
 } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import FilterOperatorOption from '../../../components/common/Filters/FilterOperatorOption';
@@ -43,6 +43,10 @@ interface FilterSettingsProps {
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
     onEditRequirementRules?: () => void;
+    // The label is edited elsewhere
+    hideLabel?: boolean;
+    // Shown under the value input
+    valueHint?: ReactNode;
 }
 
 const FilterSettings: FC<FilterSettingsProps> = ({
@@ -55,6 +59,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     popoverProps,
     onChangeFilterRule,
     onEditRequirementRules,
+    hideLabel = false,
+    valueHint,
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
@@ -162,7 +168,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     return (
         <Stack>
             <Stack gap="xs">
-                {isEditMode && (
+                {isEditMode && !hideLabel && (
                     <TextInput
                         label="Filter label"
                         mb="sm"
@@ -175,7 +181,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             });
                         }}
                         placeholder={
-                            field ? `Label for ${field.label}` : 'Filter label'
+                            field?.label
+                                ? `Label for ${field.label}`
+                                : 'Filter label'
                         }
                         value={filterLabel}
                     />
@@ -318,6 +326,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             )}
                     </Group>
                 )}
+                {(showValueInput || hasRequirement) && valueHint}
 
                 {isEditMode && (
                     <>

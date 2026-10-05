@@ -86,3 +86,12 @@ export type DashboardParameterValue = {
 };
 
 export type DashboardParameters = Record<string, DashboardParameterValue>;
+
+// One dashboard control that sets one or more parameters.
+// A tile absent from tileTargets takes the control's value; false takes it out.
+export type DashboardParameterControl = {
+    id: string;
+    label: string;
+    parameterKeys: string[];
+    tileTargets: Record<string, false>;
+};

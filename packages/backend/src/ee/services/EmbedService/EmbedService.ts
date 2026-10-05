@@ -44,6 +44,7 @@ import {
     getFilterInteractivityValue,
     getHiddenFilterableFieldIds,
     getItemId,
+    getTakenOutParameterKeys,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isAiAgentContent,
@@ -953,6 +954,9 @@ export class EmbedService extends BaseService {
                 ...dashboard.filters.metrics,
             ].flatMap((rule) => [
                 rule.target.fieldId,
+                ...(rule.additionalTargets ?? []).map(
+                    (target) => target.fieldId,
+                ),
                 ...Object.values(rule.tileTargets ?? {}).flatMap((target) =>
                     target ? [target.fieldId] : [],
                 ),
@@ -1221,12 +1225,14 @@ export class EmbedService extends BaseService {
         explore,
         chart,
         dashboardUuid,
+        tileUuid,
         acceptedUserParameters,
     }: {
         projectUuid: string;
         explore: Explore;
         chart: SavedChartDAO;
         dashboardUuid: string | null;
+        tileUuid: string | null;
         acceptedUserParameters: ParametersValuesMap;
     }): Promise<ParametersValuesMap> {
         if (!dashboardUuid) {
@@ -1250,6 +1256,12 @@ export class EmbedService extends BaseService {
             },
             chartSavedValues: chart.parameters ?? {},
             isTargeted: true,
+            takenOutKeys: tileUuid
+                ? getTakenOutParameterKeys(
+                      dashboard.config?.parameterControls,
+                      tileUuid,
+                  )
+                : [],
             preloadedProjectParameters: null,
         });
     }
@@ -1744,6 +1756,10 @@ export class EmbedService extends BaseService {
                 },
                 chartSavedValues: chart.parameters ?? {},
                 isTargeted: true,
+                takenOutKeys: getTakenOutParameterKeys(
+                    dashboard.config?.parameterControls,
+                    tileUuid,
+                ),
                 preloadedProjectParameters: null,
             });
 
@@ -2211,6 +2227,7 @@ export class EmbedService extends BaseService {
         if (!dashboard) {
             return {
                 dashboardUuid: undefined,
+                tileUuid: undefined,
                 chart,
                 explore,
                 metricQuery: chart.metricQuery,
@@ -2238,6 +2255,7 @@ export class EmbedService extends BaseService {
 
         return {
             dashboardUuid,
+            tileUuid,
             chart,
             explore,
             metricQuery,
@@ -2253,7 +2271,7 @@ export class EmbedService extends BaseService {
         userParameters?: ParametersValuesMap,
         invalidateCache?: boolean,
     ) {
-        const { dashboardUuid, chart, explore, metricQuery } =
+        const { dashboardUuid, tileUuid, chart, explore, metricQuery } =
             await this._prepareSavedChartForCalculation(
                 account,
                 projectUuid,
@@ -2275,6 +2293,7 @@ export class EmbedService extends BaseService {
             explore,
             chart,
             dashboardUuid: dashboardUuid ?? null,
+            tileUuid: tileUuid ?? null,
             acceptedUserParameters,
         });
 
@@ -2330,7 +2349,7 @@ export class EmbedService extends BaseService {
         invalidateCache?: boolean,
         dateZoom?: DateZoom,
     ) {
-        const { dashboardUuid, chart, explore, metricQuery } =
+        const { dashboardUuid, tileUuid, chart, explore, metricQuery } =
             await this._prepareSavedChartForCalculation(
                 account,
                 projectUuid,
@@ -2355,6 +2374,7 @@ export class EmbedService extends BaseService {
             explore,
             chart,
             dashboardUuid: dashboardUuid ?? null,
+            tileUuid: tileUuid ?? null,
             acceptedUserParameters,
         });
 

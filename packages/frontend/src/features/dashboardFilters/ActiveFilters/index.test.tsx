@@ -7,9 +7,21 @@ import {
     type DashboardFilterableField,
     type DashboardTile,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { type FC, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    DashboardControlsContext,
+    useDashboardControls,
+    type ControlModel,
+    type DashboardControlsContextType,
+} from '../../dashboardControls/context';
+import ControlsBarEnd, {
+    ControlsBarStart,
+} from '../../dashboardControls/ControlsBarEnd';
+import { createFilterDraft } from '../../dashboardControls/filterDraft';
+import DashboardFilters from '../index';
 import ActiveFilters from './index';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -20,6 +32,26 @@ vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector: (context: Record<string, unknown>) => unknown) =>
         selector(mockDashboardContext.current),
     ),
+}));
+
+vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
+    default: vi.fn((selector) => selector({ sqlChartTilesMetadata: {} })),
+}));
+
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(() => ({ data: undefined })),
+}));
+
+vi.mock('../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: vi.fn(() => 'project-uuid'),
+}));
+
+vi.mock('../../../hooks/useProject', () => ({
+    useProject: vi.fn(() => ({ data: undefined })),
+}));
+
+vi.mock('../FilterConfiguration', () => ({
+    default: () => <div data-testid="filter-configuration" />,
 }));
 
 vi.mock('./Filter', () => ({
@@ -242,5 +274,221 @@ describe('ActiveFilters saved filter on a hidden field', () => {
         expect(
             mockDashboardContext.current.removeDimensionDashboardFilter,
         ).toHaveBeenCalledWith(0, false);
+    });
+});
+
+describe('view-mode filter bar and the dashboard controls flag', () => {
+    const setViewBarContext = (isAddFilterDisabled: boolean) => {
+        setMetricFilterLocation('temporary');
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            allFilters: {
+                dimensions: [],
+                metrics: [metricFilter],
+                tableCalculations: [],
+            },
+            allFilterableFields: [],
+            allFilterableMetrics: [metricField],
+            parameterValues: {},
+            parameterDefinitions: {},
+            tileParameterReferences: {},
+            isAddFilterDisabled,
+            setIsAddFilterDisabled: vi.fn(),
+            haveFiltersChanged: false,
+            resetDashboardFilters: vi.fn(),
+            addDimensionDashboardFilter: vi.fn(),
+            addMetricDashboardFilter: vi.fn(),
+        };
+    };
+
+    // The controls surface as view mode has it with the flag on
+    const WithControlsOn: FC<{
+        overrides: Partial<DashboardControlsContextType>;
+        children: ReactNode;
+    }> = ({ overrides, children }) => {
+        const off = useDashboardControls();
+        return (
+            <DashboardControlsContext.Provider
+                value={{
+                    ...off,
+                    isEnabled: true,
+                    draftsTemporaryFilters: true,
+                    ...overrides,
+                }}
+            >
+                {children}
+            </DashboardControlsContext.Provider>
+        );
+    };
+
+    const bar = <DashboardFilters isEditMode={false} activeTabUuid="tab-1" />;
+    // The view-mode bar with the flag on: "Add control", the pills, then what
+    // follows them
+    const controlsBar = (
+        <>
+            <ControlsBarStart isEditMode={false} />
+            {bar}
+            <ControlsBarEnd isEditMode={false} />
+        </>
+    );
+
+    // A new control's model before anything is chosen
+    const emptyModel: ControlModel = {
+        noun: 'field',
+        isLoading: false,
+        overview: {
+            rows: [],
+            suggestions: [],
+            others: [],
+            switchedOnTileUuids: [],
+            mappedCount: 0,
+            mappableCount: 2,
+        },
+        overviewTiles: [],
+        items: {},
+        rowLabels: {},
+        tileStates: {},
+        field: undefined,
+        addItem: vi.fn(),
+        removeItem: vi.fn(),
+        setTileItem: vi.fn(),
+        setTileOn: vi.fn(),
+        getField: () => undefined,
+        isSqlColumn: () => false,
+        getTileRunValue: () => null,
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('mounts the old "Add filter" popover with the flag off', async () => {
+        setViewBarContext(false);
+        renderWithProviders(bar);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Add filter' }));
+
+        expect(
+            await screen.findByTestId('filter-configuration'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Control type')).not.toBeInTheDocument();
+        expect(screen.queryByText(/^New .* control$/)).not.toBeInTheDocument();
+        expect(screen.getByTestId('filter-metric-filter')).toBeVisible();
+    });
+
+    it('offers the control types from "Add control" with the flag on', async () => {
+        setViewBarContext(false);
+        const openNew = vi.fn();
+        renderWithProviders(
+            <WithControlsOn overrides={{ openNew }}>
+                {controlsBar}
+            </WithControlsOn>,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Add control' }));
+
+        expect(await screen.findByText('Control type')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('filter-configuration'),
+        ).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Number' }));
+        expect(openNew).toHaveBeenCalledWith('number');
+    });
+
+    it('shows the placeholder pill of a control drafted while viewing', () => {
+        setViewBarContext(false);
+        renderWithProviders(
+            <WithControlsOn
+                overrides={{
+                    draft: createFilterDraft('text'),
+                    model: emptyModel,
+                    // Nothing chosen yet: the pill has no kind to name
+                    isChoosing: true,
+                }}
+            >
+                {controlsBar}
+            </WithControlsOn>,
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'New text control' }),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps the old "Add filter" in edit mode with the flag off', () => {
+        setViewBarContext(false);
+        renderWithProviders(
+            <DashboardFilters isEditMode activeTabUuid="tab-1" />,
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Add filter' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Toggle filter visibility for viewers',
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('leaves adding to the bar in edit mode with the flag on', () => {
+        setViewBarContext(false);
+        renderWithProviders(
+            <WithControlsOn overrides={{ draftsTemporaryFilters: false }}>
+                <DashboardFilters isEditMode activeTabUuid="tab-1" />
+            </WithControlsOn>,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Add filter' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('puts "Add control" before the pills and the reset after them while viewing with the flag on', () => {
+        setViewBarContext(false);
+        renderWithProviders(
+            <WithControlsOn overrides={{}}>{controlsBar}</WithControlsOn>,
+        );
+
+        const pill = screen.getByTestId('filter-metric-filter');
+        const add = screen.getByRole('button', { name: 'Add control' });
+        const reset = screen.getByRole('button', { name: 'Reset all filters' });
+        expect(
+            add.compareDocumentPosition(pill) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            pill.compareDocumentPosition(reset) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            screen.queryByRole('button', { name: 'Add filter' }),
+        ).not.toBeInTheDocument();
+
+        reset.click();
+        expect(
+            mockDashboardContext.current.resetDashboardFilters,
+        ).toHaveBeenCalled();
+    });
+
+    it.each([
+        ['off', false],
+        ['on', true],
+    ])('keeps "Add filter" hidden from viewers with the flag %s', (_, isOn) => {
+        setViewBarContext(true);
+        renderWithProviders(
+            isOn ? (
+                <WithControlsOn overrides={{}}>{controlsBar}</WithControlsOn>
+            ) : (
+                bar
+            ),
+        );
+
+        expect(
+            screen.queryByRole('button', {
+                name: isOn ? 'Add control' : 'Add filter',
+            }),
+        ).not.toBeInTheDocument();
     });
 });

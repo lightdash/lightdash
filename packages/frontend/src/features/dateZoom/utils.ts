@@ -1,8 +1,24 @@
 import {
+    DateGranularity,
     isStandardDateGranularity,
-    type DateGranularity,
+    type DateZoomControl,
     type UiStringResolver,
 } from '@lightdash/common';
+import { v4 as uuid4 } from 'uuid';
+
+// A date zoom control as "Add date zoom" starts it
+export const getNewDateZoomControl = ({
+    defaultGranularity,
+    granularities,
+}: {
+    defaultGranularity: DateZoomControl['granularity'] | undefined;
+    granularities: DateZoomControl['granularity'][];
+}): DateZoomControl => ({
+    uuid: uuid4(),
+    name: 'Date zoom',
+    granularity:
+        defaultGranularity ?? granularities[0] ?? DateGranularity.MONTH,
+});
 
 /**
  * Returns a human-readable label for a granularity value.

@@ -16158,6 +16158,7 @@ export class ProjectService extends BaseService {
         dashboardValues,
         chartSavedValues,
         isTargeted,
+        takenOutKeys,
         preloadedProjectParameters,
     }: DashboardTileParameterInputs & {
         projectUuid: string;
@@ -16174,6 +16175,7 @@ export class ProjectService extends BaseService {
             dashboardValues,
             chartSavedValues,
             isTargeted,
+            takenOutKeys,
         });
     }
 
@@ -16184,6 +16186,7 @@ export class ProjectService extends BaseService {
         dashboardValues,
         chartSavedValues,
         isTargeted,
+        takenOutKeys,
     }: DashboardTileParameterInputs & {
         projectUuid: string;
         explores: Explore[];
@@ -16197,6 +16200,7 @@ export class ProjectService extends BaseService {
             dashboardValues,
             chartSavedValues,
             isTargeted,
+            takenOutKeys,
         });
     }
 

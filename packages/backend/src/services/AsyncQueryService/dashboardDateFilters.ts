@@ -2,7 +2,9 @@ import {
     DimensionType,
     FilterOperator,
     findFieldByIdInExplore,
+    getAvailableDashboardFilterTarget,
     getDashboardFiltersForTile,
+    getExecutableFilterFieldIds,
     isDimension,
     isExploreError,
     TimeFrames,
@@ -71,14 +73,26 @@ export const resolveDashboardDateFilters = async ({
             ? findFieldByIdInExplore(fieldExplore, target.fieldId)
             : undefined;
     };
+    const availableFieldIds = explore
+        ? getExecutableFilterFieldIds(explore)
+        : null;
     const dimensions = await Promise.all(
         tileFilters.dimensions.map(async (filter) => {
+            // The field the tile's chart will apply, when it comes through an additional target
+            const target =
+                (availableFieldIds &&
+                    getAvailableDashboardFilterTarget(
+                        filter,
+                        availableFieldIds,
+                    )) ||
+                filter.target;
             const source: DashboardFieldTarget | undefined =
-                filter.settings?.sourceTarget;
+                filter.settings?.sourceTarget ??
+                (target === filter.target ? undefined : filter.target);
             if (
                 !source ||
                 source.isSqlColumn ||
-                source.fieldId === filter.target.fieldId ||
+                source.fieldId === target.fieldId ||
                 (filter.operator !== FilterOperator.EQUALS &&
                     filter.operator !== FilterOperator.NOT_EQUALS)
             ) {
@@ -97,8 +111,8 @@ export const resolveDashboardDateFilters = async ({
             if (!selectedPeriod) {
                 return filter;
             }
-            const targetField = await resolveField(filter.target);
-            if (!filter.target.isSqlColumn && !targetField) {
+            const targetField = await resolveField(target);
+            if (!target.isSqlColumn && !targetField) {
                 return filter;
             }
             if (

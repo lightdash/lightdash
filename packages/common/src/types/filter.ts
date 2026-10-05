@@ -189,6 +189,11 @@ export type DashboardFilterRule<
     S = AnyType,
 > = FilterRule<O, T, V, S> & {
     tileTargets?: DashboardTileTargets;
+    /**
+     * Other fields this filter is mapped to. A tile with no tileTargets entry
+     * applies the filter through the first of target and these that its chart has.
+     */
+    additionalTargets?: DashboardFieldTarget[];
     label: undefined | string;
     singleValue?: boolean;
     /**
@@ -213,7 +218,11 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets' | 'lockedTabUuids' | 'required' | 'requiredGroupId'
+    | 'tileTargets'
+    | 'additionalTargets'
+    | 'lockedTabUuids'
+    | 'required'
+    | 'requiredGroupId'
 >;
 
 export type DateFilterSettings = {
@@ -501,6 +510,7 @@ export const applyDimensionOverrides = (
                 // override onto the saved filter.
                 id: dimension.id,
                 tileTargets: dimension.tileTargets,
+                additionalTargets: dimension.additionalTargets,
                 lockedTabUuids: dimension.lockedTabUuids,
                 required: dimension.required,
                 requiredGroupId: dimension.requiredGroupId,
@@ -541,6 +551,7 @@ export const applyMetricOverrides = (
                 // saved dashboard owns tile targeting, lock state and
                 // requirement flags; the override only carries value/operator.
                 tileTargets: metric.tileTargets,
+                additionalTargets: metric.additionalTargets,
                 lockedTabUuids: metric.lockedTabUuids,
                 required: metric.required,
                 requiredGroupId: metric.requiredGroupId,

@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useId } from '@mantine/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './Parameter.module.css';
 import { ParameterInput } from './ParameterInput';
@@ -40,6 +40,8 @@ type Props = {
     isRequired?: boolean;
     isEditMode?: boolean;
     isDraggable?: boolean;
+    // Shown at the start of the pill in place of the drag grip
+    kindSlot?: ReactNode;
     triggerClassName?: string;
     dropdownClassName?: string;
     shadowedReservedNames?: string[];
@@ -58,6 +60,7 @@ const Parameter: FC<Props> = ({
     projectUuid,
     isRequired = false,
     isDraggable = false,
+    kindSlot,
     triggerClassName,
     dropdownClassName,
     shadowedReservedNames = [],
@@ -157,6 +160,8 @@ const Parameter: FC<Props> = ({
                     <Button
                         pos="relative"
                         size="xs"
+                        // On the controls bar every pill is fully rounded
+                        radius={kindSlot ? 'xl' : undefined}
                         variant={
                             hasUnsetRequiredParameter ? 'outline' : 'default'
                         }
@@ -170,13 +175,14 @@ const Parameter: FC<Props> = ({
                                 : ''
                         }
                         leftSection={
-                            isDraggable && (
+                            kindSlot ??
+                            (isDraggable && (
                                 <MantineIcon
                                     icon={IconGripVertical}
                                     cursor="grab"
                                     size="sm"
                                 />
-                            )
+                            ))
                         }
                         rightSection={
                             <Group gap={4} wrap="nowrap">

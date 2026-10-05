@@ -391,6 +391,12 @@ export enum FeatureFlags {
      * instances whose pods run as their own Google service account.
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
+
+    /**
+     * Dashboard controls: one authoring surface for dashboard filters and
+     * parameters (side panel, mapping on tiles). Gates authoring only.
+     */
+    DashboardControls = 'dashboard-controls',
 }
 
 export type FeatureFlag = {

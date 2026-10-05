@@ -1001,6 +1001,51 @@ export const deleteFilterRuleFromGroup = (
     } as FilterGroup;
 };
 
+type DashboardFilterTargets = Pick<
+    DashboardFilterRule,
+    'target' | 'additionalTargets'
+>;
+
+// First of the filter's target and additional targets among the given fields.
+export const getAvailableDashboardFilterTarget = (
+    rule: DashboardFilterTargets,
+    availableFieldIds: string[],
+): DashboardFieldTarget | undefined =>
+    [rule.target, ...(rule.additionalTargets ?? [])].find((target) =>
+        availableFieldIds.includes(target.fieldId),
+    );
+
+// The field a dashboard filter uses on a tile, given the fields the tile's chart has.
+export const getDashboardFilterTargetForTile = (
+    rule: DashboardFilterTargets & Pick<DashboardFilterRule, 'tileTargets'>,
+    tileUuid: string,
+    availableFieldIds: string[],
+): DashboardFieldTarget | undefined => {
+    const tileConfig = rule.tileTargets?.[tileUuid];
+    if (tileConfig === false) return undefined;
+    if (tileConfig === undefined) {
+        return getAvailableDashboardFilterTarget(rule, availableFieldIds);
+    }
+    return availableFieldIds.includes(tileConfig.fieldId)
+        ? tileConfig
+        : undefined;
+};
+
+// Points the filter at one field; additional targets are settled by that choice.
+const withDashboardFilterTarget = (
+    { additionalTargets, ...filter }: DashboardFilterRule,
+    target: DashboardFieldTarget,
+): DashboardFilterRule => ({
+    ...filter,
+    ...(target.fieldId !== filter.target.fieldId && {
+        settings: {
+            ...filter.settings,
+            sourceTarget: filter.settings?.sourceTarget ?? filter.target,
+        },
+    }),
+    target,
+});
+
 export const getDashboardFilterRulesForTile = (
     tileUuid: string,
     rules: DashboardFilterRule[],
@@ -1027,17 +1072,7 @@ export const getDashboardFilterRulesForTile = (
                 return filter;
             }
 
-            return {
-                ...filter,
-                ...(tileConfig.fieldId !== filter.target.fieldId && {
-                    settings: {
-                        ...filter.settings,
-                        sourceTarget:
-                            filter.settings?.sourceTarget ?? filter.target,
-                    },
-                }),
-                target: tileConfig,
-            };
+            return withDashboardFilterTarget(filter, tileConfig);
         })
         .filter((f): f is DashboardFilterRule => f !== null);
 
@@ -1062,8 +1097,13 @@ export const getTabUuidsForFilterRules = (
                 const tileConfig = filterRule.tileTargets?.[tile.uuid];
                 // TODO: Move this fallback logic to the getDashboardFilterRulesForTile function
                 if (tileConfig === undefined && filterableFieldsByTileUuid) {
-                    return filterableFieldsByTileUuid[tile.uuid]?.some(
-                        (f) => getItemId(f) === filterRule.target.fieldId,
+                    const tileFields = filterableFieldsByTileUuid[tile.uuid];
+                    return (
+                        !!tileFields &&
+                        !!getAvailableDashboardFilterTarget(
+                            filterRule,
+                            tileFields.map(getItemId),
+                        )
                     );
                 }
                 // Apply filter to tile
@@ -1112,13 +1152,16 @@ export const getDashboardFilterRulesForTables = (
     availableFieldIds: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
-    rules.filter(
-        (f) =>
-            // Unset (empty) filters don't apply, so they must not appear in the
-            // applied-filters set that callers diff against chart-level filters.
-            availableFieldIds.includes(f.target.fieldId) &&
-            !isEmptyDashboardFilterRule(f),
-    );
+    rules.flatMap((f) => {
+        // Unset (empty) filters don't apply, so they must not appear in the
+        // applied-filters set that callers diff against chart-level filters.
+        if (isEmptyDashboardFilterRule(f)) return [];
+        const target = getAvailableDashboardFilterTarget(f, availableFieldIds);
+        if (!target) return [];
+        return target === f.target
+            ? [f]
+            : [withDashboardFilterTarget(f, target)];
+    });
 
 export const getDashboardFilterRulesForTileAndTables = (
     tileUuid: string,
