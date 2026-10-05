@@ -905,7 +905,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentSkillModel<AiAgentSkillModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
-                    featureFlagService: repository.getFeatureFlagService(),
                     projectModel: models.getProjectModel(),
                     builtInSkills: BuiltInSkills,
                 }),

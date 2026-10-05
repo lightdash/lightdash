@@ -10295,22 +10295,6 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         );
     }
 
-    private async areCustomSkillsEnabled(user: SessionUser): Promise<boolean> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiAgentCustomSkills,
-        });
-        return flag.enabled;
-    }
-
-    private async getCustomSkillsForAgent(
-        user: SessionUser,
-        agentUuid: string,
-    ): Promise<AiAgentSkill[]> {
-        if (!(await this.areCustomSkillsEnabled(user))) return [];
-        return this.aiAgentSkillModel.findBoundToAgent(agentUuid);
-    }
-
     /** Skills the model may pick on its own; user-only and MCP-only skills are excluded. */
     private static isModelServable(skill: AiAgentSkill): boolean {
         return (
@@ -10361,9 +10345,6 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         agent: AiAgent,
         name: string,
     ): Promise<void> {
-        if (!(await this.areCustomSkillsEnabled(user))) {
-            throw new ForbiddenError('Custom agent skills are not enabled');
-        }
         // Built-ins are model-only: their names are reserved, so they never match here.
         const bound = await this.aiAgentSkillModel.findBoundToAgentByName({
             agentUuid: agent.uuid,
@@ -14496,7 +14477,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             ? await this.aiAgentToolsService.listAgentSkills()
             : [];
         const modelServableSkills = (
-            await this.getCustomSkillsForAgent(user, agentSettings.uuid)
+            await this.aiAgentSkillModel.findBoundToAgent(agentSettings.uuid)
         ).filter(AiAgentService.isModelServable);
         const availableSkills = [
             ...builtInSkills,

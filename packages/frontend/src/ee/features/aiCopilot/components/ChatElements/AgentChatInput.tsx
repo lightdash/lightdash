@@ -62,6 +62,7 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
 import {
@@ -354,6 +355,7 @@ export const AgentChatInput = ({
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const app = useApp();
+    const isEmbedded = useIsEmbedded();
     const isPhoneLayout = useMediaQuery('(max-width: 32em)', undefined, {
         getInitialValueInEffect: false,
     });
@@ -466,12 +468,9 @@ export const AgentChatInput = ({
     clearOnSubmitRef.current = clearOnSubmit;
     const projectUuidRef = useRef(projectUuid);
     projectUuidRef.current = projectUuid;
-    // Skills come with the agent, so the / menu needs no skill scope; the
-    // whole menu, built-ins included, exists only while the flag is on.
-    const { data: customSkillsFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAgentCustomSkills,
-    );
-    const skillsEnabled = customSkillsFlag?.enabled === true;
+    // Skills come with the agent, so the / menu needs no skill scope. Embeds
+    // cannot list or invoke skills yet.
+    const skillsEnabled = !isEmbedded;
     const skillsEnabledRef = useRef(skillsEnabled);
     skillsEnabledRef.current = skillsEnabled;
     const uiStrings = useUiStrings();

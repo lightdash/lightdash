@@ -268,9 +268,6 @@ export const AiAgentFormSetup = ({
         FeatureFlags.UserGroupsEnabled,
     );
 
-    const customSkillsFlagQuery = useServerFeatureFlag(
-        FeatureFlags.AiAgentCustomSkills,
-    );
     const threadRetentionFlagQuery = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
@@ -592,8 +589,7 @@ export const AiAgentFormSetup = ({
                             </Stack>
                         </AgentSettingsSubsection>
 
-                        {customSkillsFlagQuery.data?.enabled &&
-                        user.data?.organizationUuid ? (
+                        {user.data?.organizationUuid ? (
                             <>
                                 <Divider />
                                 <AiAgentSkillsSection

@@ -87,6 +87,10 @@ vi.mock('../../hooks/useDeepResearch', () => ({
     useHasActiveDeepResearchRun: vi.fn(() => false),
 }));
 
+vi.mock('../../hooks/useAiAgentSkills', () => ({
+    useAgentSkills: vi.fn(() => ({ data: undefined })),
+}));
+
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
 }));
