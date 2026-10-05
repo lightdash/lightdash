@@ -404,6 +404,7 @@ export * from './utils/customDimensions';
 export * from './utils/dashboard';
 export * from './utils/dbt';
 export * from './utils/dependencyGraph';
+export * from './utils/egressIps';
 export * from './utils/email';
 export * from './utils/exportTabs';
 export * from './utils/fields';

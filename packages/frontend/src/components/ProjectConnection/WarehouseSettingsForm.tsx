@@ -1,6 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Select, Stack } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { EgressIpNotice } from './EgressIpNotice';
 import { useFormContext } from './formContext';
 import AthenaForm from './WarehouseForms/AthenaForm';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
@@ -84,6 +85,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                         disabled={disabled}
                     />
                 )}
+                <EgressIpNotice />
 
                 <WarehouseForm disabled={disabled} />
                 {children}
