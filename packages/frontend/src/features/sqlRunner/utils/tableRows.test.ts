@@ -14,6 +14,7 @@ const partitionColumn = {
 
 const tablesBySchema: SchemaTables[] = [
     {
+        database: 'warehouse',
         schema: 'jaffle',
         tables: {
             customers: {},
@@ -21,25 +22,34 @@ const tablesBySchema: SchemaTables[] = [
             payments: { tableType: WarehouseTableType.VIEW },
         },
     },
-    { schema: 'staging', tables: { stg_orders: {} } },
+    { database: 'warehouse', schema: 'staging', tables: { stg_orders: {} } },
+];
+
+const twoDatabases: SchemaTables[] = [
+    { database: 'dev', schema: 'main', tables: { orders: {} } },
+    { database: 'prod', schema: 'main', tables: { orders: {} } },
 ];
 
 describe('buildTableRows', () => {
     it('emits only headers for collapsed schemas', () => {
-        const rows = buildTableRows(tablesBySchema, () => false);
+        const rows = buildTableRows(tablesBySchema, () => false, false);
 
         expect(rows).toEqual([
             {
                 type: 'schema',
-                id: 'schema:jaffle',
+                id: 'schema:warehouse.jaffle',
+                database: 'warehouse',
                 schema: 'jaffle',
+                label: 'jaffle',
                 isExpanded: false,
                 tableCount: 3,
             },
             {
                 type: 'schema',
-                id: 'schema:staging',
+                id: 'schema:warehouse.staging',
+                database: 'warehouse',
                 schema: 'staging',
+                label: 'staging',
                 isExpanded: false,
                 tableCount: 1,
             },
@@ -49,19 +59,21 @@ describe('buildTableRows', () => {
     it('interleaves every table under an expanded schema', () => {
         const rows = buildTableRows(
             tablesBySchema,
-            (schema) => schema === 'jaffle',
+            (_, { schema }) => schema === 'jaffle',
+            false,
         );
 
         expect(rows.map((row) => row.id)).toEqual([
-            'schema:jaffle',
-            'table:jaffle.customers',
-            'table:jaffle.orders',
-            'table:jaffle.payments',
-            'schema:staging',
+            'schema:warehouse.jaffle',
+            'table:warehouse.jaffle.customers',
+            'table:warehouse.jaffle.orders',
+            'table:warehouse.jaffle.payments',
+            'schema:warehouse.staging',
         ]);
         expect(rows[2]).toEqual({
             type: 'table',
-            id: 'table:jaffle.orders',
+            id: 'table:warehouse.jaffle.orders',
+            database: 'warehouse',
             schema: 'jaffle',
             table: 'orders',
             partitionColumn,
@@ -72,6 +84,42 @@ describe('buildTableRows', () => {
             tableType: WarehouseTableType.VIEW,
         });
     });
+
+    it('gives same-named schemas in different databases their own rows', () => {
+        const rows = buildTableRows(twoDatabases, () => true, true);
+
+        expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
+        expect(rows.map((row) => row.id)).toEqual([
+            'schema:dev.main',
+            'table:dev.main.orders',
+            'schema:prod.main',
+            'table:prod.main.orders',
+        ]);
+    });
+
+    it('expands one schema without expanding its namesake', () => {
+        const rows = buildTableRows(
+            twoDatabases,
+            (schemaRowId) => schemaRowId === 'schema:prod.main',
+            true,
+        );
+
+        expect(rows).toMatchObject([
+            { type: 'schema', database: 'dev', isExpanded: false },
+            { type: 'schema', database: 'prod', isExpanded: true },
+            { type: 'table', database: 'prod', table: 'orders' },
+        ]);
+    });
+
+    it('labels schemas with their database only when asked to', () => {
+        const labels = (showDatabase: boolean) =>
+            buildTableRows(twoDatabases, () => false, showDatabase).map((row) =>
+                row.type === 'schema' ? row.label : null,
+            );
+
+        expect(labels(true)).toEqual(['dev.main', 'prod.main']);
+        expect(labels(false)).toEqual(['main', 'main']);
+    });
 });
 
 describe('filterTablesBySchema', () => {
@@ -79,8 +127,16 @@ describe('filterTablesBySchema', () => {
         const filtered = filterTablesBySchema(tablesBySchema, 'orders', null);
 
         expect(filtered).toEqual([
-            { schema: 'jaffle', tables: { orders: { partitionColumn } } },
-            { schema: 'staging', tables: { stg_orders: {} } },
+            {
+                database: 'warehouse',
+                schema: 'jaffle',
+                tables: { orders: { partitionColumn } },
+            },
+            {
+                database: 'warehouse',
+                schema: 'staging',
+                tables: { stg_orders: {} },
+            },
         ]);
     });
 
@@ -91,16 +147,22 @@ describe('filterTablesBySchema', () => {
     it('keeps only views, treating untyped rows as tables', () => {
         expect(filterTablesBySchema(tablesBySchema, '', 'views')).toEqual([
             {
+                database: 'warehouse',
                 schema: 'jaffle',
                 tables: { payments: { tableType: WarehouseTableType.VIEW } },
             },
         ]);
         expect(filterTablesBySchema(tablesBySchema, '', 'tables')).toEqual([
             {
+                database: 'warehouse',
                 schema: 'jaffle',
                 tables: { customers: {}, orders: { partitionColumn } },
             },
-            { schema: 'staging', tables: { stg_orders: {} } },
+            {
+                database: 'warehouse',
+                schema: 'staging',
+                tables: { stg_orders: {} },
+            },
         ]);
     });
 
@@ -112,6 +174,7 @@ describe('filterTablesBySchema', () => {
             filterTablesBySchema(tablesBySchema, 'payments', 'views'),
         ).toEqual([
             {
+                database: 'warehouse',
                 schema: 'jaffle',
                 tables: { payments: { tableType: WarehouseTableType.VIEW } },
             },
@@ -123,7 +186,13 @@ describe('catalogHasViews', () => {
     it('is true only when some table is a view or materialized view', () => {
         expect(catalogHasViews(tablesBySchema)).toBe(true);
         expect(
-            catalogHasViews([{ schema: 'raw', tables: { a: {}, b: {} } }]),
+            catalogHasViews([
+                {
+                    database: 'warehouse',
+                    schema: 'raw',
+                    tables: { a: {}, b: {} },
+                },
+            ]),
         ).toBe(false);
     });
 });
