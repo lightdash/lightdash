@@ -4,7 +4,7 @@ Autopilot runs on the AI SDK. The hosted runtime has been removed; rollback now 
 
 ## Configuration and attribution
 
-`MANAGED_AGENT_RUNTIME` no longer selects a runtime. Restart both API and scheduler processes after changing provider or qualification configuration; they must use the same configuration.
+No runtime selector or separate Autopilot provider credentials are needed. Remove `MANAGED_AGENT_RUNTIME`, `MANAGED_AGENT_ANTHROPIC_API_KEY` and `MANAGED_AGENT_SKILL_IDS` from deployments; they are ignored, with compatibility warnings at startup. Restart both API and scheduler processes after changing provider or qualification configuration; they must use the same configuration.
 
 Autopilot resolves the organization's AI configuration before enabling and again for each run. It uses a visible, available organization default model, then an available configured provider default, then an available model. Azure uses its configured deployment directly. Configuration preflight constructs the model; it does not make a paid request or prove that a credential can access the deployment. Disabling a provider or hiding all models can prevent the next run.
 
