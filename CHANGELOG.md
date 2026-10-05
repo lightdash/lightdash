@@ -1,3 +1,15 @@
+# [2.435.0](https://github.com/lightdash/lightdash/compare/2.434.0...2.435.0) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ai-agents:** restore a deleted skill when its unchanged folder is uploaded again ([#30500](https://github.com/lightdash/lightdash/issues/30500)) ([07093f5](https://github.com/lightdash/lightdash/commit/07093f5dea0e266e30c827f09b862e819d4e864d))
+
+
+### Features
+
+* **sdk:** add onError callback to embedded SDK components ([#30490](https://github.com/lightdash/lightdash/issues/30490)) ([d9aade6](https://github.com/lightdash/lightdash/commit/d9aade692e58496fc90c0246cec5bbf9bb079272))
+
 # [2.434.0](https://github.com/lightdash/lightdash/compare/2.433.1...2.434.0) (2026-10-05)
 
 
