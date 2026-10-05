@@ -2245,6 +2245,79 @@ export const EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE: Explore = {
     },
 };
 
+const crossTableNumberMetric = (
+    name: string,
+    sql: string,
+    compiledSql: string,
+): CompiledMetric => ({
+    type: MetricType.NUMBER,
+    name,
+    label: name,
+    table: 'orders',
+    tableLabel: 'orders',
+    fieldType: FieldType.METRIC,
+    sql,
+    compiledSql,
+    tablesReferences: ['orders', 'customers'],
+    hidden: false,
+});
+
+// ${TABLE} metrics that land in the distinct and nested aggregate flows
+export const EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES: Explore = {
+    ...EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE,
+    tables: {
+        ...EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE.tables,
+        customers: {
+            ...EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE.tables.customers,
+            metrics: {
+                ...EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE.tables.customers
+                    .metrics,
+                distinct_credit: {
+                    type: MetricType.SUM_DISTINCT,
+                    name: 'distinct_credit',
+                    label: 'Distinct Credit',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.credit',
+                    compiledSql: 'SUM("customers".credit)',
+                    compiledValueSql: '"customers".credit',
+                    compiledDistinctKeys: ['"customers".customer_id'],
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+            },
+        },
+        orders: {
+            ...EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE.tables.orders,
+            metrics: {
+                ...EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE.tables.orders
+                    .metrics,
+                amount_per_distinct_credit: crossTableNumberMetric(
+                    'amount_per_distinct_credit',
+                    'SUM(${TABLE}.amount) / NULLIF(${customers.distinct_credit}, 0)',
+                    'SUM("orders".amount) / NULLIF(SUM("customers".credit), 0)',
+                ),
+                amount_per_distinct_credit_percent: crossTableNumberMetric(
+                    'amount_per_distinct_credit_percent',
+                    '${orders.amount_per_distinct_credit} * 100',
+                    '(SUM("orders".amount) / NULLIF(SUM("customers".credit), 0)) * 100',
+                ),
+                customers_on_large_orders: crossTableNumberMetric(
+                    'customers_on_large_orders',
+                    'SUM(CASE WHEN ${TABLE}.amount > 100 THEN ${customers.total_customers} END)',
+                    'SUM(CASE WHEN "orders".amount > 100 THEN COUNT("customers".customer_id) END)',
+                ),
+                revenue_per_table_field: crossTableNumberMetric(
+                    'revenue_per_table_field',
+                    '${orders.total_order_amount} / ${customers.TABLE}',
+                    'SUM("orders".amount) / COUNT("customers".customer_id)',
+                ),
+            },
+        },
+    },
+};
+
 export const METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE: CompiledMetricQuery = {
     ...METRIC_QUERY_CROSS_TABLE,
     metrics: ['orders_premium_order_amount'],

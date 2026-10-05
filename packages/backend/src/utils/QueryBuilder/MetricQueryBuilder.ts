@@ -2912,20 +2912,30 @@ export class MetricQueryBuilder {
         // would be projected from CTEs that no longer have its table in scope.
         const throwTableReferenceError = (metric: CompiledMetric) => {
             throw new FieldReferenceError(
-                `Tried to reference \${TABLE} from metric "${getItemId(
+                `Metric "${getItemId(
                     metric,
-                )}" in a query that aggregates tables separately. Reference a metric on "${
+                )}" uses \${TABLE}, which cannot be combined with metrics that are calculated in a separate step of this query. Reference metrics on "${
                     metric.table
-                }" instead.`,
+                }" instead of \${TABLE}, or remove the other metrics from the query.`,
             );
         };
-        metricsWithTableReference
+        // Includes metrics that are only referenced by a selected metric
+        const distinctMetricsWithTableReference = Array.from(
+            nonAggReferencingDd,
+        )
+            .map((metricId) => this.getMetricFromId(metricId))
             .filter(
                 (metric) =>
-                    nonAggReferencingDd.has(getItemId(metric)) ||
-                    nestedAggOuterIds.has(getItemId(metric)),
-            )
-            .forEach(throwTableReferenceError);
+                    metric.tablesReferences?.some(
+                        (table) => table !== metric.table,
+                    ) && getAllReferences(metric.sql).includes('TABLE'),
+            );
+        [
+            ...distinctMetricsWithTableReference,
+            ...metricsWithTableReference.filter((metric) =>
+                nestedAggOuterIds.has(getItemId(metric)),
+            ),
+        ].forEach(throwTableReferenceError);
 
         // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];

@@ -53,6 +53,7 @@ import {
     EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITH_SUM_DISTINCT,
+    EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
     EXPLORE_WITHOUT_PRIMARY_KEYS,
     INTRINSIC_USER_ATTRIBUTES,
@@ -2097,7 +2098,58 @@ LIMIT 10`;
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }),
             ).toThrow(
-                'Tried to reference ${TABLE} from metric "orders_raw_revenue_per_customer" in a query that aggregates tables separately. Reference a metric on "orders" instead.',
+                'Metric "orders_raw_revenue_per_customer" uses ${TABLE}, which cannot be combined with metrics that are calculated in a separate step of this query. Reference metrics on "orders" instead of ${TABLE}, or remove the other metrics from the query.',
+            );
+        });
+
+        test.each([
+            {
+                flow: 'references a distinct metric',
+                selected: 'orders_amount_per_distinct_credit',
+                failing: 'orders_amount_per_distinct_credit',
+            },
+            {
+                flow: 'is only referenced by a metric in the distinct flow',
+                selected: 'orders_amount_per_distinct_credit_percent',
+                failing: 'orders_amount_per_distinct_credit',
+            },
+            {
+                flow: 'is a nested aggregate',
+                selected: 'orders_customers_on_large_orders',
+                failing: 'orders_customers_on_large_orders',
+            },
+        ])(
+            'Should throw when a metric using ${TABLE} $flow',
+            ({ selected, failing }) => {
+                expect(() =>
+                    buildQuery({
+                        explore: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+                        compiledMetricQuery: {
+                            ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                            metrics: [selected],
+                        },
+                        warehouseSqlBuilder: warehouseClientMock,
+                        intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                        timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                    }),
+                ).toThrow(`Metric "${failing}" uses \${TABLE}`);
+            },
+        );
+
+        test('Should treat a field named TABLE on another table as an ordinary reference', () => {
+            expect(() =>
+                buildQuery({
+                    explore: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                        metrics: ['orders_revenue_per_table_field'],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }),
+            ).toThrow(
+                'Tried to reference metric with unknown field id: customers_TABLE',
             );
         });
 
