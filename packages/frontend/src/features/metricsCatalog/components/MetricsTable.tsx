@@ -52,7 +52,7 @@ import {
     setTableSorting,
     toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
-import { MetricCatalogView } from '../types';
+import { MetricCatalogView, type MetricsCatalogFilter } from '../types';
 import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
@@ -61,11 +61,13 @@ import SavedTreesContainer from './SavedTrees/SavedTreesContainer';
 type MetricsTableProps = {
     metricCatalogView: MetricCatalogView;
     isEmbed: boolean;
+    hiddenFilters: MetricsCatalogFilter[];
 };
 
 export const MetricsTable: FC<MetricsTableProps> = ({
     metricCatalogView,
     isEmbed,
+    hiddenFilters,
 }) => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
@@ -461,6 +463,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     metricCatalogView={metricCatalogView}
+                    hiddenFilters={hiddenFilters}
                     table={table}
                 />
                 <Divider color="ldGray.2" />
@@ -618,6 +621,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                                     canManageTags || dataHasCategories
                                 }
                                 metricCatalogView={metricCatalogView}
+                                hiddenFilters={hiddenFilters}
                                 table={table}
                             />
                             <Divider color="ldGray.2" />

@@ -40,6 +40,7 @@ import {
 } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
+import { type MetricsCatalogFilter } from '../src/features/metricsCatalog/types';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
 import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { useAccount } from '../src/hooks/user/useAccount';
@@ -112,7 +113,9 @@ type AiAgentProps = Omit<
 type MetricsCatalogProps = Omit<
     BaseProps,
     'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
->;
+> & {
+    hiddenFilters?: MetricsCatalogFilter[];
+};
 
 const decodeJWT = (token: string) => {
     const splits = token.split('.');
@@ -946,6 +949,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
     styles,
     theme,
     token: tokenOrTokenPromise,
+    hiddenFilters,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
     const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
@@ -982,7 +986,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
                             overflow: 'hidden',
                         }}
                     >
-                        <MetricsCatalogPage />
+                        <MetricsCatalogPage hiddenFilters={hiddenFilters} />
                     </div>
                 )}
             </EmbedProvider>
@@ -1017,6 +1021,7 @@ export {
     useLightdashContent,
 };
 export type {
+    MetricsCatalogFilter,
     SdkUiOverrides,
     UiStringKey,
     LightdashAiAgentThread,

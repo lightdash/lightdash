@@ -72,7 +72,7 @@ import {
     setColumnOrder,
     setColumnVisibility,
 } from '../../store/metricsCatalogSlice';
-import { MetricCatalogView } from '../../types';
+import { MetricCatalogView, type MetricsCatalogFilter } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
 import classes from './MetricsTableTopToolbar.module.css';
 import OwnersFilter from './OwnersFilter';
@@ -94,6 +94,7 @@ type MetricsTableTopToolbarProps = GroupProps & {
     showCategoriesFilter?: boolean;
     metricCatalogView: MetricCatalogView;
     table: ContentTableInstance<CatalogField>;
+    hiddenFilters: MetricsCatalogFilter[];
 };
 
 const SortableColumn: FC<{
@@ -179,9 +180,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         showCategoriesFilter,
         metricCatalogView,
         table,
+        hiddenFilters,
         ...props
     }) => {
         const [search, setSearch] = useState(_search);
+        const showCategories =
+            showCategoriesFilter && !hiddenFilters.includes('categories');
         const { embedToken } = useEmbed();
 
         useDebounce(
@@ -401,7 +405,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     />
 
                     {/* Categories filter */}
-                    {showCategoriesFilter && (
+                    {showCategories && (
                         <Divider
                             orientation="vertical"
                             w={1}
@@ -412,7 +416,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             }}
                         />
                     )}
-                    {showCategoriesFilter && (
+                    {showCategories && (
                         <CategoriesFilter
                             selectedCategories={selectedCategories}
                             setSelectedCategories={setSelectedCategories}
@@ -422,15 +426,19 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     )}
 
                     {/* TODO :: permissions for table filter */}
-                    <TableFilter
-                        selectedTables={selectedTables}
-                        setSelectedTables={setSelectedTables}
-                    />
+                    {!hiddenFilters.includes('tables') && (
+                        <TableFilter
+                            selectedTables={selectedTables}
+                            setSelectedTables={setSelectedTables}
+                        />
+                    )}
 
-                    <OwnersFilter
-                        selectedOwners={selectedOwners}
-                        setSelectedOwners={setSelectedOwners}
-                    />
+                    {!hiddenFilters.includes('owners') && (
+                        <OwnersFilter
+                            selectedOwners={selectedOwners}
+                            setSelectedOwners={setSelectedOwners}
+                        />
+                    )}
                 </Group>
                 <Group gap="xs">
                     <Badge

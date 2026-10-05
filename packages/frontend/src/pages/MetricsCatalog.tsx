@@ -7,16 +7,23 @@ import {
     setActiveMetric,
     toggleMetricExploreModal,
 } from '../features/metricsCatalog/store/metricsCatalogSlice';
-import { MetricCatalogView } from '../features/metricsCatalog/types';
+import {
+    MetricCatalogView,
+    type MetricsCatalogFilter,
+} from '../features/metricsCatalog/types';
 import { store } from '../features/sqlRunner/store';
 import { useAppDispatch } from '../features/sqlRunner/store/hooks';
 
 type MetricsCatalogProps = {
     metricCatalogView?: MetricCatalogView;
+    hiddenFilters?: MetricsCatalogFilter[];
 };
+
+const NO_HIDDEN_FILTERS: MetricsCatalogFilter[] = [];
 
 const MetricsCatalogContent: FC<MetricsCatalogProps> = ({
     metricCatalogView = MetricCatalogView.LIST,
+    hiddenFilters = NO_HIDDEN_FILTERS,
 }) => {
     const dispatch = useAppDispatch();
     const { embedToken } = useEmbed();
@@ -30,7 +37,10 @@ const MetricsCatalogContent: FC<MetricsCatalogProps> = ({
     }, [dispatch]);
 
     const content = (
-        <MetricsCatalogPanel metricCatalogView={metricCatalogView} />
+        <MetricsCatalogPanel
+            metricCatalogView={metricCatalogView}
+            hiddenFilters={hiddenFilters}
+        />
     );
 
     return embedToken ? (
@@ -44,10 +54,14 @@ const MetricsCatalogContent: FC<MetricsCatalogProps> = ({
 
 const MetricsCatalog: FC<MetricsCatalogProps> = ({
     metricCatalogView = MetricCatalogView.LIST,
+    hiddenFilters = NO_HIDDEN_FILTERS,
 }) => {
     return (
         <Provider store={store}>
-            <MetricsCatalogContent metricCatalogView={metricCatalogView} />
+            <MetricsCatalogContent
+                metricCatalogView={metricCatalogView}
+                hiddenFilters={hiddenFilters}
+            />
         </Provider>
     );
 };
