@@ -1143,6 +1143,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     s3CacheClient: clients.getS3CacheClient(),
                     analyticsModel: models.getAnalyticsModel(),
                     dashboardModel: models.getDashboardModel(),
+                    aiIdentityModel: models.getAiIdentityModel(),
                     userWarehouseCredentialsModel:
                         models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
@@ -1373,6 +1374,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     s3CacheClient: clients.getS3CacheClient(),
                     analyticsModel: models.getAnalyticsModel(),
                     dashboardModel: models.getDashboardModel(),
+                    aiIdentityModel: models.getAiIdentityModel(),
                     userWarehouseCredentialsModel:
                         models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:

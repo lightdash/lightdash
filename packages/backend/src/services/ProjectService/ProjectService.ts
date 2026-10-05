@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    AiIdentityStatus,
     allowsOptionalUserCredentials,
     AlreadyExistsError,
     AndFilterGroup,
@@ -74,6 +75,7 @@ import {
     DbtRawModelNode,
     DbtVersionOption,
     deepEqual,
+    DEFAULT_AI_TWIN_NAME_TEMPLATE,
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
     DimensionType,
@@ -220,6 +222,7 @@ import {
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     RequestMethod,
+    resolveAiTwinName,
     resolveDashboardTileParameters,
     resolveDbtVersion,
     ResolvedProjectColorPalette,
@@ -306,6 +309,7 @@ import {
     exchangeDatabricksOAuthCredentials,
     getGoogleOauthTokenError,
     refreshDatabricksOAuthToken,
+    SnowflakeWarehouseClient,
     SshTunnel,
     warehouseSqlBuilderFromType,
     type WarehouseClientOptions,
@@ -355,6 +359,7 @@ import {
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
+import { AiIdentityModel } from '../../models/AiIdentityModel';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -413,6 +418,7 @@ import {
     TrackingParams,
 } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import { generateAiIdentityKeyPair } from '../../utils/aiIdentityKeys';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
@@ -434,6 +440,10 @@ import {
 } from '../../utils/sharedSignInExpiry';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import {
+    buildAiTwinCredentials,
+    checkAiTwinConnection,
+} from '../AiIdentityService/aiTwinConnection';
 import { BaseService } from '../BaseService';
 import {
     NO_CLI_DEPLOY_SELECTION,
@@ -575,6 +585,7 @@ export type ProjectServiceArguments = {
     dashboardModel: DashboardModel;
     emailModel: EmailModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    aiIdentityModel: AiIdentityModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
@@ -723,6 +734,11 @@ type AiAccessIdentity =
           kind: 'ai_service_account';
           credentials: CreateWarehouseCredentials;
           credentialUuid: string;
+      }
+    | {
+          kind: 'snowflake_ai_twin';
+          credentials: CreateSnowflakeCredentials;
+          aiIdentityUuid: string;
       };
 
 export class ProjectService extends BaseService {
@@ -761,6 +777,8 @@ export class ProjectService extends BaseService {
     dashboardModel: DashboardModel;
 
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+
+    aiIdentityModel: AiIdentityModel;
 
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
@@ -859,6 +877,7 @@ export class ProjectService extends BaseService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        aiIdentityModel,
         warehouseAvailableTablesModel,
         warehouseConnectionModel,
         warehouseConnectionCompileModel,
@@ -914,6 +933,7 @@ export class ProjectService extends BaseService {
         this.analyticsModel = analyticsModel;
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.aiIdentityModel = aiIdentityModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
         this.warehouseConnectionIdentityModel =
@@ -2251,6 +2271,7 @@ export class ProjectService extends BaseService {
         credentials,
         rawSql,
         aiSurface,
+        warehouseConnectionUuid,
     }: {
         projectUuid: string;
         organizationUuid?: string;
@@ -2261,6 +2282,7 @@ export class ProjectService extends BaseService {
         credentials: CreateWarehouseCredentials;
         rawSql?: boolean;
         aiSurface?: 'ai_agent' | 'slack_agent';
+        warehouseConnectionUuid?: string;
     }): Promise<AiAccessIdentity | null> {
         if (context === undefined || !isAiAccessQueryContext(context)) {
             return null;
@@ -2285,6 +2307,30 @@ export class ProjectService extends BaseService {
             context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
                 ? 'mcp'
                 : (aiSurface ?? 'ai_agent');
+        if (
+            restrictionsEnabled &&
+            credentials.type === WarehouseTypes.SNOWFLAKE
+        ) {
+            const twinFlag = await this.featureFlagModel.get({
+                user: {
+                    userUuid: userId,
+                    organizationUuid: resolvedOrganizationUuid,
+                },
+                featureFlagId: FeatureFlags.SnowflakeAiTwins,
+            });
+            if (twinFlag.enabled) {
+                return this.resolveSnowflakeAiTwin({
+                    projectUuid,
+                    userId,
+                    isRegisteredUser,
+                    isServiceAccount,
+                    credentials,
+                    surface,
+                    context,
+                    warehouseConnectionUuid,
+                });
+            }
+        }
         if (restrictionsEnabled && rawSql === true) {
             this.logger.warn('AI access query refused', {
                 projectUuid,
@@ -2379,6 +2425,158 @@ export class ProjectService extends BaseService {
         };
     }
 
+    private async resolveSnowflakeAiTwin({
+        projectUuid,
+        userId,
+        isRegisteredUser,
+        isServiceAccount,
+        credentials,
+        surface,
+        context,
+        warehouseConnectionUuid,
+    }: {
+        projectUuid: string;
+        userId: string;
+        isRegisteredUser: boolean;
+        isServiceAccount: boolean;
+        credentials: CreateSnowflakeCredentials;
+        surface: 'mcp' | 'ai_agent' | 'slack_agent' | 'boundary_test';
+        context: QueryExecutionContext;
+        warehouseConnectionUuid: string | undefined;
+    }): Promise<Extract<AiAccessIdentity, { kind: 'snowflake_ai_twin' }>> {
+        const { aiIdentityModel } = this;
+        const refuseTwin = (): never => {
+            this.logger.warn('AI access query refused', {
+                projectUuid,
+                userUuid: userId,
+                reason: 'no_ready_ai_identity',
+                surface,
+                warehouseType: credentials.type,
+            });
+            throw new AiAccessRestrictionsError(
+                "Your AI identity isn't set up yet. Ask your admin.",
+            );
+        };
+        if (!isRegisteredUser || isServiceAccount) refuseTwin();
+        let identity = await aiIdentityModel.findWithPrivateKey({
+            projectUuid,
+            userUuid: userId,
+        });
+        if (identity === null) {
+            const keys = generateAiIdentityKeyPair();
+            await aiIdentityModel.create({
+                projectUuid,
+                userUuid: userId,
+                snowflakeLogin: null,
+                publicKey: keys.publicKey,
+                privateKey: keys.privateKey,
+            });
+            return refuseTwin();
+        }
+        let { snowflakeLogin } = identity;
+        if (snowflakeLogin === null && credentials.requireUserCredentials) {
+            try {
+                const personal = warehouseConnectionUuid
+                    ? await this.findUserCredentialsForExtraConnection({
+                          projectUuid,
+                          warehouseConnectionUuid,
+                          userUuid: userId,
+                          warehouseType: WarehouseTypes.SNOWFLAKE,
+                          requireUserCredentials: true,
+                      })
+                    : await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                          projectUuid,
+                          userId,
+                          WarehouseTypes.SNOWFLAKE,
+                      );
+                if (personal) {
+                    const personalCredentials =
+                        mergePersonalWarehouseCredentials(
+                            credentials,
+                            personal,
+                        );
+                    if (personalCredentials.type === WarehouseTypes.SNOWFLAKE) {
+                        const refreshedPersonalCredentials =
+                            await this.refreshCredentialsAndPersistRotation(
+                                personalCredentials,
+                                userId,
+                                {
+                                    kind: 'user',
+                                    userWarehouseCredentialsUuid: personal.uuid,
+                                },
+                            );
+                        if (
+                            refreshedPersonalCredentials.type !==
+                            WarehouseTypes.SNOWFLAKE
+                        )
+                            throw new UnexpectedServerError(
+                                'Personal warehouse credentials must be Snowflake credentials',
+                            );
+                        const client = new SnowflakeWarehouseClient(
+                            refreshedPersonalCredentials,
+                        );
+                        const result = await client.runQuery(
+                            'SELECT CURRENT_USER() AS SNOWFLAKE_LOGIN',
+                        );
+                        const value = result.rows[0]?.SNOWFLAKE_LOGIN;
+                        if (typeof value === 'string' && value.length > 0) {
+                            snowflakeLogin = value;
+                            await aiIdentityModel.setSnowflakeLogin(
+                                identity.aiIdentityUuid,
+                                value,
+                            );
+                        }
+                    }
+                }
+            } catch {
+                refuseTwin();
+            }
+        }
+        const { twinNameTemplate } =
+            await aiIdentityModel.getSettings(projectUuid);
+        const twinName = resolveAiTwinName({
+            twinNameOverride: identity.twinNameOverride,
+            twinNameTemplate: twinNameTemplate ?? DEFAULT_AI_TWIN_NAME_TEMPLATE,
+            snowflakeLogin,
+        });
+        if (twinName === null) return refuseTwin();
+        const twinCredentials = buildAiTwinCredentials({
+            projectCredentials: credentials,
+            twinName,
+            privateKey: identity.privateKey,
+        });
+        const shouldCheck =
+            identity.status === AiIdentityStatus.PENDING ||
+            (identity.status === AiIdentityStatus.FAILED &&
+                (identity.checkedAt === null ||
+                    identity.checkedAt.getTime() < Date.now() - 5 * 60_000));
+        if (shouldCheck) {
+            const check = await checkAiTwinConnection(twinCredentials);
+            const status = await aiIdentityModel.updateStatus(
+                identity.aiIdentityUuid,
+                {
+                    status: check.ok
+                        ? AiIdentityStatus.READY
+                        : AiIdentityStatus.FAILED,
+                    statusMessage: check.ok ? null : check.message,
+                },
+            );
+            identity = { ...status, privateKey: identity.privateKey };
+        }
+        if (identity.status !== AiIdentityStatus.READY) refuseTwin();
+        this.logger.info('AI access query uses the AI twin', {
+            projectUuid,
+            userUuid: userId,
+            aiIdentityUuid: identity.aiIdentityUuid,
+            context,
+        });
+        return {
+            kind: 'snowflake_ai_twin',
+            credentials: twinCredentials,
+            aiIdentityUuid: identity.aiIdentityUuid,
+        };
+    }
+
     private async resolveAiServiceAccountIdentity(): Promise<Extract<
         AiAccessIdentity,
         { kind: 'ai_service_account' }
@@ -2399,6 +2597,22 @@ export class ProjectService extends BaseService {
             !(await this.projectModel.getAiAccessRestrictions(projectUuid))
         ) {
             return true;
+        }
+        const twinFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: userId,
+                organizationUuid: project.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.SnowflakeAiTwins,
+        });
+        if (twinFlag.enabled) {
+            const warehouseCredentials =
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    projectUuid,
+                );
+            if (warehouseCredentials.type === WarehouseTypes.SNOWFLAKE) {
+                return true;
+            }
         }
         try {
             await this.getWarehouseCredentialsWithConnection({
@@ -2490,6 +2704,7 @@ export class ProjectService extends BaseService {
         const aiAccessCredentials = await this.resolveAiAccessIdentity({
             projectUuid,
             organizationUuid: project.organizationUuid,
+            warehouseConnectionUuid,
             userId,
             isRegisteredUser,
             isServiceAccount,
@@ -2502,7 +2717,13 @@ export class ProjectService extends BaseService {
             return {
                 ...aiAccessCredentials.credentials,
                 userWarehouseCredentialsUuid:
-                    aiAccessCredentials.credentialUuid,
+                    aiAccessCredentials.kind === 'snowflake_ai_twin'
+                        ? undefined
+                        : aiAccessCredentials.credentialUuid,
+                aiIdentityUuid:
+                    aiAccessCredentials.kind === 'snowflake_ai_twin'
+                        ? aiAccessCredentials.aiIdentityUuid
+                        : undefined,
                 organizationWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid ?? undefined,
             };
@@ -3225,7 +3446,13 @@ export class ProjectService extends BaseService {
             return {
                 ...aiAccessCredentials.credentials,
                 userWarehouseCredentialsUuid:
-                    aiAccessCredentials.credentialUuid,
+                    aiAccessCredentials.kind === 'snowflake_ai_twin'
+                        ? undefined
+                        : aiAccessCredentials.credentialUuid,
+                aiIdentityUuid:
+                    aiAccessCredentials.kind === 'snowflake_ai_twin'
+                        ? aiAccessCredentials.aiIdentityUuid
+                        : undefined,
                 organizationWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid ?? undefined,
             };
@@ -3433,12 +3660,19 @@ export class ProjectService extends BaseService {
             typeof credentials.userWarehouseCredentialsUuid === 'string'
                 ? credentials.userWarehouseCredentialsUuid
                 : null;
+        const aiIdentityUuid =
+            agentSessionRequired &&
+            'aiIdentityUuid' in credentials &&
+            typeof credentials.aiIdentityUuid === 'string'
+                ? credentials.aiIdentityUuid
+                : null;
         const cacheKey = JSON.stringify([
             projectUuid,
             snowflakeVirtualWarehouse ?? null,
             databricksCompute ?? null,
             agentSessionRequired,
             aiCredentialUuid,
+            aiIdentityUuid,
         ]);
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as

@@ -128,6 +128,12 @@ import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
+    type ApiAiIdentitiesResponse,
+    type ApiAiIdentitiesSqlResponse,
+    type ApiAiIdentityResponse,
+    type ApiAiIdentitySettingsResponse,
+} from './aiIdentity';
+import {
     type ApiUserActivityDownloadCsv,
     type QueryExecutionContext,
     type UserActivity,
@@ -1359,6 +1365,10 @@ type ApiResults =
     | ApiWarehouseConnectionUserCredentialsResponse['results']
     | ApiWarehouseConnectionsForUserCredentialsResponse['results']
     | ApiSqlRunnerWarehouseConnectionsResponse['results']
+    | ApiAiIdentitiesResponse['results']
+    | ApiAiIdentityResponse['results']
+    | ApiAiIdentitySettingsResponse['results']
+    | ApiAiIdentitiesSqlResponse['results']
     | ApiWarehouseDatabaseListing['results']
     | Document
     | DocumentList

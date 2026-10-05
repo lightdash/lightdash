@@ -50,6 +50,7 @@ const callVerify = async (
     } else {
         check.mockResolvedValue({
             agentActivated: agentSession,
+            currentUser: agentSession ? 'PERSON' : null,
             currentRole: agentSession ? 'ANALYST' : null,
             activeRestrictedSessionScopes: agentSession ? 'READ' : null,
         });

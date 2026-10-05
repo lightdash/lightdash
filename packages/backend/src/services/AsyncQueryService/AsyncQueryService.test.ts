@@ -82,6 +82,7 @@ import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorag
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import { AiIdentityModel } from '../../models/AiIdentityModel';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentDraftModel } from '../../models/ContentDraftModel';
@@ -390,6 +391,7 @@ const getMockedAsyncQueryService = (
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        aiIdentityModel: {} as AiIdentityModel,
         getDocumentService: () =>
             ({
                 ...(documentService ?? {

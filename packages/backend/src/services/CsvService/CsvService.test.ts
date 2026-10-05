@@ -13,6 +13,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import { AiIdentityModel } from '../../models/AiIdentityModel';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -66,6 +67,7 @@ describe('Csv service', () => {
             analytics: analyticsMock,
             analyticsModel: {} as AnalyticsModel,
             dashboardModel: {} as DashboardModel,
+            aiIdentityModel: {} as AiIdentityModel,
             emailClient: {} as EmailClient,
             jobModel: {} as JobModel,
             onboardingModel: {} as OnboardingModel,

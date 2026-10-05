@@ -126,12 +126,14 @@ export const isSnowflakeAgentActivatedValue = (value: unknown): boolean =>
 
 export type SnowflakeAgentSessionCheck = {
     agentActivated: boolean;
+    currentUser: string | null;
     currentRole: string | null;
     activeRestrictedSessionScopes: string | null;
 };
 
 const inactiveAgentSession = (): SnowflakeAgentSessionCheck => ({
     agentActivated: false,
+    currentUser: null,
     currentRole: null,
     activeRestrictedSessionScopes: null,
 });
@@ -156,7 +158,7 @@ export const checkSnowflakeAgentSession = async (
         const rows = await new Promise<unknown[]>((resolve, reject) => {
             connection.execute({
                 sqlText:
-                    "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN AS IS_AGENT_ACTIVATED, CURRENT_ROLE() AS CURRENT_ROLE, SYS_CONTEXT('SNOWFLAKE$SESSION', 'ACTIVE_RESTRICTED_SESSION_SCOPES') AS ACTIVE_RESTRICTED_SESSION_SCOPES",
+                    "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN AS IS_AGENT_ACTIVATED, CURRENT_USER() AS CURRENT_USER, CURRENT_ROLE() AS CURRENT_ROLE, SYS_CONTEXT('SNOWFLAKE$SESSION', 'ACTIVE_RESTRICTED_SESSION_SCOPES') AS ACTIVE_RESTRICTED_SESSION_SCOPES",
                 complete: (error, _statement, data) => {
                     if (error) {
                         reject(error);
@@ -174,6 +176,7 @@ export const checkSnowflakeAgentSession = async (
                 ([name]) => name.toUpperCase() === key,
             )?.[1];
         const currentRole = getValue('CURRENT_ROLE');
+        const currentUser = getValue('CURRENT_USER');
         const activeRestrictedSessionScopes = getValue(
             'ACTIVE_RESTRICTED_SESSION_SCOPES',
         );
@@ -181,6 +184,7 @@ export const checkSnowflakeAgentSession = async (
             agentActivated: isSnowflakeAgentActivatedValue(
                 getValue('IS_AGENT_ACTIVATED'),
             ),
+            currentUser: typeof currentUser === 'string' ? currentUser : null,
             currentRole: typeof currentRole === 'string' ? currentRole : null,
             activeRestrictedSessionScopes:
                 typeof activeRestrictedSessionScopes === 'string'
@@ -921,7 +925,24 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
                 );
             }
+            if (
+                this.credentials.expectedCurrentUser &&
+                session.currentUser?.replace(/^"|"$/g, '').toUpperCase() !==
+                    this.credentials.expectedCurrentUser
+                        .replace(/^"|"$/g, '')
+                        .toUpperCase()
+            ) {
+                this.logger?.info('Snowflake AI user mismatch', {
+                    currentUser: session.currentUser,
+                    currentRole: session.currentRole,
+                });
+                await this.destroyRejectedAgentConnection(connection);
+                throw new WarehouseConnectionError(
+                    'This Snowflake session is not the expected AI user.',
+                );
+            }
             this.logger?.info('Snowflake agent session activated', {
+                currentUser: session.currentUser,
                 currentRole: session.currentRole,
                 activeRestrictedSessionScopes:
                     session.activeRestrictedSessionScopes,

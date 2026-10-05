@@ -12,6 +12,11 @@ export type CiphertextRegistryEntry = {
 // still hold ciphertext in it.
 export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
     {
+        table: 'ai_identities',
+        primaryKeyColumn: 'ai_identity_uuid',
+        column: 'encrypted_private_key',
+    },
+    {
         table: 'projects',
         primaryKeyColumn: 'project_id',
         column: 'dbt_connection',

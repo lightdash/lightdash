@@ -47,6 +47,7 @@ import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import NodeCache from 'node-cache';
 import { LightdashConfig } from '../config/parseConfig';
+import { AiIdentitiesTableName } from '../database/entities/aiIdentities';
 import {
     createEmail,
     deleteEmail,
@@ -639,6 +640,7 @@ export class UserModel {
         }: Partial<UpdateUserArgs>,
         isEmailVerified: boolean = false,
     ): Promise<LightdashUser> {
+        let deletedAiIdentityCount = 0;
         await this.database.transaction(async (trx) => {
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
@@ -657,6 +659,12 @@ export class UserModel {
                     updated_at: new Date(),
                 })
                 .returning('*');
+
+            if (isActive === false) {
+                deletedAiIdentityCount = await trx(AiIdentitiesTableName)
+                    .where('user_uuid', userUuid)
+                    .delete();
+            }
 
             if (email && currentEmail !== email) {
                 if (currentEmail) {
@@ -686,6 +694,10 @@ export class UserModel {
             }
         });
         if (isActive === false) {
+            Logger.info('Deleted AI identities for a deactivated user', {
+                userUuid,
+                count: deletedAiIdentityCount,
+            });
             PatSessionCache.invalidate();
         }
         this.invalidateSessionUserCache(userUuid);

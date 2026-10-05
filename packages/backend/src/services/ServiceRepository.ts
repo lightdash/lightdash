@@ -21,6 +21,7 @@ import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
+import { AiIdentityService } from './AiIdentityService/AiIdentityService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
@@ -232,6 +233,7 @@ interface ServiceManifest {
     managedAgentService: unknown;
     mobilePushNotificationService: unknown;
     mcpService: unknown;
+    aiIdentityService: AiIdentityService;
     rolesService: RolesService;
     slackService: SlackService;
     organizationWarehouseCredentialsService: unknown;
@@ -977,6 +979,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
+                    aiIdentityModel: this.models.getAiIdentityModel(),
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
                     warehouseConnectionModel:
@@ -1117,6 +1120,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     contentDraftModel: this.models.getContentDraftModel(),
                     projectModel: this.models.getProjectModel(),
+                    aiIdentityModel: this.models.getAiIdentityModel(),
                     projectDbtSourcesModel:
                         this.models.getProjectDbtSourcesModel(),
                     preAggregateModel: this.models.getPreAggregateModel(),
@@ -1975,6 +1979,20 @@ export class ServiceRepository
 
     public getAiRouterService<AiRouterServiceImplT>(): AiRouterServiceImplT {
         return this.getService('aiRouterService');
+    }
+
+    public getAiIdentityService(): AiIdentityService {
+        return this.getService(
+            'aiIdentityService',
+            () =>
+                new AiIdentityService({
+                    aiIdentityModel: this.models.getAiIdentityModel(),
+                    projectModel: this.models.getProjectModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    userWarehouseCredentialsModel:
+                        this.models.getUserWarehouseCredentialsModel(),
+                }),
+        );
     }
 
     public getRolesService(): RolesService {

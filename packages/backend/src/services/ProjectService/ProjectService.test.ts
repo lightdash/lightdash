@@ -1,6 +1,8 @@
 import { Ability, subject } from '@casl/ability';
 import {
     Account,
+    AiIdentity,
+    AiIdentityStatus,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -106,6 +108,7 @@ import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaselin
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import * as winston from '../../logging/winston';
+import { AiIdentityModel } from '../../models/AiIdentityModel';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -155,6 +158,7 @@ import {
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { checkAiTwinConnection } from '../AiIdentityService/aiTwinConnection';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -194,6 +198,13 @@ import {
     validExplore,
     virtualExplore,
 } from './ProjectService.mock';
+
+vi.mock('../AiIdentityService/aiTwinConnection', async (importOriginal) => ({
+    ...(await importOriginal<
+        typeof import('../AiIdentityService/aiTwinConnection')
+    >()),
+    checkAiTwinConnection: vi.fn(),
+}));
 
 // Mock worker_threads so the >500 rows test doesn't need a compiled
 // dist/services/ProjectService/formatRows.js artifact. In production,
@@ -254,6 +265,11 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     exchangeDatabricksOAuthCredentials: vi.fn(),
     refreshDatabricksOAuthToken: vi.fn(),
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID: 'default-client-id',
+    SnowflakeWarehouseClient: class MockSnowflakeWarehouseClient {
+        runQuery = vi.fn(async () => ({
+            rows: [{ SNOWFLAKE_LOGIN: 'ANALYST' }],
+        }));
+    },
     warehouseClientFromCredentials: vi.fn(() => warehouseClientMock),
 }));
 
@@ -533,6 +549,7 @@ const getMockedProjectService = (
             | 'organizationWarehouseCredentialsModel'
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
+            | 'aiIdentityModel'
             | 'projectDbtSourcesModel'
             | 'githubAppInstallationsModel'
         >
@@ -564,6 +581,7 @@ const getMockedProjectService = (
         userWarehouseCredentialsModel: {
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
+        aiIdentityModel: overrides.aiIdentityModel ?? ({} as AiIdentityModel),
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         warehouseConnectionModel: {} as WarehouseConnectionModel,
         warehouseConnectionCompileModel: {} as WarehouseConnectionCompileModel,
@@ -1310,6 +1328,14 @@ describe('ProjectService', () => {
                     requireAgentSession: true,
                 },
                 runQuery: vi.fn(async () => resultsWith1Row),
+            })
+            .mockReturnValueOnce({
+                ...warehouseClientMock,
+                credentials: {
+                    ...snowflakeCredentials,
+                    requireAgentSession: true,
+                },
+                runQuery: vi.fn(async () => resultsWith1Row),
             });
         try {
             const dashboard = await configuredService._getWarehouseClient(
@@ -1322,6 +1348,15 @@ describe('ProjectService', () => {
                     ...snowflakeCredentials,
                     requireAgentSession: true,
                     userWarehouseCredentialsUuid: 'ai-credential-uuid',
+                    aiIdentityUuid: 'first-twin',
+                } as CreateSnowflakeCredentials,
+            );
+            const otherTwin = await configuredService._getWarehouseClient(
+                projectUuid,
+                {
+                    ...snowflakeCredentials,
+                    requireAgentSession: true,
+                    aiIdentityUuid: 'second-twin',
                 } as CreateSnowflakeCredentials,
             );
             const dashboardAgain = await configuredService._getWarehouseClient(
@@ -1329,10 +1364,14 @@ describe('ProjectService', () => {
                 snowflakeCredentials,
             );
             expect(agent.warehouseClient).not.toBe(dashboard.warehouseClient);
+            expect(otherTwin.warehouseClient).not.toBe(agent.warehouseClient);
+            expect(
+                Object.keys(configuredService.warehouseClients),
+            ).toHaveLength(3);
             expect(dashboardAgain.warehouseClient).toBe(
                 dashboard.warehouseClient,
             );
-            expect(createClient).toHaveBeenCalledTimes(2);
+            expect(createClient).toHaveBeenCalledTimes(3);
         } finally {
             if (originalTunnelImplementation)
                 tunnelMock.mockImplementation(originalTunnelImplementation);
@@ -6794,8 +6833,20 @@ describe('ProjectService', () => {
                 const uploadResults = vi.fn(async () => undefined);
                 Object.assign(flaggedService, {
                     s3CacheClient: { getIfFresh, uploadResults },
-                    getWarehouseCredentials: vi.fn(
-                        async () => warehouseClientMock.credentials,
+                    getWarehouseCredentials: vi.fn(async () =>
+                        context === QueryExecutionContext.AI
+                            ? ({
+                                  type: WarehouseTypes.SNOWFLAKE,
+                                  account: 'account',
+                                  user: 'ANALYST_AI',
+                                  database: 'DATABASE',
+                                  schema: 'PUBLIC',
+                                  warehouse: 'WAREHOUSE',
+                                  requireAgentSession: true,
+                                  expectedCurrentUser: 'ANALYST_AI',
+                                  aiIdentityUuid: 'identity-uuid',
+                              } as CreateSnowflakeCredentials)
+                            : warehouseClientMock.credentials,
                     ),
                 });
                 vi.mocked(
@@ -9300,6 +9351,249 @@ describe('ProjectService', () => {
                 gate.mockRestore();
             });
         });
+    });
+});
+
+describe('Snowflake AI twin query routing', () => {
+    const snowflakeCredentials = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'account',
+        user: 'PROJECT_USER',
+        password: 'project-password',
+        database: 'DATABASE',
+        schema: 'PUBLIC',
+        warehouse: 'WAREHOUSE',
+        authenticationType: SnowflakeAuthenticationType.PASSWORD,
+        requireUserCredentials: false,
+    } as const satisfies CreateSnowflakeCredentials;
+    const readyIdentity: AiIdentity & { privateKey: string } = {
+        aiIdentityUuid: 'identity-uuid',
+        userUuid: 'user-uuid',
+        email: 'analyst@example.com',
+        firstName: 'Analyst',
+        lastName: 'Example',
+        snowflakeLogin: 'ANALYST',
+        twinNameOverride: null,
+        twinName: 'ANALYST_AI',
+        publicKey: 'public-key',
+        publicKeyFingerprint: 'SHA256:fingerprint',
+        privateKey: 'private-key',
+        status: AiIdentityStatus.READY,
+        statusMessage: null,
+        checkedAt: new Date(),
+    };
+    const identityModel = {
+        findWithPrivateKey: vi.fn(
+            async (): Promise<typeof readyIdentity | null> => readyIdentity,
+        ),
+        create: vi.fn(async () => readyIdentity),
+        getSettings: vi.fn(async () => ({
+            twinNameTemplate: '{snowflake_login}_AI',
+        })),
+        setSnowflakeLogin: vi.fn(async () => undefined),
+        updateStatus: vi.fn(async () => readyIdentity),
+    };
+    const resolve = (service: ProjectService, rawSql: boolean) =>
+        (
+            service as unknown as {
+                resolveAiAccessIdentity: (args: {
+                    projectUuid: string;
+                    userId: string;
+                    isRegisteredUser: boolean;
+                    isServiceAccount: boolean;
+                    context: QueryExecutionContext;
+                    credentials: CreateSnowflakeCredentials;
+                    rawSql: boolean;
+                }) => Promise<unknown>;
+            }
+        ).resolveAiAccessIdentity({
+            projectUuid: projectSummary.projectUuid,
+            userId: 'user-uuid',
+            isRegisteredUser: true,
+            isServiceAccount: false,
+            context: QueryExecutionContext.AI,
+            credentials: snowflakeCredentials,
+            rawSql,
+        });
+    const makeService = (twinFlagEnabled = true) =>
+        getMockedProjectService(lightdashConfigMock, {
+            aiIdentityModel: identityModel as unknown as AiIdentityModel,
+            featureFlagModel: {
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId ===
+                                FeatureFlags.AiAccessRestrictions ||
+                            (twinFlagEnabled &&
+                                featureFlagId ===
+                                    FeatureFlags.SnowflakeAiTwins),
+                    }),
+                ),
+            } as unknown as FeatureFlagModel,
+        });
+
+    beforeEach(() => {
+        vi.spyOn(projectModel, 'getAiAccessRestrictions').mockResolvedValue(
+            true,
+        );
+        identityModel.findWithPrivateKey.mockClear();
+        identityModel.create.mockClear();
+        identityModel.updateStatus.mockClear();
+        identityModel.findWithPrivateKey.mockResolvedValue(readyIdentity);
+        identityModel.updateStatus.mockResolvedValue(readyIdentity);
+        vi.mocked(checkAiTwinConnection).mockReset();
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it.each([false, true])(
+        'uses twin credentials for AI rawSql=%s',
+        async (rawSql) => {
+            const result = await resolve(makeService(), rawSql);
+            expect(result).toMatchObject({
+                kind: 'snowflake_ai_twin',
+                aiIdentityUuid: 'identity-uuid',
+                credentials: {
+                    user: 'ANALYST_AI',
+                    privateKey: 'private-key',
+                    requireAgentSession: true,
+                    expectedCurrentUser: 'ANALYST_AI',
+                    requireUserCredentials: false,
+                },
+            });
+            expect(result).not.toMatchObject({
+                credentials: { user: 'PROJECT_USER' },
+            });
+        },
+    );
+
+    it('creates a missing identity and refuses the query', async () => {
+        identityModel.findWithPrivateKey.mockResolvedValueOnce(null);
+        await expect(resolve(makeService(), false)).rejects.toThrow(
+            "Your AI identity isn't set up yet. Ask your admin.",
+        );
+        expect(identityModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: projectSummary.projectUuid,
+                userUuid: 'user-uuid',
+                snowflakeLogin: null,
+            }),
+        );
+    });
+
+    it('checks a pending twin before using it', async () => {
+        identityModel.findWithPrivateKey.mockResolvedValueOnce({
+            ...readyIdentity,
+            status: AiIdentityStatus.PENDING,
+        });
+        vi.mocked(checkAiTwinConnection).mockResolvedValueOnce({
+            ok: true,
+            currentUser: 'ANALYST_AI',
+            currentRole: 'AI_ROLE',
+        });
+        await expect(resolve(makeService(), false)).resolves.toMatchObject({
+            kind: 'snowflake_ai_twin',
+        });
+        expect(identityModel.updateStatus).toHaveBeenCalledWith(
+            'identity-uuid',
+            {
+                status: AiIdentityStatus.READY,
+                statusMessage: null,
+            },
+        );
+    });
+
+    it('discovers the Snowflake login with the person credentials', async () => {
+        identityModel.findWithPrivateKey.mockResolvedValueOnce({
+            ...readyIdentity,
+            snowflakeLogin: null,
+        });
+        const service = makeService();
+        service.userWarehouseCredentialsModel = {
+            findForProjectWithSecrets: vi.fn(async () => ({
+                uuid: 'personal-credential',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'ANALYST',
+                    password: 'personal-password',
+                },
+            })),
+        } as unknown as UserWarehouseCredentialsModel;
+        vi.spyOn(
+            service as unknown as {
+                refreshCredentialsAndPersistRotation: () => Promise<CreateSnowflakeCredentials>;
+            },
+            'refreshCredentialsAndPersistRotation',
+        ).mockImplementation(async () => ({
+            ...snowflakeCredentials,
+            user: 'ANALYST',
+        }));
+        const personalCredentials = {
+            ...snowflakeCredentials,
+            requireUserCredentials: true,
+        };
+        await expect(
+            (
+                service as unknown as {
+                    resolveAiAccessIdentity: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                        isServiceAccount: boolean;
+                        context: QueryExecutionContext;
+                        credentials: CreateSnowflakeCredentials;
+                    }) => Promise<unknown>;
+                }
+            ).resolveAiAccessIdentity({
+                projectUuid: projectSummary.projectUuid,
+                userId: 'user-uuid',
+                isRegisteredUser: true,
+                isServiceAccount: false,
+                context: QueryExecutionContext.AI,
+                credentials: personalCredentials,
+            }),
+        ).resolves.toMatchObject({
+            kind: 'snowflake_ai_twin',
+            credentials: { user: 'ANALYST_AI' },
+        });
+        expect(identityModel.setSnowflakeLogin).toHaveBeenCalledWith(
+            'identity-uuid',
+            'ANALYST',
+        );
+    });
+
+    it('refuses a recently failed twin without retrying', async () => {
+        identityModel.findWithPrivateKey.mockResolvedValueOnce({
+            ...readyIdentity,
+            status: AiIdentityStatus.FAILED,
+        });
+        await expect(resolve(makeService(), true)).rejects.toThrow(
+            "Your AI identity isn't set up yet. Ask your admin.",
+        );
+        expect(checkAiTwinConnection).not.toHaveBeenCalled();
+    });
+
+    it('keeps the existing route when the twin flag is off', async () => {
+        await expect(resolve(makeService(false), false)).resolves.toBeNull();
+        expect(identityModel.findWithPrivateKey).not.toHaveBeenCalled();
+    });
+
+    it('advertises raw SQL for a Snowflake project before the twin is ready', async () => {
+        vi.spyOn(
+            projectModel,
+            'getWarehouseCredentialsForProject',
+        ).mockResolvedValue(snowflakeCredentials);
+        const service = makeService();
+        await expect(
+            service.canUseAiRawSql(projectSummary.projectUuid, 'user-uuid'),
+        ).resolves.toBe(true);
+        expect(identityModel.findWithPrivateKey).not.toHaveBeenCalled();
     });
 });
 
@@ -13785,7 +14079,16 @@ describe('Snowflake AI query credentials', () => {
     it('turns raw SQL from AI off under restrictions', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                    }),
+                ),
             } as unknown as FeatureFlagModel,
         });
         const getRestrictions = vi
@@ -13845,7 +14148,16 @@ describe('Snowflake AI query credentials', () => {
     it('turns raw SQL from AI off on Snowflake even with a sign-in for AI', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                    }),
+                ),
             } as unknown as FeatureFlagModel,
         });
         const getRestrictions = vi
@@ -13906,7 +14218,16 @@ describe('Snowflake AI query credentials', () => {
     it('refuses a restricted Snowflake metric query without an AI sign-in', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                    }),
+                ),
             } as unknown as FeatureFlagModel,
         });
         const getRestrictions = vi
@@ -14245,7 +14566,16 @@ describe('AI access restrictions setting', () => {
     it('returns and updates the setting when the flag and permission allow it', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                    }),
+                ),
             } as unknown as FeatureFlagModel,
         });
         const getRestrictions = vi
@@ -14278,7 +14608,16 @@ describe('AI access restrictions setting', () => {
     it('uses the Snowflake AI sign-in on an extra connection', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                    }),
+                ),
             } as unknown as FeatureFlagModel,
         });
         const credentials = {
@@ -14391,7 +14730,16 @@ describe('AI access restrictions setting', () => {
         async (_, binding) => {
             const service = getMockedProjectService(lightdashConfigMock, {
                 featureFlagModel: {
-                    get: vi.fn(async () => ({ enabled: true })),
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: FeatureFlags;
+                        }) => ({
+                            enabled:
+                                featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                        }),
+                    ),
                 } as unknown as FeatureFlagModel,
             });
             const credentials = {
@@ -14510,7 +14858,16 @@ describe('AI access restrictions setting', () => {
     it('requires project update permission', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                    }),
+                ),
             } as unknown as FeatureFlagModel,
         });
         await expect(

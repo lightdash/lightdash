@@ -2,6 +2,7 @@ import {
     AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
+    QueryExecutionContext,
     SnowflakeAuthenticationType,
 } from '@lightdash/common';
 import {
@@ -153,6 +154,7 @@ describe('SnowflakeWarehouseClient', () => {
             complete(undefined, {}, [
                 {
                     IS_AGENT_ACTIVATED: 'TRUE',
+                    CURRENT_USER: 'ALICE_AI',
                     CURRENT_ROLE: 'ANALYST',
                     ACTIVE_RESTRICTED_SESSION_SCOPES: 'READ',
                 },
@@ -168,7 +170,7 @@ describe('SnowflakeWarehouseClient', () => {
         );
         await warehouse.streamQuery('SELECT 1', () => {}, {});
         expect(executeMock.mock.calls[0]?.[0].sqlText).toBe(
-            "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN AS IS_AGENT_ACTIVATED, CURRENT_ROLE() AS CURRENT_ROLE, SYS_CONTEXT('SNOWFLAKE$SESSION', 'ACTIVE_RESTRICTED_SESSION_SCOPES') AS ACTIVE_RESTRICTED_SESSION_SCOPES",
+            "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN AS IS_AGENT_ACTIVATED, CURRENT_USER() AS CURRENT_USER, CURRENT_ROLE() AS CURRENT_ROLE, SYS_CONTEXT('SNOWFLAKE$SESSION', 'ACTIVE_RESTRICTED_SESSION_SCOPES') AS ACTIVE_RESTRICTED_SESSION_SCOPES",
         );
         expect(
             executeMock.mock.calls.map(([options]) => options.sqlText),
@@ -184,9 +186,86 @@ describe('SnowflakeWarehouseClient', () => {
         expect(logger.info).toHaveBeenCalledWith(
             'Snowflake agent session activated',
             {
+                currentUser: 'ALICE_AI',
                 currentRole: 'ANALYST',
                 activeRestrictedSessionScopes: 'READ',
             },
+        );
+    });
+
+    it('rejects a session for a different AI user before running the query', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(undefined, {}, [
+                {
+                    IS_AGENT_ACTIVATED: true,
+                    CURRENT_USER: 'OTHER_AI',
+                    CURRENT_ROLE: 'ANALYST',
+                },
+            ]);
+        });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+            expectedCurrentUser: 'ALICE_AI',
+        });
+        await expect(
+            warehouse.streamQuery('SELECT 1', () => {}, {}),
+        ).rejects.toThrow(
+            'This Snowflake session is not the expected AI user.',
+        );
+        expect(executeMock).toHaveBeenCalledTimes(1);
+        expect(
+            vi.mocked(createConnection).mock.results[0]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts the expected AI user regardless of case and quotes', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(undefined, {}, [
+                {
+                    IS_AGENT_ACTIVATED: true,
+                    CURRENT_USER: '"alice_ai"',
+                    CURRENT_ROLE: 'ANALYST',
+                },
+            ]);
+        });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+            expectedCurrentUser: 'ALICE_AI',
+        });
+        await expect(
+            warehouse.streamQuery('SELECT 1', () => {}, {}),
+        ).resolves.toBeUndefined();
+    });
+
+    it('sets the person uuid in the query tag on a twin session', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(undefined, {}, [
+                {
+                    IS_AGENT_ACTIVATED: true,
+                    CURRENT_USER: 'ANALYST_AI',
+                    CURRENT_ROLE: 'AI_ROLE',
+                },
+            ]);
+        });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+            expectedCurrentUser: 'ANALYST_AI',
+        });
+        await warehouse.streamQuery('SELECT 1', () => {}, {
+            tags: {
+                query_context: QueryExecutionContext.AI,
+                user_uuid: 'person-uuid',
+            },
+        });
+        expect(
+            executeMock.mock.calls.map(([options]) => options.sqlText),
+        ).toContainEqual(
+            expect.stringContaining(
+                `QUERY_TAG = '{"query_context":"${QueryExecutionContext.AI}","user_uuid":"person-uuid"}'`,
+            ),
         );
     });
 
@@ -230,6 +309,7 @@ describe('SnowflakeWarehouseClient', () => {
             complete(undefined, {}, [
                 {
                     IS_AGENT_ACTIVATED: true,
+                    CURRENT_USER: 'ALICE_AI',
                     CURRENT_ROLE: 'ANALYST',
                     ACTIVE_RESTRICTED_SESSION_SCOPES: 'READ',
                 },
@@ -238,6 +318,7 @@ describe('SnowflakeWarehouseClient', () => {
         const connection = createConnection({ account: 'test' });
         await expect(checkSnowflakeAgentSession(connection)).resolves.toEqual({
             agentActivated: true,
+            currentUser: 'ALICE_AI',
             currentRole: 'ANALYST',
             activeRestrictedSessionScopes: 'READ',
         });
@@ -343,6 +424,7 @@ describe('SnowflakeWarehouseClient', () => {
             checkSnowflakeAgentSessionWithToken('test', 'token'),
         ).resolves.toEqual({
             agentActivated: true,
+            currentUser: null,
             currentRole: null,
             activeRestrictedSessionScopes: null,
         });
@@ -366,6 +448,7 @@ describe('SnowflakeWarehouseClient', () => {
             checkSnowflakeAgentSessionWithToken('test', 'token'),
         ).resolves.toEqual({
             agentActivated: false,
+            currentUser: null,
             currentRole: null,
             activeRestrictedSessionScopes: null,
         });
