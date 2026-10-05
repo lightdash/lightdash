@@ -7728,6 +7728,64 @@ describe('ProjectService', () => {
             expect(result.region).toBe('US');
         });
 
+        describe('parameter with fixed options', () => {
+            const mockFixedOptionsParameter = () =>
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'time_zoom',
+                        config: {
+                            label: 'Time zoom',
+                            default: 'monthly',
+                            options: ['weekly', 'monthly', 'quarterly'],
+                        },
+                    },
+                ]);
+
+            test('falls back to the default when request and saved values are outside the options', async () => {
+                mockFixedOptionsParameter();
+
+                const result = await service.combineParameters(
+                    projectUuid,
+                    undefined,
+                    { time_zoom: 'bogus' },
+                    { time_zoom: 'true' },
+                );
+
+                expect(result.time_zoom).toBe('monthly');
+            });
+
+            test('falls through to a valid saved value when the request value is outside the options', async () => {
+                mockFixedOptionsParameter();
+
+                const result = await service.combineParameters(
+                    projectUuid,
+                    undefined,
+                    { time_zoom: 'bogus' },
+                    { time_zoom: 'weekly' },
+                );
+
+                expect(result.time_zoom).toBe('weekly');
+            });
+
+            test('applies a request value listed in the options', async () => {
+                mockFixedOptionsParameter();
+
+                const result = await service.combineParameters(
+                    projectUuid,
+                    undefined,
+                    { time_zoom: 'quarterly' },
+                );
+
+                expect(result.time_zoom).toBe('quarterly');
+            });
+        });
+
         describe('date parameter with a `today` default', () => {
             beforeEach(() => {
                 vi.useFakeTimers().setSystemTime(

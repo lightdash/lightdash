@@ -1,6 +1,7 @@
 import {
     DEFAULT_UI_STRINGS,
     formatDate,
+    getAllowedParameterValue,
     parseDate,
     resolveParameterDefault,
     TimeFrames,
@@ -48,7 +49,7 @@ type Props = {
 const Parameter: FC<Props> = ({
     paramKey,
     parameter,
-    value,
+    value: rawValue,
     parameterValues,
     openPopoverId,
     onPopoverOpen,
@@ -63,6 +64,15 @@ const Parameter: FC<Props> = ({
     getUiString,
 }) => {
     const popoverId = useId();
+
+    // A value outside the parameter's fixed options is treated as unset
+    const value = useMemo(
+        () =>
+            rawValue == null
+                ? null
+                : getAllowedParameterValue(parameter, rawValue),
+        [parameter, rawValue],
+    );
     const isPopoverOpen = openPopoverId === popoverId;
 
     const displayLabel = parameter.label || paramKey;

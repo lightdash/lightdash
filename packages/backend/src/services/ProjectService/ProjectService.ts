@@ -183,6 +183,7 @@ import {
     normalizeIndexColumns,
     normalizeWarehouseCredentials,
     NotFoundError,
+    omitDisallowedParameterValues,
     OpenIdIdentityIssuerType,
     ParameterError,
     parseTableCalculationFunctions,
@@ -15962,10 +15963,18 @@ export class ProjectService extends BaseService {
             explore ? [explore] : [],
             preloadedProjectParameters,
         );
+        // Values outside a parameter's fixed options fall through to the next source
+        const definitions = getEffectiveParameterDefinitions(fallbackSources);
         return {
             ...resolveFallbackParameterValues(fallbackSources),
-            ...(savedParameters || {}),
-            ...(requestParameters || {}),
+            ...omitDisallowedParameterValues(
+                savedParameters || {},
+                definitions,
+            ),
+            ...omitDisallowedParameterValues(
+                requestParameters || {},
+                definitions,
+            ),
         };
     }
 

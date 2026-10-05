@@ -504,3 +504,79 @@ describe('canUseChartSavedParameterValue', () => {
         ).toBe(true);
     });
 });
+
+describe("values outside a parameter's fixed options", () => {
+    const definitions: ParameterDefinitions = {
+        zoom: {
+            label: 'Zoom',
+            default: 'monthly',
+            options: ['weekly', 'monthly'],
+        },
+        region: { label: 'Region', options: ['eu', 'us'] },
+    };
+
+    it('falls back to the default when the dashboard value is not an option', () => {
+        expect(
+            resolveDashboardTileParameters({
+                fallbackSources: fallbackSources({
+                    projectDefinitions: definitions,
+                }),
+                dashboardValues: { zoom: 'true' },
+                chartSavedValues: {},
+                isTargeted: true,
+            }),
+        ).toEqual({ zoom: 'monthly' });
+    });
+
+    it('uses a valid chart saved value when the dashboard value is not an option', () => {
+        const inputs = {
+            definitions,
+            dashboardValues: { region: 'apac' },
+            chartSavedValues: { region: 'eu' },
+            isTargeted: true,
+        };
+        expect(getDashboardTileParameterOverrides(inputs)).toEqual({
+            region: 'eu',
+        });
+        expect(
+            getDashboardTileParameterSource({ ...inputs, key: 'region' }),
+        ).toBe(DashboardTileParameterSource.CHART);
+    });
+
+    it('ignores a chart saved value that is not an option', () => {
+        expect(
+            getDashboardTileParameterOverrides({
+                definitions,
+                dashboardValues: {},
+                chartSavedValues: { region: 'apac' },
+                isTargeted: false,
+            }),
+        ).toEqual({});
+    });
+
+    it('ignores a virtual view saved value that is not an option', () => {
+        expect(
+            resolveFallbackParameterValues(
+                fallbackSources({
+                    projectDefinitions: definitions,
+                    virtualViewSavedValues: { zoom: 'true' },
+                }),
+            ),
+        ).toEqual({ zoom: 'monthly' });
+    });
+
+    it('flags a key as missing when its only values are not options', () => {
+        expect(
+            getMissingRequiredDashboardParameters({
+                definitions,
+                dashboardValues: { region: 'apac' },
+                tiles: [
+                    {
+                        parameterReferences: ['region'],
+                        chartSavedValues: { region: 'latam' },
+                    },
+                ],
+            }),
+        ).toEqual(['region']);
+    });
+});

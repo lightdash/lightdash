@@ -80,6 +80,7 @@ export * from './compiler/translator';
 export * from './compiler/writebackColumn';
 export * from './parameters/dashboardTileParameters';
 export * from './parameters/parameterDefaults';
+export * from './parameters/parameterOptions';
 export * from './parameters/reservedParameters';
 export * from './constants/screenshot';
 export * from './constants/sessionStorageKeys';

@@ -1,6 +1,7 @@
 import { DndContext, DragOverlay, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
+    getAllowedParameterValue,
     resolveParameterDefault,
     type LightdashProjectParameter,
     type ParameterValue,
@@ -29,13 +30,21 @@ interface PinnedParameterProps {
 const PinnedParameter: FC<PinnedParameterProps> = ({
     parameterKey,
     parameter,
-    value,
+    value: rawValue,
     onChange,
     onUnpin,
     isEditMode,
     isDraggable = false,
     projectUuid,
 }) => {
+    // A value outside the parameter's fixed options is treated as unset
+    const value = useMemo(
+        () =>
+            rawValue == null
+                ? null
+                : getAllowedParameterValue(parameter, rawValue),
+        [parameter, rawValue],
+    );
     const parameterValues = useDashboardContext((c) => c.parameterValues);
 
     const getUiString = useUiStrings();
