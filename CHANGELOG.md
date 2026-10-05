@@ -1,3 +1,15 @@
+# [2.428.0](https://github.com/lightdash/lightdash/compare/2.427.4...2.428.0) (2026-10-05)
+
+
+### Bug Fixes
+
+* hide analytics sync when content is up to date ([#30429](https://github.com/lightdash/lightdash/issues/30429)) ([8dc8c74](https://github.com/lightdash/lightdash/commit/8dc8c741657936f3fb3c03be6427519e6558f42a))
+
+
+### Features
+
+* add built-in usage analytics dashboard collection ([#30467](https://github.com/lightdash/lightdash/issues/30467)) ([e3acc36](https://github.com/lightdash/lightdash/commit/e3acc36d7240a5eb636bb1267e54332e44f26fdc))
+
 ## [2.427.4](https://github.com/lightdash/lightdash/compare/2.427.3...2.427.4) (2026-10-05)
 
 

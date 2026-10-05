@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.427.4",
-  "previousVersion": "2.427.3",
-  "releaseDate": "2026-10-05T10:47:45.979Z",
+  "version": "2.428.0",
+  "previousVersion": "2.427.4",
+  "releaseDate": "2026-10-05T11:00:19.752Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,32 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "POST /api/v2/projects/{projectUuid}/query/chart — removed the request property `allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/compose-sql — removed the request property `allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/dashboard-chart — removed the request property `allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/dashboard-sql-chart — removed the request property `anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/dashboard-sql-chart — removed the request property `anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/field-values — removed the request property `allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMetricQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSavedChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "GET /api/v2/projects/{projectUuid}/query/history — removed the optional property `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin` from the response with the `200` status",
-        "POST /api/v2/projects/{projectUuid}/query/merge-query — removed the request property `allOf[#/components/schemas/Omit_ExecuteAsyncMergeQueryRequestParams.pivotConfiguration-or-usePreAggregateCache_]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/metric-query — removed the request property `allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/sql — removed the request property `allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/sql-chart — removed the request property `anyOf[#/components/schemas/ExecuteAsyncSqlChartBySlugRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/sql-chart — removed the request property `anyOf[#/components/schemas/ExecuteAsyncSqlChartByUuidRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`",
-        "POST /api/v2/projects/{projectUuid}/query/underlying-data — removed the request property `allOf[#/components/schemas/CommonExecuteQueryRequestParams]/isEmbedOrigin`"
-      ],
-      "advisoryCount": 23
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
