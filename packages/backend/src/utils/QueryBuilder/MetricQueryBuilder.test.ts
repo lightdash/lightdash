@@ -2098,7 +2098,7 @@ LIMIT 10`;
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }),
             ).toThrow(
-                'Metric "orders_raw_revenue_per_customer" uses ${TABLE}, which cannot be combined with metrics that are calculated in a separate step of this query. Reference metrics on "orders" instead of ${TABLE}, or remove the other metrics from the query.',
+                'Tried to reference ${TABLE} from metric "orders_raw_revenue_per_customer" on a table that is aggregated separately. Reference a metric on "orders" instead.',
             );
         });
 
@@ -2132,7 +2132,9 @@ LIMIT 10`;
                         intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                         timezone: QUERY_BUILDER_UTC_TIMEZONE,
                     }),
-                ).toThrow(`Metric "${failing}" uses \${TABLE}`);
+                ).toThrow(
+                    `Tried to reference \${TABLE} from metric "${failing}"`,
+                );
             },
         );
 

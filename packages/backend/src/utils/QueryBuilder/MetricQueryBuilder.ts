@@ -2912,11 +2912,11 @@ export class MetricQueryBuilder {
         // would be projected from CTEs that no longer have its table in scope.
         const throwTableReferenceError = (metric: CompiledMetric) => {
             throw new FieldReferenceError(
-                `Metric "${getItemId(
+                `Tried to reference \${TABLE} from metric "${getItemId(
                     metric,
-                )}" uses \${TABLE}, which cannot be combined with metrics that are calculated in a separate step of this query. Reference metrics on "${
+                )}" on a table that is aggregated separately. Reference a metric on "${
                     metric.table
-                }" instead of \${TABLE}, or remove the other metrics from the query.`,
+                }" instead.`,
             );
         };
         // Includes metrics that are only referenced by a selected metric
