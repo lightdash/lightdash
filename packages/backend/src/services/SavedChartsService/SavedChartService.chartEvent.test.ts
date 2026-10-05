@@ -13,6 +13,7 @@ import {
     type MetricQuery,
     type SavedChartDAO,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import { SavedChartService } from './SavedChartService';
 
 const grantAudit = { viaDashboardGrant: false, grantOnly: false };
@@ -205,6 +206,33 @@ describe('SavedChartService.getCreateEventProperties cartesian date x-axis', () 
         );
 
         expect(properties.cartesian).toMatchObject({ hasDateXAxis: false });
+    });
+
+    it('preserves chart event properties when date x-axis metadata cannot be read', () => {
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+        const invalidExplore = {
+            ...explore,
+            tables: { orders: {} },
+        } as unknown as Explore;
+
+        try {
+            const properties = SavedChartService.getCreateEventProperties(
+                cartesianChart('orders_order_date_day'),
+                grantAudit,
+                invalidExplore,
+            );
+
+            expect(properties).toMatchObject({
+                savedQueryId: 'chart-uuid',
+                cartesian: { hasDateXAxis: false },
+            });
+            expect(warn).toHaveBeenCalledWith(
+                'Unable to determine chart date x-axis for analytics',
+                { chartUuid: 'chart-uuid', error: expect.any(Error) },
+            );
+        } finally {
+            warn.mockRestore();
+        }
     });
 
     it('omits the cartesian block for other chart types', () => {

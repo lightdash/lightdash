@@ -86,6 +86,7 @@ import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
@@ -347,26 +348,36 @@ export class SavedChartService
         savedChart: SavedChartDAO,
         explore: Explore | ExploreError | undefined,
     ): boolean {
-        if (savedChart.chartConfig.type !== ChartType.CARTESIAN) return false;
-        const xField = savedChart.chartConfig.config?.layout?.xField;
-        if (!xField) return false;
+        try {
+            if (savedChart.chartConfig.type !== ChartType.CARTESIAN)
+                return false;
+            const xField = savedChart.chartConfig.config?.layout?.xField;
+            if (!xField) return false;
 
-        const customDimension = savedChart.metricQuery.customDimensions?.find(
-            (dimension) => dimension.id === xField,
-        );
-        // Without a compiled explore the field type is unknown
-        const exploreDimension =
-            explore && !isExploreError(explore)
-                ? getDimensionMapFromTables(explore.tables)[xField]
-                : undefined;
-        const xDimensionType = isCustomSqlDimension(customDimension)
-            ? customDimension.dimensionType
-            : exploreDimension?.type;
+            const customDimension =
+                savedChart.metricQuery.customDimensions?.find(
+                    (dimension) => dimension.id === xField,
+                );
+            // Without a compiled explore the field type is unknown
+            const exploreDimension =
+                explore && !isExploreError(explore)
+                    ? getDimensionMapFromTables(explore.tables)[xField]
+                    : undefined;
+            const xDimensionType = isCustomSqlDimension(customDimension)
+                ? customDimension.dimensionType
+                : exploreDimension?.type;
 
-        return (
-            xDimensionType === DimensionType.DATE ||
-            xDimensionType === DimensionType.TIMESTAMP
-        );
+            return (
+                xDimensionType === DimensionType.DATE ||
+                xDimensionType === DimensionType.TIMESTAMP
+            );
+        } catch (error) {
+            Logger.warn('Unable to determine chart date x-axis for analytics', {
+                chartUuid: savedChart.uuid,
+                error,
+            });
+            return false;
+        }
     }
 
     static getCreateEventProperties(
