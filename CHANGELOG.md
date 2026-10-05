@@ -1,3 +1,10 @@
+# [2.429.0](https://github.com/lightdash/lightdash/compare/2.428.6...2.429.0) (2026-10-05)
+
+
+### Features
+
+* **storage:** let RESULTS_S3_AUTH_MODE override the results cache signing mode ([#30487](https://github.com/lightdash/lightdash/issues/30487)) ([1ea567b](https://github.com/lightdash/lightdash/commit/1ea567b41190cb639e5003e9cd7cb9dd8f6a5402))
+
 ## [2.428.6](https://github.com/lightdash/lightdash/compare/2.428.5...2.428.6) (2026-10-05)
 
 
