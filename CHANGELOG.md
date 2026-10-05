@@ -1,3 +1,10 @@
+# [2.433.0](https://github.com/lightdash/lightdash/compare/2.432.0...2.433.0) (2026-10-05)
+
+
+### Features
+
+* add semantic usage charts to the Queries dashboard ([#30491](https://github.com/lightdash/lightdash/issues/30491)) ([75053f6](https://github.com/lightdash/lightdash/commit/75053f65787dcff72924af202b29a7aadce33d78))
+
 # [2.432.0](https://github.com/lightdash/lightdash/compare/2.431.1...2.432.0) (2026-10-05)
 
 
