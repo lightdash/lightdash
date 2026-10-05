@@ -1,5 +1,6 @@
 import { HeadObjectCommand, S3, S3Client } from '@aws-sdk/client-s3';
 import { HttpResponse } from '@smithy/protocol-http';
+import { createHash } from 'crypto';
 import { writeFile } from 'fs/promises';
 import { applyGcpOAuth } from '../../clients/Aws/gcpOAuth';
 import { buildS3ClientConfig } from '../../clients/Aws/S3BaseClient';
@@ -249,6 +250,14 @@ describe('user activity safeguards', () => {
                 now,
             );
         upload.mockResolvedValue(undefined);
+        // An unchanged source still needs one rebuild after the model upgrade.
+        const previousHash = createHash('sha256')
+            .update('1')
+            .update(JSON.stringify([source.Key, source.ETag, source.Size]))
+            .digest('hex');
+        vi.mocked(S3.prototype.headObject).mockResolvedValue({
+            Metadata: { 'source-hash': previousHash },
+        } as never);
         expect(await run()).toMatchObject({ published: 1, unchanged: 0 });
         const fingerprint =
             uploadConstructor.mock.calls[0][0].params.Metadata['source-hash'];

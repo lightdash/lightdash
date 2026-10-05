@@ -224,7 +224,15 @@ it.skipIf(!process.env.QUERY_ACTIVITY_SMOKE)(
             ).toBe(100100);
             expect(
                 new Set(joined.rows.map((row) => row.lightdash_users_name)),
-            ).toEqual(new Set(['User 0', 'User 1', 'Unknown user']));
+            ).toEqual(
+                new Set([
+                    'User 0',
+                    'User 1',
+                    'User not recorded',
+                    'Scheduled activity',
+                    'AI activity',
+                ]),
+            );
             const countsByName = joined.rows.reduce<Record<string, number>>(
                 (counts, row) => {
                     const name = String(row.lightdash_users_name);
@@ -240,7 +248,9 @@ it.skipIf(!process.env.QUERY_ACTIVITY_SMOKE)(
             expect(countsByName).toEqual({
                 'User 0': 40000,
                 'User 1': 40000,
-                'Unknown user': 20100,
+                'User not recorded': 14386,
+                'Scheduled activity': 2857,
+                'AI activity': 2857,
             });
             // A second session rebinds the same files without duplicated materialization.
             expect(

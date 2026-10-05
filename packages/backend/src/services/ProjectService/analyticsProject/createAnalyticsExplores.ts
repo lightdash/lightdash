@@ -13,6 +13,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import type { CompactedColumnType } from '../../../analytics/eventStream/types';
+import { usageActorNameSql } from '../../../analytics/eventStream/usageActor';
 import {
     usageDimensionSchemas,
     usageDimensionTable,
@@ -317,8 +318,11 @@ export const createAnalyticsExplores = (): Explore[] => {
                 });
                 fields.org_id.hidden = true;
                 fields.name.label = dimensionFields[dimension].label;
-                if (dimension === 'users')
-                    fields.name.sql = "COALESCE(${TABLE}.name, 'Unknown user')";
+                if (dimension === 'users') {
+                    fields.name.sql = usageActorNameSql(name);
+                    fields.name.description =
+                        'Name when available, otherwise the recorded activity type. A missing name does not mean the activity was anonymous.';
+                }
                 if (dimension === 'agents')
                     fields.name.sql =
                         "COALESCE(${TABLE}.name, 'Unknown agent')";

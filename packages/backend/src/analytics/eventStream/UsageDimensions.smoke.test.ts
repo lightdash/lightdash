@@ -373,8 +373,14 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         {
                             lightdash_charts_name: null,
                             lightdash_dashboards_name: null,
-                            lightdash_users_name: 'Unknown user',
-                            export_events_total_events: '2',
+                            lightdash_users_name: 'User name unavailable',
+                            export_events_total_events: '1',
+                        },
+                        {
+                            lightdash_charts_name: null,
+                            lightdash_dashboards_name: null,
+                            lightdash_users_name: 'User not recorded',
+                            export_events_total_events: '1',
                         },
                     ]),
                 );
@@ -436,8 +442,13 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         }),
                         expect.objectContaining({
                             lightdash_charts_name: null,
-                            lightdash_users_name: 'Unknown user',
-                            query_events_total_queries: '2',
+                            lightdash_users_name: 'User not recorded',
+                            query_events_total_queries: '1',
+                        }),
+                        expect.objectContaining({
+                            lightdash_charts_name: null,
+                            lightdash_users_name: 'User name unavailable',
+                            query_events_total_queries: '1',
                         }),
                     ]),
                 );
@@ -564,8 +575,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     ).rows,
                 ).toEqual([{ is_deleted: true }]);
                 expect(
-                    (await reader.runQuery(joinedSql)).rows.every(
-                        (row) => row.lightdash_users_name === 'Unknown user',
+                    (await reader.runQuery(joinedSql)).rows.every((row) =>
+                        ['User name unavailable', 'User not recorded'].includes(
+                            String(row.lightdash_users_name),
+                        ),
                     ),
                 ).toBe(true);
                 expect(
@@ -596,8 +609,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     Key: usageDimensionKey(org, 'users'),
                 });
                 expect(
-                    (await reader.runQuery(joinedSql)).rows.every(
-                        (row) => row.lightdash_users_name === 'Unknown user',
+                    (await reader.runQuery(joinedSql)).rows.every((row) =>
+                        ['User name unavailable', 'User not recorded'].includes(
+                            String(row.lightdash_users_name),
+                        ),
                     ),
                 ).toBe(true);
             } finally {

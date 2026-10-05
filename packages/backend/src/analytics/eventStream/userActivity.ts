@@ -16,6 +16,8 @@ export const userActivityColumns: CompactedStreamColumn[] = [
     { name: 'org_id', type: 'VARCHAR' },
     { name: 'project_id', type: 'VARCHAR' },
     { name: 'user_id', type: 'VARCHAR' },
+    { name: 'actor_category', type: 'VARCHAR' },
+    { name: 'activity_source', type: 'VARCHAR' },
     { name: 'activity_date', type: 'TIMESTAMP' },
     { name: 'stream', type: 'VARCHAR' },
     { name: 'event_name', type: 'VARCHAR' },

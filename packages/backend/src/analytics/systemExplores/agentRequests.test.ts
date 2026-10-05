@@ -143,7 +143,7 @@ describe('Agent requests with real DuckDB', () => {
                 }),
                 expect.objectContaining({
                     agent_requests_status: 'clarification',
-                    lightdash_users_name: 'Unknown user',
+                    lightdash_users_name: 'User not recorded',
                     agent_requests_total_requests: '1',
                 }),
             ]),

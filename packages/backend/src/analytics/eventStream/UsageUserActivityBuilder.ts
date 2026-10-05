@@ -11,13 +11,14 @@ import Logger from '../../logging/logger';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import type { StreamName } from './projection';
 import { compactedStreamSchemas } from './registry';
+import { usageActorSql } from './usageActor';
 import { analyticsStreams, userActivityKey } from './userActivity';
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const MAX_FILES_PER_DAY = 10_000;
 const MAX_CHANGED_PARTITIONS = 500;
 const DAY_MS = 86_400_000;
-const MODEL_VERSION = '1';
+const MODEL_VERSION = '2';
 export type UserActivitySummary = {
     published: number;
     unchanged: number;
@@ -68,7 +69,7 @@ export const validateUserActivityRange = (
     );
 };
 
-const buildUserActivitySql = (
+export const buildUserActivitySql = (
     orgId: string,
     stream: StreamName,
     date: string,
@@ -79,6 +80,7 @@ const buildUserActivitySql = (
     // Hive is disabled so a misplaced row cannot inherit its tenant from the path.
     const input = `SELECT * FROM read_parquet([${sources.map(literal).join(', ')}], union_by_name=true, hive_partitioning=false)
         UNION ALL BY NAME SELECT ${compactedStreamSchemas[stream].map(({ name, type }) => `NULL::${type} AS "${name}"`).join(', ')} WHERE false`;
+    const { actorType, activitySource } = usageActorSql(stream);
     const tokens = [
         'input_tokens',
         'output_tokens',
@@ -89,6 +91,8 @@ const buildUserActivitySql = (
     ];
     return `COPY (
         SELECT org_id, project_id, user_id,
+            ${actorType}::VARCHAR AS actor_category,
+            ${activitySource}::VARCHAR AS activity_source,
             ${literal(date)}::TIMESTAMP AS activity_date,
             ${literal(stream)}::VARCHAR AS stream, event_name,
             ${stream === 'export_events' ? 'format' : 'NULL::VARCHAR'} AS format,
@@ -99,7 +103,7 @@ const buildUserActivitySql = (
         WHERE org_id = ${literal(orgId)}
             AND event_ts >= ${literal(date)}::TIMESTAMP
             AND event_ts < ${literal(date)}::TIMESTAMP + INTERVAL 1 DAY
-        GROUP BY org_id, project_id, user_id, event_name${stream === 'export_events' ? ', format' : ''}
+        GROUP BY org_id, project_id, user_id, actor_category, activity_source, event_name${stream === 'export_events' ? ', format' : ''}
     ) TO ${literal(output)} (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 16384)`;
 };
 

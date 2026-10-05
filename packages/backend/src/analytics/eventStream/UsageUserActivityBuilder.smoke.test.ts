@@ -327,7 +327,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 expect(
                     toolUsers.find((row) => row.tool_activity_user_id === null)
                         ?.lightdash_users_name,
-                ).toBe('Unknown user');
+                ).toBe('Service account');
                 expect(
                     Number(
                         (await query('user_activity', ['total_mcp_calls']))[0]
@@ -446,13 +446,17 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         (row) => row.user_activity_user_id === deletedUser,
                     ),
                 ).toMatchObject({
-                    lightdash_users_name: 'Unknown user',
+                    lightdash_users_name: 'User name unavailable',
                     user_activity_total_csv_downloads: '1',
                 });
                 expect(
-                    byUser.find((row) => row.user_activity_user_id === null),
+                    byUser.find(
+                        (row) =>
+                            row.user_activity_user_id === null &&
+                            row.lightdash_users_name === 'User not recorded',
+                    ),
                 ).toMatchObject({
-                    lightdash_users_name: 'Unknown user',
+                    lightdash_users_name: 'User not recorded',
                     user_activity_total_csv_downloads: '1',
                 });
                 expect(
