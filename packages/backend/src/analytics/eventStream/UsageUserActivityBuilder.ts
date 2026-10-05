@@ -18,7 +18,9 @@ const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const MAX_FILES_PER_DAY = 10_000;
 const MAX_CHANGED_PARTITIONS = 500;
 const DAY_MS = 86_400_000;
-const MODEL_VERSION = '2';
+// Additive fields must not invalidate unchanged historical summaries.
+// Changing this fingerprint version forces a rebuild of retained history.
+const MODEL_VERSION = '1';
 export type UserActivitySummary = {
     published: number;
     unchanged: number;

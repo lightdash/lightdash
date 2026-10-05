@@ -225,7 +225,7 @@ describe('user activity safeguards', () => {
         expect(runSqlWithMetrics).not.toHaveBeenCalled();
     });
 
-    it('skips a GCS summary on an unchanged rerun but rebuilds after its source changes', async () => {
+    it('keeps historical GCS summaries on upgrade and only builds changed or missing outputs', async () => {
         const source = {
             Key: `events/compacted/org_id=${org}/stream=query_events/dt=2026-01-01/test.parquet`,
             ETag: 'first-version',
@@ -243,24 +243,15 @@ describe('user activity safeguards', () => {
             return { queryMs: 1, bootstrapMs: 0, totalMs: 1 };
         });
         const run = () =>
-            new UsageUserActivityBuilder(storage, { runSqlWithMetrics }).run(
-                org,
-                '2026-01-01',
-                '2026-01-01',
+            new UsageUserActivityBuilder(storage, { runSqlWithMetrics }).runAll(
                 now,
             );
         upload.mockResolvedValue(undefined);
-        // An unchanged source still needs one rebuild after the model upgrade.
-        const previousHash = createHash('sha256')
+        // A pre-upgrade output must stay fresh when its source files are unchanged.
+        let fingerprint = createHash('sha256')
             .update('1')
             .update(JSON.stringify([source.Key, source.ETag, source.Size]))
             .digest('hex');
-        vi.mocked(S3.prototype.headObject).mockResolvedValue({
-            Metadata: { 'source-hash': previousHash },
-        } as never);
-        expect(await run()).toMatchObject({ published: 1, unchanged: 0 });
-        const fingerprint =
-            uploadConstructor.mock.calls[0][0].params.Metadata['source-hash'];
         const client = new S3Client({
             ...buildS3ClientConfig({
                 region: 'auto',
@@ -284,17 +275,36 @@ describe('user activity safeguards', () => {
         );
         try {
             expect(await run()).toMatchObject({ published: 0, unchanged: 1 });
+            expect(runSqlWithMetrics).not.toHaveBeenCalled();
+            expect(upload).not.toHaveBeenCalled();
+
+            source.ETag = 'second-version';
+            expect(await run()).toMatchObject({ published: 1, unchanged: 0 });
             expect(runSqlWithMetrics).toHaveBeenCalledTimes(1);
             expect(upload).toHaveBeenCalledTimes(1);
-            source.ETag = 'second-version';
+            const updatedFingerprint =
+                uploadConstructor.mock.calls[0][0].params.Metadata[
+                    'source-hash'
+                ];
+            expect(updatedFingerprint).not.toBe(fingerprint);
+            fingerprint = updatedFingerprint;
+            expect(await run()).toMatchObject({ published: 0, unchanged: 1 });
+            expect(runSqlWithMetrics).toHaveBeenCalledTimes(1);
+
+            // A new day without an output still gets the richer schema.
+            source.Key = source.Key.replace('2026-01-01', '2026-01-02');
+            vi.mocked(S3.prototype.headObject).mockRejectedValue({
+                $metadata: { httpStatusCode: 404 },
+            });
             expect(await run()).toMatchObject({ published: 1, unchanged: 0 });
             expect(runSqlWithMetrics).toHaveBeenCalledTimes(2);
             expect(upload).toHaveBeenCalledTimes(2);
-            expect(
-                uploadConstructor.mock.calls[1][0].params.Metadata[
-                    'source-hash'
-                ],
-            ).not.toBe(fingerprint);
+            expect(runSqlWithMetrics.mock.calls[1][0]).toContain(
+                'AS actor_category',
+            );
+            expect(runSqlWithMetrics.mock.calls[1][0]).toContain(
+                'AS activity_source',
+            );
         } finally {
             client.destroy();
         }
