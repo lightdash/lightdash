@@ -1,3 +1,10 @@
+## [2.428.6](https://github.com/lightdash/lightdash/compare/2.428.5...2.428.6) (2026-10-05)
+
+
+### Bug Fixes
+
+* **projects:** CLI reference shows a start-preview command the CLI accepts ([#30460](https://github.com/lightdash/lightdash/issues/30460)) ([60f91a1](https://github.com/lightdash/lightdash/commit/60f91a148a9f3ca29ac0593ff3fea8d5b64624af)), closes [#30459](https://github.com/lightdash/lightdash/issues/30459)
+
 ## [2.428.5](https://github.com/lightdash/lightdash/compare/2.428.4...2.428.5) (2026-10-05)
 
 
