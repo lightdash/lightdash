@@ -674,6 +674,10 @@ export class ServiceRepository
             'groupService',
             () =>
                 new GroupsService({
+                    onMembershipChange: (organizationUuid) =>
+                        this.getAiIdentityService().scheduleSyncForOrganization(
+                            organizationUuid,
+                        ),
                     analytics: this.context.lightdashAnalytics,
                     groupsModel: this.models.getGroupsModel(),
                     projectModel: this.models.getProjectModel(),
@@ -1461,6 +1465,10 @@ export class ServiceRepository
             'userService',
             () =>
                 new UserService({
+                    onOrganizationMembershipChange: (organizationUuid) =>
+                        this.getAiIdentityService().scheduleSyncForOrganization(
+                            organizationUuid,
+                        ),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     inviteLinkModel: this.models.getInviteLinkModel(),

@@ -13,9 +13,9 @@ import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import { AiIdentityAutomation } from './AiIdentityAutomation';
+import { AiIdentityCreationSetup } from './AiIdentityCreationSetup';
 import { AiIdentityJobCallout } from './AiIdentityJobCallout';
 import { AiIdentityRequestLog } from './AiIdentityRequestLog';
-import { AiIdentitySetup } from './AiIdentitySetup';
 import { AiIdentityTriage } from './AiIdentityTriage';
 import { aiIdentityApi } from './api';
 import {
@@ -90,9 +90,16 @@ export const AiIdentitiesPage: FC = () => {
     };
 
     useEffect(() => {
-        if (jobQuery.data?.status !== AiIdentityJobStatus.DONE) return;
+        if (
+            jobQuery.data?.status !== AiIdentityJobStatus.DONE &&
+            jobQuery.data?.status !== AiIdentityJobStatus.FAILED
+        )
+            return;
         void queryClient.invalidateQueries(['ai-identity-accounts']);
         void queryClient.invalidateQueries(['ai-identity-list']);
+        void queryClient.invalidateQueries(['ai-identity-provisioning']);
+        void queryClient.invalidateQueries(['ai-identity-provisioning-plan']);
+        void queryClient.invalidateQueries(['ai-identity-request-log']);
     }, [jobQuery.data?.status, queryClient]);
 
     const startJob = async (
@@ -181,10 +188,11 @@ export const AiIdentitiesPage: FC = () => {
                         />
                     </Tabs.Panel>
                     <Tabs.Panel value="setup" pt="lg">
-                        <AiIdentitySetup
+                        <AiIdentityCreationSetup
                             key={account.aiIdentityAccountUuid}
                             account={account}
                             onJob={startJob}
+                            onProvisioningJob={(uuid) => setParam('job', uuid)}
                         />
                     </Tabs.Panel>
                     <Tabs.Panel value="automation" pt="lg">

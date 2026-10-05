@@ -65,6 +65,7 @@ import {
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
 type ScimServiceArguments = {
+    onMembershipChange?: (organizationUuid: string) => Promise<void>;
     lightdashConfig: LightdashConfig;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
@@ -92,6 +93,9 @@ const normalizeScimPatchPath = (path: string): string =>
     );
 
 export class ScimService extends BaseService {
+    private readonly onMembershipChange?: (
+        organizationUuid: string,
+    ) => Promise<void>;
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
@@ -119,6 +123,7 @@ export class ScimService extends BaseService {
     private readonly scimRequestLogModel: ScimRequestLogModel;
 
     constructor({
+        onMembershipChange,
         lightdashConfig,
         organizationMemberProfileModel,
         userModel,
@@ -134,6 +139,7 @@ export class ScimService extends BaseService {
         scimRequestLogModel,
     }: ScimServiceArguments) {
         super();
+        this.onMembershipChange = onMembershipChange;
         this.lightdashConfig = lightdashConfig;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
@@ -660,13 +666,13 @@ export class ScimService extends BaseService {
                     role,
                 },
             );
-
             // Add user roles to all projects
             await this.upsertUserRoles({
                 organizationUuid,
                 userUuid: dbUser.userUuid,
                 roles: dedupedRoles,
             });
+            await this.onMembershipChange?.(organizationUuid);
 
             if (user.active !== false) {
                 await this.ensureDefaultUserSpacesForUsers({
@@ -837,6 +843,8 @@ export class ScimService extends BaseService {
                 },
                 true, // automatically verify email
             );
+            if (user.active !== undefined)
+                await this.onMembershipChange?.(organizationUuid);
 
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
@@ -1575,6 +1583,7 @@ export class ScimService extends BaseService {
                         : {}),
                 },
             });
+            await this.onMembershipChange?.(organizationUuid);
 
             await this.ensureDefaultUserSpacesForUsers({
                 userUuids: group.memberUuids,
@@ -1710,6 +1719,7 @@ export class ScimService extends BaseService {
                         : {}),
                 },
             });
+            await this.onMembershipChange?.(organizationUuid);
 
             const addedMemberUuids = updatedGroup.memberUuids.filter(
                 (userUuid) =>
@@ -1855,6 +1865,7 @@ export class ScimService extends BaseService {
                         : {}),
                 },
             });
+            await this.onMembershipChange?.(organizationUuid);
 
             const addedMemberUuids = updatedGroup.memberUuids.filter(
                 (userUuid) =>
@@ -2000,6 +2011,7 @@ export class ScimService extends BaseService {
             }
 
             await this.groupsModel.deleteGroup(groupUuid);
+            await this.onMembershipChange?.(organizationUuid);
             this.logger.info('SCIM: Successfully deleted group', {
                 organizationUuid,
                 groupUuid,

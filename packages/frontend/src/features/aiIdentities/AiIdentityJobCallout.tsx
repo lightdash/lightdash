@@ -1,4 +1,8 @@
-import { AiIdentityJobStatus, type AiIdentityJob } from '@lightdash/common';
+import {
+    AiIdentityJobKind,
+    AiIdentityJobStatus,
+    type AiIdentityJob,
+} from '@lightdash/common';
 import { Anchor, List, Text } from '@mantine/core';
 import { useEffect, useRef, type FC } from 'react';
 import Callout from '../../components/common/Callout';
@@ -30,35 +34,51 @@ export const AiIdentityJobCallout: FC<{ job: AiIdentityJob | undefined }> = ({
         );
     }
     if (job.status === AiIdentityJobStatus.DONE) {
-        if (job.fileUrl && job.skipped?.length)
-            return (
-                <Callout variant="warning">
-                    <Text fz="sm">
-                        Export ready.{' '}
-                        <Anchor href={job.fileUrl}>Download file</Anchor>.{' '}
-                        {job.skipped.length === 1
-                            ? '1 person is not in the file:'
-                            : `${job.skipped.length} people are not in the file:`}
-                    </Text>
-                    <List size="sm" mt={4}>
-                        {job.skipped.map(({ email, reason }) => (
-                            <List.Item key={email}>
-                                {email}: {reason}
-                            </List.Item>
-                        ))}
-                    </List>
-                </Callout>
-            );
-        return job.fileUrl ? (
-            <Callout variant="success">
-                Export ready. <Anchor href={job.fileUrl}>Download file</Anchor>
-            </Callout>
-        ) : null;
+        return <CompletedJob job={job} />;
     }
     return job.total > 0 ? (
         <Callout variant="info">
-            {job.kind === 'export' ? 'Exporting' : 'Checking'} {job.done} of{' '}
-            {job.total}…
+            {job.kind === AiIdentityJobKind.PROVISION
+                ? 'Provisioning'
+                : job.kind === AiIdentityJobKind.EXPORT
+                  ? 'Exporting'
+                  : 'Checking'}{' '}
+            {job.done} of {job.total}…
+        </Callout>
+    ) : job.kind === AiIdentityJobKind.PROVISION ? (
+        <Callout variant="info">Provisioning is queued…</Callout>
+    ) : null;
+};
+
+const CompletedJob: FC<{ job: AiIdentityJob }> = ({ job }) => {
+    if (job.fileUrl && job.skipped?.length)
+        return (
+            <Callout variant="warning">
+                <Text fz="sm">
+                    Export ready.{' '}
+                    <Anchor href={job.fileUrl}>Download file</Anchor>.{' '}
+                    {job.skipped.length === 1
+                        ? '1 person is not in the file:'
+                        : `${job.skipped.length} people are not in the file:`}
+                </Text>
+                <List size="sm" mt={4}>
+                    {job.skipped.map(({ email, reason }) => (
+                        <List.Item key={email}>
+                            {email}: {reason}
+                        </List.Item>
+                    ))}
+                </List>
+            </Callout>
+        );
+    if (job.kind === AiIdentityJobKind.PROVISION)
+        return (
+            <Callout variant="success">
+                Provisioning complete. See the request log for each statement.
+            </Callout>
+        );
+    return job.fileUrl ? (
+        <Callout variant="success">
+            Export ready. <Anchor href={job.fileUrl}>Download file</Anchor>
         </Callout>
     ) : null;
 };

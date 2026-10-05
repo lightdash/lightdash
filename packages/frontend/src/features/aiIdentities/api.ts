@@ -1,4 +1,11 @@
 import {
+    type AiIdentityProvisioningSettings,
+    type CreateAiIdentityProvisioner,
+    type UpdateAiIdentityAiRoleDefinition,
+    type AiIdentityProvisioningPlan,
+    type UpdateAiIdentityProvisioningSettings,
+    type UpdateAiIdentityRoleMapping,
+    type RunAiIdentityProvisioningRequest,
     type AiIdentity,
     type AiIdentityAccount,
     type AiIdentityBulkTestRequest,
@@ -66,4 +73,46 @@ export const aiIdentityApi = {
             twinNameTemplate,
             roleTemplate,
         }),
+};
+
+const provisioningPath = (uuid: string) => `/accounts/${uuid}/provisioning`;
+
+export const aiIdentityProvisioningApi = {
+    settings: (uuid: string) =>
+        get<AiIdentityProvisioningSettings>(provisioningPath(uuid)),
+    update: (uuid: string, body: UpdateAiIdentityProvisioningSettings) =>
+        patch<AiIdentityProvisioningSettings>(provisioningPath(uuid), body),
+    create: (uuid: string, body: CreateAiIdentityProvisioner) =>
+        post<AiIdentityProvisioningSettings>(
+            `${provisioningPath(uuid)}/provisioner`,
+            body,
+        ),
+    deleteProvisioner: (uuid: string) =>
+        lightdashApi<AiIdentityProvisioningSettings>({
+            url: `${root}${provisioningPath(uuid)}/provisioner`,
+            method: 'DELETE',
+            version: 'v2',
+        }),
+    aiRoles: (uuid: string, body: UpdateAiIdentityAiRoleDefinition[]) =>
+        lightdashApi<AiIdentityProvisioningSettings>({
+            url: `${root}${provisioningPath(uuid)}/ai-roles`,
+            method: 'PUT',
+            body: JSON.stringify(body),
+            version: 'v2',
+        }),
+    verify: (uuid: string) =>
+        post<AiIdentityProvisioningSettings>(
+            `${provisioningPath(uuid)}/provisioner/verify`,
+        ),
+    mappings: (uuid: string, body: UpdateAiIdentityRoleMapping[]) =>
+        lightdashApi<AiIdentityProvisioningSettings>({
+            url: `${root}${provisioningPath(uuid)}/mappings`,
+            method: 'PUT',
+            body: JSON.stringify(body),
+            version: 'v2',
+        }),
+    plan: (uuid: string) =>
+        get<AiIdentityProvisioningPlan>(`${provisioningPath(uuid)}/plan`),
+    run: (uuid: string, body: RunAiIdentityProvisioningRequest) =>
+        post<AiIdentityJob>(`${provisioningPath(uuid)}/run`, body),
 };

@@ -2,6 +2,7 @@ import {
     AI_IDENTITY_STALE_PENDING_DAYS,
     AiIdentity,
     AiIdentityAccount,
+    AiIdentityCreationMode,
     AiIdentityEvent,
     AiIdentityEventActorType,
     AiIdentityFailureReason,
@@ -10,6 +11,7 @@ import {
     AiIdentityJobKind,
     AiIdentityJobStatus,
     AiIdentityListResult,
+    AiIdentityProvisionerStatus,
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStateCounts,
@@ -17,6 +19,10 @@ import {
     DEFAULT_AI_TWIN_NAME_TEMPLATE,
     getAiIdentityFailureGroupCopy,
     resolveAiTwinName,
+    type AiIdentityAiRoleDefinition,
+    type AiIdentityProvisionerFinding,
+    type UpdateAiIdentityAiRoleDefinition,
+    type UpdateAiIdentityRoleMapping,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { createHash } from 'node:crypto';
@@ -41,6 +47,7 @@ type AccountRow = {
     twin_name_template: string | null;
     role_template: string | null;
     last_full_check_at: Date | null;
+    creation_mode: AiIdentityCreationMode;
 };
 const emptyCounts = (): AiIdentityStateCounts => ({
     total: 0,
@@ -63,16 +70,30 @@ export class AiIdentityModel {
         return this.args.database;
     }
 
-    private toAccount(
+    private async toAccount(
         row: AccountRow,
         counts: AiIdentityStateCounts,
-    ): AiIdentityAccount {
+    ): Promise<AiIdentityAccount> {
+        const provisioner = await this.database('ai_identity_provisioners')
+            .where('ai_identity_account_uuid', row.ai_identity_account_uuid)
+            .first('status', 'status_message');
+        const effectiveMode =
+            row.creation_mode === AiIdentityCreationMode.AUTOMATIC &&
+            provisioner?.status === AiIdentityProvisionerStatus.READY
+                ? AiIdentityCreationMode.AUTOMATIC
+                : AiIdentityCreationMode.GUIDED;
         return {
             aiIdentityAccountUuid: row.ai_identity_account_uuid,
             snowflakeAccount: row.snowflake_account,
             twinNameTemplate: row.twin_name_template,
             roleTemplate: row.role_template,
             lastFullCheckAt: row.last_full_check_at,
+            effectiveMode,
+            fallbackReason:
+                row.creation_mode === AiIdentityCreationMode.AUTOMATIC &&
+                effectiveMode === AiIdentityCreationMode.GUIDED
+                    ? `The provisioner cannot sign in to Snowflake: ${provisioner?.status_message ?? 'it is not ready'}. AI identities are created through the guided steps until it works again.`
+                    : null,
             counts,
         };
     }
@@ -107,10 +128,10 @@ export class AiIdentityModel {
             .first();
         return row
             ? {
-                  ...this.toAccount(
+                  ...(await this.toAccount(
                       row,
                       await this.counts(aiIdentityAccountUuid),
-                  ),
+                  )),
                   organizationUuid: row.organization_uuid,
               }
             : null;
@@ -134,10 +155,10 @@ export class AiIdentityModel {
         const rows = await this.database<AccountRow>('ai_identity_accounts');
         return Promise.all(
             rows.map(async (row) => ({
-                ...this.toAccount(
+                ...(await this.toAccount(
                     row,
                     await this.counts(row.ai_identity_account_uuid),
-                ),
+                )),
                 organizationUuid: row.organization_uuid,
             })),
         );
@@ -655,6 +676,361 @@ export class AiIdentityModel {
             .delete();
     }
 
+    async getProvisioningMode(
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityCreationMode> {
+        const row = await this.database('ai_identity_accounts')
+            .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+            .first('creation_mode');
+        if (!row) throw new Error('AI identity account not found');
+        return row.creation_mode;
+    }
+
+    async withProvisioningLock<T>(
+        aiIdentityAccountUuid: string,
+        run: () => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw(
+                "SELECT pg_advisory_xact_lock(hashtext('ai_identity_provisioning'), hashtext(?))",
+                [aiIdentityAccountUuid],
+            );
+            return run();
+        });
+    }
+
+    async setProvisioningMode(
+        aiIdentityAccountUuid: string,
+        mode: AiIdentityCreationMode,
+    ): Promise<void> {
+        await this.database('ai_identity_accounts')
+            .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+            .update({ creation_mode: mode, updated_at: new Date() });
+    }
+
+    async getProvisioner(aiIdentityAccountUuid: string): Promise<{
+        aiIdentityAccountUuid: string;
+        userName: string;
+        roleName: string;
+        publicKey: string;
+        publicKeyFingerprint: string;
+        privateKey: string;
+        status: AiIdentityProvisionerStatus;
+        statusMessage: string | null;
+        checkedAt: Date | null;
+        firstRunApprovedAt: Date | null;
+        firstRunApprovedByName: string | null;
+        findings: AiIdentityProvisionerFinding[];
+    } | null> {
+        const row = await this.database(
+            'ai_identity_provisioners as provisioner',
+        )
+            .leftJoin(
+                'users as approver',
+                'approver.user_uuid',
+                'provisioner.first_run_approved_by_user_uuid',
+            )
+            .where(
+                'provisioner.ai_identity_account_uuid',
+                aiIdentityAccountUuid,
+            )
+            .select(
+                'provisioner.*',
+                'approver.first_name',
+                'approver.last_name',
+            )
+            .first();
+        if (!row) return null;
+        return {
+            aiIdentityAccountUuid: row.ai_identity_account_uuid,
+            userName: row.user_name,
+            roleName: row.role_name,
+            publicKey: row.public_key,
+            publicKeyFingerprint: row.public_key_fingerprint,
+            privateKey: this.args.encryptionUtil.decrypt(
+                row.encrypted_private_key,
+            ),
+            status: row.status,
+            statusMessage: row.status_message,
+            checkedAt: row.checked_at,
+            firstRunApprovedAt: row.first_run_approved_at,
+            firstRunApprovedByName: row.first_name
+                ? `${row.first_name} ${row.last_name ?? ''}`.trim()
+                : null,
+            findings: row.findings ?? [],
+        };
+    }
+
+    async createProvisioner(
+        aiIdentityAccountUuid: string,
+        userName: string,
+        roleName: string,
+        keys: { publicKey: string; privateKey: string },
+    ): Promise<void> {
+        await this.database('ai_identity_provisioners')
+            .insert({
+                ai_identity_account_uuid: aiIdentityAccountUuid,
+                user_name: userName,
+                role_name: roleName,
+                public_key: keys.publicKey,
+                public_key_fingerprint: `SHA256:${createHash('sha256').update(Buffer.from(keys.publicKey, 'base64')).digest('base64')}`,
+                encrypted_private_key: this.args.encryptionUtil.encrypt(
+                    keys.privateKey,
+                ),
+            })
+            .onConflict('ai_identity_account_uuid')
+            .ignore();
+    }
+
+    async deleteProvisioner(aiIdentityAccountUuid: string): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx('ai_identity_accounts')
+                .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+                .update({ creation_mode: AiIdentityCreationMode.GUIDED });
+            await trx('ai_identity_provisioners')
+                .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+                .delete();
+        });
+    }
+
+    async getAiRoles(
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityAiRoleDefinition[]> {
+        const rows = await this.database('ai_identity_ai_roles')
+            .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+            .orderBy('role_name');
+        return rows.map((row) => ({
+            aiIdentityAiRoleUuid: row.ai_identity_ai_role_uuid,
+            roleName: row.role_name,
+            warehouse: row.warehouse,
+            schemas: row.schemas,
+        }));
+    }
+
+    async replaceAiRoles(
+        aiIdentityAccountUuid: string,
+        roles: UpdateAiIdentityAiRoleDefinition[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx('ai_identity_ai_roles')
+                .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+                .delete();
+            if (roles.length > 0)
+                await trx('ai_identity_ai_roles').insert(
+                    roles.map((role) => ({
+                        ai_identity_account_uuid: aiIdentityAccountUuid,
+                        role_name: role.roleName,
+                        warehouse: role.warehouse,
+                        schemas: JSON.stringify(role.schemas),
+                    })),
+                );
+        });
+    }
+
+    async updateProvisioner(
+        aiIdentityAccountUuid: string,
+        update: {
+            status?: AiIdentityProvisionerStatus;
+            statusMessage?: string | null;
+            findings?: AiIdentityProvisionerFinding[];
+            approvedBy?: string;
+        },
+    ): Promise<void> {
+        await this.database('ai_identity_provisioners')
+            .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+            .update({
+                ...(update.status === undefined
+                    ? {}
+                    : { status: update.status, checked_at: new Date() }),
+                ...(update.statusMessage === undefined
+                    ? {}
+                    : { status_message: update.statusMessage }),
+                ...(update.findings === undefined
+                    ? {}
+                    : { findings: JSON.stringify(update.findings) }),
+                ...(update.approvedBy === undefined
+                    ? {}
+                    : {
+                          first_run_approved_at: new Date(),
+                          first_run_approved_by_user_uuid: update.approvedBy,
+                      }),
+                updated_at: new Date(),
+            });
+    }
+
+    async getRoleMappings(aiIdentityAccountUuid: string): Promise<
+        Array<{
+            aiIdentityRoleMappingUuid: string;
+            groupUuid: string;
+            groupName: string;
+            aiRole: string;
+            priority: number;
+        }>
+    > {
+        const rows = await this.database('ai_identity_role_mappings as mapping')
+            .join('groups', 'groups.group_uuid', 'mapping.group_uuid')
+            .where('mapping.ai_identity_account_uuid', aiIdentityAccountUuid)
+            .select('mapping.*', 'groups.name as group_name')
+            .orderBy('mapping.priority');
+        return rows.map((row) => ({
+            aiIdentityRoleMappingUuid: row.ai_identity_role_mapping_uuid,
+            groupUuid: row.group_uuid,
+            groupName: row.group_name,
+            aiRole: row.ai_role,
+            priority: row.priority,
+        }));
+    }
+
+    async replaceRoleMappings(
+        aiIdentityAccountUuid: string,
+        mappings: UpdateAiIdentityRoleMapping[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx('ai_identity_role_mappings')
+                .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+                .delete();
+            if (mappings.length > 0)
+                await trx('ai_identity_role_mappings').insert(
+                    mappings.map((mapping) => ({
+                        ai_identity_account_uuid: aiIdentityAccountUuid,
+                        group_uuid: mapping.groupUuid,
+                        ai_role: mapping.aiRole,
+                        priority: mapping.priority,
+                    })),
+                );
+        });
+    }
+
+    async getOrganizationGroupUuids(
+        organizationUuid: string,
+    ): Promise<Set<string>> {
+        const rows = await this.database('groups')
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                'groups.organization_id',
+            )
+            .where('organizations.organization_uuid', organizationUuid)
+            .pluck('groups.group_uuid');
+        return new Set(rows as string[]);
+    }
+
+    async getProvisioningIdentities(aiIdentityAccountUuid: string): Promise<
+        Array<
+            AiIdentity & {
+                createdByProvisioner: boolean;
+                provisionedRole: string | null;
+                provisionedUserName: string | null;
+                provisionedPublicKeyFingerprint: string | null;
+                groupUuids: string[];
+            }
+        >
+    > {
+        const rows = await this.queryRows()
+            .where(
+                'ai_identities.ai_identity_account_uuid',
+                aiIdentityAccountUuid,
+            )
+            .select(
+                'ai_identities.created_by_provisioner',
+                'ai_identities.provisioned_role',
+                'ai_identities.provisioned_user_name',
+                'ai_identities.provisioned_public_key_fingerprint',
+            );
+        const typedRows = rows as (IdentityRow & {
+            created_by_provisioner: boolean;
+            provisioned_role: string | null;
+            provisioned_user_name: string | null;
+            provisioned_public_key_fingerprint: string | null;
+        })[];
+        if (typedRows.length === 0) return [];
+        const memberships = await this.database('group_memberships')
+            .join('users', 'users.user_id', 'group_memberships.user_id')
+            .whereIn(
+                'users.user_uuid',
+                typedRows.map((row) => row.user_uuid),
+            )
+            .select<{ user_uuid: string; group_uuid: string }[]>(
+                'users.user_uuid',
+                'group_memberships.group_uuid',
+            );
+        const groupsByUser = new Map<string, string[]>();
+        memberships.forEach((membership) =>
+            groupsByUser.set(membership.user_uuid, [
+                ...(groupsByUser.get(membership.user_uuid) ?? []),
+                membership.group_uuid,
+            ]),
+        );
+        return typedRows.map((row) => ({
+            ...this.toIdentity(row),
+            createdByProvisioner: row.created_by_provisioner,
+            provisionedRole: row.provisioned_role,
+            provisionedUserName: row.provisioned_user_name,
+            provisionedPublicKeyFingerprint:
+                row.provisioned_public_key_fingerprint,
+            groupUuids: groupsByUser.get(row.user_uuid) ?? [],
+        }));
+    }
+
+    async markProvisioned(
+        aiIdentityUuid: string,
+        role: string | null,
+        userName: string,
+        fingerprint: string | null,
+    ): Promise<void> {
+        await this.database(AiIdentitiesTableName)
+            .where({ ai_identity_uuid: aiIdentityUuid })
+            .update({
+                created_by_provisioner: true,
+                provisioned_role: role,
+                provisioned_user_name: userName,
+                provisioned_public_key_fingerprint: fingerprint,
+                updated_at: new Date(),
+            });
+    }
+
+    async clearProvisioned(aiIdentityUuid: string): Promise<void> {
+        await this.database(AiIdentitiesTableName)
+            .where({ ai_identity_uuid: aiIdentityUuid })
+            .update({
+                created_by_provisioner: false,
+                provisioned_role: null,
+                provisioned_user_name: null,
+                provisioned_public_key_fingerprint: null,
+                updated_at: new Date(),
+            });
+    }
+
+    async markProvisionedKey(
+        aiIdentityUuid: string,
+        fingerprint: string | null,
+    ): Promise<void> {
+        await this.database(AiIdentitiesTableName)
+            .where({ ai_identity_uuid: aiIdentityUuid })
+            .update({
+                provisioned_public_key_fingerprint: fingerprint,
+                updated_at: new Date(),
+            });
+    }
+
+    async listProvisioningDrops(
+        aiIdentityAccountUuid: string,
+    ): Promise<Array<{ uuid: string; userName: string }>> {
+        const rows = await this.database(
+            'ai_identity_provisioning_drops',
+        ).where({ ai_identity_account_uuid: aiIdentityAccountUuid });
+        return rows.map((row) => ({
+            uuid: row.ai_identity_provisioning_drop_uuid,
+            userName: row.user_name,
+        }));
+    }
+
+    async removeProvisioningDrop(uuid: string): Promise<void> {
+        await this.database('ai_identity_provisioning_drops')
+            .where({ ai_identity_provisioning_drop_uuid: uuid })
+            .delete();
+    }
+
     async findLatestSlackDmEvent({
         organizationUuid,
         userUuid,
@@ -862,6 +1238,7 @@ export class AiIdentityModel {
               filter: AiIdentityFilter;
               format: 'json' | 'sql' | 'csv' | null;
               roleForTwin: string | null;
+              createdByUserUuid: string | null;
           })
         | null
     > {
@@ -876,6 +1253,7 @@ export class AiIdentityModel {
                   filter: row.filter,
                   format: row.format,
                   roleForTwin: row.role_for_twin,
+                  createdByUserUuid: row.created_by_user_uuid,
               }
             : null;
     }

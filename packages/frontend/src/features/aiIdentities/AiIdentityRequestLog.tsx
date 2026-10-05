@@ -6,6 +6,7 @@ import {
     Switch,
     Table,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
@@ -76,9 +77,24 @@ export const AiIdentityRequestLog: FC = () => {
                                         <EventStatus event={event} />
                                     </Table.Td>
                                     <Table.Td>
-                                        <Text fz="sm" lineClamp={2}>
-                                            {event.detail ?? '—'}
-                                        </Text>
+                                        <Tooltip
+                                            label={event.detail ?? '—'}
+                                            multiline
+                                            maw={600}
+                                        >
+                                            <Text
+                                                fz="sm"
+                                                lineClamp={2}
+                                                ff={
+                                                    event.action ===
+                                                    'provision_statement'
+                                                        ? 'monospace'
+                                                        : undefined
+                                                }
+                                            >
+                                                {event.detail ?? '—'}
+                                            </Text>
+                                        </Tooltip>
                                     </Table.Td>
                                 </Table.Tr>
                             ))}

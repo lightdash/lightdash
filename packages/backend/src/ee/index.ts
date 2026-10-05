@@ -1010,6 +1010,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             scimService: ({ models, context, repository }) =>
                 new ScimService({
+                    onMembershipChange: (organizationUuid) =>
+                        repository
+                            .getAiIdentityService()
+                            .scheduleSyncForOrganization(organizationUuid),
                     lightdashConfig: context.lightdashConfig,
                     organizationMemberProfileModel:
                         models.getOrganizationMemberProfileModel(),

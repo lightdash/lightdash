@@ -661,6 +661,26 @@ export class UserModel {
                 .returning('*');
 
             if (isActive === false) {
+                const provisioned = await trx(AiIdentitiesTableName)
+                    .where('user_uuid', userUuid)
+                    .where('created_by_provisioner', true)
+                    .whereNotNull('provisioned_user_name')
+                    .select(
+                        'ai_identity_account_uuid',
+                        'provisioned_user_name',
+                    );
+                if (provisioned.length > 0) {
+                    await trx('ai_identity_provisioning_drops')
+                        .insert(
+                            provisioned.map((identity) => ({
+                                ai_identity_account_uuid:
+                                    identity.ai_identity_account_uuid,
+                                user_name: identity.provisioned_user_name,
+                            })),
+                        )
+                        .onConflict(['ai_identity_account_uuid', 'user_name'])
+                        .ignore();
+                }
                 deletedAiIdentityCount = await trx(AiIdentitiesTableName)
                     .where('user_uuid', userUuid)
                     .delete();

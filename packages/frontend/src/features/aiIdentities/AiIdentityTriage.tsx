@@ -23,6 +23,7 @@ import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { useProjects } from '../../hooks/useProjects';
 import classes from './AiIdentitiesPage.module.css';
 import { AiIdentityDetailDrawer } from './AiIdentityDetailDrawer';
+import { AiIdentityProvisioningTriage } from './AiIdentityProvisioningTriage';
 import { AiIdentityStatusIcon } from './AiIdentityStatusBadge';
 import { AiIdentityTriageSummary } from './AiIdentityTriageSummary';
 import { AiIdentityTriageToolbar } from './AiIdentityTriageToolbar';
@@ -263,6 +264,10 @@ export const AiIdentityTriage: FC<Props> = ({
 
     return (
         <Stack gap="lg">
+            <AiIdentityProvisioningTriage
+                accountUuid={account.aiIdentityAccountUuid}
+                onSetup={() => onParam('tab', 'setup')}
+            />
             <AiIdentityTriageSummary
                 account={account}
                 filter={filter}

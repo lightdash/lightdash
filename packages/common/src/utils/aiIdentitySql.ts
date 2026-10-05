@@ -11,7 +11,8 @@ const quoteIdentifier = (value: string): string =>
         ? value
         : `"${value.replace(/"/g, '""')}"`;
 
-const quoteString = (value: string): string => `'${value.replace(/'/g, "''")}'`;
+const quoteString = (value: string): string =>
+    `'${value.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
 
 export const validateAiIdentityRoleTemplate = (template: string): void => {
     const filled = fillAiTwinName(template, 'LOGIN')

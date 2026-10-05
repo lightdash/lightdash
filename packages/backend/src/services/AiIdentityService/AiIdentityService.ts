@@ -2,10 +2,13 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AI_IDENTITY_NAME_PLACEHOLDER,
+    AI_IDENTITY_PROVISIONER_WORST_CASE,
+    AI_IDENTITY_SHOW_USERS_NOTICE,
     AiAccessForUser,
     AiIdentity,
     AiIdentityAccount,
     AiIdentityBulkTestRequest,
+    AiIdentityCreationMode,
     AiIdentityDetail,
     AiIdentityExportRequest,
     AiIdentityFailureReason,
@@ -14,12 +17,18 @@ import {
     AiIdentityJobKind,
     AiIdentityJobStatus,
     AiIdentityListResult,
+    AiIdentityProvisionerFindingReason,
+    AiIdentityProvisionerStatus,
+    aiIdentitySnowflakeIdentifier,
     AiIdentitySort,
     AiIdentityState,
     AiIdentityStatus,
     buildAiIdentityFixSql,
+    buildAiIdentityProvisionerSetupSql,
     buildAiTwinProvisioningSql,
     classifyAiIdentityFailure,
+    DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
+    DEFAULT_AI_IDENTITY_PROVISIONER_USER,
     FeatureFlags,
     fillAiTwinName,
     ForbiddenError,
@@ -32,6 +41,11 @@ import {
     SNOWFLAKE_LOGIN_PLACEHOLDER,
     validateAiIdentityRoleTemplate,
     WarehouseTypes,
+    type AiIdentityProvisioningPlan,
+    type AiIdentityProvisioningSettings,
+    type CreateAiIdentityProvisioner,
+    type UpdateAiIdentityAiRoleDefinition,
+    type UpdateAiIdentityRoleMapping,
 } from '@lightdash/common';
 import { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { AiIdentityModel } from '../../models/AiIdentityModel';
@@ -45,6 +59,12 @@ import {
     buildAiTwinCredentials,
     checkAiTwinConnection,
 } from './aiTwinConnection';
+import { ProvisionerConnection } from './provisionerConnection';
+import {
+    buildProvisioningPlan,
+    classifyProvisionerUsers,
+    missingProvisionerGrants,
+} from './provisioningPlan';
 import { getSnowflakeLogin } from './snowflakeLogin';
 
 const forEachSequential = async <T>(
@@ -112,6 +132,808 @@ export class AiIdentityService extends BaseService {
         )
             throw new NotFoundError('AI identity account not found');
         return { organizationUuid, identityAccount };
+    }
+
+    async getProvisioningSettings(
+        account: Account,
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityProvisioningSettings> {
+        const { organizationUuid, identityAccount } = await this.checkAccount(
+            account,
+            aiIdentityAccountUuid,
+        );
+        const [mode, provisioner, mappings, aiRoles] = await Promise.all([
+            this.args.aiIdentityModel.getProvisioningMode(
+                aiIdentityAccountUuid,
+            ),
+            this.args.aiIdentityModel.getProvisioner(aiIdentityAccountUuid),
+            this.args.aiIdentityModel.getRoleMappings(aiIdentityAccountUuid),
+            this.args.aiIdentityModel.getAiRoles(aiIdentityAccountUuid),
+        ]);
+        const { projectUuid, credentials } = await this.projectForAccount(
+            organizationUuid,
+            identityAccount.snowflakeAccount,
+        );
+        const effectiveMode =
+            mode === AiIdentityCreationMode.AUTOMATIC &&
+            provisioner?.status === AiIdentityProvisionerStatus.READY
+                ? AiIdentityCreationMode.AUTOMATIC
+                : AiIdentityCreationMode.GUIDED;
+        const fallbackReason =
+            mode === AiIdentityCreationMode.AUTOMATIC &&
+            effectiveMode === AiIdentityCreationMode.GUIDED
+                ? `The provisioner cannot sign in to Snowflake: ${provisioner?.statusMessage ?? 'it is not ready'}. AI identities are created through the guided steps until it works again.`
+                : null;
+        return {
+            aiIdentityAccountUuid,
+            mode,
+            effectiveMode,
+            fallbackReason,
+            provisioner:
+                provisioner === null
+                    ? null
+                    : {
+                          aiIdentityAccountUuid,
+                          userName: provisioner.userName,
+                          roleName: provisioner.roleName,
+                          publicKey: provisioner.publicKey,
+                          publicKeyFingerprint:
+                              provisioner.publicKeyFingerprint,
+                          status: provisioner.status,
+                          statusMessage: provisioner.statusMessage,
+                          checkedAt: provisioner.checkedAt,
+                          firstRunApprovedAt: provisioner.firstRunApprovedAt,
+                          firstRunApprovedByName:
+                              provisioner.firstRunApprovedByName,
+                      },
+            setupSql:
+                provisioner === null
+                    ? null
+                    : buildAiIdentityProvisionerSetupSql({
+                          userName: provisioner.userName,
+                          roleName: provisioner.roleName,
+                          publicKey: provisioner.publicKey,
+                          aiRoles,
+                          existingAiRoles: mappings.map(
+                              (mapping) => mapping.aiRole,
+                          ),
+                      }),
+            aiRoles,
+            catalogProjectUuid: projectUuid,
+            defaultWarehouse: credentials.warehouse,
+            mappings,
+            findings: provisioner?.findings ?? [],
+            worstCaseNotice: AI_IDENTITY_PROVISIONER_WORST_CASE,
+            showUsersNotice: AI_IDENTITY_SHOW_USERS_NOTICE,
+        };
+    }
+
+    async updateProvisioningMode(
+        account: Account,
+        aiIdentityAccountUuid: string,
+        mode: AiIdentityCreationMode,
+    ): Promise<AiIdentityProvisioningSettings> {
+        const settings = await this.getProvisioningSettings(
+            account,
+            aiIdentityAccountUuid,
+        );
+        if (
+            mode === AiIdentityCreationMode.AUTOMATIC &&
+            settings.provisioner?.status !== AiIdentityProvisionerStatus.READY
+        ) {
+            throw new ParameterError(
+                'Verify the Snowflake provisioner before enabling automatic AI identities.',
+            );
+        }
+        await this.args.aiIdentityModel.setProvisioningMode(
+            aiIdentityAccountUuid,
+            mode,
+        );
+        if (
+            mode === AiIdentityCreationMode.AUTOMATIC &&
+            settings.provisioner?.firstRunApprovedAt
+        ) {
+            await this.scheduleProvisioning(aiIdentityAccountUuid);
+        }
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    async createProvisioner(
+        account: Account,
+        aiIdentityAccountUuid: string,
+        names: CreateAiIdentityProvisioner,
+    ): Promise<AiIdentityProvisioningSettings> {
+        await this.checkAccount(account, aiIdentityAccountUuid);
+        aiIdentitySnowflakeIdentifier(names.userName);
+        aiIdentitySnowflakeIdentifier(names.roleName);
+        await this.args.aiIdentityModel.createProvisioner(
+            aiIdentityAccountUuid,
+            names.userName,
+            names.roleName,
+            generateAiIdentityKeyPair(),
+        );
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    async deleteProvisioner(
+        account: Account,
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityProvisioningSettings> {
+        await this.checkAccount(account, aiIdentityAccountUuid);
+        await this.args.aiIdentityModel.deleteProvisioner(
+            aiIdentityAccountUuid,
+        );
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    async replaceAiRoles(
+        account: Account,
+        aiIdentityAccountUuid: string,
+        roles: UpdateAiIdentityAiRoleDefinition[],
+    ): Promise<AiIdentityProvisioningSettings> {
+        const { organizationUuid, identityAccount } = await this.checkAccount(
+            account,
+            aiIdentityAccountUuid,
+        );
+        const { credentials } = await this.projectForAccount(
+            organizationUuid,
+            identityAccount.snowflakeAccount,
+        );
+        const normalized = roles.map((role) => ({
+            roleName: aiIdentitySnowflakeIdentifier(role.roleName),
+            warehouse: aiIdentitySnowflakeIdentifier(
+                role.warehouse || credentials.warehouse,
+            ),
+            schemas: role.schemas.map((schema) => {
+                const parts = schema.split('.');
+                if (parts.length !== 2)
+                    throw new ParameterError(
+                        'Schemas must use DATABASE.SCHEMA.',
+                    );
+                return parts.map(aiIdentitySnowflakeIdentifier).join('.');
+            }),
+        }));
+        if (
+            new Set(normalized.map((role) => role.roleName.toUpperCase()))
+                .size !== normalized.length
+        )
+            throw new ParameterError('Each AI role needs a distinct name.');
+        await this.args.aiIdentityModel.replaceAiRoles(
+            aiIdentityAccountUuid,
+            normalized,
+        );
+        if (
+            await this.args.aiIdentityModel.getProvisioner(
+                aiIdentityAccountUuid,
+            )
+        )
+            await this.args.aiIdentityModel.updateProvisioner(
+                aiIdentityAccountUuid,
+                {
+                    status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
+                    statusMessage:
+                        'Run the updated setup script and check the provisioner again.',
+                },
+            );
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    private async provisionerConnection(
+        aiIdentityAccountUuid: string,
+    ): Promise<ProvisionerConnection> {
+        const identityAccount = await this.args.aiIdentityModel.getAccount(
+            aiIdentityAccountUuid,
+        );
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            aiIdentityAccountUuid,
+        );
+        if (!identityAccount || !provisioner)
+            throw new NotFoundError('AI identity provisioner not found');
+        const { credentials } = await this.projectForAccount(
+            identityAccount.organizationUuid,
+            identityAccount.snowflakeAccount,
+        );
+        const mappings = await this.args.aiIdentityModel.getRoleMappings(
+            aiIdentityAccountUuid,
+        );
+        const identities =
+            await this.args.aiIdentityModel.getProvisioningIdentities(
+                aiIdentityAccountUuid,
+            );
+        const drops = await this.args.aiIdentityModel.listProvisioningDrops(
+            aiIdentityAccountUuid,
+        );
+        return new ProvisionerConnection(
+            credentials,
+            provisioner.userName,
+            provisioner.roleName,
+            provisioner.privateKey,
+            {
+                mappedRoles: new Set(mappings.map((mapping) => mapping.aiRole)),
+                lightdashCreatedUsers: new Set([
+                    ...identities
+                        .filter((identity) => identity.createdByProvisioner)
+                        .map((identity) => identity.provisionedUserName)
+                        .filter((name): name is string => name !== null),
+                    ...drops.map((drop) => drop.userName),
+                ]),
+            },
+        );
+    }
+
+    async verifyProvisioner(
+        account: Account,
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityProvisioningSettings> {
+        const { organizationUuid } = await this.checkAccount(
+            account,
+            aiIdentityAccountUuid,
+        );
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            aiIdentityAccountUuid,
+        );
+        if (!provisioner)
+            throw new NotFoundError('AI identity provisioner not found');
+        try {
+            const connection = await this.provisionerConnection(
+                aiIdentityAccountUuid,
+            );
+            const current = await connection.currentIdentity();
+            if (
+                current.user.toUpperCase() !==
+                    provisioner.userName.toUpperCase() ||
+                current.role.toUpperCase() !==
+                    provisioner.roleName.toUpperCase()
+            ) {
+                throw new Error(
+                    `Snowflake signed in as ${current.user} with role ${current.role}, rather than the provisioner.`,
+                );
+            }
+            const mappings = await this.args.aiIdentityModel.getRoleMappings(
+                aiIdentityAccountUuid,
+            );
+            const aiRoles = await this.args.aiIdentityModel.getAiRoles(
+                aiIdentityAccountUuid,
+            );
+            const grants = await connection.grantsToRole(provisioner.roleName);
+            const missing = missingProvisionerGrants(
+                grants,
+                new Set([
+                    ...mappings.map((mapping) => mapping.aiRole),
+                    ...aiRoles.map((role) => role.roleName),
+                ]),
+            );
+            const identities =
+                await this.args.aiIdentityModel.getProvisioningIdentities(
+                    aiIdentityAccountUuid,
+                );
+            const drops = await this.args.aiIdentityModel.listProvisioningDrops(
+                aiIdentityAccountUuid,
+            );
+            const created = new Set([
+                ...identities
+                    .filter((identity) => identity.createdByProvisioner)
+                    .map((identity) => identity.provisionedUserName)
+                    .filter((name): name is string => name !== null),
+                ...drops.map((drop) => drop.userName),
+            ]);
+            const findings = classifyProvisionerUsers(
+                await connection.users(),
+                provisioner.roleName,
+                created,
+            );
+            const message =
+                missing.length === 0
+                    ? null
+                    : `The provisioner is missing ${missing.join(', ')}.`;
+            await this.args.aiIdentityModel.updateProvisioner(
+                aiIdentityAccountUuid,
+                {
+                    status:
+                        missing.length === 0
+                            ? AiIdentityProvisionerStatus.READY
+                            : AiIdentityProvisionerStatus.FAILING,
+                    statusMessage: message,
+                    findings,
+                },
+            );
+            await this.args.aiIdentityModel.addEvent({
+                organizationUuid,
+                aiIdentityAccountUuid,
+                aiIdentityUuid: null,
+                actorType: 'user',
+                actorUserUuid: account.user.id,
+                action: 'provisioner_verify',
+                targetCount: findings.length,
+                status: missing.length === 0 ? 'success' : 'error',
+                detail: message,
+            });
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message : String(error);
+            const revoked =
+                /JWT token is invalid|user.*(does not exist|not found)/i.test(
+                    message,
+                );
+            await this.args.aiIdentityModel.updateProvisioner(
+                aiIdentityAccountUuid,
+                {
+                    status: revoked
+                        ? AiIdentityProvisionerStatus.REVOKED
+                        : AiIdentityProvisionerStatus.FAILING,
+                    statusMessage: message,
+                },
+            );
+            await this.args.aiIdentityModel.addEvent({
+                organizationUuid,
+                aiIdentityAccountUuid,
+                aiIdentityUuid: null,
+                actorType: 'user',
+                actorUserUuid: account.user.id,
+                action: 'provisioner_verify',
+                targetCount: 0,
+                status: 'error',
+                detail: message,
+            });
+        }
+        return this.getProvisioningSettings(account, aiIdentityAccountUuid);
+    }
+
+    async replaceProvisioningMappings(
+        account: Account,
+        aiIdentityAccountUuid: string,
+        mappings: UpdateAiIdentityRoleMapping[],
+    ): Promise<AiIdentityProvisioningSettings> {
+        const { organizationUuid } = await this.checkAccount(
+            account,
+            aiIdentityAccountUuid,
+        );
+        const groups =
+            await this.args.aiIdentityModel.getOrganizationGroupUuids(
+                organizationUuid,
+            );
+        if (mappings.some((mapping) => !groups.has(mapping.groupUuid)))
+            throw new ParameterError(
+                'A group does not belong to this organization.',
+            );
+        if (
+            new Set(mappings.map((mapping) => mapping.groupUuid)).size !==
+            mappings.length
+        )
+            throw new ParameterError(
+                'A group can have only one AI role mapping.',
+            );
+        if (mappings.some((mapping) => !Number.isInteger(mapping.priority)))
+            throw new ParameterError(
+                'AI role mapping priority must be an integer.',
+            );
+        buildAiIdentityProvisionerSetupSql({
+            userName: DEFAULT_AI_IDENTITY_PROVISIONER_USER,
+            roleName: DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
+            publicKey: 'YWJj',
+            aiRoles: [],
+            existingAiRoles: mappings.map((mapping) => mapping.aiRole),
+        });
+        await this.args.aiIdentityModel.replaceRoleMappings(
+            aiIdentityAccountUuid,
+            mappings,
+        );
+        if (
+            await this.args.aiIdentityModel.getProvisioner(
+                aiIdentityAccountUuid,
+            )
+        )
+            await this.args.aiIdentityModel.updateProvisioner(
+                aiIdentityAccountUuid,
+                {
+                    status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
+                    statusMessage:
+                        'Run the updated setup script and check the provisioner again.',
+                },
+            );
+        const settings = await this.getProvisioningSettings(
+            account,
+            aiIdentityAccountUuid,
+        );
+        if (settings.effectiveMode === AiIdentityCreationMode.AUTOMATIC)
+            await this.scheduleProvisioning(aiIdentityAccountUuid);
+        return settings;
+    }
+
+    private async scopedProvisioningUsers(
+        aiIdentityAccountUuid: string,
+    ): Promise<Set<string>> {
+        const identityAccount = await this.args.aiIdentityModel.getAccount(
+            aiIdentityAccountUuid,
+        );
+        if (!identityAccount)
+            throw new NotFoundError('AI identity account not found');
+        const projects = await this.args.projectModel.getAllByOrganizationUuid(
+            identityAccount.organizationUuid,
+        );
+        const users = new Set<string>();
+        await forEachSequential(projects, async (project) => {
+            if (project.warehouseType !== WarehouseTypes.SNOWFLAKE) return;
+            const credentials = await this.getOriginalConnectionCredentials(
+                project.projectUuid,
+            );
+            if (
+                credentials.type !== WarehouseTypes.SNOWFLAKE ||
+                normalizeSnowflakeAccount(credentials.account) !==
+                    identityAccount.snowflakeAccount
+            )
+                return;
+            const members = await this.args.aiIdentityModel.getProjectMemberIds(
+                {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: identityAccount.organizationUuid,
+                },
+            );
+            members.forEach((member) => users.add(member));
+        });
+        return users;
+    }
+
+    private async buildProvisioningPlan(
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityProvisioningPlan> {
+        const [identities, scopedUserUuids, mappings, pendingDrops] =
+            await Promise.all([
+                this.args.aiIdentityModel.getProvisioningIdentities(
+                    aiIdentityAccountUuid,
+                ),
+                this.scopedProvisioningUsers(aiIdentityAccountUuid),
+                this.args.aiIdentityModel.getRoleMappings(
+                    aiIdentityAccountUuid,
+                ),
+                this.args.aiIdentityModel.listProvisioningDrops(
+                    aiIdentityAccountUuid,
+                ),
+            ]);
+        return buildProvisioningPlan({
+            identities,
+            scopedUserUuids,
+            mappings,
+            pendingDrops,
+        });
+    }
+
+    async getProvisioningPlan(
+        account: Account,
+        aiIdentityAccountUuid: string,
+    ): Promise<AiIdentityProvisioningPlan> {
+        await this.checkAccount(account, aiIdentityAccountUuid);
+        return this.buildProvisioningPlan(aiIdentityAccountUuid);
+    }
+
+    async runProvisioning(
+        account: Account,
+        aiIdentityAccountUuid: string,
+        approveStatements: boolean,
+    ): Promise<AiIdentityJob> {
+        await this.checkAccount(account, aiIdentityAccountUuid);
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            aiIdentityAccountUuid,
+        );
+        if (provisioner?.status !== AiIdentityProvisionerStatus.READY)
+            throw new ParameterError(
+                'Verify the Snowflake provisioner before running automatic AI identities.',
+            );
+        if (provisioner.firstRunApprovedAt === null) {
+            if (approveStatements !== true)
+                throw new ParameterError(
+                    'Approve the provisioning statements before the first run.',
+                );
+            await this.args.aiIdentityModel.updateProvisioner(
+                aiIdentityAccountUuid,
+                { approvedBy: account.user.id },
+            );
+        }
+        return this.queueJob(
+            account,
+            AiIdentityJobKind.PROVISION,
+            {
+                aiIdentityAccountUuid,
+                states: [],
+                reasons: [],
+                projectUuid: null,
+                search: null,
+                staleOnly: false,
+            },
+            null,
+            null,
+            'provision',
+        );
+    }
+
+    private async scheduleProvisioning(
+        aiIdentityAccountUuid: string,
+    ): Promise<void> {
+        const identityAccount = await this.args.aiIdentityModel.getAccount(
+            aiIdentityAccountUuid,
+        );
+        if (!identityAccount)
+            throw new NotFoundError('AI identity account not found');
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            aiIdentityAccountUuid,
+        );
+        if (
+            provisioner?.status !== AiIdentityProvisionerStatus.READY ||
+            provisioner.firstRunApprovedAt === null
+        )
+            return;
+        const job = await this.args.aiIdentityModel.createJob({
+            organizationUuid: identityAccount.organizationUuid,
+            aiIdentityAccountUuid,
+            kind: AiIdentityJobKind.PROVISION,
+            filter: {
+                aiIdentityAccountUuid,
+                states: [],
+                reasons: [],
+                projectUuid: null,
+                search: null,
+                staleOnly: false,
+            },
+            format: null,
+            roleForTwin: null,
+            createdByUserUuid: null,
+        });
+        await this.args.schedulerClient.scheduleTask(
+            SCHEDULER_TASKS.AI_IDENTITY_JOB,
+            { jobUuid: job.jobUuid },
+        );
+    }
+
+    private async runProvisioningJob(
+        job: AiIdentityJob & {
+            organizationUuid: string;
+            aiIdentityAccountUuid: string;
+            createdByUserUuid: string | null;
+        },
+    ): Promise<void> {
+        await this.args.aiIdentityModel.withProvisioningLock(
+            job.aiIdentityAccountUuid,
+            () => this.runProvisioningJobUnlocked(job),
+        );
+    }
+
+    private async runProvisioningJobUnlocked(
+        job: AiIdentityJob & {
+            organizationUuid: string;
+            aiIdentityAccountUuid: string;
+            createdByUserUuid: string | null;
+        },
+    ): Promise<void> {
+        const provisioner = await this.args.aiIdentityModel.getProvisioner(
+            job.aiIdentityAccountUuid,
+        );
+        const mode = await this.args.aiIdentityModel.getProvisioningMode(
+            job.aiIdentityAccountUuid,
+        );
+        if (
+            !provisioner ||
+            provisioner.status !== AiIdentityProvisionerStatus.READY ||
+            provisioner.firstRunApprovedAt === null
+        )
+            throw new Error(
+                'The provisioner is not ready or the first run has not been approved.',
+            );
+        if (
+            mode !== AiIdentityCreationMode.AUTOMATIC &&
+            job.createdByUserUuid === null
+        )
+            return;
+        const connection = await this.provisionerConnection(
+            job.aiIdentityAccountUuid,
+        );
+        try {
+            const current = await connection.currentIdentity();
+            if (
+                current.user.toUpperCase() !==
+                    provisioner.userName.toUpperCase() ||
+                current.role.toUpperCase() !==
+                    provisioner.roleName.toUpperCase()
+            ) {
+                throw new Error(
+                    `Snowflake signed in as ${current.user} with role ${current.role}, rather than the provisioner.`,
+                );
+            }
+            const mappings = await this.args.aiIdentityModel.getRoleMappings(
+                job.aiIdentityAccountUuid,
+            );
+            const missing = missingProvisionerGrants(
+                await connection.grantsToRole(provisioner.roleName),
+                new Set(mappings.map((mapping) => mapping.aiRole)),
+            );
+            if (missing.length > 0)
+                throw new Error(
+                    `The provisioner is missing ${missing.join(', ')}.`,
+                );
+            const identities =
+                await this.args.aiIdentityModel.getProvisioningIdentities(
+                    job.aiIdentityAccountUuid,
+                );
+            const drops = await this.args.aiIdentityModel.listProvisioningDrops(
+                job.aiIdentityAccountUuid,
+            );
+            const created = new Set([
+                ...identities
+                    .filter((identity) => identity.createdByProvisioner)
+                    .map((identity) => identity.provisionedUserName)
+                    .filter((name): name is string => name !== null),
+                ...drops.map((drop) => drop.userName),
+            ]);
+            const findings = classifyProvisionerUsers(
+                await connection.users(),
+                provisioner.roleName,
+                created,
+            );
+            await this.args.aiIdentityModel.updateProvisioner(
+                job.aiIdentityAccountUuid,
+                { findings },
+            );
+            const changedTypes = findings.filter(
+                (finding) =>
+                    finding.reason ===
+                        AiIdentityProvisionerFindingReason.NOT_SERVICE_AGENT &&
+                    [...created].some(
+                        (name) =>
+                            name.toUpperCase() ===
+                            finding.userName.toUpperCase(),
+                    ),
+            );
+            if (changedTypes.length > 0)
+                throw new Error(
+                    'A Lightdash-created AI user is no longer a SERVICE_AGENT. Review the provisioner findings before running again.',
+                );
+            const plan = await this.buildProvisioningPlan(
+                job.aiIdentityAccountUuid,
+            );
+            await this.args.aiIdentityModel.updateJob(job.jobUuid, {
+                total: plan.items.length,
+                skipped: plan.skipped,
+            });
+            let done = 0;
+            await forEachSequential(plan.items, async (item) => {
+                try {
+                    await connection.execute(item.operation);
+                    await this.args.aiIdentityModel.addEvent({
+                        organizationUuid: job.organizationUuid,
+                        aiIdentityAccountUuid: job.aiIdentityAccountUuid,
+                        aiIdentityUuid: item.aiIdentityUuid,
+                        aiIdentityJobUuid: job.jobUuid,
+                        actorType:
+                            job.createdByUserUuid === null
+                                ? 'scheduler'
+                                : 'user',
+                        actorUserUuid: job.createdByUserUuid,
+                        action: 'provision_statement',
+                        targetCount: 1,
+                        status: 'success',
+                        detail: item.sql,
+                    });
+                    if (
+                        item.operation.kind === 'create_user' &&
+                        item.aiIdentityUuid !== null
+                    ) {
+                        const identity = identities.find(
+                            (entry) =>
+                                entry.aiIdentityUuid === item.aiIdentityUuid,
+                        );
+                        await this.args.aiIdentityModel.markProvisioned(
+                            item.aiIdentityUuid,
+                            null,
+                            item.operation.userName,
+                            identity?.publicKeyFingerprint ?? null,
+                        );
+                    }
+                    if (
+                        item.operation.kind === 'grant_role' &&
+                        item.aiIdentityUuid !== null
+                    ) {
+                        const identity = identities.find(
+                            (entry) =>
+                                entry.aiIdentityUuid === item.aiIdentityUuid,
+                        );
+                        if (
+                            identity?.provisionedRole === null ||
+                            !identity?.createdByProvisioner
+                        ) {
+                            await this.args.aiIdentityModel.markProvisioned(
+                                item.aiIdentityUuid,
+                                item.operation.role,
+                                item.operation.userName,
+                                identity?.publicKeyFingerprint ?? null,
+                            );
+                        }
+                    }
+                    if (
+                        item.operation.kind === 'set_default_role' &&
+                        item.aiIdentityUuid !== null
+                    ) {
+                        const identity = identities.find(
+                            (entry) =>
+                                entry.aiIdentityUuid === item.aiIdentityUuid,
+                        );
+                        await this.args.aiIdentityModel.markProvisioned(
+                            item.aiIdentityUuid,
+                            item.operation.role,
+                            item.operation.userName,
+                            identity?.publicKeyFingerprint ?? null,
+                        );
+                    }
+                    if (
+                        item.operation.kind === 'set_public_key' &&
+                        item.aiIdentityUuid !== null
+                    ) {
+                        const identity = identities.find(
+                            (entry) =>
+                                entry.aiIdentityUuid === item.aiIdentityUuid,
+                        );
+                        if (identity)
+                            await this.args.aiIdentityModel.markProvisionedKey(
+                                item.aiIdentityUuid,
+                                identity.publicKeyFingerprint,
+                            );
+                    }
+                    if (item.operation.kind === 'drop_user') {
+                        if (item.aiIdentityUuid !== null)
+                            await this.args.aiIdentityModel.clearProvisioned(
+                                item.aiIdentityUuid,
+                            );
+                        const drop = drops.find(
+                            (entry) =>
+                                entry.userName === item.operation.userName,
+                        );
+                        if (drop)
+                            await this.args.aiIdentityModel.removeProvisioningDrop(
+                                drop.uuid,
+                            );
+                    }
+                    if (
+                        item.operation.kind === 'grant_role' &&
+                        item.aiIdentityUuid !== null
+                    )
+                        await this.testIdentityByUuid(item.aiIdentityUuid);
+                } catch (error) {
+                    await this.args.aiIdentityModel.addEvent({
+                        organizationUuid: job.organizationUuid,
+                        aiIdentityAccountUuid: job.aiIdentityAccountUuid,
+                        aiIdentityUuid: item.aiIdentityUuid,
+                        aiIdentityJobUuid: job.jobUuid,
+                        actorType:
+                            job.createdByUserUuid === null
+                                ? 'scheduler'
+                                : 'user',
+                        actorUserUuid: job.createdByUserUuid,
+                        action: 'provision_statement',
+                        targetCount: 1,
+                        status: 'error',
+                        detail: item.sql,
+                    });
+                    throw error;
+                }
+                done += 1;
+                await this.args.aiIdentityModel.updateJob(job.jobUuid, {
+                    done,
+                });
+            });
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message : String(error);
+            await this.args.aiIdentityModel.updateProvisioner(
+                job.aiIdentityAccountUuid,
+                {
+                    status: /JWT token is invalid|user.*(does not exist|not found)/i.test(
+                        message,
+                    )
+                        ? AiIdentityProvisionerStatus.REVOKED
+                        : AiIdentityProvisionerStatus.FAILING,
+                    statusMessage: message,
+                },
+            );
+            throw error;
+        }
     }
     private async checkIdentity(
         account: Account,
@@ -730,6 +1552,8 @@ export class AiIdentityService extends BaseService {
         });
         try {
             if (job.kind === AiIdentityJobKind.SYNC) await this.runSync(job);
+            if (job.kind === AiIdentityJobKind.PROVISION)
+                await this.runProvisioningJob(job);
             if (job.kind === AiIdentityJobKind.TEST) await this.runTest(job);
             if (job.kind === AiIdentityJobKind.EXPORT)
                 await this.runExport(job);
@@ -1109,11 +1933,23 @@ export class AiIdentityService extends BaseService {
                 done,
             });
         });
+        if (
+            (await this.args.aiIdentityModel.getProvisioningMode(
+                job.aiIdentityAccountUuid,
+            )) === AiIdentityCreationMode.AUTOMATIC
+        ) {
+            await this.scheduleProvisioning(job.aiIdentityAccountUuid);
+        }
     }
 
     async scheduleDailyChecks(): Promise<void> {
         const accounts = await this.args.aiIdentityModel.listAllAccounts();
         await forEachSequential(accounts, async (account) => {
+            const mode = await this.args.aiIdentityModel.getProvisioningMode(
+                account.aiIdentityAccountUuid,
+            );
+            if (mode === AiIdentityCreationMode.AUTOMATIC)
+                await this.scheduleProvisioning(account.aiIdentityAccountUuid);
             const filter: AiIdentityFilter = {
                 aiIdentityAccountUuid: account.aiIdentityAccountUuid,
                 states: [],
@@ -1171,6 +2007,42 @@ export class AiIdentityService extends BaseService {
             SCHEDULER_TASKS.AI_IDENTITY_JOB,
             { jobUuid: job.jobUuid },
         );
+    }
+
+    async scheduleSyncForOrganization(organizationUuid: string): Promise<void> {
+        const projects =
+            await this.args.projectModel.getAllByOrganizationUuid(
+                organizationUuid,
+            );
+        const accounts =
+            await this.args.aiIdentityModel.listAccounts(organizationUuid);
+        const automaticAccounts = new Set(
+            accounts
+                .filter(
+                    (account) =>
+                        account.effectiveMode ===
+                        AiIdentityCreationMode.AUTOMATIC,
+                )
+                .map((account) => account.snowflakeAccount),
+        );
+        await forEachSequential(projects, async (project) => {
+            if (project.warehouseType === WarehouseTypes.SNOWFLAKE) {
+                const credentials = await this.getOriginalConnectionCredentials(
+                    project.projectUuid,
+                );
+                if (
+                    credentials.type === WarehouseTypes.SNOWFLAKE &&
+                    automaticAccounts.has(
+                        normalizeSnowflakeAccount(credentials.account),
+                    )
+                ) {
+                    await this.scheduleSyncForProject(
+                        organizationUuid,
+                        project.projectUuid,
+                    );
+                }
+            }
+        });
     }
 
     async scheduleSignIn(

@@ -1,3 +1,4 @@
+import { AiIdentityCreationMode } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { type SettingsContext } from './types';
@@ -157,6 +158,8 @@ describe('AI identities settings navigation', () => {
                     twinNameTemplate: null,
                     roleTemplate: null,
                     lastFullCheckAt: null,
+                    effectiveMode: AiIdentityCreationMode.GUIDED,
+                    fallbackReason: null,
                     counts: {
                         ready: 2,
                         pending: 1,

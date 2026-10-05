@@ -12,21 +12,30 @@ import {
     ApiAiIdentityJobResponse,
     ApiAiIdentityListResponse,
     ApiAiIdentityPreviewResponse,
+    ApiAiIdentityProvisioningPlanResponse,
+    ApiAiIdentityProvisioningSettingsResponse,
     ApiAiIdentityResponse,
     ApiErrorPayload,
     assertRegisteredAccount,
+    CreateAiIdentityProvisioner,
+    RunAiIdentityProvisioningRequest,
     UpdateAiIdentity,
     UpdateAiIdentityAccount,
+    UpdateAiIdentityAiRoleDefinition,
+    UpdateAiIdentityProvisioningSettings,
+    UpdateAiIdentityRoleMapping,
     UUID,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -46,6 +55,203 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'AI identities')
 export class AiIdentityController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('accounts/{aiIdentityAccountUuid}/provisioning')
+    @OperationId('getAiIdentityProvisioningSettings')
+    async getProvisioningSettings(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .getProvisioningSettings(req.account, aiIdentityAccountUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('accounts/{aiIdentityAccountUuid}/provisioning')
+    @OperationId('updateAiIdentityProvisioningSettings')
+    async updateProvisioningSettings(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+        @Body() body: UpdateAiIdentityProvisioningSettings,
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .updateProvisioningMode(
+                    req.account,
+                    aiIdentityAccountUuid,
+                    body.mode,
+                ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('accounts/{aiIdentityAccountUuid}/provisioning/provisioner')
+    @OperationId('createAiIdentityProvisioner')
+    async createProvisioner(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+        @Body() body: CreateAiIdentityProvisioner,
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .createProvisioner(req.account, aiIdentityAccountUuid, body),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('accounts/{aiIdentityAccountUuid}/provisioning/provisioner')
+    @OperationId('deleteAiIdentityProvisioner')
+    async deleteProvisioner(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .deleteProvisioner(req.account, aiIdentityAccountUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('accounts/{aiIdentityAccountUuid}/provisioning/ai-roles')
+    @OperationId('replaceAiIdentityAiRoles')
+    async replaceAiRoles(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+        @Body() body: UpdateAiIdentityAiRoleDefinition[],
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .replaceAiRoles(req.account, aiIdentityAccountUuid, body),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('accounts/{aiIdentityAccountUuid}/provisioning/provisioner/verify')
+    @OperationId('verifyAiIdentityProvisioner')
+    async verifyProvisioner(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .verifyProvisioner(req.account, aiIdentityAccountUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('accounts/{aiIdentityAccountUuid}/provisioning/mappings')
+    @OperationId('replaceAiIdentityRoleMappings')
+    async replaceProvisioningMappings(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+        @Body() body: UpdateAiIdentityRoleMapping[],
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .replaceProvisioningMappings(
+                    req.account,
+                    aiIdentityAccountUuid,
+                    body,
+                ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('accounts/{aiIdentityAccountUuid}/provisioning/plan')
+    @OperationId('getAiIdentityProvisioningPlan')
+    async getProvisioningPlan(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiAiIdentityProvisioningPlanResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .getProvisioningPlan(req.account, aiIdentityAccountUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('accounts/{aiIdentityAccountUuid}/provisioning/run')
+    @OperationId('runAiIdentityProvisioning')
+    async runProvisioning(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+        @Body() body: RunAiIdentityProvisioningRequest,
+    ): Promise<ApiAiIdentityJobResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .runProvisioning(
+                    req.account,
+                    aiIdentityAccountUuid,
+                    body.approveStatements,
+                ),
+        };
+    }
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('accounts')

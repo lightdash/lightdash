@@ -43,6 +43,23 @@ export type AiIdentityRoleMapping = {
     priority: number;
 };
 
+export type AiIdentityAiRoleDefinition = {
+    aiIdentityAiRoleUuid: string;
+    roleName: string;
+    warehouse: string;
+    schemas: string[];
+};
+
+export type UpdateAiIdentityAiRoleDefinition = Pick<
+    AiIdentityAiRoleDefinition,
+    'roleName' | 'warehouse' | 'schemas'
+>;
+
+export type CreateAiIdentityProvisioner = {
+    userName: string;
+    roleName: string;
+};
+
 export type UpdateAiIdentityRoleMapping = {
     groupUuid: string;
     aiRole: string;
@@ -94,6 +111,9 @@ export type AiIdentityProvisioningSettings = {
     fallbackReason: string | null;
     provisioner: AiIdentityProvisioner | null;
     setupSql: string | null;
+    aiRoles: AiIdentityAiRoleDefinition[];
+    catalogProjectUuid: string;
+    defaultWarehouse: string;
     mappings: AiIdentityRoleMapping[];
     findings: AiIdentityProvisionerFinding[];
     worstCaseNotice: string;

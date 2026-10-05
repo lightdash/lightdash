@@ -1,3 +1,5 @@
+import type { AiIdentityCreationMode } from './aiIdentityProvisioning';
+
 export enum AiIdentityStatus {
     PENDING = 'pending',
     READY = 'ready',
@@ -42,6 +44,8 @@ export type AiIdentityAccount = {
     twinNameTemplate: string | null;
     roleTemplate: string | null;
     lastFullCheckAt: Date | null;
+    effectiveMode: AiIdentityCreationMode;
+    fallbackReason: string | null;
     counts: AiIdentityStateCounts;
 };
 
@@ -134,6 +138,7 @@ export enum AiIdentityJobKind {
     TEST = 'test',
     EXPORT = 'export',
     SYNC = 'sync',
+    PROVISION = 'provision',
 }
 
 export enum AiIdentityJobStatus {

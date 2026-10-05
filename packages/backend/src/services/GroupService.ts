@@ -32,6 +32,7 @@ type GroupServiceArguments = {
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
     featureFlagService: FeatureFlagService;
+    onMembershipChange?: (organizationUuid: string) => Promise<void>;
 };
 
 export class GroupsService extends BaseService {
@@ -42,6 +43,9 @@ export class GroupsService extends BaseService {
     private readonly projectModel: ProjectModel;
 
     private readonly featureFlagService: FeatureFlagService;
+    private readonly onMembershipChange?: (
+        organizationUuid: string,
+    ) => Promise<void>;
 
     constructor(args: GroupServiceArguments) {
         super();
@@ -49,6 +53,7 @@ export class GroupsService extends BaseService {
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
         this.featureFlagService = args.featureFlagService;
+        this.onMembershipChange = args.onMembershipChange;
     }
 
     private validateGroupsAsCodeAccess(
@@ -197,6 +202,7 @@ export class GroupsService extends BaseService {
                     context: 'content_as_code',
                 },
             });
+            await this.onMembershipChange?.(organizationUuid);
         }
 
         return { action: result.action };
@@ -263,6 +269,7 @@ export class GroupsService extends BaseService {
                     context: 'add_member',
                 },
             });
+            await this.onMembershipChange?.(updatedGroup.organizationUuid);
         }
         return groupMembership;
     }
@@ -311,6 +318,7 @@ export class GroupsService extends BaseService {
                     context: 'remove_member',
                 },
             });
+            await this.onMembershipChange?.(updatedGroup.organizationUuid);
         }
         return isGroupMemberRemoved;
     }
@@ -337,6 +345,7 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError();
         }
         await this.groupsModel.deleteGroup(groupUuid);
+        await this.onMembershipChange?.(group.organizationUuid);
         this.analytics.track({
             userId: user.userUuid,
             event: 'group.deleted',
@@ -415,6 +424,7 @@ export class GroupsService extends BaseService {
             groupUuid,
             update,
         });
+        await this.onMembershipChange?.(updatedGroup.organizationUuid);
         this.analytics.track({
             userId: user.userUuid,
             event: 'group.updated',

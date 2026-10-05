@@ -168,6 +168,9 @@ type RedshiftAwsSsoSession = {
 };
 
 type UserServiceArguments = {
+    onOrganizationMembershipChange?: (
+        organizationUuid: string,
+    ) => Promise<void>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     inviteLinkModel: InviteLinkModel;
@@ -275,6 +278,9 @@ const emitAuthAuditEvent = ({
 };
 
 export class UserService extends BaseService {
+    private readonly onOrganizationMembershipChange?: (
+        organizationUuid: string,
+    ) => Promise<void>;
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -332,6 +338,7 @@ export class UserService extends BaseService {
     private readonly emailOneTimePasscodeResendIntervalSeconds = 60;
 
     constructor({
+        onOrganizationMembershipChange,
         lightdashConfig,
         analytics,
         inviteLinkModel,
@@ -359,6 +366,7 @@ export class UserService extends BaseService {
         rolesModel,
     }: UserServiceArguments) {
         super();
+        this.onOrganizationMembershipChange = onOrganizationMembershipChange;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
@@ -871,6 +879,7 @@ export class UserService extends BaseService {
                 userRole,
                 undefined,
             );
+            await this.onOrganizationMembershipChange?.(organizationUuid);
         } else if (
             existingUserWithEmail &&
             purpose === InviteLinkPurpose.Setup
@@ -2822,6 +2831,7 @@ export class UserService extends BaseService {
                   )
                 : undefined,
         );
+        await this.onOrganizationMembershipChange?.(orgUuid);
         this.analytics.group({
             userId: user.userUuid,
             groupId: orgUuid,

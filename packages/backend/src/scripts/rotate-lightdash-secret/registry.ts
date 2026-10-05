@@ -17,6 +17,11 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'encrypted_private_key',
     },
     {
+        table: 'ai_identity_provisioners',
+        primaryKeyColumn: 'ai_identity_account_uuid',
+        column: 'encrypted_private_key',
+    },
+    {
         table: 'projects',
         primaryKeyColumn: 'project_id',
         column: 'dbt_connection',

@@ -12,6 +12,10 @@ export type DbAiIdentity = {
     public_key: string | null;
     public_key_fingerprint: string | null;
     encrypted_private_key: Buffer | null;
+    created_by_provisioner: boolean;
+    provisioned_role: string | null;
+    provisioned_user_name: string | null;
+    provisioned_public_key_fingerprint: string | null;
     status: AiIdentityStatus;
     failure_reason: AiIdentityFailureReason | null;
     status_message: string | null;

@@ -1,8 +1,10 @@
 import { Ability } from '@casl/ability';
 import {
+    AiIdentityCreationMode,
     AiIdentityFailureReason,
     AiIdentityJobKind,
     AiIdentityJobStatus,
+    AiIdentityProvisionerStatus,
     AiIdentitySort,
     AiIdentityState,
     FeatureFlags,
@@ -23,6 +25,7 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { AiIdentityService } from './AiIdentityService';
 import { checkAiTwinConnection } from './aiTwinConnection';
+import { ProvisionerConnection } from './provisionerConnection';
 
 vi.mock('./aiTwinConnection', async (importOriginal) => {
     const original =
@@ -66,6 +69,8 @@ const account = {
     twinNameTemplate: null,
     roleTemplate: null,
     lastFullCheckAt: null,
+    effectiveMode: AiIdentityCreationMode.GUIDED,
+    fallbackReason: null,
     counts: { total: 1, ready: 0, pending: 1, failed: 0, needs_sign_in: 0 },
 };
 const identity = {
@@ -92,6 +97,22 @@ const model = {
     listAccounts: vi.fn().mockResolvedValue([account]),
     getAccount: vi.fn().mockResolvedValue(account),
     getOrCreateAccount: vi.fn().mockResolvedValue(account),
+    getProvisioner: vi
+        .fn()
+        .mockResolvedValue({ status: 'ready', firstRunApprovedAt: null }),
+    updateProvisioner: vi.fn(),
+    getProvisioningMode: vi
+        .fn()
+        .mockResolvedValue(AiIdentityCreationMode.GUIDED),
+    withProvisioningLock: vi
+        .fn()
+        .mockImplementation((_accountUuid, run) => run()),
+    getRoleMappings: vi.fn().mockResolvedValue([]),
+    getAiRoles: vi.fn().mockResolvedValue([]),
+    getProvisioningIdentities: vi.fn().mockResolvedValue([]),
+    listProvisioningDrops: vi.fn().mockResolvedValue([]),
+    getProjectMemberIds: vi.fn().mockResolvedValue(['user']),
+    markProvisioned: vi.fn(),
     findByUuid: vi.fn().mockResolvedValue(identity),
     find: vi.fn().mockResolvedValue(identity),
     findByUuidWithPrivateKey: vi
@@ -146,6 +167,7 @@ const projects = {
     getWarehouseCredentialsForProject: vi.fn().mockResolvedValue({
         type: WarehouseTypes.SNOWFLAKE,
         account: 'account',
+        warehouse: 'COMPUTE_WH',
         user: 'PROJECT',
     }),
     getSummary: vi.fn().mockResolvedValue({
@@ -177,6 +199,7 @@ const service = new AiIdentityService({
 });
 
 afterEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     flags.get.mockResolvedValue({
         enabled: true,
@@ -189,10 +212,195 @@ afterEach(() => {
     model.idsForFilter.mockReset();
     model.getJob.mockReset();
     model.getAccount.mockResolvedValue(account);
+    model.getProvisioner.mockResolvedValue({
+        status: 'ready',
+        firstRunApprovedAt: null,
+    });
+    model.getProvisioningMode.mockResolvedValue(AiIdentityCreationMode.GUIDED);
+    model.getRoleMappings.mockResolvedValue([]);
+    model.getProvisioningIdentities.mockResolvedValue([]);
+    model.listProvisioningDrops.mockResolvedValue([]);
     model.find.mockResolvedValue(identity);
 });
 
 describe('AiIdentityService', () => {
+    it('records each executed provisioning statement', async () => {
+        model.getJob.mockResolvedValueOnce({
+            jobUuid: 'job',
+            kind: AiIdentityJobKind.PROVISION,
+            status: AiIdentityJobStatus.QUEUED,
+            organizationUuid,
+            aiIdentityAccountUuid: 'account',
+            createdByUserUuid: admin.user.id,
+            createdAt: new Date(),
+            total: 0,
+            done: 0,
+            fileUrl: null,
+            error: null,
+        });
+        model.getProvisioningMode.mockResolvedValue(
+            AiIdentityCreationMode.AUTOMATIC,
+        );
+        model.getProvisioner.mockResolvedValue({
+            status: 'ready',
+            firstRunApprovedAt: new Date(),
+            userName: 'LIGHTDASH_PROVISIONER',
+            roleName: 'LIGHTDASH_PROVISIONER_ROLE',
+            privateKey: 'PRIVATE',
+        });
+        model.getRoleMappings.mockResolvedValue([
+            {
+                aiIdentityRoleMappingUuid: 'mapping',
+                groupUuid: 'group',
+                groupName: 'Group',
+                aiRole: 'ANALYST_AI',
+                priority: 1,
+            },
+        ]);
+        model.getProvisioningIdentities.mockResolvedValue([
+            {
+                ...identity,
+                publicKey: 'YWJj',
+                groupUuids: ['group'],
+                createdByProvisioner: false,
+                provisionedRole: null,
+                provisionedUserName: null,
+                provisionedPublicKeyFingerprint: null,
+            },
+        ]);
+        model.findByUuidWithPrivateKey.mockResolvedValue({
+            ...identity,
+            privateKey: null,
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'currentIdentity',
+        ).mockResolvedValue({
+            user: 'LIGHTDASH_PROVISIONER',
+            role: 'LIGHTDASH_PROVISIONER_ROLE',
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'grantsToRole',
+        ).mockResolvedValue([
+            { privilege: 'CREATE USER', granted_on: 'ACCOUNT' },
+            { privilege: 'OWNERSHIP', granted_on: 'ROLE', name: 'ANALYST_AI' },
+        ]);
+        vi.spyOn(ProvisionerConnection.prototype, 'users').mockResolvedValue(
+            [],
+        );
+        const execute = vi
+            .spyOn(ProvisionerConnection.prototype, 'execute')
+            .mockResolvedValue('SQL');
+        await service.runJob('job');
+        expect(execute).toHaveBeenCalledTimes(2);
+        expect(model.addEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                action: 'provision_statement',
+                detail: expect.stringContaining('CREATE USER'),
+                status: 'success',
+                actorUserUuid: admin.user.id,
+            }),
+        );
+        expect(model.addEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                action: 'provision_statement',
+                detail: expect.stringContaining('GRANT ROLE'),
+                status: 'success',
+            }),
+        );
+    });
+    it('shows guided fallback when the provisioner is revoked', async () => {
+        model.getProvisioningMode.mockResolvedValueOnce(
+            AiIdentityCreationMode.AUTOMATIC,
+        );
+        model.getProvisioner.mockResolvedValueOnce({
+            aiIdentityAccountUuid: 'account',
+            userName: 'LIGHTDASH_PROVISIONER',
+            roleName: 'LIGHTDASH_PROVISIONER_ROLE',
+            publicKey: 'YWJj',
+            publicKeyFingerprint: 'fingerprint',
+            status: 'revoked',
+            statusMessage: 'JWT token is invalid',
+            checkedAt: new Date(),
+            firstRunApprovedAt: new Date(),
+            firstRunApprovedByName: 'Admin',
+            findings: [],
+        });
+        const settings = await service.getProvisioningSettings(
+            admin,
+            'account',
+        );
+        expect(settings.effectiveMode).toBe(AiIdentityCreationMode.GUIDED);
+        expect(settings.fallbackReason).toContain('JWT token is invalid');
+    });
+    it('reports a defined AI role missing from the provisioner grants', async () => {
+        model.getAiRoles.mockResolvedValueOnce([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'COMPUTE_WH',
+                schemas: ['ANALYTICS.PUBLIC'],
+            },
+        ]);
+        model.getProvisioner.mockResolvedValue({
+            aiIdentityAccountUuid: 'account',
+            userName: 'PROVISIONER',
+            roleName: 'PROVISIONER_ROLE',
+            publicKey: 'YWJj',
+            privateKey: 'key',
+            publicKeyFingerprint: 'fingerprint',
+            status: AiIdentityProvisionerStatus.WAITING_FOR_SETUP,
+            statusMessage: null,
+            checkedAt: null,
+            firstRunApprovedAt: null,
+            firstRunApprovedByName: null,
+            findings: [],
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'currentIdentity',
+        ).mockResolvedValue({ user: 'PROVISIONER', role: 'PROVISIONER_ROLE' });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'grantsToRole',
+        ).mockResolvedValue([
+            {
+                privilege: 'CREATE USER',
+                granted_on: 'ACCOUNT',
+                name: 'ACCOUNT',
+            },
+        ]);
+        vi.spyOn(ProvisionerConnection.prototype, 'users').mockResolvedValue(
+            [],
+        );
+        await service.verifyProvisioner(admin, 'account');
+        expect(model.updateProvisioner).toHaveBeenCalledWith(
+            'account',
+            expect.objectContaining({
+                status: AiIdentityProvisionerStatus.FAILING,
+                statusMessage:
+                    'The provisioner is missing OWNERSHIP on AI role ANALYST_AI.',
+            }),
+        );
+    });
+    it('records approval before the first provisioning job', async () => {
+        const result = await service.runProvisioning(admin, 'account', true);
+        expect(result.jobUuid).toBe('job');
+        expect(model.updateProvisioner).toHaveBeenCalledWith('account', {
+            approvedBy: admin.user.id,
+        });
+        expect(model.createJob).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: AiIdentityJobKind.PROVISION }),
+        );
+    });
+
+    it('requires approval on the first provisioning run', async () => {
+        await expect(
+            service.runProvisioning(admin, 'account', false),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(model.createJob).not.toHaveBeenCalled();
+    });
     it('requires organization manage permission', async () => {
         await expect(service.getAccounts(viewer)).rejects.toBeInstanceOf(
             ForbiddenError,

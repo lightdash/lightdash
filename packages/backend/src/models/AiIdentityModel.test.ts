@@ -65,11 +65,37 @@ describe('AiIdentityModel', () => {
                 twin_name_template: '{snowflake_login}_AI',
                 role_template: '{ai_identity_name}_ROLE',
                 last_full_check_at: null,
+                creation_mode: 'guided',
             },
         ]);
         tracker.on.select('ai_identities').responseOnce([]);
+        tracker.on.select('ai_identity_provisioners').responseOnce([]);
         await expect(model.getAccount('account')).resolves.toMatchObject({
             roleTemplate: '{ai_identity_name}_ROLE',
+        });
+    });
+
+    it('falls back to guided mode when automatic provisioning fails', async () => {
+        tracker.on.select('ai_identity_accounts').responseOnce([
+            {
+                ai_identity_account_uuid: 'account',
+                organization_uuid: 'org',
+                snowflake_account: 'ACCT',
+                twin_name_template: null,
+                role_template: null,
+                last_full_check_at: null,
+                creation_mode: 'automatic',
+            },
+        ]);
+        tracker.on.select('ai_identities').responseOnce([]);
+        tracker.on
+            .select('ai_identity_provisioners')
+            .responseOnce([
+                { status: 'revoked', status_message: 'JWT token is invalid' },
+            ]);
+        await expect(model.getAccount('account')).resolves.toMatchObject({
+            effectiveMode: 'guided',
+            fallbackReason: expect.stringContaining('JWT token is invalid'),
         });
     });
 
