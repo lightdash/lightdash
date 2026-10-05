@@ -138,6 +138,10 @@ import {
     type ApiAiIdentityResponse,
 } from './aiIdentity';
 import {
+    type ApiAiIdentityProvisioningPlanResponse,
+    type ApiAiIdentityProvisioningSettingsResponse,
+} from './aiIdentityProvisioning';
+import {
     type ApiUserActivityDownloadCsv,
     type QueryExecutionContext,
     type UserActivity,
@@ -1383,6 +1387,8 @@ type ApiResults =
     | ApiAiIdentityJobResponse['results']
     | ApiAiIdentityEventsResponse['results']
     | ApiAiAccessForUserResponse['results']
+    | ApiAiIdentityProvisioningSettingsResponse['results']
+    | ApiAiIdentityProvisioningPlanResponse['results']
     | ApiWarehouseDatabaseListing['results']
     | Document
     | DocumentList
