@@ -1,3 +1,10 @@
+# [2.426.0](https://github.com/lightdash/lightdash/compare/2.425.0...2.426.0) (2026-10-05)
+
+
+### Features
+
+* **embed:** allow selecting multiple charts in embedded dashboard picker ([#30465](https://github.com/lightdash/lightdash/issues/30465)) ([df34d50](https://github.com/lightdash/lightdash/commit/df34d502f3fd9ef4b0fbc6e7fc4659d37bfefd31))
+
 # [2.425.0](https://github.com/lightdash/lightdash/compare/2.424.0...2.425.0) (2026-10-04)
 
 
