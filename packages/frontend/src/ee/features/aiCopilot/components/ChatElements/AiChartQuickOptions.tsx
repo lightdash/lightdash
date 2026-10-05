@@ -169,11 +169,6 @@ export const AiChartQuickOptions = ({
             projectUuid,
         }),
     );
-    const canDownloadResults =
-        showDownloadResults &&
-        (isEmbed
-            ? ability.can('view', 'EmbedAiAgentDownload')
-            : !!canExportData);
     const {
         visualizationConfig,
         columnOrder,
@@ -183,6 +178,12 @@ export const AiChartQuickOptions = ({
         chartRef,
         savedChartUuid,
     } = useVisualizationContext();
+    const canDownloadResults =
+        showDownloadResults &&
+        (isEmbed
+            ? ability.can('view', 'EmbedAiAgentDownload') &&
+              !!resultsData?.queryUuid
+            : !!canExportData);
     const { mutate: savePromptQuery } = useSavePromptQuery(
         projectUuid,
         agentUuid!,
