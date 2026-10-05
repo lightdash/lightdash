@@ -28,6 +28,7 @@ import {
     SANDBOX_LESSONS,
     type SandboxLesson,
 } from '../../packages/frontend/src/features/learn/sandboxLessons';
+import { ROUTE_SOURCES } from './inputs';
 import {
     buildTours,
     docsDir,
@@ -97,13 +98,7 @@ export const locateAnchor = (
 /** Route path patterns declared in the frontend routers, params normalised. */
 const knownRoutePieces = (): Set<string> => {
     const pieces = new Set<string>();
-    for (const relative of [
-        'packages/frontend/src/Routes.tsx',
-        'packages/frontend/src/ee/CommercialRoutes.tsx',
-        // Settings pages nest their own routers under `/generalSettings/*`
-        'packages/frontend/src/pages/Settings.tsx',
-        'packages/frontend/src/components/Settings/ProjectSettings.tsx',
-    ]) {
+    for (const relative of ROUTE_SOURCES) {
         const file = path.join(root, relative);
         if (!existsSync(file)) continue;
         for (const match of readFileSync(file, 'utf8').matchAll(

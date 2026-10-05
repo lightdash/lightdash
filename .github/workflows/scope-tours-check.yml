@@ -39,9 +39,14 @@ jobs:
                   clean: false
             - name: Walkthrough CI fallback tests
               run: node --test .github/workflows/_prepare_scope_tours/action.test.mjs
+            - name: List walkthrough inputs
+              id: paths
+              run: |
+                  echo "paths=$(pnpm exec tsx scripts/scope-tours/inputs.ts | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
             - name: Detect walkthrough input changes
               id: inputs
               env:
+                  INPUT_PATHS: ${{ steps.paths.outputs.paths }}
                   BASE_SHA: ${{ github.event.pull_request.base.sha }}
                   HEAD_SHA: ${{ github.event.pull_request.head.sha }}
               run: |
@@ -54,7 +59,9 @@ jobs:
                       fi
                     done
                   done < <(git diff --no-renames --name-only -z "$merge_base" "$HEAD_SHA" -- packages/frontend/src)
-                  if [ -n "$(git diff --name-only "$BASE_SHA...$HEAD_SHA" -- scripts/scope-tours packages/frontend/src/features/learn/sandboxLessons.ts packages/common/src/authorization packages/backend/assets/learn packages/frontend/src/Routes.tsx packages/frontend/src/ee/CommercialRoutes.tsx packages/frontend/src/pages/Settings.tsx packages/frontend/src/components/Settings/ProjectSettings.tsx)" ] || [ "$marker_changed" = true ]; then
+                  test -n "$INPUT_PATHS"
+                  # shellcheck disable=SC2086
+                  if [ -n "$(git diff --name-only "$BASE_SHA...$HEAD_SHA" -- $INPUT_PATHS)" ] || [ "$marker_changed" = true ]; then
                     echo 'strict=true' >> "$GITHUB_OUTPUT"
                   else
                     echo 'strict=false' >> "$GITHUB_OUTPUT"

@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const source = readFileSync(new URL('./action.yml', import.meta.url), 'utf8');
 const script = (id, contents = source) => {
@@ -30,6 +31,33 @@ const script = (id, contents = source) => {
         })
         .map((line) => line.slice(indent))
         .join('\n');
+};
+
+const workflow = readFileSync(
+    new URL('../scope-tours-check.yml', import.meta.url),
+    'utf8',
+);
+// The real list from the scripts, as the workflow reads it.
+const inputPaths = () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'walkthrough-inputs-'));
+    try {
+        const outputs = path.join(cwd, 'outputs');
+        const listed = spawnSync(
+            'bash',
+            ['-e', '-o', 'pipefail', '-c', script('paths', workflow)],
+            {
+                cwd: fileURLToPath(new URL('../../..', import.meta.url)),
+                env: { ...process.env, GITHUB_OUTPUT: outputs },
+                encoding: 'utf8',
+            },
+        );
+        assert.equal(listed.status, 0, listed.stderr);
+        return readFileSync(outputs, 'utf8')
+            .trim()
+            .replace(/^paths=/, '');
+    } finally {
+        rmSync(cwd, { recursive: true, force: true });
+    }
 };
 
 const artifacts = ['generated.ts', 'curriculum.ts'];
@@ -165,10 +193,12 @@ test('strict walkthrough validation fails after a docs refresh failure', () => {
     withRepository(({ run }) => assert.equal(run('enforce').status, 1));
 });
 
-const workflow = readFileSync(
-    new URL('../scope-tours-check.yml', import.meta.url),
-    'utf8',
-);
+test('the scripts list the walkthrough inputs', () => {
+    const paths = inputPaths().split(' ');
+    assert.ok(paths.includes('scripts/scope-tours'));
+    assert.ok(paths.includes('packages/frontend/src/Routes.tsx'));
+});
+
 for (const [file, content, strict] of [
     ['packages/frontend/src/Example.tsx', '<Box data-tour-step="1" />', true],
     ['packages/frontend/src/Routes.tsx', 'export const routes = [];', true],
@@ -199,7 +229,12 @@ for (const [file, content, strict] of [
             );
             const result = run(
                 'inputs',
-                { BASE_SHA: base, HEAD_SHA: 'HEAD', RUNNER_TEMP: cwd },
+                {
+                    BASE_SHA: base,
+                    HEAD_SHA: 'HEAD',
+                    RUNNER_TEMP: cwd,
+                    INPUT_PATHS: inputPaths(),
+                },
                 workflow,
             );
             assert.equal(result.status, 0, result.stderr);
@@ -255,7 +290,12 @@ test('walkthrough changes on main do not make an unrelated PR strict', () => {
         );
         const result = run(
             'inputs',
-            { BASE_SHA: 'HEAD', HEAD_SHA: head, RUNNER_TEMP: cwd },
+            {
+                BASE_SHA: 'HEAD',
+                HEAD_SHA: head,
+                RUNNER_TEMP: cwd,
+                INPUT_PATHS: inputPaths(),
+            },
             workflow,
         );
         assert.equal(result.status, 0, result.stderr);
@@ -305,7 +345,12 @@ for (const removed of [false, true]) {
             );
             const result = run(
                 'inputs',
-                { BASE_SHA: base, HEAD_SHA: 'HEAD', RUNNER_TEMP: cwd },
+                {
+                    BASE_SHA: base,
+                    HEAD_SHA: 'HEAD',
+                    RUNNER_TEMP: cwd,
+                    INPUT_PATHS: inputPaths(),
+                },
                 workflow,
             );
             assert.equal(result.status, 0, result.stderr);
