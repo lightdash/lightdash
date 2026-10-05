@@ -26,6 +26,7 @@ import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useActiveJob from '../../../providers/ActiveJob/useActiveJob';
 import { LearnMoreContent } from '../../../svgs/metricsCatalog';
+import { isScopeTourRunning } from '../../scopeTours/isScopeTourRunning';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useIndexCatalogJob } from '../hooks/useIndexCatalogJob';
 import {
@@ -58,7 +59,8 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
 
     useEffect(() => {
         const hasPrevClosed = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (!hasPrevClosed) {
+        // A walkthrough points at controls this popover would cover.
+        if (!hasPrevClosed && !isScopeTourRunning()) {
             open();
         }
     }, [open]);
