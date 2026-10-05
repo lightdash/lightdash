@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.431.0",
-  "previousVersion": "2.430.0",
-  "releaseDate": "2026-10-05T14:07:04.600Z",
+  "version": "2.431.1",
+  "previousVersion": "2.431.0",
+  "releaseDate": "2026-10-05T14:23:39.350Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261004220000_create_aws_web_identity_audiences.ts",
-        "edition": "core",
-        "tables": [
-          "aws_web_identity_audiences",
-          "organizations",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -35,15 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "POST /api/v1/org/projects — added the new `web_identity` enum value to the `results/project/warehouseConnection/anyOf[#/components/schemas/AthenaCredentials]/authenticationType` response property for the response status `200`",
-        "GET /api/v1/org/warehouse-credentials — added the new `web_identity` enum value to the `anyOf[#/components/schemas/ApiOrganizationWarehouseCredentialsListResponse]/results/items/credentials/anyOf[#/components/schemas/AthenaCredentials]/authenticationType` response property for the response status `200`",
-        "POST /api/v1/org/warehouse-credentials — added the new `web_identity` enum value to the `results/credentials/anyOf[#/components/schemas/AthenaCredentials]/authenticationType` response property for the response status `200`",
-        "GET /api/v1/org/warehouse-credentials/{credentialsUuid} — added the new `web_identity` enum value to the `results/credentials/anyOf[#/components/schemas/AthenaCredentials]/authenticationType` response property for the response status `200`",
-        "PATCH /api/v1/org/warehouse-credentials/{credentialsUuid} — added the new `web_identity` enum value to the `results/credentials/anyOf[#/components/schemas/AthenaCredentials]/authenticationType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid} — added the new `web_identity` enum value to the `results/warehouseConnection/anyOf[#/components/schemas/AthenaCredentials]/authenticationType` response property for the response status `200`"
-      ],
-      "advisoryCount": 6
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

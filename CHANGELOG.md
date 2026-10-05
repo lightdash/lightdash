@@ -1,3 +1,11 @@
+## [2.431.1](https://github.com/lightdash/lightdash/compare/2.431.0...2.431.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* ignore parameter values outside the configured options ([#30485](https://github.com/lightdash/lightdash/issues/30485)) ([95b8439](https://github.com/lightdash/lightdash/commit/95b8439f3cccecd7017125eb65c72c21a8838bf0))
+* **sql-runner:** stop same-named schemas colliding in the table browser ([#30486](https://github.com/lightdash/lightdash/issues/30486)) ([98ddade](https://github.com/lightdash/lightdash/commit/98ddade0b5f663a3f0e3611e819e68907132116b))
+
 # [2.431.0](https://github.com/lightdash/lightdash/compare/2.430.0...2.431.0) (2026-10-05)
 
 
