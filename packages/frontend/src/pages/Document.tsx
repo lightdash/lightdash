@@ -1,9 +1,10 @@
 import {
+    ContentReviewContentType,
     FeatureFlags,
     type Document,
     type UuidOrSlug,
 } from '@lightdash/common';
-import { ActionIcon, Button, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
@@ -17,6 +18,10 @@ import {
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import {
+    PendingReviewBadge,
+    useContentReviewEligibility,
+} from '../ee/features/contentReview';
 import DocumentActions from '../features/documents/DocumentActions';
 import DocumentAiAgentContextBridge from '../features/documents/DocumentAiAgentContextBridge';
 import {
@@ -43,6 +48,12 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
         startEditing ? document : null,
     );
     const canEdit = useCanEditDocument(document);
+    const contentReview = useContentReviewEligibility({
+        projectUuid: document.projectUuid,
+        contentType: ContentReviewContentType.DOCUMENT,
+        contentUuid: document.documentUuid,
+        spaceUuid: document.spaceUuid,
+    });
     // Reading and editing are separate layouts; carry the scroll offset across
     const scrollTop = useRef(0);
     const [openAt, setOpenAt] = useState(0);
@@ -86,27 +97,37 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                 initialScrollTop={openAt}
                 onScrollTopChange={trackScroll}
                 actions={
-                    <ActionIcon.Group
-                        role="group"
-                        aria-label="Document controls"
-                    >
-                        {canEdit && (
-                            <Tooltip label="Edit document">
-                                <ActionIcon
-                                    variant="default"
-                                    size="lg"
-                                    aria-label="Edit document"
-                                    onClick={() => {
-                                        setOpenAt(scrollTop.current);
-                                        setEditingDocument(document);
-                                    }}
-                                >
-                                    <MantineIcon icon={IconPencil} />
-                                </ActionIcon>
-                            </Tooltip>
+                    <Group gap="xs" wrap="nowrap">
+                        {contentReview.pendingRequest && (
+                            <PendingReviewBadge
+                                request={contentReview.pendingRequest}
+                            />
                         )}
-                        <DocumentActions document={document} />
-                    </ActionIcon.Group>
+                        <ActionIcon.Group
+                            role="group"
+                            aria-label="Document controls"
+                        >
+                            {canEdit && (
+                                <Tooltip label="Edit document">
+                                    <ActionIcon
+                                        variant="default"
+                                        size="lg"
+                                        aria-label="Edit document"
+                                        onClick={() => {
+                                            setOpenAt(scrollTop.current);
+                                            setEditingDocument(document);
+                                        }}
+                                    >
+                                        <MantineIcon icon={IconPencil} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            <DocumentActions
+                                document={document}
+                                canRequestReview={contentReview.canRequest}
+                            />
+                        </ActionIcon.Group>
+                    </Group>
                 }
             />
         </DocumentPageLayout>

@@ -20,6 +20,7 @@ const request: ContentReviewRequest = {
     projectUuid: 'project-uuid',
     contentType: ContentReviewContentType.CHART,
     contentUuid: 'chart-uuid',
+    contentVersionUuid: null,
     sourceSpaceUuid: 'personal-space',
     targetSpaceUuid: 'shared-space',
     requestedBy: { userUuid: 'requester', firstName: 'Ada', lastName: 'L' },

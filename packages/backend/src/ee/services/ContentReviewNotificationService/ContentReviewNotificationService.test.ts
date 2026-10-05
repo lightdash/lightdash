@@ -27,6 +27,7 @@ const item: ContentReviewRequestListItem = {
     projectUuid: PROJECT,
     contentType: ContentReviewContentType.CHART,
     contentUuid: 'chart-uuid',
+    contentVersionUuid: null,
     sourceSpaceUuid: 'personal-space',
     targetSpaceUuid: 'shared-space',
     requestedBy: {

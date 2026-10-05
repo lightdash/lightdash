@@ -33,6 +33,7 @@ const request: ContentReviewRequestDetail = {
     projectUuid: 'project',
     contentType: ContentReviewContentType.DASHBOARD,
     contentUuid: 'dashboard',
+    contentVersionUuid: null,
     sourceSpaceUuid: 'personal',
     targetSpaceUuid: 'finance',
     requestedBy: { userUuid: 'requester', firstName: 'Ada', lastName: 'L' },
@@ -62,6 +63,7 @@ const request: ContentReviewRequestDetail = {
             name: 'Revenue',
         },
     ],
+    isOutdated: false,
     canReview: true,
     canVerify: true,
     verifyByDefault: true,
@@ -147,6 +149,72 @@ describe('ContentReviewRequestDetailView', () => {
         expect(screen.getByText('Bob K')).toBeInTheDocument();
         expect(screen.getByText('rejected this request')).toBeInTheDocument();
         expect(screen.getByText('Not yet')).toBeInTheDocument();
+    });
+
+    it('blocks approving a Document edited after submission but allows rejecting', () => {
+        renderView({
+            contentType: ContentReviewContentType.DOCUMENT,
+            contentUuid: 'document',
+            contentVersionUuid: 'version-1',
+            content: { name: 'Q3 review', slug: 'q3-review' },
+            moveSet: [
+                {
+                    contentType: ContentReviewContentType.DOCUMENT,
+                    contentUuid: 'document',
+                    name: 'Q3 review',
+                },
+            ],
+            canVerify: false,
+            isOutdated: true,
+        });
+
+        expect(
+            screen.getByText('This Document changed after it was submitted'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'View submitted version' }),
+        ).toHaveAttribute(
+            'href',
+            '/projects/project/documents/q3-review/history?version=version-1',
+        );
+        expect(
+            screen.getByRole('button', { name: 'Approve and move' }),
+        ).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Reject' })).toBeEnabled();
+        expect(screen.getByLabelText('Verify on approve')).toBeDisabled();
+    });
+
+    it('lets a reviewer approve an unchanged Document', async () => {
+        renderView({
+            contentType: ContentReviewContentType.DOCUMENT,
+            contentUuid: 'document',
+            contentVersionUuid: 'version-1',
+            content: { name: 'Q3 review', slug: 'q3-review' },
+            moveSet: [
+                {
+                    contentType: ContentReviewContentType.DOCUMENT,
+                    contentUuid: 'document',
+                    name: 'Q3 review',
+                },
+            ],
+            canVerify: false,
+        });
+
+        expect(
+            screen.queryByText('This Document changed after it was submitted'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Open Document' }),
+        ).toHaveAttribute('href', '/projects/project/documents/q3-review');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Approve and move' }),
+        );
+        await waitFor(() =>
+            expect(approve).toHaveBeenCalledWith({
+                requestUuid: 'request-uuid',
+                body: { verify: false, note: null },
+            }),
+        );
     });
 });
 

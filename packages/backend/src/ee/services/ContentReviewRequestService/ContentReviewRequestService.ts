@@ -55,6 +55,7 @@ import { type SpaceModel } from '../../../models/SpaceModel';
 import { BaseService } from '../../../services/BaseService';
 import { type DashboardService } from '../../../services/DashboardService/DashboardService';
 import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/DirectAccessFeatureGate';
+import { type DocumentService } from '../../../services/DocumentService/DocumentService';
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -73,6 +74,7 @@ type ContentReviewRequestServiceArguments = {
     dashboardService: DashboardService;
     directAccessFeatureGate: DirectAccessFeatureGate;
     directAccessModel: DirectAccessModel;
+    documentService: DocumentService;
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
     savedChartService: SavedChartService;
@@ -102,6 +104,8 @@ const toDirectAccessResourceType = (
             return DirectAccessResourceType.SQL_CHART;
         case ContentReviewContentType.DASHBOARD:
             return DirectAccessResourceType.DASHBOARD;
+        case ContentReviewContentType.DOCUMENT:
+            return DirectAccessResourceType.DOCUMENT;
         default:
             return assertUnreachable(
                 contentType,
@@ -133,6 +137,8 @@ export class ContentReviewRequestService extends BaseService {
 
     private readonly directAccessModel: DirectAccessModel;
 
+    private readonly documentService: DocumentService;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly projectModel: ProjectModel;
@@ -159,6 +165,7 @@ export class ContentReviewRequestService extends BaseService {
         this.dashboardService = args.dashboardService;
         this.directAccessFeatureGate = args.directAccessFeatureGate;
         this.directAccessModel = args.directAccessModel;
+        this.documentService = args.documentService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
         this.savedChartService = args.savedChartService;
@@ -213,6 +220,10 @@ export class ContentReviewRequestService extends BaseService {
                 );
             case ContentReviewContentType.DASHBOARD:
                 return this.contentReviewRequestModel.findDashboardLocations(
+                    contentUuids,
+                );
+            case ContentReviewContentType.DOCUMENT:
+                return this.contentReviewRequestModel.findDocumentLocations(
                     contentUuids,
                 );
             default:
@@ -387,6 +398,8 @@ export class ContentReviewRequestService extends BaseService {
             targetSpaceUuid: string;
         },
         moveOptions: { tx: Knex; checkForAccess: boolean; trackEvent: boolean },
+        // Only Documents are versioned for review
+        expectedVersionUuid: string | null,
     ): Promise<unknown> {
         switch (contentType) {
             case ContentReviewContentType.CHART:
@@ -407,6 +420,22 @@ export class ContentReviewRequestService extends BaseService {
                     moveArgs,
                     moveOptions,
                 );
+            case ContentReviewContentType.DOCUMENT:
+                if (expectedVersionUuid === null) {
+                    throw new ConflictError(
+                        'This request has no reviewed Document version',
+                    );
+                }
+                return this.documentService.moveApprovedToSpace(
+                    fromSession(user),
+                    {
+                        projectUuid: moveArgs.projectUuid,
+                        documentUuid: moveArgs.itemUuid,
+                        targetSpaceUuid: moveArgs.targetSpaceUuid,
+                        expectedVersionUuid,
+                    },
+                    { tx: moveOptions.tx },
+                );
             default:
                 return assertUnreachable(
                     contentType,
@@ -425,6 +454,7 @@ export class ContentReviewRequestService extends BaseService {
             case ContentReviewContentType.DASHBOARD:
                 return ContentType.DASHBOARD;
             case ContentReviewContentType.SQL_CHART:
+            case ContentReviewContentType.DOCUMENT:
                 return null;
             default:
                 return assertUnreachable(
@@ -558,6 +588,7 @@ export class ContentReviewRequestService extends BaseService {
         const chartUuids = uuidsOf(ContentReviewContentType.CHART);
         const sqlChartUuids = uuidsOf(ContentReviewContentType.SQL_CHART);
         const dashboardUuids = uuidsOf(ContentReviewContentType.DASHBOARD);
+        const documentUuids = uuidsOf(ContentReviewContentType.DOCUMENT);
         const spaceUuids = [
             ...new Set(
                 requests.flatMap((r) =>
@@ -567,20 +598,25 @@ export class ContentReviewRequestService extends BaseService {
                 ),
             ),
         ];
-        const [charts, sqlCharts, dashboards, spaces] = await Promise.all([
-            this.contentReviewRequestModel.findChartLocations(chartUuids),
-            this.contentReviewRequestModel.findSqlChartLocations(sqlChartUuids),
-            this.contentReviewRequestModel.findDashboardLocations(
-                dashboardUuids,
-            ),
-            this.contentReviewRequestModel.findSpaceInfo(spaceUuids),
-        ]);
+        const [charts, sqlCharts, dashboards, documents, spaces] =
+            await Promise.all([
+                this.contentReviewRequestModel.findChartLocations(chartUuids),
+                this.contentReviewRequestModel.findSqlChartLocations(
+                    sqlChartUuids,
+                ),
+                this.contentReviewRequestModel.findDashboardLocations(
+                    dashboardUuids,
+                ),
+                this.contentReviewRequestModel.findDocumentLocations(
+                    documentUuids,
+                ),
+                this.contentReviewRequestModel.findSpaceInfo(spaceUuids),
+            ]);
         return {
             locations: new Map(
-                [...charts, ...sqlCharts, ...dashboards].map((location) => [
-                    location.uuid,
-                    location,
-                ]),
+                [...charts, ...sqlCharts, ...dashboards, ...documents].map(
+                    (location) => [location.uuid, location],
+                ),
             ),
             spaces,
         };
@@ -607,15 +643,31 @@ export class ContentReviewRequestService extends BaseService {
         };
     }
 
+    // A Document can be approved only at the version that was submitted
+    private async isOutdated(request: ContentReviewRequest): Promise<boolean> {
+        if (
+            request.status !== ContentReviewRequestStatus.PENDING ||
+            request.contentVersionUuid === null
+        ) {
+            return false;
+        }
+        const latest =
+            await this.contentReviewRequestModel.findLatestDocumentVersionUuid(
+                request.contentUuid,
+            );
+        return latest !== request.contentVersionUuid;
+    }
+
     private async toDetail(
         user: SessionUser,
         context: ProjectContext,
         request: ContentReviewRequest,
         settings: ContentReviewSettings,
     ): Promise<ContentReviewRequestDetail> {
-        const [lookups, canReview] = await Promise.all([
+        const [lookups, canReview, isOutdated] = await Promise.all([
             this.lookupContent([request]),
             this.canReview(user, request, settings, context.organizationUuid),
+            this.isOutdated(request),
         ]);
         const item = ContentReviewRequestService.toListItem(request, lookups);
         const moveSet =
@@ -626,6 +678,7 @@ export class ContentReviewRequestService extends BaseService {
         return {
             ...item,
             moveSet,
+            isOutdated,
             canReview,
             canVerify: this.canVerify(user, context, request.contentType),
             verifyByDefault: settings.verifyOnApproveDefault,
@@ -658,6 +711,16 @@ export class ContentReviewRequestService extends BaseService {
                 'Only content in your personal space can be submitted for review',
             );
         }
+        const contentVersionUuid =
+            body.contentType === ContentReviewContentType.DOCUMENT
+                ? (
+                      await this.documentService.get(
+                          fromSession(user),
+                          projectUuid,
+                          body.contentUuid,
+                      )
+                  ).version.versionUuid
+                : null;
 
         const targetSpace = await this.getSpaceInfo(body.targetSpaceUuid);
         if (
@@ -730,6 +793,7 @@ export class ContentReviewRequestService extends BaseService {
                 projectUuid,
                 contentType: body.contentType,
                 contentUuid: body.contentUuid,
+                contentVersionUuid,
                 sourceSpaceUuid: personalSpace.uuid,
                 targetSpaceUuid: targetSpace.uuid,
                 requestedByUserUuid: user.userUuid,
@@ -972,6 +1036,11 @@ export class ContentReviewRequestService extends BaseService {
         if (targetSpaceUuid === null) {
             throw new ConflictError('The target space no longer exists');
         }
+        if (await this.isOutdated(request)) {
+            throw new ConflictError(
+                'This Document changed after review was requested. Ask the requester to submit it again',
+            );
+        }
 
         const moveSet = await this.computeMoveSet(request);
         // Access was checked above against the target; the per-type move
@@ -995,6 +1064,10 @@ export class ContentReviewRequestService extends BaseService {
                         item.contentType,
                         moveArgs,
                         moveOptions,
+                        // Rechecked under the move's row lock
+                        item.contentUuid === request.contentUuid
+                            ? request.contentVersionUuid
+                            : null,
                     );
                 }
                 return this.contentReviewRequestModel.approve(

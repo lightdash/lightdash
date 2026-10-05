@@ -367,6 +367,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     directAccessFeatureGate:
                         repository.getDirectAccessFeatureGate(),
                     directAccessModel: models.getDirectAccessModel(),
+                    documentService: repository.getDocumentService(),
                     groupsModel: models.getGroupsModel(),
                     projectModel: models.getProjectModel(),
                     savedChartService: repository.getSavedChartService(),

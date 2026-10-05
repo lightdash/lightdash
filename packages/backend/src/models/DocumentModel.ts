@@ -1,6 +1,7 @@
 import {
     assignDocumentChartIds,
     ConflictError,
+    ContentReviewContentType,
     Document,
     DOCUMENT_SCHEMA_VERSION,
     DocumentContent,
@@ -33,6 +34,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 
 export type CreateDocument = {
     projectUuid: string;
@@ -217,6 +219,11 @@ export class DocumentModel {
                     deleted_with_space: false,
                     updated_at: now,
                 });
+            await cancelPendingContentReviewRequests(
+                trx,
+                ContentReviewContentType.DOCUMENT,
+                [documentUuid],
+            );
         });
     }
 
@@ -291,6 +298,11 @@ export class DocumentModel {
             await trx(DocumentsTableName)
                 .where('document_id', document.document_id)
                 .delete();
+            await cancelPendingContentReviewRequests(
+                trx,
+                ContentReviewContentType.DOCUMENT,
+                [documentUuid],
+            );
         });
     }
 
@@ -442,7 +454,14 @@ export class DocumentModel {
             sourceSpaceUuid: string;
             targetSpaceUuid: string;
         },
-        { tx = this.database }: { tx?: Knex } = {},
+        {
+            tx = this.database,
+            expectedVersionUuid = null,
+        }: {
+            tx?: Knex;
+            /** Refuse the move unless this is still the latest version. */
+            expectedVersionUuid?: string | null;
+        } = {},
     ): Promise<Document> {
         return tx.transaction(async (trx) => {
             const spaces = await trx(SpaceTableName)
@@ -480,6 +499,17 @@ export class DocumentModel {
                 throw new ConflictError(
                     'Document has moved. Reload it and retry',
                 );
+            }
+            if (expectedVersionUuid !== null) {
+                const latest = await trx(DocumentVersionsTableName)
+                    .where('document_id', document.document_id)
+                    .orderBy('version_number', 'desc')
+                    .first('document_version_uuid');
+                if (latest?.document_version_uuid !== expectedVersionUuid) {
+                    throw new ConflictError(
+                        'Document has changed since this version was reviewed',
+                    );
+                }
             }
             await trx(DocumentsTableName)
                 .where('document_id', document.document_id)

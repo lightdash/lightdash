@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ContentReviewContentType,
     DirectAccessResourceType,
     ContentType,
     FeatureFlags,
@@ -17,6 +18,7 @@ import {
     IconTrash,
     IconPin,
     IconPinnedOff,
+    IconSend,
     IconUserCircle,
     IconUsers,
 } from '@tabler/icons-react';
@@ -26,6 +28,7 @@ import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import { FavoriteActionIcon } from '../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import DocumentDeleteModal from '../../components/common/modal/DocumentDeleteModal';
+import { RequestReviewModal } from '../../ee/features/contentReview';
 import { useFavoriteMutation } from '../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useDocumentPinningMutation } from '../../hooks/pinning/useDocumentPinningMutation';
@@ -49,7 +52,13 @@ import { useCanEditDocument } from './useCanEditDocument';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
 import { useExportDocumentPdf } from './useExportDocumentPdf';
 
-const DocumentActions = ({ document }: { document: Document }) => {
+const DocumentActions = ({
+    document,
+    canRequestReview,
+}: {
+    document: Document;
+    canRequestReview: boolean;
+}) => {
     const { user } = useApp();
     const documentFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const pinMutation = useDocumentPinningMutation();
@@ -75,6 +84,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
     const [isCodeOpen, setCodeOpen] = useState(false);
     const [isDuplicateOpen, setDuplicateOpen] = useState(false);
     const [isOwnerOpen, setOwnerOpen] = useState(false);
+    const [isRequestReviewOpen, setRequestReviewOpen] = useState(false);
     const canEdit = useCanEditDocument(document);
     const { writableSpaces } = useDocumentCreationSpaces(document.projectUuid);
     const navigate = useNavigate();
@@ -189,6 +199,14 @@ const DocumentActions = ({ document }: { document: Document }) => {
                             Duplicate
                         </Menu.Item>
                     )}
+                    {canRequestReview && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconSend} />}
+                            onClick={() => setRequestReviewOpen(true)}
+                        >
+                            Request review
+                        </Menu.Item>
+                    )}
                     {canPromote && (
                         <Tooltip
                             label="You must enable first an upstream project in settings > Data ops"
@@ -268,6 +286,16 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     onConfirm={() =>
                         promoteDocument.mutate(document.documentUuid)
                     }
+                />
+            )}
+            {isRequestReviewOpen && (
+                <RequestReviewModal
+                    projectUuid={document.projectUuid}
+                    contentType={ContentReviewContentType.DOCUMENT}
+                    contentUuid={document.documentUuid}
+                    contentName={document.name}
+                    opened
+                    onClose={() => setRequestReviewOpen(false)}
                 />
             )}
             {isCodeOpen && (

@@ -1,12 +1,14 @@
 import {
     assertUnreachable,
     ContentReviewContentType,
+    getDocumentUrl,
     type ContentReviewContentSummary,
     type ContentReviewUser,
     type ContentReviewSimilarContentItem,
 } from '@lightdash/common';
 import {
     IconChartBar,
+    IconFileText,
     IconLayoutDashboard,
     IconTerminal2,
 } from '@tabler/icons-react';
@@ -19,6 +21,8 @@ export const getContentTypeIcon = (contentType: ContentReviewContentType) => {
             return IconTerminal2;
         case ContentReviewContentType.DASHBOARD:
             return IconLayoutDashboard;
+        case ContentReviewContentType.DOCUMENT:
+            return IconFileText;
         default:
             return assertUnreachable(
                 contentType,
@@ -36,6 +40,8 @@ export const getContentTypeColor = (
             return 'blue.6';
         case ContentReviewContentType.DASHBOARD:
             return 'green.6';
+        case ContentReviewContentType.DOCUMENT:
+            return 'gray.6';
         default:
             return assertUnreachable(
                 contentType,
@@ -55,6 +61,8 @@ export const getContentTypeNoun = (
             return 'SQL chart';
         case ContentReviewContentType.DASHBOARD:
             return 'dashboard';
+        case ContentReviewContentType.DOCUMENT:
+            return 'Document';
         default:
             return assertUnreachable(
                 contentType,
@@ -81,6 +89,8 @@ export const getContentHref = (
             return `/projects/${projectUuid}/sql-runner/${content.slug}`;
         case ContentReviewContentType.DASHBOARD:
             return `/projects/${projectUuid}/dashboards/${content.slug}`;
+        case ContentReviewContentType.DOCUMENT:
+            return getDocumentUrl(projectUuid, content.slug);
         default:
             return assertUnreachable(
                 contentType,
@@ -99,6 +109,8 @@ export const getContentTypeLabel = (
             return 'SQL chart';
         case ContentReviewContentType.DASHBOARD:
             return 'Dashboard';
+        case ContentReviewContentType.DOCUMENT:
+            return 'Document';
         default:
             return assertUnreachable(
                 contentType,

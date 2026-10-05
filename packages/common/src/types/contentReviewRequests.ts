@@ -12,6 +12,7 @@ export enum ContentReviewContentType {
     CHART = 'chart',
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sql_chart',
+    DOCUMENT = 'document',
 }
 
 export enum ContentReviewRequestStatus {
@@ -83,6 +84,8 @@ export type ContentReviewRequest = {
     projectUuid: string;
     contentType: ContentReviewContentType;
     contentUuid: string;
+    // The Document version under review; null for other content types
+    contentVersionUuid: string | null;
     sourceSpaceUuid: string;
     targetSpaceUuid: string | null;
     requestedBy: ContentReviewUser;
@@ -147,6 +150,8 @@ export type ContentReviewRequestListItem = ContentReviewRequest & {
 export type ContentReviewRequestDetail = ContentReviewRequestListItem & {
     // What approval would move today, recomputed on every read
     moveSet: ContentReviewMovedItem[];
+    // The content changed after submission, so it cannot be approved
+    isOutdated: boolean;
     canReview: boolean;
     canVerify: boolean;
     verifyByDefault: boolean;

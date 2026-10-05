@@ -625,6 +625,61 @@ export class DocumentService extends BaseService {
         );
     }
 
+    /**
+     * Moves a Document whose move a reviewer approved. The reviewer needs
+     * create access in the destination; the requester's source Space is not
+     * theirs to edit, so it is not checked.
+     */
+    async moveApprovedToSpace(
+        account: RegisteredAccount,
+        {
+            projectUuid,
+            documentUuid,
+            targetSpaceUuid,
+            expectedVersionUuid,
+        }: {
+            projectUuid: string;
+            documentUuid: string;
+            targetSpaceUuid: string;
+            expectedVersionUuid: string;
+        },
+        { tx }: { tx?: Knex } = {},
+    ): Promise<void> {
+        const document = await this.get(account, projectUuid, documentUuid);
+        const [{ context }] =
+            await this.dependencies.spacePermissionService.resolveAccessBatch(
+                account.user.userUuid,
+                [{ type: 'space' as const, spaceUuid: targetSpaceUuid }],
+                tx ? { trx: tx } : {},
+            );
+        if (
+            !context ||
+            context.projectUuid !== projectUuid ||
+            context.organizationUuid !== document.organizationUuid
+        ) {
+            throw new NotFoundError('Space not found');
+        }
+        if (
+            this.createAuditedAbility(account).cannot(
+                'create',
+                subject('Document', context),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You must have create access to the destination Space to approve moving this Document',
+            );
+        }
+        await this.dependencies.documentModel.moveToSpace(
+            {
+                projectUuid,
+                documentUuid,
+                sourceSpaceUuid: document.spaceUuid,
+                targetSpaceUuid,
+            },
+            { tx, expectedVersionUuid },
+        );
+    }
+
     private static validateMetadata(
         input: UpdateDocumentMetadataRequest,
     ): void {

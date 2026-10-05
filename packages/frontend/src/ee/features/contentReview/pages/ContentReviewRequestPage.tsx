@@ -3,6 +3,7 @@ import {
     ContentReviewContentType,
     ContentReviewRequestStatus,
     getContentReviewRequestsPath,
+    getDocumentUrl,
     type ContentReviewMovedItem,
     type ContentReviewRequestDetail,
     type ContentReviewUser,
@@ -32,6 +33,7 @@ import {
     IconClockHour4,
     IconEye,
     IconExternalLink,
+    IconHistory,
     IconX,
 } from '@tabler/icons-react';
 import { format } from 'date-fns';
@@ -178,7 +180,10 @@ const DecisionCard: FC<{
                         request.contentType ===
                         ContentReviewContentType.SQL_CHART
                             ? 'SQL charts cannot be verified yet'
-                            : 'You need permission to verify content'
+                            : request.contentType ===
+                                ContentReviewContentType.DOCUMENT
+                              ? 'Documents cannot be verified yet'
+                              : 'You need permission to verify content'
                     }
                     disabled={request.canVerify}
                     withArrow
@@ -196,6 +201,7 @@ const DecisionCard: FC<{
                 <Group gap="xs">
                     <Button
                         loading={isApproving}
+                        disabled={request.isOutdated}
                         leftSection={<MantineIcon icon={IconCheck} />}
                         onClick={() =>
                             approve({
@@ -231,6 +237,41 @@ const DecisionCard: FC<{
         </Paper>
     );
 };
+
+// The submitted version stays in history after the Document is edited
+const OutdatedNotice: FC<{
+    request: ContentReviewRequestDetail;
+    projectUuid: string;
+    isRequester: boolean;
+}> = ({ request, projectUuid, isRequester }) => (
+    <Callout
+        variant="warning"
+        icon={<MantineIcon icon={IconAlertCircle} />}
+        title="This Document changed after it was submitted"
+    >
+        <Stack gap="xs" align="flex-start">
+            <Text fz="sm">
+                {isRequester
+                    ? 'Only the submitted version can be approved. Cancel this request and submit the latest version for review.'
+                    : `Only the submitted version can be approved. Reject the request, or ask ${request.requestedBy.firstName} to submit the latest version.`}
+            </Text>
+            {request.content && request.contentVersionUuid && (
+                <Button
+                    component={Link}
+                    to={`${getDocumentUrl(
+                        projectUuid,
+                        request.content.slug,
+                    )}/history?version=${request.contentVersionUuid}`}
+                    variant="default"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconHistory} />}
+                >
+                    View submitted version
+                </Button>
+            )}
+        </Stack>
+    </Callout>
+);
 
 const WaitingCard: FC<{
     request: ContentReviewRequestDetail;
@@ -326,9 +367,9 @@ const FirstReviewCallout: FC<{ userUuid: string }> = ({ userUuid }) => {
             withCloseButton
             onClose={() => setDismissed(true)}
         >
-            Editors build charts and dashboards in their own space and ask to
-            move them into a shared space. You decide whether this one is ready
-            for everyone.
+            Editors build charts, dashboards and Documents in their own space
+            and ask to move them into a shared space. You decide whether this
+            one is ready for everyone.
         </Callout>
     );
 };
@@ -684,6 +725,13 @@ export const ContentReviewRequestDetailView: FC<{
             />
             <OutcomeMessage request={request} />
             {isRequester && <RequesterNextStep request={request} />}
+            {isPending && request.isOutdated && (
+                <OutdatedNotice
+                    request={request}
+                    projectUuid={projectUuid}
+                    isRequester={isRequester}
+                />
+            )}
 
             {isPending && request.canReview && (
                 <DecisionCard request={request} projectUuid={projectUuid} />
