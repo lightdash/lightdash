@@ -1,3 +1,10 @@
+## [2.428.4](https://github.com/lightdash/lightdash/compare/2.428.3...2.428.4) (2026-10-05)
+
+
+### Bug Fixes
+
+* **sdk:** label the embedded Explore drill-down back button as Back ([#30475](https://github.com/lightdash/lightdash/issues/30475)) ([edc6cb6](https://github.com/lightdash/lightdash/commit/edc6cb65712386daf263a4cf87f00090fae868ea))
+
 ## [2.428.3](https://github.com/lightdash/lightdash/compare/2.428.2...2.428.3) (2026-10-05)
 
 
