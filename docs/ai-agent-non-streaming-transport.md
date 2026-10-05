@@ -99,8 +99,9 @@ clearing of older tool uses and, when reasoning is enabled, thinking blocks. Som
 gateways route to downstreams that reject those context-management edits.
 
 Set `ANTHROPIC_SUPPORTS_CONTEXT_MANAGEMENT=false` on those deployments and restart the backend
-and scheduler processes to reload configuration. The setting defaults to `true`; only the literal
-`false` disables it. Configuring `ANTHROPIC_BASE_URL` alone does not change the default.
+and scheduler processes to reload configuration. The setting defaults to `true`; `false` or `0`
+(ignoring case and surrounding whitespace) disables it. Configuring `ANTHROPIC_BASE_URL` alone does
+not change the default.
 
 ```bash
 ANTHROPIC_BASE_URL=https://internal-gateway.example.com

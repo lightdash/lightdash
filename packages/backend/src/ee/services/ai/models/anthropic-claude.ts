@@ -1,6 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { getAnthropicApiBaseUrl } from '../../../../config/aiGatewayConfig';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import Logger from '../../../../logging/logger';
 import {
     ModelPreset,
     ReasoningEffort,
@@ -35,6 +36,14 @@ export const getAnthropicModel = (
     const reasoningEnabled =
         options?.enableReasoning && preset.supportsReasoning;
 
+    // Default-on: only an explicit false disables it
+    const contextManagementEnabled = config.supportsContextManagement !== false;
+    if (!contextManagementEnabled) {
+        Logger.debug(
+            `Provider does not support context management: sending "${preset.modelId}" requests without server-side context clearing`,
+        );
+    }
+
     const reasoningStyle = preset.reasoningStyle ?? 'budget';
     const effort = options?.reasoningEffort ?? 'medium';
 
@@ -52,7 +61,7 @@ export const getAnthropicModel = (
         providerOptions: {
             [PROVIDER]: {
                 ...(preset.providerOptions || {}),
-                ...(config.supportsContextManagement && {
+                ...(contextManagementEnabled && {
                     contextManagement: {
                         edits: [
                             ...(reasoningEnabled

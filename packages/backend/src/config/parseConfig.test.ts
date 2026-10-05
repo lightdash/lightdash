@@ -1489,8 +1489,13 @@ describe('Anthropic context management capability', () => {
     test.each([
         [undefined, true],
         ['true', true],
+        ['', true],
         ['false', false],
-    ])('parses %s as supportsContextManagement=%s', (value, expected) => {
+        ['False', false],
+        ['FALSE', false],
+        [' false ', false],
+        ['0', false],
+    ])('parses %j as supportsContextManagement=%s', (value, expected) => {
         process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
         process.env.ANTHROPIC_BASE_URL = 'https://gateway.example';
         if (value !== undefined) {
