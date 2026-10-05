@@ -11,6 +11,7 @@ export enum FeatureFlags {
     SnowflakeAiSignIn = 'snowflake-ai-sign-in',
     /** Off by default; organization scope; no handler. Runs AI on Snowflake as each person's AI twin under AI access restrictions. */
     SnowflakeAiTwins = 'snowflake-ai-twins',
+    SnowflakeAiBoundaryGuide = 'snowflake-ai-boundary-guide',
     MultiConnectionProjects = 'multi-connection-projects',
     /** Independent Documents containing narrative and saved chart definitions. */
     Documents = 'documents',

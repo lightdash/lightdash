@@ -123,6 +123,12 @@ const ProjectSettings: FC<{
     const { data: aiAccessRestrictionsFlag } = useServerFeatureFlag(
         FeatureFlags.AiAccessRestrictions,
     );
+    const { data: snowflakeAiBoundaryGuideFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiBoundaryGuide,
+    );
+    const { data: snowflakeAiSignInFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiSignIn,
+    );
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageExternalConnections =
@@ -361,6 +367,14 @@ const ProjectSettings: FC<{
             // Only registered when the instance has AI agents at all — same
             // gate as the AI agents navigation section.
             ...(isAiCopilotEnabledOrTrial ||
+            (snowflakeAiBoundaryGuideFlag?.enabled === true &&
+                snowflakeAiSignInFlag?.enabled === true &&
+                !!project &&
+                (user.data?.ability.can(
+                    'update',
+                    subject('Project', project),
+                ) ??
+                    false)) ||
             shouldShowAiAccessRestrictions(
                 aiAccessRestrictionsFlag?.enabled ?? false,
                 !!project &&
@@ -380,6 +394,18 @@ const ProjectSettings: FC<{
                               >
                                   <SettingsAgentDataScope
                                       projectUuid={projectUuid}
+                                      isSnowflake={
+                                          project?.warehouseConnection?.type ===
+                                          'snowflake'
+                                      }
+                                      canUpdateProject={
+                                          !!project &&
+                                          (user.data?.ability.can(
+                                              'update',
+                                              subject('Project', project),
+                                          ) ??
+                                              false)
+                                      }
                                       showAiAccessRestrictions={shouldShowAiAccessRestrictions(
                                           aiAccessRestrictionsFlag?.enabled ??
                                               false,
@@ -622,6 +648,8 @@ const ProjectSettings: FC<{
         isAiCopilotEnabledOrTrial,
         canManageOrgAiAgent,
         aiAccessRestrictionsFlag?.enabled,
+        snowflakeAiBoundaryGuideFlag?.enabled,
+        snowflakeAiSignInFlag?.enabled,
         project,
     ]);
     const routesElements = useRoutes(routes);

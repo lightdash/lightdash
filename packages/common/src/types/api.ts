@@ -432,6 +432,10 @@ import { type SharedSignInStatus } from './sharedSignIn';
 import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
 import {
+    type SnowflakeAiBoundaryCheck,
+    type SnowflakeAiBoundaryGuideConfig,
+} from './snowflakeAiBoundary';
+import {
     type ApiSpaceAccessListResponse,
     type ApiSpaceDeleteImpactResponse,
     type Space,
@@ -1357,6 +1361,8 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | SnowflakeAiBoundaryGuideConfig
+    | SnowflakeAiBoundaryCheck[]
     | ApiAiThreadFileResponse['results']
     | SharedSignInStatus
     | ApiDbtSourceBindingsResponse['results']

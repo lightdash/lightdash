@@ -164,6 +164,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    LightdashMode,
     LightdashProjectConfig,
     LightdashUser,
     ManifestCollision,
@@ -220,6 +221,7 @@ import {
     ProjectSummary,
     ProjectType,
     QueryExecutionContext,
+    quoteSnowflakeAiIdentifier,
     RedshiftAuthenticationType,
     RegisteredAccount,
     ReplaceableCustomFields,
@@ -302,6 +304,9 @@ import {
     type RunQueryTags,
     type SharedSignInStatus,
     type SignInSubject,
+    type SnowflakeAiBoundaryCheck,
+    type SnowflakeAiBoundaryGuideConfig,
+    type SnowflakeAiBoundaryTestBody,
     type Tag,
     type UUID,
     type WarehouseLocation,
@@ -509,6 +514,10 @@ import {
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
+import {
+    getUnavailableSnowflakeAiBoundaryChecks,
+    runSnowflakeAiBoundaryChecks,
+} from './snowflakeAiBoundaryChecks';
 import {
     buildConnectionTestResults,
     tunnelHopsAllOk,
@@ -3653,6 +3662,7 @@ export class ProjectService extends BaseService {
         overrides?: {
             snowflakeVirtualWarehouse?: string;
             databricksCompute?: string;
+            bypassCache?: boolean;
         },
     ): Promise<{
         warehouseClient: WarehouseClient;
@@ -3687,7 +3697,7 @@ export class ProjectService extends BaseService {
             ? performance.now() - tunnelStart
             : null;
 
-        const { snowflakeVirtualWarehouse, databricksCompute } =
+        const { snowflakeVirtualWarehouse, databricksCompute, bypassCache } =
             overrides || {};
 
         const agentSessionRequired =
@@ -3714,9 +3724,9 @@ export class ProjectService extends BaseService {
             aiIdentityUuid,
         ]);
         // Check cache for existing client (always false if ssh tunnel was connected)
-        const existingClient = this.warehouseClients[cacheKey] as
-            | (typeof this.warehouseClients)[string]
-            | undefined;
+        const existingClient = (
+            bypassCache ? undefined : this.warehouseClients[cacheKey]
+        ) as (typeof this.warehouseClients)[string] | undefined;
         if (
             existingClient &&
             deepEqual(existingClient.credentials, warehouseSshCredentials)
@@ -3816,7 +3826,7 @@ export class ProjectService extends BaseService {
                 ...identityOptions,
             },
         );
-        this.warehouseClients[cacheKey] = client;
+        if (!bypassCache) this.warehouseClients[cacheKey] = client;
         return {
             warehouseClient: this.withSharedSignInAttribution(
                 projectUuid,
@@ -15790,6 +15800,159 @@ export class ProjectService extends BaseService {
             featureFlagId: FeatureFlags.AiAccessRestrictions,
         });
         return flag.enabled;
+    }
+
+    private async assertSnowflakeAiBoundaryGuideAccess(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'update',
+                subject('Project', project),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const flags = await Promise.all(
+            [
+                FeatureFlags.SnowflakeAiBoundaryGuide,
+                FeatureFlags.SnowflakeAiSignIn,
+            ].map((featureFlagId) =>
+                this.featureFlagModel.get({
+                    user: {
+                        userUuid: account.user.id,
+                        organizationUuid: project.organizationUuid,
+                    },
+                    featureFlagId,
+                }),
+            ),
+        );
+        if (flags.some((flag) => !flag.enabled))
+            throw new ForbiddenError(
+                'Snowflake AI boundary guide is not enabled',
+            );
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        if (credentials.type !== WarehouseTypes.SNOWFLAKE) {
+            throw new ForbiddenError('This project does not use Snowflake');
+        }
+    }
+
+    async getSnowflakeAiBoundaryGuideConfig(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<SnowflakeAiBoundaryGuideConfig> {
+        await this.assertSnowflakeAiBoundaryGuideAccess(account, projectUuid);
+        const memberCounts =
+            await this.projectModel.getSnowflakeAiBoundaryMemberCounts(
+                projectUuid,
+            );
+        const credentials =
+            await this.userWarehouseCredentialsModel.getAiCredentialsByUserUuid(
+                account.user.id,
+            );
+        const ai = this.lightdashConfig.auth.snowflakeAi;
+        return {
+            redirectUri: `${this.lightdashConfig.siteUrl}/api/v1${ai.callbackPath}`,
+            cloud: this.lightdashConfig.mode === LightdashMode.CLOUD_BETA,
+            aiSignInEnabled:
+                !!ai.clientId &&
+                !!ai.clientSecret &&
+                !!ai.authorizationEndpoint &&
+                !!ai.tokenEndpoint,
+            signedIn: credentials.some(
+                (item) => item.credentials.type === WarehouseTypes.SNOWFLAKE,
+            ),
+            ...memberCounts,
+        };
+    }
+
+    async testSnowflakeAiBoundary(
+        account: RegisteredAccount,
+        projectUuid: string,
+        body: SnowflakeAiBoundaryTestBody,
+    ): Promise<SnowflakeAiBoundaryCheck[]> {
+        await this.assertSnowflakeAiBoundaryGuideAccess(account, projectUuid);
+        if (body.protectedColumn) {
+            Object.values(body.protectedColumn).forEach(
+                quoteSnowflakeAiIdentifier,
+            );
+        }
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const identity = await this.resolveAiAccessIdentity({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: true,
+            isServiceAccount: false,
+            context: QueryExecutionContext.AI,
+            credentials,
+            rawSql: true,
+        });
+        if (identity?.kind !== 'snowflake_ai_sign_in') {
+            throw new ForbiddenError(
+                'Sign in to Snowflake for AI before testing the boundary',
+            );
+        }
+        if (identity.credentials.type !== WarehouseTypes.SNOWFLAKE) {
+            throw new ForbiddenError(
+                'The AI sign-in is not a Snowflake credential',
+            );
+        }
+        const queryId = await this.projectModel.getRecentNonAiWarehouseQueryId(
+            projectUuid,
+            account.user.id,
+        );
+        const aiCredentials = {
+            ...identity.credentials,
+            userWarehouseCredentialsUuid: identity.credentialUuid,
+        };
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            aiCredentials,
+            { bypassCache: true },
+        );
+        try {
+            if (
+                !('withBoundarySession' in warehouseClient) ||
+                typeof warehouseClient.withBoundarySession !== 'function'
+            ) {
+                throw new UnexpectedServerError(
+                    'Snowflake AI boundary session is unavailable',
+                );
+            }
+            let results: SnowflakeAiBoundaryCheck[];
+            try {
+                results = await warehouseClient.withBoundarySession(
+                    (
+                        client: Parameters<
+                            typeof runSnowflakeAiBoundaryChecks
+                        >[0]['client'],
+                    ) =>
+                        runSnowflakeAiBoundaryChecks({
+                            client,
+                            protectedColumn: body.protectedColumn,
+                            warehouseQueryId: queryId,
+                        }),
+                );
+            } catch {
+                results = getUnavailableSnowflakeAiBoundaryChecks();
+            }
+            this.logger.info('Snowflake AI boundary test results', {
+                projectUuid,
+                userUuid: account.user.id,
+                results: results.map(({ id, status }) => ({ id, status })),
+            });
+            return results;
+        } finally {
+            await sshTunnel.disconnect();
+        }
     }
 
     async getAiAccessRestrictions(

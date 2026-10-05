@@ -1,4 +1,4 @@
-import { getErrorMessage, isApiError } from '@lightdash/common';
+import { FeatureFlags, getErrorMessage, isApiError } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -23,15 +23,20 @@ import {
     useProjectUpdateAiAccessRestrictions,
     useProjectUpdateAgentSqlScope,
 } from '../../hooks/useProject';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import classes from './SettingsAgentDataScope.module.css';
+import { SnowflakeAiBoundaryGuide } from './SnowflakeAiBoundaryGuide';
+import { shouldShowSnowflakeAiBoundaryGuide } from './snowflakeAiBoundaryVisibility';
 
 type SettingsAgentDataScopeProps = {
     projectUuid: string;
     showAiAccessRestrictions: boolean;
     rawSqlUnavailable: boolean;
+    isSnowflake: boolean;
+    canUpdateProject: boolean;
 };
 
 type AgentDataScopeFormValues = {
@@ -171,7 +176,20 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
     projectUuid,
     showAiAccessRestrictions,
     rawSqlUnavailable,
+    isSnowflake,
+    canUpdateProject,
 }) => {
+    const { data: guideFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiBoundaryGuide,
+    );
+    const { data: signInFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiSignIn,
+    );
+    const showGuide = shouldShowSnowflakeAiBoundaryGuide(
+        guideFlag?.enabled === true,
+        signInFlag?.enabled === true,
+        canUpdateProject,
+    );
     const { showToastError, showToastSuccess } = useToaster();
     const { data: scope, isInitialLoading: isLoadingScope } =
         useAgentSqlScope(projectUuid);
@@ -260,7 +278,14 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
 
     return (
         <Stack gap="lg">
-            {showAiAccessRestrictions && (
+            {showGuide && (
+                <SnowflakeAiBoundaryGuide
+                    projectUuid={projectUuid}
+                    isSnowflake={isSnowflake}
+                    showAiAccessRestrictions={showAiAccessRestrictions}
+                />
+            )}
+            {showAiAccessRestrictions && !showGuide && (
                 <SettingsCard p="xl">
                     <Switch
                         label="AI access restrictions"

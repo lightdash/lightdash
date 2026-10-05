@@ -780,6 +780,33 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     private interactiveConnectionPromise?: Promise<Connection>;
 
+    async withBoundarySession<T>(
+        run: (client: {
+            runQuery(
+                sql: string,
+                tags: Record<string, string>,
+            ): Promise<{ rows: Record<string, AnyType>[] }>;
+        }) => Promise<T>,
+    ): Promise<T> {
+        if (!this.credentials.requireAgentSession) {
+            throw new ForbiddenError(SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE);
+        }
+        const connection = await this.getConnection();
+        try {
+            return await run({
+                runQuery: (sql) => this.executeStatements(connection, sql),
+            });
+        } finally {
+            await new Promise<void>((resolve, reject) => {
+                connection.destroy((error) => {
+                    if (error)
+                        reject(new WarehouseConnectionError(error.message));
+                    else resolve();
+                });
+            });
+        }
+    }
+
     private readonly privateKey: string | undefined;
 
     private readonly privateKeyPassphrase: string | undefined;

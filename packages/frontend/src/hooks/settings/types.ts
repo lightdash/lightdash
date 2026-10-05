@@ -82,6 +82,8 @@ export type SettingsContext = {
     aiAccessRestrictionsFlag: FeatureFlag | undefined;
     snowflakeAiTwinsFlag: FeatureFlag | undefined;
     aiIdentityAccounts: AiIdentityAccount[] | undefined;
+    snowflakeAiBoundaryGuideFlag: FeatureFlag | undefined;
+    snowflakeAiSignInFlag: FeatureFlag | undefined;
     shouldShowAiAgentReviews: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
     canManageOrgAiAgent: boolean;

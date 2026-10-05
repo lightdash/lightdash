@@ -31,6 +31,7 @@ import {
     getPersonSignIn,
     GroupType,
     IdContentMapping,
+    isAiAccessQueryContext,
     isExploreError,
     isUserManagedExplore,
     normalizeWarehouseCredentials,
@@ -48,6 +49,7 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    QueryExecutionContext,
     resolveSignInSubject,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
@@ -70,6 +72,7 @@ import {
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     USER_MANAGED_EXPLORE_TYPES,
+    UserWarehouseCredentialPurpose,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
@@ -7591,6 +7594,70 @@ export class ProjectModel {
         }
 
         return project.agent_sql_scope ?? null;
+    }
+
+    async getSnowflakeAiBoundaryMemberCounts(
+        projectUuid: string,
+    ): Promise<{ memberCount: number; signedInMemberCount: number }> {
+        const row = await this.database('project_memberships as pm')
+            .join('projects as p', 'p.project_id', 'pm.project_id')
+            .join('users as u', 'u.user_id', 'pm.user_id')
+            .leftJoin(
+                'user_warehouse_credentials as c',
+                function joinCredentials() {
+                    this.on('c.user_uuid', '=', 'u.user_uuid')
+                        .andOnVal('c.warehouse_type', WarehouseTypes.SNOWFLAKE)
+                        .andOnVal(
+                            'c.purpose',
+                            UserWarehouseCredentialPurpose.AI,
+                        );
+                },
+            )
+            .where('p.project_uuid', projectUuid)
+            .where('u.is_internal', false)
+            .first<{ memberCount: string; signedInMemberCount: string }>(
+                this.database.raw(
+                    'COUNT(DISTINCT u.user_uuid) AS "memberCount"',
+                ),
+                this.database.raw(
+                    'COUNT(DISTINCT c.user_uuid) AS "signedInMemberCount"',
+                ),
+            );
+        return {
+            memberCount: Number(row?.memberCount ?? 0),
+            signedInMemberCount: Number(row?.signedInMemberCount ?? 0),
+        };
+    }
+
+    async getRecentNonAiWarehouseQueryId(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<string | null> {
+        const aiContexts = Object.values(QueryExecutionContext).filter(
+            isAiAccessQueryContext,
+        );
+        const row = await this.database('query_history')
+            .where('project_uuid', projectUuid)
+            .where('created_by_user_uuid', userUuid)
+            .whereNotNull('warehouse_query_id')
+            .whereNotIn('context', aiContexts)
+            .whereIn('context', [
+                QueryExecutionContext.DASHBOARD,
+                QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
+                QueryExecutionContext.EXPLORE,
+                QueryExecutionContext.CHART,
+                QueryExecutionContext.SQL_CHART,
+                QueryExecutionContext.SQL_RUNNER,
+                QueryExecutionContext.COMPOSE_SQL_RUNNER,
+            ])
+            .where(
+                'created_at',
+                '>=',
+                new Date(Date.now() - 24 * 60 * 60 * 1000),
+            )
+            .orderBy('created_at', 'desc')
+            .first<{ warehouse_query_id: string }>('warehouse_query_id');
+        return row?.warehouse_query_id ?? null;
     }
 
     async getAiAccessRestrictions(projectUuid: string): Promise<boolean> {

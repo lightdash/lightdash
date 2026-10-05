@@ -91,6 +91,9 @@ import {
     type ProjectSummary,
     type RunMergeQueryRequest,
     type SharedSignInStatus,
+    type SnowflakeAiBoundaryCheck,
+    type SnowflakeAiBoundaryGuideConfig,
+    type SnowflakeAiBoundaryTestBody,
     type Tag,
     type UpdateAgentSqlScope,
     type UpdateMultipleDashboards,
@@ -1631,6 +1634,45 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             results: await this.services
                 .getProjectService()
                 .getAgentSqlScope(req.account, projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/ai-boundary/guide')
+    @OperationId('getSnowflakeAiBoundaryGuide')
+    async getSnowflakeAiBoundaryGuide(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: SnowflakeAiBoundaryGuideConfig }> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getSnowflakeAiBoundaryGuideConfig(req.account, projectUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/ai-boundary/test')
+    @OperationId('testSnowflakeAiBoundary')
+    async testSnowflakeAiBoundary(
+        @Path() projectUuid: UUID,
+        @Body() body: SnowflakeAiBoundaryTestBody,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: SnowflakeAiBoundaryCheck[] }> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .testSnowflakeAiBoundary(req.account, projectUuid, body),
         };
     }
 

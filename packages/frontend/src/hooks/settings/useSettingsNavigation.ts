@@ -93,6 +93,8 @@ export const useSettingsNavigation = (
         aiAccessRestrictionsFlag,
         snowflakeAiTwinsFlag,
         aiIdentityAccounts,
+        snowflakeAiBoundaryGuideFlag,
+        snowflakeAiSignInFlag,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
@@ -806,6 +808,11 @@ export const useSettingsNavigation = (
                 // Only meaningful when the instance has AI agents at all —
                 // same gate as the org-level AI agents section.
                 ...(isAiCopilotEnabledOrTrial ||
+                (snowflakeAiBoundaryGuideFlag?.enabled === true &&
+                    snowflakeAiSignInFlag?.enabled === true &&
+                    !!project &&
+                    (ability?.can('update', subject('Project', project)) ??
+                        false)) ||
                 (aiAccessRestrictionsFlag?.enabled === true &&
                     !!project &&
                     (ability?.can('update', subject('Project', project)) ??
@@ -1267,6 +1274,8 @@ export const useSettingsNavigation = (
         aiAccessRestrictionsFlag,
         showAiIdentities,
         failedAiIdentities,
+        snowflakeAiBoundaryGuideFlag,
+        snowflakeAiSignInFlag,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,

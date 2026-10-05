@@ -41,6 +41,12 @@ export const useSettingsContext = (): SettingsContext => {
         data: snowflakeAiTwinsFlag,
         isInitialLoading: isSnowflakeAiTwinsFlagLoading,
     } = useServerFeatureFlag(FeatureFlags.SnowflakeAiTwins);
+    const { data: snowflakeAiBoundaryGuideFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiBoundaryGuide,
+    );
+    const { data: snowflakeAiSignInFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiSignIn,
+    );
     const isAiCopilotEnabledOrTrial =
         aiOrganizationSettingsQuery.isSuccess &&
         (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
@@ -259,6 +265,8 @@ export const useSettingsContext = (): SettingsContext => {
         aiAccessRestrictionsFlag,
         snowflakeAiTwinsFlag,
         aiIdentityAccounts,
+        snowflakeAiBoundaryGuideFlag,
+        snowflakeAiSignInFlag,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
