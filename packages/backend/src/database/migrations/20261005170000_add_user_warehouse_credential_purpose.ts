@@ -1,7 +1,7 @@
 import { Knex } from 'knex';
 
 export const config = { transaction: false };
-export const classification: { kind: 'safe'; reason: string } = {
+export const classification: { kind: 'safe' | 'breaking'; reason: string } = {
     kind: 'safe',
     reason: 'Existing credentials retain the default purpose and the AI-only unique index builds concurrently.',
 };
