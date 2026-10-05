@@ -193,6 +193,7 @@ const makeAgentTools = (
             updateProgress: noopAsync,
         }),
         runSql: getRunSql({
+            hyphenatedIdentifiers: true,
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,

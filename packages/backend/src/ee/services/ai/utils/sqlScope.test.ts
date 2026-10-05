@@ -11,7 +11,9 @@ const scope: SqlScope = { schemas: ['jaffle'] };
 const catalogScope: SqlScope = { schemas: ['jaffle'], catalogs: ['prod'] };
 
 const kinds = (sql: string, s: SqlScope = scope) =>
-    findSqlScopeViolations(sql, s).map((v) => v.kind);
+    findSqlScopeViolations(sql, s, { hyphenatedIdentifiers: true }).map(
+        (v) => v.kind,
+    );
 
 describe('findSqlScopeViolations', () => {
     describe('when no scope is configured', () => {
@@ -43,6 +45,7 @@ describe('findSqlScopeViolations', () => {
             const [violation] = findSqlScopeViolations(
                 'SELECT * FROM jaffle_old.stale_orders',
                 scope,
+                { hyphenatedIdentifiers: true },
             );
             expect(violation).toEqual({
                 kind: 'schema',
@@ -75,14 +78,132 @@ describe('findSqlScopeViolations', () => {
             expect(kinds('SELECT * FROM "jaffle"."orders"')).toEqual([]);
         });
 
-        it('fails closed on an identifier containing a space', () => {
+        it('classifies a quoted schema containing a space', () => {
             expect(kinds('SELECT * FROM "my schema".orders')).toEqual([
-                'unqualified',
+                'schema',
             ]);
         });
     });
 
     describe('three-part references', () => {
+        const bigQueryScope: SqlScope = {
+            schemas: ['analytics_reporting'],
+            catalogs: ['my-project-123456'],
+        };
+
+        it('allows a fully backticked BigQuery path', () => {
+            expect(
+                kinds(
+                    'SELECT * FROM `my-project-123456.analytics_reporting.orders`',
+                    bigQueryScope,
+                ),
+            ).toEqual([]);
+        });
+
+        it('reports a denied hyphenated catalog by name', () => {
+            expect(
+                findSqlScopeViolations(
+                    'SELECT * FROM `my-project-123456.analytics_reporting.orders`',
+                    {
+                        schemas: ['analytics_reporting'],
+                        catalogs: ['other-project'],
+                    },
+                    { hyphenatedIdentifiers: true },
+                ),
+            ).toEqual([
+                {
+                    kind: 'catalog',
+                    reference: '`my-project-123456.analytics_reporting.orders`',
+                    catalog: 'my-project-123456',
+                },
+            ]);
+        });
+
+        it('reports a denied schema in a fully backticked path', () => {
+            expect(
+                findSqlScopeViolations(
+                    'SELECT * FROM `my-project-123456.raw.orders`',
+                    { schemas: ['analytics_reporting'] },
+                    { hyphenatedIdentifiers: true },
+                ),
+            ).toEqual([
+                {
+                    kind: 'schema',
+                    reference: '`my-project-123456.raw.orders`',
+                    schema: 'raw',
+                },
+            ]);
+        });
+
+        it.each([
+            '`my-project-123456`.analytics_reporting.orders',
+            '`my-project-123456`.`analytics_reporting`.`orders`',
+            'my-project-123456.analytics_reporting.orders',
+        ])('allows the BigQuery path %s', (reference) => {
+            expect(kinds(`SELECT * FROM ${reference}`, bigQueryScope)).toEqual(
+                [],
+            );
+        });
+
+        it('checks both sides of a join', () => {
+            expect(
+                findSqlScopeViolations(
+                    'SELECT * FROM `my-project-123456.analytics_reporting.orders` JOIN `other-project.analytics_reporting.orders` ON TRUE',
+                    bigQueryScope,
+                    { hyphenatedIdentifiers: true },
+                ),
+            ).toEqual([
+                {
+                    kind: 'catalog',
+                    reference: '`other-project.analytics_reporting.orders`',
+                    catalog: 'other-project',
+                },
+            ]);
+        });
+
+        it('keeps a dot inside a double-quoted catalog', () => {
+            expect(
+                kinds('SELECT * FROM "my.db"."analytics_reporting"."orders"', {
+                    schemas: ['analytics_reporting'],
+                    catalogs: ['my.db'],
+                }),
+            ).toEqual([]);
+        });
+
+        it('keeps a dot inside a bracketed catalog', () => {
+            expect(
+                kinds('SELECT * FROM [my.db].[analytics_reporting].[orders]', {
+                    schemas: ['analytics_reporting'],
+                    catalogs: ['my.db'],
+                }),
+            ).toEqual([]);
+        });
+
+        it('fails closed on an unclosed quoted path', () => {
+            expect(
+                kinds(
+                    'SELECT * FROM `my-project-123456.analytics_reporting.orders',
+                    bigQueryScope,
+                ),
+            ).toEqual(['unparseable']);
+        });
+
+        it('recognizes a hyphenated table function', () => {
+            expect(
+                kinds('SELECT * FROM my-project.ds.fn(1)', bigQueryScope),
+            ).toEqual([]);
+        });
+
+        it('preserves the old lexer when the kill switch is off', () => {
+            expect(
+                findSqlScopeViolations(
+                    'SELECT * FROM `my-project-123456.analytics_reporting.orders`',
+                    bigQueryScope,
+                    { hyphenatedIdentifiers: false },
+                ),
+            ).toEqual([{ kind: 'unqualified', reference: '`my' }]);
+        });
+
         it('allows an allowed catalog and schema', () => {
             expect(
                 kinds('SELECT * FROM prod.jaffle.orders', catalogScope),
@@ -298,7 +419,9 @@ describe('isSchemaInScope', () => {
 describe('formatSqlScopeError', () => {
     it('names the offending schema and the allowed schemas', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scope),
+            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scope, {
+                hyphenatedIdentifiers: true,
+            }),
             scope,
         );
         expect(message).toContain('jaffle_old');
@@ -307,7 +430,9 @@ describe('formatSqlScopeError', () => {
 
     it('tells the agent not to retry or silently substitute a table', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scope),
+            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scope, {
+                hyphenatedIdentifiers: true,
+            }),
             scope,
         );
         expect(message).toContain('Do NOT retry');
@@ -316,7 +441,9 @@ describe('formatSqlScopeError', () => {
 
     it('explains how to fix an unqualified reference', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM orders', scope),
+            findSqlScopeViolations('SELECT * FROM orders', scope, {
+                hyphenatedIdentifiers: true,
+            }),
             scope,
         );
         expect(message).toContain('not schema-qualified');
@@ -324,7 +451,11 @@ describe('formatSqlScopeError', () => {
 
     it('explains how to fix a catalog-unqualified reference', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle.orders', catalogScope),
+            findSqlScopeViolations(
+                'SELECT * FROM jaffle.orders',
+                catalogScope,
+                { hyphenatedIdentifiers: true },
+            ),
             catalogScope,
         );
         expect(message).toContain('catalog.schema.table');
@@ -333,7 +464,9 @@ describe('formatSqlScopeError', () => {
 
     it('explains how to fix a comma join', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle.a, jaffle.b', scope),
+            findSqlScopeViolations('SELECT * FROM jaffle.a, jaffle.b', scope, {
+                hyphenatedIdentifiers: true,
+            }),
             scope,
         );
         expect(message).toContain('explicit JOIN');
@@ -446,6 +579,7 @@ describe('denied schemas and catalogs', () => {
         const [violation] = findSqlScopeViolations(
             'SELECT * FROM jaffle_old.x',
             denyOnly,
+            { hyphenatedIdentifiers: true },
         );
         expect(violation).toEqual({
             kind: 'denied_schema',
@@ -516,7 +650,11 @@ describe('formatSqlScopeError with deny lists', () => {
             deniedSchemas: ['jaffle_old'],
         };
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scopeWithDeny),
+            findSqlScopeViolations(
+                'SELECT * FROM jaffle_old.x',
+                scopeWithDeny,
+                { hyphenatedIdentifiers: true },
+            ),
             scopeWithDeny,
         );
         expect(message).toContain('excluded');
@@ -529,7 +667,11 @@ describe('formatSqlScopeError with deny lists', () => {
             deniedSchemas: ['jaffle_old'],
         };
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scopeWithDeny),
+            findSqlScopeViolations(
+                'SELECT * FROM jaffle_old.x',
+                scopeWithDeny,
+                { hyphenatedIdentifiers: true },
+            ),
             scopeWithDeny,
         );
         expect(message).not.toContain('Allowed schemas:');

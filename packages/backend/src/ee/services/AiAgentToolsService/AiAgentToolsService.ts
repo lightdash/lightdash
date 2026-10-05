@@ -164,6 +164,7 @@ import {
     findWarehouseTableScopeViolation,
     formatSqlScopeError,
     formatWarehouseTableScopeError,
+    isSqlScopeConfigured,
 } from '../ai/utils/sqlScope';
 import type {
     AppGenerateService,
@@ -3063,9 +3064,23 @@ export class AiAgentToolsService extends BaseService {
                 // the model gets a well-worded error it can act on; this one
                 // is what actually guarantees the query never reaches the
                 // warehouse, whatever the tool layer does.
+                const hyphenatedIdentifiers = isSqlScopeConfigured(
+                    context.sqlScope,
+                )
+                    ? (
+                          await this.featureFlagService.get({
+                              user: context.user,
+                              featureFlagId:
+                                  FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
+                          })
+                      ).enabled
+                    : false;
                 const violations = findSqlScopeViolations(
                     sql,
                     context.sqlScope,
+                    {
+                        hyphenatedIdentifiers,
+                    },
                 );
                 if (violations.length > 0 && context.sqlScope) {
                     this.logger.warn(
