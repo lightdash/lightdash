@@ -9,7 +9,6 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import ConnectionsPanel from './ConnectionsPanel';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtSourcesPanel from './DbtSourcesPanel';
-import { EgressIpNotice } from './EgressIpNotice';
 import { useFormContext } from './formContext';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
@@ -25,15 +24,12 @@ interface Props {
     warehouseOnly?: boolean;
 }
 
-const WarehouseIpHint: FC<{ isProjectUpdate: boolean }> = ({
-    isProjectUpdate,
-}) => {
+const WarehouseIpHint: FC = () => {
     const { health } = useApp();
     const egressIpNoticeFlag = useServerFeatureFlag(
         FeatureFlags.EgressIpNotice,
     );
-    if (egressIpNoticeFlag.data?.enabled !== false)
-        return isProjectUpdate ? <EgressIpNotice /> : null;
+    if (egressIpNoticeFlag.data?.enabled !== false) return null;
     if (!health.data?.staticIp) return null;
 
     return (
@@ -91,7 +87,7 @@ export const ProjectForm: FC<Props> = ({
                         />
                     </Flex>
 
-                    <WarehouseIpHint isProjectUpdate={!!isProjectUpdate} />
+                    <WarehouseIpHint />
                 </div>
 
                 <div>

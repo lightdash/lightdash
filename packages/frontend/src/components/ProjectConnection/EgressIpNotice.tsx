@@ -1,17 +1,15 @@
 import {
-    ActionIcon,
+    Box,
     Button,
     Code,
     Group,
-    Stack,
-    Text,
+    Input,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
-import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useRef, useState, type FC, type RefObject } from 'react';
-import MantineIcon from '../common/MantineIcon';
-import { describeEgressIps, useEgressIps } from './useEgressIpCheckpoint';
+import { describeEgressIps, useEgressIps } from './useEgressIps';
 
 type CopyState = 'idle' | 'copied' | 'selected';
 
@@ -63,24 +61,15 @@ const tooltipLabel = (state: CopyState, idleLabel: string) => {
 const CopyIpRow: FC<{ ip: string }> = ({ ip }) => {
     const ipRef = useRef<HTMLElement>(null);
     const { state, copy } = useCopyWithFallback(ip, ipRef);
-    const label = `Copy ${ip}`;
 
     return (
-        <Group gap={4} wrap="nowrap">
-            <Code ref={ipRef}>{ip}</Code>
-            <Tooltip label={tooltipLabel(state, label)}>
-                <ActionIcon
-                    size="sm"
-                    color={state === 'copied' ? 'teal' : undefined}
-                    aria-label={label}
-                    onClick={copy}
-                >
-                    <MantineIcon
-                        icon={state === 'copied' ? IconCheck : IconCopy}
-                    />
-                </ActionIcon>
-            </Tooltip>
-        </Group>
+        <Tooltip label={tooltipLabel(state, 'Copy to clipboard')}>
+            <UnstyledButton aria-label={`Copy ${ip}`} onClick={copy}>
+                <Code ref={ipRef} c={state === 'copied' ? 'teal' : undefined}>
+                    {ip}
+                </Code>
+            </UnstyledButton>
+        </Tooltip>
     );
 };
 
@@ -99,11 +88,6 @@ const CopyAllButton: FC<{
                 variant="subtle"
                 size="compact-xs"
                 color={state === 'copied' ? 'teal' : undefined}
-                leftSection={
-                    <MantineIcon
-                        icon={state === 'copied' ? IconCheck : IconCopy}
-                    />
-                }
                 onClick={copy}
                 w="fit-content"
             >
@@ -113,18 +97,18 @@ const CopyAllButton: FC<{
     );
 };
 
-export const EgressIpList: FC<{ ips: string[] }> = ({ ips }) => {
+const EgressIpList: FC<{ ips: string[] }> = ({ ips }) => {
     const listRef = useRef<HTMLDivElement>(null);
 
     return (
-        <Stack gap="xs">
-            <Stack gap={4} ref={listRef}>
+        <Group gap="md" wrap="wrap">
+            <Group gap="md" wrap="wrap" ref={listRef}>
                 {ips.map((ip) => (
                     <CopyIpRow key={ip} ip={ip} />
                 ))}
-            </Stack>
+            </Group>
             {ips.length > 1 && <CopyAllButton ips={ips} listRef={listRef} />}
-        </Stack>
+        </Group>
     );
 };
 
@@ -134,12 +118,14 @@ export const EgressIpNotice: FC = () => {
     const { noun, pronoun } = describeEgressIps(ips.length);
 
     return (
-        <Stack gap="xs">
-            <Text size="sm" c="dimmed">
-                Lightdash connects to your warehouse from {noun}. Add {pronoun}{' '}
-                to your firewall or allowlist.
-            </Text>
-            <EgressIpList ips={ips} />
-        </Stack>
+        <Input.Wrapper
+            label={`Lightdash ${noun}`}
+            description={`Lightdash connects to your warehouse from this instance's ${noun}. Add ${pronoun} to your firewall or allowlist.`}
+            mt="sm"
+        >
+            <Box mt={6}>
+                <EgressIpList ips={ips} />
+            </Box>
+        </Input.Wrapper>
     );
 };

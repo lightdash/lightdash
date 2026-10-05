@@ -51,11 +51,9 @@ import MantineModal from '../common/MantineModal';
 import { ConnectionFields } from './ConnectionFields';
 import { unusedDbtFormValues } from './connectionFormDefaults';
 import classes from './ConnectionsPanel.module.css';
-import { EgressIpCheckpointModal } from './EgressIpCheckpointModal';
 import { EnableMultipleConnectionsCard } from './EnableMultipleConnections';
 import { useForm } from './formContext';
 import { getWarehouseLabel } from './ProjectConnectFlow/utils';
-import { useEgressIpCheckpoint } from './useEgressIpCheckpoint';
 import WarehouseDatabaseListingFields, {
     type WarehouseDatabaseListingValues,
 } from './WarehouseDatabaseListingFields';
@@ -155,28 +153,13 @@ const AddConnectionModal: FC<{
         },
     });
 
-    const checkpoint = useEgressIpCheckpoint();
-
     const handleSubmit = () => {
         if (form.validate().hasErrors) return;
-        checkpoint.guard(() =>
-            createMutation.mutate({
-                name: form.values.name.trim(),
-                warehouseConnection: form.values.warehouse,
-            }),
-        );
+        createMutation.mutate({
+            name: form.values.name.trim(),
+            warehouseConnection: form.values.warehouse,
+        });
     };
-
-    if (checkpoint.isOpen) {
-        return (
-            <EgressIpCheckpointModal
-                checkpoint={checkpoint}
-                confirmLabel="Test connection"
-                title="Add a connection"
-                onClose={onClose}
-            />
-        );
-    }
 
     return (
         <MantineModal
@@ -195,7 +178,6 @@ const AddConnectionModal: FC<{
                 projectUuid={projectUuid}
                 warehouseType={warehouseType}
                 showName
-                isNewConnection
                 intro="Add another connection of the project's warehouse type. It is tested before it is saved."
             />
         </MantineModal>
@@ -251,7 +233,6 @@ const EditConnectionForm: FC<{
                 warehouseType={connection.warehouseType}
                 savedProject={savedProject}
                 showName={false}
-                isNewConnection={false}
                 intro="Leave a secret blank to keep the saved one. The connection is tested before it is saved."
             />
         </MantineModal>

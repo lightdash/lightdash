@@ -30,10 +30,8 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { ConnectionFields } from './ConnectionFields';
 import { unusedDbtFormValues } from './connectionFormDefaults';
-import { EgressIpCheckpointModal } from './EgressIpCheckpointModal';
 import { useForm } from './formContext';
 import { getWarehouseLabel } from './ProjectConnectFlow/utils';
-import { useEgressIpCheckpoint } from './useEgressIpCheckpoint';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { warehouseValueValidators } from './WarehouseForms/validators';
 
@@ -167,7 +165,6 @@ const EnableMultipleConnectionsModal: FC<{
         onSuccess: onClose,
     });
     const originalNameError = validateWarehouseConnectionName(originalName);
-    const checkpoint = useEgressIpCheckpoint();
 
     const handlePreview = () => {
         if (form.validate().hasErrors || originalNameError) return;
@@ -182,28 +179,15 @@ const EnableMultipleConnectionsModal: FC<{
                 warehouseConnection: form.values.warehouse,
             },
         };
-        checkpoint.guard(() =>
-            previewMutation.mutate(request, {
-                onSuccess: (plan) =>
-                    setPreviewed({
-                        plan,
-                        request,
-                        idempotencyKey: crypto.randomUUID(),
-                    }),
-            }),
-        );
+        previewMutation.mutate(request, {
+            onSuccess: (plan) =>
+                setPreviewed({
+                    plan,
+                    request,
+                    idempotencyKey: crypto.randomUUID(),
+                }),
+        });
     };
-
-    if (checkpoint.isOpen) {
-        return (
-            <EgressIpCheckpointModal
-                checkpoint={checkpoint}
-                confirmLabel="Test connection"
-                title="Enable multiple connections"
-                onClose={onClose}
-            />
-        );
-    }
 
     if (previewed) {
         return (
@@ -258,7 +242,6 @@ const EnableMultipleConnectionsModal: FC<{
                     projectUuid={projectUuid}
                     warehouseType={warehouseType}
                     showName
-                    isNewConnection
                     intro="Add the first extra connection. It uses the same warehouse type, and it is tested before the preview."
                 />
                 {previewMutation.error && (

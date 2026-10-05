@@ -4,9 +4,7 @@ import { type FC } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import useApp from '../../providers/App/useApp';
 import { renderWithProviders } from '../../testing/testUtils';
-import { EgressIpCheckpointModal } from './EgressIpCheckpointModal';
 import { EgressIpNotice } from './EgressIpNotice';
-import { useEgressIpCheckpoint } from './useEgressIpCheckpoint';
 
 const flag = vi.hoisted(() => ({ enabled: true }));
 
@@ -28,24 +26,6 @@ const renderNotice = (staticIp: string | undefined) =>
         { health: { staticIp } },
     );
 
-const CheckpointHarness: FC<{ onContinue: () => void }> = ({ onContinue }) => {
-    const checkpoint = useEgressIpCheckpoint();
-    return (
-        <>
-            <button type="button" onClick={() => checkpoint.guard(onContinue)}>
-                Submit
-            </button>
-            <EgressIpCheckpointModal
-                checkpoint={checkpoint}
-                title="Allow Lightdash to reach your warehouse"
-                confirmLabel="Test connection"
-                onClose={checkpoint.back}
-            />
-            <HealthLoaded />
-        </>
-    );
-};
-
 const mockClipboard = (writeText: (value: string) => Promise<void>) => {
     const spy = vi.fn(writeText);
     Object.defineProperty(navigator, 'clipboard', {
@@ -60,24 +40,30 @@ describe('EgressIpNotice', () => {
         flag.enabled = true;
     });
 
-    it('says "this IP address" when one is configured', async () => {
+    it('labels one address in the singular', async () => {
         renderNotice('35.245.81.252');
 
         expect(
-            await screen.findByText(
-                'Lightdash connects to your warehouse from this IP address. Add it to your firewall or allowlist.',
+            await screen.findByText('Lightdash IP address'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                "Lightdash connects to your warehouse from this instance's IP address. Add it to your firewall or allowlist.",
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('35.245.81.252')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Copy all' })).toBeNull();
     });
 
-    it('says "these IP addresses" when several are configured', async () => {
+    it('labels several addresses in the plural', async () => {
         renderNotice('35.1.1.1,35.2.2.2');
 
         expect(
-            await screen.findByText(
-                'Lightdash connects to your warehouse from these IP addresses. Add them to your firewall or allowlist.',
+            await screen.findByText('Lightdash IP addresses'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                "Lightdash connects to your warehouse from this instance's IP addresses. Add them to your firewall or allowlist.",
             ),
         ).toBeInTheDocument();
     });
@@ -128,59 +114,5 @@ describe('EgressIpNotice', () => {
         rerender(<EgressIpNotice />);
 
         expect(screen.queryByText('35.1.1.1')).toBeNull();
-    });
-});
-
-describe('EgressIpCheckpointModal', () => {
-    it.each([
-        [
-            '35.245.81.252',
-            'Lightdash connects to your warehouse from this IP address. Add it to your firewall or allowlist before you continue.',
-            'this IP address',
-        ],
-        [
-            '35.1.1.1,35.2.2.2',
-            'Lightdash connects to your warehouse from these IP addresses. Add them to your firewall or allowlist before you continue.',
-            'these IP addresses',
-        ],
-    ])(
-        'tests a new connection only after the allowlist is confirmed for %s',
-        async (staticIp, text, noun) => {
-            const user = userEvent.setup();
-            const onContinue = vi.fn();
-            renderWithProviders(<CheckpointHarness onContinue={onContinue} />, {
-                health: { staticIp },
-            });
-            await screen.findByText('health loaded');
-
-            await user.click(screen.getByRole('button', { name: 'Submit' }));
-            expect(await screen.findByText(text)).toBeInTheDocument();
-            const testButton = screen.getByRole('button', {
-                name: 'Test connection',
-            });
-            expect(testButton).toBeDisabled();
-
-            await user.click(
-                screen.getByRole('checkbox', {
-                    name: `My warehouse allows connections from ${noun}`,
-                }),
-            );
-            await user.click(testButton);
-            expect(onContinue).toHaveBeenCalledTimes(1);
-        },
-    );
-
-    it('skips the IP step when STATIC_IP is unset', async () => {
-        const user = userEvent.setup();
-        const onContinue = vi.fn();
-        renderWithProviders(<CheckpointHarness onContinue={onContinue} />, {
-            health: { staticIp: '' },
-        });
-        await screen.findByText('health loaded');
-
-        await user.click(screen.getByRole('button', { name: 'Submit' }));
-
-        expect(onContinue).toHaveBeenCalledTimes(1);
-        expect(screen.queryByRole('dialog')).toBeNull();
     });
 });

@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { Stack, Text, TextInput } from '@mantine/core';
 import { type FC } from 'react';
-import { EgressIpNotice } from './EgressIpNotice';
 import { FormProvider, type Form } from './formContext';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
@@ -19,7 +18,6 @@ export const ConnectionFields: FC<{
     nameRef?: React.Ref<HTMLInputElement>;
     savedProject?: Project;
     showName: boolean;
-    isNewConnection: boolean;
 }> = ({
     form,
     intro,
@@ -28,7 +26,6 @@ export const ConnectionFields: FC<{
     nameRef,
     savedProject,
     showName,
-    isNewConnection,
 }) => (
     <FormProvider form={form}>
         <ProjectFormProvider
@@ -40,7 +37,6 @@ export const ConnectionFields: FC<{
                 <Text size="sm" c="dimmed">
                     {intro}
                 </Text>
-                {!isNewConnection && <EgressIpNotice />}
                 {showName && (
                     <TextInput
                         ref={nameRef}

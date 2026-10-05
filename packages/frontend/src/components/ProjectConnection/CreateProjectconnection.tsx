@@ -30,14 +30,12 @@ import classes from './CreateProjectconnection.module.css';
 import CreateProjectJobProgress from './CreateProjectJobProgress';
 import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
-import { EgressIpCheckpointModal } from './EgressIpCheckpointModal';
 import { FormContainer } from './FormContainer';
 import { FormProvider, useForm } from './formContext';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
 import { useCreateProjectSuccessRedirect } from './useCreateProjectSuccessRedirect';
-import { useEgressIpCheckpoint } from './useEgressIpCheckpoint';
 import { useOnProjectError } from './useOnProjectError';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { createWarehouseValueValidators } from './WarehouseForms/validators';
@@ -124,41 +122,15 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     });
 
     const { track } = useTracking();
-    const checkpoint = useEgressIpCheckpoint();
 
-    const createProject = async ({
-        name,
-        dbt: dbtConnection,
-        warehouse: warehouseConnection,
-        dbtVersion,
-        organizationWarehouseCredentialsUuid,
-    }: ProjectConnectionForm) => {
-        if (!selectedWarehouse) return;
-        try {
-            const data = await mutateAsync({
-                name: name || user.data?.organizationName || 'My project',
-                type: ProjectType.DEFAULT,
-                dbtConnection,
-                dbtVersion,
-                organizationWarehouseCredentialsUuid,
-                warehouseConnection: {
-                    ...warehouseConnection,
-                    type: selectedWarehouse,
-                } as CreateWarehouseCredentials,
-            });
-            setCreateProjectJobId(data.jobUuid);
-        } catch (error) {
-            const inFlightJobUuid = isApiError(error)
-                ? getInFlightJobUuidFromError(error.error)
-                : undefined;
-            if (inFlightJobUuid) {
-                resumeJob(inFlightJobUuid);
-            }
-        }
-    };
-
-    const handleSubmit = (formValues: ProjectConnectionForm) => {
-        const warehouseConnection = formValues.warehouse;
+    const handleSubmit = async (formValues: ProjectConnectionForm) => {
+        const {
+            name,
+            dbt: dbtConnection,
+            warehouse: warehouseConnection,
+            dbtVersion,
+            organizationWarehouseCredentialsUuid,
+        } = formValues;
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
             properties: {
@@ -171,7 +143,29 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 onboardingFlow,
             },
         });
-        checkpoint.guard(() => void createProject(formValues));
+        if (selectedWarehouse) {
+            try {
+                const data = await mutateAsync({
+                    name: name || user.data?.organizationName || 'My project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection,
+                    dbtVersion,
+                    organizationWarehouseCredentialsUuid,
+                    warehouseConnection: {
+                        ...warehouseConnection,
+                        type: selectedWarehouse,
+                    } as CreateWarehouseCredentials,
+                });
+                setCreateProjectJobId(data.jobUuid);
+            } catch (error) {
+                const inFlightJobUuid = isApiError(error)
+                    ? getInFlightJobUuidFromError(error.error)
+                    : undefined;
+                if (inFlightJobUuid) {
+                    resumeJob(inFlightJobUuid);
+                }
+            }
+        }
     };
 
     const handleError = (errors: typeof form.errors) => {
@@ -294,12 +288,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     </ProjectFormProvider>
                 </FormContainer>
             </form>
-            <EgressIpCheckpointModal
-                checkpoint={checkpoint}
-                confirmLabel="Test connection"
-                title="Allow Lightdash to reach your warehouse"
-                onClose={checkpoint.back}
-            />
         </FormProvider>
     );
 };
