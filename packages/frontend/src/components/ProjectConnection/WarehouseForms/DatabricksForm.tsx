@@ -105,7 +105,8 @@ const DatabricksSSOInput: FC<{
 
 const DatabricksForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const form = useFormContext();
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
@@ -376,6 +377,7 @@ const DatabricksForm: FC<{
                     required
                     disabled={disabled}
                 />
+                {extraFields}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
                         <BooleanSwitch

@@ -252,7 +252,8 @@ export const BigQuerySSOInput: FC<{
 
 const BigQueryForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const {
         data,
         error: bigqueryAuthError,
@@ -763,6 +764,7 @@ const BigQueryForm: FC<{
                             /* BigqueryAuthenticationType.ADC */
                             <></>
                         )}
+                        {extraFields}
                         <FormSection isOpen={isOpen} name="advanced">
                             <Stack mt={8}>
                                 <Switch

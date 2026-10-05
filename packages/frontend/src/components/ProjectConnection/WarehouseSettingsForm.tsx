@@ -85,8 +85,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                     />
                 )}
 
-                <WarehouseForm disabled={disabled} />
-                {children}
+                <WarehouseForm disabled={disabled} extraFields={children} />
             </Stack>
         </SnowflakeCliSsoModeProvider>
     );

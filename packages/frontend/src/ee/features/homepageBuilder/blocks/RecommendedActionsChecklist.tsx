@@ -221,9 +221,13 @@ export const RecommendedActionsChecklistPlaceholder: FC<{
     if (actionCount === 0) return null;
     return (
         <Stack gap={8} className={styles.checklistRoot}>
-            <Box className={styles.headerRow}>
-                <span className={classes.sectionTitle}>Finish setting up</span>
-            </Box>
+            {actionCount > 1 && (
+                <Box className={styles.headerRow}>
+                    <span className={classes.sectionTitle}>
+                        Finish setting up
+                    </span>
+                </Box>
+            )}
             <Box
                 className={`${styles.cardStack} ${stackHeightClass(
                     actionCount,
@@ -359,40 +363,53 @@ export const RecommendedActionsChecklist: FC<{
 
     return (
         <Stack gap={8} className={styles.checklistRoot}>
-            <Box className={styles.headerRow}>
-                <span className={classes.sectionTitle}>Finish setting up</span>
-                <Box className={styles.headerControls}>
-                    {showArrows && (
-                        <>
-                            <ActionIcon
-                                size="sm"
-                                aria-label="Previous step"
-                                onClick={() => {
-                                    impressionTriggerRef.current = 'manual';
-                                    setCarouselIndex(
-                                        (activeIndex - 1 + orderedAll.length) %
-                                            orderedAll.length,
-                                    );
-                                }}
-                            >
-                                <MantineIcon icon={IconChevronUp} size={14} />
-                            </ActionIcon>
-                            <ActionIcon
-                                size="sm"
-                                aria-label="Next step"
-                                onClick={() => {
-                                    impressionTriggerRef.current = 'manual';
-                                    setCarouselIndex(
-                                        (activeIndex + 1) % orderedAll.length,
-                                    );
-                                }}
-                            >
-                                <MantineIcon icon={IconChevronDown} size={14} />
-                            </ActionIcon>
-                        </>
-                    )}
+            {visibleActions.length > 1 && (
+                <Box className={styles.headerRow}>
+                    <span className={classes.sectionTitle}>
+                        Finish setting up
+                    </span>
+                    <Box className={styles.headerControls}>
+                        {showArrows && (
+                            <>
+                                <ActionIcon
+                                    size="sm"
+                                    aria-label="Previous step"
+                                    onClick={() => {
+                                        impressionTriggerRef.current = 'manual';
+                                        setCarouselIndex(
+                                            (activeIndex -
+                                                1 +
+                                                orderedAll.length) %
+                                                orderedAll.length,
+                                        );
+                                    }}
+                                >
+                                    <MantineIcon
+                                        icon={IconChevronUp}
+                                        size={14}
+                                    />
+                                </ActionIcon>
+                                <ActionIcon
+                                    size="sm"
+                                    aria-label="Next step"
+                                    onClick={() => {
+                                        impressionTriggerRef.current = 'manual';
+                                        setCarouselIndex(
+                                            (activeIndex + 1) %
+                                                orderedAll.length,
+                                        );
+                                    }}
+                                >
+                                    <MantineIcon
+                                        icon={IconChevronDown}
+                                        size={14}
+                                    />
+                                </ActionIcon>
+                            </>
+                        )}
+                    </Box>
                 </Box>
-            </Box>
+            )}
             <Box
                 className={`${styles.cardStack} ${stackHeightClass(
                     orderedAll.length,

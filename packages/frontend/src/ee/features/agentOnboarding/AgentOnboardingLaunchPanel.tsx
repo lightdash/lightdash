@@ -16,6 +16,7 @@ import {
     Text,
     ThemeIcon,
     Title,
+    Spoiler,
 } from '@mantine/core';
 import {
     IconCheck,
@@ -175,16 +176,22 @@ export const AgentOnboardingLaunchPanel: FC<
                 </Text>
             </div>
 
-            <Code
-                block
-                className="sentry-block ph-no-capture"
-                style={{
-                    whiteSpace: 'pre-wrap',
-                    overflowWrap: 'anywhere',
-                }}
+            <Spoiler
+                maxHeight={160}
+                showLabel="Show the full prompt"
+                hideLabel="Show less"
             >
-                {agentSetupPrompt}
-            </Code>
+                <Code
+                    block
+                    className="sentry-block ph-no-capture"
+                    style={{
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'anywhere',
+                    }}
+                >
+                    {agentSetupPrompt}
+                </Code>
+            </Spoiler>
 
             <CopyButton value={agentSetupPrompt}>
                 {({ copied, copy }) => (

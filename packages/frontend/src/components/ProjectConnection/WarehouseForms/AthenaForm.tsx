@@ -33,7 +33,8 @@ export const AthenaSchemaInput: FC<{
 
 const AthenaForm: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    extraFields: ReactNode;
+}> = ({ disabled, extraFields }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const health = useHealth();
@@ -198,6 +199,7 @@ const AthenaForm: FC<{
                     </>
                 )}
 
+                {extraFields}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="sm">
                         <TextInput

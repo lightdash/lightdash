@@ -379,7 +379,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     </Text>
                                     <Title
                                         order={1}
-                                        fz={44}
                                         className={classes.heading}
                                     >
                                         Name your organization
@@ -475,7 +474,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                     </Text>
                                                 )}
                                             </Box>
-
+                                            <Divider orientation="vertical" />
                                             <Box className={classes.swatchRow}>
                                                 {swatches.map((color) => (
                                                     <Box
@@ -524,7 +523,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     </Text>
                                     <Title
                                         order={1}
-                                        fz={44}
                                         className={classes.heading}
                                     >
                                         Tell us about you
