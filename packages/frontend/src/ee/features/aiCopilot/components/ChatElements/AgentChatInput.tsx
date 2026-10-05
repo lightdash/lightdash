@@ -367,9 +367,9 @@ export const AgentChatInput = ({
     );
     const disabled =
         disabledProp ||
-        (!!projectUuid && identityFlag.isLoading) ||
         (checkIdentity &&
-            (!aiAccess.isSuccess || isAiIdentityBlocked(aiAccess.data)));
+            aiAccess.isSuccess &&
+            isAiIdentityBlocked(aiAccess.data));
     const accessNotice = (
         <AiIdentityAccessNotice access={aiAccess} enabled={checkIdentity} />
     );

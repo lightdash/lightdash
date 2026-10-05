@@ -72,14 +72,14 @@ describe('AI access in the shared chat composer', () => {
         expect(submit).not.toHaveBeenCalled();
         expect(screen.getByText(access.message!)).toBeInTheDocument();
     });
-    it('blocks submission while access loads', () => {
+    it('keeps the composer usable while access loads; the server still refuses an unready AI identity', () => {
         accessQuery.mockReturnValue({ isLoading: true, isSuccess: false });
         const submit = renderInput();
         fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
-        expect(submit).not.toHaveBeenCalled();
+        expect(submit).toHaveBeenCalled();
         expect(screen.getByText('Checking AI access')).toBeInTheDocument();
     });
-    it('blocks submission when the access check fails', () => {
+    it('keeps the composer usable when the access check fails; the server still refuses an unready AI identity', () => {
         accessQuery.mockReturnValue({
             isError: true,
             isSuccess: false,
@@ -87,7 +87,7 @@ describe('AI access in the shared chat composer', () => {
         });
         const submit = renderInput();
         fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
-        expect(submit).not.toHaveBeenCalled();
+        expect(submit).toHaveBeenCalled();
         expect(
             screen.getByText('Could not check your AI access.'),
         ).toBeInTheDocument();
