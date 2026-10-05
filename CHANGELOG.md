@@ -1,3 +1,10 @@
+## [2.428.2](https://github.com/lightdash/lightdash/compare/2.428.1...2.428.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **connections:** show every Lightdash IP address with a copy button on the connection form ([#30474](https://github.com/lightdash/lightdash/issues/30474)) ([8bdbfe6](https://github.com/lightdash/lightdash/commit/8bdbfe65779509c6ddeac2e70bd578e265ecda7d))
+
 ## [2.428.1](https://github.com/lightdash/lightdash/compare/2.428.0...2.428.1) (2026-10-05)
 
 
