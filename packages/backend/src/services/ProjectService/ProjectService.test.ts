@@ -14211,17 +14211,19 @@ describe('AI access restrictions setting', () => {
                 .mockResolvedValue(settingEnabled);
             try {
                 await expect(
-                    (service as unknown as {
-                        resolveAiAccessIdentity: (args: {
-                            projectUuid: string;
-                            userId: string;
-                            isRegisteredUser: boolean;
-                            isServiceAccount: boolean;
-                            context: QueryExecutionContext;
-                            credentials: CreateWarehouseCredentials;
-                            rawSql: boolean;
-                        }) => Promise<unknown>;
-                    }).resolveAiAccessIdentity({
+                    (
+                        service as unknown as {
+                            resolveAiAccessIdentity: (args: {
+                                projectUuid: string;
+                                userId: string;
+                                isRegisteredUser: boolean;
+                                isServiceAccount: boolean;
+                                context: QueryExecutionContext;
+                                credentials: CreateWarehouseCredentials;
+                                rawSql: boolean;
+                            }) => Promise<unknown>;
+                        }
+                    ).resolveAiAccessIdentity({
                         projectUuid: projectSummary.projectUuid,
                         userId: 'user-uuid',
                         isRegisteredUser: true,
