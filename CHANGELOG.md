@@ -1,3 +1,10 @@
+## [2.433.1](https://github.com/lightdash/lightdash/compare/2.433.0...2.433.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* list tables from every schema in SQL Runner on Athena and ClickHouse ([#30492](https://github.com/lightdash/lightdash/issues/30492)) ([a8773b6](https://github.com/lightdash/lightdash/commit/a8773b6efad3eef6287a76cbffd417a2ebddcf4a))
+
 # [2.433.0](https://github.com/lightdash/lightdash/compare/2.432.0...2.433.0) (2026-10-05)
 
 
