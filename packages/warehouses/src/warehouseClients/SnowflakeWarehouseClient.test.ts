@@ -13,6 +13,8 @@ import {
 import { Readable } from 'stream';
 import type { Mock } from 'vitest';
 import {
+    checkSnowflakeAgentSession,
+    checkSnowflakeAgentSessionWithToken,
     isSnowflakeAgentActivatedValue,
     mapFieldType,
     mapSnowflakeDiagnosticError,
@@ -38,7 +40,13 @@ const mockStreamRows = () =>
         },
     });
 
-const executeMock = vi.fn(({ sqlText, complete }) => {
+const defaultExecute = ({
+    sqlText,
+    complete,
+}: {
+    sqlText: string;
+    complete: (error?: Error, statement?: unknown, rows?: unknown[]) => void;
+}) => {
     complete(
         undefined,
         {
@@ -49,7 +57,9 @@ const executeMock = vi.fn(({ sqlText, complete }) => {
         },
         [],
     );
-});
+};
+
+const executeMock = vi.fn(defaultExecute);
 
 const getResultsFromQueryIdMock = vi.fn(({ sqlText, queryId }) => ({
     streamRows: mockStreamRows,
@@ -134,20 +144,103 @@ describe('isSnowflakeAgentActivatedValue', () => {
 describe('SnowflakeWarehouseClient', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        executeMock.mockReset();
+        executeMock.mockImplementation(defaultExecute);
     });
 
     it('checks an AI session before the first statement', async () => {
         executeMock.mockImplementationOnce(({ complete }) => {
-            complete(undefined, {}, [{ IS_AGENT_ACTIVATED: 'TRUE' }]);
+            complete(undefined, {}, [
+                {
+                    IS_AGENT_ACTIVATED: 'TRUE',
+                    CURRENT_ROLE: 'ANALYST',
+                    ACTIVE_RESTRICTED_SESSION_SCOPES: 'READ',
+                },
+            ]);
+        });
+        const logger = { info: vi.fn() };
+        const warehouse = new SnowflakeWarehouseClient(
+            {
+                ...credentials,
+                requireAgentSession: true,
+            },
+            { logger },
+        );
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+        expect(executeMock.mock.calls[0]?.[0].sqlText).toBe(
+            "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN AS IS_AGENT_ACTIVATED, CURRENT_ROLE() AS CURRENT_ROLE, SYS_CONTEXT('SNOWFLAKE$SESSION', 'ACTIVE_RESTRICTED_SESSION_SCOPES') AS ACTIVE_RESTRICTED_SESSION_SCOPES",
+        );
+        expect(
+            executeMock.mock.calls.map(([options]) => options.sqlText),
+        ).toEqual(
+            expect.arrayContaining([
+                'ALTER SESSION SET USE_CACHED_RESULT = FALSE',
+                'SELECT 1',
+            ]),
+        );
+        expect(executeMock.mock.calls[1]?.[0].sqlText).toBe(
+            'ALTER SESSION SET USE_CACHED_RESULT = FALSE',
+        );
+        expect(logger.info).toHaveBeenCalledWith(
+            'Snowflake agent session activated',
+            {
+                currentRole: 'ANALYST',
+                activeRestrictedSessionScopes: 'READ',
+            },
+        );
+    });
+
+    it('checks every new AI connection', async () => {
+        executeMock.mockImplementation(({ sqlText, complete }) => {
+            complete(
+                undefined,
+                {
+                    streamRows: mockStreamRows,
+                    getColumns: () => queryColumnsMock,
+                    getQueryId: () => 'queryId',
+                    getSqlText: () => sqlText,
+                },
+                sqlText.includes('IS_AGENT_ACTIVATED')
+                    ? [{ IS_AGENT_ACTIVATED: true }]
+                    : [],
+            );
         });
         const warehouse = new SnowflakeWarehouseClient({
             ...credentials,
             requireAgentSession: true,
         });
         await warehouse.streamQuery('SELECT 1', () => {}, {});
-        expect(executeMock.mock.calls[0]?.[0].sqlText).toContain(
-            'IS_AGENT_ACTIVATED',
+        await warehouse.streamQuery('SELECT 2', () => {}, {});
+        const statements = executeMock.mock.calls.map(
+            ([options]) => options.sqlText,
         );
+        expect(
+            statements.filter((sql) => sql.includes('IS_AGENT_ACTIVATED')),
+        ).toHaveLength(2);
+        expect(
+            statements.filter(
+                (sql) => sql === 'ALTER SESSION SET USE_CACHED_RESULT = FALSE',
+            ),
+        ).toHaveLength(2);
+        expect(createConnection).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns the agent session role and scopes', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(undefined, {}, [
+                {
+                    IS_AGENT_ACTIVATED: true,
+                    CURRENT_ROLE: 'ANALYST',
+                    ACTIVE_RESTRICTED_SESSION_SCOPES: 'READ',
+                },
+            ]);
+        });
+        const connection = createConnection({ account: 'test' });
+        await expect(checkSnowflakeAgentSession(connection)).resolves.toEqual({
+            agentActivated: true,
+            currentRole: 'ANALYST',
+            activeRestrictedSessionScopes: 'READ',
+        });
     });
 
     it('refuses an AI session without activation', async () => {
@@ -162,14 +255,133 @@ describe('SnowflakeWarehouseClient', () => {
             warehouse.streamQuery('SELECT 1', () => {}, {}),
         ).rejects.toThrow('IS_AGENTIC = TRUE');
         expect(executeMock).toHaveBeenCalledTimes(1);
+        expect(
+            vi.mocked(createConnection).mock.results[0]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([null, undefined])(
+        'refuses an AI session when activation is %s',
+        async (activation) => {
+            executeMock.mockImplementationOnce(({ complete }) => {
+                complete(undefined, {}, [{ IS_AGENT_ACTIVATED: activation }]);
+            });
+            const warehouse = new SnowflakeWarehouseClient({
+                ...credentials,
+                requireAgentSession: true,
+            });
+            await expect(
+                warehouse.streamQuery('SELECT 1', () => {}, {}),
+            ).rejects.toThrow('IS_AGENTIC = TRUE');
+            expect(executeMock).toHaveBeenCalledTimes(1);
+            expect(
+                vi.mocked(createConnection).mock.results[0]?.value.destroy,
+            ).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it('refuses an AI session when the activation query fails', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(new Error('session check failed'));
+        });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+        });
+        await expect(
+            warehouse.streamQuery('SELECT 1', () => {}, {}),
+        ).rejects.toThrow('IS_AGENTIC = TRUE');
+        expect(executeMock).toHaveBeenCalledTimes(1);
+        expect(
+            vi.mocked(createConnection).mock.results[0]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it('checks a diagnostic AI connection before returning it', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(undefined, {}, [{ IS_AGENT_ACTIVATED: false }]);
+        });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+        });
+        await expect(warehouse.openDiagnosticConnection()).rejects.toThrow(
+            'IS_AGENTIC = TRUE',
+        );
+        expect(executeMock).toHaveBeenCalledTimes(1);
+        expect(
+            vi.mocked(createConnection).mock.results[0]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses and destroys an AI connection when disabling cached results fails', async () => {
+        executeMock
+            .mockImplementationOnce(({ complete }) => {
+                complete(undefined, {}, [{ IS_AGENT_ACTIVATED: true }]);
+            })
+            .mockImplementationOnce(({ complete }) => {
+                complete(new Error('session update failed'));
+            });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+        });
+        await expect(
+            warehouse.streamQuery('SELECT 1', () => {}, {}),
+        ).rejects.toThrow('IS_AGENTIC = TRUE');
+        expect(executeMock).toHaveBeenCalledTimes(2);
+        expect(
+            vi.mocked(createConnection).mock.results[0]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it('checks and disables cached results on the token sign-in connection', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(undefined, {}, [{ IS_AGENT_ACTIVATED: true }]);
+        });
+        await expect(
+            checkSnowflakeAgentSessionWithToken('test', 'token'),
+        ).resolves.toEqual({
+            agentActivated: true,
+            currentRole: null,
+            activeRestrictedSessionScopes: null,
+        });
+        expect(executeMock.mock.calls[1]?.[0].sqlText).toBe(
+            'ALTER SESSION SET USE_CACHED_RESULT = FALSE',
+        );
+        expect(
+            vi.mocked(createConnection).mock.results[0]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses token sign-in when disabling cached results fails', async () => {
+        executeMock
+            .mockImplementationOnce(({ complete }) => {
+                complete(undefined, {}, [{ IS_AGENT_ACTIVATED: true }]);
+            })
+            .mockImplementationOnce(({ complete }) => {
+                complete(new Error('session update failed'));
+            });
+        await expect(
+            checkSnowflakeAgentSessionWithToken('test', 'token'),
+        ).resolves.toEqual({
+            agentActivated: false,
+            currentRole: null,
+            activeRestrictedSessionScopes: null,
+        });
+        expect(
+            vi.mocked(createConnection).mock.results[0]?.value.destroy,
+        ).toHaveBeenCalledTimes(1);
     });
 
     it('does not check a regular session', async () => {
         const warehouse = new SnowflakeWarehouseClient(credentials);
         await warehouse.streamQuery('SELECT 1', () => {}, {});
         expect(
-            executeMock.mock.calls.some(([options]) =>
-                options.sqlText.includes('IS_AGENT_ACTIVATED'),
+            executeMock.mock.calls.some(
+                ([options]) =>
+                    options.sqlText.includes('IS_AGENT_ACTIVATED') ||
+                    options.sqlText.includes('USE_CACHED_RESULT = FALSE'),
             ),
         ).toBe(false);
     });

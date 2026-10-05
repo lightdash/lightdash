@@ -11037,6 +11037,7 @@ export class ProjectService extends BaseService {
                 binding: { kind: 'explore', exploreName: explore.name },
                 userId: user.userUuid,
                 isRegisteredUser: true,
+                context,
             }),
             this.getUserAttributes({ user }),
             this.getAvailableParameters(projectUuid, explore),
