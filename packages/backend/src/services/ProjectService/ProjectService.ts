@@ -15805,7 +15805,7 @@ export class ProjectService extends BaseService {
     private async assertSnowflakeAiBoundaryGuideAccess(
         account: RegisteredAccount,
         projectUuid: string,
-    ): Promise<void> {
+    ): Promise<CreateSnowflakeCredentials> {
         const project = await this.projectModel.getSummary(projectUuid);
         if (
             this.createAuditedAbility(account).cannot(
@@ -15840,22 +15840,23 @@ export class ProjectService extends BaseService {
         if (credentials.type !== WarehouseTypes.SNOWFLAKE) {
             throw new ForbiddenError('This project does not use Snowflake');
         }
+        return credentials;
     }
 
     async getSnowflakeAiBoundaryGuideConfig(
         account: RegisteredAccount,
         projectUuid: string,
     ): Promise<SnowflakeAiBoundaryGuideConfig> {
-        await this.assertSnowflakeAiBoundaryGuideAccess(account, projectUuid);
+        const warehouseCredentials =
+            await this.assertSnowflakeAiBoundaryGuideAccess(
+                account,
+                projectUuid,
+            );
         const project = await this.projectModel.getSummary(projectUuid);
         const memberCounts =
             await this.projectModel.getSnowflakeAiBoundaryMemberCounts(
                 projectUuid,
                 project.organizationUuid,
-            );
-        const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
             );
         const credentials =
             await this.userWarehouseCredentialsModel.getAiCredentialsByUserUuid(
@@ -15936,16 +15937,15 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         body: SnowflakeAiBoundaryTestBody,
     ): Promise<SnowflakeAiBoundaryCheck[]> {
-        await this.assertSnowflakeAiBoundaryGuideAccess(account, projectUuid);
+        const credentials = await this.assertSnowflakeAiBoundaryGuideAccess(
+            account,
+            projectUuid,
+        );
         if (body.protectedColumn) {
             Object.values(body.protectedColumn).forEach(
                 quoteSnowflakeAiIdentifier,
             );
         }
-        const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
         const identity = await this.resolveSnowflakeAiBoundaryIdentity(
             account,
             projectUuid,
