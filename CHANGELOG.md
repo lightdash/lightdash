@@ -1,3 +1,10 @@
+# [2.434.0](https://github.com/lightdash/lightdash/compare/2.433.1...2.434.0) (2026-10-05)
+
+
+### Features
+
+* **ai-agents:** show the served skill version in the thread ([#30495](https://github.com/lightdash/lightdash/issues/30495)) ([8e0c24d](https://github.com/lightdash/lightdash/commit/8e0c24dfacdd44ece00db2514f9c592cd5e4190a))
+
 ## [2.433.1](https://github.com/lightdash/lightdash/compare/2.433.0...2.433.1) (2026-10-05)
 
 

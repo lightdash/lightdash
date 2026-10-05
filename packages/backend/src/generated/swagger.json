@@ -42164,8 +42164,48 @@
             "AiAgentThreadDumpAgent": {
                 "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_"
             },
+            "ServedSkillMetadata": {
+                "properties": {
+                    "contentHash": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "uuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "builtIn": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "contentHash",
+                    "versionNumber",
+                    "uuid",
+                    "builtIn",
+                    "name"
+                ],
+                "type": "object",
+                "description": "Which skill and version the model was served; a thread reviewer reads this."
+            },
             "AiAgentThreadDumpToolCall": {
                 "properties": {
+                    "servedSkill": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ServedSkillMetadata"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "isError": {
                         "type": "boolean"
                     },
@@ -42194,6 +42234,7 @@
                     }
                 },
                 "required": [
+                    "servedSkill",
                     "isError",
                     "resultOmitted",
                     "result",
@@ -69243,7 +69284,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.433.1",
+        "version": "2.434.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
