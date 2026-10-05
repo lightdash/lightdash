@@ -49,10 +49,16 @@
 }
 
 .threadNavLink {
+    position: relative;
+    --thread-action-bg: var(--mantine-color-ldGray-1);
     border-radius: rem(6px);
     transition:
         background-color 150ms ease,
         color 150ms ease;
+
+    @mixin dark {
+        --thread-action-bg: var(--mantine-color-ldDark-3);
+    }
 
     /* Don't override Mantine's active background when also hovered. */
     &:not([data-active]):hover {
@@ -71,21 +77,50 @@
 
         @mixin dark {
             background-color: var(--mantine-color-dark-5);
+            --thread-action-bg: var(--mantine-color-dark-5);
         }
     }
 }
 
+.threadSection[data-position='right'] {
+    margin-inline-start: 0;
+}
+
 .threadMenuButton {
+    position: absolute;
+    top: 50%;
+    right: var(--mantine-spacing-xs);
+    translate: 0 -50%;
+    z-index: 1;
     opacity: 0;
+    pointer-events: none;
     transition: opacity 150ms ease;
+
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 0 rem(-8px);
+        z-index: -1;
+        background: linear-gradient(
+            to right,
+            transparent,
+            var(--thread-action-bg) rem(6px)
+        );
+    }
+
+    .threadNavLink[data-slack] & {
+        right: calc(var(--mantine-spacing-xs) + rem(22px));
+    }
 
     .threadNavLink:hover &,
     &:focus-visible,
     &[data-expanded] {
         opacity: 1;
+        pointer-events: auto;
     }
 
     @media (hover: none) {
         opacity: 1;
+        pointer-events: auto;
     }
 }
