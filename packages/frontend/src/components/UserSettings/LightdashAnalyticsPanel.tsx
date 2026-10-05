@@ -109,37 +109,40 @@ const LightdashAnalyticsPanel = ({
                                     >
                                         Explore
                                     </Button>
-                                    <Tooltip
-                                        events={{
-                                            hover: true,
-                                            focus: true,
-                                            touch: true,
-                                        }}
-                                        label={`${analyticsProject.hasContentUpdates ? 'New analytics content is available. Sync to update your models and dashboards. ' : ''}Updates built-in dashboards and charts, replacing edits to them. Custom dashboards and copies are kept. Duplicate built-in dashboards to keep your edits.`}
-                                    >
-                                        <Button
-                                            variant="default"
-                                            rightSection={
-                                                analyticsProject.hasContentUpdates ? (
-                                                    <MantineIcon
-                                                        icon={IconSparkles}
-                                                        color="blue"
-                                                        aria-hidden={false}
-                                                        role="img"
-                                                        aria-label="New analytics content available"
-                                                    />
-                                                ) : undefined
-                                            }
-                                            loading={
-                                                installSampleContent.isLoading
-                                            }
-                                            onClick={() =>
-                                                installSampleContent.mutate()
-                                            }
+                                    {analyticsProject.hasContentUpdates !==
+                                        false && (
+                                        <Tooltip
+                                            events={{
+                                                hover: true,
+                                                focus: true,
+                                                touch: true,
+                                            }}
+                                            label={`${analyticsProject.hasContentUpdates ? 'New analytics content is available. Sync to update your models and dashboards. ' : ''}Updates built-in dashboards and charts, replacing edits to them. Custom dashboards and copies are kept. Duplicate built-in dashboards to keep your edits.`}
                                         >
-                                            Sync content
-                                        </Button>
-                                    </Tooltip>
+                                            <Button
+                                                variant="default"
+                                                rightSection={
+                                                    analyticsProject.hasContentUpdates ? (
+                                                        <MantineIcon
+                                                            icon={IconSparkles}
+                                                            color="blue"
+                                                            aria-hidden={false}
+                                                            role="img"
+                                                            aria-label="New analytics content available"
+                                                        />
+                                                    ) : undefined
+                                                }
+                                                loading={
+                                                    installSampleContent.isLoading
+                                                }
+                                                onClick={() =>
+                                                    installSampleContent.mutate()
+                                                }
+                                            >
+                                                Sync content
+                                            </Button>
+                                        </Tooltip>
+                                    )}
                                     <Button
                                         variant="subtle"
                                         color="red"
