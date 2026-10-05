@@ -20,6 +20,7 @@ import {
     snowflakeUserCredentialsSchema,
     UnexpectedServerError,
     UpsertUserWarehouseCredentials,
+    UserWarehouseCredentialPurpose,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
     WarehouseTypes,
@@ -154,6 +155,7 @@ export class UserWarehouseCredentialsModel {
         return {
             uuid: data.user_warehouse_credentials_uuid,
             userUuid: data.user_uuid,
+            purpose: data.purpose,
             name: data.name,
             createdAt: data.created_at,
             updatedAt: data.updated_at,
@@ -181,9 +183,100 @@ export class UserWarehouseCredentialsModel {
     ): Promise<UserWarehouseCredentials[]> {
         const rows = await this.baseSelectWithProject()
             .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${UserWarehouseCredentialsTableName}.purpose`,
+                UserWarehouseCredentialPurpose.DEFAULT,
+            )
             .orderBy(`${UserWarehouseCredentialsTableName}.created_at`);
 
         return rows.map((r) => this.convertToUserWarehouseCredentials(r));
+    }
+
+    async getAiCredentialsByUserUuid(
+        userUuid: string,
+    ): Promise<UserWarehouseCredentials[]> {
+        const rows = await this.baseSelectWithProject()
+            .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${UserWarehouseCredentialsTableName}.purpose`,
+                UserWarehouseCredentialPurpose.AI,
+            )
+            .orderBy(`${UserWarehouseCredentialsTableName}.created_at`);
+        return rows.map((row) => this.convertToUserWarehouseCredentials(row));
+    }
+
+    async findAiCredentialWithSecrets({
+        userUuid,
+        warehouseType,
+    }: {
+        userUuid: string;
+        warehouseType: WarehouseTypes;
+    }): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
+        const row = await this.database(UserWarehouseCredentialsTableName)
+            .where({
+                user_uuid: userUuid,
+                warehouse_type: warehouseType,
+                purpose: UserWarehouseCredentialPurpose.AI,
+            })
+            .first();
+        return row
+            ? this.convertToUserWarehouseCredentialsWithSecrets(row)
+            : undefined;
+    }
+
+    async upsertAiSnowflakeCredential(
+        userUuid: string,
+        refreshToken: string,
+    ): Promise<string> {
+        if (!refreshToken) {
+            throw new ParameterError(
+                'Snowflake AI sign-in requires a refresh token',
+            );
+        }
+        const credentials: UpsertUserWarehouseCredentials['credentials'] = {
+            type: WarehouseTypes.SNOWFLAKE,
+            user: userUuid,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            refreshToken,
+        };
+        const encryptedCredentials = this.encryptionUtil.encrypt(
+            JSON.stringify(credentials),
+        );
+        const [created] = await this.database(UserWarehouseCredentialsTableName)
+            .insert({
+                user_uuid: userUuid,
+                name: 'Snowflake sign-in for AI',
+                warehouse_type: WarehouseTypes.SNOWFLAKE,
+                encrypted_credentials: encryptedCredentials,
+                project_uuid: null,
+                purpose: UserWarehouseCredentialPurpose.AI,
+            })
+            .onConflict(
+                this.database.raw(
+                    "(user_uuid, warehouse_type) WHERE purpose = 'ai'",
+                ),
+            )
+            .merge({
+                encrypted_credentials: encryptedCredentials,
+                updated_at: new Date(),
+            })
+            .returning('user_warehouse_credentials_uuid');
+        if (!created)
+            throw new UnexpectedServerError(
+                'Could not save Snowflake AI credentials',
+            );
+        return created.user_warehouse_credentials_uuid;
+    }
+
+    async deleteAiCredential(userUuid: string, uuid: string): Promise<boolean> {
+        const deleted = await this.database(UserWarehouseCredentialsTableName)
+            .where({
+                user_uuid: userUuid,
+                user_warehouse_credentials_uuid: uuid,
+                purpose: UserWarehouseCredentialPurpose.AI,
+            })
+            .delete();
+        return deleted > 0;
     }
 
     /**
@@ -196,6 +289,10 @@ export class UserWarehouseCredentialsModel {
     ): Promise<UserWarehouseCredentials[]> {
         const rows = await this.baseSelectWithProject()
             .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${UserWarehouseCredentialsTableName}.purpose`,
+                UserWarehouseCredentialPurpose.DEFAULT,
+            )
             .andWhere(function assignedOrUnassigned(this) {
                 void this.where(
                     `${UserWarehouseCredentialsTableName}.project_uuid`,
@@ -212,6 +309,10 @@ export class UserWarehouseCredentialsModel {
     async getByUuid(uuid: string): Promise<UserWarehouseCredentials> {
         const result = await this.baseSelectWithProject()
             .where(
+                `${UserWarehouseCredentialsTableName}.purpose`,
+                UserWarehouseCredentialPurpose.DEFAULT,
+            )
+            .where(
                 `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
                 uuid,
             )
@@ -227,6 +328,7 @@ export class UserWarehouseCredentialsModel {
         uuid: string,
     ): Promise<UserWarehouseCredentialsWithSecrets> {
         const row = await this.database(UserWarehouseCredentialsTableName)
+            .where('purpose', UserWarehouseCredentialPurpose.DEFAULT)
             .where('user_warehouse_credentials_uuid', uuid)
             .first();
         if (!row) {
@@ -250,6 +352,10 @@ export class UserWarehouseCredentialsModel {
 
         const query = this.baseSelectWithProject()
             .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${UserWarehouseCredentialsTableName}.purpose`,
+                UserWarehouseCredentialPurpose.DEFAULT,
+            )
             .andWhere(
                 `${UserWarehouseCredentialsTableName}.warehouse_type`,
                 WarehouseTypes.DATABRICKS,
@@ -328,6 +434,10 @@ export class UserWarehouseCredentialsModel {
                     warehouseType,
                 )
                 .andWhere(
+                    `${UserWarehouseCredentialsTableName}.purpose`,
+                    UserWarehouseCredentialPurpose.DEFAULT,
+                )
+                .andWhere(
                     `${ProjectUserWarehouseCredentialPreferenceTableName}.project_uuid`,
                     projectUuid,
                 )
@@ -343,6 +453,10 @@ export class UserWarehouseCredentialsModel {
                 .where(
                     `${UserWarehouseCredentialsTableName}.warehouse_type`,
                     warehouseType,
+                )
+                .andWhere(
+                    `${UserWarehouseCredentialsTableName}.purpose`,
+                    UserWarehouseCredentialPurpose.DEFAULT,
                 )
                 .andWhere(
                     `${UserWarehouseCredentialsTableName}.user_uuid`,
@@ -693,6 +807,7 @@ export class UserWarehouseCredentialsModel {
                 warehouse_type: normalized.credentials.type,
                 encrypted_credentials: encryptedCredentials,
                 project_uuid: projectUuid ?? null,
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
             })
             .returning('*');
 
@@ -759,6 +874,7 @@ export class UserWarehouseCredentialsModel {
                 userWarehouseCredentialsUuid,
             )
             .andWhere('user_uuid', userUuid)
+            .andWhere('purpose', UserWarehouseCredentialPurpose.DEFAULT)
             .returning('*');
 
         if (!result) {
@@ -777,7 +893,8 @@ export class UserWarehouseCredentialsModel {
                 'user_warehouse_credentials_uuid',
                 userWarehouseCredentialsUuid,
             )
-            .andWhere('user_uuid', userUuid);
+            .andWhere('user_uuid', userUuid)
+            .andWhere('purpose', UserWarehouseCredentialPurpose.DEFAULT);
     }
 
     async deleteAllByUserAndWarehouseType(
@@ -787,7 +904,8 @@ export class UserWarehouseCredentialsModel {
         await this.database(UserWarehouseCredentialsTableName)
             .delete()
             .where('user_uuid', userUuid)
-            .andWhere('warehouse_type', warehouseType);
+            .andWhere('warehouse_type', warehouseType)
+            .andWhere('purpose', UserWarehouseCredentialPurpose.DEFAULT);
     }
 
     /** Compare-and-swap on the credential's stored refreshToken. Returns true on swap. */

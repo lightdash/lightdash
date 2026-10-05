@@ -1,8 +1,14 @@
-import { type UserWarehouseCredentials } from '@lightdash/common';
+import {
+    FeatureFlags,
+    UserWarehouseCredentialPurpose,
+    type UserWarehouseCredentials,
+} from '@lightdash/common';
 import { Anchor, Button, Text } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import useHealth from '../../../hooks/health/useHealth';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
@@ -10,9 +16,22 @@ import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 import { EditCredentialsModal } from './EditCredentialsModal';
+import { SnowflakeAiSignInSection } from './SnowflakeAiSignInSection';
+import { shouldShowSnowflakeAiSignIn } from './snowflakeAiVisibility';
 
 export const MyWarehouseConnectionsPanel = () => {
     const { data: credentials } = useUserWarehouseCredentials();
+    const { data: health } = useHealth();
+    const { data: aiSignInFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiSignIn,
+    );
+    const defaultCredentials = credentials?.filter(
+        ({ purpose }) => purpose !== UserWarehouseCredentialPurpose.AI,
+    );
+    const showAiSignIn = shouldShowSnowflakeAiSignIn(
+        aiSignInFlag?.enabled === true,
+        health?.auth.snowflakeAi.enabled === true,
+    );
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const [warehouseCredentialsToBeEdited, setWarehouseCredentialsToBeEdited] =
         useState<UserWarehouseCredentials | undefined>(undefined);
@@ -52,11 +71,14 @@ export const MyWarehouseConnectionsPanel = () => {
                 </Button>
             }
         >
-            {credentials && credentials.length > 0 ? (
+            {showAiSignIn && (
+                <SnowflakeAiSignInSection credentials={credentials ?? []} />
+            )}
+            {defaultCredentials && defaultCredentials.length > 0 ? (
                 <>
                     {personalConnectionsCallout}
                     <CredentialsTable
-                        credentials={credentials}
+                        credentials={defaultCredentials}
                         setWarehouseCredentialsToBeDeleted={
                             setWarehouseCredentialsToBeDeleted
                         }

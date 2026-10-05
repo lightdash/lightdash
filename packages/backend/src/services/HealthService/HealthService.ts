@@ -235,6 +235,15 @@ export class HealthService extends BaseService {
                         !!this.lightdashConfig.auth.snowflake.clientId &&
                         this.isEnterpriseEnabled(),
                 },
+                snowflakeAi: {
+                    enabled:
+                        !!this.lightdashConfig.auth.snowflakeAi.clientId &&
+                        !!this.lightdashConfig.auth.snowflakeAi.clientSecret &&
+                        !!this.lightdashConfig.auth.snowflakeAi
+                            .authorizationEndpoint &&
+                        !!this.lightdashConfig.auth.snowflakeAi.tokenEndpoint &&
+                        this.isEnterpriseEnabled(),
+                },
                 databricks: {
                     // Databricks OAuth browser flow requires a configured client ID.
                     enabled:

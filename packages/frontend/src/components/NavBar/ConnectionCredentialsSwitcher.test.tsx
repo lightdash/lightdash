@@ -1,4 +1,5 @@
 import {
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type Project,
     type UserWarehouseCredentials,
@@ -41,6 +42,7 @@ const personal = (
 ): UserWarehouseCredentials => ({
     uuid,
     userUuid: 'user-uuid',
+    purpose: UserWarehouseCredentialPurpose.DEFAULT,
     name,
     createdAt: new Date('2026-09-01T00:00:00Z'),
     updatedAt: new Date('2026-09-01T00:00:00Z'),

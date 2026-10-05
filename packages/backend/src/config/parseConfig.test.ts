@@ -40,6 +40,26 @@ beforeEach(() => {
     };
 });
 
+describe('Snowflake AI OAuth configuration', () => {
+    it('reads the separate client and routes', () => {
+        process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID = 'ai-client';
+        process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET = 'ai-secret';
+        process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT =
+            'https://snowflake.example/authorize';
+        process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT =
+            'https://snowflake.example/token';
+        expect(parseConfig().auth.snowflakeAi).toEqual({
+            account: undefined,
+            clientId: 'ai-client',
+            clientSecret: 'ai-secret',
+            authorizationEndpoint: 'https://snowflake.example/authorize',
+            tokenEndpoint: 'https://snowflake.example/token',
+            loginPath: '/login/snowflake-ai',
+            callbackPath: '/oauth/redirect/snowflake-ai',
+        });
+    });
+});
+
 describe('underlying data dimension limit', () => {
     it.each([
         [undefined, 50],

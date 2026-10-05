@@ -2,6 +2,7 @@ import {
     AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
+    ForbiddenError,
     getErrorMessage,
     getWarehouseTableType,
     isWeekDay,
@@ -114,6 +115,65 @@ export const getSnowflakeTimestampDomain = (
             return 'aware';
         default:
             return undefined;
+    }
+};
+
+export const SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE =
+    'This Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.';
+
+export const isSnowflakeAgentActivatedValue = (value: unknown): boolean =>
+    value === true ||
+    (typeof value === 'string' && value.toUpperCase() === 'TRUE');
+
+export const checkSnowflakeAgentSession = async (
+    connection: Connection,
+): Promise<boolean> => {
+    try {
+        const rows = await new Promise<unknown[]>((resolve, reject) => {
+            connection.execute({
+                sqlText:
+                    "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED') AS IS_AGENT_ACTIVATED",
+                complete: (error, _statement, data) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(data ?? []);
+                    }
+                },
+            });
+        });
+        const row = rows[0];
+        if (typeof row !== 'object' || row === null) return false;
+        const value = Object.entries(row).find(
+            ([key]) => key.toUpperCase() === 'IS_AGENT_ACTIVATED',
+        )?.[1];
+        return isSnowflakeAgentActivatedValue(value);
+    } catch {
+        return false;
+    }
+};
+
+export const checkSnowflakeAgentSessionWithToken = async (
+    account: string,
+    token: string,
+): Promise<boolean> => {
+    let connection: Connection | null = null;
+    try {
+        connection = createConnection({
+            account,
+            authenticator: 'OAUTH',
+            token,
+        });
+        await Util.promisify(connection.connect.bind(connection))();
+        return await checkSnowflakeAgentSession(connection);
+    } catch {
+        return false;
+    } finally {
+        if (connection) {
+            await new Promise<void>((resolve) => {
+                connection?.destroy(() => resolve());
+            });
+        }
     }
 };
 
@@ -659,6 +719,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     connectionOptions: ConnectionOptions;
 
+    private agentSessionVerifiedToken: string | null = null;
+
     quotedIdentifiersIgnoreCase?: boolean;
 
     static formatQueryTag(tags: Record<string, string>): string {
@@ -804,7 +866,25 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             return this.createInteractiveConnection(connectionOptionsOverrides);
         }
 
-        return this.createConnection(connectionOptionsOverrides);
+        const connection = await this.createConnection(
+            connectionOptionsOverrides,
+        );
+        if (
+            this.credentials.requireAgentSession &&
+            this.agentSessionVerifiedToken !== this.credentials.token
+        ) {
+            if (!(await checkSnowflakeAgentSession(connection))) {
+                await this.destroyConnection(
+                    connection,
+                    this.connectionOptions.authenticator,
+                ).catch(() => undefined);
+                throw new ForbiddenError(
+                    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
+                );
+            }
+            this.agentSessionVerifiedToken = this.credentials.token ?? null;
+        }
+        return connection;
     }
 
     private isInteractiveAuthenticator(): boolean {

@@ -262,6 +262,7 @@ import {
     UpdateVirtualViewPayload,
     UserAccessControls,
     UserAttributeValueMap,
+    UserWarehouseCredentialPurpose,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
     usesAwsWebIdentity,
@@ -545,7 +546,11 @@ type RefreshTokenRotationSource =
           kind: 'organization';
           organizationWarehouseCredentialsUuid: string;
       }
-    | { kind: 'user'; userWarehouseCredentialsUuid: string }
+    | {
+          kind: 'user';
+          userWarehouseCredentialsUuid: string;
+          purpose?: UserWarehouseCredentialPurpose;
+      }
     | {
           kind: 'warehouseConnection';
           project: WarehouseConnectionProject;
@@ -1570,6 +1575,7 @@ export class ProjectService extends BaseService {
     private async refreshCredentials<T extends CreateWarehouseCredentials>(
         args: T,
         userUuid: string,
+        credentialPurpose: UserWarehouseCredentialPurpose = UserWarehouseCredentialPurpose.DEFAULT,
     ): Promise<T> {
         if (
             args.type === WarehouseTypes.SNOWFLAKE &&
@@ -1590,9 +1596,14 @@ export class ProjectService extends BaseService {
                 // If we try to generate access token from token instead of refreshToken
                 // it will throw an error: The request was invalid.
                 const { accessToken, refreshToken: newRefreshToken } =
-                    await UserService.generateSnowflakeAccessToken(
-                        refreshToken,
-                    );
+                    credentialPurpose === UserWarehouseCredentialPurpose.AI
+                        ? await UserService.generateSnowflakeAccessToken(
+                              refreshToken,
+                              UserWarehouseCredentialPurpose.AI,
+                          )
+                        : await UserService.generateSnowflakeAccessToken(
+                              refreshToken,
+                          );
                 return {
                     ...args,
                     authenticationType: SnowflakeAuthenticationType.SSO,
@@ -1779,15 +1790,20 @@ export class ProjectService extends BaseService {
     ): Promise<T> {
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
-        const refreshed = await this.refreshCredentials(args, userUuid).catch(
-            (error: unknown) =>
-                source.kind === 'project'
-                    ? this.attributeSharedSignInExpiry(
-                          source.projectUuid,
-                          args,
-                          error,
-                      )
-                    : Promise.reject(error),
+        const refreshed = await this.refreshCredentials(
+            args,
+            userUuid,
+            source.kind === 'user'
+                ? source.purpose
+                : UserWarehouseCredentialPurpose.DEFAULT,
+        ).catch((error: unknown) =>
+            source.kind === 'project'
+                ? this.attributeSharedSignInExpiry(
+                      source.projectUuid,
+                      args,
+                      error,
+                  )
+                : Promise.reject(error),
         );
 
         const newRefreshToken =
@@ -2247,6 +2263,7 @@ export class ProjectService extends BaseService {
         context,
         isServiceAccount = false,
         purpose = 'query',
+        context,
     }: {
         projectUuid: string;
         warehouseConnectionUuid: string;
@@ -2255,6 +2272,7 @@ export class ProjectService extends BaseService {
         context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         purpose?: 'query' | 'compile';
+        context?: QueryExecutionContext;
     }) {
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
@@ -2994,6 +3012,7 @@ export class ProjectService extends BaseService {
         context,
         isServiceAccount = false,
         preloadedOrgWarehouseCredentialsUuid,
+        context,
     }: {
         projectUuid: string;
         userId: string;
@@ -3001,6 +3020,7 @@ export class ProjectService extends BaseService {
         context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
+        context?: QueryExecutionContext;
     }) {
         // Use preloaded config if available, otherwise fetch it
         const organizationWarehouseCredentialsUuid =

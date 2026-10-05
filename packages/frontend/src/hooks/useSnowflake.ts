@@ -7,10 +7,13 @@ import useToaster from './toaster/useToaster';
 
 // TODO: This is a stub for the actual implementation
 //       It could maybe be abstracted into a generic oauth login hook
-const triggerSnowflakeLogin = async (siteUrl: string) => {
+const triggerSnowflakeLogin = async (
+    siteUrl: string,
+    loginPath: '/login/snowflake' | '/login/snowflake-ai',
+) => {
     return new Promise<void>((resolve, reject) => {
         const channel = new BroadcastChannel('lightdash-oauth-popup');
-        const loginUrl = `${siteUrl}/api/v1/login/snowflake?isPopup=true`;
+        const loginUrl = `${siteUrl}/api/v1${loginPath}?isPopup=true`;
         console.info(`Opening popup with url: ${loginUrl}`);
 
         const popupWindow = window.open(
@@ -56,7 +59,11 @@ export function useSnowflakeLoginPopup({
     const health = useHealth();
     const queryClient = useQueryClient();
     const ssoMutation = useMutation({
-        mutationFn: () => triggerSnowflakeLogin(health.data?.siteUrl || ''),
+        mutationFn: () =>
+            triggerSnowflakeLogin(
+                health.data?.siteUrl || '',
+                '/login/snowflake',
+            ),
         onSuccess: async () => {
             // Invalidate user warehouse credentials since the backend creates
             // credentials during the OAuth flow
@@ -77,6 +84,27 @@ export function useSnowflakeLoginPopup({
             isSsoEnabled: health.data?.auth.snowflake.enabled,
         };
     }, [ssoMutation, health.data?.auth.snowflake.enabled]);
+}
+
+export function useSnowflakeAiLoginPopup() {
+    const health = useHealth();
+    const queryClient = useQueryClient();
+    const { showToastError } = useToaster();
+    return useMutation({
+        mutationFn: () =>
+            triggerSnowflakeLogin(
+                health.data?.siteUrl || '',
+                '/login/snowflake-ai',
+            ),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['user_warehouse_credentials']);
+        },
+        onError: (error: Error) =>
+            showToastError({
+                title: 'Snowflake AI sign-in failed',
+                subtitle: error.message,
+            }),
+    });
 }
 
 const getIsAuthenticated = async () =>
