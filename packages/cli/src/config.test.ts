@@ -51,6 +51,50 @@ describePosix('CLI config permissions', () => {
     });
 });
 
+describe('CLI config permissions when the folder is read-only', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it.each(['EPERM', 'EACCES'])(
+        'warns once and continues when chmod fails with %s',
+        async (code) => {
+            const denied = Object.assign(new Error(`${code}: denied`), {
+                code,
+            });
+            vi.spyOn(fs, 'chmod').mockRejectedValue(denied);
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            const filePath = path.join(
+                os.tmpdir(),
+                `ld-readonly-${code}`,
+                'config.yaml',
+            );
+
+            await expect(
+                ensureConfigFilePermissions(filePath),
+            ).resolves.toBeUndefined();
+            await expect(
+                ensureConfigFilePermissions(filePath),
+            ).resolves.toBeUndefined();
+
+            expect(warn).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it('still throws other chmod errors', async () => {
+        const failure = Object.assign(new Error('EIO: io error'), {
+            code: 'EIO',
+        });
+        vi.spyOn(fs, 'chmod').mockRejectedValue(failure);
+
+        await expect(
+            ensureConfigFilePermissions(
+                path.join(os.tmpdir(), 'ld-eio', 'config.yaml'),
+            ),
+        ).rejects.toThrow('EIO');
+    });
+});
+
 describe('CLI project environment override', () => {
     afterEach(() => {
         vi.restoreAllMocks();

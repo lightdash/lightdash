@@ -35,24 +35,38 @@ export type Config = {
 };
 
 /** @internal Exported for filesystem-permission regression tests. */
+const hasErrorCode = (error: unknown, codes: string[]): error is Error =>
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    codes.includes(error.code);
+
+const warnedPermissionPaths = new Set<string>();
+
+const chmodOrWarn = async (target: string, mode: number): Promise<void> => {
+    try {
+        await fs.chmod(target, mode);
+    } catch (error: unknown) {
+        if (hasErrorCode(error, ['ENOENT'])) return;
+        if (hasErrorCode(error, ['EPERM', 'EACCES'])) {
+            if (!warnedPermissionPaths.has(target)) {
+                warnedPermissionPaths.add(target);
+                console.warn(
+                    `Warning: could not restrict permissions on ${target} (${error.message}). Continuing.`,
+                );
+            }
+            return;
+        }
+        throw error;
+    }
+};
+
 export const ensureConfigFilePermissions = async (
     filePath: string,
 ): Promise<void> => {
     if (process.platform === 'win32') return;
-    await fs.chmod(path.dirname(filePath), 0o700);
-    try {
-        await fs.chmod(filePath, 0o600);
-    } catch (error: unknown) {
-        if (
-            !(
-                error instanceof Error &&
-                'code' in error &&
-                error.code === 'ENOENT'
-            )
-        ) {
-            throw error;
-        }
-    }
+    await chmodOrWarn(path.dirname(filePath), 0o700);
+    await chmodOrWarn(filePath, 0o600);
 };
 
 /** @internal Exported for filesystem-permission regression tests. */
