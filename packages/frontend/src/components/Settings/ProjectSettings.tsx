@@ -120,15 +120,18 @@ const ProjectSettings: FC<{
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
         useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
-    const { data: aiAccessRestrictionsFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAccessRestrictions,
-    );
-    const { data: snowflakeAiBoundaryGuideFlag } = useServerFeatureFlag(
-        FeatureFlags.SnowflakeAiBoundaryGuide,
-    );
-    const { data: snowflakeAiSignInFlag } = useServerFeatureFlag(
-        FeatureFlags.SnowflakeAiSignIn,
-    );
+    const {
+        data: aiAccessRestrictionsFlag,
+        isLoading: isAiAccessRestrictionsFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.AiAccessRestrictions);
+    const {
+        data: snowflakeAiBoundaryGuideFlag,
+        isLoading: isSnowflakeAiBoundaryGuideFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.SnowflakeAiBoundaryGuide);
+    const {
+        data: snowflakeAiSignInFlag,
+        isLoading: isSnowflakeAiSignInFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.SnowflakeAiSignIn);
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageExternalConnections =
@@ -367,6 +370,10 @@ const ProjectSettings: FC<{
             // Only registered when the instance has AI agents at all — same
             // gate as the AI agents navigation section.
             ...(isAiCopilotEnabledOrTrial ||
+            isAiAccessRestrictionsFlagLoading ||
+            isSnowflakeAiBoundaryGuideFlagLoading ||
+            isSnowflakeAiSignInFlagLoading ||
+            !project ||
             (snowflakeAiBoundaryGuideFlag?.enabled === true &&
                 snowflakeAiSignInFlag?.enabled === true &&
                 !!project &&
@@ -650,6 +657,9 @@ const ProjectSettings: FC<{
         aiAccessRestrictionsFlag?.enabled,
         snowflakeAiBoundaryGuideFlag?.enabled,
         snowflakeAiSignInFlag?.enabled,
+        isAiAccessRestrictionsFlagLoading,
+        isSnowflakeAiBoundaryGuideFlagLoading,
+        isSnowflakeAiSignInFlagLoading,
         project,
     ]);
     const routesElements = useRoutes(routes);

@@ -15847,8 +15847,14 @@ export class ProjectService extends BaseService {
         projectUuid: string,
     ): Promise<SnowflakeAiBoundaryGuideConfig> {
         await this.assertSnowflakeAiBoundaryGuideAccess(account, projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
         const memberCounts =
             await this.projectModel.getSnowflakeAiBoundaryMemberCounts(
+                projectUuid,
+                project.organizationUuid,
+            );
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
         const credentials =
@@ -15858,6 +15864,10 @@ export class ProjectService extends BaseService {
         const ai = this.lightdashConfig.auth.snowflakeAi;
         return {
             redirectUri: `${this.lightdashConfig.siteUrl}/api/v1${ai.callbackPath}`,
+            snowflakeAccount:
+                warehouseCredentials.type === WarehouseTypes.SNOWFLAKE
+                    ? warehouseCredentials.account
+                    : '',
             cloud: this.lightdashConfig.mode === LightdashMode.CLOUD_BETA,
             aiSignInEnabled:
                 !!ai.clientId &&
@@ -15893,7 +15903,7 @@ export class ProjectService extends BaseService {
             isServiceAccount: false,
             context: QueryExecutionContext.AI,
             credentials,
-            rawSql: true,
+            rawSql: false,
         });
         if (identity?.kind !== 'snowflake_ai_sign_in') {
             throw new ForbiddenError(

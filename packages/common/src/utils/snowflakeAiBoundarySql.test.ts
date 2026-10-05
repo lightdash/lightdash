@@ -82,7 +82,7 @@ describe('Snowflake AI boundary SQL', () => {
             'blocked_roles: [ACCOUNTADMIN, SECURITYADMIN, SYSADMIN, ORGADMIN, CUSTOM]',
         );
         expect(sql).toContain('allow_role_switching: false');
-        expect(sql).toContain('blocked_secondary_roles: [ALL]');
+        expect(sql).not.toContain('secondary_roles:');
         expect(sql).toContain('AGENT_RESTRICTED_SESSION_SCOPE');
         expect(sql).toContain('ALTER ACCOUNT SET SESSION POLICY');
         expect(
@@ -101,5 +101,26 @@ describe('Snowflake AI boundary SQL', () => {
                 blockedRoles: ['BAD]role'],
             }),
         ).toThrow();
+    });
+});
+
+describe('getAgenticIntegrationSql redirect URI scheme', () => {
+    it('allows a non-TLS redirect only for http URIs', () => {
+        expect(
+            getAgenticIntegrationSql({
+                integrationName: 'LIGHTDASH_AI',
+                redirectUri:
+                    'http://localhost:3000/api/v1/oauth/redirect/snowflake-ai',
+                preAuthorizedRoles: ['ANALYST'],
+            }),
+        ).toContain('OAUTH_ALLOW_NON_TLS_REDIRECT_URI = TRUE');
+        expect(
+            getAgenticIntegrationSql({
+                integrationName: 'LIGHTDASH_AI',
+                redirectUri:
+                    'https://lightdash.example.com/api/v1/oauth/redirect/snowflake-ai',
+                preAuthorizedRoles: ['ANALYST'],
+            }),
+        ).not.toContain('OAUTH_ALLOW_NON_TLS_REDIRECT_URI');
     });
 });

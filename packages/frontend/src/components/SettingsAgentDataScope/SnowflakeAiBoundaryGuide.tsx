@@ -10,6 +10,7 @@ import {
     type SnowflakeAiBoundaryTestBody,
 } from '@lightdash/common';
 import {
+    Badge,
     Button,
     Checkbox,
     Code,
@@ -24,6 +25,8 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
+import { IconCheck, IconCircle, IconX } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { lightdashApi } from '../../api';
@@ -35,10 +38,20 @@ import {
 } from '../../hooks/useProject';
 import { useUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { useSnowflakeAiLoginPopup } from '../../hooks/useSnowflake';
+import Callout from '../common/Callout';
 import InlineErrorState from '../common/InlineErrorState';
-import { getSnowflakeAiBoundaryStepStatuses } from './snowflakeAiBoundaryStatus';
+import {
+    getSnowflakeAiBoundaryStepStatuses,
+    type GuideStepStatus,
+} from './snowflakeAiBoundaryStatus';
 
-const SqlPanel = ({ sql }: { sql: string }) => (
+const SqlPanel = ({
+    sql,
+    copyLabel = 'Copy SQL',
+}: {
+    sql: string;
+    copyLabel?: string;
+}) => (
     <Stack gap="xs">
         <ScrollArea h={240}>
             <Code block>{sql}</Code>
@@ -46,7 +59,7 @@ const SqlPanel = ({ sql }: { sql: string }) => (
         <CopyButton value={sql}>
             {({ copied, copy }) => (
                 <Button size="xs" variant="default" onClick={copy}>
-                    {copied ? 'Copied' : 'Copy SQL'}
+                    {copied ? 'Copied' : copyLabel}
                 </Button>
             )}
         </CopyButton>
@@ -108,9 +121,16 @@ const IntegrationEnvironment = ({
                 value={account}
                 onChange={(event) => setAccount(event.currentTarget.value)}
             />
-            {envBlock && <SqlPanel sql={envBlock} />}
+            {envBlock && <SqlPanel sql={envBlock} copyLabel="Copy" />}
         </>
     );
+
+const CHECK_TITLES: Record<SnowflakeAiBoundaryCheck['id'], string> = {
+    agent_active: 'Agent session and session scope',
+    masked_column: 'Protected column is masked',
+    result_scan_blocked: 'Earlier results are blocked',
+    secondary_roles_blocked: 'Secondary roles are blocked',
+};
 
 const TestResults = ({
     checks,
@@ -128,10 +148,29 @@ const TestResults = ({
             </Text>
         )}
         {checks?.map((check) => (
-            <Group key={check.id} gap="xs">
-                <Text fz="sm">
-                    {check.id}: {check.status}. {check.detail}
-                </Text>
+            <Stack key={check.id} gap="xs">
+                <Group gap="xs">
+                    <Text fz="sm" fw={600}>
+                        {CHECK_TITLES[check.id]}
+                    </Text>
+                    <Badge
+                        size="sm"
+                        color={
+                            check.status === 'pass'
+                                ? 'green'
+                                : check.status === 'fail'
+                                  ? 'red'
+                                  : 'gray'
+                        }
+                    >
+                        {check.status === 'pass'
+                            ? 'Pass'
+                            : check.status === 'fail'
+                              ? 'Fail'
+                              : 'Skipped'}
+                    </Badge>
+                </Group>
+                <Text fz="sm">{check.detail}</Text>
                 {check.status === 'fail' && (
                     <Button
                         size="xs"
@@ -141,7 +180,7 @@ const TestResults = ({
                         Go to step {check.fixStep}
                     </Button>
                 )}
-            </Group>
+            </Stack>
         ))}
     </>
 );
@@ -149,6 +188,12 @@ const TestResults = ({
 type ProtectedColumnInputs = NonNullable<
     SnowflakeAiBoundaryTestBody['protectedColumn']
 >;
+
+const stepIcon = (status: GuideStepStatus) => {
+    if (status === 'done') return <IconCheck size={16} />;
+    if (status === 'failed') return <IconX size={16} />;
+    return <IconCircle size={16} />;
+};
 
 const MaskingStep = ({
     schemas,
@@ -263,6 +308,13 @@ const BoundaryTestStep = ({
                 }
             />
         ))}
+        <Text fz="sm">
+            A live test showed that an agent session can read the same person's
+            earlier results with RESULT_SCAN, even when the session scope blocks
+            the schema. So with AI access restrictions on, raw SQL from AI
+            agents and MCP stays off; AI answers through the semantic layer on
+            each person's sign-in for AI.
+        </Text>
         <Button
             size="xs"
             loading={loading}
@@ -297,8 +349,13 @@ const RestrictionsStep = ({
 }) => (
     <Stack gap="sm">
         <Text fz="sm">
-            {signedInMemberCount} of {memberCount} project members have signed
-            in for AI.
+            {signedInMemberCount} of {memberCount} people with access have
+            signed in for AI.
+        </Text>
+        <Text fz="sm">
+            With AI access restrictions on, raw SQL from AI agents and MCP is
+            off. They answer through the semantic layer, on each person's
+            Snowflake sign-in for AI.
         </Text>
         <Switch
             label="AI access restrictions"
@@ -320,10 +377,22 @@ const SessionCeilingStep = ({
 }) => (
     <Stack gap="sm">
         {sql && <SqlPanel sql={sql} />}
-        <Text fz="sm">
-            A session policy set on a user replaces the account-level one. Check
-            SHOW SESSION POLICIES and users with their own policy.
-        </Text>
+        <Callout variant="warning">
+            <Stack gap="xs">
+                <Text fz="sm">
+                    A view or a stored result can still show data from a schema
+                    the scope blocks. Snowflake runs views with the owner's
+                    rights, and RESULT_SCAN can read a person's earlier results.
+                    Masking in step 3 is the main control; this scope is the
+                    second layer.
+                </Text>
+                <Text fz="sm">
+                    A session policy set on a user replaces the account-level
+                    one. Check SHOW SESSION POLICIES and users with their own
+                    policy.
+                </Text>
+            </Stack>
+        </Callout>
         <Checkbox
             label="I ran this SQL"
             checked={confirmed}
@@ -406,6 +475,69 @@ const IntegrationStep = ({
     </Stack>
 );
 
+const useGuideSql = ({
+    integrationName,
+    redirectUri,
+    roles,
+    account,
+    tagDatabase,
+    tagSchema,
+    protectedSchemas,
+}: {
+    integrationName: string;
+    redirectUri: string;
+    roles: string;
+    account: string;
+    tagDatabase: string;
+    tagSchema: string;
+    protectedSchemas: { database: string; schema: string }[];
+}) => {
+    const integrationSql = useMemo(() => {
+        try {
+            return getAgenticIntegrationSql({
+                integrationName,
+                redirectUri,
+                preAuthorizedRoles: roles
+                    .split(',')
+                    .map((role) => role.trim())
+                    .filter(Boolean),
+            });
+        } catch {
+            return '';
+        }
+    }, [integrationName, redirectUri, roles]);
+    const envBlock = useMemo(() => {
+        try {
+            return getAgenticEnvBlock({ account });
+        } catch {
+            return '';
+        }
+    }, [account]);
+    const maskingSql = useMemo(() => {
+        try {
+            return getAgentMaskingSql({
+                tagDatabase,
+                tagSchema,
+                protectedSchemas,
+            });
+        } catch {
+            return '';
+        }
+    }, [tagDatabase, tagSchema, protectedSchemas]);
+    const ceilingSql = useMemo(() => {
+        try {
+            return getSessionCeilingSql({
+                database: tagDatabase,
+                schema: tagSchema,
+                blockedRoles: [],
+            });
+        } catch {
+            return '';
+        }
+    }, [tagDatabase, tagSchema]);
+    return { integrationSql, envBlock, maskingSql, ceilingSql };
+};
+
 export const SnowflakeAiBoundaryGuide = ({
     projectUuid,
     isSnowflake,
@@ -416,17 +548,38 @@ export const SnowflakeAiBoundaryGuide = ({
     showAiAccessRestrictions: boolean;
 }) => {
     const [active, setActive] = useState(0);
-    const [enterpriseConfirmed, setEnterpriseConfirmed] = useState(false);
-    const [roleConfirmed, setRoleConfirmed] = useState(false);
+    const [enterpriseConfirmed, setEnterpriseConfirmed] = useLocalStorage({
+        key: `snowflake-ai-boundary:${projectUuid}:enterprise-confirmed`,
+        defaultValue: false,
+    });
+    const [roleConfirmed, setRoleConfirmed] = useLocalStorage({
+        key: `snowflake-ai-boundary:${projectUuid}:role-confirmed`,
+        defaultValue: false,
+    });
     const [integrationName, setIntegrationName] = useState('LIGHTDASH_AI');
     const [roles, setRoles] = useState('ANALYST');
-    const [account, setAccount] = useState('');
-    const [tagDatabase, setTagDatabase] = useState('');
-    const [tagSchema, setTagSchema] = useState('');
+    const [accountInput, setAccount] = useState<string | null>(null);
+    const [tagDatabase, setTagDatabase] = useLocalStorage({
+        key: `snowflake-ai-boundary:${projectUuid}:tag-database`,
+        defaultValue: '',
+    });
+    const [tagSchema, setTagSchema] = useLocalStorage({
+        key: `snowflake-ai-boundary:${projectUuid}:tag-schema`,
+        defaultValue: '',
+    });
     const [schemaFilter, setSchemaFilter] = useState('_CLEAR');
-    const [selectedSchemas, setSelectedSchemas] = useState<string[]>([]);
-    const [confirmedMaskingSql, setConfirmedMaskingSql] = useState('');
-    const [confirmedCeilingSql, setConfirmedCeilingSql] = useState('');
+    const [selectedSchemas, setSelectedSchemas] = useLocalStorage<string[]>({
+        key: `snowflake-ai-boundary:${projectUuid}:selected-schemas`,
+        defaultValue: [],
+    });
+    const [confirmedMaskingSql, setConfirmedMaskingSql] = useLocalStorage({
+        key: `snowflake-ai-boundary:${projectUuid}:confirmed-masking-sql`,
+        defaultValue: '',
+    });
+    const [confirmedCeilingSql, setConfirmedCeilingSql] = useLocalStorage({
+        key: `snowflake-ai-boundary:${projectUuid}:confirmed-ceiling-sql`,
+        defaultValue: '',
+    });
     const [protectedColumn, setProtectedColumn] = useState({
         database: '',
         schema: '',
@@ -457,6 +610,7 @@ export const SnowflakeAiBoundaryGuide = ({
             }),
         { enabled: isSnowflake },
     );
+    const account = accountInput ?? config.data?.snowflakeAccount ?? '';
     const test = useMutation<
         SnowflakeAiBoundaryCheck[],
         ApiError,
@@ -500,49 +654,15 @@ export const SnowflakeAiBoundaryGuide = ({
         () => schemas.filter((item) => selectedSchemaSet.has(item.key)),
         [schemas, selectedSchemaSet],
     );
-    const integrationSql = useMemo(() => {
-        try {
-            return getAgenticIntegrationSql({
-                integrationName,
-                redirectUri: config.data?.redirectUri ?? '',
-                preAuthorizedRoles: roles
-                    .split(',')
-                    .map((role) => role.trim())
-                    .filter(Boolean),
-            });
-        } catch {
-            return '';
-        }
-    }, [integrationName, config.data?.redirectUri, roles]);
-    const envBlock = useMemo(() => {
-        try {
-            return getAgenticEnvBlock({ account });
-        } catch {
-            return '';
-        }
-    }, [account]);
-    const maskingSql = useMemo(() => {
-        try {
-            return getAgentMaskingSql({
-                tagDatabase,
-                tagSchema,
-                protectedSchemas,
-            });
-        } catch {
-            return '';
-        }
-    }, [tagDatabase, tagSchema, protectedSchemas]);
-    const ceilingSql = useMemo(() => {
-        try {
-            return getSessionCeilingSql({
-                database: tagDatabase,
-                schema: tagSchema,
-                blockedRoles: [],
-            });
-        } catch {
-            return '';
-        }
-    }, [tagDatabase, tagSchema]);
+    const { integrationSql, envBlock, maskingSql, ceilingSql } = useGuideSql({
+        integrationName,
+        redirectUri: config.data?.redirectUri ?? '',
+        roles,
+        account,
+        tagDatabase,
+        tagSchema,
+        protectedSchemas,
+    });
     const maskingConfirmed =
         maskingSql !== '' &&
         protectedSchemas.length > 0 &&
@@ -560,8 +680,11 @@ export const SnowflakeAiBoundaryGuide = ({
         checks,
         restrictionsEnabled: restrictions?.enabled ?? false,
     });
-    const stepLabel = (label: string, index: number) =>
-        `${label} · ${statuses[index]}`;
+    const stepProps = (label: string, index: number) => ({
+        label: `${label} · ${statuses[index]}`,
+        icon: stepIcon(statuses[index]),
+        completedIcon: stepIcon(statuses[index]),
+    });
 
     return (
         <Paper p="md">
@@ -582,7 +705,7 @@ export const SnowflakeAiBoundaryGuide = ({
                     orientation="vertical"
                     allowNextStepsSelect
                 >
-                    <Stepper.Step label={stepLabel('Before you start', 0)}>
+                    <Stepper.Step {...stepProps('Before you start', 0)}>
                         <Prerequisites
                             isSnowflake={isSnowflake}
                             enterpriseConfirmed={enterpriseConfirmed}
@@ -591,112 +714,111 @@ export const SnowflakeAiBoundaryGuide = ({
                             setRoleConfirmed={setRoleConfirmed}
                         />
                     </Stepper.Step>
-                    {isSnowflake && (
-                        <>
-                            <Stepper.Step
-                                label={stepLabel('Create the AI sign-in', 1)}
-                            >
-                                <IntegrationStep
-                                    integrationName={integrationName}
-                                    setIntegrationName={setIntegrationName}
-                                    roles={roles}
-                                    setRoles={setRoles}
-                                    sql={integrationSql}
-                                    cloud={config.data?.cloud ?? false}
-                                    account={account}
-                                    setAccount={setAccount}
-                                    envBlock={envBlock}
-                                    enabled={
-                                        health?.auth.snowflakeAi.enabled ===
-                                        true
-                                    }
-                                />
-                            </Stepper.Step>
-                            <Stepper.Step
-                                label={stepLabel('Hide PII from agents', 2)}
-                            >
-                                <MaskingStep
-                                    schemas={schemas}
-                                    selectedSchemas={selectedSchemas}
-                                    setSelectedSchemas={setSelectedSchemas}
-                                    selectedSchemaSet={selectedSchemaSet}
-                                    schemaFilter={schemaFilter}
-                                    setSchemaFilter={setSchemaFilter}
-                                    tagDatabase={tagDatabase}
-                                    setTagDatabase={setTagDatabase}
-                                    tagSchema={tagSchema}
-                                    setTagSchema={setTagSchema}
-                                    maskingSql={maskingSql}
-                                    confirmed={maskingConfirmed}
-                                    setConfirmed={(value) =>
-                                        setConfirmedMaskingSql(
-                                            value ? maskingSql : '',
-                                        )
-                                    }
-                                />
-                            </Stepper.Step>
-                            <Stepper.Step
-                                label={stepLabel('Session ceiling', 3)}
-                            >
-                                <SessionCeilingStep
-                                    sql={ceilingSql}
-                                    confirmed={ceilingConfirmed}
-                                    setConfirmed={(value) =>
-                                        setConfirmedCeilingSql(
-                                            value ? ceilingSql : '',
-                                        )
-                                    }
-                                />
-                            </Stepper.Step>
-                            <Stepper.Step
-                                label={stepLabel('Sign in for AI yourself', 4)}
-                            >
-                                <SignInStep
-                                    signedIn={signedIn}
-                                    loading={login.isLoading}
-                                    onSignIn={() =>
-                                        login.mutate(undefined, {
-                                            onSuccess: () =>
-                                                void config.refetch(),
-                                        })
-                                    }
-                                />
-                            </Stepper.Step>
-                            <Stepper.Step
-                                label={stepLabel('Test the boundary', 5)}
-                            >
-                                <BoundaryTestStep
-                                    protectedColumn={protectedColumn}
-                                    setProtectedColumn={setProtectedColumn}
-                                    loading={test.isLoading}
-                                    onTest={test.mutate}
-                                    checks={checks}
-                                    error={testError}
-                                    onFix={setActive}
-                                />
-                            </Stepper.Step>
-                            <Stepper.Step
-                                label={stepLabel(
-                                    'Turn on AI access restrictions',
-                                    6,
-                                )}
-                            >
-                                <RestrictionsStep
-                                    signedInMemberCount={
-                                        config.data?.signedInMemberCount ?? 0
-                                    }
-                                    memberCount={config.data?.memberCount ?? 0}
-                                    enabled={restrictions?.enabled ?? false}
-                                    disabled={
-                                        !showAiAccessRestrictions ||
-                                        !restrictions ||
-                                        updateRestrictions.isLoading
-                                    }
-                                    onChange={updateRestrictions.mutateAsync}
-                                />
-                            </Stepper.Step>
-                        </>
-                    )}
+                    {isSnowflake && [
+                        <Stepper.Step
+                            key="ai-sign-in"
+                            {...stepProps('Create the AI sign-in', 1)}
+                        >
+                            <IntegrationStep
+                                integrationName={integrationName}
+                                setIntegrationName={setIntegrationName}
+                                roles={roles}
+                                setRoles={setRoles}
+                                sql={integrationSql}
+                                cloud={config.data?.cloud ?? false}
+                                account={account}
+                                setAccount={setAccount}
+                                envBlock={envBlock}
+                                enabled={
+                                    health?.auth.snowflakeAi.enabled === true
+                                }
+                            />
+                        </Stepper.Step>,
+                        <Stepper.Step
+                            key="masking"
+                            {...stepProps('Hide PII from agents', 2)}
+                        >
+                            <MaskingStep
+                                schemas={schemas}
+                                selectedSchemas={selectedSchemas}
+                                setSelectedSchemas={setSelectedSchemas}
+                                selectedSchemaSet={selectedSchemaSet}
+                                schemaFilter={schemaFilter}
+                                setSchemaFilter={setSchemaFilter}
+                                tagDatabase={tagDatabase}
+                                setTagDatabase={setTagDatabase}
+                                tagSchema={tagSchema}
+                                setTagSchema={setTagSchema}
+                                maskingSql={maskingSql}
+                                confirmed={maskingConfirmed}
+                                setConfirmed={(value) =>
+                                    setConfirmedMaskingSql(
+                                        value ? maskingSql : '',
+                                    )
+                                }
+                            />
+                        </Stepper.Step>,
+                        <Stepper.Step
+                            key="session-ceiling"
+                            {...stepProps('Session ceiling', 3)}
+                        >
+                            <SessionCeilingStep
+                                sql={ceilingSql}
+                                confirmed={ceilingConfirmed}
+                                setConfirmed={(value) =>
+                                    setConfirmedCeilingSql(
+                                        value ? ceilingSql : '',
+                                    )
+                                }
+                            />
+                        </Stepper.Step>,
+                        <Stepper.Step
+                            key="sign-in"
+                            {...stepProps('Sign in for AI yourself', 4)}
+                        >
+                            <SignInStep
+                                signedIn={signedIn}
+                                loading={login.isLoading}
+                                onSignIn={() =>
+                                    login.mutate(undefined, {
+                                        onSuccess: () => void config.refetch(),
+                                    })
+                                }
+                            />
+                        </Stepper.Step>,
+                        <Stepper.Step
+                            key="test"
+                            {...stepProps('Test the boundary', 5)}
+                        >
+                            <BoundaryTestStep
+                                protectedColumn={protectedColumn}
+                                setProtectedColumn={setProtectedColumn}
+                                loading={test.isLoading}
+                                onTest={test.mutate}
+                                checks={checks}
+                                error={testError}
+                                onFix={setActive}
+                            />
+                        </Stepper.Step>,
+                        <Stepper.Step
+                            key="restrictions"
+                            {...stepProps('Turn on AI access restrictions', 6)}
+                        >
+                            <RestrictionsStep
+                                signedInMemberCount={
+                                    config.data?.signedInMemberCount ?? 0
+                                }
+                                memberCount={config.data?.memberCount ?? 0}
+                                enabled={restrictions?.enabled ?? false}
+                                disabled={
+                                    !showAiAccessRestrictions ||
+                                    !restrictions ||
+                                    updateRestrictions.isLoading
+                                }
+                                onChange={updateRestrictions.mutateAsync}
+                            />
+                        </Stepper.Step>,
+                    ]}
                 </Stepper>
             </Stack>
         </Paper>

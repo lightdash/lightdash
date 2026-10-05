@@ -116,6 +116,29 @@ describe('ProjectModel', () => {
         tracker.reset();
         vi.restoreAllMocks();
     });
+    test('counts project access across organization, project, and group memberships', async () => {
+        tracker.on
+            .any(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes('WITH project_users AS') &&
+                    sql.includes('organization_memberships') &&
+                    sql.includes('project_memberships') &&
+                    sql.includes('project_group_access') &&
+                    sql.includes('user_warehouse_credentials') &&
+                    bindings.includes(projectUuid) &&
+                    bindings.includes('organization-uuid'),
+            )
+            .response({
+                rows: [{ memberCount: '4', signedInMemberCount: '2' }],
+            });
+
+        await expect(
+            model.getSnowflakeAiBoundaryMemberCounts(
+                projectUuid,
+                'organization-uuid',
+            ),
+        ).resolves.toEqual({ memberCount: 4, signedInMemberCount: 2 });
+    });
     test('gets and updates AI access restrictions', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid, 1]))

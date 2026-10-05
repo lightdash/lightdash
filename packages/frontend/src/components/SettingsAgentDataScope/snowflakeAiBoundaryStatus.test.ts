@@ -66,4 +66,16 @@ describe('Snowflake AI boundary guide statuses', () => {
             })[5],
         ).toBe('to do');
     });
+
+    it('keeps completed steps done after the admin moves on', () => {
+        expect(
+            getSnowflakeAiBoundaryStepStatuses({
+                ...base,
+                enterpriseConfirmed: true,
+                roleConfirmed: true,
+                maskingConfirmed: true,
+                ceilingConfirmed: true,
+            }).slice(0, 4),
+        ).toEqual(['done', 'to do', 'done', 'done']);
+    });
 });

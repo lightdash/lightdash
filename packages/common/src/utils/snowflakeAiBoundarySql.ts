@@ -36,7 +36,7 @@ export const getAgenticIntegrationSql = ({
     const name = quoteSnowflakeAiIdentifier(integrationName);
     const roles = preAuthorizedRoles.map(quoteSnowflakeAiIdentifier).join(', ');
     if (!roles) throw new Error('Enter at least one pre-authorized role');
-    return `CREATE SECURITY INTEGRATION ${name}\nTYPE = OAUTH\nOAUTH_CLIENT = CUSTOM\nOAUTH_CLIENT_TYPE = 'CONFIDENTIAL'\nOAUTH_REDIRECT_URI = ${sqlString(redirectUri)}\nENABLED = TRUE\nOAUTH_ISSUE_REFRESH_TOKENS = TRUE\nOAUTH_REFRESH_TOKEN_VALIDITY = 7776000\nIS_AGENTIC = TRUE\nPRE_AUTHORIZED_ROLES_LIST = (${roles});\n\nSELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS(${sqlString(integrationName)});`;
+    return `CREATE SECURITY INTEGRATION ${name}\nTYPE = OAUTH\nOAUTH_CLIENT = CUSTOM\nOAUTH_CLIENT_TYPE = 'CONFIDENTIAL'\nOAUTH_REDIRECT_URI = ${sqlString(redirectUri)}\n${redirectUri.startsWith('http://') ? 'OAUTH_ALLOW_NON_TLS_REDIRECT_URI = TRUE\n' : ''}ENABLED = TRUE\nOAUTH_ISSUE_REFRESH_TOKENS = TRUE\nOAUTH_REFRESH_TOKEN_VALIDITY = 7776000\nIS_AGENTIC = TRUE\nPRE_AUTHORIZED_ROLES_LIST = (${roles});\n\nSELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS(${sqlString(integrationName)});`;
 };
 
 export const getAgenticEnvBlock = ({
@@ -123,6 +123,6 @@ export const getSessionCeilingSql = ({
         if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(role))
             throw new Error('Enter a valid Snowflake role');
     });
-    const yaml = `privilege_scopes:\n  allowed_privileges:\n    - privileges: [data read]\n      account: [all]\nrole_scopes:\n  blocked_roles: [${roles.join(', ')}]\n  allow_role_switching: false\n  blocked_secondary_roles: [ALL]`;
+    const yaml = `privilege_scopes:\n  allowed_privileges:\n    - privileges: [data read]\n      account: [all]\nrole_scopes:\n  blocked_roles: [${roles.join(', ')}]\n  allow_role_switching: false`;
     return `CREATE RESTRICTED SESSION SCOPE ${scope} AS $$\n${yaml}\n$$;\n\nCREATE SESSION POLICY ${policy} AGENT_RESTRICTED_SESSION_SCOPE = ${sqlString(scope)};\n\nALTER ACCOUNT SET SESSION POLICY ${policy};`;
 };

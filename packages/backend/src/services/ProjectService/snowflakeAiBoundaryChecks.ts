@@ -141,8 +141,8 @@ export const runSnowflakeAiBoundaryChecks = async ({
             results.push({
                 id: 'result_scan_blocked',
                 status: 'fail',
-                detail: 'The agent session can read an earlier query result.',
-                fixStep: 4,
+                detail: 'The agent session can read an earlier query result. Snowflake does not block this, so keep AI access restrictions on: raw SQL from AI then stays off.',
+                fixStep: 7,
             });
         } catch (error) {
             results.push({

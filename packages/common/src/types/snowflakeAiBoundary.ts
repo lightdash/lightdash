@@ -15,11 +15,12 @@ export type SnowflakeAiBoundaryCheck = {
         | 'secondary_roles_blocked';
     status: 'pass' | 'fail' | 'skipped';
     detail: string;
-    fixStep: 2 | 3 | 4 | 5;
+    fixStep: 2 | 3 | 4 | 5 | 7;
 };
 
 export type SnowflakeAiBoundaryGuideConfig = {
     redirectUri: string;
+    snowflakeAccount: string;
     cloud: boolean;
     aiSignInEnabled: boolean;
     signedIn: boolean;

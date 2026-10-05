@@ -225,6 +225,7 @@ import {
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { usersInProjectSql } from '../AnalyticsModelSql';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { clearProjectExtraRoles } from '../roleSetUtils';
@@ -7598,31 +7599,27 @@ export class ProjectModel {
 
     async getSnowflakeAiBoundaryMemberCounts(
         projectUuid: string,
+        organizationUuid: string,
     ): Promise<{ memberCount: number; signedInMemberCount: number }> {
-        const row = await this.database('project_memberships as pm')
-            .join('projects as p', 'p.project_id', 'pm.project_id')
-            .join('users as u', 'u.user_id', 'pm.user_id')
-            .leftJoin(
-                'user_warehouse_credentials as c',
-                function joinCredentials() {
-                    this.on('c.user_uuid', '=', 'u.user_uuid')
-                        .andOnVal('c.warehouse_type', WarehouseTypes.SNOWFLAKE)
-                        .andOnVal(
-                            'c.purpose',
-                            UserWarehouseCredentialPurpose.AI,
-                        );
-                },
-            )
-            .where('p.project_uuid', projectUuid)
-            .where('u.is_internal', false)
-            .first<{ memberCount: string; signedInMemberCount: string }>(
-                this.database.raw(
-                    'COUNT(DISTINCT u.user_uuid) AS "memberCount"',
-                ),
-                this.database.raw(
-                    'COUNT(DISTINCT c.user_uuid) AS "signedInMemberCount"',
-                ),
-            );
+        const result = await this.database.raw<{
+            rows: { memberCount: string; signedInMemberCount: string }[];
+        }>(
+            `WITH project_users AS (${usersInProjectSql()})
+             SELECT COUNT(DISTINCT project_users.user_uuid) AS "memberCount",
+                    COUNT(DISTINCT c.user_uuid) AS "signedInMemberCount"
+             FROM project_users
+             LEFT JOIN user_warehouse_credentials AS c
+               ON c.user_uuid = project_users.user_uuid
+              AND c.warehouse_type = :warehouseType
+              AND c.purpose = :purpose`,
+            {
+                projectUuid,
+                organizationUuid,
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                purpose: UserWarehouseCredentialPurpose.AI,
+            },
+        );
+        const row = result.rows[0];
         return {
             memberCount: Number(row?.memberCount ?? 0),
             signedInMemberCount: Number(row?.signedInMemberCount ?? 0),
