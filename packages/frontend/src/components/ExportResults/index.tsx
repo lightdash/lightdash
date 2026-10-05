@@ -163,7 +163,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         });
                     },
                     onSuccess: (response) => {
-                        pollJobStatus(response.jobId)
+                        pollJobStatus(response.jobId, projectUuid)
                             .then(async (details) => {
                                 if (!details?.fileUrl) {
                                     throw new Error(

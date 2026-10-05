@@ -169,7 +169,11 @@ export const AiChartQuickOptions = ({
             projectUuid,
         }),
     );
-    const canDownloadResults = showDownloadResults && !isEmbed && canExportData;
+    const canDownloadResults =
+        showDownloadResults &&
+        (isEmbed
+            ? ability.can('view', 'EmbedAiAgentDownload')
+            : !!canExportData);
     const {
         visualizationConfig,
         columnOrder,
@@ -735,6 +739,9 @@ export const AiChartQuickOptions = ({
                     projectUuid={projectUuid}
                     chartName={saveChartOptions.name}
                     mergeQuery={merge?.query ?? null}
+                    executedQueryUuid={
+                        isEmbed ? (resultsData?.queryUuid ?? null) : null
+                    }
                 />
             )}
             <AiChartImageExportModal
