@@ -1,3 +1,10 @@
+## [2.427.2](https://github.com/lightdash/lightdash/compare/2.427.1...2.427.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **query:** resolve ${TABLE} in cross-table non-aggregate metrics ([#30441](https://github.com/lightdash/lightdash/issues/30441)) ([b5e099c](https://github.com/lightdash/lightdash/commit/b5e099c14013e13e13e31ef5d5e66994c3a68177))
+
 ## [2.427.1](https://github.com/lightdash/lightdash/compare/2.427.0...2.427.1) (2026-10-05)
 
 
