@@ -198,7 +198,7 @@ const aiAgentAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
-    if (canViewEmbedScope('EmbedAiAgentDownload', builder, embed)) {
+    if (canViewEmbedScope('EmbedCsvExport', builder, embed)) {
         can('view', 'JobStatus', {
             organizationUuid: organization.organizationUuid,
             projectUuid: embed.projectUuid,

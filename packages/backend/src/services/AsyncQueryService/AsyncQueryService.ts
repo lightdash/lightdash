@@ -1536,7 +1536,7 @@ export class AsyncQueryService extends ProjectService {
             isAiAgentEmbedAccount(account) &&
             this.createAuditedAbility(account).cannot(
                 'view',
-                subject('EmbedAiAgentDownload', {
+                subject('EmbedCsvExport', {
                     organizationUuid,
                     projectUuid,
                 }),

@@ -1096,7 +1096,7 @@ describe('Embedded AI agent abilities', () => {
     });
 
     it('lets the embed poll its own jobs when it can download results', () => {
-        const ability = abilityWithActorScopes(['EmbedAiAgentDownload']);
+        const ability = abilityWithActorScopes(['EmbedCsvExport']);
         expect(ability.can('view', ownJob)).toBe(true);
         expect(
             ability.can(

@@ -49,7 +49,6 @@ const BASE_ROLE_SCOPES = {
         'view:EmbedImageExport',
         'view:EmbedPagePdfExport',
         'view:EmbedDateZoom',
-        'view:EmbedAiAgentDownload',
     ],
 
     [ProjectMemberRole.INTERACTIVE_VIEWER]: [

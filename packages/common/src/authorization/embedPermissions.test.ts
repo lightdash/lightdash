@@ -152,7 +152,7 @@ describe('embed scope abilities', () => {
         });
     });
 
-    describe.each(['EmbedCompiledSql', 'EmbedAiAgentDownload'] as const)(
+    describe.each(['EmbedCompiledSql', 'EmbedCsvExport'] as const)(
         'view:%s',
         (resource) => {
             const target = {
@@ -415,6 +415,6 @@ describe('built-in role grants for embedded AI quick actions', () => {
         [ProjectMemberRole.ADMIN, true, true],
     ])('%s: sql=%s download=%s', (role, sql, download) => {
         expect(can(role, 'EmbedCompiledSql')).toBe(sql);
-        expect(can(role, 'EmbedAiAgentDownload')).toBe(download);
+        expect(can(role, 'EmbedCsvExport')).toBe(download);
     });
 });

@@ -20,7 +20,6 @@ export const VIEWER_EMBED_SUBJECTS = [
     'EmbedImageExport',
     'EmbedPagePdfExport',
     'EmbedDateZoom',
-    'EmbedAiAgentDownload',
 ] as const satisfies readonly CaslSubjectNames[];
 
 export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
@@ -69,7 +68,6 @@ export type CaslSubjectNames =
     | 'DeletedContent'
     | 'EmbedAiAgent'
     | 'EmbedAiAgentDebug'
-    | 'EmbedAiAgentDownload'
     | 'EmbedCompiledSql'
     | 'EmbedDashboardFilters'
     | 'EmbedDashboardFilterAddition'

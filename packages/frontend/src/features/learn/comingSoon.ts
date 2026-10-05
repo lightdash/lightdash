@@ -21,7 +21,6 @@ export const COMING_SOON_SCOPES = [
     'view:EmbedAiAgent',
     'view:EmbedAiAgentDebug',
     'view:EmbedCompiledSql',
-    'view:EmbedAiAgentDownload',
     'view:Analytics',
     'view:AiAgentDocument',
     'manage:AiAgentDocument',

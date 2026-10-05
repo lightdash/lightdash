@@ -12908,7 +12908,7 @@ describe('embedded AI agent result downloads', () => {
         'allows %s when the embed holds the download scope',
         async (operation) => {
             const { account, service, scheduleDownload, formatFile } =
-                buildFixture(['EmbedAiAgentDownload']);
+                buildFixture(['EmbedCsvExport']);
             await run(service, account, operation);
             if (operation === 'schedule') {
                 expect(scheduleDownload).toHaveBeenCalled();

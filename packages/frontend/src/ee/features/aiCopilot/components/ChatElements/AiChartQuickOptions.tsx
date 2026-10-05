@@ -181,8 +181,7 @@ export const AiChartQuickOptions = ({
     const canDownloadResults =
         showDownloadResults &&
         (isEmbed
-            ? ability.can('view', 'EmbedAiAgentDownload') &&
-              !!resultsData?.queryUuid
+            ? ability.can('view', 'EmbedCsvExport') && !!resultsData?.queryUuid
             : !!canExportData);
     const { mutate: savePromptQuery } = useSavePromptQuery(
         projectUuid,
