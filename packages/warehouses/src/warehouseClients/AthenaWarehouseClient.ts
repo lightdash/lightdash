@@ -42,6 +42,9 @@ import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
+// Glue databases listed in parallel when listing every table in the catalog
+const ALL_TABLES_DATABASE_CONCURRENCY = 5;
+
 export enum AthenaTypes {
     BOOLEAN = 'boolean',
     TINYINT = 'tinyint',
@@ -644,42 +647,36 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
     }
 
     async getAllTables(): Promise<WarehouseTables> {
+        const configuredDatabase = this.toListedDatabase(
+            this.credentials.schema,
+        );
+        // Credentials scoped to one Glue database often cannot list the catalog
+        const databases = await this.listDatabases().then(
+            (listing) => listing.databases,
+            () => [configuredDatabase],
+        );
+
         const tables: WarehouseTables = [];
-
-        try {
-            let nextToken: string | undefined;
-
-            do {
-                // eslint-disable-next-line no-await-in-loop
-                const response = await this.client.send(
-                    new ListTableMetadataCommand({
-                        CatalogName: this.credentials.database,
-                        DatabaseName: this.credentials.schema,
-                        NextToken: nextToken,
-                        MaxResults: 50,
-                    }),
-                );
-
-                response.TableMetadataList?.forEach((tableMeta) => {
-                    if (tableMeta.Name) {
-                        tables.push({
-                            database: this.credentials.database,
-                            schema: this.credentials.schema,
-                            table: tableMeta.Name,
-                            tableType: getWarehouseTableType(
-                                tableMeta.TableType,
-                            ),
-                        });
-                    }
-                });
-
-                nextToken = response.NextToken;
-            } while (nextToken);
-        } catch (e: unknown) {
-            throw translateAthenaError(e, {
-                contextPrefix: `Failed to list tables in '${this.credentials.database}.${this.credentials.schema}'.`,
-                defaultErrorClass: 'connection',
-            });
+        for (
+            let i = 0;
+            i < databases.length;
+            i += ALL_TABLES_DATABASE_CONCURRENCY
+        ) {
+            // eslint-disable-next-line no-await-in-loop
+            const batch = await Promise.all(
+                databases
+                    .slice(i, i + ALL_TABLES_DATABASE_CONCURRENCY)
+                    .map((database) =>
+                        this.getTablesForDatabase(database).catch(
+                            (e: unknown) => {
+                                // Only the configured schema must be listable
+                                if (database.isDefault) throw e;
+                                return [];
+                            },
+                        ),
+                    ),
+            );
+            tables.push(...batch.flat());
         }
 
         return tables;

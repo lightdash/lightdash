@@ -550,7 +550,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     }
 
     async getAllTables() {
-        const databaseName = this.credentials.schema; // In clickhouse schema = database
+        // In clickhouse schema = database; list every non-system database
         const query = `
             SELECT 
                 '' as "table_catalog",
@@ -558,12 +558,10 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 name as "table_name",
                 engine as "table_type"
             FROM system.tables
-            WHERE database = {databaseName: String}
+            WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')
             ORDER BY database, name
         `;
-        const { rows } = await this.runQuery(query, {}, undefined, undefined, {
-            databaseName,
-        });
+        const { rows } = await this.runQuery(query, {}, undefined);
         return rows.map((row) => ({
             database: row.table_catalog,
             schema: row.table_schema || 'default',
