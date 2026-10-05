@@ -134,11 +134,13 @@ export const useCompiledSqlFromMetricQuery = ({
     projectUuid,
     metricQuery,
     pivotConfiguration,
+    enabled = true,
 }: Partial<{
     tableName: string;
     projectUuid: string;
     metricQuery: MetricQuery;
     pivotConfiguration: PivotConfiguration;
+    enabled: boolean;
 }>) => {
     return useQuery<ApiCompiledQueryResults, ApiError>({
         queryKey: [
@@ -156,6 +158,6 @@ export const useCompiledSqlFromMetricQuery = ({
                 undefined,
                 pivotConfiguration,
             ),
-        enabled: !!tableName && !!projectUuid && !!metricQuery,
+        enabled: enabled && !!tableName && !!projectUuid && !!metricQuery,
     });
 };
