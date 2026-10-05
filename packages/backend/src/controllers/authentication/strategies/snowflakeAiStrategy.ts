@@ -10,6 +10,7 @@ import {
 import { Strategy as OAuth2Strategy, VerifyCallback } from 'passport-oauth2';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import Logger from '../../../logging/logger';
 
 const config = lightdashConfig.auth.snowflakeAi;
 
@@ -84,16 +85,21 @@ export const snowflakeAiPassportStrategy = !(
                       );
                   }
                   const account = getSnowflakeAiAccount();
-                  const agentActivated = account
+                  const agentSession = account
                       ? await snowflakeAiSessionCheck
                             .check(account, accessToken)
-                            .catch(() => false)
-                      : false;
-                  if (!agentActivated) {
+                            .catch(() => null)
+                      : null;
+                  if (!agentSession?.agentActivated) {
                       throw new ForbiddenError(
                           SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
                       );
                   }
+                  Logger.info('Snowflake agent session activated', {
+                      currentRole: agentSession.currentRole,
+                      activeRestrictedSessionScopes:
+                          agentSession.activeRestrictedSessionScopes,
+                  });
                   await req.services
                       .getUserService()
                       .upsertAiSnowflakeCredential(user, refreshToken);

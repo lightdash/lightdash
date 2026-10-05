@@ -34,7 +34,7 @@ export const warehouseClientFromCredentials = (
 ): WarehouseClient => {
     switch (credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
-            return new SnowflakeWarehouseClient(credentials);
+            return new SnowflakeWarehouseClient(credentials, options);
         case WarehouseTypes.POSTGRES:
             return new PostgresWarehouseClient(credentials);
         case WarehouseTypes.REDSHIFT:

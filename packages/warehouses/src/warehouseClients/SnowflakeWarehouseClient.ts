@@ -124,14 +124,39 @@ export const isSnowflakeAgentActivatedValue = (value: unknown): boolean =>
     value === true ||
     (typeof value === 'string' && value.toUpperCase() === 'TRUE');
 
+export type SnowflakeAgentSessionCheck = {
+    agentActivated: boolean;
+    currentRole: string | null;
+    activeRestrictedSessionScopes: string | null;
+};
+
+const inactiveAgentSession = (): SnowflakeAgentSessionCheck => ({
+    agentActivated: false,
+    currentRole: null,
+    activeRestrictedSessionScopes: null,
+});
+
+const disableSnowflakeCachedResult = async (
+    connection: Connection,
+): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+        connection.execute({
+            sqlText: 'ALTER SESSION SET USE_CACHED_RESULT = FALSE',
+            complete: (error) => {
+                if (error) reject(error);
+                else resolve();
+            },
+        });
+    });
+
 export const checkSnowflakeAgentSession = async (
     connection: Connection,
-): Promise<boolean> => {
+): Promise<SnowflakeAgentSessionCheck> => {
     try {
         const rows = await new Promise<unknown[]>((resolve, reject) => {
             connection.execute({
                 sqlText:
-                    "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED') AS IS_AGENT_ACTIVATED",
+                    "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN AS IS_AGENT_ACTIVATED, CURRENT_ROLE() AS CURRENT_ROLE, SYS_CONTEXT('SNOWFLAKE$SESSION', 'ACTIVE_RESTRICTED_SESSION_SCOPES') AS ACTIVE_RESTRICTED_SESSION_SCOPES",
                 complete: (error, _statement, data) => {
                     if (error) {
                         reject(error);
@@ -142,20 +167,35 @@ export const checkSnowflakeAgentSession = async (
             });
         });
         const row = rows[0];
-        if (typeof row !== 'object' || row === null) return false;
-        const value = Object.entries(row).find(
-            ([key]) => key.toUpperCase() === 'IS_AGENT_ACTIVATED',
-        )?.[1];
-        return isSnowflakeAgentActivatedValue(value);
+        if (typeof row !== 'object' || row === null)
+            return inactiveAgentSession();
+        const getValue = (key: string): unknown =>
+            Object.entries(row).find(
+                ([name]) => name.toUpperCase() === key,
+            )?.[1];
+        const currentRole = getValue('CURRENT_ROLE');
+        const activeRestrictedSessionScopes = getValue(
+            'ACTIVE_RESTRICTED_SESSION_SCOPES',
+        );
+        return {
+            agentActivated: isSnowflakeAgentActivatedValue(
+                getValue('IS_AGENT_ACTIVATED'),
+            ),
+            currentRole: typeof currentRole === 'string' ? currentRole : null,
+            activeRestrictedSessionScopes:
+                typeof activeRestrictedSessionScopes === 'string'
+                    ? activeRestrictedSessionScopes
+                    : null,
+        };
     } catch {
-        return false;
+        return inactiveAgentSession();
     }
 };
 
 export const checkSnowflakeAgentSessionWithToken = async (
     account: string,
     token: string,
-): Promise<boolean> => {
+): Promise<SnowflakeAgentSessionCheck> => {
     let connection: Connection | null = null;
     try {
         connection = createConnection({
@@ -164,9 +204,12 @@ export const checkSnowflakeAgentSessionWithToken = async (
             token,
         });
         await Util.promisify(connection.connect.bind(connection))();
-        return await checkSnowflakeAgentSession(connection);
+        const session = await checkSnowflakeAgentSession(connection);
+        if (!session.agentActivated) return session;
+        await disableSnowflakeCachedResult(connection);
+        return session;
     } catch {
-        return false;
+        return inactiveAgentSession();
     } finally {
         if (connection) {
             await new Promise<void>((resolve) => {
@@ -718,7 +761,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     connectionOptions: ConnectionOptions;
 
-    private agentSessionVerifiedToken: string | null = null;
+    private readonly logger?: {
+        info: (message: string, metadata?: Record<string, unknown>) => void;
+    };
 
     quotedIdentifiersIgnoreCase?: boolean;
 
@@ -737,8 +782,19 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     private readonly oauthCredentialManager?: SnowflakeOAuthCredentialManager;
 
-    constructor(credentials: CreateSnowflakeCredentials) {
+    constructor(
+        credentials: CreateSnowflakeCredentials,
+        options?: {
+            logger?: {
+                info: (
+                    message: string,
+                    metadata?: Record<string, unknown>,
+                ) => void;
+            };
+        },
+    ) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
+        this.logger = options?.logger;
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -854,29 +910,41 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async getConnection(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ) {
-        if (this.isInteractiveAuthenticator()) {
-            return this.createInteractiveConnection(connectionOptionsOverrides);
-        }
-
-        const connection = await this.createConnection(
-            connectionOptionsOverrides,
-        );
-        if (
-            this.credentials.requireAgentSession &&
-            this.agentSessionVerifiedToken !== this.credentials.token
-        ) {
-            if (!(await checkSnowflakeAgentSession(connection))) {
-                await this.destroyConnection(
-                    connection,
-                    this.connectionOptions.authenticator,
-                ).catch(() => undefined);
+        const connection = this.isInteractiveAuthenticator()
+            ? await this.createInteractiveConnection(connectionOptionsOverrides)
+            : await this.createConnection(connectionOptionsOverrides);
+        if (this.credentials.requireAgentSession) {
+            const session = await checkSnowflakeAgentSession(connection);
+            if (!session.agentActivated) {
+                await this.destroyRejectedAgentConnection(connection);
                 throw new ForbiddenError(
                     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
                 );
             }
-            this.agentSessionVerifiedToken = this.credentials.token ?? null;
+            this.logger?.info('Snowflake agent session activated', {
+                currentRole: session.currentRole,
+                activeRestrictedSessionScopes:
+                    session.activeRestrictedSessionScopes,
+            });
+            try {
+                await disableSnowflakeCachedResult(connection);
+            } catch {
+                await this.destroyRejectedAgentConnection(connection);
+                throw new ForbiddenError(
+                    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
+                );
+            }
         }
         return connection;
+    }
+
+    private async destroyRejectedAgentConnection(
+        connection: Connection,
+    ): Promise<void> {
+        this.interactiveConnectionPromise = undefined;
+        await new Promise<void>((resolve) => {
+            connection.destroy(() => resolve());
+        });
     }
 
     private isInteractiveAuthenticator(): boolean {
@@ -981,12 +1049,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     async openDiagnosticConnection(): Promise<SnowflakeDiagnosticSession> {
         try {
-            const connection = createConnection(
-                await this.getConnectionOptions(),
-            );
-            await Util.promisify(connection.connect.bind(connection))();
+            const connection = await this.getConnection();
             return { connection };
         } catch (error) {
+            if (error instanceof ForbiddenError) throw error;
             throw new SnowflakeDiagnosticError(error);
         }
     }

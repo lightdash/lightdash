@@ -3304,9 +3304,22 @@ export class ProjectService extends BaseService {
         const { snowflakeVirtualWarehouse, databricksCompute } =
             overrides || {};
 
-        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
-            databricksCompute || ''
-        }`;
+        const agentSessionRequired =
+            warehouseSshCredentials.type === WarehouseTypes.SNOWFLAKE &&
+            warehouseSshCredentials.requireAgentSession === true;
+        const aiCredentialUuid =
+            agentSessionRequired &&
+            'userWarehouseCredentialsUuid' in credentials &&
+            typeof credentials.userWarehouseCredentialsUuid === 'string'
+                ? credentials.userWarehouseCredentialsUuid
+                : null;
+        const cacheKey = JSON.stringify([
+            projectUuid,
+            snowflakeVirtualWarehouse ?? null,
+            databricksCompute ?? null,
+            agentSessionRequired,
+            aiCredentialUuid,
+        ]);
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | (typeof this.warehouseClients)[string]
@@ -11075,6 +11088,7 @@ export class ProjectService extends BaseService {
                 binding: { kind: 'explore', exploreName: explore.name },
                 userId: user.userUuid,
                 isRegisteredUser: true,
+                context,
             }),
             this.getUserAttributes({ user }),
             this.getAvailableParameters(projectUuid, explore),
