@@ -23,8 +23,14 @@ export type UserWarehouseCredentialsProject = {
     type: ProjectType;
 };
 
+export enum UserWarehouseCredentialPurpose {
+    DEFAULT = 'default',
+    AI = 'ai',
+}
+
 export type UserWarehouseCredentials = {
     uuid: string;
+    purpose: UserWarehouseCredentialPurpose;
     userUuid: string;
     name: string;
     createdAt: Date;

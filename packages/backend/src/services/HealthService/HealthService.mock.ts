@@ -71,6 +71,9 @@ export const BaseResponse: HealthState = {
         snowflake: {
             enabled: false,
         },
+        snowflakeAi: {
+            enabled: false,
+        },
         databricks: {
             enabled: false,
         },
