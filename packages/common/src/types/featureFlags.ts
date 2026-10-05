@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Off by default; organization scope; no handler. Enables project AI access restrictions. */
+    AiAccessRestrictions = 'ai-access-restrictions',
     /** Off by default; organization scope; no handler. Enables Snowflake AI sign-in. */
     SnowflakeAiSignIn = 'snowflake-ai-sign-in',
     MultiConnectionProjects = 'multi-connection-projects',

@@ -4852,12 +4852,18 @@ export class McpService extends BaseService {
         const ability = this.createAuditedAbility(user);
 
         if (headerProjectUuid && user.organizationUuid) {
-            return ability.can(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid: headerProjectUuid,
-                }),
+            return (
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', {
+                        organizationUuid: user.organizationUuid,
+                        projectUuid: headerProjectUuid,
+                    }),
+                ) &&
+                (await this.asyncQueryService.canUseAiRawSql(
+                    headerProjectUuid,
+                    user.userUuid,
+                ))
             );
         }
 

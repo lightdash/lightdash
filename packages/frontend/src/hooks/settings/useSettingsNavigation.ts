@@ -90,6 +90,7 @@ export const useSettingsNavigation = (
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        aiAccessRestrictionsFlag,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
@@ -783,7 +784,11 @@ export const useSettingsNavigation = (
                 },
                 // Only meaningful when the instance has AI agents at all —
                 // same gate as the org-level AI agents section.
-                ...(isAiCopilotEnabledOrTrial
+                ...(isAiCopilotEnabledOrTrial ||
+                (aiAccessRestrictionsFlag?.enabled === true &&
+                    !!project &&
+                    (ability?.can('update', subject('Project', project)) ??
+                        false))
                     ? [
                           {
                               label: 'Agent data scope',
@@ -1238,6 +1243,7 @@ export const useSettingsNavigation = (
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        aiAccessRestrictionsFlag,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,

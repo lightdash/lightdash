@@ -7593,6 +7593,33 @@ export class ProjectModel {
         return project.agent_sql_scope ?? null;
     }
 
+    async getAiAccessRestrictions(projectUuid: string): Promise<boolean> {
+        const project = await this.database(ProjectTableName)
+            .select('ai_access_restrictions')
+            .where('project_uuid', projectUuid)
+            .first();
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+        return project.ai_access_restrictions;
+    }
+
+    async updateAiAccessRestrictions(
+        projectUuid: string,
+        enabled: boolean,
+    ): Promise<void> {
+        const updated = await this.database(ProjectTableName)
+            .update({ ai_access_restrictions: enabled })
+            .where('project_uuid', projectUuid);
+        if (updated === 0) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+    }
+
     async updateAgentSqlScope(
         projectUuid: string,
         agentSqlScope: AgentSqlScope | null,

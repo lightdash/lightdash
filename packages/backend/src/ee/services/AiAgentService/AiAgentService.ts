@@ -11953,6 +11953,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
+            aiSurface: isSlackPrompt(prompt) ? 'slack_agent' : 'ai_agent',
             tags: runtimeAgentSettings.tags,
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
@@ -14137,6 +14138,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 )
             ) {
                 canRunSql = false;
+            }
+            if (canRunSql) {
+                canRunSql = await this.asyncQueryService.canUseAiRawSql(
+                    promptProject.projectUuid,
+                    user.userUuid,
+                );
             }
         }
 

@@ -77,6 +77,7 @@ export type SettingsContext = {
     isScimTokenManagementEnabled: FeatureFlag | undefined;
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;
+    aiAccessRestrictionsFlag: FeatureFlag | undefined;
     shouldShowAiAgentReviews: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
     canManageOrgAiAgent: boolean;

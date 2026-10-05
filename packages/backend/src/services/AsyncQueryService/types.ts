@@ -193,6 +193,7 @@ export type PreAggregationRoute = {
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
+    aiSurface?: 'ai_agent' | 'slack_agent';
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
     warehouseConnectionUuid?: string | null;
