@@ -167,6 +167,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
             <ResizableSplitter
                 orientation="horizontal"
                 className={styles.panelGroup}
+                // Adjacent resizing evaluates collapse before clamping to min.
+                redistribute={undefined}
                 splitterRef={splitterRef}
                 handleLabel="Resize workspace panels"
                 classNames={{ handle: styles.resizeHandle }}
@@ -179,8 +181,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 {Sidebar && !isMobile && (
                     <ResizableSplitter.Pane
                         id="sidebar"
-                        defaultSize={20}
-                        min={10}
+                        defaultSize="280px"
+                        min="170px"
                         max={40}
                         collapsible
                         className={styles.sidebar}
