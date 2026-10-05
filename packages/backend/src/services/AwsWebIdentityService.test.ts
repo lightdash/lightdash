@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     ProjectType,
     type PossibleAbilities,
@@ -7,8 +8,8 @@ import {
 } from '@lightdash/common';
 import { fromSession } from '../auth/account/account';
 import { defaultSessionUser } from '../auth/account/account.mock';
-import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { type AwsWebIdentityAudienceModel } from '../models/AwsWebIdentityAudienceModel';
+import { type FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { type AwsWebIdentityResolver } from '../utils/awsWebIdentity/AwsWebIdentityResolver';
 import { AwsWebIdentityService } from './AwsWebIdentityService';
@@ -46,10 +47,12 @@ const project = {
 const buildService = (enabled: boolean, summary = project) => {
     const create = vi.fn(async () => 'lightdash-generated');
     const service = new AwsWebIdentityService({
-        lightdashConfig: {
-            ...lightdashConfigMock,
-            athenaWarehouseWebIdentityAuth: { enabled },
-        },
+        featureFlagModel: {
+            get: async () => ({
+                id: FeatureFlags.AthenaWebIdentityAuth,
+                enabled,
+            }),
+        } as unknown as FeatureFlagModel,
         awsWebIdentityAudienceModel: {
             create,
         } as unknown as AwsWebIdentityAudienceModel,

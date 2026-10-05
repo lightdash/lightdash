@@ -23,6 +23,7 @@ import {
     ExploreSplitError,
     ExploreType,
     ExternalSourceScope,
+    FeatureFlags,
     generateSlug,
     getErrorMessage,
     getExploreSplitCandidates,
@@ -222,6 +223,7 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
+import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
     remapRowBinding,
@@ -516,9 +518,18 @@ export class ProjectModel {
         this.connectionRouter = new WarehouseConnectionRouter({
             database: args.database,
         });
+        const featureFlagModel = new FeatureFlagModel({
+            database: args.database,
+            lightdashConfig: args.lightdashConfig,
+        });
         this.awsWebIdentity = new AwsWebIdentityResolver({
-            enabled:
-                args.lightdashConfig.athenaWarehouseWebIdentityAuth.enabled,
+            isEnabledFor: async (organizationUuid) =>
+                (
+                    await featureFlagModel.get({
+                        user: { organizationUuid },
+                        featureFlagId: FeatureFlags.AthenaWebIdentityAuth,
+                    })
+                ).enabled,
             audienceModel: new AwsWebIdentityAudienceModel({
                 database: args.database,
             }),

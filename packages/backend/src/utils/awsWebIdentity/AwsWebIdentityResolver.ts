@@ -61,7 +61,9 @@ const getWebIdentityConnection = (
  * audience, however its credentials were written.
  */
 export class AwsWebIdentityResolver {
-    private readonly enabled: boolean;
+    private readonly isEnabledFor: (
+        organizationUuid: string,
+    ) => Promise<boolean>;
 
     private readonly audienceModel: AwsWebIdentityAudienceModel;
 
@@ -70,11 +72,11 @@ export class AwsWebIdentityResolver {
     private subject: Promise<string | undefined> | undefined;
 
     constructor(args: {
-        enabled: boolean;
+        isEnabledFor: (organizationUuid: string) => Promise<boolean>;
         audienceModel: AwsWebIdentityAudienceModel;
         tokenSource: GoogleIdentityTokenSource;
     }) {
-        this.enabled = args.enabled;
+        this.isEnabledFor = args.isEnabledFor;
         this.audienceModel = args.audienceModel;
         this.tokenSource = args.tokenSource;
     }
@@ -100,7 +102,7 @@ export class AwsWebIdentityResolver {
     ): Promise<void> {
         const connection = getWebIdentityConnection(credentials);
         if (!connection) return;
-        if (!this.enabled) {
+        if (!(await this.isEnabledFor(organizationUuid))) {
             throw new ParameterError(AWS_WEB_IDENTITY_MESSAGES.notEnabled);
         }
         if (!connection.audience) {
@@ -179,7 +181,7 @@ export class AwsWebIdentityResolver {
         credentials: CreateWarehouseCredentials | undefined,
     ): Promise<void> {
         const connection = getWebIdentityConnection(credentials);
-        if (!connection?.roleArn || !this.enabled) return;
+        if (!connection?.roleArn) return;
         const probeAudience = `lightdash-probe-${randomBytes(16).toString('hex')}`;
         let webIdentityToken: string;
         try {

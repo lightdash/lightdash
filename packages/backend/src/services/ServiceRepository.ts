@@ -1304,7 +1304,7 @@ export class ServiceRepository
             'awsWebIdentityService',
             () =>
                 new AwsWebIdentityService({
-                    lightdashConfig: this.context.lightdashConfig,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     awsWebIdentityAudienceModel:
                         this.models.getAwsWebIdentityAudienceModel(),
                     awsWebIdentityResolver:

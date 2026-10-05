@@ -6,25 +6,26 @@ import {
     AwsWebIdentity,
     AwsWebIdentityAudience,
     CreateAwsWebIdentityAudience,
+    FeatureFlags,
     ForbiddenError,
     ProjectType,
 } from '@lightdash/common';
-import { LightdashConfig } from '../config/parseConfig';
 import { AwsWebIdentityAudienceModel } from '../models/AwsWebIdentityAudienceModel';
+import { type FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { type AwsWebIdentityResolver } from '../utils/awsWebIdentity/AwsWebIdentityResolver';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../utils/awsWebIdentity/messages';
 import { BaseService } from './BaseService';
 
 type AwsWebIdentityServiceArguments = {
-    lightdashConfig: LightdashConfig;
+    featureFlagModel: FeatureFlagModel;
     awsWebIdentityAudienceModel: AwsWebIdentityAudienceModel;
     awsWebIdentityResolver: AwsWebIdentityResolver;
     projectModel: ProjectModel;
 };
 
 export class AwsWebIdentityService extends BaseService {
-    private readonly lightdashConfig: LightdashConfig;
+    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly awsWebIdentityAudienceModel: AwsWebIdentityAudienceModel;
 
@@ -33,29 +34,36 @@ export class AwsWebIdentityService extends BaseService {
     private readonly projectModel: ProjectModel;
 
     constructor({
-        lightdashConfig,
+        featureFlagModel,
         awsWebIdentityAudienceModel,
         awsWebIdentityResolver,
         projectModel,
     }: AwsWebIdentityServiceArguments) {
         super();
-        this.lightdashConfig = lightdashConfig;
+        this.featureFlagModel = featureFlagModel;
         this.awsWebIdentityAudienceModel = awsWebIdentityAudienceModel;
         this.awsWebIdentityResolver = awsWebIdentityResolver;
         this.projectModel = projectModel;
     }
 
-    private assertEnabled() {
-        if (!this.lightdashConfig.athenaWarehouseWebIdentityAuth.enabled) {
+    private async assertEnabled(organizationUuid: string, userUuid: string) {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid, userUuid },
+            featureFlagId: FeatureFlags.AthenaWebIdentityAuth,
+        });
+        if (!enabled) {
             throw new ForbiddenError(AWS_WEB_IDENTITY_MESSAGES.notEnabled);
         }
     }
 
     /** This instance's identity, to put in a role's trust policy. */
     async getIdentity(account: Account): Promise<AwsWebIdentity> {
-        this.assertEnabled();
         assertRegisteredAccount(account);
         assertIsAccountWithOrg(account);
+        await this.assertEnabled(
+            account.organization.organizationUuid,
+            account.user.userUuid,
+        );
         return {
             subject: (await this.awsWebIdentityResolver.getSubject()) ?? null,
         };
@@ -66,9 +74,12 @@ export class AwsWebIdentityService extends BaseService {
         account: Account,
         { projectUuid }: CreateAwsWebIdentityAudience,
     ): Promise<AwsWebIdentityAudience> {
-        this.assertEnabled();
         assertRegisteredAccount(account);
         assertIsAccountWithOrg(account);
+        await this.assertEnabled(
+            account.organization.organizationUuid,
+            account.user.userUuid,
+        );
         const { organizationUuid } = account.organization;
         const ability = this.createAuditedAbility(account);
         if (projectUuid) {

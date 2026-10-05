@@ -5519,14 +5519,6 @@ export class ProjectService extends BaseService {
                     athenaAuthenticationType ===
                     AthenaAuthenticationType.WEB_IDENTITY
                 ) {
-                    if (
-                        !this.lightdashConfig.athenaWarehouseWebIdentityAuth
-                            .enabled
-                    ) {
-                        throw new ParameterError(
-                            AWS_WEB_IDENTITY_MESSAGES.notEnabled,
-                        );
-                    }
                     if (!project.warehouseConnection.assumeRoleArn) {
                         throw new ParameterError(
                             AWS_WEB_IDENTITY_MESSAGES.missingRoleArn,

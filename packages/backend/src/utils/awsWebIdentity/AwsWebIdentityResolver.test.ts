@@ -49,14 +49,15 @@ const build = ({
         audience === 'lightdash-audience-a' ? ORG_A : null,
     );
     const getIdToken = vi.fn(async () => tokenFor(SUBJECT));
+    const isEnabledFor = vi.fn(async (_organizationUuid: string) => enabled);
     const resolver = new AwsWebIdentityResolver({
-        enabled,
+        isEnabledFor,
         audienceModel: {
             getOrganizationUuid,
         } as unknown as AwsWebIdentityAudienceModel,
         tokenSource: tokenSource ?? { getIdToken },
     });
-    return { resolver, getOrganizationUuid, getIdToken };
+    return { resolver, getOrganizationUuid, getIdToken, isEnabledFor };
 };
 
 const accessDenied = () => {
@@ -117,14 +118,17 @@ describe('AwsWebIdentityResolver', () => {
             expect(mockFromWebToken).not.toHaveBeenCalled();
         });
 
-        test('refuses everything when the instance has not enabled it', async () => {
-            const { resolver, getOrganizationUuid } = build({ enabled: false });
+        test("refuses everything when the connection's organization hasn't enabled it", async () => {
+            const { resolver, getOrganizationUuid, isEnabledFor } = build({
+                enabled: false,
+            });
             const provider = await resolver.resolveCredentials(
                 credentials,
                 ORG_A,
             );
 
             await expect(provider!()).rejects.toThrow(/isn't turned on/);
+            expect(isEnabledFor).toHaveBeenCalledWith(ORG_A);
             expect(getOrganizationUuid).not.toHaveBeenCalled();
         });
 

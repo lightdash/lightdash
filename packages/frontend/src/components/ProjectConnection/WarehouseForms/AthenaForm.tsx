@@ -1,8 +1,13 @@
-import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import {
+    AthenaAuthenticationType,
+    FeatureFlags,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { TextInput, Stack, Anchor, Select, PasswordInput } from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -39,6 +44,9 @@ const AthenaForm: FC<{
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject, projectUuid } = useProjectFormContext();
     const health = useHealth();
+    const webIdentityFlag = useServerFeatureFlag(
+        FeatureFlags.AthenaWebIdentityAuth,
+    );
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.ATHENA;
     const form = useFormContext();
@@ -51,8 +59,7 @@ const AthenaForm: FC<{
 
     const isIamRoleAuthEnabled =
         health.data?.isAthenaWarehouseIamRoleAuthEnabled ?? false;
-    const isWebIdentityAuthEnabled =
-        health.data?.isAthenaWarehouseWebIdentityAuthEnabled ?? false;
+    const isWebIdentityAuthEnabled = webIdentityFlag.data?.enabled === true;
     const enabledAuthenticationTypes = [
         AthenaAuthenticationType.ACCESS_KEY,
         ...(isIamRoleAuthEnabled ? [AthenaAuthenticationType.IAM_ROLE] : []),
@@ -82,17 +89,22 @@ const AthenaForm: FC<{
     const isCurrentTypeEnabled = isAuthenticationTypeEnabled(
         warehouse.authenticationType,
     );
-    const hasHealth = !!health.data;
+    const hasEnabledTypes = !!health.data && webIdentityFlag.isFetched;
 
     useEffect(() => {
-        // Wait for health so a saved type isn't reset before it is known.
-        if (hasHealth && !isCurrentTypeEnabled) {
+        // Wait until the enabled types are known, so a saved type isn't reset.
+        if (hasEnabledTypes && !isCurrentTypeEnabled) {
             form.setFieldValue(
                 'warehouse.authenticationType',
                 fallbackAuthenticationType,
             );
         }
-    }, [hasHealth, isCurrentTypeEnabled, fallbackAuthenticationType, form]);
+    }, [
+        hasEnabledTypes,
+        isCurrentTypeEnabled,
+        fallbackAuthenticationType,
+        form,
+    ]);
 
     const authenticationType = isAuthenticationTypeEnabled(
         warehouse.authenticationType,

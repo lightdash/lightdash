@@ -696,7 +696,6 @@ export type HealthState = {
     isServiceAccountEnabled: boolean;
     isOrganizationWarehouseCredentialsEnabled: boolean;
     isAthenaWarehouseIamRoleAuthEnabled: boolean;
-    isAthenaWarehouseWebIdentityAuthEnabled: boolean;
     isSaveCredentialsFormEnabled: boolean;
     latest: {
         version?: string;

@@ -373,6 +373,12 @@ export enum FeatureFlags {
      * on any mismatch. Off by default.
      */
     DbtPartialParse = 'dbt-partial-parse',
+    /**
+     * Organization-scoped: Athena connections can authenticate with this
+     * instance's Google workload identity instead of AWS keys. Only enable on
+     * instances whose pods run as their own Google service account.
+     */
+    AthenaWebIdentityAuth = 'athena-web-identity-auth',
 }
 
 export type FeatureFlag = {
