@@ -66,12 +66,14 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
             allowChartUpdate,
             isEditMode,
             chartView,
+            runQueryOnLoad,
         }: {
             exploreId?: string;
-            savedChart?: { uuid?: string };
+            savedChart?: { uuid?: string; metricQuery?: { metrics: string[] } };
             allowChartUpdate?: boolean;
             isEditMode?: boolean;
             chartView?: boolean;
+            runQueryOnLoad?: boolean;
         }) {
             const { onExplore, onBackToDashboard } = useEmbed();
             return (
@@ -83,15 +85,33 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
                     }
                     data-explore-id={exploreId}
                     data-saved-chart-uuid={savedChart?.uuid}
+                    data-metrics={savedChart?.metricQuery?.metrics.join(',')}
                     data-allow-chart-update={allowChartUpdate}
                     data-edit-mode={isEditMode}
                     data-chart-view={chartView}
+                    data-run-query-on-load={runQueryOnLoad}
                 >
                     <button
                         data-testid="explore-drill-down"
                         onClick={() =>
                             onExplore({
                                 chart: { tableName: 'orders' } as never,
+                            })
+                        }
+                    />
+                    <button
+                        data-testid="explore-drill-down-unsaved"
+                        onClick={() =>
+                            onExplore({
+                                chart: {
+                                    tableName: `${exploreId}_drill`,
+                                } as never,
+                                sourceChart: {
+                                    tableName: exploreId,
+                                    metricQuery: {
+                                        metrics: [`${exploreId}_unsaved`],
+                                    },
+                                } as never,
                             })
                         }
                     />
@@ -490,6 +510,40 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         });
     });
 
+    it('returns to the SDK dashboard in one click from a nested drill-down', async () => {
+        const { getByTestId, queryByTestId } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={[]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+
+        fireEvent.click(getByTestId('drill-down-explore'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'orders',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-drill-down-unsaved'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'orders_drill',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-back'));
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+        expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
     it('drills in place inside the SDK explore and returns to the saved chart', async () => {
         const onExplore = vi.fn();
         const { getByTestId, queryByTestId } = render(
@@ -530,6 +584,97 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
                 'payments',
             );
         });
+        expect(queryByTestId('explore-back')).toBeNull();
+    });
+
+    it('restores the unsaved root query on back from a nested drill-down', async () => {
+        const { getByTestId, queryByTestId } = render(
+            <Explore
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId="payments"
+                savedChart={
+                    { uuid: 'saved-chart-uuid', tableName: 'payments' } as never
+                }
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-drill-down-unsaved'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments_drill',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-drill-down-unsaved'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments_drill_drill',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-back'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.metrics).toBe(
+                'payments_unsaved',
+            );
+        });
+        expect(getByTestId('embed-explore').dataset.exploreId).toBe('payments');
+        expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+            undefined,
+        );
+        expect(getByTestId('embed-explore').dataset.runQueryOnLoad).toBe(
+            'true',
+        );
+        expect(queryByTestId('explore-back')).toBeNull();
+    });
+
+    it('starts a fresh navigation when the host returns to an earlier chart', async () => {
+        const renderExplore = (exploreId: string, chartUuid: string) => (
+            <Explore
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId={exploreId}
+                savedChart={{ uuid: chartUuid, tableName: exploreId } as never}
+            />
+        );
+        const { getByTestId, queryByTestId, rerender } = render(
+            renderExplore('payments', 'chart-a'),
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-drill-down-unsaved'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments_drill',
+            );
+        });
+
+        rerender(renderExplore('orders', 'chart-b'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'chart-b',
+            );
+        });
+
+        rerender(renderExplore('payments', 'chart-a'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'chart-a',
+            );
+        });
+        expect(getByTestId('embed-explore').dataset.exploreId).toBe('payments');
         expect(queryByTestId('explore-back')).toBeNull();
     });
 });

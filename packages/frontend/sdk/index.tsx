@@ -34,7 +34,10 @@ import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
-import { type EmbedExploreChart } from '../src/ee/providers/Embed/types';
+import {
+    type EmbedExploreChart,
+    type EmbedExploreOptions,
+} from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
@@ -210,27 +213,65 @@ const getDashboardContainerStyles = (
         (theme ? 'var(--mantine-color-body)' : undefined),
 });
 
+type EmbedExploreNavigation = {
+    rootKey: string | undefined;
+    // Derived chart (drill-down) opened in place
+    exploreChart: EmbedExploreChart | undefined;
+    // The root Explore's query as it was before its first drill-down
+    restoredChart: EmbedExploreChart | undefined;
+};
+
+const getInitialNavigation = (
+    rootKey: string | undefined,
+): EmbedExploreNavigation => ({
+    rootKey,
+    exploreChart: undefined,
+    restoredChart: undefined,
+});
+
 // Saved charts go to the host; derived charts (drill-downs) render in place.
-const useEmbedExploreNavigation = (onExplore: BaseProps['onExplore']) => {
-    const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
+// Back leaves every drill-down at once and restores the root's query.
+const useEmbedExploreNavigation = (
+    onExplore: BaseProps['onExplore'],
+    rootKey?: string,
+) => {
+    const [state, setState] = useState(() => getInitialNavigation(rootKey));
+    // A new root chart from the host starts a fresh navigation
+    const navigation =
+        state.rootKey === rootKey ? state : getInitialNavigation(rootKey);
+    if (navigation !== state) {
+        setState(navigation);
+    }
 
     const handleExplore = useCallback(
-        ({ chart }: { chart: EmbedExploreChart }) => {
+        ({ chart, sourceChart }: EmbedExploreOptions) => {
             if ('uuid' in chart) {
                 onExplore?.({ chart });
-            } else {
-                setExploreChart(chart);
+                return;
             }
+            setState((prev) => ({
+                ...prev,
+                exploreChart: chart,
+                // Nested drill-downs keep the root's query
+                restoredChart: prev.exploreChart
+                    ? prev.restoredChart
+                    : (sourceChart ?? prev.restoredChart),
+            }));
         },
         [onExplore],
     );
 
     const handleBackToDashboard = useCallback(
-        () => setExploreChart(undefined),
+        () => setState((prev) => ({ ...prev, exploreChart: undefined })),
         [],
     );
 
-    return { exploreChart, handleExplore, handleBackToDashboard };
+    return {
+        exploreChart: navigation.exploreChart,
+        restoredChart: navigation.restoredChart,
+        handleExplore,
+        handleBackToDashboard,
+    };
 };
 
 const getAiAgentEmbedUrl = ({
@@ -664,8 +705,13 @@ const Explore: FC<
     savedChart,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
-    const { exploreChart, handleExplore, handleBackToDashboard } =
-        useEmbedExploreNavigation(onExplore);
+    const {
+        exploreChart,
+        restoredChart,
+        handleExplore,
+        handleBackToDashboard,
+    } = useEmbedExploreNavigation(onExplore, `${exploreId}:${savedChart.uuid}`);
+    const currentChart = exploreChart ?? restoredChart;
 
     if (!tokenContext) {
         return null;
@@ -689,8 +735,12 @@ const Explore: FC<
                 }
             >
                 <EmbedExplore
-                    exploreId={exploreChart?.tableName ?? exploreId}
-                    savedChart={exploreChart ?? savedChart}
+                    exploreId={currentChart?.tableName ?? exploreId}
+                    savedChart={currentChart ?? savedChart}
+                    runQueryOnLoad={
+                        exploreChart === undefined &&
+                        restoredChart !== undefined
+                    }
                     containerStyles={{
                         width: '100%',
                         height: '100%',
