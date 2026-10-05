@@ -103,6 +103,44 @@ describe('ai_usage stream projection', () => {
         );
     });
 
+    it.each([3, null, -1, 1.5, '3'])(
+        'retains validated app build attribution (%s) without changing token amounts',
+        (version) => {
+            const writer = createWriterMock();
+            const sink = new EventStreamSink(eventStreamRegistry, writer);
+            registerAiUsageTracker((event) => sink.handle(event));
+            emitAiUsage(
+                {
+                    telemetry: { functionId: 'appClaudeGeneration' },
+                    runtimeContext: {
+                        feature: 'data-app',
+                        organizationUuid: 'org-1',
+                        projectUuid: 'project-1',
+                        appUuid: 'app-1',
+                        ...(version === null ? {} : { appVersion: version }),
+                    },
+                },
+                {
+                    inputTokens: 100,
+                    outputTokens: 20,
+                    totalTokens: 120,
+                    cacheReadTokens: 10,
+                    cacheWriteTokens: 5,
+                    reasoningTokens: null,
+                },
+            );
+            expect(writer.push).toHaveBeenCalledWith(
+                'ai_usage',
+                expect.objectContaining({
+                    app_id: 'app-1',
+                    app_version: version === 3 ? 3 : null,
+                    input_tokens: 100,
+                    total_tokens: 120,
+                }),
+            );
+        },
+    );
+
     it('projects an ai.usage event', () => {
         const writer = createWriterMock();
         const sink = new EventStreamSink(eventStreamRegistry, writer);

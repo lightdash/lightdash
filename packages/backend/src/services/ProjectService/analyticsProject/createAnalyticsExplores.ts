@@ -38,6 +38,11 @@ import {
     contentReachSql,
 } from '../../../analytics/systemExplores/contentReach';
 import {
+    dataAppBuildsColumns,
+    dataAppBuildsMetrics,
+    dataAppBuildsSql,
+} from '../../../analytics/systemExplores/dataAppBuilds';
+import {
     semanticUsageColumns,
     semanticUsageMetrics,
     semanticUsageSql,
@@ -78,6 +83,7 @@ export const analyticsExploreNames = [
     'agent_requests',
     'agent_request_events',
     'semantic_usage',
+    'data_app_builds',
 ] as const;
 
 /** Compile backend-owned system models without querying remote storage. */
@@ -93,6 +99,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            data_app_builds: {
+                columns: dataAppBuildsColumns,
+                metrics: dataAppBuildsMetrics,
+            },
             semantic_usage: {
                 columns: semanticUsageColumns,
                 metrics: semanticUsageMetrics,
@@ -131,6 +141,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             },
         };
         const modelDefinition =
+            name === 'data_app_builds' ||
             name === 'semantic_usage' ||
             name === 'user_activity' ||
             name === 'tool_activity' ||
@@ -234,6 +245,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                         content_health: contentHealthSql,
                         agent_requests: agentRequestsSql,
                         semantic_usage: semanticUsageSql,
+                        data_app_builds: dataAppBuildsSql,
                     } as Partial<Record<typeof name, string>>
                 )[name] ?? `"${name}"`,
             database: 'memory',
@@ -258,6 +270,21 @@ export const createAnalyticsExplores = (): Explore[] => {
         table.dimensions.project_id.label = 'Project UUID';
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
+        }
+        if (name === 'data_app_builds') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.build_id.hidden = true;
+            table.dimensions.user_id.label = 'Builder UUID';
+            table.dimensions.requested_model.description =
+                'Requested model or tier for the build. Use AI usage with App name and App version for consumption by concrete model.';
+            table.dimensions.activity_at.description =
+                'Observed start time, or outcome time when the start is outside captured history.';
+            table.dimensions.start_observed.description =
+                'Whether a build start is in retained history. A missing start does not imply the build never started.';
+            table.dimensions.status.description =
+                'Latest captured lifecycle outcome. Pending means no outcome is in retained history; it is not live build status.';
+            table.dimensions.usage_records.description =
+                'Number of linked captured usage records, not proof of complete billing coverage. Cancelled builds can have missing usage.';
         }
         if (name === 'semantic_usage') {
             table.dimensions.org_id.hidden = true;
@@ -369,7 +396,10 @@ export const createAnalyticsExplores = (): Explore[] => {
         const includeQueryMetadata = name === 'export_events';
         const appTableName = 'lightdash_apps';
         const includeAppMetadata =
-            name === 'data_app_events' || name === 'semantic_usage';
+            name === 'data_app_events' ||
+            name === 'semantic_usage' ||
+            name === 'data_app_builds' ||
+            name === 'ai_usage';
         const appFields = buildDimensionsFromColumns({
             qualifyColumnReferences: true,
             tableName: appTableName,

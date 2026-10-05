@@ -88,6 +88,20 @@ describe('data app usage events', () => {
             project_id: 'project-1',
             app_id: 'app-1',
             version,
+            coding_agent: null,
+            requested_model: null,
+            provider: null,
+            is_iteration:
+                (
+                    {
+                        'data_app.created': false,
+                        'data_app.iterated': true,
+                    } as Partial<Record<DataAppStreamEvent['event'], boolean>>
+                )[event] ?? null,
+            was_resumed: null,
+            duration_ms: null,
+            scheduler_wait_ms: null,
+            outcome_stage: null,
         });
     });
 

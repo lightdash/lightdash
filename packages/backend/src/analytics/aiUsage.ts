@@ -193,6 +193,8 @@ export type AiUsageEvent = BaseTrack & {
         threadId: string | null;
         promptId: string | null;
         dataAppId: string | null;
+        // Absent on events emitted before build attribution was captured.
+        dataAppVersion?: number | null;
         model: string | null;
         provider: string | null;
         keyManagement: AiKeyManagement | null;
@@ -336,6 +338,12 @@ export const emitAiUsage = (
             threadId: getMetadataString(metadata, 'threadUuid'),
             promptId: getMetadataString(metadata, 'promptUuid'),
             dataAppId: getMetadataString(metadata, 'appUuid'),
+            dataAppVersion:
+                typeof metadata.appVersion === 'number' &&
+                Number.isSafeInteger(metadata.appVersion) &&
+                metadata.appVersion > 0
+                    ? metadata.appVersion
+                    : null,
             model: getMetadataString(metadata, 'model'),
             provider: getMetadataString(metadata, 'provider'),
             keyManagement: parseKeyManagement(

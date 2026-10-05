@@ -234,6 +234,7 @@ describe('emitAiUsage', () => {
             threadId: 'thread-1',
             promptId: 'prompt-1',
             dataAppId: null,
+            dataAppVersion: null,
             model: 'claude-sonnet-5',
             provider: 'anthropic',
             keyManagement: null,
