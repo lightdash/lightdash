@@ -1155,7 +1155,7 @@ export class UserService extends BaseService {
                 openIdSession.userUuid !== authenticatedUser?.userUuid
             ) {
                 throw new ForbiddenError(
-                    'This Google account is already connected to another Lightdash user',
+                    'This Google account is already connected to another user',
                 );
             }
 

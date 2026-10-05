@@ -229,7 +229,7 @@ const datePartExpr = (expr: Expr): DatePartExpr | null => {
     if (fn === 'extract' && (part === 'dow' || part === 'isodow')) {
         throw new SqlCompileError(
             `EXTRACT(${part.toUpperCase()}) is not supported`,
-            "Postgres numbers weekdays 0-6 from Sunday while Lightdash uses 1-7 from the project start of week; select the dimension's day-of-week interval column instead",
+            "Postgres numbers weekdays 0-6 from Sunday, but day-of-week dimensions use 1-7 from the project start of week; select the dimension's day-of-week interval column instead",
         );
     }
     const frame = DATE_PART_FRAMES[fn][part];
@@ -1033,13 +1033,13 @@ function compileSelect(
     if (select.from.some((f) => f.join)) {
         throw new SqlCompileError(
             'JOINs are not supported',
-            'Joins are defined in the Lightdash explore itself - joined table fields are available as columns',
+            'Joins are defined in the explore itself - joined table fields are available as columns',
         );
     }
     if (select.from.length > 1) {
         throw new SqlCompileError(
             'Only one table is supported in FROM',
-            'Joins are defined in the Lightdash explore itself',
+            'Joins are defined in the explore itself',
         );
     }
     const [from] = select.from;
@@ -1506,7 +1506,7 @@ function compileSelect(
         if (missing.length > 0) {
             throw new SqlCompileError(
                 `Selected dimensions must appear in GROUP BY: ${missing.join(', ')}`,
-                'Lightdash always groups by all selected dimensions; either list them all or omit GROUP BY entirely',
+                'Queries always group by all selected dimensions; either list them all or omit GROUP BY entirely',
             );
         }
     }
@@ -1595,7 +1595,7 @@ export const compileSqlToMetricQuery = (
     if (statement.type !== 'select') {
         throw new SqlCompileError(
             `${statement.type.toUpperCase()} statements are not supported`,
-            'Only SELECT queries can be run against the Lightdash semantic layer',
+            'Only SELECT queries are supported',
         );
     }
     return compileSelect(statement as SelectFromStatement, catalog);

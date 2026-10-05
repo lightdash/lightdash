@@ -364,6 +364,7 @@ const ApiErrorDisplayWithHealth = ({
     queryClient: QueryClient;
 }) => {
     const isDark = useComputedColorScheme() === 'dark';
+    const isEmbedded = useIsEmbedded();
     const health = useHealth();
     const isCloudCustomer = health.data?.mode === LightdashMode.CLOUD_BETA;
     const isDevelopment = health.data?.mode === LightdashMode.DEV;
@@ -373,7 +374,8 @@ const ApiErrorDisplayWithHealth = ({
     );
 
     const showSupportButton =
-        (isCloudCustomer && isNotMultiTenantCloud) || isDevelopment;
+        !isEmbedded &&
+        ((isCloudCustomer && isNotMultiTenantCloud) || isDevelopment);
 
     const sharedSignIn = getSharedSignInExpiry(apiError);
     if (sharedSignIn) {

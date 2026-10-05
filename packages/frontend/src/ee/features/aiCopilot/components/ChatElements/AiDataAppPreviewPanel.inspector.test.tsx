@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 // The app actions menu navigates after a duplicate; nothing here routes.
 vi.mock('react-router', () => ({
     useNavigate: () => vi.fn(),
+    useParams: () => ({}),
 }));
 
 vi.mock('../../../../../features/apps/AppIframePreview', () => ({

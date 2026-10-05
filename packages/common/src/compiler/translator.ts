@@ -1682,7 +1682,7 @@ export async function* iterateExplores(
                         message:
                             e instanceof Error
                                 ? e.message
-                                : `Could not convert dbt model: "${model.name}" in to a Lightdash explore`,
+                                : `Could not convert dbt model: "${model.name}" into an explore`,
                     },
                 ],
             };

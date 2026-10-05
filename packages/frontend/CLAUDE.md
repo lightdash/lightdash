@@ -45,7 +45,8 @@ Customers embed Lightdash (iframe or SDK) inside their own product, so their end
     -   upsell, onboarding, tour and feedback prompts
 -   **Hide, don't disable.** Render nothing in the embed and keep the surrounding sentence readable without the link. If the copy only makes sense with the brand in it, write a neutral variant for the embed.
 -   **Use `DocumentationHelpButton` for docs help icons.** It already returns `null` in an embed, so prefer it over a hand-rolled `Anchor` + icon. An inline docs `Anchor` needs its own `useIsEmbedded()` gate.
--   **New pages and components**: before finishing, grep your change for `lightdash.com` and `Lightdash` in user-visible strings, then decide for each whether an embed can reach it. Settings, project connection and admin pages are not embed-reachable and need no gate.
+-   **Never say "Lightdash" to mean the app** in error messages (on any page) or in labels of embed-reachable components. Write "the server", "this instance", or drop the word. Scope and exceptions are in `docs/white-label-copy.md`.
+-   **New pages and components**: before finishing, grep your change for `lightdash.com` and `Lightdash` in user-visible strings, then decide for each whether an embed can reach it. Settings, project connection and admin pages are not embed-reachable and need no gate, but their error messages still must not say "Lightdash".
 -   **This is not authorization.** `useIsEmbedded()` only removes branding. What an embedded user may do is decided by abilities and the JWT, never by this flag.
 -   Translating embed-visible strings is a separate mechanism (`uiOverrides`, see `src/components/common/Filters/CLAUDE.md`).
 

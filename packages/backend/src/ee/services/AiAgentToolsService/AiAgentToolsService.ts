@@ -2423,7 +2423,7 @@ export class AiAgentToolsService extends BaseService {
                     }
                     if (origin !== siteOrigin) {
                         throw new ParameterError(
-                            `"${url}" does not belong to this Lightdash instance (${siteOrigin}), so it cannot be resolved`,
+                            `"${url}" does not belong to this instance (${siteOrigin}), so it cannot be resolved`,
                         );
                     }
                 }
@@ -4502,7 +4502,7 @@ export class AiAgentToolsService extends BaseService {
         ).flatMap((block) => (block.type === 'tag' ? [block.tag] : []));
         if (tag) {
             throw new ParameterError(
-                `<${tag.name}> is only available inside a Lightdash AI agent conversation. Place the chart with <document-chart id="KEY"> and its full definition in charts.`,
+                `<${tag.name}> is only available inside an AI agent conversation. Place the chart with <document-chart id="KEY"> and its full definition in charts.`,
             );
         }
     }

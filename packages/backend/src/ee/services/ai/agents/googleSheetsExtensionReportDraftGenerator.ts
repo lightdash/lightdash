@@ -136,7 +136,7 @@ export const generateGoogleSheetsExtensionReportDraft = async (
         } catch {
             // Provider errors may contain request data or credentials.
             throw new UnexpectedServerError(
-                'Lightdash AI could not generate a complete draft. Your report has not changed. Try again or check your organization’s AI configuration.',
+                'AI could not generate a complete draft. Your report has not changed. Try again or check your organization’s AI configuration.',
             );
         }
     };
@@ -205,7 +205,7 @@ Fix every listed problem together, then check the complete report using the orig
                 `Google Sheets extension report draft failed validation after correction: ${correctionError.message}`,
             );
             throw new UnexpectedServerError(
-                'Lightdash AI could not produce valid report settings after a correction attempt. Your report has not changed. Try rephrasing your request.',
+                'AI could not produce valid report settings after a correction attempt. Your report has not changed. Try rephrasing your request.',
             );
         }
     }

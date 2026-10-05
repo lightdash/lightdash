@@ -292,7 +292,7 @@ describe('network error messages', () => {
                 name: 'NetworkError',
                 statusCode: 500,
                 message:
-                    'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
+                    'We are currently unable to reach the server. Please try again in a few moments.',
                 data: {},
             },
         });
@@ -311,7 +311,7 @@ describe('network error messages', () => {
                 name: 'NetworkError',
                 statusCode: 500,
                 message: expect.stringContaining(
-                    'Lightdash is reachable, but this request was blocked before it arrived',
+                    'The server is reachable, but this request was blocked before it arrived',
                 ),
                 data: {
                     kind: 'blocked',
@@ -347,7 +347,7 @@ describe('network error messages', () => {
             error: {
                 name: 'NetworkError',
                 message:
-                    'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
+                    'We are currently unable to reach the server. Please try again in a few moments.',
                 data: {},
             },
         });
@@ -366,7 +366,7 @@ describe('network error messages', () => {
             error: {
                 name: 'NetworkError',
                 message: expect.stringContaining(
-                    'with HTTP 403 instead of Lightdash',
+                    'with HTTP 403 instead of the server',
                 ),
                 data: { kind: 'intercepted', responseStatus: 403 },
             },
@@ -382,7 +382,7 @@ describe('network error messages', () => {
             error: {
                 name: 'NetworkError',
                 message: expect.stringContaining(
-                    'Lightdash cannot be reached from your network right now',
+                    'The server cannot be reached from your network right now',
                 ),
                 data: { kind: 'unreachable' },
             },
@@ -401,7 +401,7 @@ describe('network error messages', () => {
             error: {
                 name: 'NetworkError',
                 message: expect.stringContaining(
-                    'with HTTP 502 instead of Lightdash',
+                    'with HTTP 502 instead of the server',
                 ),
                 data: { kind: 'intercepted', responseStatus: 502 },
             },
@@ -491,7 +491,7 @@ describe('network error messages', () => {
                 body: JSON.stringify({}),
                 diagnoseTransportFailures: true,
             }),
-        ).rejects.toThrow('with HTTP 403 instead of Lightdash');
+        ).rejects.toThrow('with HTTP 403 instead of the server');
     });
 });
 

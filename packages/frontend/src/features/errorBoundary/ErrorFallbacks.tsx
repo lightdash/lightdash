@@ -17,8 +17,8 @@ export const ChunkErrorFallback: FC = () => (
         description={
             <Box>
                 <Text mb="xs">
-                    A new version of Lightdash is available. Please refresh your
-                    browser to load the latest version.
+                    A new version is available. Please refresh your browser to
+                    load the latest version.
                 </Text>
                 <Text size="sm" c="dimmed">
                     If this persists after refreshing, try clearing your browser

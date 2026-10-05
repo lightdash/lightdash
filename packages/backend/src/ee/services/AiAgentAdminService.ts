@@ -3648,8 +3648,7 @@ export class AiAgentAdminService extends BaseService {
                     remediationUuid,
                     organizationUuid,
                     status: 'failed',
-                    errorMessage:
-                        'Preview URL did not contain a Lightdash project',
+                    errorMessage: 'Preview URL did not contain a project',
                 },
             );
             return;

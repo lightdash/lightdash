@@ -728,7 +728,7 @@ export const translateMetricFlowMetrics = ({
             const modelName = modelByTranslatedMetric.get(inputMetricName);
             if (!modelName) {
                 return {
-                    error: `input metric "${input.name}" was not translated to a Lightdash metric`,
+                    error: `input metric "${input.name}" was not translated to a metric`,
                 };
             }
             return {

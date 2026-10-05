@@ -40,8 +40,8 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
                         <>
                             {' '}
                             <p>
-                                A project connects Lightdash to your data. Ask
-                                an organization admin to finish setting one up.
+                                A project connects to your data. Ask an
+                                organization admin to finish setting one up.
                             </p>
                             {createProjectLink}
                         </>

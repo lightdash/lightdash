@@ -11300,7 +11300,7 @@ export class ProjectService extends BaseService {
 
         if (preAggregateDefinition.preAggregateDefinition.table) {
             throw new ParameterError(
-                `Pre-aggregate "${preAggregateDefinitionName}" is external and is never materialized by Lightdash`,
+                `Pre-aggregate "${preAggregateDefinitionName}" is external and is never materialized`,
             );
         }
 

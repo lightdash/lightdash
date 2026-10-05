@@ -418,7 +418,7 @@ describe('roadmap loading errors', () => {
             ).toBeInTheDocument();
             expect(
                 within(screen.getByRole('alert')).getByText(
-                    'The Lightdash server cannot reach roadmap.lightdash.com. If you self-host Lightdash, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.',
+                    'The server cannot reach roadmap.lightdash.com. If you self-host, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.',
                 ),
             ).toBeInTheDocument();
             const guidance = screen.getByRole('link', {

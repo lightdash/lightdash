@@ -243,7 +243,7 @@ export const SlackChannelSelect: FC<
                     } else {
                         showToastInfo({
                             title: 'Channel not found',
-                            subtitle: `Could not find channel with ID "${trimmedSearch}". If it's a private channel, make sure the Lightdash integration is added first.`,
+                            subtitle: `Could not find channel with ID "${trimmedSearch}". If it's a private channel, make sure the Slack app is added to it first.`,
                         });
                     }
                 },

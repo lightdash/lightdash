@@ -453,6 +453,16 @@ dashboard viewer sees), follow the mandate in
 beyond filters. English strings for those surfaces live only in the registry,
 never inline. Do not add an i18n framework; host apps own locale state.
 
+## White-label copy — no "Lightdash" in errors or embeddable UI
+
+Lightdash is embedded (iframe/SDK), and errors from any service can surface
+in an embed. Never write "Lightdash" meaning "this app" in error messages
+(backend errors, API/validation messages, error toasts and states), or in
+labels of embeddable pages and components (dashboards, charts, Explore, data
+apps, the AI agent and the shared components they render). Rewrite neutrally
+(`the server`, `this instance`, or drop the word). Scope, exceptions and
+examples are in [docs/white-label-copy.md](docs/white-label-copy.md).
+
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed

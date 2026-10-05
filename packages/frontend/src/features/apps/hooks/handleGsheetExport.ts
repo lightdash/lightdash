@@ -71,9 +71,7 @@ export async function handleGsheetExport(
         !deps.health.auth.google.oauth2ClientId ||
         !deps.health.auth.google.googleDriveApiKey
     ) {
-        throw new Error(
-            'Google Sheets is not configured for this Lightdash instance',
-        );
+        throw new Error('Google Sheets is not configured for this instance');
     }
     if (
         !deps.ability.can(

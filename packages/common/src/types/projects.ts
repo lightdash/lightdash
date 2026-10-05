@@ -902,7 +902,7 @@ export const getDbtEnvironmentVariableKeyError = (
         !options.allowLightdashProfileEnvironmentVariables &&
         key.startsWith(LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX)
     ) {
-        return `Environment variable "${key}" is reserved for Lightdash`;
+        return `Environment variable "${key}" is reserved for internal use`;
     }
 
     if (

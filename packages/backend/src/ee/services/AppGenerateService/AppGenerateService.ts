@@ -9982,7 +9982,7 @@ export class AppGenerateService extends BaseService {
         }
         if (AppGenerateService.isRegistryEntryIncompatible(entry)) {
             throw new ParameterError(
-                `Chart type "${entry.slug}" requires a newer Lightdash version (>= ${entry.minLightdashVersion}); this instance is on ${VERSION}`,
+                `Chart type "${entry.slug}" requires a newer version (>= ${entry.minLightdashVersion}); this instance is on ${VERSION}`,
             );
         }
         // Belt-and-braces: the index was already zod-validated when fetched.
@@ -13294,7 +13294,7 @@ export class AppGenerateService extends BaseService {
                         customDependencies,
                     });
                     throw new ParameterError(
-                        'Custom app dependencies are not enabled for your organization. Contact your Lightdash admin to request access.',
+                        'Custom app dependencies are not enabled for your organization. Contact your admin to request access.',
                     );
                 }
                 // Minimum-release-age guard (no-op unless the instance opts in
