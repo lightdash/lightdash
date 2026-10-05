@@ -1,9 +1,9 @@
 import { Knex } from 'knex';
 
-export const classification = {
+export const classification: { kind: 'safe' | 'breaking'; reason: string } = {
     kind: 'safe',
     reason: 'Adds account-scoped AI identity, event and job tables without changing existing data.',
-} as const;
+};
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
