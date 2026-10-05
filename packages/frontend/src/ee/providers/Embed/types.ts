@@ -26,6 +26,14 @@ export type EmbedMode = 'sdk' | 'direct';
 
 export type EmbedExploreChart = SavedChart | CreateSavedChartVersion;
 
+// Where the embedded Explore's back button returns the viewer to
+export type EmbedBackDestination =
+    | 'dashboard'
+    | 'chart'
+    | 'aiAgent'
+    | 'metricsCatalog'
+    | 'explore';
+
 export type EmbedExploreOptions = {
     chart: EmbedExploreChart;
     customSqlProvenanceChartUuid?: UUID;
@@ -56,6 +64,8 @@ export interface EmbedContext {
     t: (input: UiStringKey) => string | undefined;
     // The function to call when the user clicks "Back to dashboard" from an Explore
     onBackToDashboard?: () => void;
+    // Where onBackToDashboard returns to; drives the back button label
+    backDestination: EmbedBackDestination;
     // Called after a chart is created or updated from an embedded Explore. The
     // dashboard builder uses this to update its chart editor state.
     onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;

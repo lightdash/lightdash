@@ -23,6 +23,7 @@ import {
     setToInMemoryStorage,
 } from '../../../utils/inMemoryStorage';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
+import { getEmbedBackDestination } from '../../features/embed/embedNavigation';
 import {
     LightdashEventType,
     type ChartSavedAction,
@@ -33,6 +34,7 @@ import { parseEmbedThemeParams } from './parseEmbedThemeParams';
 import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
 import {
     EMBED_KEY,
+    type EmbedBackDestination,
     type EmbedExploreChart,
     type EmbedExploreOptions,
     type EmbedMode,
@@ -51,6 +53,8 @@ type Props = {
     onBackToDashboard?: (
         content: CreateEmbedJwt['content'] | undefined,
     ) => void;
+    // Defaults to the destination implied by the token's content type
+    backDestination?: EmbedBackDestination;
     onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
     savedChart?: EmbedExploreChart;
     customSqlProvenanceChartUuid?: UUID;
@@ -91,6 +95,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     uiOverrides,
     onExplore,
     onBackToDashboard,
+    backDestination,
     onChartSaved,
     savedChart,
     customSqlProvenanceChartUuid,
@@ -228,6 +233,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             onBackToDashboard: onBackToDashboard
                 ? () => onBackToDashboard(embedJwtPayload?.content)
                 : undefined,
+            backDestination:
+                backDestination ??
+                getEmbedBackDestination(embedJwtPayload?.content),
             mode,
             theme: embedThemeParams.theme,
             backgroundColor: embedThemeParams.backgroundColor,
@@ -252,6 +260,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         appUuid,
         dashboardUuid,
         onBackToDashboard,
+        backDestination,
         mode,
         embedThemeParams.theme,
         embedThemeParams.backgroundColor,

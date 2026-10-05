@@ -736,6 +736,7 @@ const Explore: FC<
                 onBackToDashboard={
                     exploreChart ? handleBackToDashboard : undefined
                 }
+                backDestination="explore"
             >
                 <EmbedExplore
                     exploreId={currentChart?.tableName ?? exploreId}

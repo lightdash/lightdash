@@ -75,7 +75,8 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
             chartView?: boolean;
             runQueryOnLoad?: boolean;
         }) {
-            const { onExplore, onBackToDashboard } = useEmbed();
+            const { onExplore, onBackToDashboard, backDestination } =
+                useEmbed();
             return (
                 <div
                     data-testid={
@@ -118,6 +119,7 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
                     {onBackToDashboard && (
                         <button
                             data-testid="explore-back"
+                            data-back-destination={backDestination}
                             onClick={onBackToDashboard}
                         />
                     )}
@@ -511,6 +513,9 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             expect(getByTestId('embed-explore')).toBeTruthy();
             expect(window.location.pathname).toBe('/test');
         });
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'dashboard',
+        );
     });
 
     it('returns to the SDK dashboard in one click from a nested drill-down', async () => {
@@ -579,6 +584,9 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             undefined,
         );
         expect(onExplore).not.toHaveBeenCalled();
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'explore',
+        );
 
         fireEvent.click(getByTestId('explore-back'));
 
@@ -588,6 +596,32 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             );
         });
         expect(queryByTestId('explore-back')).toBeNull();
+    });
+
+    it('labels the drill-down back destination as the Explore, whatever the token content type', async () => {
+        const metricsCatalogToken =
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJtZXRyaWNzQ2F0YWxvZyIsInByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
+        const { getByTestId } = render(
+            <Explore
+                token={metricsCatalogToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId="payments"
+                savedChart={
+                    { uuid: 'saved-chart-uuid', tableName: 'payments' } as never
+                }
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore')).toBeTruthy();
+        });
+        fireEvent.click(getByTestId('explore-drill-down'));
+
+        await waitFor(() => {
+            expect(getByTestId('explore-back').dataset.backDestination).toBe(
+                'explore',
+            );
+        });
     });
 
     it('restores the unsaved root query on back from a nested drill-down', async () => {
@@ -774,6 +808,9 @@ describe('SDK Chart edit mode', () => {
         });
         expect(queryByTestId('embed-chart-edit')).toBeNull();
         expect(onExplore).not.toHaveBeenCalled();
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'chart',
+        );
 
         fireEvent.click(getByTestId('explore-back'));
 
