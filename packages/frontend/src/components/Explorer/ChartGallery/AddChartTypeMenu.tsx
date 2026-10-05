@@ -85,9 +85,7 @@ const AddChartTypeMenu: FC = () => {
                             onClick={onFindNew}
                         >
                             <Stack gap={0}>
-                                <Text fz="sm">
-                                    Browse the Lightdash library
-                                </Text>
+                                <Text fz="sm">Browse the chart library</Text>
                                 <Text fz="xs" c="dimmed">
                                     Ready-made chart types, installed in one
                                     click

@@ -1,11 +1,15 @@
 import {
     getPreviewWarehouseSignInExpiredMessage,
+    PersonSignInProvider,
+    SignInSubjectBasis,
     type ApiErrorDetail,
 } from '@lightdash/common';
+import { QueryClient } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import ApiErrorDisplay from './ApiErrorDisplay';
+import { sharedSignInSettingsHref } from './sharedSignInSettingsHref';
 
 const embedded = vi.hoisted(() => ({ current: false }));
 
@@ -26,6 +30,24 @@ const previewError = (data: ApiErrorDetail['data']): ApiErrorDetail => ({
 
 const settingsLink = () =>
     screen.queryByRole('link', { name: 'Open the connection settings' });
+
+it('links to the project in the error instead of the active project', () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['user'], { userUuid: 'owner' });
+    queryClient.setQueryData(['activeProject', 'owner'], 'another-project');
+    expect(
+        sharedSignInSettingsHref(
+            {
+                projectUuid: 'error-project',
+                provider: PersonSignInProvider.GOOGLE,
+                subjectUserUuid: 'owner',
+                subjectName: 'Owner',
+                subjectBasis: SignInSubjectBasis.RECORDED,
+            },
+            queryClient,
+        ),
+    ).toBe('/generalSettings/projectManagement/error-project/settings');
+});
 
 describe('ApiErrorDisplay for an expired preview sign-in', () => {
     beforeEach(() => {

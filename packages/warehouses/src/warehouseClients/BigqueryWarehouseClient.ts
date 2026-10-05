@@ -22,6 +22,7 @@ import {
     BigqueryTokenError,
     CreateBigqueryCredentials,
     DimensionType,
+    getBigqueryKeyfileCredentials,
     getBigqueryUnnestSql,
     getErrorMessage,
     getWarehouseTableType,
@@ -451,7 +452,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                           // Support ADC via workforce identity federation / external_account configuration.
                           // In this case we should rely on ADC at runtime and not pass explicit credentials.
                       }
-                    : { credentials: credentials.keyfileContents }),
+                    : {
+                          credentials: getBigqueryKeyfileCredentials(
+                              credentials.keyfileContents,
+                          ),
+                      }),
             });
         } catch (e: unknown) {
             throw new WarehouseConnectionError(

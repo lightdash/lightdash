@@ -247,7 +247,7 @@ export class InsufficientGitPermissionsError extends LightdashError {
 
 export class UnexpectedDatabaseError extends LightdashError {
     constructor(
-        message = 'Unexpected error in Lightdash database.',
+        message = 'Unexpected error in the application database.',
         data: { [key: string]: AnyType } = {},
     ) {
         super({
@@ -275,7 +275,7 @@ export class ParseError extends LightdashError {
 
 export class CompileError extends LightdashError {
     constructor(
-        message = 'Error compiling sql from Lightdash configuration',
+        message = 'Error compiling sql from project configuration',
         data: Record<string, AnyType> = {},
     ) {
         super({

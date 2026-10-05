@@ -210,6 +210,7 @@ interface ServiceManifest {
     aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
     aiAgentDocumentService: unknown;
+    aiThreadFileService: unknown;
     aiAgentSkillService: unknown;
     aiAgentReviewClassifierService: unknown;
     aiRouterService: unknown;
@@ -1929,6 +1930,12 @@ export class ServiceRepository
         AiAgentDocumentServiceImplT,
     >(): AiAgentDocumentServiceImplT {
         return this.getService('aiAgentDocumentService');
+    }
+
+    public getAiThreadFileService<
+        AiThreadFileServiceImplT,
+    >(): AiThreadFileServiceImplT {
+        return this.getService('aiThreadFileService');
     }
 
     public getAiAgentSkillService<

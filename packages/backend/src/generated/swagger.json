@@ -24071,6 +24071,57 @@
             "ApiDataAppActivityResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-DataAppActivityEvent-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
+            "AiThreadFile": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "promptUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null until the file is sent with a prompt."
+                    },
+                    "sizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fileName": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "promptUuid",
+                    "threadUuid",
+                    "sizeBytes",
+                    "fileName",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "A text document uploaded by a user for an agent conversation."
+            },
+            "ApiAiThreadFileResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiThreadFile"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AiRouter": {
                 "properties": {
                     "updatedAt": {
@@ -29138,6 +29189,32 @@
                     },
                     {
                         "properties": {
+                            "sizeBytes": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "fileName": {
+                                "type": "string"
+                            },
+                            "fileUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread_file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "sizeBytes",
+                            "fileName",
+                            "fileUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "title": {
                                 "type": "string",
                                 "nullable": true
@@ -29766,6 +29843,7 @@
                     "loadMcpTools",
                     "loadProjectContext",
                     "loadSkill",
+                    "readAttachments",
                     "readContent",
                     "readPinnedThread",
                     "resolveUrl",
@@ -32394,6 +32472,20 @@
                             }
                         },
                         "required": ["sourceUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fileUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread_file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fileUuid", "type"],
                         "type": "object"
                     },
                     {
@@ -51415,6 +51507,7 @@
                     "ingestExternalSource",
                     "ingestExternalSourceAttachment",
                     "maintainExternalSources",
+                    "sweepUnclaimedAiThreadFiles",
                     "mobilePushLiveActivityStart",
                     "mobilePushLiveActivity",
                     "sweepMobilePushLiveActivities",
@@ -65187,9 +65280,6 @@
                     "invalidateCache": {
                         "type": "boolean"
                     },
-                    "isEmbedOrigin": {
-                        "type": "boolean"
-                    },
                     "context": {
                         "$ref": "#/components/schemas/QueryExecutionContext"
                     }
@@ -66494,9 +66584,6 @@
                     },
                     "context": {
                         "$ref": "#/components/schemas/QueryExecutionContext"
-                    },
-                    "isEmbedOrigin": {
-                        "type": "boolean"
                     },
                     "mergeQuery": {
                         "$ref": "#/components/schemas/MetricSourcedMergeQuery",
@@ -69079,7 +69166,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.423.0",
+        "version": "2.428.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

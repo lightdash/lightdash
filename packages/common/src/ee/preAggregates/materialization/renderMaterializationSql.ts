@@ -293,7 +293,7 @@ export const renderMaterializationSql = ({
 
     if (USER_ATTRIBUTE_PATTERN.test(sql)) {
         throw new ParameterError(
-            `Pre-aggregate "${preAggregateDef.name}" materialization SQL references user attributes or parameters, which cannot be resolved outside the Lightdash server.`,
+            `Pre-aggregate "${preAggregateDef.name}" materialization SQL references user attributes or parameters, which cannot be resolved outside the server.`,
         );
     }
 

@@ -44,6 +44,7 @@ import {
     EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
+    EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE,
     EXPLORE_WITH_CROSS_TABLE_UNKNOWN_REFERENCE,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
@@ -52,6 +53,8 @@ import {
     EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITH_SUM_DISTINCT,
+    EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+    EXPLORE_WITH_TABLE_REFERENCE_WITHOUT_FANOUT,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
     EXPLORE_WITHOUT_PRIMARY_KEYS,
     INTRINSIC_USER_ATTRIBUTES,
@@ -62,6 +65,7 @@ import {
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
     METRIC_QUERY_CROSS_TABLE_DIMENSION_REFERENCE,
+    METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
     METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
     METRIC_QUERY_NESTED_AGG_COMPLEX,
     METRIC_QUERY_NESTED_AGG_CONDITIONAL,
@@ -2062,6 +2066,161 @@ LIMIT 10`;
             );
             expect(result.query).toContain(
                 'LEFT OUTER JOIN orders AS "orders"',
+            );
+        });
+
+        test('Should handle a non-aggregate metric mixing ${TABLE} with a dimension on a joined table', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE,
+                compiledMetricQuery: METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'SUM(CASE WHEN "customers".customer_tier = \'Premium\' THEN "orders".amount END) AS "orders_premium_order_amount"',
+            );
+            expect(result.query).toContain(
+                'LEFT OUTER JOIN orders AS "orders"',
+            );
+        });
+
+        test('Should throw when a metric using ${TABLE} would be projected from separately aggregated tables', () => {
+            expect(() =>
+                buildQuery({
+                    explore: EXPLORE_WITH_CROSS_TABLE_TABLE_REFERENCE,
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                        metrics: ['orders_raw_revenue_per_customer'],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }),
+            ).toThrow(
+                'Tried to reference ${TABLE} from metric "orders_raw_revenue_per_customer" on a table that is aggregated separately. Reference a metric on "orders" instead.',
+            );
+        });
+
+        test('Should throw when a metric using ${TABLE} references a distinct metric', () => {
+            expect(() =>
+                buildQuery({
+                    explore: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                        metrics: ['orders_amount_per_distinct_credit'],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }),
+            ).toThrow(
+                'Tried to reference ${TABLE} from metric "orders_amount_per_distinct_credit"',
+            );
+        });
+
+        test('Should throw when a metric using ${TABLE} is a nested aggregate', () => {
+            expect(() =>
+                buildQuery({
+                    explore: EXPLORE_WITH_TABLE_REFERENCE_WITHOUT_FANOUT,
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                        metrics: ['orders_customers_on_large_orders'],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }),
+            ).toThrow(
+                'Tried to reference ${TABLE} from metric "orders_customers_on_large_orders"',
+            );
+        });
+
+        test('Should keep resolving ${TABLE} to a selected dimension for a metric that is only referenced in the distinct flow', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                    dimensions: ['orders_order_id'],
+                    metrics: ['orders_order_id_times_distinct_credit_percent'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'dd_base."orders_order_id" * dd_customers_distinct_credit."customers_distinct_credit" AS "orders_order_id_times_distinct_credit"',
+            );
+        });
+
+        test.each([
+            {
+                reads: '${TABLE}',
+                metricId: 'customers_credit_per_order_amount',
+                label: 'Credit Per Order Amount',
+            },
+            {
+                reads: 'a joined-table dimension',
+                metricId: 'customers_customers_with_orders',
+                label: 'Customers With Orders',
+            },
+        ])(
+            'Should warn about inflation when a number metric reading $reads is on a table fanned out by a join',
+            ({ metricId, label }) => {
+                const result = buildQuery({
+                    explore: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                        metrics: [metricId],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                });
+
+                expect(result.warnings).toEqual([
+                    expect.objectContaining({
+                        message: expect.stringContaining(
+                            `Metric **"${label}"** that references a joined table might have inflation`,
+                        ),
+                        fields: [metricId],
+                    }),
+                ]);
+            },
+        );
+
+        test('Should not warn about inflation for a metric on a fanned out table that only references metrics', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                    metrics: ['customers_amount_per_customer'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain('cte_metrics_customers');
+            expect(result.warnings).toEqual([]);
+        });
+
+        test('Should treat a field named TABLE on another table as an ordinary reference', () => {
+            expect(() =>
+                buildQuery({
+                    explore: EXPLORE_WITH_TABLE_REFERENCE_OVER_CTES,
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY_CROSS_TABLE_TABLE_REFERENCE,
+                        metrics: ['orders_revenue_per_table_field'],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }),
+            ).toThrow(
+                'Tried to reference metric with unknown field id: customers_TABLE',
             );
         });
 

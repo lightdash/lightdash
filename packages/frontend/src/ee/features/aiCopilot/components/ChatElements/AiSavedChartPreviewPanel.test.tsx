@@ -80,6 +80,7 @@ const renderPanel = ({
                         : undefined,
                     onExplore: mocks.onExplore,
                     t: () => undefined,
+                    backDestination: 'aiAgent',
                     mode: 'direct',
                     theme: 'light',
                     backgroundColor: null,

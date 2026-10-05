@@ -178,7 +178,7 @@ describe('AddChartTypeMenu', () => {
 
         const items = await screen.findAllByRole('menuitem');
         expect(items.map((item) => item.textContent)).toEqual([
-            'Browse the Lightdash libraryReady-made chart types, installed in one click',
+            'Browse the chart libraryReady-made chart types, installed in one click',
             'Create your ownDescribe a chart type in Chart Studio',
         ]);
     });
@@ -191,7 +191,7 @@ describe('AddChartTypeMenu', () => {
         );
         await userEvent.click(
             await screen.findByRole('menuitem', {
-                name: /Browse the Lightdash library/,
+                name: /Browse the chart library/,
             }),
         );
 
@@ -292,7 +292,7 @@ describe('AddChartTypeMenu', () => {
         );
         await userEvent.click(
             await screen.findByRole('menuitem', {
-                name: /Browse the Lightdash library/,
+                name: /Browse the chart library/,
             }),
         );
         const libraryDialog = await screen.findByRole('dialog');

@@ -164,6 +164,7 @@ import {
     findWarehouseTableScopeViolation,
     formatSqlScopeError,
     formatWarehouseTableScopeError,
+    isSqlScopeConfigured,
 } from '../ai/utils/sqlScope';
 import type {
     AppGenerateService,
@@ -210,7 +211,6 @@ export type AiAgentToolsRuntimeContext = {
     spaceAccess: string[] | null;
     sqlScope?: AgentSqlScope | null;
     userAttributeOverrides?: UserAttributeValueMap;
-    isEmbedOrigin?: boolean;
     agentUuid?: string;
     threadUuid?: string;
     promptUuid?: string;
@@ -2422,7 +2422,7 @@ export class AiAgentToolsService extends BaseService {
                     }
                     if (origin !== siteOrigin) {
                         throw new ParameterError(
-                            `"${url}" does not belong to this Lightdash instance (${siteOrigin}), so it cannot be resolved`,
+                            `"${url}" does not belong to this instance (${siteOrigin}), so it cannot be resolved`,
                         );
                     }
                 }
@@ -2888,7 +2888,6 @@ export class AiAgentToolsService extends BaseService {
                                 ),
                             },
                             context: context.defaultQueryExecutionContext,
-                            isEmbedOrigin: context.isEmbedOrigin,
                             parameters,
                             userAttributeOverrides:
                                 context.userAttributeOverrides,
@@ -2937,7 +2936,6 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             mergeQuery,
                             context: context.defaultQueryExecutionContext,
-                            isEmbedOrigin: context.isEmbedOrigin,
                             parameters,
                             mode: { type: 'interactive' },
                             userAttributeOverrides:
@@ -3063,9 +3061,23 @@ export class AiAgentToolsService extends BaseService {
                 // the model gets a well-worded error it can act on; this one
                 // is what actually guarantees the query never reaches the
                 // warehouse, whatever the tool layer does.
+                const hyphenatedIdentifiers = isSqlScopeConfigured(
+                    context.sqlScope,
+                )
+                    ? (
+                          await this.featureFlagService.get({
+                              user: context.user,
+                              featureFlagId:
+                                  FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
+                          })
+                      ).enabled
+                    : false;
                 const violations = findSqlScopeViolations(
                     sql,
                     context.sqlScope,
+                    {
+                        hyphenatedIdentifiers,
+                    },
                 );
                 if (violations.length > 0 && context.sqlScope) {
                     this.logger.warn(
@@ -3088,7 +3100,6 @@ export class AiAgentToolsService extends BaseService {
                         sql,
                         limit,
                         context: context.defaultQueryExecutionContext,
-                        isEmbedOrigin: context.isEmbedOrigin,
                     });
 
                 const maxWaitMs = 5 * 60 * 1000;
@@ -3205,7 +3216,6 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             queries,
                             context: context.defaultQueryExecutionContext,
-                            isEmbedOrigin: context.isEmbedOrigin,
                             parameters: {},
                             userAttributeOverrides:
                                 context.userAttributeOverrides ?? {},
@@ -4487,7 +4497,7 @@ export class AiAgentToolsService extends BaseService {
         ).flatMap((block) => (block.type === 'tag' ? [block.tag] : []));
         if (tag) {
             throw new ParameterError(
-                `<${tag.name}> is only available inside a Lightdash AI agent conversation. Place the chart with <document-chart id="KEY"> and its full definition in charts.`,
+                `<${tag.name}> is only available inside an AI agent conversation. Place the chart with <document-chart id="KEY"> and its full definition in charts.`,
             );
         }
     }

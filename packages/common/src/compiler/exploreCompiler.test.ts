@@ -179,7 +179,7 @@ test('Missing joins explain model selection and identify the alias', () => {
         {
             type: InlineErrorType.MISSING_TABLE,
             message:
-                'Join "account" to table "b" was skipped because the model is not available in this Lightdash project. Check that the model exists, is included by the project\'s tags/selector, and compiles successfully, then refresh the project.',
+                'Join "account" to table "b" was skipped because the model is not available in this project. Check that the model exists, is included by the project\'s tags/selector, and compiles successfully, then refresh the project.',
         },
     ]);
 });

@@ -27,7 +27,7 @@ const transientNetworkError = {
         name: 'NetworkError',
         statusCode: 500,
         message:
-            'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
+            'We are currently unable to reach the server. Please try again in a few moments.',
         data: {},
     },
 };

@@ -23,6 +23,7 @@ import {
     assertEmbeddedAuth,
     assertIsAccountWithOrg,
     assertUnreachable,
+    assertValidBigqueryKeyfile,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     buildDataTimezonePreviewResponse,
@@ -96,6 +97,7 @@ import {
     formatRows,
     getAccountUserTimezone,
     getAvailableParametersFromTables,
+    getBigqueryKeyfileCredentials,
     getColumnTimezone,
     getCompiledModels,
     getCustomSqlFieldKey,
@@ -2659,6 +2661,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
         );
+        ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
         this.assertCanUseOrganizationWarehouseCredentials(
             account,
             project.organizationUuid,
@@ -3279,6 +3282,7 @@ export class ProjectService extends BaseService {
             throw withSharedSignInExpiry(
                 error,
                 {
+                    projectUuid,
                     provider: stored.provider,
                     subjectUserUuid: stored.subject?.userUuid ?? null,
                     subjectName: stored.subject?.name || null,
@@ -3360,7 +3364,7 @@ export class ProjectService extends BaseService {
     ): Promise<boolean> {
         try {
             await new GoogleAuth({
-                credentials: keyfileContents,
+                credentials: getBigqueryKeyfileCredentials(keyfileContents),
                 scopes: ['https://www.googleapis.com/auth/bigquery'],
             }).getAccessToken();
             return false;
@@ -4347,6 +4351,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
         );
+        ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
 
         this.assertCanUseOrganizationWarehouseCredentials(
             user,
@@ -4719,6 +4724,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
         );
+        ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
 
         this.assertCanUseOrganizationWarehouseCredentials(
             user,
@@ -5368,6 +5374,40 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /*
+    Checks the BigQuery key file sent with a request. Empty key files are
+    skipped here because saved secrets or the Google sign-in fill them in
+    before validateConfigSecrets runs.
+    */
+    private static assertSupportedBigqueryKeyfile(
+        credentials: CreateWarehouseCredentials | undefined,
+    ): void {
+        if (
+            credentials?.type !== WarehouseTypes.BIGQUERY ||
+            credentials.authenticationType === BigqueryAuthenticationType.ADC
+        ) {
+            return;
+        }
+        const keyfile: unknown = credentials.keyfileContents;
+        if (
+            keyfile === undefined ||
+            keyfile === null ||
+            keyfile === '' ||
+            (typeof keyfile === 'object' && Object.keys(keyfile).length === 0)
+        ) {
+            return;
+        }
+        // SSO key files that are not user credentials are replaced by the
+        // user's Google sign-in.
+        if (
+            credentials.authenticationType === BigqueryAuthenticationType.SSO &&
+            credentials.keyfileContents.type !== 'authorized_user'
+        ) {
+            return;
+        }
+        assertValidBigqueryKeyfile(keyfile);
+    }
+
     validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.SNOWFLAKE:
@@ -5395,6 +5435,7 @@ export class ProjectService extends BaseService {
                                 'Bigquery key file is required for private key authentication',
                             );
                         }
+                        assertValidBigqueryKeyfile(keyFileContents);
                         break;
                     case BigqueryAuthenticationType.SSO:
                         if (keyFileContents?.refresh_token === undefined) {
@@ -5402,6 +5443,9 @@ export class ProjectService extends BaseService {
                                 'Bigquery refresh token is required for SSO authentication',
                             );
                         }
+                        assertValidBigqueryKeyfile(keyFileContents, {
+                            requireType: 'authorized_user',
+                        });
                         break;
                     case BigqueryAuthenticationType.ADC:
                         if (keyFileContents) {
@@ -5453,6 +5497,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
         );
+        ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
@@ -5631,6 +5676,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
         );
+        ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
@@ -11296,7 +11342,7 @@ export class ProjectService extends BaseService {
 
         if (preAggregateDefinition.preAggregateDefinition.table) {
             throw new ParameterError(
-                `Pre-aggregate "${preAggregateDefinitionName}" is external and is never materialized by Lightdash`,
+                `Pre-aggregate "${preAggregateDefinitionName}" is external and is never materialized`,
             );
         }
 

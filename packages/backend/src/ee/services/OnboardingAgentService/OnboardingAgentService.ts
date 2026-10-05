@@ -1052,7 +1052,7 @@ export class OnboardingAgentService extends BaseService {
                     error instanceof SandboxConnectionError ||
                     error instanceof SandboxNotRunningError;
                 const message = sandboxConnectionFailure
-                    ? "Lightdash lost the connection to the onboarding agent's workspace. Any progress was saved. Please try running the onboarding agent again."
+                    ? "The connection to the onboarding agent's workspace was lost. Any progress was saved. Please try running the onboarding agent again."
                     : sanitizedMessage;
                 this.logger.error(
                     sandboxConnectionFailure

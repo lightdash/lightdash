@@ -1,3 +1,113 @@
+## [2.428.3](https://github.com/lightdash/lightdash/compare/2.428.2...2.428.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ai:** allow disabling Anthropic context management for gateways ([#30247](https://github.com/lightdash/lightdash/issues/30247)) ([a039c76](https://github.com/lightdash/lightdash/commit/a039c766c4525b13f342b06af10d7430c3d29c19))
+
+## [2.428.2](https://github.com/lightdash/lightdash/compare/2.428.1...2.428.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **connections:** show every Lightdash IP address with a copy button on the connection form ([#30474](https://github.com/lightdash/lightdash/issues/30474)) ([8bdbfe6](https://github.com/lightdash/lightdash/commit/8bdbfe65779509c6ddeac2e70bd578e265ecda7d))
+
+## [2.428.1](https://github.com/lightdash/lightdash/compare/2.428.0...2.428.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **documents:** swap rail and content backgrounds in dark mode ([#30476](https://github.com/lightdash/lightdash/issues/30476)) ([c5d2aa3](https://github.com/lightdash/lightdash/commit/c5d2aa3419ff99e7ec5563151692e0f2bcfa0eeb))
+
+# [2.428.0](https://github.com/lightdash/lightdash/compare/2.427.4...2.428.0) (2026-10-05)
+
+
+### Bug Fixes
+
+* hide analytics sync when content is up to date ([#30429](https://github.com/lightdash/lightdash/issues/30429)) ([8dc8c74](https://github.com/lightdash/lightdash/commit/8dc8c741657936f3fb3c03be6427519e6558f42a))
+
+
+### Features
+
+* add built-in usage analytics dashboard collection ([#30467](https://github.com/lightdash/lightdash/issues/30467)) ([e3acc36](https://github.com/lightdash/lightdash/commit/e3acc36d7240a5eb636bb1267e54332e44f26fdc))
+
+## [2.427.4](https://github.com/lightdash/lightdash/compare/2.427.3...2.427.4) (2026-10-05)
+
+
+### Bug Fixes
+
+* **connections:** keep sign-in names out of stored query errors ([#30418](https://github.com/lightdash/lightdash/issues/30418)) ([c81bc57](https://github.com/lightdash/lightdash/commit/c81bc57ebee26ec0ebc5924795efcf4b1f75a417))
+
+## [2.427.3](https://github.com/lightdash/lightdash/compare/2.427.2...2.427.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* remove Lightdash wording from error messages and embeddable UI ([#30471](https://github.com/lightdash/lightdash/issues/30471)) ([6c85530](https://github.com/lightdash/lightdash/commit/6c855309a44f9ed17d815d42ce76c4cfe3759338))
+
+## [2.427.2](https://github.com/lightdash/lightdash/compare/2.427.1...2.427.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **query:** resolve ${TABLE} in cross-table non-aggregate metrics ([#30441](https://github.com/lightdash/lightdash/issues/30441)) ([b5e099c](https://github.com/lightdash/lightdash/commit/b5e099c14013e13e13e31ef5d5e66994c3a68177))
+
+## [2.427.1](https://github.com/lightdash/lightdash/compare/2.427.0...2.427.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ai:** read hyphenated BigQuery project IDs in the agent data scope check ([#30425](https://github.com/lightdash/lightdash/issues/30425)) ([08c2d6c](https://github.com/lightdash/lightdash/commit/08c2d6c0fb3313c6a19c8d69b826fe1ad13ebb46))
+
+# [2.427.0](https://github.com/lightdash/lightdash/compare/2.426.1...2.427.0) (2026-10-05)
+
+
+### Features
+
+* **sdk:** let embeds hide built-in Metrics Catalog filters ([#30469](https://github.com/lightdash/lightdash/issues/30469)) ([eff09f8](https://github.com/lightdash/lightdash/commit/eff09f8083319bfc761bd8cafcfd872053fcb77d))
+
+## [2.426.1](https://github.com/lightdash/lightdash/compare/2.426.0...2.426.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **sdk:** restore unsaved query on back after embedded Explore drill-down ([#30444](https://github.com/lightdash/lightdash/issues/30444)) ([cc1bb5b](https://github.com/lightdash/lightdash/commit/cc1bb5baefab4273b393be316935ad59d3c283d2))
+
+# [2.426.0](https://github.com/lightdash/lightdash/compare/2.425.0...2.426.0) (2026-10-05)
+
+
+### Features
+
+* **embed:** allow selecting multiple charts in embedded dashboard picker ([#30465](https://github.com/lightdash/lightdash/issues/30465)) ([df34d50](https://github.com/lightdash/lightdash/commit/df34d502f3fd9ef4b0fbc6e7fc4659d37bfefd31))
+
+# [2.425.0](https://github.com/lightdash/lightdash/compare/2.424.0...2.425.0) (2026-10-04)
+
+
+### Features
+
+* **ai:** drag and drop files onto the agent composer ([#30452](https://github.com/lightdash/lightdash/issues/30452)) ([c293efa](https://github.com/lightdash/lightdash/commit/c293efa66e307d27b43ca9052d018ea235374e82))
+
+# [2.424.0](https://github.com/lightdash/lightdash/compare/2.423.2...2.424.0) (2026-10-04)
+
+
+### Features
+
+* **ai:** attach text documents to agent conversations ([#30317](https://github.com/lightdash/lightdash/issues/30317)) ([b1900e9](https://github.com/lightdash/lightdash/commit/b1900e9eff2a504841f92622610cbc368230ad76))
+
+## [2.423.2](https://github.com/lightdash/lightdash/compare/2.423.1...2.423.2) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ai-agents:** render uploaded agent avatars in embedded sessions ([#30442](https://github.com/lightdash/lightdash/issues/30442)) ([6a06efb](https://github.com/lightdash/lightdash/commit/6a06efb3cd1a53fe369f6beb0de3e3a29f70410d))
+
+## [2.423.1](https://github.com/lightdash/lightdash/compare/2.423.0...2.423.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ai:** pass the project scope to the AI credit key lookup ([#30443](https://github.com/lightdash/lightdash/issues/30443)) ([7d8c69c](https://github.com/lightdash/lightdash/commit/7d8c69c914e278804698510904579950026d853d))
+
 # [2.423.0](https://github.com/lightdash/lightdash/compare/2.422.0...2.423.0) (2026-10-02)
 
 

@@ -956,7 +956,7 @@ export const getModelsFromManifest = (
 
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         throw new ParseError(
-            `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
+            `dbt adapter ${manifest.metadata.adapter_type} is not supported`,
             {},
         );
     }

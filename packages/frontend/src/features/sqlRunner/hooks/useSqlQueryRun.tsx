@@ -8,6 +8,7 @@ import {
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
+import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { useAppSelector } from '../store/hooks';
 import { selectConnectionUuid } from '../store/sqlRunnerSlice';
@@ -58,6 +59,7 @@ export const useSqlQueryRun = (
             ...useMutationOptions,
             onError: (error, variables, context) => {
                 lastFailedRun.current = variables;
+                reportSharedSignInQueryFailure(projectUuid, error);
                 useMutationOptions?.onError?.(error, variables, context);
             },
             onSuccess: (data, variables, context) => {

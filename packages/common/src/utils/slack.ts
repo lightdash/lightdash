@@ -117,15 +117,15 @@ export const SLACK_USER_FACING_ERROR_MESSAGES: Record<string, string> = {
     channel_not_found:
         'The Slack channel for this delivery no longer exists. Edit this delivery to choose another channel.',
     not_in_channel:
-        "The Lightdash Slack app isn't a member of this channel. Invite the app to the channel or choose a different one.",
+        "The Slack app isn't a member of this channel. Invite the app to the channel or choose a different one.",
     is_archived:
         'This Slack channel has been archived. Edit this delivery to choose another channel.',
     account_inactive:
-        'The Lightdash Slack app has been deactivated for your workspace. Ask your admin to reconnect Slack in organization settings, or contact support.',
+        'The Slack app has been deactivated for your workspace. Ask your admin to reconnect Slack in organization settings, or contact support.',
     invalid_auth:
         'Slack authentication is invalid for your workspace. Ask your admin to reconnect Slack in organization settings, or contact support.',
     missing_scope:
-        'The Lightdash Slack app is missing required permissions. Ask your admin to reconnect Slack to grant the new scopes, or contact support.',
+        'The Slack app is missing required permissions. Ask your admin to reconnect Slack to grant the new scopes, or contact support.',
 };
 
 /**

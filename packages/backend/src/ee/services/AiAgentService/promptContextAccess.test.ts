@@ -65,6 +65,11 @@ const chartTypeApp: App = {
 type Design = { designUuid: string; organizationUuid: string };
 
 type Doc = { documentUuid: string; spaceUuid: string };
+type ThreadFile = {
+    uuid: string;
+    ownerUuid: string;
+    threadUuid: string | null;
+};
 
 const buildService = (
     apps: App[],
@@ -72,8 +77,30 @@ const buildService = (
     {
         documents = [],
         documentsEnabled = true,
-    }: { documents?: Doc[]; documentsEnabled?: boolean } = {},
+        threadFiles = [],
+    }: {
+        documents?: Doc[];
+        documentsEnabled?: boolean;
+        threadFiles?: ThreadFile[];
+    } = {},
 ) => {
+    // Mirrors the model predicate: own, unclaimed files in the org.
+    const aiThreadFileModel = {
+        findClaimableByUser: vi
+            .fn()
+            .mockImplementation(
+                async (args: { fileUuids: string[]; userUuid: string }) =>
+                    threadFiles
+                        .filter(
+                            (f) =>
+                                args.fileUuids.includes(f.uuid) &&
+                                f.ownerUuid === args.userUuid &&
+                                f.threadUuid === null,
+                        )
+                        .map((f) => ({ uuid: f.uuid })),
+            ),
+        findForThread: vi.fn(),
+    };
     const documentService = {
         get: vi
             .fn()
@@ -130,6 +157,7 @@ const buildService = (
         organizationDesignModel,
         documentService,
         featureFlagService,
+        aiThreadFileModel,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: {} } },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -154,6 +182,7 @@ const buildService = (
         appGenerateService,
         organizationDesignModel,
         documentService,
+        aiThreadFileModel,
     };
 };
 
@@ -323,5 +352,69 @@ describe('validatePromptContextAccess for Documents', () => {
             ]),
         ).resolves.toEqual([{ type: 'document', documentUuid: 'doc-uuid' }]);
         expect(documentService.get).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('validatePromptContextAccess for attached documents', () => {
+    const ownFile: ThreadFile = {
+        uuid: 'file-own',
+        ownerUuid: USER_UUID,
+        threadUuid: null,
+    };
+
+    it('accepts an unclaimed file the user uploaded', async () => {
+        const { validate } = buildService([], [], { threadFiles: [ownFile] });
+        await expect(
+            validate([{ type: 'thread_file', fileUuid: 'file-own' }]),
+        ).resolves.toEqual([{ type: 'thread_file', fileUuid: 'file-own' }]);
+    });
+
+    it('collapses the same file attached twice into one item', async () => {
+        const { validate, aiThreadFileModel } = buildService([], [], {
+            threadFiles: [ownFile],
+        });
+        await expect(
+            validate([
+                { type: 'thread_file', fileUuid: 'file-own' },
+                { type: 'thread_file', fileUuid: 'file-own' },
+            ]),
+        ).resolves.toHaveLength(1);
+        expect(aiThreadFileModel.findClaimableByUser).toHaveBeenCalledWith(
+            expect.objectContaining({ fileUuids: ['file-own'] }),
+        );
+    });
+
+    it("rejects another user's file with the generic error", async () => {
+        const { validate } = buildService([], [], {
+            threadFiles: [
+                {
+                    uuid: 'file-theirs',
+                    ownerUuid: 'someone-else',
+                    threadUuid: null,
+                },
+            ],
+        });
+        await expect(
+            validate([{ type: 'thread_file', fileUuid: 'file-theirs' }]),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('rejects a file already sent in a thread with the same error', async () => {
+        const { validate } = buildService([], [], {
+            threadFiles: [{ ...ownFile, threadUuid: 'thread-1' }],
+        });
+        await expect(
+            validate([{ type: 'thread_file', fileUuid: 'file-own' }]),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('rejects attached documents in embedded AI', async () => {
+        const { validate } = buildService([], [], { threadFiles: [ownFile] });
+        await expect(
+            validate(
+                [{ type: 'thread_file', fileUuid: 'file-own' }],
+                ['space-1'],
+            ),
+        ).rejects.toThrow(ForbiddenError);
     });
 });

@@ -830,9 +830,7 @@ describe('MCP Document runtime', () => {
                 markdown:
                     '<artifact-chart version="0b4f6c2e-55a7-4f0e-9f1e-0d3c3b9e8a11">',
             }),
-        ).rejects.toThrow(
-            'only available inside a Lightdash AI agent conversation',
-        );
+        ).rejects.toThrow('only available inside an AI agent conversation');
         expect(documentService.create).not.toHaveBeenCalled();
     });
 

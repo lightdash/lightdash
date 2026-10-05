@@ -468,7 +468,7 @@ export const createLightdashPgWireHandlers = (
         authenticate: async ({ user, database, password }) => {
             if (!password) {
                 throw new PgWireServerError(
-                    'password authentication failed: provide a Lightdash service account token (ldsvc_) or personal access token (ldpat_) as the password',
+                    'password authentication failed: provide a service account token (ldsvc_) or personal access token (ldpat_) as the password',
                     '28P01',
                     'Set up a service account under Settings > Service accounts (recommended), or a personal access token under Settings > Personal access tokens, and use it as the password',
                 );
@@ -496,8 +496,8 @@ export const createLightdashPgWireHandlers = (
                     }`,
                     '28P01',
                     isServiceAccount
-                        ? 'Create a service account in Lightdash under Settings > Service accounts and use its token as the password'
-                        : 'Create a token in Lightdash under Settings > Personal access tokens and use it as the password',
+                        ? 'Create a service account under Settings > Service accounts and use its token as the password'
+                        : 'Create a token under Settings > Personal access tokens and use it as the password',
                 );
             }
             const projectUuid = await resolveProjectUuid(account, database);
@@ -510,7 +510,7 @@ export const createLightdashPgWireHandlers = (
                         e instanceof Error ? e.message : e
                     }`,
                     '3D000',
-                    'Use the Lightdash project UUID as the database name',
+                    'Use the project UUID as the database name',
                 );
             }
             Logger.info(

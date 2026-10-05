@@ -191,6 +191,8 @@ import { AiProviderCredentialController } from './../ee/controllers/AiProviderCr
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiRouterController } from './../ee/controllers/aiRouterController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { AiThreadFileController } from './../ee/controllers/aiThreadFileController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiWritebackController } from './../ee/controllers/AiWritebackController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AppGenerateController } from './../ee/controllers/appGenerateController';
@@ -22510,6 +22512,48 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiThreadFile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                createdAt: { dataType: 'datetime', required: true },
+                promptUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                threadUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                sizeBytes: { dataType: 'double', required: true },
+                fileName: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiThreadFileResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'AiThreadFile', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiRouter: {
         dataType: 'refAlias',
         type: {
@@ -27555,6 +27599,19 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        sizeBytes: { dataType: 'double', required: true },
+                        fileName: { dataType: 'string', required: true },
+                        fileUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['thread_file'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
                         title: {
                             dataType: 'union',
                             subSchemas: [
@@ -28112,6 +28169,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['loadMcpTools'] },
                 { dataType: 'enum', enums: ['loadProjectContext'] },
                 { dataType: 'enum', enums: ['loadSkill'] },
+                { dataType: 'enum', enums: ['readAttachments'] },
                 { dataType: 'enum', enums: ['readContent'] },
                 { dataType: 'enum', enums: ['readPinnedThread'] },
                 { dataType: 'enum', enums: ['resolveUrl'] },
@@ -33536,6 +33594,17 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['external_source'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fileUuid: { ref: 'UUID', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['thread_file'],
                             required: true,
                         },
                     },
@@ -53019,6 +53088,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['ingestExternalSource'] },
                 { dataType: 'enum', enums: ['ingestExternalSourceAttachment'] },
                 { dataType: 'enum', enums: ['maintainExternalSources'] },
+                { dataType: 'enum', enums: ['sweepUnclaimedAiThreadFiles'] },
                 { dataType: 'enum', enums: ['mobilePushLiveActivityStart'] },
                 { dataType: 'enum', enums: ['mobilePushLiveActivity'] },
                 { dataType: 'enum', enums: ['sweepMobilePushLiveActivities'] },
@@ -66526,7 +66596,6 @@ const models: TsoaRoute.Models = {
                 parameters: { ref: 'ParametersValuesMap' },
                 usePreAggregateCache: { dataType: 'boolean' },
                 invalidateCache: { dataType: 'boolean' },
-                isEmbedOrigin: { dataType: 'boolean' },
                 context: { ref: 'QueryExecutionContext' },
             },
             validators: {},
@@ -67861,13 +67930,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'QueryExecutionContext' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    isEmbedOrigin: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -85857,6 +85919,123 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getDataAppActivity',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiThreadFileController_upload: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        filename: {
+            in: 'query',
+            name: 'filename',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.post(
+        '/api/v1/aiAgents/thread-files',
+        ...fetchMiddlewares<RequestHandler>(AiThreadFileController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiThreadFileController.prototype.upload,
+        ),
+
+        async function AiThreadFileController_upload(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiThreadFileController_upload,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiThreadFileController>(
+                        AiThreadFileController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'upload',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiThreadFileController_delete: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        fileUuid: { in: 'path', name: 'fileUuid', required: true, ref: 'UUID' },
+    };
+    app.delete(
+        '/api/v1/aiAgents/thread-files/:fileUuid',
+        ...fetchMiddlewares<RequestHandler>(AiThreadFileController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiThreadFileController.prototype.delete,
+        ),
+
+        async function AiThreadFileController_delete(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiThreadFileController_delete,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiThreadFileController>(
+                        AiThreadFileController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'delete',
                     controller,
                     response,
                     next,

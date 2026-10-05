@@ -1485,6 +1485,28 @@ test('Should pass OpenRouter provider routing slugs through from env', () => {
     });
 });
 
+describe('Anthropic context management capability', () => {
+    test.each([
+        [undefined, true],
+        ['true', true],
+        ['', true],
+        ['false', false],
+        ['False', false],
+        ['FALSE', false],
+        [' false ', false],
+        ['0', false],
+    ])('parses %j as supportsContextManagement=%s', (value, expected) => {
+        process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+        process.env.ANTHROPIC_BASE_URL = 'https://gateway.example';
+        if (value !== undefined) {
+            process.env.ANTHROPIC_SUPPORTS_CONTEXT_MANAGEMENT = value;
+        }
+        expect(parseConfig().ai.copilot.providers.anthropic).toMatchObject({
+            supportsContextManagement: expected,
+        });
+    });
+});
+
 describe('AI provider supportsStreaming', () => {
     beforeEach(() => {
         process.env.OPENAI_API_KEY = 'test-openai-key';

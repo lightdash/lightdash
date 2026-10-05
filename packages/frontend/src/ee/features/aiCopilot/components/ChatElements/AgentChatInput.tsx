@@ -1,9 +1,11 @@
 import { subject } from '@casl/ability';
 import {
+    AI_THREAD_FILE_PICKER_EXTENSIONS,
     ContentType,
     FeatureFlags,
     getExternalSourceDisplayName,
     isSpaceRestrictedAgent,
+    isTabularThreadFileName,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -19,6 +21,7 @@ import {
     Group,
     Menu,
     Paper,
+    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -27,6 +30,8 @@ import {
     IconArrowUp,
     IconBolt,
     IconCheck,
+    IconFileText,
+    IconFolderSearch,
     IconPaperclip,
     IconPlayerStop,
     IconPlus,
@@ -73,11 +78,16 @@ import { useAgentSkills } from '../../hooks/useAiAgentSkills';
 import { useCsvSourceAttachment } from '../../hooks/useCsvSourceAttachment';
 import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
 import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
+import { useFileDropTarget } from '../../hooks/useFileDropTarget';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
     useProjectAiAgent,
 } from '../../hooks/useProjectAiAgents';
+import {
+    useThreadFileAttachment,
+    type ThreadFileAttachment,
+} from '../../hooks/useThreadFileAttachment';
 import {
     clearThreadElementReferences,
     removeThreadElementReference,
@@ -137,11 +147,13 @@ const mergeSubmitContexts = (...contexts: SubmitContext[]): SubmitContext => ({
 const buildSubmitContext = ({
     mentionContext,
     externalSources,
+    threadFiles,
     elementReferences,
     theme,
 }: {
     mentionContext: SubmitContext;
     externalSources: ExternalSourceAttachment[];
+    threadFiles: ThreadFileAttachment[];
     elementReferences: ThreadElementReference[];
     theme: ComposerTheme | null;
 }): SubmitContext => {
@@ -150,6 +162,10 @@ const buildSubmitContext = ({
         ...externalSources.map(({ sourceUuid }) => ({
             type: 'external_source' as const,
             sourceUuid,
+        })),
+        ...threadFiles.map(({ fileUuid }) => ({
+            type: 'thread_file' as const,
+            fileUuid,
         })),
         ...elementReferences.map(({ appUuid, version, tag, text, loc }) => ({
             type: 'data_app_element' as const,
@@ -166,6 +182,7 @@ const buildSubmitContext = ({
     const optimisticContext: AiPromptContextItem[] = [
         ...(mentionContext.optimisticContext ?? []),
         ...externalSources,
+        ...threadFiles,
         ...elementReferences.map(
             ({
                 appUuid,
@@ -399,6 +416,29 @@ export const AgentChatInput = ({
         projectUuid,
         onReady: handleExternalSourceReady,
     });
+    const [threadFileAttachments, setThreadFileAttachments] = useState<
+        ThreadFileAttachment[]
+    >([]);
+    const handleThreadFileReady = useCallback(
+        (attachment: ThreadFileAttachment) => {
+            setThreadFileAttachments((attachments) => [
+                ...attachments.filter(
+                    ({ fileUuid }) => fileUuid !== attachment.fileUuid,
+                ),
+                attachment,
+            ]);
+        },
+        [],
+    );
+    const {
+        attachFiles: attachThreadFiles,
+        discardFile: discardThreadFile,
+        isUploading: isUploadingThreadFile,
+        pendingFiles: pendingThreadFiles,
+        retainFiles: retainThreadFiles,
+    } = useThreadFileAttachment({ onReady: handleThreadFileReady });
+    const isPreparingAttachments = isPreparingCsv || isUploadingThreadFile;
+    const resetDocumentFileInputRef = useRef<() => void>(null);
     const [hasClickedInput, setHasClickedInput] = useState(
         !revealControlsOnFocus,
     );
@@ -694,10 +734,17 @@ export const AgentChatInput = ({
                 return;
             }
 
-            if (loadingRef.current || disabledRef.current || isPreparingCsv)
+            if (
+                loadingRef.current ||
+                disabledRef.current ||
+                isPreparingAttachments
+            )
                 return;
             retainCsvSources(
                 externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
+            );
+            retainThreadFiles(
+                threadFileAttachments.map(({ fileUuid }) => fileUuid),
             );
             onSubmitRef.current({
                 message: chip.label,
@@ -705,6 +752,7 @@ export const AgentChatInput = ({
                 ...buildSubmitContext({
                     mentionContext: {},
                     externalSources: externalSourceAttachments,
+                    threadFiles: threadFileAttachments,
                     elementReferences,
                     theme: selectedTheme,
                 }),
@@ -714,6 +762,7 @@ export const AgentChatInput = ({
                 editor?.commands.clearContent();
                 setValueState('');
                 setExternalSourceAttachments([]);
+                setThreadFileAttachments([]);
                 clearElementReferences();
                 setSelectedTheme(null);
             }
@@ -730,11 +779,13 @@ export const AgentChatInput = ({
             emptyStateMode,
             navigate,
             externalSourceAttachments,
+            threadFileAttachments,
             elementReferences,
             clearElementReferences,
             disableElementPicker,
-            isPreparingCsv,
+            isPreparingAttachments,
             retainCsvSources,
+            retainThreadFiles,
             selectedTheme,
         ],
     );
@@ -813,10 +864,48 @@ export const AgentChatInput = ({
             }),
         ),
     );
+    const canAttachThreadFile = Boolean(projectUuid && !isEmbedAiAgentRoute());
     const showAttachControl = Boolean(
-        canAttachExternalSource && !disabled && !canSteer,
+        (canAttachExternalSource || canAttachThreadFile) &&
+        !disabled &&
+        !canSteer,
     );
     const canUseAttachControl = showAttachControl && composerMode === 'ask';
+    // Dropped files take the same routes as the menu: CSV/TSV go to the
+    // external-source flow when it is available, everything else (and CSV when
+    // it is not) is attached as a text document.
+    const handleDroppedFiles = useCallback(
+        (files: File[]) => {
+            const csvFiles = canAttachExternalSource
+                ? files.filter((file) => isTabularThreadFileName(file.name))
+                : [];
+            const documentFiles = files.filter(
+                (file) => !csvFiles.includes(file),
+            );
+            if (csvFiles.length > 0) void attachCsvFiles(csvFiles);
+            if (documentFiles.length > 0) void attachThreadFiles(documentFiles);
+        },
+        [attachCsvFiles, attachThreadFiles, canAttachExternalSource],
+    );
+    const { isDraggingFiles, dropTargetProps } = useFileDropTarget({
+        enabled: canUseAttachControl,
+        onDropFiles: handleDroppedFiles,
+    });
+    const renderDropOverlay = (variant: 'card' | 'inline') =>
+        isDraggingFiles ? (
+            <Box className={styles.dropOverlay} data-variant={variant}>
+                <Stack align="center" gap={6}>
+                    <MantineIcon
+                        icon={IconFolderSearch}
+                        size={28}
+                        color="dimmed"
+                    />
+                    <Text size="sm" fw={500} c="dimmed">
+                        Drop files to analyze them
+                    </Text>
+                </Stack>
+            </Box>
+        ) : null;
     const showDeepResearchInComposerMenu = canStartDeepResearch && !disabled;
     const showComposerActionsMenu = Boolean(
         showSqlModeControl ||
@@ -850,7 +939,7 @@ export const AgentChatInput = ({
         const ed = editorRef.current;
         if (!ed) return;
         const text = ed.getText().trim();
-        if (!text || disabled || isPreparingCsv) return;
+        if (!text || disabled || isPreparingAttachments) return;
         if (composerMode === 'deep_research' && canStartDeepResearch) {
             void handleStartDeepResearch();
             return;
@@ -870,6 +959,9 @@ export const AgentChatInput = ({
         retainCsvSources(
             externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
         );
+        retainThreadFiles(
+            threadFileAttachments.map(({ fileUuid }) => fileUuid),
+        );
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
@@ -879,6 +971,7 @@ export const AgentChatInput = ({
                     extractSkillMentionContext(ed, text),
                 ),
                 externalSources: externalSourceAttachments,
+                threadFiles: threadFileAttachments,
                 elementReferences,
                 theme: selectedTheme,
             }),
@@ -888,6 +981,7 @@ export const AgentChatInput = ({
             ed.commands.clearContent();
             setValueState('');
             setExternalSourceAttachments([]);
+            setThreadFileAttachments([]);
             clearElementReferences();
             setSelectedTheme(null);
         }
@@ -1086,8 +1180,11 @@ export const AgentChatInput = ({
             </Menu.Item>
         );
 
+        // keepMounted: the file inputs live inside the dropdown. If it
+        // unmounted on item click, the native picker's result would land on a
+        // detached input and never reach onChange.
         return (
-            <Menu position="bottom-start" width={220}>
+            <Menu position="bottom-start" width={220} keepMounted>
                 <Menu.Target>
                     <ActionIcon
                         size={30}
@@ -1110,40 +1207,81 @@ export const AgentChatInput = ({
                 <Menu.Dropdown>
                     {showAttachControl && (
                         <>
-                            <FileButton
-                                accept=".csv,.tsv,text/csv,text/tab-separated-values"
-                                multiple
-                                resetRef={resetCsvFileInputRef}
-                                onChange={(files) => {
-                                    resetCsvFileInputRef.current?.();
-                                    if (files.length > 0) {
-                                        void attachCsvFiles(files);
-                                    }
-                                }}
-                            >
-                                {(fileButtonProps) => (
-                                    <Menu.Item
-                                        {...fileButtonProps}
-                                        aria-label={
-                                            canUseAttachControl
-                                                ? 'Attach a CSV'
-                                                : 'Attach a CSV unavailable in deep research'
+                            {canAttachExternalSource && (
+                                <FileButton
+                                    accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                                    multiple
+                                    resetRef={resetCsvFileInputRef}
+                                    onChange={(files) => {
+                                        resetCsvFileInputRef.current?.();
+                                        if (files.length > 0) {
+                                            void attachCsvFiles(files);
                                         }
-                                        disabled={
-                                            isPreparingCsv ||
-                                            !canUseAttachControl
+                                    }}
+                                >
+                                    {(fileButtonProps) => (
+                                        <Menu.Item
+                                            {...fileButtonProps}
+                                            aria-label={
+                                                canUseAttachControl
+                                                    ? 'Attach a CSV'
+                                                    : 'Attach a CSV unavailable in deep research'
+                                            }
+                                            disabled={
+                                                isPreparingCsv ||
+                                                !canUseAttachControl
+                                            }
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPaperclip}
+                                                    size={14}
+                                                />
+                                            }
+                                        >
+                                            Attach a CSV
+                                        </Menu.Item>
+                                    )}
+                                </FileButton>
+                            )}
+                            {canAttachThreadFile && (
+                                <FileButton
+                                    accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
+                                        (ext) =>
+                                            ext !== '.csv' && ext !== '.tsv',
+                                    ).join(',')}
+                                    multiple
+                                    resetRef={resetDocumentFileInputRef}
+                                    onChange={(files) => {
+                                        resetDocumentFileInputRef.current?.();
+                                        if (files.length > 0) {
+                                            void attachThreadFiles(files);
                                         }
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconPaperclip}
-                                                size={14}
-                                            />
-                                        }
-                                    >
-                                        Attach a CSV
-                                    </Menu.Item>
-                                )}
-                            </FileButton>
+                                    }}
+                                >
+                                    {(fileButtonProps) => (
+                                        <Menu.Item
+                                            {...fileButtonProps}
+                                            aria-label={
+                                                canUseAttachControl
+                                                    ? 'Attach a document'
+                                                    : 'Attach a document unavailable in deep research'
+                                            }
+                                            disabled={
+                                                isUploadingThreadFile ||
+                                                !canUseAttachControl
+                                            }
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconFileText}
+                                                    size={14}
+                                                />
+                                            }
+                                        >
+                                            Attach a document
+                                        </Menu.Item>
+                                    )}
+                                </FileButton>
+                            )}
                             {(showSqlModeControl ||
                                 showDeepResearchInComposerMenu ||
                                 showThemeControl) && (
@@ -1237,10 +1375,14 @@ export const AgentChatInput = ({
     const renderedAttachments =
         externalSourceAttachments.length > 0 ||
         pendingCsvFiles.length > 0 ||
+        threadFileAttachments.length > 0 ||
+        pendingThreadFiles.length > 0 ||
         elementReferences.length > 0 ? (
             <PromptAttachments
                 externalSources={externalSourceAttachments}
                 pendingCsvFiles={pendingCsvFiles}
+                threadFiles={threadFileAttachments}
+                pendingThreadFiles={pendingThreadFiles}
                 elementRefs={elementReferences}
                 onRemoveExternalSource={(sourceUuid) => {
                     setExternalSourceAttachments((attachments) =>
@@ -1250,6 +1392,14 @@ export const AgentChatInput = ({
                         ),
                     );
                     void discardCsvSource(sourceUuid);
+                }}
+                onRemoveThreadFile={(fileUuid) => {
+                    setThreadFileAttachments((attachments) =>
+                        attachments.filter(
+                            (attachment) => attachment.fileUuid !== fileUuid,
+                        ),
+                    );
+                    void discardThreadFile(fileUuid);
                 }}
                 onRemoveElementRef={(reference) => {
                     if (!threadUuid) return;
@@ -1313,7 +1463,7 @@ export const AgentChatInput = ({
                     disabled ||
                     !hasValue ||
                     loading ||
-                    isPreparingCsv ||
+                    isPreparingAttachments ||
                     (isDeepResearch && isStartingDeepResearch)
                 }
                 loading={isDeepResearch ? isStartingDeepResearch : loading}
@@ -1327,7 +1477,8 @@ export const AgentChatInput = ({
         defaultValue,
         autoFocus: true,
         disabled,
-        submitDisabled: disabled || isPreparingCsv || (loading && !canSteer),
+        submitDisabled:
+            disabled || isPreparingAttachments || (loading && !canSteer),
         extensions: composerExtensions,
         onEditorReady: setEditor,
         onValueChange: handleComposerValueChange,
@@ -1346,23 +1497,26 @@ export const AgentChatInput = ({
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
-                    <PromptComposer
-                        {...composerCommonProps}
-                        variant="inline"
-                        attachments={renderedAttachments}
-                        toolbarLeft={
-                            <Group gap={4} align="center" wrap="nowrap">
-                                {renderComposerActionsMenu()}
-                                {renderFastModeButton()}
-                                {renderThemeButton()}
-                            </Group>
-                        }
-                        toolbarRight={
-                            <Group gap={4} align="center" wrap="nowrap">
-                                {renderComposerAction('sm')}
-                            </Group>
-                        }
-                    />
+                    <Box className={styles.dropTarget} {...dropTargetProps}>
+                        <PromptComposer
+                            {...composerCommonProps}
+                            variant="inline"
+                            attachments={renderedAttachments}
+                            toolbarLeft={
+                                <Group gap={4} align="center" wrap="nowrap">
+                                    {renderComposerActionsMenu()}
+                                    {renderFastModeButton()}
+                                    {renderThemeButton()}
+                                </Group>
+                            }
+                            toolbarRight={
+                                <Group gap={4} align="center" wrap="nowrap">
+                                    {renderComposerAction('sm')}
+                                </Group>
+                            }
+                        />
+                        {renderDropOverlay('inline')}
+                    </Box>
                 </Box>
 
                 {!isThreadInput &&
@@ -1394,67 +1548,73 @@ export const AgentChatInput = ({
         >
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-            <PromptComposer
-                {...composerCommonProps}
-                variant="card"
-                size={dense ? 'sm' : 'lg'}
-                className={styles.agentComposer}
-                onMouseDown={handleInputCardMouseDown}
-                attachments={renderedAttachments}
-                toolbarLeft={
-                    <Group gap="xs" align="center" wrap="nowrap">
-                        {renderComposerActionsMenu()}
-                        {renderFastModeButton()}
-                        {renderThemeButton()}
-                    </Group>
-                }
-                toolbarRight={
-                    <Group gap="xs" align="center" wrap="nowrap">
-                        <Box className={styles.toolbarSelectors}>
-                            {showAgentSelector && (
-                                <Box
-                                    className={styles.controlsReveal}
-                                    data-visible={hasClickedInput}
-                                >
-                                    <Group
-                                        gap="xs"
-                                        align="center"
-                                        wrap="nowrap"
+            <Box className={styles.dropTarget} {...dropTargetProps}>
+                <PromptComposer
+                    {...composerCommonProps}
+                    variant="card"
+                    size={dense ? 'sm' : 'lg'}
+                    className={styles.agentComposer}
+                    onMouseDown={handleInputCardMouseDown}
+                    attachments={renderedAttachments}
+                    toolbarLeft={
+                        <Group gap="xs" align="center" wrap="nowrap">
+                            {renderComposerActionsMenu()}
+                            {renderFastModeButton()}
+                            {renderThemeButton()}
+                        </Group>
+                    }
+                    toolbarRight={
+                        <Group gap="xs" align="center" wrap="nowrap">
+                            <Box className={styles.toolbarSelectors}>
+                                {showAgentSelector && (
+                                    <Box
+                                        className={styles.controlsReveal}
+                                        data-visible={hasClickedInput}
                                     >
-                                        <AgentSelector
-                                            projectUuid={projectUuid!}
-                                            agents={agents!}
-                                            selectedAgent={selectedAgent!}
-                                            compact
-                                        />
-                                    </Group>
-                                </Box>
-                            )}
-
-                            {(showModelSelector || onExtendedThinkingChange) &&
-                                models &&
-                                onModelChange && (
-                                    <Box className={styles.modelGroup}>
-                                        <ModelSelector
-                                            models={models}
-                                            value={selectedModelId ?? null}
-                                            onChange={onModelChange}
-                                            variant="subtle"
-                                            color="gray"
-                                            size="xs"
-                                            reasoningEnabled={extendedThinking}
-                                            onReasoningChange={
-                                                onExtendedThinkingChange
-                                            }
-                                        />
+                                        <Group
+                                            gap="xs"
+                                            align="center"
+                                            wrap="nowrap"
+                                        >
+                                            <AgentSelector
+                                                projectUuid={projectUuid!}
+                                                agents={agents!}
+                                                selectedAgent={selectedAgent!}
+                                                compact
+                                            />
+                                        </Group>
                                     </Box>
                                 )}
-                        </Box>
 
-                        {renderComposerAction('lg')}
-                    </Group>
-                }
-            />
+                                {(showModelSelector ||
+                                    onExtendedThinkingChange) &&
+                                    models &&
+                                    onModelChange && (
+                                        <Box className={styles.modelGroup}>
+                                            <ModelSelector
+                                                models={models}
+                                                value={selectedModelId ?? null}
+                                                onChange={onModelChange}
+                                                variant="subtle"
+                                                color="gray"
+                                                size="xs"
+                                                reasoningEnabled={
+                                                    extendedThinking
+                                                }
+                                                onReasoningChange={
+                                                    onExtendedThinkingChange
+                                                }
+                                            />
+                                        </Box>
+                                    )}
+                            </Box>
+
+                            {renderComposerAction('lg')}
+                        </Group>
+                    }
+                />
+                {renderDropOverlay('card')}
+            </Box>
 
             {!isThreadInput &&
                 renderChipRow(

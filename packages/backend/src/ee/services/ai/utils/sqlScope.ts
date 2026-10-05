@@ -41,6 +41,13 @@ const CTE_DEFINITION = /\b([a-zA-Z_][\w$]*)\s+AS\s*\(/gi;
 // FROM/JOIN followed by an identifier chain. The trailing `(` capture
 // distinguishes a table function (`FROM generate_series(...)`) from a table.
 const TABLE_REFERENCE = /\b(FROM|JOIN)\s+(?:ONLY\s+)?([\w$."`[\]]+)\s*(\()?/gi;
+const SEGMENT = '(?:`[^`]+`|"[^"]+"|\\[[^\\]]+\\]|[\\w$-]+)';
+const REFERENCE_CHAIN = new RegExp(`^${SEGMENT}(?:\\.${SEGMENT})*$`);
+const HYPHENATED_TABLE_REFERENCE = new RegExp(
+    `\\b(FROM|JOIN)\\s+(?:ONLY\\s+)?(${SEGMENT}(?:\\.${SEGMENT})*|[^\\s,()]+)\\s*(\\()?`,
+    'gi',
+);
+const REFERENCE_SEGMENT = /`[^`]+`|"[^"]+"|\[[^\]]+\]|[\w$-]+/g;
 
 // Keywords that end the FROM clause's table list.
 const FROM_CLAUSE_TERMINATOR =
@@ -242,6 +249,7 @@ const hasTopLevelCommaInFromClause = (
 export const findSqlScopeViolations = (
     sql: string,
     scope: SqlScope | null | undefined,
+    options: { hyphenatedIdentifiers: boolean },
 ): SqlScopeViolation[] => {
     if (!isSqlScopeConfigured(scope)) return [];
 
@@ -268,6 +276,19 @@ export const findSqlScopeViolations = (
 
     const classify = (match: RegExpMatchArray): SqlScopeViolation | null => {
         const [full, keyword, reference, isFunctionCall] = match;
+        if (options.hyphenatedIdentifiers) {
+            const referenceEnd =
+                (match.index ?? 0) +
+                full.lastIndexOf(reference) +
+                reference.length;
+            const nextCharacter = stripped[referenceEnd];
+            if (
+                !REFERENCE_CHAIN.test(reference) ||
+                (nextCharacter !== undefined && !/[\s,();]/.test(nextCharacter))
+            ) {
+                return { kind: 'unparseable', reference };
+            }
+        }
         if (isFunctionCall) return null;
 
         if (
@@ -280,10 +301,23 @@ export const findSqlScopeViolations = (
             return { kind: 'comma_join', reference };
         }
 
-        const parts = reference
-            .split('.')
-            .filter((p) => p !== '')
-            .map(unquote);
+        const parts = options.hyphenatedIdentifiers
+            ? [...reference.matchAll(REFERENCE_SEGMENT)].flatMap(([segment]) =>
+                  segment.startsWith('`')
+                      ? segment
+                            .slice(1, -1)
+                            .split('.')
+                            .map((part) => part.toLowerCase())
+                      : [unquote(segment)],
+              )
+            : reference
+                  .split('.')
+                  .filter((p) => p !== '')
+                  .map(unquote);
+
+        if (parts.some((part) => part === '')) {
+            return { kind: 'unparseable', reference };
+        }
 
         if (parts.length === 1) {
             const [name] = parts;
@@ -317,7 +351,13 @@ export const findSqlScopeViolations = (
         return { kind: 'unparseable', reference };
     };
 
-    return [...stripped.matchAll(TABLE_REFERENCE)]
+    return [
+        ...stripped.matchAll(
+            options.hyphenatedIdentifiers
+                ? HYPHENATED_TABLE_REFERENCE
+                : TABLE_REFERENCE,
+        ),
+    ]
         .map(classify)
         .filter((v): v is SqlScopeViolation => v !== null);
 };

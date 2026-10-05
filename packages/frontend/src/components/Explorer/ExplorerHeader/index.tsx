@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { assertUnreachable, type UiStringKey } from '@lightdash/common';
 import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -6,7 +7,9 @@ import {
     IconRefreshAlert,
 } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
+import { type EmbedBackDestination } from '../../../ee/providers/Embed/types';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import {
     selectIsChartTypeAuthoring,
     selectIsValidQuery,
@@ -35,10 +38,30 @@ import SaveChartButton from '../SaveChartButton';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import QueryWarnings from './QueryWarnings';
 
+const getBackButtonLabelKey = (
+    destination: EmbedBackDestination,
+): UiStringKey => {
+    switch (destination) {
+        case 'dashboard':
+            return 'explorer.backToDashboard';
+        case 'chart':
+            return 'explorer.backToChart';
+        case 'aiAgent':
+            return 'explorer.backToAi';
+        case 'metricsCatalog':
+            return 'explorer.backToMetricsCatalog';
+        case 'explore':
+            return 'explorer.back';
+        default:
+            return assertUnreachable(destination, 'Unknown back destination');
+    }
+};
+
 const ExplorerHeader: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const { user } = useApp();
-    const { content, onBackToDashboard } = useEmbed();
+    const { backDestination, onBackToDashboard } = useEmbed();
+    const backButtonLabel = useUiString(getBackButtonLabelKey(backDestination));
     const ability = useAbilityContext();
 
     // Get state from Redux and new hook
@@ -156,14 +179,6 @@ const ExplorerHeader: FC = memo(() => {
     }, [getHasDashboardChanges]);
 
     const userCanManageCompileProject = ability.can('manage', 'CompileProject');
-    const backButtonLabel =
-        content?.type === 'aiAgent'
-            ? 'Back to AI'
-            : content?.type === 'metricsCatalog'
-              ? 'Back to Metrics Catalog'
-              : content?.type === 'chart'
-                ? 'Back to Chart'
-                : 'Back to Dashboard';
 
     return (
         <Group justify="space-between">

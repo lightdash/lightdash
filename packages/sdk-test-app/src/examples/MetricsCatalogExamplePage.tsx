@@ -56,13 +56,16 @@ export function MetricsCatalogExamplePage({
                         <code>content.type = "metricsCatalog"</code>. Set{' '}
                         <code>content.canExplore</code> to enable Explore, and
                         include write actions with a space UUID to enable chart
-                        creation for an authorized actor.
+                        creation for an authorized actor. This example hides the
+                        Owners filter with{' '}
+                        <code>hiddenFilters={"{['owners']}"}</code>.
                     </p>
                     <div style={dashboardContainerStyle}>
                         <Lightdash.MetricsCatalog
                             key={remountKey}
                             instanceUrl={instanceUrl}
                             token={token}
+                            hiddenFilters={['owners']}
                         />
                     </div>
                 </section>

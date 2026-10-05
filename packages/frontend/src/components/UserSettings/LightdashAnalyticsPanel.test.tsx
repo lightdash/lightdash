@@ -168,10 +168,15 @@ describe('LightdashAnalyticsPanel', () => {
     });
 
     it('syncs managed content without deleting or recreating the project', async () => {
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+            url.includes('/dashboards?')
+                ? []
+                : { project: { ...project, hasContentUpdates: true } },
+        );
         renderPanel();
         await userEvent.click(
             await screen.findByRole('button', {
-                name: 'Sync content',
+                name: /Sync content/,
             }),
         );
         await waitFor(() =>
@@ -196,7 +201,7 @@ describe('LightdashAnalyticsPanel', () => {
         );
     });
 
-    it('shows available content in the tooltip and clears the indicator after sync', async () => {
+    it('shows available content in the tooltip and hides sync after updating', async () => {
         let hasContentUpdates = true;
         vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
             if (url.includes('/dashboards?')) return [];
@@ -224,21 +229,37 @@ describe('LightdashAnalyticsPanel', () => {
         await userEvent.click(sync);
         await waitFor(() =>
             expect(
-                screen.queryByRole('img', {
-                    name: 'New analytics content available',
-                }),
+                screen.queryByRole('button', { name: /Sync content/ }),
             ).not.toBeInTheDocument(),
         );
     });
 
-    it('does not show an update indicator when counts match', async () => {
+    it('hides sync when counts match without syncing automatically', async () => {
         renderPanel();
-        await screen.findByRole('button', { name: 'Sync content' });
+        await screen.findByRole('link', { name: 'Explore' });
+        expect(
+            screen.queryByRole('button', { name: /Sync content/ }),
+        ).not.toBeInTheDocument();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'POST' }),
+        );
         expect(
             screen.queryByRole('img', {
                 name: 'New analytics content available',
             }),
         ).not.toBeInTheDocument();
+    });
+
+    it('keeps sync available when update status is unknown', async () => {
+        const legacyProject = { ...project };
+        Reflect.deleteProperty(legacyProject, 'hasContentUpdates');
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+            url.includes('/dashboards?') ? [] : { project: legacyProject },
+        );
+        renderPanel();
+        expect(
+            await screen.findByRole('button', { name: /Sync content/ }),
+        ).toBeVisible();
     });
 
     it('requires confirmation before deleting and returns to Create', async () => {

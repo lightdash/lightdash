@@ -1,5 +1,9 @@
-import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
-import { IconWindowMaximize } from '@tabler/icons-react';
+import {
+    assertUnreachable,
+    isTabularThreadFileName,
+    type AiPromptContextItem,
+} from '@lightdash/common';
+import { IconTable, IconWindowMaximize, type Icon } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
@@ -37,9 +41,11 @@ type ItemMeta = {
         | 'file'
         | 'repository'
         | 'external_source'
+        | 'thread_file'
         | 'data_app_element';
     label: string;
     href: string | null;
+    icon?: Icon;
 };
 
 const getItemMeta = (
@@ -51,6 +57,7 @@ const getItemMeta = (
                 | 'file'
                 | 'repository'
                 | 'external_source'
+                | 'thread_file'
                 | 'data_app_element';
         }
     >,
@@ -73,6 +80,16 @@ const getItemMeta = (
                 kind: 'external_source',
                 label: item.displayName,
                 href: null,
+            };
+        // No download route by design; the file is read through the agent.
+        case 'thread_file':
+            return {
+                kind: 'thread_file',
+                label: item.fileName,
+                href: null,
+                icon: isTabularThreadFileName(item.fileName)
+                    ? IconTable
+                    : undefined,
             };
         // The app's source is not browsable from the thread, so no link.
         case 'data_app_element':
@@ -205,11 +222,13 @@ export const PinnedContextCard: FC<Props> = ({
         case 'file':
         case 'repository':
         case 'external_source':
+        case 'thread_file':
         case 'data_app_element': {
             const meta = getItemMeta(item);
             return (
                 <ContentReferenceLink
                     kind={meta.kind}
+                    icon={meta.icon}
                     rel="noreferrer"
                     to={meta.href ?? undefined}
                     target={meta.href ? '_blank' : undefined}

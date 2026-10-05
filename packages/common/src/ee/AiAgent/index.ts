@@ -55,6 +55,7 @@ export * from './aiAgentReviewClassifierTypes';
 export * from './documentGuidance';
 export * from './documentTypes';
 export * from './skillTypes';
+export * from './threadFileTypes';
 export * from './skillValidation';
 export * from './filterExploreByTags';
 export * from './projectContext';

@@ -45,14 +45,12 @@ type Props = {
     ) => void;
     onClose: () => void;
     spaceUuid?: string;
-    maxSelectedValues?: number;
 };
 
 type ItemProps = {
     label: string;
     chartKind: ChartKind;
     tooltipLabel?: string;
-    disabled?: boolean;
     selected?: boolean;
 };
 
@@ -60,7 +58,6 @@ const SelectItem: FC<ItemProps> = ({
     label,
     tooltipLabel,
     chartKind,
-    disabled,
     selected,
 }) => (
     <Stack gap="1">
@@ -70,15 +67,8 @@ const SelectItem: FC<ItemProps> = ({
             position="top-start"
         >
             <Group gap="xs">
-                <ChartIcon
-                    chartKind={chartKind ?? ChartKind.VERTICAL_BAR}
-                    color={disabled ? 'ldGray.5' : undefined}
-                />
-                <Text
-                    c={disabled ? 'dimmed' : selected ? 'ldGray.9' : 'ldGray.8'}
-                    fw={500}
-                    fz="xs"
-                >
+                <ChartIcon chartKind={chartKind ?? ChartKind.VERTICAL_BAR} />
+                <Text c={selected ? 'ldGray.9' : 'ldGray.8'} fw={500} fz="xs">
                     {label}
                 </Text>
             </Group>
@@ -86,12 +76,7 @@ const SelectItem: FC<ItemProps> = ({
     </Stack>
 );
 
-const AddChartTilesModal: FC<Props> = ({
-    onAddTiles,
-    onClose,
-    spaceUuid,
-    maxSelectedValues,
-}) => {
+const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuid }) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
@@ -189,20 +174,12 @@ const AddChartTilesModal: FC<Props> = ({
     const selectedChartUuids = form.values.savedChartsUuids as string[];
     const filteredSavedCharts = useMemo(() => {
         const normalizedSearch = searchQuery.trim().toLowerCase();
-        return allSavedCharts
-            .filter(
-                (chart) =>
-                    selectedChartUuids.includes(chart.value) ||
-                    chart.label.toLowerCase().includes(normalizedSearch),
-            )
-            .map((chart) => ({
-                ...chart,
-                disabled:
-                    !selectedChartUuids.includes(chart.value) &&
-                    maxSelectedValues !== undefined &&
-                    selectedChartUuids.length >= maxSelectedValues,
-            }));
-    }, [allSavedCharts, maxSelectedValues, searchQuery, selectedChartUuids]);
+        return allSavedCharts.filter(
+            (chart) =>
+                selectedChartUuids.includes(chart.value) ||
+                chart.label.toLowerCase().includes(normalizedSearch),
+        );
+    }, [allSavedCharts, searchQuery, selectedChartUuids]);
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(
@@ -300,7 +277,6 @@ const AddChartTilesModal: FC<Props> = ({
                     searchValue={searchQuery}
                     onSearchChange={setSearchQuery}
                     maxDropdownHeight={300}
-                    maxValues={maxSelectedValues}
                     value={selectedChartUuids}
                     selectedValues={selectedChartUuids}
                     onClear={() => {
@@ -367,7 +343,6 @@ const AddChartTilesModal: FC<Props> = ({
                                         ChartKind.VERTICAL_BAR
                                     }
                                     tooltipLabel={chart?.tooltipLabel}
-                                    disabled={option.disabled}
                                     selected={selected}
                                 />
                             </Box>
@@ -389,10 +364,7 @@ const AddChartTilesModal: FC<Props> = ({
                                     (value) => value !== chartUuid,
                                 ),
                             );
-                        } else if (
-                            maxSelectedValues === undefined ||
-                            selectedChartUuids.length < maxSelectedValues
-                        ) {
+                        } else {
                             form.setFieldValue('savedChartsUuids', [
                                 ...selectedChartUuids,
                                 chartUuid,

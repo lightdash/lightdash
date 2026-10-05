@@ -118,7 +118,7 @@ const userWithoutOrganization = {
 } as Express.User;
 
 const missingOrganizationMessage =
-    'Your account is not a member of an organization on eu1.lightdash.cloud. Sign in to the Lightdash instance where you were invited.';
+    'Your account is not a member of an organization on eu1.lightdash.cloud. Sign in to the instance where you were invited.';
 
 const requestAuthorize = async ({
     body,

@@ -13,7 +13,7 @@ export const SSH_TUNNEL_KEY_MISSING_MESSAGE =
     'SSH tunnel is enabled but no public key has been generated. Click "Generate public key", add the key to your SSH host, then save again.';
 
 export const SSH_TUNNEL_KEY_UNKNOWN_MESSAGE =
-    'The SSH public key on this connection is not recognised by Lightdash. Click "Regenerate key", add the new key to your SSH host, then save again.';
+    'The SSH public key on this connection is not recognised. Click "Regenerate key", add the new key to your SSH host, then save again.';
 
 export const resolveSshTunnelPrivateKey = async <
     T extends SshTunnelCredentials,

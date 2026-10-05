@@ -340,12 +340,40 @@ export const createAnalyticsExplores = (): Explore[] => {
         );
         const label = friendlyName(name);
         const includeQueryMetadata = name === 'export_events';
+        const appTableName = 'lightdash_apps';
+        const appFields = buildDimensionsFromColumns({
+            qualifyColumnReferences: true,
+            tableName: appTableName,
+            tableLabel: 'Apps',
+            columns: [
+                'org_id',
+                'project_id',
+                'app_id',
+                'name',
+                'project_name',
+            ].map((reference) => ({ reference, type: DimensionType.STRING })),
+            warehouseSqlBuilder: sqlBuilder,
+        });
+        appFields.org_id.hidden = true;
+        appFields.name.label = 'App name';
+        appFields.name.sql =
+            "COALESCE(${TABLE}.name, ${data_app_events.app_id}, 'Unknown app')";
         return compiler.compileExplore({
             name,
             label,
             tags: [],
             baseTable: name,
             joinedTables: [
+                ...(name === 'data_app_events'
+                    ? [
+                          {
+                              table: appTableName,
+                              type: 'left' as const,
+                              relationship: JoinRelationship.MANY_TO_ONE,
+                              sqlOn: '${data_app_events.org_id} = ${lightdash_apps.org_id} AND ${data_app_events.project_id} = ${lightdash_apps.project_id} AND ${data_app_events.app_id} = ${lightdash_apps.app_id}',
+                          },
+                      ]
+                    : []),
                 ...(includeQueryMetadata
                     ? [
                           {
@@ -379,6 +407,23 @@ export const createAnalyticsExplores = (): Explore[] => {
             meta: {},
             targetDatabase: sqlBuilder.getAdapterType(),
             tables: {
+                ...(name === 'data_app_events'
+                    ? {
+                          [appTableName]: {
+                              name: appTableName,
+                              label: 'Apps',
+                              primaryKey: ['org_id', 'project_id', 'app_id'],
+                              sqlTable: `(SELECT org_id, project_id, content_id AS app_id,
+                                  content_name AS name, project_name
+                                  FROM lightdash_content WHERE content_type = 'data_app')`,
+                              database: 'memory',
+                              schema: 'main',
+                              lineageGraph: { nodes: [], edges: [] },
+                              dimensions: appFields,
+                              metrics: {},
+                          },
+                      }
+                    : {}),
                 ...dimensionTables,
                 [name]: buildTable(name),
                 ...(includeQueryMetadata

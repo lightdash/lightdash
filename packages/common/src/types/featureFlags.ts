@@ -99,6 +99,18 @@ export enum FeatureFlags {
     PreviewSsoCredentialSync = 'preview-sso-credential-sync',
 
     /**
+     * Read hyphenated warehouse identifiers in agent SQL scope checks.
+     * On by default; the flag is a kill switch only.
+     */
+    AgentSqlScopeHyphenatedIdentifiers = 'agent-sql-scope-hyphenated-identifiers',
+
+    /**
+     * Lists every Lightdash IP address with copy buttons on warehouse
+     * connection forms. On by default; the flag is a kill switch only.
+     */
+    EgressIpNotice = 'egress-ip-notice',
+
+    /**
      * Per-organization gate for declaring custom npm dependencies in data
      * apps. Disabled by default; self-hosted instances can enable it globally
      * via LIGHTDASH_ENABLE_FEATURE_FLAGS.

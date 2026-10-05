@@ -1,4 +1,5 @@
 import { type DateZoom } from '../../types/api/paginatedQuery';
+import { type UUID } from '../../types/api/uuid';
 import { type ExternalSourceType } from '../../types/externalSources';
 import {
     type DashboardFilterRule,
@@ -288,6 +289,12 @@ export type AiPromptContextItemInput =
           sourceUuid: string;
       }
     | {
+          // A text document the user uploaded for this conversation. Sending
+          // the prompt claims the file for the thread in the same transaction.
+          type: 'thread_file';
+          fileUuid: UUID;
+      }
+    | {
           // The review-remediation pull request applying the proposed change.
           type: 'pull_request';
           prUrl: string;
@@ -373,6 +380,10 @@ export type AiPromptExternalSourceSnapshot = {
     tables: AiPromptExternalSourceTable[];
 };
 
+export type AiPromptThreadFileSnapshot = {
+    sizeBytes: number;
+};
+
 export type AiPromptContextItem =
     | {
           type: 'chart';
@@ -414,6 +425,12 @@ export type AiPromptContextItem =
           displayName: string;
           sourceType: ExternalSourceType | null;
           tables: AiPromptExternalSourceTable[];
+      }
+    | {
+          type: 'thread_file';
+          fileUuid: string;
+          fileName: string;
+          sizeBytes: number;
       }
     | {
           type: 'pull_request';

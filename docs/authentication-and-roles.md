@@ -19,7 +19,7 @@ delivered.
 | **Personal access token** (PAT) | `Authorization: ApiKey <token>` | `ldpat_` | `allowApiKeyAuthentication` | Mints as the **owning user** — same identity, same role, same project memberships. Used by the CLI, scripts, ad-hoc API calls. |
 | **Service account** (SA) | `Authorization: Bearer <token>` | `ldsvc_` | `authenticateServiceAccount` middleware | Authenticates as a **dedicated SA user** (not a human). See [`service-accounts.md`](./service-accounts.md) for the full lifecycle and permission model. |
 | **SCIM token** | `Authorization: Bearer <token>` | `ldscim_` | `isScimAuthenticated` middleware | A constrained service account with the legacy `scim:manage` scope. Only the `/api/v1/scim/v2/*` routes accept it. Minted from the dedicated SCIM token UI in org settings. |
-| **Embed JWT** | URL-signed JWT | n/a | `embed` auth strategy | A dashboard-scoped principal with no org membership. Different code path; out of scope here. |
+| **Embed JWT** | `lightdash-embed-token` header (client receives the token via SDK prop or URL fragment) | n/a | `jwtAuthMiddleware` | A content-scoped JWT account with a separate optional role/write actor. See [`embed.md`](./embed.md) for the request flow and data-access rules. |
 
 The authenticated principal is the same shape downstream: `SessionUser` for
 the user record, `Account` for narrowed CASL/identity. See
@@ -104,7 +104,7 @@ custom role that grants exactly the org-level abilities they need (e.g.,
 | PAT | inherits everything from the underlying user (PAT has no own role) | same |
 | Service account | system role via `om.role`, custom role via `om.role_uuid`, **OR** legacy scope via `service_accounts.scopes` (back-compat path — see [`service-accounts.md`](./service-accounts.md)) | none — SAs are org-scoped principals |
 | SCIM token | hardcoded `scim:manage` legacy scope (manage on `OrganizationMemberProfile` and `Group` only) | none |
-| Embed JWT | n/a | dashboard-scoped subject; rules built per-token (see embed code) |
+| Embed JWT | n/a | content-specific viewer abilities, with applicable embed scopes projected from the optional actor; see [`embed.md`](./embed.md) |
 
 ## Adding a new permission
 

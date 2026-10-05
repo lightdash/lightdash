@@ -331,6 +331,11 @@ export const DEFAULT_UI_STRINGS = {
     'dashboard.exportAllTiles': 'Export all tiles',
     'dashboard.printPage': 'Print this page',
     'aiAgent.unavailable': "AI isn't available right now.",
+    'explorer.back': 'Back',
+    'explorer.backToDashboard': 'Back to Dashboard',
+    'explorer.backToChart': 'Back to Chart',
+    'explorer.backToAi': 'Back to AI',
+    'explorer.backToMetricsCatalog': 'Back to Metrics Catalog',
 } as const satisfies Record<string, string>;
 
 export type UiStringKey = keyof typeof DEFAULT_UI_STRINGS;

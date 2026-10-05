@@ -93,6 +93,7 @@ export const aiCopilotConfigSchema = z
                     availableModels: z.array(z.string()).optional(),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
+                    supportsContextManagement: z.boolean().default(true),
                 })
                 .optional(),
             google: z

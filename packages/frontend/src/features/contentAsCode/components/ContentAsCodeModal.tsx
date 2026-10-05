@@ -109,8 +109,7 @@ const ContentAsCodeModal: FC<ContentAsCodeModalProps> = ({
 
             {!isLoading && !error && !contentYaml && (
                 <Callout variant="warning" title="Content not found">
-                    Lightdash could not generate content as code for this{' '}
-                    {resourceLabel}.
+                    Could not generate content as code for this {resourceLabel}.
                 </Callout>
             )}
 

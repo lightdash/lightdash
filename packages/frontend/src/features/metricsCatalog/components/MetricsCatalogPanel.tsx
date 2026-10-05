@@ -42,7 +42,7 @@ import {
     setUser,
     toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
-import { type MetricCatalogView } from '../types';
+import { type MetricCatalogView, type MetricsCatalogFilter } from '../types';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import classes from './MetricsCatalogPanel.module.css';
 import { MetricsTable } from './MetricsTable';
@@ -107,7 +107,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                 <Stack gap="sm" w="100%" ref={ref}>
                     <Group justify="space-between">
                         <Text fw={600} fz="sm">
-                            ✨ Lightdash Spotlight is here!
+                            ✨ Spotlight is here!
                         </Text>
                         <ActionIcon
                             variant="transparent"
@@ -162,10 +162,12 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
 
 type MetricsCatalogPanelProps = {
     metricCatalogView: MetricCatalogView;
+    hiddenFilters: MetricsCatalogFilter[];
 };
 
 export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     metricCatalogView,
+    hiddenFilters,
 }) => {
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
@@ -524,6 +526,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
             <MetricsTable
                 metricCatalogView={metricCatalogView}
                 isEmbed={isEmbed}
+                hiddenFilters={hiddenFilters}
             />
             <MetricChartUsageModal
                 opened={isMetricUsageModalOpen}

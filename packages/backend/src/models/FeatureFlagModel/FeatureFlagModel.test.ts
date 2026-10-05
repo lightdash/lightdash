@@ -210,9 +210,11 @@ describe('FeatureFlagModel', () => {
             );
         },
     );
-    describe('Preview SSO credential sync', () => {
-        const featureFlagId = FeatureFlags.PreviewSsoCredentialSync;
-
+    describe.each([
+        FeatureFlags.PreviewSsoCredentialSync,
+        FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
+        FeatureFlags.EgressIpNotice,
+    ])('%s kill switch', (featureFlagId) => {
         it('is on by default', async () => {
             const model = buildModel({}, buildFakeDatabase({}));
             await expect(

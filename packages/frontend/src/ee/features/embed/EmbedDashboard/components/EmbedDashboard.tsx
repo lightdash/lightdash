@@ -853,7 +853,6 @@ const EmbedDashboard: FC<{
                     dashboardTabs={dashboardTabs}
                     allowedTileTypes={EMBED_EDIT_TILE_TYPES}
                     spaceUuid={writeActions?.spaceUuid}
-                    maxSelectedValues={1}
                     disabled={isSaving}
                     onNewChart={
                         canUseChartBuilder

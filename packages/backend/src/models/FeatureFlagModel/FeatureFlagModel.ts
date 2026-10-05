@@ -82,6 +82,12 @@ export class FeatureFlagModel {
                 this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.PreviewSsoCredentialSync]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
+            [FeatureFlags.AgentSqlScopeHyphenatedIdentifiers]: (
+                flagArgs,
+                options,
+            ) => this.getWithEnvFallback(flagArgs, true, options),
+            [FeatureFlags.EgressIpNotice]: (flagArgs, options) =>
+                this.getWithEnvFallback(flagArgs, true, options),
         };
     }
 

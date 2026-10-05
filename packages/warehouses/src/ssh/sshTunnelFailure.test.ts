@@ -103,7 +103,7 @@ describe('describeSshTunnelFailure', () => {
     it('tells the bastion admin which IP to allow on tcp failures', () => {
         const message = describeSshTunnelFailure({ ...base, stage: 'tcp' });
         expect(message).toContain('Could not reach 203.0.113.10 on port 22');
-        expect(message).toContain('from Lightdash (35.1.2.3)');
+        expect(message).toContain('on port 22 from 35.1.2.3');
         expect(message).toContain('Allow inbound SSH from 35.1.2.3');
     });
 
@@ -114,7 +114,7 @@ describe('describeSshTunnelFailure', () => {
             stage: 'tcp',
         });
         expect(message).not.toContain('35.1.2.3');
-        expect(message).toContain("Lightdash's IP");
+        expect(message).toContain("this application's IP");
     });
 
     it('names the user on auth failures', () => {

@@ -193,6 +193,7 @@ import { isAgentScopedQueryContext } from '../../ee/services/ai/utils/scopedSqlC
 import {
     findSqlScopeViolations,
     formatSqlScopeError,
+    isSqlScopeConfigured,
 } from '../../ee/services/ai/utils/sqlScope';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -256,7 +257,10 @@ import {
     hasBlockingTotalFilters,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
-import { personaliseSharedSignInError } from '../../utils/sharedSignInExpiry';
+import {
+    personaliseSharedSignInError,
+    personaliseStoredSharedSignInError,
+} from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import type { ICacheService } from '../CacheService/ICacheService';
@@ -757,7 +761,9 @@ export class AsyncQueryService extends ProjectService {
                 warehouseArgs.projectUuid,
                 {
                     status: QueryHistoryStatus.ERROR,
-                    error: sanitizeDuckdbError(e),
+                    error: sanitizeDuckdbError(
+                        personaliseSharedSignInError(e, null),
+                    ),
                     errored_at: new Date(),
                 },
                 account,
@@ -1588,7 +1594,13 @@ export class AsyncQueryService extends ProjectService {
             return {
                 status,
                 queryUuid,
-                error: queryHistory.error,
+                error: await personaliseStoredSharedSignInError({
+                    account,
+                    projectUuid,
+                    error: queryHistory.error,
+                    projectModel: this.projectModel,
+                    featureFlagModel: this.featureFlagModel,
+                }),
                 erroredAt: queryHistory.erroredAt,
             };
         }
@@ -3109,7 +3121,6 @@ export class AsyncQueryService extends ProjectService {
         userUuid,
         organizationUuid,
         isRegisteredUser,
-        isEmbedOrigin,
         isServiceAccount,
         onboardingFlow,
         projectUuid,
@@ -3145,7 +3156,6 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
                 isPreviewProject,
                 isRegisteredUser,
-                isEmbedOrigin,
                 isServiceAccount,
                 onboardingFlow,
                 projectUuid,
@@ -3198,12 +3208,7 @@ export class AsyncQueryService extends ProjectService {
                     queryCreatedAt,
                     queryUsage,
                     errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
-                        personaliseSharedSignInError(
-                            preAggregateError,
-                            isRegisteredUser && !isEmbedOrigin
-                                ? userUuid
-                                : null,
-                        ),
+                        personaliseSharedSignInError(preAggregateError, null),
                     )}`,
                     executionSource:
                         preAggregateExecution === 'duckdb'
@@ -3281,7 +3286,6 @@ export class AsyncQueryService extends ProjectService {
                 queryUuid,
                 queryTags,
                 query: warehouseQuery,
-                isEmbedOrigin,
                 fieldsMap,
                 usedParameters,
                 cacheKey,
@@ -3620,7 +3624,6 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid,
         isPreviewProject,
         isRegisteredUser,
-        isEmbedOrigin,
         isServiceAccount,
         onboardingFlow,
         projectUuid,
@@ -4141,10 +4144,7 @@ export class AsyncQueryService extends ProjectService {
                 queryCreatedAt,
                 queryUsage,
                 errorMessage: getErrorMessage(
-                    personaliseSharedSignInError(
-                        e,
-                        isRegisteredUser && !isEmbedOrigin ? userUuid : null,
-                    ),
+                    personaliseSharedSignInError(e, null),
                 ),
                 executionSource,
                 warehouseType: warehouseCredentialsType ?? null,
@@ -4162,7 +4162,7 @@ export class AsyncQueryService extends ProjectService {
             await this.queryHistoryModel.updateStatusToError(
                 queryUuid,
                 projectUuid,
-                getErrorMessage(e),
+                getErrorMessage(personaliseSharedSignInError(e, null)),
                 queryHistoryAccount,
             );
 
@@ -4246,7 +4246,6 @@ export class AsyncQueryService extends ProjectService {
             isPreviewProject,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
-            isEmbedOrigin: query.requestParameters.isEmbedOrigin,
             isServiceAccount: actor.isServiceAccount,
             onboardingFlow,
             queryTags,
@@ -4310,7 +4309,6 @@ export class AsyncQueryService extends ProjectService {
             isPreviewProject,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
-            isEmbedOrigin: query.requestParameters.isEmbedOrigin,
             isServiceAccount: actor.isServiceAccount,
             onboardingFlow,
             queryTags,
@@ -5272,7 +5270,6 @@ export class AsyncQueryService extends ProjectService {
                         organizationUuid,
                         isPreviewProject,
                         isRegisteredUser: account.isRegisteredUser(),
-                        isEmbedOrigin: requestParameters.isEmbedOrigin,
                         isServiceAccount: account.isServiceAccount(),
                         onboardingFlow,
                         projectUuid,
@@ -5651,7 +5648,6 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             dateZoom,
             context,
-            isEmbedOrigin,
             metricQuery: inputMetricQuery,
             invalidateCache,
             usePreAggregateCache,
@@ -5831,7 +5827,6 @@ export class AsyncQueryService extends ProjectService {
                 : {}),
             ...(references ? { references } : {}),
             context,
-            isEmbedOrigin,
             query: effectiveMetricQuery,
             parameters: combinedParameters,
             dateZoom,
@@ -8086,7 +8081,6 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         sql,
         context,
-        isEmbedOrigin,
         invalidateCache,
         pivotConfiguration,
         limit,
@@ -8123,7 +8117,23 @@ export class AsyncQueryService extends ProjectService {
         if (isAgentScopedQueryContext(context)) {
             const sqlScope =
                 await this.projectModel.getAgentSqlScope(projectUuid);
-            const violations = findSqlScopeViolations(sql, sqlScope);
+            const hyphenatedIdentifiers = isSqlScopeConfigured(sqlScope)
+                ? (
+                      await this.featureFlagModel.get({
+                          user: {
+                              organizationUuid,
+                              ...(account.isRegisteredUser()
+                                  ? { userUuid: account.user.id }
+                                  : {}),
+                          },
+                          featureFlagId:
+                              FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
+                      })
+                  ).enabled
+                : false;
+            const violations = findSqlScopeViolations(sql, sqlScope, {
+                hyphenatedIdentifiers,
+            });
             if (violations.length > 0 && sqlScope) {
                 this.logger.warn('Blocked out-of-scope agent SQL', {
                     projectUuid,
@@ -8202,7 +8212,6 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
                 parameters,
                 context,
-                isEmbedOrigin,
             },
         );
 
@@ -8757,7 +8766,10 @@ export class AsyncQueryService extends ProjectService {
         } catch (e) {
             // The row is already claimed: a rebuild that fails must not
             // leave it executing forever
-            await this.markClaimedQueryAsErrored(queryUuid, getErrorMessage(e));
+            await this.markClaimedQueryAsErrored(
+                queryUuid,
+                getErrorMessage(personaliseSharedSignInError(e, null)),
+            );
             throw e;
         }
         await this.runDuckdbQuery(args);
@@ -9526,7 +9538,9 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 {
                     status: QueryHistoryStatus.ERROR,
-                    error: getErrorMessage(e),
+                    error: getErrorMessage(
+                        personaliseSharedSignInError(e, null),
+                    ),
                     errored_at: new Date(),
                 },
                 account,
@@ -10012,7 +10026,6 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         mergeQuery,
         context,
-        isEmbedOrigin,
         invalidateCache,
         parameters,
         mode,
@@ -10081,7 +10094,6 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             mergeQuery: effectiveMergeQuery,
             context,
-            isEmbedOrigin,
             invalidateCache,
             parameters,
             userAttributeOverrides,
@@ -10110,7 +10122,6 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid,
         mergeQuery,
         context,
-        isEmbedOrigin,
         invalidateCache,
         parameters,
         userAttributeOverrides,
@@ -10124,7 +10135,6 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid: string;
         mergeQuery: MergeQuery;
         context: QueryExecutionContext;
-        isEmbedOrigin?: boolean;
         invalidateCache: boolean | undefined;
         parameters: ParametersValuesMap | undefined;
         userAttributeOverrides: UserAttributeValueMap | undefined;
@@ -10214,7 +10224,6 @@ export class AsyncQueryService extends ProjectService {
                 ? { documentSource: documentQueryContext.reference }
                 : {}),
             context,
-            isEmbedOrigin,
             invalidateCache,
             mergeQuery,
             parameters,
@@ -10305,7 +10314,6 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     context,
-                    isEmbedOrigin,
                     queries: [...legNodes, joinNode],
                     parameters: parameters ?? {},
                     userAttributeOverrides: userAttributeOverrides ?? {},
