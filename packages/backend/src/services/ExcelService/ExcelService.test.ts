@@ -428,6 +428,44 @@ describe('ExcelService', () => {
             expect(result[2]).toBe('test');
         });
 
+        it('keeps numeric-looking values of a string field as text', () => {
+            const values = ['00123', '12E3', '562.90310', '1250E473'];
+
+            values.forEach((value) => {
+                const result = ExcelService.convertRowToExcel(
+                    { string_column: value },
+                    mockItemMapWithFormats,
+                    false,
+                    ['string_column'],
+                );
+
+                expect(result[0]).toBe(value);
+            });
+        });
+
+        it('never writes a non-finite number for a numeric field', () => {
+            const result = ExcelService.convertRowToExcel(
+                { number_without_format: '1250E473' },
+                mockItemMapWithFormats,
+                false,
+                ['number_without_format'],
+            );
+
+            expect(result[0]).not.toBe(Infinity);
+            expect(typeof result[0]).toBe('string');
+        });
+
+        it('still converts numeric strings for a column with no field definition', () => {
+            const result = ExcelService.convertRowToExcel(
+                { unknown_column: '42.5' },
+                mockItemMapWithFormats,
+                false,
+                ['unknown_column'],
+            );
+
+            expect(result[0]).toBe(42.5);
+        });
+
         it('should handle actual numbers (not strings) with format expressions', () => {
             const row = {
                 number_with_usd_format: 1234.56,
