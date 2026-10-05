@@ -353,7 +353,7 @@ export class RoadmapService extends BaseService {
                         (await isRoadmapTcpUnreachable())))
             ) {
                 throw new UnexpectedServerError(
-                    'The Lightdash server cannot reach roadmap.lightdash.com. If you self-host Lightdash, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.',
+                    'The server cannot reach roadmap.lightdash.com. If you self-host, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.',
                     {
                         code: 'ROADMAP_UNREACHABLE',
                         documentationUrl:

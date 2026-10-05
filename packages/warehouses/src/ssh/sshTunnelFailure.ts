@@ -60,10 +60,10 @@ export const describeSshTunnelFailure = ({
     staticIp,
     cause,
 }: SshTunnelFailureContext): string => {
-    const from = staticIp ? ` from Lightdash (${staticIp})` : '';
+    const from = staticIp ? ` from ${staticIp}` : '';
     const allow = staticIp
         ? `Allow inbound SSH from ${staticIp} in the bastion's security group or firewall.`
-        : "Allow inbound SSH from Lightdash's IP in the bastion's security group or firewall.";
+        : "Allow inbound SSH from this application's IP in the bastion's security group or firewall.";
     switch (stage) {
         case 'resolve':
             return `The SSH host "${sshHost}" does not resolve to an address. Check the SSH Remote Host for typos and make sure it is a public hostname or IP. (${cause})`;

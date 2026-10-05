@@ -164,7 +164,7 @@ export class OpenIDClientOktaStrategy extends Strategy {
                     return this.fail(
                         {
                             message:
-                                'Your Okta account doesn’t currently have access to Lightdash. Please contact support or your Okta administrator to enable access.',
+                                'Your Okta account doesn’t currently have access. Please contact support or your Okta administrator to enable access.',
                         },
                         401,
                     );

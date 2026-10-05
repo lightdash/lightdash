@@ -7,7 +7,7 @@ import {
 import { getInstallationToken } from '../clients/github/Github';
 
 export const GITHUB_APP_NOT_INSTALLED_MESSAGE =
-    'This project is set to authenticate with the Lightdash GitHub App, but the app is not installed for your organization. Install it from Settings > Integrations > GitHub, or switch the project to a personal access token.';
+    'This project is set to authenticate with the GitHub App, but the app is not installed for your organization. Install it from Settings > Integrations > GitHub, or switch the project to a personal access token.';
 
 /**
  * A connection that says "use the GitHub App" but has no installation to use

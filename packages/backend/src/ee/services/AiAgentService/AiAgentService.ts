@@ -671,10 +671,10 @@ const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
 
 const GITHUB_MCP_PAT_DISABLED_ERROR =
-    'GitHub personal access tokens are disabled. Connect GitHub through the Lightdash GitHub App integration instead';
+    'GitHub personal access tokens are disabled. Connect GitHub through the GitHub App integration instead';
 
 const GITHUB_MCP_UNAVAILABLE_STATUS =
-    'GitHub is not connected. An organization admin can install the Lightdash GitHub App from Organization settings → Integrations to reconnect.';
+    'GitHub is not connected. An organization admin can install the GitHub App from Organization settings → Integrations to reconnect.';
 
 const isGithubMcpBearerServer = (
     server: Pick<AiMcpServer, 'url' | 'authType'>,
@@ -6328,7 +6328,7 @@ export class AiAgentService extends BaseService {
             );
         if (!installationId) {
             throw new ParameterError(
-                'No GitHub App installation found for this organization. Install the Lightdash GitHub App first.',
+                'No GitHub App installation found for this organization. Install the GitHub App first.',
             );
         }
         const bearerToken = await getInstallationToken(installationId);
@@ -17313,7 +17313,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         );
                     if (!identity) {
                         throw new ForbiddenError(
-                            'Slack account is not linked to a Lightdash user',
+                            'Slack account is not linked to a user',
                         );
                     }
                     decidedBy =
@@ -18233,7 +18233,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         if (candidateProjects.length === 0) {
             await say({
-                text: "⚠️ I couldn't find a project you have access to. Ask an admin to set one up or grant you access in Lightdash.",
+                text: "⚠️ I couldn't find a project you have access to. Ask an admin to set one up or grant you access.",
                 thread_ts: threadTs,
             });
             return 'handled';
@@ -18830,7 +18830,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
             result = 'identity_missing';
             if (channelId) {
-                const text = `Hi <@${userId}>! OAuth authentication is required to vote on AI Agent responses. Please connect your Slack account to Lightdash to continue.`;
+                const text = `Hi <@${userId}>! OAuth authentication is required to vote on AI Agent responses. Please connect your Slack account to continue.`;
                 const blocks =
                     teamId && messageId
                         ? [
@@ -19772,13 +19772,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await client.chat.postEphemeral({
                     channel: channelId,
                     user: userId,
-                    text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
+                    text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to continue.`,
                     blocks: [
                         {
                             type: 'section',
                             text: {
                                 type: 'mrkdwn',
-                                text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
+                                text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to continue.`,
                             },
                         },
                         {

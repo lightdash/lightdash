@@ -13,7 +13,7 @@ import {
 import type { ProjectConnectionForm } from '../types';
 
 const GITHUB_APP_NOT_CONNECTED_MESSAGE =
-    'The Lightdash GitHub App is not connected to your organization. Sign in with GitHub above or install the app from Settings > Integrations, or choose Personal Access Token.';
+    'The GitHub App is not connected to your organization. Sign in with GitHub above or install the app from Settings > Integrations, or choose Personal Access Token.';
 
 // Saving "OAuth" without an installation used to persist an empty
 // installation id, which the backend then served from a stale PAT

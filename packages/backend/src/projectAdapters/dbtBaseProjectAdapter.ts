@@ -238,7 +238,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
             throw new ParseError(
-                `Dbt project not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
+                `Dbt project not supported. dbt adapter ${manifest.metadata.adapter_type} is not supported`,
                 {},
             );
         }

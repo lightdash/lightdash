@@ -107,7 +107,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                 <Stack gap="sm" w="100%" ref={ref}>
                     <Group justify="space-between">
                         <Text fw={600} fz="sm">
-                            ✨ Lightdash Spotlight is here!
+                            ✨ Spotlight is here!
                         </Text>
                         <ActionIcon
                             variant="transparent"

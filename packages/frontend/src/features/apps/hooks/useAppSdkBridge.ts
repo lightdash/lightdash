@@ -680,7 +680,7 @@ export function useAppSdkBridge({
                 // "Export failed" with no diagnostic.
                 if (!health.data || !user.data) {
                     respondGsheet({
-                        error: 'Lightdash is still loading, try again shortly',
+                        error: 'Still loading, try again shortly',
                     });
                     return;
                 }

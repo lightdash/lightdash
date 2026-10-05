@@ -145,7 +145,7 @@ export const diagnoseTransportFailure = async ({
 };
 
 export const GENERIC_NETWORK_FAILURE_MESSAGE =
-    'We are currently unable to reach the Lightdash server. Please try again in a few moments.';
+    'We are currently unable to reach the server. Please try again in a few moments.';
 
 // Names the cause only; the request itself lives in the copied diagnostics.
 export const networkFailureMessage = (d: NetworkDiagnostics): string => {
@@ -153,13 +153,13 @@ export const networkFailureMessage = (d: NetworkDiagnostics): string => {
         case 'offline':
             return 'You appear to be offline. Check your internet connection and try again.';
         case 'blocked':
-            return 'Lightdash is reachable, but this request was blocked before it arrived. A corporate proxy, VPN or security software on your network most likely intercepted it. Try again from another network, or copy the diagnostics for your IT team.';
+            return 'The server is reachable, but this request was blocked before it arrived. A corporate proxy, VPN or security software on your network most likely intercepted it. Try again from another network, or copy the diagnostics for your IT team.';
         case 'unreachable':
-            return 'Lightdash cannot be reached from your network right now. Check your connection or VPN and try again.';
+            return 'The server cannot be reached from your network right now. Check your connection or VPN and try again.';
         case 'intercepted':
-            return `Something between you and Lightdash answered this request with HTTP ${d.responseStatus} instead of Lightdash. A proxy, firewall or load balancer intercepted it. Try again in a few moments, or copy the diagnostics for your IT team.`;
+            return `Something between you and the server answered this request with HTTP ${d.responseStatus} instead of the server. A proxy, firewall or load balancer intercepted it. Try again in a few moments, or copy the diagnostics for your IT team.`;
         case 'cancelled':
-            return 'The request was cancelled before Lightdash responded.';
+            return 'The request was cancelled before the server responded.';
         default:
             return assertUnreachable(d.kind, 'Unknown transport failure');
     }
@@ -169,7 +169,7 @@ const outcomeLabel: Record<TransportFailureKind, string> = {
     offline: 'browser is offline',
     blocked: 'request never reached the server, server is reachable',
     unreachable: 'request never reached the server, server is not reachable',
-    intercepted: 'a non-Lightdash response was returned',
+    intercepted: 'a response from another server was returned',
     cancelled: 'request was cancelled by the browser',
 };
 
@@ -180,12 +180,12 @@ export const formatNetworkDiagnostics = (d: NetworkDiagnostics): string => {
           } in ${d.probe.durationMs}ms)`
         : 'not checked';
     return [
-        'Lightdash request diagnostics',
+        'Request diagnostics',
         `Time: ${d.at}`,
         `Request: ${d.method} ${d.path}`,
         `Outcome: ${outcomeLabel[d.kind]}`,
         `Response status: ${d.responseStatus ?? 'none'}`,
-        `Lightdash reachable: ${probe}`,
+        `Server reachable: ${probe}`,
         `Browser online: ${d.online ? 'yes' : 'no'}`,
         `Error: ${d.cause}`,
         `Trace ID: ${d.traceId ?? 'n/a'}`,

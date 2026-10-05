@@ -462,7 +462,7 @@ export class ExploreCompiler {
                   if (tables[join.table] === undefined) {
                       exploreWarnings.push({
                           type: InlineErrorType.MISSING_TABLE,
-                          message: `Join "${join.alias || join.table}" to table "${join.table}" was skipped because the model is not available in this Lightdash project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.`,
+                          message: `Join "${join.alias || join.table}" to table "${join.table}" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.`,
                       });
                       return false;
                   }

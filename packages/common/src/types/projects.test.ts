@@ -107,7 +107,7 @@ describe('dbt environment variable validation', () => {
         const key = `${LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX}PASSWORD`;
 
         expect(getDbtEnvironmentVariableKeyError(key)).toContain(
-            'reserved for Lightdash',
+            'reserved for internal use',
         );
         expect(
             getDbtEnvironmentVariableKeyError(key, {

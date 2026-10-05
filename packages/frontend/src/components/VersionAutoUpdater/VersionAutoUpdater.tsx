@@ -18,7 +18,7 @@ const VersionAutoUpdater: FC = () => {
                 showToastInfo({
                     key: 'new-version-available',
                     autoClose: false,
-                    title: 'A new version of Lightdash is ready for you!',
+                    title: 'A new version is ready for you!',
                     action: {
                         children: 'Use new version',
                         icon: IconReload,

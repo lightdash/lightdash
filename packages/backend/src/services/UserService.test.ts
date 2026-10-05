@@ -4391,7 +4391,7 @@ describe('UserService', () => {
                 ),
             ).rejects.toThrowError(
                 new ForbiddenError(
-                    'This Google account is already connected to another Lightdash user',
+                    'This Google account is already connected to another user',
                 ),
             );
 

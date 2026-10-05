@@ -196,7 +196,7 @@ const checkFrontmatterKeys = (data: Record<string, unknown>): Issues =>
                 return errorsOnly(
                     issue(
                         'field_rejected',
-                        `\`${key}\` is not supported: Lightdash skills cannot register hooks or run commands.`,
+                        `\`${key}\` is not supported: skills cannot register hooks or run commands.`,
                         AI_AGENT_SKILL_FILE_NAME,
                     ),
                 );
@@ -205,7 +205,7 @@ const checkFrontmatterKeys = (data: Record<string, unknown>): Issues =>
                 return warningsOnly(
                     issue(
                         'field_ignored',
-                        `\`${key}\` is ignored: Lightdash skills run server-side with a fixed tool set.`,
+                        `\`${key}\` is ignored: skills run server-side with a fixed tool set.`,
                         AI_AGENT_SKILL_FILE_NAME,
                     ),
                 );
@@ -241,7 +241,7 @@ const checkName = (
         return errorsOnly(
             issue(
                 'name_reserved',
-                `\`${name}\` is reserved for Lightdash built-in skills.`,
+                `\`${name}\` is reserved for built-in skills.`,
                 AI_AGENT_SKILL_FILE_NAME,
             ),
         );
@@ -406,7 +406,7 @@ const checkBody = (
             ? errorsOnly(
                   issue(
                       'body_shell_injection',
-                      'Shell command injection (!`command` or a ```! block) is not supported: Lightdash skills cannot run commands.',
+                      'Shell command injection (!`command` or a ```! block) is not supported: skills cannot run commands.',
                       path,
                   ),
               )
@@ -415,7 +415,7 @@ const checkBody = (
             ? warningsOnly(
                   issue(
                       'body_file_reference',
-                      '@path references are passed to the model as plain text; Lightdash skills have no filesystem.',
+                      '@path references are passed to the model as plain text; skills have no filesystem.',
                       path,
                   ),
               )

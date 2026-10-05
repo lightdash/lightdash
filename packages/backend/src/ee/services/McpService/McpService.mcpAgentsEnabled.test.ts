@@ -81,7 +81,7 @@ const extra = {
 };
 
 const disabledError =
-    'Agent access over MCP is disabled for this organization. Ask an admin to enable it, or use Ask AI in Lightdash.';
+    'Agent access over MCP is disabled for this organization. Ask an admin to enable it, or use Ask AI in the app.';
 
 const makeMcpService = ({
     mcpAgentsEnabled,

@@ -649,7 +649,7 @@ function BoardError({ roadmapUnreachable }: { roadmapUnreachable: boolean }) {
                 }
                 description={
                     roadmapUnreachable
-                        ? 'The Lightdash server cannot reach roadmap.lightdash.com. If you self-host Lightdash, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.'
+                        ? 'The server cannot reach roadmap.lightdash.com. If you self-host, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.'
                         : 'The roadmap is currently unavailable.'
                 }
                 action={

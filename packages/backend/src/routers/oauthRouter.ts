@@ -119,7 +119,7 @@ const sendMissingOrganizationResponse = async (
 
     const message = `Your account is not a member of an organization on ${getInstanceHost(
         req,
-    )}. Sign in to the Lightdash instance where you were invited.`;
+    )}. Sign in to the instance where you were invited.`;
     redirectUrl.searchParams.set('error', 'access_denied');
     redirectUrl.searchParams.set('error_description', message);
     if (typeof params.state === 'string' && params.state !== '') {

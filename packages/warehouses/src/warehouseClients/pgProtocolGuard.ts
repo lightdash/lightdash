@@ -122,7 +122,7 @@ const rewriteParserError = (err: unknown): string => {
         /Unknown authenticationOk message type (\d+)/,
     );
     if (authCodeMatch) {
-        return `Warehouse server requested an unsupported authentication method (code ${authCodeMatch[1]}). This is commonly seen on AWS Redshift endpoints with IAM Identity Center enabled, which Lightdash does not support. Please use a Redshift endpoint configured for native username/password authentication.`;
+        return `Warehouse server requested an unsupported authentication method (code ${authCodeMatch[1]}). This is commonly seen on AWS Redshift endpoints with IAM Identity Center enabled, which is not supported. Please use a Redshift endpoint configured for native username/password authentication.`;
     }
     return `Unsupported warehouse protocol message: ${rawMessage}`;
 };
