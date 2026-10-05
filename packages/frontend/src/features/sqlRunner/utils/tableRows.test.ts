@@ -4,6 +4,7 @@ import {
     buildTableRows,
     catalogHasViews,
     filterTablesBySchema,
+    isActiveSchema,
     type SchemaTables,
 } from './tableRows';
 
@@ -129,6 +130,37 @@ describe('buildTableRows', () => {
         );
 
         expect(rows).toMatchObject([{ type: 'schema', databaseLabel: null }]);
+    });
+});
+
+describe('isActiveSchema', () => {
+    const prodMain = { database: 'prod', schema: 'main' };
+
+    it('matches the schema in the active database', () => {
+        expect(
+            isActiveSchema(prodMain, {
+                activeDatabase: 'prod',
+                activeSchema: 'main',
+            }),
+        ).toBe(true);
+    });
+
+    it('does not match a same-named schema in another database', () => {
+        expect(
+            isActiveSchema(prodMain, {
+                activeDatabase: 'dev',
+                activeSchema: 'main',
+            }),
+        ).toBe(false);
+    });
+
+    it('matches by schema alone when no database is stored', () => {
+        const active = { activeDatabase: undefined, activeSchema: 'main' };
+
+        expect(isActiveSchema(prodMain, active)).toBe(true);
+        expect(
+            isActiveSchema({ database: 'prod', schema: 'staging' }, active),
+        ).toBe(false);
     });
 });
 

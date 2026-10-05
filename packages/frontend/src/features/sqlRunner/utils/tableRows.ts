@@ -90,10 +90,24 @@ export const filterTablesBySchema = (
         })
         .filter(({ tables }) => Object.keys(tables).length > 0);
 
+// An active table saved without its database matches the schema in any database
+export const isActiveSchema = (
+    { database, schema }: { database: string; schema: string },
+    active: {
+        activeDatabase: string | undefined;
+        activeSchema: string | undefined;
+    },
+): boolean =>
+    schema === active.activeSchema &&
+    (active.activeDatabase === undefined || database === active.activeDatabase);
+
 // Flattens the schema tree into the rows the virtualized list renders
 export const buildTableRows = (
     tablesBySchema: SchemaTables[],
-    isSchemaExpanded: (schemaRowId: string, schema: SchemaTables) => boolean,
+    isSchemaExpanded: (
+        schemaRowId: string,
+        schemaTables: SchemaTables,
+    ) => boolean,
     showDatabase: boolean,
 ): TableRow[] =>
     tablesBySchema.flatMap((schemaTables) => {

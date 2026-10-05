@@ -46,6 +46,7 @@ import {
     buildTableRows,
     catalogHasViews,
     filterTablesBySchema,
+    isActiveSchema,
     type SchemaTables,
     type TableRow,
     type TableTypeFilter,
@@ -356,9 +357,7 @@ const VirtualRow: FC<{
             search={search}
             isActive={
                 row.table === activeTable &&
-                row.schema === activeSchema &&
-                (activeDatabase === undefined ||
-                    row.database === activeDatabase)
+                isActiveSchema(row, { activeDatabase, activeSchema })
             }
             partitionColumn={row.partitionColumn}
             tableType={row.tableType}
@@ -452,9 +451,13 @@ export const Tables: FC = () => {
             (schemaRowId, { database, schema }) =>
                 overrides[schemaRowId] ??
                 (isFiltering ||
-                    (schema === activeSchema &&
-                        (activeDatabase === undefined ||
-                            database === activeDatabase))),
+                    isActiveSchema(
+                        { database, schema: String(schema) },
+                        {
+                            activeDatabase,
+                            activeSchema,
+                        },
+                    )),
             catalog.hasSeveralDatabases,
         );
     }, [
