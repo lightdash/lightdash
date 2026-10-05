@@ -1,5 +1,6 @@
 import { Ability, subject } from '@casl/ability';
 import {
+    Account,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -35,6 +36,7 @@ import {
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
     MergeQueryErrorKind,
+    MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
     NotFoundError,
@@ -13314,12 +13316,16 @@ describe('ProjectService.getSharedSignInStatus', () => {
     });
 });
 
-describe('ProjectService.isCompiledSqlHiddenFromAccount', () => {
+describe('ProjectService.compileQueryForResponse', () => {
     const { projectUuid } = defaultProject;
     const { organizationUuid } = projectSummary;
     const service = getMockedProjectService(lightdashConfigMock);
 
-    const buildAiAgentAccount = (withSqlScope: boolean) =>
+    const buildAiAgentAccount = ({
+        sqlScopeProjectUuid,
+    }: {
+        sqlScopeProjectUuid: string | null;
+    }) =>
         fromJwt({
             decodedToken: {
                 content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
@@ -13360,12 +13366,15 @@ describe('ProjectService.isCompiledSqlHiddenFromAccount', () => {
                         action: 'view',
                         conditions: { organizationUuid, projectUuid },
                     },
-                    ...(withSqlScope
+                    ...(sqlScopeProjectUuid
                         ? [
                               {
                                   subject: 'EmbedAiAgentSql' as const,
                                   action: 'view' as const,
-                                  conditions: { organizationUuid, projectUuid },
+                                  conditions: {
+                                      organizationUuid,
+                                      projectUuid: sqlScopeProjectUuid,
+                                  },
                               },
                           ]
                         : []),
@@ -13379,28 +13388,67 @@ describe('ProjectService.isCompiledSqlHiddenFromAccount', () => {
             },
         });
 
-    it('hides compiled SQL when the AI agent embed lacks the SQL scope', () => {
-        const aiAccount = buildAiAgentAccount(false);
-
-        expect(
-            service.isCompiledSqlHiddenFromAccount(aiAccount, projectUuid),
-        ).toBe(true);
+    const compileArgs = (caller: Account) => ({
+        account: caller,
+        body: {} as MetricQuery,
+        projectUuid,
+        exploreName: 'orders',
     });
 
-    it('shows compiled SQL when the AI agent embed has the SQL scope', () => {
-        const aiAccount = buildAiAgentAccount(true);
-
-        expect(
-            service.isCompiledSqlHiddenFromAccount(aiAccount, projectUuid),
-        ).toBe(false);
+    beforeEach(() => {
+        vi.spyOn(service, 'compileQuery').mockResolvedValue({
+            query: 'select 1',
+            pivotQuery: 'select 2',
+            parameterReferences: ['p'],
+        } as never);
     });
 
-    it('does not hide compiled SQL from session accounts', () => {
-        expect(
-            service.isCompiledSqlHiddenFromAccount(
-                developerAccount,
-                projectUuid,
+    it('redacts compiled SQL when the AI agent embed lacks the SQL scope', async () => {
+        const result = await service.compileQueryForResponse(
+            compileArgs(buildAiAgentAccount({ sqlScopeProjectUuid: null })),
+        );
+
+        expect(result).toStrictEqual({
+            query: '',
+            parameterReferences: ['p'],
+        });
+        expect(result).not.toHaveProperty('pivotQuery');
+    });
+
+    it('redacts compiled SQL when the SQL scope is granted for a different project', async () => {
+        const result = await service.compileQueryForResponse(
+            compileArgs(
+                buildAiAgentAccount({ sqlScopeProjectUuid: 'other-project' }),
             ),
-        ).toBe(false);
+        );
+
+        expect(result).toStrictEqual({
+            query: '',
+            parameterReferences: ['p'],
+        });
+    });
+
+    it('returns the full payload when the AI agent embed has the SQL scope', async () => {
+        await expect(
+            service.compileQueryForResponse(
+                compileArgs(
+                    buildAiAgentAccount({ sqlScopeProjectUuid: projectUuid }),
+                ),
+            ),
+        ).resolves.toStrictEqual({
+            query: 'select 1',
+            pivotQuery: 'select 2',
+            parameterReferences: ['p'],
+        });
+    });
+
+    it('returns the full payload for session accounts', async () => {
+        await expect(
+            service.compileQueryForResponse(compileArgs(developerAccount)),
+        ).resolves.toStrictEqual({
+            query: 'select 1',
+            pivotQuery: 'select 2',
+            parameterReferences: ['p'],
+        });
     });
 });

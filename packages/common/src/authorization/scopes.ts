@@ -1436,7 +1436,8 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:EmbedAiAgentSql',
-        description: 'View the SQL behind embedded AI agent chart answers',
+        description:
+            'View the compiled SQL query behind embedded AI agent chart answers',
         isEnterprise: true,
         group: ScopeGroup.EMBED,
         dependencies: [

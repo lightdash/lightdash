@@ -1887,6 +1887,13 @@ export class AsyncQueryService extends ProjectService {
         pollingOptions?: PollingOptions,
     ) {
         const { queryUuid, projectUuid, account } = args;
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        this.assertEmbedAiAgentCanDownload(
+            account,
+            organizationUuid,
+            projectUuid,
+        );
         await this.pollForQueryCompletion({
             account,
             projectUuid,
@@ -1954,6 +1961,11 @@ export class AsyncQueryService extends ProjectService {
                 'Scheduled downloads are unavailable for internal analytics',
             );
         }
+        this.assertEmbedAiAgentCanDownload(
+            account,
+            project.organizationUuid,
+            payload.projectUuid,
+        );
 
         const { organizationUuid } = account.organization;
 
@@ -1967,11 +1979,6 @@ export class AsyncQueryService extends ProjectService {
             payload.projectUuid,
             project.organizationUuid,
             queryHistory,
-        );
-        this.assertEmbedAiAgentCanDownload(
-            account,
-            project.organizationUuid,
-            payload.projectUuid,
         );
 
         const userUuid = account.user.id;
@@ -2154,6 +2161,11 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         const { organizationUuid } = project;
+        this.assertEmbedAiAgentCanDownload(
+            account,
+            organizationUuid,
+            projectUuid,
+        );
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -2165,11 +2177,6 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             organizationUuid,
             queryHistory,
-        );
-        this.assertEmbedAiAgentCanDownload(
-            account,
-            organizationUuid,
-            projectUuid,
         );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;

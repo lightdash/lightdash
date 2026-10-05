@@ -12928,6 +12928,7 @@ describe('embedded AI agent result downloads', () => {
             );
             expect(scheduleDownload).not.toHaveBeenCalled();
             expect(formatFile).not.toHaveBeenCalled();
+            expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
         },
     );
 });

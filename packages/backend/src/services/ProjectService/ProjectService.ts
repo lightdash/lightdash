@@ -10,6 +10,7 @@ import {
     AnyType,
     ApiChartAndResults,
     ApiCompiledMergeQueryResults,
+    ApiCompiledQueryResults,
     ApiCreatePreviewResults,
     ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
@@ -7841,7 +7842,7 @@ export class ProjectService extends BaseService {
         }
     }
 
-    isCompiledSqlHiddenFromAccount(
+    private cannotViewEmbedAiAgentSql(
         account: Account,
         projectUuid: string,
     ): boolean {
@@ -7856,6 +7857,28 @@ export class ProjectService extends BaseService {
                 }),
             )
         );
+    }
+
+    async compileQueryForResponse(args: {
+        account: Account;
+        body: MetricQuery & {
+            parameters?: ParametersValuesMap;
+            pivotConfiguration?: PivotConfiguration;
+        };
+        projectUuid: string;
+        exploreName: string;
+        usePreAggregateCache?: boolean;
+    }): Promise<ApiCompiledQueryResults> {
+        const { parameterReferences, query, pivotQuery } =
+            await this.compileQuery(args);
+        if (this.cannotViewEmbedAiAgentSql(args.account, args.projectUuid)) {
+            return { query: '', parameterReferences };
+        }
+        return {
+            query,
+            parameterReferences,
+            ...(pivotQuery && { pivotQuery }),
+        };
     }
 
     async compileQuery(

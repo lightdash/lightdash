@@ -170,35 +170,17 @@ export class ExploreController extends BaseController {
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
         this.setStatus(200);
 
-        const projectService = this.services.getProjectService();
-        const { parameterReferences, query, pivotQuery } =
-            await projectService.compileQuery({
-                account: req.account!,
-                body,
-                projectUuid,
-                exploreName: exploreId,
-                usePreAggregateCache: body.usePreAggregateCache,
-            });
-
-        if (
-            projectService.isCompiledSqlHiddenFromAccount(
-                req.account!,
-                projectUuid,
-            )
-        ) {
-            return {
-                status: 'ok',
-                results: { query: '', parameterReferences },
-            };
-        }
-
         return {
             status: 'ok',
-            results: {
-                query,
-                parameterReferences,
-                ...(pivotQuery && { pivotQuery }),
-            },
+            results: await this.services
+                .getProjectService()
+                .compileQueryForResponse({
+                    account: req.account!,
+                    body,
+                    projectUuid,
+                    exploreName: exploreId,
+                    usePreAggregateCache: body.usePreAggregateCache,
+                }),
         };
     }
 
