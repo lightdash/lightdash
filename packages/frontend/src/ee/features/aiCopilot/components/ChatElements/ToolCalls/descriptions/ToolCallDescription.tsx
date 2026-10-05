@@ -12,6 +12,8 @@ import {
     type ToolAnalyzeFieldImpactArgs,
     type ToolComposerQueriesArgs,
     type ToolCreateScheduledDeliveryOutput,
+    type ToolLoadSkillArgs,
+    type ToolLoadSkillOutput,
     type ToolDashboardV2Args,
     type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
@@ -56,6 +58,7 @@ import { GrepFieldsToolCallDescription } from './GrepFieldsToolCallDescription';
 import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
 import { ListContentToolCallDescription } from './ListContentToolCallDescription';
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
+import { LoadSkillToolCallDescription } from './LoadSkillToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
 import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
@@ -353,7 +356,6 @@ export const ToolCallDescription: FC<{
         case 'getProjectInfo':
         case 'generateHashes':
         case 'generateUuids':
-        case 'loadSkill':
         case 'loadProjectContext':
         case 'exploreRepo':
             const toolArgsExploreRepo = toolCall.toolArgs as {
@@ -364,6 +366,23 @@ export const ToolCallDescription: FC<{
                     command={toolArgsExploreRepo.command ?? null}
                 />
             );
+        case 'loadSkill': {
+            const args = toolCall.toolArgs as Partial<ToolLoadSkillArgs>;
+            const servedSkill =
+                toolResult &&
+                toolResult.toolName === 'loadSkill' &&
+                'metadata' in toolResult
+                    ? (toolResult.metadata as ToolLoadSkillOutput['metadata'])
+                          .skill
+                    : undefined;
+            return (
+                <LoadSkillToolCallDescription
+                    name={args.name ?? null}
+                    resourceName={args.resourceName ?? null}
+                    servedSkill={servedSkill ?? null}
+                />
+            );
+        }
         case 'createScheduledDelivery': {
             const args = toolCall.toolArgs as { name?: string };
             const metadata =

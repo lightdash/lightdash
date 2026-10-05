@@ -92,6 +92,7 @@ import {
     parseAiArtifactChartConfig,
     ProjectType,
     PullRequestProvider,
+    servedSkillMetadataSchema,
     SlackPrompt,
     ToolName,
     ToolNameSchema,
@@ -107,6 +108,7 @@ import {
     type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type ServedSkillMetadata,
     type ToolEditDbtProjectOutput,
     type ToolGenerateDataAppOutput,
     type VerifiedContentListItem,
@@ -427,6 +429,7 @@ export type AiAgentThreadDumpData = {
             result: string | null;
             isError: boolean;
             source: 'lightdash' | 'mcp';
+            servedSkill: ServedSkillMetadata | null;
         }>;
         artifacts: Array<{
             artifactUuid: string;
@@ -4271,6 +4274,7 @@ export class AiAgentModel {
             result: string | null;
             isError: boolean;
             mcpServerUuid: string | null;
+            servedSkill: unknown;
         };
         const toolRows: DumpToolRow[] =
             promptUuids.length > 0
@@ -4304,6 +4308,9 @@ export class AiAgentModel {
                               "COALESCE(tool_result.metadata->>'status' = 'error', false)",
                           ),
                           mcpServerUuid: 'tool_call.ai_mcp_server_uuid',
+                          servedSkill: this.database.raw(
+                              "tool_result.metadata->'skill'",
+                          ),
                       })
                 : [];
         const toolsByPrompt = toolRows.reduce((map, row) => {
@@ -4389,6 +4396,10 @@ export class AiAgentModel {
                         source: (tool.mcpServerUuid !== null
                             ? 'mcp'
                             : 'lightdash') as 'lightdash' | 'mcp',
+                        servedSkill:
+                            servedSkillMetadataSchema.safeParse(
+                                tool.servedSkill,
+                            ).data ?? null,
                     }),
                 ),
                 artifacts: (artifactsByPrompt.get(row.promptUuid) ?? []).map(

@@ -41,7 +41,6 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'listDataAppThemes',
     'listKnowledgeDocuments',
     'listProjects',
-    'loadSkill',
     'loadProjectContext',
     'editDbtProject',
     'runSavedChart',

@@ -760,6 +760,7 @@ export class AiAgentAdminService extends BaseService {
                             result: sanitized.result,
                             resultOmitted: sanitized.resultOmitted,
                             isError: toolCall.isError,
+                            servedSkill: toolCall.servedSkill,
                         };
                     }),
                 ),
