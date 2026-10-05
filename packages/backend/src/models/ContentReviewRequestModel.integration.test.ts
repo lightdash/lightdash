@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { DocumentsTableName } from '../database/entities/documents';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
@@ -298,6 +299,42 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
         expect((await model.getByUuid(created.uuid)).grantedPrincipals).toEqual(
             [],
         );
+    });
+
+    test('stores a Document request and resolves its location', async () => {
+        const space = await transaction(SpaceTableName)
+            .where('space_uuid', personalSpaceUuid)
+            .first<{ space_id: number }>('space_id');
+        if (!space) throw new Error('space not found');
+        const [document] = await transaction(DocumentsTableName)
+            .insert({
+                project_uuid: projectUuid,
+                space_id: space.space_id,
+                slug: `review-${randomUUID()}`,
+                name: 'Quarterly review',
+                description: '',
+                created_by_user_uuid: userUuid,
+            })
+            .returning('document_uuid');
+
+        const created = await model.create(
+            buildRequest({
+                contentType: ContentReviewContentType.DOCUMENT,
+                contentUuid: document.document_uuid,
+            }),
+        );
+
+        expect(created.contentType).toBe(ContentReviewContentType.DOCUMENT);
+        expect(
+            await model.findDocumentLocations([document.document_uuid]),
+        ).toEqual([
+            expect.objectContaining({
+                uuid: document.document_uuid,
+                name: 'Quarterly review',
+                spaceUuid: personalSpaceUuid,
+                deleted: false,
+            }),
+        ]);
     });
 
     test('deleting the target space keeps the request with a null target', async () => {
