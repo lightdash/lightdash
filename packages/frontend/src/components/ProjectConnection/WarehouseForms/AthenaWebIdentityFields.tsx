@@ -1,4 +1,9 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    WarehouseTypes,
+    type ApiAwsWebIdentityAudienceResponse,
+    type ApiError,
+    type CreateAwsWebIdentityAudience,
+} from '@lightdash/common';
 import {
     Alert,
     Button,
@@ -15,15 +20,13 @@ import {
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { type UseMutationResult } from '@tanstack/react-query';
+import { useState, type FC } from 'react';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { useFormContext } from '../formContext';
-import {
-    useAwsWebIdentity,
-    useCreateAwsWebIdentityAudience,
-} from './awsWebIdentityHooks';
+import { useAwsWebIdentity } from './awsWebIdentityHooks';
 
 const SUBJECT_PLACEHOLDER = '<SUBJECT>';
 
@@ -54,7 +57,13 @@ const AthenaWebIdentityFields: FC<{
     disabled: boolean;
     // The audience saved on the connection, if any.
     savedAudience: string | undefined;
-}> = ({ disabled, savedAudience }) => {
+    createAudience: UseMutationResult<
+        ApiAwsWebIdentityAudienceResponse['results'],
+        ApiError,
+        CreateAwsWebIdentityAudience
+    >;
+    onGenerateAudience: () => void;
+}> = ({ disabled, savedAudience, createAudience, onGenerateAudience }) => {
     const form = useFormContext();
     const { warehouse } = form.values;
     const audience =
@@ -65,35 +74,7 @@ const AthenaWebIdentityFields: FC<{
     const [isPolicyOpen, setIsPolicyOpen] = useState(false);
 
     const identity = useAwsWebIdentity(!disabled);
-    const createAudience = useCreateAwsWebIdentityAudience({
-        onSuccess: (result) => {
-            form.setFieldValue(
-                'warehouse.webIdentityAudience',
-                result.audience,
-            );
-        },
-    });
-    const { mutate: generateAudience, isLoading: isGenerating } =
-        createAudience;
-
-    // Generate an audience as soon as this option is chosen, so the trust
-    // policy can be written before the connection is saved.
-    useEffect(() => {
-        if (
-            !audience &&
-            !disabled &&
-            !isGenerating &&
-            !createAudience.isError
-        ) {
-            generateAudience();
-        }
-    }, [
-        audience,
-        disabled,
-        isGenerating,
-        createAudience.isError,
-        generateAudience,
-    ]);
+    const isGenerating = createAudience.isLoading;
 
     const subject =
         createAudience.data?.subject ?? identity.data?.subject ?? null;
@@ -109,7 +90,7 @@ const AthenaWebIdentityFields: FC<{
         if (savedAudience && audience === savedAudience) {
             setIsConfirmOpen(true);
         } else {
-            generateAudience();
+            onGenerateAudience();
         }
     };
 
@@ -230,7 +211,7 @@ const AthenaWebIdentityFields: FC<{
                 confirmLabel="Generate"
                 onConfirm={() => {
                     setIsConfirmOpen(false);
-                    generateAudience();
+                    onGenerateAudience();
                 }}
             >
                 <Text fz="sm">

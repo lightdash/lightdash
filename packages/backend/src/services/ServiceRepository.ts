@@ -1309,6 +1309,7 @@ export class ServiceRepository
                         this.models.getAwsWebIdentityAudienceModel(),
                     awsWebIdentityResolver:
                         this.models.getProjectModel().awsWebIdentity,
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }

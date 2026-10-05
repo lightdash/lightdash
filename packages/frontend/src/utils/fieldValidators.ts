@@ -1,4 +1,8 @@
-import { isValidFrequency } from '@lightdash/common';
+import {
+    AWS_IAM_ROLE_ARN_INVALID_MESSAGE,
+    isAwsIamRoleArn as matchesAwsIamRoleArn,
+    isValidFrequency,
+} from '@lightdash/common';
 
 export type FieldValidator<T> = (
     fieldName: string,
@@ -44,9 +48,9 @@ export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
 
 export const isAwsIamRoleArn: FieldValidator<string> =
     (_fieldName) => (value) =>
-        !value || /^arn:aws[a-z-]*:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(value)
+        !value || matchesAwsIamRoleArn(value)
             ? undefined
-            : 'Enter a role ARN, like arn:aws:iam::123456789012:role/lightdash-athena';
+            : AWS_IAM_ROLE_ARN_INVALID_MESSAGE;
 
 export const startWithHTTPSProtocol: FieldValidator<string> =
     (fieldName) => (value) =>

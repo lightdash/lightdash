@@ -21,8 +21,6 @@ export type AwsCredentialProvider = ReturnType<typeof fromWebToken>;
 const MAX_ROLE_SESSION_NAME_LENGTH = 64;
 // A fixed audience used only to read this instance's subject.
 const SUBJECT_LOOKUP_AUDIENCE = 'lightdash-subject-lookup';
-export const AWS_IAM_ROLE_ARN_PATTERN =
-    /^arn:aws[a-z-]*:iam::\d{12}:role\/[\w+=,.@/-]+$/;
 
 const toRoleSessionName = (name: string) =>
     name.replace(/[^\w+=,.@-]/g, '-').slice(0, MAX_ROLE_SESSION_NAME_LENGTH);

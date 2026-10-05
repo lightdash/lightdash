@@ -1,12 +1,15 @@
+import {
+    AWS_IAM_ROLE_ARN_INVALID_MESSAGE,
+    AWS_WEB_IDENTITY_NOT_ENABLED_MESSAGE,
+} from '@lightdash/common';
+
 export const AWS_WEB_IDENTITY_MESSAGES = {
-    notEnabled:
-        "Web identity isn't turned on for this Lightdash instance. Choose another authentication type, or contact support.",
+    notEnabled: AWS_WEB_IDENTITY_NOT_ENABLED_MESSAGE,
     invalidAudience:
         "This connection's audience isn't valid for your organization. Generate a new audience, then update the role's trust policy.",
     missingAudience: 'Generate an audience to continue.',
     missingRoleArn: 'Add an IAM role ARN in the connection settings.',
-    invalidRoleArn:
-        'Enter a role ARN, like arn:aws:iam::123456789012:role/lightdash-athena',
+    invalidRoleArn: AWS_IAM_ROLE_ARN_INVALID_MESSAGE,
     tokenUnavailable:
         "Lightdash couldn't get its identity token. This is on our side, not your AWS setup. Try again, or contact support.",
     accessDenied: (roleArn: string, audience: string, subject?: string) =>

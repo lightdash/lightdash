@@ -10,6 +10,7 @@ import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import AthenaWebIdentityFields from './AthenaWebIdentityFields';
+import { useCreateAwsWebIdentityAudience } from './awsWebIdentityHooks';
 import { AthenaDefaultValues } from './defaultValues';
 
 export const AthenaSchemaInput: FC<{
@@ -36,7 +37,7 @@ const AthenaForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
-    const { savedProject } = useProjectFormContext();
+    const { savedProject, projectUuid } = useProjectFormContext();
     const health = useHealth();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.ATHENA;
@@ -109,6 +110,19 @@ const AthenaForm: FC<{
             ? savedProject.warehouseConnection.webIdentityAudience
             : undefined;
 
+    const createAudience = useCreateAwsWebIdentityAudience({
+        onSuccess: (result) => {
+            form.setFieldValue(
+                'warehouse.webIdentityAudience',
+                result.audience,
+            );
+        },
+    });
+    const generateAudience = () =>
+        createAudience.mutate({
+            projectUuid: savedProject?.projectUuid ?? projectUuid ?? null,
+        });
+
     const authenticationTypeInput = form.getInputProps(
         'warehouse.authenticationType',
     );
@@ -123,6 +137,14 @@ const AthenaForm: FC<{
             form.setFieldValue('warehouse.assumeRoleExternalId', '');
         }
         authenticationTypeInput.onChange(value);
+        // Generate an audience straight away, so the trust policy can be
+        // written before the connection is saved.
+        if (
+            value === AthenaAuthenticationType.WEB_IDENTITY &&
+            !warehouse.webIdentityAudience
+        ) {
+            generateAudience();
+        }
     };
 
     return (
@@ -255,6 +277,8 @@ const AthenaForm: FC<{
                     <AthenaWebIdentityFields
                         disabled={disabled}
                         savedAudience={savedAudience}
+                        createAudience={createAudience}
+                        onGenerateAudience={generateAudience}
                     />
                 )}
 

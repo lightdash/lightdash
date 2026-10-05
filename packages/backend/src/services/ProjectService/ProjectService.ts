@@ -128,6 +128,7 @@ import {
     hasIntersection,
     hasWarehouseCredentials,
     isAdditionalMetric,
+    isAwsIamRoleArn,
     isCartesianChartConfig,
     isCustomDimension,
     isCustomSqlDimension,
@@ -408,7 +409,6 @@ import {
     TrackingParams,
 } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
-import { AWS_IAM_ROLE_ARN_PATTERN } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
@@ -5533,7 +5533,7 @@ export class ProjectService extends BaseService {
                         );
                     }
                     if (
-                        !AWS_IAM_ROLE_ARN_PATTERN.test(
+                        !isAwsIamRoleArn(
                             project.warehouseConnection.assumeRoleArn,
                         )
                     ) {

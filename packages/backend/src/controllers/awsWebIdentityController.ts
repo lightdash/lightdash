@@ -2,8 +2,10 @@ import {
     ApiAwsWebIdentityAudienceResponse,
     ApiAwsWebIdentityResponse,
     ApiErrorPayload,
+    CreateAwsWebIdentityAudience,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
@@ -20,7 +22,7 @@ import { BaseController } from './baseController';
 
 @Route('/api/v1/aws/web-identity')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('Projects')
+@Tags('AWS Web Identity')
 export class AwsWebIdentityController extends BaseController {
     /**
      * Get this instance's identity for Athena web identity authentication.
@@ -52,10 +54,11 @@ export class AwsWebIdentityController extends BaseController {
     @OperationId('createAwsWebIdentityAudience')
     async createAudience(
         @Request() req: express.Request,
+        @Body() body: CreateAwsWebIdentityAudience,
     ): Promise<ApiAwsWebIdentityAudienceResponse> {
         const results = await this.services
             .getAwsWebIdentityService()
-            .createAudience(req.account!);
+            .createAudience(req.account!, body);
         this.setStatus(201);
         return { status: 'ok', results };
     }

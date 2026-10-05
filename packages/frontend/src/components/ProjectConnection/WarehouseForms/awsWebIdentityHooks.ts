@@ -2,6 +2,7 @@ import {
     type ApiAwsWebIdentityAudienceResponse,
     type ApiAwsWebIdentityResponse,
     type ApiError,
+    type CreateAwsWebIdentityAudience,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -27,26 +28,29 @@ export const useAwsWebIdentity = (enabled: boolean) =>
 export const useCreateAwsWebIdentityAudience = (
     options: UseMutationOptions<
         ApiAwsWebIdentityAudienceResponse['results'],
-        ApiError
+        ApiError,
+        CreateAwsWebIdentityAudience
     >,
 ) => {
     const { showToastApiError } = useToaster();
-    return useMutation<ApiAwsWebIdentityAudienceResponse['results'], ApiError>(
-        async () =>
-            lightdashApi({
+    return useMutation<
+        ApiAwsWebIdentityAudienceResponse['results'],
+        ApiError,
+        CreateAwsWebIdentityAudience
+    >({
+        mutationFn: (body) =>
+            lightdashApi<ApiAwsWebIdentityAudienceResponse['results']>({
                 method: 'POST',
                 url: '/aws/web-identity/audiences',
-                body: undefined,
+                body: JSON.stringify(body),
             }),
-        {
-            mutationKey: ['createAwsWebIdentityAudience'],
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: "Couldn't generate an audience",
-                    apiError: error,
-                });
-            },
-            ...options,
+        mutationKey: ['createAwsWebIdentityAudience'],
+        onError: ({ error }) => {
+            showToastApiError({
+                title: "Couldn't generate an audience",
+                apiError: error,
+            });
         },
-    );
+        ...options,
+    });
 };

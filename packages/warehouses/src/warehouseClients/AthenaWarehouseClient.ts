@@ -12,6 +12,7 @@ import { fromTemporaryCredentials } from '@aws-sdk/credential-providers';
 import {
     AnyType,
     AthenaAuthenticationType,
+    AWS_WEB_IDENTITY_NOT_ENABLED_MESSAGE,
     CreateAthenaCredentials,
     DimensionType,
     getErrorMessage,
@@ -358,7 +359,7 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                     options?.awsCredentials ??
                     (async () => {
                         throw new WarehouseConnectionError(
-                            "Web identity isn't turned on for this Lightdash instance. Choose another authentication type, or contact support.",
+                            AWS_WEB_IDENTITY_NOT_ENABLED_MESSAGE,
                         );
                     });
             } else if (credentials.assumeRoleArn) {
