@@ -379,6 +379,117 @@ describe('AthenaWarehouseClient', () => {
         });
     });
 
+    describe('listing all tables', () => {
+        // Answers Glue calls from a map of database name to table names
+        const makeSend = ({
+            databases,
+            tablesByDatabase,
+            deniedDatabases = [],
+        }: {
+            databases: string[] | Error;
+            tablesByDatabase: Record<string, string[]>;
+            deniedDatabases?: string[];
+        }) =>
+            vi.fn(async (command: unknown) => {
+                if (command instanceof ListDatabasesCommand) {
+                    if (databases instanceof Error) throw databases;
+                    return {
+                        DatabaseList: databases.map((Name) => ({ Name })),
+                    };
+                }
+                if (command instanceof ListTableMetadataCommand) {
+                    const name = command.input.DatabaseName ?? '';
+                    if (deniedDatabases.includes(name)) {
+                        throw new Error(`Access denied to ${name}`);
+                    }
+                    return {
+                        TableMetadataList: (tablesByDatabase[name] ?? []).map(
+                            (Name) => ({ Name, TableType: 'EXTERNAL_TABLE' }),
+                        ),
+                    };
+                }
+                throw new Error('Unexpected command');
+            });
+
+        const listSchemaTables = async (send: ReturnType<typeof makeSend>) => {
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const tables = await new AthenaWarehouseClient(
+                baseCredentials,
+            ).getAllTables();
+            return tables.map(({ schema, table }) => `${schema}.${table}`);
+        };
+
+        test('lists tables from every database in the catalog, each under its own schema', async () => {
+            const tables = await listSchemaTables(
+                makeSend({
+                    databases: ['staging', 'my_database'],
+                    tablesByDatabase: {
+                        my_database: ['orders'],
+                        staging: ['stg_orders', 'stg_customers'],
+                    },
+                }),
+            );
+
+            expect(tables).toEqual([
+                'my_database.orders',
+                'staging.stg_orders',
+                'staging.stg_customers',
+            ]);
+        });
+
+        test('falls back to the configured schema when listing databases is denied', async () => {
+            const tables = await listSchemaTables(
+                makeSend({
+                    databases: new Error(
+                        'not authorized to perform: glue:GetDatabases',
+                    ),
+                    tablesByDatabase: {
+                        my_database: ['orders'],
+                        staging: ['stg_orders'],
+                    },
+                }),
+            );
+
+            expect(tables).toEqual(['my_database.orders']);
+        });
+
+        test('skips another database whose tables cannot be listed', async () => {
+            const tables = await listSchemaTables(
+                makeSend({
+                    databases: ['staging', 'restricted'],
+                    tablesByDatabase: {
+                        my_database: ['orders'],
+                        staging: ['stg_orders'],
+                    },
+                    deniedDatabases: ['restricted'],
+                }),
+            );
+
+            expect(tables).toEqual([
+                'my_database.orders',
+                'staging.stg_orders',
+            ]);
+        });
+
+        test('fails when the configured schema cannot be listed', async () => {
+            await expect(
+                listSchemaTables(
+                    makeSend({
+                        databases: ['staging'],
+                        tablesByDatabase: { staging: ['stg_orders'] },
+                        deniedDatabases: ['my_database'],
+                    }),
+                ),
+            ).rejects.toMatchObject({
+                message: expect.stringContaining(
+                    "Failed to list tables in 'AwsDataCatalog.my_database'",
+                ),
+            });
+        });
+    });
+
     describe('database listing', () => {
         test('lists two pages with the default database first', async () => {
             const send = vi
@@ -537,23 +648,6 @@ describe('AthenaWarehouseClient', () => {
     });
 
     describe('table listing', () => {
-        test('getAllTables sends the connection database and schema', async () => {
-            const send = vi.fn().mockResolvedValue({
-                TableMetadataList: [{ Name: 'orders' }],
-            });
-            mockAthenaClient.mockImplementation(function () {
-                return { send };
-            });
-            const client = new AthenaWarehouseClient(baseCredentials);
-
-            await client.getAllTables();
-
-            expect(send.mock.calls[0][0].input).toMatchObject({
-                CatalogName: baseCredentials.database,
-                DatabaseName: baseCredentials.schema,
-            });
-        });
-
         test('pages tables for the selected database', async () => {
             const send = vi
                 .fn()
@@ -605,28 +699,6 @@ describe('AthenaWarehouseClient', () => {
                 NextToken: undefined,
             });
             expect(send.mock.calls[1][0].input.NextToken).toBe('page-2');
-        });
-
-        test('keeps getAllTables on the default database', async () => {
-            const send = vi.fn().mockResolvedValue({
-                TableMetadataList: [{ Name: 'orders' }],
-            });
-            mockAthenaClient.mockImplementation(function () {
-                return { send };
-            });
-            const client = new AthenaWarehouseClient(baseCredentials);
-
-            const result = await client.getAllTables();
-
-            expect(result[0]).toMatchObject({
-                database: 'AwsDataCatalog',
-                schema: 'my_database',
-                table: 'orders',
-            });
-            expect(send.mock.calls[0][0].input).toMatchObject({
-                CatalogName: 'AwsDataCatalog',
-                DatabaseName: 'my_database',
-            });
         });
 
         test('uses the requested database, not the connection catalog', async () => {
