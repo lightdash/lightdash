@@ -24,16 +24,20 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
+import { GithubAppInstallationsModel } from '../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { assertGithubInstallationResolved } from '../projectAdapters/githubAuthorization';
 import { omitDbtEnvironment } from '../utils/dbtProjectConfig';
 import { BaseService } from './BaseService';
+import { applyCurrentGithubInstallationId } from './ProjectService/resolveGithubInstallationId';
 
 type ProjectDbtSourcesServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
+    githubAppInstallationsModel: GithubAppInstallationsModel;
 };
 
 const assertProjectDbtSourceName = (name: string): void => {
@@ -55,12 +59,15 @@ export class ProjectDbtSourcesService extends BaseService {
 
     private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
 
+    private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
+
     constructor(args: ProjectDbtSourcesServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
+        this.githubAppInstallationsModel = args.githubAppInstallationsModel;
     }
 
     /**
@@ -173,6 +180,32 @@ export class ProjectDbtSourcesService extends BaseService {
         }
     }
 
+    /**
+     * Same rule as saving the project's own connection: a GitHub App source
+     * takes the org's current installation id when the org has one, and a
+     * source left without any installation id is refused, so it can never be
+     * stored as "OAuth, installation empty" (PROD-11711).
+     */
+    private async resolveGithubInstallationForSave(
+        dbtConnection: DbtProjectConfig,
+        organizationUuid: string,
+    ): Promise<DbtProjectConfig> {
+        if (
+            dbtConnection.type !== DbtProjectType.GITHUB ||
+            dbtConnection.authorization_method !== 'installation_id'
+        ) {
+            return dbtConnection;
+        }
+        const resolved = applyCurrentGithubInstallationId(
+            dbtConnection,
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            ),
+        );
+        assertGithubInstallationResolved(resolved);
+        return resolved;
+    }
+
     private async checkProjectAccess(
         account: Account,
         projectUuid: string,
@@ -247,6 +280,10 @@ export class ProjectDbtSourcesService extends BaseService {
         ProjectDbtSourcesService.validateDbtEnvironmentVariables(
             data.dbtConnection,
         );
+        const dbtConnection = await this.resolveGithubInstallationForSave(
+            data.dbtConnection,
+            organizationUuid,
+        );
         const warehouseLocation = await this.resolveWarehouseLocation(
             projectUuid,
             data.warehouseLocation,
@@ -272,7 +309,7 @@ export class ProjectDbtSourcesService extends BaseService {
                 name: data.name,
                 isPrimary: false,
                 precedence,
-                dbtConnection: data.dbtConnection,
+                dbtConnection,
                 warehouseLocation:
                     warehouseLocation ?? EMPTY_WAREHOUSE_LOCATION,
             },
@@ -337,7 +374,11 @@ export class ProjectDbtSourcesService extends BaseService {
         projectDbtSourceUuid: string,
         data: ApiUpdateProjectDbtSource,
     ): Promise<ProjectDbtSourceSummary> {
-        await this.checkProjectAccess(account, projectUuid, 'manage');
+        const organizationUuid = await this.checkProjectAccess(
+            account,
+            projectUuid,
+            'manage',
+        );
         const identity =
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         if (projectDbtSourceUuid === identity.dbtSourceUuid) {
@@ -412,13 +453,19 @@ export class ProjectDbtSourcesService extends BaseService {
         );
         // The edit form receives the connection with secrets stripped; restore
         // any the user did not re-enter from the stored connection.
-        const dbtConnection =
+        const mergedDbtConnection =
             data.dbtConnection && existing.dbtConnection
                 ? ProjectModel.mergeMissingDbtConfigSecrets(
                       data.dbtConnection,
                       existing.dbtConnection,
                   )
                 : data.dbtConnection;
+        const dbtConnection = mergedDbtConnection
+            ? await this.resolveGithubInstallationForSave(
+                  mergedDbtConnection,
+                  organizationUuid,
+              )
+            : mergedDbtConnection;
         const updated = await this.projectDbtSourcesModel.updateSource(
             projectDbtSourceUuid,
             {
