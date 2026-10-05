@@ -66,6 +66,8 @@ import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { startAppListening } from '../store/listenerMiddleware';
+import { addAutomaticPivotFailureListener } from '../store/sqlRunnerListeners';
 import {
     clearParameterValues,
     EditorTabs,
@@ -157,6 +159,21 @@ export const ContentPanel: FC = () => {
         | { kind: 'visualization'; projectUuid: string }
         | null
     >(null);
+
+    useEffect(
+        () =>
+            addAutomaticPivotFailureListener(
+                startAppListening,
+                projectUuid,
+                () => {
+                    lastFailedRun.current = {
+                        kind: 'visualization',
+                        projectUuid,
+                    };
+                },
+            ),
+        [projectUuid],
+    );
 
     // Resolved palette from the org → project → space → dashboard cascade.
     // Falls back to org-level colors for brand-new (unsaved) SQL charts where

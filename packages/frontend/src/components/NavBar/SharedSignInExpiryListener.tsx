@@ -79,7 +79,7 @@ export const SharedSignInExpiryListener: FC = () => {
                     expiry.subjectBasis === SignInSubjectBasis.PROJECT_CREATOR);
             showToastWarning({
                 key: 'shared-sign-in-expired',
-                projectUuid: activeProjectUuid,
+                projectUuid: expiry.projectUuid,
                 title: getExpiredSharedSignInMessage(expiry, userUuid),
                 autoClose: false,
                 action: isSubject
@@ -88,7 +88,7 @@ export const SharedSignInExpiryListener: FC = () => {
                           icon: IconPlugConnected,
                           onClick: () =>
                               navigate(
-                                  `/generalSettings/projectManagement/${activeProjectUuid}/settings`,
+                                  `/generalSettings/projectManagement/${expiry.projectUuid}/settings`,
                               ),
                       }
                     : undefined,

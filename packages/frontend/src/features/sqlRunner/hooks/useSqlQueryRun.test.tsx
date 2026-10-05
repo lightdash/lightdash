@@ -4,7 +4,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
+import {
+    SHARED_SIGN_IN_QUERY_FAILED,
+    SHARED_SIGN_IN_RECONNECTED,
+} from '../../../hooks/useReconnectSharedSignIn';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { store } from '../store';
 import {
@@ -88,5 +91,25 @@ describe('useSqlQueryRun', () => {
 
         await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledTimes(2));
         expect(vi.mocked(executeSqlQuery).mock.calls[1][1]).toBe('select 1');
+    });
+
+    it('reports a virtual-view failure with its project', async () => {
+        vi.mocked(executeSqlQuery).mockRejectedValueOnce(new Error('expired'));
+        const onFailure = vi.fn();
+        window.addEventListener(SHARED_SIGN_IN_QUERY_FAILED, onFailure);
+        const { result } = renderHook(() => useSqlQueryRun('project-uuid'), {
+            wrapper,
+        });
+        await act(async () => {
+            await expect(
+                result.current.mutateAsync({ sql: 'select 1', limit: 1 }),
+            ).rejects.toThrow('expired');
+        });
+        expect(onFailure).toHaveBeenCalledOnce();
+        expect((onFailure.mock.calls[0][0] as CustomEvent).detail).toEqual({
+            projectUuid: 'project-uuid',
+            error: expect.any(Error),
+        });
+        window.removeEventListener(SHARED_SIGN_IN_QUERY_FAILED, onFailure);
     });
 });

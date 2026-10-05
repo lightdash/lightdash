@@ -211,7 +211,6 @@ export type AiAgentToolsRuntimeContext = {
     spaceAccess: string[] | null;
     sqlScope?: AgentSqlScope | null;
     userAttributeOverrides?: UserAttributeValueMap;
-    isEmbedOrigin?: boolean;
     agentUuid?: string;
     threadUuid?: string;
     promptUuid?: string;
@@ -2889,7 +2888,6 @@ export class AiAgentToolsService extends BaseService {
                                 ),
                             },
                             context: context.defaultQueryExecutionContext,
-                            isEmbedOrigin: context.isEmbedOrigin,
                             parameters,
                             userAttributeOverrides:
                                 context.userAttributeOverrides,
@@ -2938,7 +2936,6 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             mergeQuery,
                             context: context.defaultQueryExecutionContext,
-                            isEmbedOrigin: context.isEmbedOrigin,
                             parameters,
                             mode: { type: 'interactive' },
                             userAttributeOverrides:
@@ -3103,7 +3100,6 @@ export class AiAgentToolsService extends BaseService {
                         sql,
                         limit,
                         context: context.defaultQueryExecutionContext,
-                        isEmbedOrigin: context.isEmbedOrigin,
                     });
 
                 const maxWaitMs = 5 * 60 * 1000;
@@ -3220,7 +3216,6 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             queries,
                             context: context.defaultQueryExecutionContext,
-                            isEmbedOrigin: context.isEmbedOrigin,
                             parameters: {},
                             userAttributeOverrides:
                                 context.userAttributeOverrides ?? {},
