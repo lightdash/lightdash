@@ -10,16 +10,27 @@ Example body for `POST /api/v2/projects/{analyticsProjectUuid}/query/metric-quer
 
 ```json
 {
-  "context": "api",
-  "query": {
-    "exploreName": "semantic_usage",
-    "dimensions": ["semantic_usage_explore_name", "semantic_usage_field_label", "semantic_usage_field_id", "semantic_usage_workload_origin"],
-    "metrics": ["semantic_usage_total_queries", "semantic_usage_unique_users", "semantic_usage_unique_charts"],
-    "filters": {},
-    "sorts": [{"fieldId": "semantic_usage_total_queries", "descending": true}],
-    "limit": 100,
-    "tableCalculations": []
-  }
+    "context": "api",
+    "query": {
+        "exploreName": "semantic_usage",
+        "dimensions": [
+            "semantic_usage_explore_name",
+            "semantic_usage_field_label",
+            "semantic_usage_field_id",
+            "semantic_usage_workload_origin"
+        ],
+        "metrics": [
+            "semantic_usage_total_queries",
+            "semantic_usage_unique_users",
+            "semantic_usage_unique_charts"
+        ],
+        "filters": {},
+        "sorts": [
+            { "fieldId": "semantic_usage_total_queries", "descending": true }
+        ],
+        "limit": 100,
+        "tableCalculations": []
+    }
 }
 ```
 
