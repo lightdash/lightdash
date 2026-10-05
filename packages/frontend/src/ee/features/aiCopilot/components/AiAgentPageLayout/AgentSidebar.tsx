@@ -23,7 +23,6 @@ import {
 import {
     IconBrandSlack,
     IconChevronDown,
-    IconCirclePlus,
     IconDots,
     IconInfoCircle,
     IconPencil,
@@ -48,7 +47,6 @@ import {
 import { AgentNamePill } from '../AgentNamePill';
 import { AiAgentIcon } from '../AiAgentIcon';
 import classes from './agentSidebar.module.css';
-import { SidebarButton } from './SidebarButton';
 
 type ThreadRenameInputProps = {
     initialTitle: string;
@@ -208,21 +206,30 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                             width={160}
                             returnFocus={false}
                         >
-                            <Menu.Target>
-                                <ActionIcon
-                                    size="xs"
-                                    color="ldGray"
-                                    variant="subtle"
+                            <Tooltip label="Thread options" position="right">
+                                <Box
+                                    component="span"
                                     className={classes.threadMenuButton}
-                                    aria-label="Thread options"
-                                    onClick={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                    }}
                                 >
-                                    <MantineIcon icon={IconDots} size={12} />
-                                </ActionIcon>
-                            </Menu.Target>
+                                    <Menu.Target>
+                                        <ActionIcon
+                                            size="xs"
+                                            color="ldGray"
+                                            variant="subtle"
+                                            aria-label="Thread options"
+                                            onClick={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                icon={IconDots}
+                                                size={12}
+                                            />
+                                        </ActionIcon>
+                                    </Menu.Target>
+                                </Box>
+                            </Tooltip>
                             {/* Clicks bubble through the portal to the row link */}
                             <Menu.Dropdown
                                 onClick={(event) => {
@@ -502,21 +509,6 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
             className={classes.sidebarSurface}
             data-collapsed={isAgentSidebarCollapsed ? 'true' : undefined}
         >
-            <Box>
-                <SidebarButton
-                    leftSection={<MantineIcon icon={IconCirclePlus} />}
-                    component={Link}
-                    to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
-                    size="sm"
-                    {...(!isAgentSidebarCollapsed && {
-                        fullWidth: true,
-                        justify: 'flex-start',
-                    })}
-                >
-                    {isAgentSidebarCollapsed ? '' : 'New thread'}
-                </SidebarButton>
-            </Box>
-
             {projectUuid && !isAgentSidebarCollapsed && (
                 <ThreadList
                     projectUuid={projectUuid}
@@ -551,21 +543,6 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
             className={classes.sidebarSurface}
             data-collapsed={isAgentSidebarCollapsed ? 'true' : undefined}
         >
-            <Box>
-                <SidebarButton
-                    leftSection={<MantineIcon icon={IconCirclePlus} />}
-                    component={Link}
-                    to={`/projects/${projectUuid}/ai-agents`}
-                    size="sm"
-                    {...(!isAgentSidebarCollapsed && {
-                        fullWidth: true,
-                        justify: 'flex-start',
-                    })}
-                >
-                    {isAgentSidebarCollapsed ? '' : 'New thread'}
-                </SidebarButton>
-            </Box>
-
             {projectUuid && !isAgentSidebarCollapsed && (
                 <ThreadList
                     projectUuid={projectUuid}

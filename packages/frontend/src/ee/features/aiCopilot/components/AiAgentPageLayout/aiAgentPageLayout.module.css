@@ -62,8 +62,13 @@
 }
 
 .sidebarHeader {
-    min-height: rem(32px);
+    flex-shrink: 0;
     margin-bottom: var(--mantine-spacing-xs);
+
+    &[data-collapsed] {
+        flex-direction: column-reverse;
+        gap: var(--mantine-spacing-sm);
+    }
 }
 
 .sidebarTitle {
