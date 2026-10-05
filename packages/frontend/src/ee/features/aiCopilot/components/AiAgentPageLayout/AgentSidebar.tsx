@@ -9,6 +9,7 @@ import {
     Alert,
     Box,
     Button,
+    Divider,
     Group,
     Menu,
     NavLink,
@@ -24,6 +25,7 @@ import {
 import {
     IconBrandSlack,
     IconChevronDown,
+    IconHistory,
     IconInfoCircle,
     IconPencil,
     IconPin,
@@ -280,7 +282,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
 };
 
 type ThreadGroupProps = {
-    title: string;
+    title: 'Pinned' | 'Recent';
     threads: AiAgentProjectThreadSummary[];
     projectUuid: string;
     threadUuid?: string;
@@ -302,10 +304,16 @@ const ThreadGroup: FC<ThreadGroupProps> = ({
     onRename,
     onTogglePin,
 }) => (
-    <Stack gap="xs">
-        <Title order={6} c="dimmed" size="xs" ml="xs">
-            {title}
-        </Title>
+    <Stack component="section" aria-label={title} gap="xs">
+        <Group gap="xs" mx="xs" c="dimmed" wrap="nowrap">
+            <MantineIcon
+                icon={{ Pinned: IconPin, Recent: IconHistory }[title]}
+                size={16}
+            />
+            <Title order={6} c="dimmed" size="xs">
+                {title}
+            </Title>
+        </Group>
         <Box>
             {threads.map((thread) => (
                 <ThreadNavLink
@@ -402,6 +410,7 @@ const ThreadList: FC<ThreadListProps> = ({
             }}
         >
             <Stack gap="md">
+                <Divider mx="xs" />
                 {pinnedThreads.length > 0 && (
                     <ThreadGroup
                         title="Pinned"
@@ -410,31 +419,29 @@ const ThreadList: FC<ThreadListProps> = ({
                     />
                 )}
 
+                {pinnedThreads.length > 0 && recentThreads.length > 0 && (
+                    <Divider mx="xs" />
+                )}
+
                 <Stack gap="xs" className={classes.threadItems}>
-                    {threads.length === 0 ? (
-                        <>
-                            <Title order={6} c="dimmed" size="xs" ml="xs">
-                                Recent
-                            </Title>
-                            <Paper variant="dotted" p="sm">
-                                <Text
-                                    truncate="end"
-                                    size="sm"
-                                    c="dimmed"
-                                    ta="center"
-                                >
-                                    No threads yet
-                                </Text>
-                            </Paper>
-                        </>
-                    ) : (
-                        recentThreads.length > 0 && (
-                            <ThreadGroup
-                                title="Recent"
-                                threads={recentThreads}
-                                {...groupHandlers}
-                            />
-                        )
+                    {(recentThreads.length > 0 || threads.length === 0) && (
+                        <ThreadGroup
+                            title="Recent"
+                            threads={recentThreads}
+                            {...groupHandlers}
+                        />
+                    )}
+                    {threads.length === 0 && (
+                        <Paper variant="dotted" p="sm">
+                            <Text
+                                truncate="end"
+                                size="sm"
+                                c="dimmed"
+                                ta="center"
+                            >
+                                No threads yet
+                            </Text>
+                        </Paper>
                     )}
                 </Stack>
 
