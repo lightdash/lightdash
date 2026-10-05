@@ -14,6 +14,7 @@ import {
     SessionUser,
     SpaceMemberRole,
     SupportedDbtAdapter,
+    ThresholdOperator,
     type Account,
     type ContentVerificationInfo,
     type Dashboard,
@@ -826,6 +827,59 @@ describe('DashboardService', () => {
             filtersCount: 2,
             dimensionFilterCount: 1,
             metricFilterCount: 1,
+        });
+    });
+    test('should include date zoom configuration in create analytics', () => {
+        expect(
+            DashboardService.getCreateEventProperties({
+                ...dashboard,
+                config: {
+                    isDateZoomDisabled: true,
+                    dateZoomGranularities: ['Day', 'Week', 'Month'],
+                    defaultDateZoomGranularity: 'Week',
+                    dateZoomConfig: {
+                        controls: [
+                            {
+                                uuid: 'control-uuid',
+                                name: 'Order date',
+                                granularity: 'Week',
+                            },
+                        ],
+                        tileTargets: {
+                            'tile-1': {
+                                controlUuid: 'control-uuid',
+                                fieldId: 'orders_order_date',
+                                tableName: 'orders',
+                            },
+                            'tile-2': {
+                                controlUuid: 'control-uuid',
+                                fieldId: null,
+                                tableName: null,
+                            },
+                        },
+                    },
+                },
+            }),
+        ).toMatchObject({
+            isDateZoomDisabled: true,
+            dateZoomGranularitiesCount: 3,
+            defaultDateZoomGranularity: 'Week',
+            dateZoomControlsCount: 1,
+            dateZoomTileTargetsCount: 2,
+        });
+    });
+    test('should report date zoom defaults when a dashboard has no config', () => {
+        expect(
+            DashboardService.getCreateEventProperties({
+                ...dashboard,
+                config: undefined,
+            }),
+        ).toMatchObject({
+            isDateZoomDisabled: false,
+            dateZoomGranularitiesCount: 0,
+            defaultDateZoomGranularity: null,
+            dateZoomControlsCount: 0,
+            dateZoomTileTargetsCount: 0,
         });
     });
     test('should create dashboard with tile ids', async () => {
@@ -1919,6 +1973,38 @@ describe('DashboardService', () => {
                 expect.objectContaining({ dashboardUuid: dashboard.uuid }),
             );
         });
+
+        test.each([
+            [
+                [
+                    {
+                        fieldId: 'orders_count',
+                        operator: ThresholdOperator.GREATER_THAN,
+                        value: 10,
+                    },
+                ],
+                true,
+            ],
+            [[], false],
+            [undefined, false],
+        ])(
+            'tracks scheduler.created with thresholds %j as isThresholdAlert %s',
+            async (thresholds, isThresholdAlert) => {
+                await service.createScheduler(editorUser, dashboard.slug, {
+                    ...newScheduler,
+                    thresholds,
+                } as Parameters<typeof service.createScheduler>[2]);
+
+                expect(analyticsMock.track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'scheduler.created',
+                        properties: expect.objectContaining({
+                            isThresholdAlert,
+                        }),
+                    }),
+                );
+            },
+        );
     });
 
     describe('offboarding dashboard ownership', () => {

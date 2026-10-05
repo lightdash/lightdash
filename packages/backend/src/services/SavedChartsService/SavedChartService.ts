@@ -2817,6 +2817,7 @@ export class SavedChartService
                 timeZone: getTimezoneLabel(scheduler.timezone),
                 includeLinks: scheduler.includeLinks,
                 plainTextEmail: scheduler.plainTextEmail,
+                isThresholdAlert: (scheduler.thresholds?.length ?? 0) > 0,
             },
         };
         this.analytics.track(createSchedulerEventData);
