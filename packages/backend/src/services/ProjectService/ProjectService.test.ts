@@ -56,6 +56,7 @@ import {
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
     SupportedDbtAdapter,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
@@ -13662,5 +13663,256 @@ describe('ProjectService.compileQueryForResponse', () => {
             pivotQuery: 'select 2',
             parameterReferences: ['p'],
         });
+    });
+});
+
+describe('Snowflake AI query credentials', () => {
+    it('persists an AI refresh-token rotation to the AI row', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const rotateRefreshToken = vi.fn(async () => true);
+        (
+            service as unknown as {
+                userWarehouseCredentialsModel: {
+                    rotateRefreshToken: typeof rotateRefreshToken;
+                };
+            }
+        ).userWarehouseCredentialsModel = { rotateRefreshToken };
+        const generateToken = vi
+            .spyOn(UserService, 'generateSnowflakeAccessToken')
+            .mockResolvedValue({
+                accessToken: 'access-token',
+                refreshToken: 'rotated-token',
+            });
+        try {
+            await (
+                service as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        credentials: CreateWarehouseCredentials,
+                        userUuid: string,
+                        source: {
+                            kind: 'user';
+                            userWarehouseCredentialsUuid: string;
+                            purpose: UserWarehouseCredentialPurpose.AI;
+                        },
+                    ) => Promise<CreateWarehouseCredentials>;
+                }
+            ).refreshCredentialsAndPersistRotation(
+                {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    refreshToken: 'old-token',
+                } as CreateWarehouseCredentials,
+                'user-uuid',
+                {
+                    kind: 'user',
+                    userWarehouseCredentialsUuid: 'ai-credential',
+                    purpose: UserWarehouseCredentialPurpose.AI,
+                },
+            );
+            expect(generateToken).toHaveBeenCalledWith('old-token', 'ai');
+            expect(rotateRefreshToken).toHaveBeenCalledWith(
+                'ai-credential',
+                'old-token',
+                'rotated-token',
+            );
+        } finally {
+            generateToken.mockRestore();
+        }
+    });
+
+    const snowflake = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'test-account',
+        warehouse: 'test-warehouse',
+        database: 'test-db',
+        schema: 'test-schema',
+        authenticationType: SnowflakeAuthenticationType.SSO,
+        requireUserCredentials: true,
+    } as CreateWarehouseCredentials;
+    const defaultCredential = {
+        uuid: 'default-credential',
+        credentials: {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            refreshToken: 'default-refresh',
+        },
+    } as UserWarehouseCredentialsWithSecrets;
+    const aiCredential = {
+        uuid: 'ai-credential',
+        credentials: {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            refreshToken: 'ai-refresh',
+        },
+    } as UserWarehouseCredentialsWithSecrets;
+
+    it.each([
+        [QueryExecutionContext.AI, true, true, 'ai-refresh', true],
+        [QueryExecutionContext.MCP_RUN_SQL, true, true, 'ai-refresh', true],
+        [QueryExecutionContext.AI, false, true, 'default-refresh', false],
+        [QueryExecutionContext.AI, true, false, 'default-refresh', false],
+        [QueryExecutionContext.EXPLORE, true, true, 'default-refresh', false],
+        [
+            QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            true,
+            true,
+            'default-refresh',
+            false,
+        ],
+        [
+            QueryExecutionContext.SCHEDULED_DELIVERY,
+            true,
+            true,
+            'default-refresh',
+            false,
+        ],
+        [undefined, true, true, 'default-refresh', false],
+    ])(
+        'uses %s with flag %s and AI credential %s',
+        async (
+            context,
+            flagEnabled,
+            hasAiCredential,
+            expectedToken,
+            expectedAgentCredential,
+        ) => {
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SnowflakeAiSignIn,
+                        enabled: flagEnabled,
+                    })),
+                } as unknown as FeatureFlagModel,
+            });
+            const credentialModel = {
+                findForProjectWithSecrets: vi.fn(async () => defaultCredential),
+                findAiCredentialWithSecrets: vi.fn(async () =>
+                    hasAiCredential ? aiCredential : undefined,
+                ),
+                rotateRefreshToken: vi.fn(async () => true),
+            };
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: typeof credentialModel;
+                }
+            ).userWarehouseCredentialsModel = credentialModel;
+            const getProjectCredentials = vi
+                .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+                .mockResolvedValue(snowflake);
+            const generateToken = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockImplementation(async (token) => ({
+                    accessToken: 'access-token',
+                    refreshToken: token,
+                }));
+            try {
+                const resolved = await (
+                    service as unknown as {
+                        getWarehouseCredentialsWithConnection: (args: {
+                            projectUuid: string;
+                            binding: { kind: 'original' };
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            context?: QueryExecutionContext;
+                        }) => Promise<{
+                            warehouseCredentials: CreateWarehouseCredentials;
+                        }>;
+                    }
+                ).getWarehouseCredentialsWithConnection({
+                    projectUuid: projectSummary.projectUuid,
+                    binding: { kind: 'original' },
+                    userId: 'user-uuid',
+                    isRegisteredUser: true,
+                    context,
+                });
+                expect(resolved.warehouseCredentials).toMatchObject({
+                    token: 'access-token',
+                    ...(expectedAgentCredential
+                        ? { requireAgentSession: true }
+                        : {}),
+                });
+                expect(generateToken).toHaveBeenCalledWith(
+                    expectedToken,
+                    ...(expectedAgentCredential === true
+                        ? (['ai'] as const)
+                        : []),
+                );
+                expect(
+                    credentialModel.findAiCredentialWithSecrets,
+                ).toHaveBeenCalledTimes(
+                    (context === QueryExecutionContext.AI ||
+                        context === QueryExecutionContext.MCP_RUN_SQL) &&
+                        flagEnabled
+                        ? 1
+                        : 0,
+                );
+            } finally {
+                getProjectCredentials.mockRestore();
+                generateToken.mockRestore();
+            }
+        },
+    );
+
+    it('keeps a non-Snowflake AI query on its default credential', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const personal = {
+            uuid: 'postgres-personal',
+            credentials: {
+                type: WarehouseTypes.POSTGRES,
+                user: 'analyst',
+                password: 'password',
+            },
+        } as UserWarehouseCredentialsWithSecrets;
+        const credentialModel = {
+            findForProjectWithSecrets: vi.fn(async () => personal),
+            findAiCredentialWithSecrets: vi.fn(),
+        };
+        (
+            service as unknown as {
+                userWarehouseCredentialsModel: typeof credentialModel;
+            }
+        ).userWarehouseCredentialsModel = credentialModel;
+        const getProjectCredentials = vi
+            .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+            .mockResolvedValue({
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                port: 5432,
+                dbname: 'warehouse',
+                schema: 'public',
+                user: 'shared',
+                password: 'shared-password',
+                requireUserCredentials: true,
+            } as CreateWarehouseCredentials);
+        try {
+            const result = await (
+                service as unknown as {
+                    getWarehouseCredentialsWithConnection: (args: {
+                        projectUuid: string;
+                        binding: { kind: 'original' };
+                        userId: string;
+                        isRegisteredUser: boolean;
+                        context: QueryExecutionContext;
+                    }) => Promise<{
+                        warehouseCredentials: CreateWarehouseCredentials;
+                    }>;
+                }
+            ).getWarehouseCredentialsWithConnection({
+                projectUuid: projectSummary.projectUuid,
+                binding: { kind: 'original' },
+                userId: 'user-uuid',
+                isRegisteredUser: true,
+                context: QueryExecutionContext.AI,
+            });
+
+            expect(result.warehouseCredentials).toMatchObject({
+                user: 'analyst',
+            });
+            expect(
+                credentialModel.findAiCredentialWithSecrets,
+            ).not.toHaveBeenCalled();
+        } finally {
+            getProjectCredentials.mockRestore();
+        }
     });
 });

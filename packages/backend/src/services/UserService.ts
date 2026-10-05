@@ -86,6 +86,7 @@ import {
     UserLoginOptions,
     UserOnboarding,
     UserOnboardingTour,
+    UserWarehouseCredentialPurpose,
     validateEmail,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
@@ -3347,10 +3348,13 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
+        purpose: UserWarehouseCredentialPurpose = UserWarehouseCredentialPurpose.DEFAULT,
     ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
-                'snowflake',
+                purpose === UserWarehouseCredentialPurpose.AI
+                    ? 'snowflake-ai'
+                    : 'snowflake',
                 refreshToken,
                 (
                     err: AnyType,
@@ -3517,8 +3521,22 @@ export class UserService extends BaseService {
     }
 
     async getWarehouseCredentials(user: SessionUser) {
-        return this.userWarehouseCredentialsModel.getAllByUserUuid(
+        const [defaults, ai] = await Promise.all([
+            this.userWarehouseCredentialsModel.getAllByUserUuid(user.userUuid),
+            this.userWarehouseCredentialsModel.getAiCredentialsByUserUuid(
+                user.userUuid,
+            ),
+        ]);
+        return [...defaults, ...ai];
+    }
+
+    async upsertAiSnowflakeCredential(
+        user: SessionUser,
+        refreshToken: string,
+    ): Promise<void> {
+        await this.userWarehouseCredentialsModel.upsertAiSnowflakeCredential(
             user.userUuid,
+            refreshToken,
         );
     }
 
@@ -3980,10 +3998,17 @@ export class UserService extends BaseService {
         user: SessionUser,
         userWarehouseCredentialsUuid: string,
     ) {
-        await this.userWarehouseCredentialsModel.delete(
-            user.userUuid,
-            userWarehouseCredentialsUuid,
-        );
+        const deletedAi =
+            await this.userWarehouseCredentialsModel.deleteAiCredential(
+                user.userUuid,
+                userWarehouseCredentialsUuid,
+            );
+        if (!deletedAi) {
+            await this.userWarehouseCredentialsModel.delete(
+                user.userUuid,
+                userWarehouseCredentialsUuid,
+            );
+        }
         this.analytics.track({
             userId: user.userUuid,
             event: 'user_warehouse_credentials.deleted',

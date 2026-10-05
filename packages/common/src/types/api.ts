@@ -743,6 +743,9 @@ export type HealthState = {
         snowflake: {
             enabled: boolean;
         };
+        snowflakeAi: {
+            enabled: boolean;
+        };
         databricks: {
             enabled: boolean;
         };

@@ -13,6 +13,7 @@ import {
 import { Readable } from 'stream';
 import type { Mock } from 'vitest';
 import {
+    isSnowflakeAgentActivatedValue,
     mapFieldType,
     mapSnowflakeDiagnosticError,
     SnowflakeDiagnosticError,
@@ -114,9 +115,63 @@ vi.mock('snowflake-sdk', async () => ({
     })),
 }));
 
+describe('isSnowflakeAgentActivatedValue', () => {
+    it.each([
+        ['TRUE', true],
+        ['true', true],
+        [true, true],
+        ['FALSE', false],
+        [false, false],
+        [null, false],
+        [undefined, false],
+        [1, false],
+        ['', false],
+    ])('maps %s to %s', (value, expected) => {
+        expect(isSnowflakeAgentActivatedValue(value)).toBe(expected);
+    });
+});
+
 describe('SnowflakeWarehouseClient', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('checks an AI session before the first statement', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(undefined, {}, [{ IS_AGENT_ACTIVATED: 'TRUE' }]);
+        });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+        });
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+        expect(executeMock.mock.calls[0]?.[0].sqlText).toContain(
+            'IS_AGENT_ACTIVATED',
+        );
+    });
+
+    it('refuses an AI session without activation', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(undefined, {}, [{ IS_AGENT_ACTIVATED: 'FALSE' }]);
+        });
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+        });
+        await expect(
+            warehouse.streamQuery('SELECT 1', () => {}, {}),
+        ).rejects.toThrow('IS_AGENTIC = TRUE');
+        expect(executeMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not check a regular session', async () => {
+        const warehouse = new SnowflakeWarehouseClient(credentials);
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+        expect(
+            executeMock.mock.calls.some(([options]) =>
+                options.sqlText.includes('IS_AGENT_ACTIVATED'),
+            ),
+        ).toBe(false);
     });
 
     it('caps result chunk size via CLIENT_RESULT_CHUNK_SIZE session parameter', async () => {

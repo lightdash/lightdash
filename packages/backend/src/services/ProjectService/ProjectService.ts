@@ -261,6 +261,7 @@ import {
     UpdateVirtualViewPayload,
     UserAccessControls,
     UserAttributeValueMap,
+    UserWarehouseCredentialPurpose,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
     usesAwsWebIdentity,
@@ -534,7 +535,11 @@ type RefreshTokenRotationSource =
           kind: 'organization';
           organizationWarehouseCredentialsUuid: string;
       }
-    | { kind: 'user'; userWarehouseCredentialsUuid: string }
+    | {
+          kind: 'user';
+          userWarehouseCredentialsUuid: string;
+          purpose?: UserWarehouseCredentialPurpose;
+      }
     | {
           kind: 'warehouseConnection';
           project: WarehouseConnectionProject;
@@ -1528,6 +1533,7 @@ export class ProjectService extends BaseService {
     private async refreshCredentials<T extends CreateWarehouseCredentials>(
         args: T,
         userUuid: string,
+        credentialPurpose: UserWarehouseCredentialPurpose = UserWarehouseCredentialPurpose.DEFAULT,
     ): Promise<T> {
         if (
             args.type === WarehouseTypes.SNOWFLAKE &&
@@ -1548,9 +1554,14 @@ export class ProjectService extends BaseService {
                 // If we try to generate access token from token instead of refreshToken
                 // it will throw an error: The request was invalid.
                 const { accessToken, refreshToken: newRefreshToken } =
-                    await UserService.generateSnowflakeAccessToken(
-                        refreshToken,
-                    );
+                    credentialPurpose === UserWarehouseCredentialPurpose.AI
+                        ? await UserService.generateSnowflakeAccessToken(
+                              refreshToken,
+                              UserWarehouseCredentialPurpose.AI,
+                          )
+                        : await UserService.generateSnowflakeAccessToken(
+                              refreshToken,
+                          );
                 return {
                     ...args,
                     authenticationType: SnowflakeAuthenticationType.SSO,
@@ -1737,15 +1748,20 @@ export class ProjectService extends BaseService {
     ): Promise<T> {
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
-        const refreshed = await this.refreshCredentials(args, userUuid).catch(
-            (error: unknown) =>
-                source.kind === 'project'
-                    ? this.attributeSharedSignInExpiry(
-                          source.projectUuid,
-                          args,
-                          error,
-                      )
-                    : Promise.reject(error),
+        const refreshed = await this.refreshCredentials(
+            args,
+            userUuid,
+            source.kind === 'user'
+                ? source.purpose
+                : UserWarehouseCredentialPurpose.DEFAULT,
+        ).catch((error: unknown) =>
+            source.kind === 'project'
+                ? this.attributeSharedSignInExpiry(
+                      source.projectUuid,
+                      args,
+                      error,
+                  )
+                : Promise.reject(error),
         );
 
         const newRefreshToken =
@@ -2197,6 +2213,92 @@ export class ProjectService extends BaseService {
         );
     }
 
+    private async resolveAiAccessCredentials({
+        projectUuid,
+        organizationUuid,
+        userId,
+        isRegisteredUser,
+        isServiceAccount,
+        context,
+        credentials,
+    }: {
+        projectUuid: string;
+        organizationUuid?: string;
+        userId: string;
+        isRegisteredUser: boolean;
+        isServiceAccount: boolean;
+        context?: QueryExecutionContext;
+        credentials: CreateWarehouseCredentials;
+    }): Promise<{
+        credentials: CreateWarehouseCredentials;
+        aiCredentialUuid: string;
+    } | null> {
+        if (
+            !isRegisteredUser ||
+            isServiceAccount ||
+            context === undefined ||
+            !isAiAccessQueryContext(context) ||
+            credentials.type !== WarehouseTypes.SNOWFLAKE ||
+            credentials.authenticationType !== SnowflakeAuthenticationType.SSO
+        ) {
+            return null;
+        }
+
+        const resolvedOrganizationUuid =
+            organizationUuid ??
+            (await this.projectModel.getSummary(projectUuid)).organizationUuid;
+        const flag = await this.featureFlagModel.get({
+            user: {
+                userUuid: userId,
+                organizationUuid: resolvedOrganizationUuid,
+            },
+            featureFlagId: FeatureFlags.SnowflakeAiSignIn,
+        });
+        if (!flag.enabled) return null;
+
+        const aiCredential =
+            await this.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
+                {
+                    userUuid: userId,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+            );
+        if (!aiCredential) return null;
+
+        const mergedCredentials = mergePersonalWarehouseCredentials(
+            credentials,
+            aiCredential,
+        );
+        const refreshedCredentials =
+            await this.refreshCredentialsAndPersistRotation(
+                mergedCredentials,
+                userId,
+                {
+                    kind: 'user',
+                    userWarehouseCredentialsUuid: aiCredential.uuid,
+                    purpose: UserWarehouseCredentialPurpose.AI,
+                },
+            );
+        if (refreshedCredentials.type !== WarehouseTypes.SNOWFLAKE) {
+            throw new UnexpectedServerError(
+                'AI credentials must be Snowflake credentials',
+            );
+        }
+        this.logger.info('AI access query uses the Snowflake sign-in for AI', {
+            projectUuid,
+            userUuid: userId,
+            userWarehouseCredentialsUuid: aiCredential.uuid,
+            context,
+        });
+        return {
+            credentials: {
+                ...refreshedCredentials,
+                requireAgentSession: true,
+            },
+            aiCredentialUuid: aiCredential.uuid,
+        };
+    }
+
     protected async getExtraConnectionWarehouseCredentials({
         projectUuid,
         warehouseConnectionUuid,
@@ -2204,6 +2306,7 @@ export class ProjectService extends BaseService {
         isRegisteredUser,
         isServiceAccount = false,
         purpose = 'query',
+        context,
     }: {
         projectUuid: string;
         warehouseConnectionUuid: string;
@@ -2211,6 +2314,7 @@ export class ProjectService extends BaseService {
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
         purpose?: 'query' | 'compile';
+        context?: QueryExecutionContext;
     }) {
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
@@ -2259,6 +2363,25 @@ export class ProjectService extends BaseService {
                         : connectionRotationSource,
                 )),
                 userWarehouseCredentialsUuid,
+            };
+        }
+
+        const aiAccessCredentials = await this.resolveAiAccessCredentials({
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            userId,
+            isRegisteredUser,
+            isServiceAccount,
+            context,
+            credentials,
+        });
+        if (aiAccessCredentials) {
+            return {
+                ...aiAccessCredentials.credentials,
+                userWarehouseCredentialsUuid:
+                    aiAccessCredentials.aiCredentialUuid,
+                organizationWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid ?? undefined,
             };
         }
 
@@ -2755,6 +2878,7 @@ export class ProjectService extends BaseService {
                             userId: args.userId,
                             isRegisteredUser: args.isRegisteredUser,
                             isServiceAccount: args.isServiceAccount,
+                            context: args.context,
                         }),
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
                     connectionRoute,
@@ -2914,12 +3038,14 @@ export class ProjectService extends BaseService {
         isRegisteredUser,
         isServiceAccount = false,
         preloadedOrgWarehouseCredentialsUuid,
+        context,
     }: {
         projectUuid: string;
         userId: string;
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
+        context?: QueryExecutionContext;
     }) {
         // Use preloaded config if available, otherwise fetch it
         const organizationWarehouseCredentialsUuid =
@@ -2953,6 +3079,24 @@ export class ProjectService extends BaseService {
             );
             await this.assertAnalyticsProjectAccess(user, project);
             return { ...credentials, userWarehouseCredentialsUuid };
+        }
+
+        const aiAccessCredentials = await this.resolveAiAccessCredentials({
+            projectUuid,
+            userId,
+            isRegisteredUser,
+            isServiceAccount,
+            context,
+            credentials,
+        });
+        if (aiAccessCredentials) {
+            return {
+                ...aiAccessCredentials.credentials,
+                userWarehouseCredentialsUuid:
+                    aiAccessCredentials.aiCredentialUuid,
+                organizationWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid ?? undefined,
+            };
         }
 
         if (
