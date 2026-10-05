@@ -19,6 +19,7 @@ export const ConnectionFields: FC<{
     nameRef?: React.Ref<HTMLInputElement>;
     savedProject?: Project;
     showName: boolean;
+    isNewConnection: boolean;
 }> = ({
     form,
     intro,
@@ -27,6 +28,7 @@ export const ConnectionFields: FC<{
     nameRef,
     savedProject,
     showName,
+    isNewConnection,
 }) => (
     <FormProvider form={form}>
         <ProjectFormProvider
@@ -38,7 +40,9 @@ export const ConnectionFields: FC<{
                 <Text size="sm" c="dimmed">
                     {intro}
                 </Text>
-                <EgressIpNotice />
+                <EgressIpNotice
+                    variant={isNewConnection ? 'summary' : 'list'}
+                />
                 {showName && (
                     <TextInput
                         ref={nameRef}

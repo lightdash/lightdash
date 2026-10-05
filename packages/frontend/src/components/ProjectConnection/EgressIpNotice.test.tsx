@@ -1,8 +1,12 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type FC } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import useApp from '../../providers/App/useApp';
 import { renderWithProviders } from '../../testing/testUtils';
+import { EgressIpCheckpointModal } from './EgressIpCheckpointModal';
 import { EgressIpNotice } from './EgressIpNotice';
+import { useEgressIpCheckpoint } from './useEgressIpCheckpoint';
 
 const flag = vi.hoisted(() => ({ enabled: true }));
 
@@ -10,8 +14,39 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
 }));
 
-const renderNotice = (staticIp: string) =>
-    renderWithProviders(<EgressIpNotice />, { health: { staticIp } });
+const HealthLoaded: FC = () => {
+    const { health } = useApp();
+    return health.data ? <span>health loaded</span> : null;
+};
+
+const renderNotice = (
+    staticIp: string | undefined,
+    variant: 'list' | 'summary' = 'list',
+) =>
+    renderWithProviders(
+        <>
+            <EgressIpNotice variant={variant} />
+            <HealthLoaded />
+        </>,
+        { health: { staticIp } },
+    );
+
+const CheckpointHarness: FC<{ onContinue: () => void }> = ({ onContinue }) => {
+    const checkpoint = useEgressIpCheckpoint();
+    return (
+        <>
+            <button type="button" onClick={() => checkpoint.guard(onContinue)}>
+                Test connection
+            </button>
+            <EgressIpCheckpointModal
+                checkpoint={checkpoint}
+                title="Allow Lightdash to reach your warehouse"
+                onClose={checkpoint.back}
+            />
+            <HealthLoaded />
+        </>
+    );
+};
 
 const mockClipboard = (writeText: (value: string) => Promise<void>) => {
     const spy = vi.fn(writeText);
@@ -25,6 +60,39 @@ const mockClipboard = (writeText: (value: string) => Promise<void>) => {
 describe('EgressIpNotice', () => {
     afterEach(() => {
         flag.enabled = true;
+    });
+
+    it('says "this IP address" when one is configured', async () => {
+        renderNotice('35.245.81.252');
+
+        expect(
+            await screen.findByText(
+                'Lightdash connects to your warehouse from this IP address. Add it to your firewall or allowlist.',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.getByText('35.245.81.252')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Copy all' })).toBeNull();
+    });
+
+    it('says "these IP addresses" when several are configured', async () => {
+        renderNotice('35.1.1.1,35.2.2.2');
+
+        expect(
+            await screen.findByText(
+                'Lightdash connects to your warehouse from these IP addresses. Add them to your firewall or allowlist.',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it.each([
+        ['empty', ''],
+        ['unset', undefined],
+        ['blank', ' , '],
+    ])('renders nothing when STATIC_IP is %s', async (_label, staticIp) => {
+        renderNotice(staticIp);
+
+        await screen.findByText('health loaded');
+        expect(screen.queryByText(/Lightdash connects/)).toBeNull();
     });
 
     it('lists every IP and copies one or all of them', async () => {
@@ -52,7 +120,22 @@ describe('EgressIpNotice', () => {
         );
 
         expect(window.getSelection()?.toString()).toBe('35.1.1.1');
-        expect(screen.queryByRole('button', { name: 'Copy all' })).toBeNull();
+    });
+
+    it.each([
+        [
+            '35.245.81.252',
+            'Lightdash connects to your warehouse from this IP address: 35.245.81.252. You can copy it in the next step.',
+        ],
+        [
+            '35.1.1.1,35.2.2.2',
+            'Lightdash connects to your warehouse from these IP addresses: 35.1.1.1, 35.2.2.2. You can copy them in the next step.',
+        ],
+    ])('summarises %s on a new connection', async (staticIp, text) => {
+        renderNotice(staticIp, 'summary');
+
+        expect(await screen.findByText(text)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^Copy/ })).toBeNull();
     });
 
     it('renders nothing when the kill switch is on', async () => {
@@ -60,8 +143,56 @@ describe('EgressIpNotice', () => {
         expect(await screen.findByText('35.1.1.1')).toBeInTheDocument();
 
         flag.enabled = false;
-        rerender(<EgressIpNotice />);
+        rerender(<EgressIpNotice variant="list" />);
 
         expect(screen.queryByText('35.1.1.1')).toBeNull();
+    });
+});
+
+describe('EgressIpCheckpointModal', () => {
+    it.each([
+        [
+            '35.245.81.252',
+            'Lightdash connects to your warehouse from this IP address. Add it to your firewall or allowlist before you continue.',
+        ],
+        [
+            '35.1.1.1,35.2.2.2',
+            'Lightdash connects to your warehouse from these IP addresses. Add them to your firewall or allowlist before you continue.',
+        ],
+    ])(
+        'stops a new connection at the IP step for %s',
+        async (staticIp, text) => {
+            const user = userEvent.setup();
+            const onContinue = vi.fn();
+            renderWithProviders(<CheckpointHarness onContinue={onContinue} />, {
+                health: { staticIp },
+            });
+            await screen.findByText('health loaded');
+
+            await user.click(
+                screen.getByRole('button', { name: 'Test connection' }),
+            );
+            expect(await screen.findByText(text)).toBeInTheDocument();
+            expect(onContinue).not.toHaveBeenCalled();
+
+            await user.click(screen.getByRole('button', { name: 'Continue' }));
+            expect(onContinue).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it('skips the IP step when STATIC_IP is unset', async () => {
+        const user = userEvent.setup();
+        const onContinue = vi.fn();
+        renderWithProviders(<CheckpointHarness onContinue={onContinue} />, {
+            health: { staticIp: '' },
+        });
+        await screen.findByText('health loaded');
+
+        await user.click(
+            screen.getByRole('button', { name: 'Test connection' }),
+        );
+
+        expect(onContinue).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 });

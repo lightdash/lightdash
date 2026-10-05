@@ -1,4 +1,3 @@
-import { FeatureFlags, parseEgressIps } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -11,9 +10,8 @@ import {
 import { useTimeout } from '@mantine/hooks';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useRef, useState, type FC, type RefObject } from 'react';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
+import { describeEgressIps, useEgressIps } from './useEgressIpCheckpoint';
 
 type CopyState = 'idle' | 'copied' | 'selected';
 
@@ -115,28 +113,44 @@ const CopyAllButton: FC<{
     );
 };
 
-export const EgressIpNotice: FC = () => {
-    const { health } = useApp();
-    const flag = useServerFeatureFlag(FeatureFlags.EgressIpNotice);
+export const EgressIpList: FC<{ ips: string[] }> = ({ ips }) => {
     const listRef = useRef<HTMLDivElement>(null);
-    const ips = parseEgressIps(health.data?.staticIp);
-    if (flag.data?.enabled === false || ips.length === 0) return null;
 
     return (
         <Stack gap="xs">
-            <Text size="sm" c="dimmed">
-                Allow{' '}
-                {ips.length === 1
-                    ? 'this Lightdash IP address'
-                    : 'these Lightdash IP addresses'}{' '}
-                in your warehouse firewall or allowlist.
-            </Text>
             <Stack gap={4} ref={listRef}>
                 {ips.map((ip) => (
                     <CopyIpRow key={ip} ip={ip} />
                 ))}
             </Stack>
             {ips.length > 1 && <CopyAllButton ips={ips} listRef={listRef} />}
+        </Stack>
+    );
+};
+
+export const EgressIpNotice: FC<{ variant: 'list' | 'summary' }> = ({
+    variant,
+}) => {
+    const ips = useEgressIps();
+    if (ips.length === 0) return null;
+    const { noun, pronoun } = describeEgressIps(ips.length);
+
+    if (variant === 'summary') {
+        return (
+            <Text size="sm" c="dimmed">
+                Lightdash connects to your warehouse from {noun}:{' '}
+                {ips.join(', ')}. You can copy {pronoun} in the next step.
+            </Text>
+        );
+    }
+
+    return (
+        <Stack gap="xs">
+            <Text size="sm" c="dimmed">
+                Lightdash connects to your warehouse from {noun}. Add {pronoun}{' '}
+                to your firewall or allowlist.
+            </Text>
+            <EgressIpList ips={ips} />
         </Stack>
     );
 };

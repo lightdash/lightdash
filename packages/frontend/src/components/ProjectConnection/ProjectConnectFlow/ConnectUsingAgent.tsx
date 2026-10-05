@@ -13,10 +13,12 @@ import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProjec
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { dbtDefaults } from '../DbtForms/defaultValues';
+import { EgressIpCheckpointModal } from '../EgressIpCheckpointModal';
 import { EgressIpNotice } from '../EgressIpNotice';
 import { FormProvider, useForm } from '../formContext';
 import { ProjectFormProvider } from '../ProjectFormProvider';
 import { type ProjectConnectionForm } from '../types';
+import { useEgressIpCheckpoint } from '../useEgressIpCheckpoint';
 import { useOnProjectError } from '../useOnProjectError';
 import { warehouseDefaultValues } from '../WarehouseForms/defaultValues';
 import { createWarehouseValueValidators } from '../WarehouseForms/validators';
@@ -60,6 +62,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
     const isCreatingProjectRef = useRef(false);
     const createProjectMutation = useCreateProjectWithoutCompileMutation();
     const onProjectError = useOnProjectError();
+    const checkpoint = useEgressIpCheckpoint();
 
     const form = useForm({
         initialValues: {
@@ -75,7 +78,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
         validateInputOnBlur: true,
     });
 
-    const handleSubmit = async (formValues: ProjectConnectionForm) => {
+    const createProject = async (formValues: ProjectConnectionForm) => {
         if (preparedProject || isCreatingProjectRef.current) return;
 
         isCreatingProjectRef.current = true;
@@ -107,6 +110,9 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
             isCreatingProjectRef.current = false;
         }
     };
+
+    const handleSubmit = (formValues: ProjectConnectionForm) =>
+        checkpoint.guard(() => void createProject(formValues));
 
     if (preparedProject) {
         return (
@@ -158,7 +164,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                                     through Lightdash without receiving its
                                     credentials.
                                 </Text>
-                                <EgressIpNotice />
+                                <EgressIpNotice variant="summary" />
                             </div>
                             <ProjectFormProvider>
                                 <WarehouseSettingsForm
@@ -178,6 +184,11 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                     </Stack>
                 </form>
             </FormProvider>
+            <EgressIpCheckpointModal
+                checkpoint={checkpoint}
+                title="Allow Lightdash to reach your warehouse"
+                onClose={checkpoint.back}
+            />
         </Stack>
     );
 };

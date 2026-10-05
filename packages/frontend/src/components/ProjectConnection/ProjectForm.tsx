@@ -25,12 +25,17 @@ interface Props {
     warehouseOnly?: boolean;
 }
 
-const WarehouseIpHint: FC = () => {
+const WarehouseIpHint: FC<{ isProjectUpdate: boolean }> = ({
+    isProjectUpdate,
+}) => {
     const { health } = useApp();
     const egressIpNoticeFlag = useServerFeatureFlag(
         FeatureFlags.EgressIpNotice,
     );
-    if (egressIpNoticeFlag.data?.enabled !== false) return <EgressIpNotice />;
+    if (egressIpNoticeFlag.data?.enabled !== false)
+        return (
+            <EgressIpNotice variant={isProjectUpdate ? 'list' : 'summary'} />
+        );
     if (!health.data?.staticIp) return null;
 
     return (
@@ -88,7 +93,7 @@ export const ProjectForm: FC<Props> = ({
                         />
                     </Flex>
 
-                    <WarehouseIpHint />
+                    <WarehouseIpHint isProjectUpdate={!!isProjectUpdate} />
                 </div>
 
                 <div>
