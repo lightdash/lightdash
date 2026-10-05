@@ -20,6 +20,7 @@ import type {
     AiPromptTokenUsage,
     AiThreadCreatedFrom,
 } from './requestTypes';
+import type { ServedSkillMetadata } from './schemas/tools/toolLoadSkillArgs';
 
 export type AiAgentAdminFilters = {
     projectUuids?: string[];
@@ -85,6 +86,7 @@ export type AiAgentThreadDumpToolCall = {
     result: string | null;
     resultOmitted: string | null;
     isError: boolean;
+    servedSkill: ServedSkillMetadata | null;
 };
 
 export type AiAgentThreadDumpArtifact = {
