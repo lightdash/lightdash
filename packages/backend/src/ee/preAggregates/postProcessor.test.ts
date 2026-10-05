@@ -254,7 +254,7 @@ describe('pre-aggregate virtual explore generation', () => {
             preAggregateExplore.tables.myTable.metrics.average_revenue
                 .compiledSql,
         ).toBe(
-            'CAST(SUM(myTable.myTable_average_revenue__sum) AS DOUBLE) / CAST(NULLIF(SUM(myTable.myTable_average_revenue__count), 0) AS DOUBLE)',
+            'CAST(SUM("myTable"."myTable_average_revenue__sum") AS DOUBLE) / CAST(NULLIF(SUM("myTable"."myTable_average_revenue__count"), 0) AS DOUBLE)',
         );
     });
 

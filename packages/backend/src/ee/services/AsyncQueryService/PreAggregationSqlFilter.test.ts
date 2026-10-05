@@ -195,7 +195,7 @@ describe('external pre-aggregate + sql_filter referencing a joined field', () =>
         if (!result.resolved) throw new Error('unreachable');
 
         expect(result.query).toContain(`FROM ${EXTERNAL_TABLE} AS \`orders\``);
-        expect(result.query).toContain('orders.customers_segment');
+        expect(result.query).toContain('`orders`.`customers_segment`');
         expect(result.query).toContain("'gold'");
         expect(result.query).not.toContain('JOIN');
         expect(result.query).not.toMatch(/`customers`\./);
@@ -210,7 +210,7 @@ describe('external pre-aggregate + sql_filter referencing a joined field', () =>
         if (!result.resolved) throw new Error('unreachable');
 
         expect(result.query).toContain(`FROM ${EXTERNAL_TABLE} AS \`orders\``);
-        expect(result.query).toContain("orders.customers_segment = 'gold'");
+        expect(result.query).toContain("`orders`.`customers_segment` = 'gold'");
         expect(result.query).not.toContain('JOIN');
         expect(result.query).not.toMatch(/`customers`\./);
     });
@@ -278,7 +278,7 @@ describe('managed pre-aggregate + sql_filter referencing a joined field', () => 
         const sql = composer.getSql({ columnLimit: 100 });
 
         expect(sql).toContain(`FROM ${materializationSqlTable} AS "orders"`);
-        expect(sql).toContain("orders.customers_segment = 'gold'");
+        expect(sql).toContain(`"orders"."customers_segment" = 'gold'`);
         expect(sql).not.toContain('JOIN');
         expect(sql).not.toMatch(/"customers"\./);
     });

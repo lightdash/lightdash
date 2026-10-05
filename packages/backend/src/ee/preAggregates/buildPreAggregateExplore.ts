@@ -35,6 +35,17 @@ const {
     selectPreAggregateMetrics,
 } = preAggregateMaterialization;
 
+// Quoted so case-sensitive warehouses match the quoted table alias and columns.
+const getColumnReference = (
+    tableName: string,
+    columnName: string,
+    servingAdapter: SupportedDbtAdapter,
+): string => {
+    const quoteChar =
+        warehouseSqlBuilderFromType(servingAdapter).getFieldQuoteChar();
+    return `${quoteChar}${tableName}${quoteChar}.${quoteChar}${columnName}${quoteChar}`;
+};
+
 const getMetricAggregateSql = (
     metricType: MetricType.SUM | MetricType.MIN | MetricType.MAX,
     columnReference: string,
@@ -59,14 +70,16 @@ const getAverageMetricAggregateSql = (
     fieldId: FieldId,
     servingAdapter: SupportedDbtAdapter,
 ): string => {
-    const sumColumnReference = `${tableName}.${getPreAggregateMetricComponentColumnName(
-        fieldId,
-        'sum',
-    )}`;
-    const countColumnReference = `${tableName}.${getPreAggregateMetricComponentColumnName(
-        fieldId,
-        'count',
-    )}`;
+    const sumColumnReference = getColumnReference(
+        tableName,
+        getPreAggregateMetricComponentColumnName(fieldId, 'sum'),
+        servingAdapter,
+    );
+    const countColumnReference = getColumnReference(
+        tableName,
+        getPreAggregateMetricComponentColumnName(fieldId, 'count'),
+        servingAdapter,
+    );
 
     const floatType =
         warehouseSqlBuilderFromType(servingAdapter).getFloatingType();
@@ -101,9 +114,11 @@ const getMetricSqlForPreAggregateExplore = ({
             };
         }
         case PreAggregateMetricRepresentationKind.DIRECT: {
-            const metricColumnReference = `${tableName}.${getPreAggregateMetricColumnName(
-                fieldId,
-            )}`;
+            const metricColumnReference = getColumnReference(
+                tableName,
+                getPreAggregateMetricColumnName(fieldId),
+                servingAdapter,
+            );
             return {
                 sql: metricColumnReference,
                 compiledSql: getMetricAggregateSql(
@@ -113,9 +128,11 @@ const getMetricSqlForPreAggregateExplore = ({
             };
         }
         case PreAggregateMetricRepresentationKind.EXACT_ONLY: {
-            const metricColumnReference = `${tableName}.${getPreAggregateMetricColumnName(
-                fieldId,
-            )}`;
+            const metricColumnReference = getColumnReference(
+                tableName,
+                getPreAggregateMetricColumnName(fieldId),
+                servingAdapter,
+            );
             // MAX is exact: the matcher only serves exact-only metrics when
             // each result group maps to a single materialization row.
             return {
@@ -256,7 +273,11 @@ const buildDimensionSql = ({
         dimension,
         preAggregateDef,
     });
-    const materializedBaseColumnReference = `${sourceExplore.baseTable}.${materializedBaseColumnName}`;
+    const materializedBaseColumnReference = getColumnReference(
+        sourceExplore.baseTable,
+        materializedBaseColumnName,
+        servingAdapter,
+    );
     const baseDimensionType = getBaseDimensionType(sourceExplore, dimension);
 
     if (!dimension.timeInterval) {
@@ -409,7 +430,11 @@ const rewriteSqlWhereForPreAggregate = ({
                   })
                 : getItemId({ table: refTable, name: refName });
 
-            return `${sourceExplore.baseTable}.${materializedColumnName}`;
+            return getColumnReference(
+                sourceExplore.baseTable,
+                materializedColumnName,
+                servingAdapter,
+            );
         },
     );
 };
