@@ -91,6 +91,7 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import { AiIdentitiesPage } from '../features/aiIdentities/AiIdentitiesPage';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
@@ -169,10 +170,12 @@ const Settings: FC = () => {
         organization,
         project,
         isScimTokenManagementEnabled,
+        snowflakeAiTwinsFlag,
         dataAppsFlag,
         dataAppAnalysisFlag,
         externalSourcesFlag,
         isDataAppsFlagLoading,
+        isSnowflakeAiTwinsFlagLoading,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
@@ -665,6 +668,16 @@ const Settings: FC = () => {
 
         if (
             user?.ability.can('manage', 'Organization') &&
+            snowflakeAiTwinsFlag?.enabled
+        ) {
+            allowedRoutes.push({
+                path: '/aiIdentities',
+                element: <AiIdentitiesPage />,
+            });
+        }
+
+        if (
+            user?.ability.can('manage', 'Organization') &&
             isServiceAccountsEnabled
         ) {
             allowedRoutes.push({
@@ -843,6 +856,7 @@ const Settings: FC = () => {
         organization,
         project,
         isScimTokenManagementEnabled?.enabled,
+        snowflakeAiTwinsFlag?.enabled,
         isServiceAccountsEnabled,
         isCustomRolesEnabled,
         hasSocialLogin,
@@ -1008,6 +1022,12 @@ const Settings: FC = () => {
             matchPath('/generalSettings/lightdashAnalytics', location.pathname),
         );
 
+    const isAwaitingAiIdentitiesRoute =
+        isSnowflakeAiTwinsFlagLoading &&
+        Boolean(
+            matchPath('/generalSettings/aiIdentities/*', location.pathname),
+        );
+
     const isAwaitingAiCreditsRoute =
         isAiCreditsLoading &&
         Boolean(matchPath('/generalSettings/aiCredits', location.pathname));
@@ -1022,7 +1042,8 @@ const Settings: FC = () => {
         isAwaitingAiSettingsRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
-        isAwaitingAiCreditsRoute
+        isAwaitingAiCreditsRoute ||
+        isAwaitingAiIdentitiesRoute
     ) {
         return <PageSpinner />;
     }

@@ -21,6 +21,7 @@ export async function up(knex: Knex): Promise<void> {
             .index();
         table.text('snowflake_account').notNullable();
         table.text('twin_name_template').nullable();
+        table.text('role_template').nullable();
         table.timestamp('last_full_check_at', { useTz: true }).nullable();
         table.timestamps(true, true);
         table.unique(['organization_uuid', 'snowflake_account']);
@@ -98,6 +99,7 @@ export async function up(knex: Knex): Promise<void> {
         table.integer('target_count').notNullable().defaultTo(0);
         table.text('status').notNullable();
         table.text('detail').nullable();
+        table.uuid('ai_identity_job_uuid').nullable().index();
         table
             .timestamp('created_at', { useTz: true })
             .notNullable()
@@ -142,6 +144,7 @@ export async function up(knex: Knex): Promise<void> {
         table.integer('total').notNullable().defaultTo(0);
         table.integer('done').notNullable().defaultTo(0);
         table.text('file_url').nullable();
+        table.jsonb('skipped').notNullable().defaultTo('[]');
         table.text('error').nullable();
         table
             .uuid('created_by_user_uuid')

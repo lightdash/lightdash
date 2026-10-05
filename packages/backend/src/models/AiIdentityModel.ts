@@ -39,6 +39,7 @@ type AccountRow = {
     organization_uuid: string;
     snowflake_account: string;
     twin_name_template: string | null;
+    role_template: string | null;
     last_full_check_at: Date | null;
 };
 const emptyCounts = (): AiIdentityStateCounts => ({
@@ -70,6 +71,7 @@ export class AiIdentityModel {
             aiIdentityAccountUuid: row.ai_identity_account_uuid,
             snowflakeAccount: row.snowflake_account,
             twinNameTemplate: row.twin_name_template,
+            roleTemplate: row.role_template,
             lastFullCheckAt: row.last_full_check_at,
             counts,
         };
@@ -143,12 +145,14 @@ export class AiIdentityModel {
     async updateAccountTemplate(
         aiIdentityAccountUuid: string,
         twinNameTemplate: string | null,
+        roleTemplate: string | null = null,
     ): Promise<AiIdentityAccount> {
         await this.database.transaction(async (trx) => {
             await trx('ai_identity_accounts')
                 .where('ai_identity_account_uuid', aiIdentityAccountUuid)
                 .update({
                     twin_name_template: twinNameTemplate,
+                    role_template: roleTemplate,
                     updated_at: new Date(),
                 });
             await trx(AiIdentitiesTableName)
@@ -234,7 +238,10 @@ export class AiIdentityModel {
                 row.status === AiIdentityStatus.PENDING &&
                 row.created_at.getTime() <
                     Date.now() - AI_IDENTITY_STALE_PENDING_DAYS * 86_400_000,
-            failureReason: row.failure_reason,
+            failureReason:
+                (row.failure_reason as string | null) === 'public_key_not_set'
+                    ? AiIdentityFailureReason.KEY_OR_USER_REJECTED
+                    : row.failure_reason,
             statusMessage: row.status_message,
             checkedAt: row.checked_at,
             createdAt: row.created_at,
@@ -245,13 +252,25 @@ export class AiIdentityModel {
             'ai_identities.ai_identity_account_uuid',
             filter.aiIdentityAccountUuid,
         );
+        if (filter.aiIdentityUuids?.length)
+            query.whereIn(
+                'ai_identities.ai_identity_uuid',
+                filter.aiIdentityUuids,
+            );
         if (filter.states.length)
             query.whereRaw(
                 `${stateSql} IN (${filter.states.map(() => '?').join(', ')})`,
                 filter.states,
             );
         if (filter.reasons.length)
-            query.whereIn('ai_identities.failure_reason', filter.reasons);
+            query.whereIn(
+                'ai_identities.failure_reason',
+                filter.reasons.flatMap((reason) =>
+                    reason === AiIdentityFailureReason.KEY_OR_USER_REJECTED
+                        ? [reason, 'public_key_not_set']
+                        : [reason],
+                ),
+            );
         if (filter.search !== null) {
             const search = `%${filter.search}%`;
             query.where((builder) =>
@@ -343,11 +362,14 @@ export class AiIdentityModel {
             if (
                 row.state === AiIdentityState.FAILED &&
                 row.failure_reason !== null
-            )
-                reasons.set(
-                    row.failure_reason,
-                    (reasons.get(row.failure_reason) ?? 0) + count,
-                );
+            ) {
+                const reason =
+                    (row.failure_reason as string | null) ===
+                    'public_key_not_set'
+                        ? AiIdentityFailureReason.KEY_OR_USER_REJECTED
+                        : row.failure_reason;
+                reasons.set(reason, (reasons.get(reason) ?? 0) + count);
+            }
         });
         const query = this.filteredQuery(filter);
         if (sort === AiIdentitySort.SEVERITY)
@@ -389,6 +411,37 @@ export class AiIdentityModel {
                 ),
         };
     }
+    async preview(aiIdentityAccountUuid: string): Promise<AiIdentity[]> {
+        const base = () =>
+            this.queryRows().where(
+                'ai_identities.ai_identity_account_uuid',
+                aiIdentityAccountUuid,
+            );
+        const [missingLogin, punctuation, longLogin, fallback] =
+            await Promise.all([
+                base()
+                    .whereNull('ai_identities.snowflake_login')
+                    .whereNull('ai_identities.twin_name_override')
+                    .limit(1),
+                base()
+                    .whereNull('ai_identities.twin_name_override')
+                    .whereRaw('ai_identities.snowflake_login ~ ?', ['[.-]'])
+                    .limit(1),
+                base()
+                    .whereNull('ai_identities.twin_name_override')
+                    .whereRaw('length(ai_identities.snowflake_login) > 255')
+                    .limit(1),
+                base().orderBy('ai_identities.created_at', 'desc').limit(3),
+            ]);
+        const unique = new Map<string, IdentityRow>();
+        [...missingLogin, ...punctuation, ...longLogin, ...fallback].forEach(
+            (row: IdentityRow) => unique.set(row.ai_identity_uuid, row),
+        );
+        return [...unique.values()]
+            .slice(0, 3)
+            .map((row) => this.toIdentity(row));
+    }
+
     async idsForFilter(
         filter: AiIdentityFilter,
         afterUuid: string | null = null,
@@ -633,6 +686,7 @@ export class AiIdentityModel {
     }
 
     async addEvent(event: {
+        aiIdentityJobUuid?: string | null;
         organizationUuid: string;
         aiIdentityAccountUuid: string | null;
         aiIdentityUuid: string | null;
@@ -653,6 +707,7 @@ export class AiIdentityModel {
             target_count: event.targetCount,
             status: event.status,
             detail: event.detail,
+            ai_identity_job_uuid: event.aiIdentityJobUuid ?? null,
         });
     }
     async listEvents(
@@ -660,6 +715,7 @@ export class AiIdentityModel {
         page: number,
         pageSize: number,
         aiIdentityUuid: string | null = null,
+        includeReads = false,
     ): Promise<{
         data: AiIdentityEvent[];
         pagination: {
@@ -675,10 +731,49 @@ export class AiIdentityModel {
         );
         if (aiIdentityUuid !== null)
             query.where('ai_identity_events.ai_identity_uuid', aiIdentityUuid);
+        else {
+            query.whereNot('ai_identity_events.action', 'tested');
+            query.where((builder) => {
+                builder
+                    .whereNot('ai_identity_events.actor_type', 'scheduler')
+                    .orWhereNotExists(
+                        this.database('ai_identity_events as request')
+                            .select(this.database.raw('1'))
+                            .whereRaw('?? = ??', [
+                                'request.organization_uuid',
+                                'ai_identity_events.organization_uuid',
+                            ])
+                            .whereRaw('?? = ??', [
+                                'request.ai_identity_job_uuid',
+                                'ai_identity_events.ai_identity_job_uuid',
+                            ])
+                            .whereIn('request.actor_type', ['user', 'api']),
+                    );
+            });
+        }
+        if (!includeReads) query.whereNot('ai_identity_events.action', 'list');
         const [{ count }] = await query
             .clone()
             .count<{ count: string }[]>('* as count');
         const rows = await query
+            .joinRaw(`LEFT JOIN LATERAL (
+                SELECT outcome.status, outcome.target_count, outcome.detail
+                FROM ai_identity_events AS outcome
+                WHERE outcome.organization_uuid = ai_identity_events.organization_uuid
+                  AND outcome.ai_identity_job_uuid = ai_identity_events.ai_identity_job_uuid
+                  AND outcome.actor_type = 'scheduler'
+                ORDER BY outcome.created_at DESC, outcome.ai_identity_event_uuid DESC
+                LIMIT 1
+            ) AS outcome ON TRUE`)
+            .leftJoin('ai_identity_jobs as job', function joinJob() {
+                this.on(
+                    'job.job_uuid',
+                    'ai_identity_events.ai_identity_job_uuid',
+                ).andOn(
+                    'job.organization_uuid',
+                    'ai_identity_events.organization_uuid',
+                );
+            })
             .leftJoin(
                 'users',
                 'users.user_uuid',
@@ -688,6 +783,10 @@ export class AiIdentityModel {
                 'ai_identity_events.*',
                 'users.first_name',
                 'users.last_name',
+                'outcome.status as outcome_status',
+                'outcome.target_count as outcome_target_count',
+                'outcome.detail as outcome_detail',
+                'job.status as job_status',
             )
             .orderBy('ai_identity_events.created_at', 'desc')
             .limit(pageSize)
@@ -705,9 +804,17 @@ export class AiIdentityModel {
                         ? null
                         : `${row.first_name} ${row.last_name}`,
                 action: row.action,
-                targetCount: row.target_count,
-                status: row.status,
-                detail: row.detail,
+                targetCount: row.outcome_target_count ?? row.target_count,
+                status: row.outcome_status ?? row.status,
+                detail:
+                    [
+                        row.ai_identity_job_uuid
+                            ? `Job ${row.ai_identity_job_uuid}${row.job_status ? ` (${row.job_status})` : ''}`
+                            : null,
+                        row.outcome_detail ?? row.detail,
+                    ]
+                        .filter(Boolean)
+                        .join(' · ') || null,
                 createdAt: row.created_at,
             })),
             pagination: {
@@ -780,6 +887,7 @@ export class AiIdentityModel {
             done?: number;
             fileUrl?: string;
             error?: string;
+            skipped?: { email: string; reason: string }[];
         },
     ): Promise<void> {
         await this.database('ai_identity_jobs')
@@ -794,6 +902,9 @@ export class AiIdentityModel {
                     ? {}
                     : { file_url: update.fileUrl }),
                 ...(update.error === undefined ? {} : { error: update.error }),
+                ...(update.skipped === undefined
+                    ? {}
+                    : { skipped: JSON.stringify(update.skipped) }),
                 updated_at: new Date(),
             });
     }
@@ -805,6 +916,7 @@ export class AiIdentityModel {
         done: number;
         file_url: string | null;
         error: string | null;
+        skipped: { email: string; reason: string }[] | null;
         created_at: Date;
     }): AiIdentityJob {
         return {
@@ -815,6 +927,7 @@ export class AiIdentityModel {
             done: row.done,
             fileUrl: row.file_url,
             error: row.error,
+            skipped: row.skipped ?? [],
             createdAt: row.created_at,
         };
     }

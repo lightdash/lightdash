@@ -32,6 +32,7 @@ import {
     ForbiddenError,
     generateDataAppToolDefinition,
     generateHashesToolDefinition,
+    getAiIdentityPersonLabel,
     getAiIdentityPersonMessage,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
@@ -4559,14 +4560,21 @@ export class McpService extends BaseService {
                             account,
                             projectUuid,
                         });
+                    const personAccess = {
+                        ...access,
+                        label:
+                            access.state === null
+                                ? null
+                                : getAiIdentityPersonLabel(access.state),
+                    };
                     return {
                         content: [
                             {
                                 type: 'text' as const,
-                                text: JSON.stringify(access),
+                                text: JSON.stringify(personAccess),
                             },
                         ],
-                        structuredContent: { ...access },
+                        structuredContent: personAccess,
                     };
                 },
             ),
@@ -4585,6 +4593,7 @@ export class McpService extends BaseService {
                 error: {
                     code: AI_IDENTITY_NOT_READY_CODE,
                     state,
+                    label: getAiIdentityPersonLabel(state),
                     message,
                     settingsUrl: new URL(
                         settingsUrl,

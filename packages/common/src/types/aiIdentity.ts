@@ -12,7 +12,7 @@ export enum AiIdentityState {
 }
 
 export enum AiIdentityFailureReason {
-    PUBLIC_KEY_NOT_SET = 'public_key_not_set',
+    KEY_OR_USER_REJECTED = 'key_or_user_rejected',
     NOT_SERVICE_AGENT = 'not_service_agent',
     WRONG_USER = 'wrong_user',
     WAREHOUSE_ACCESS = 'warehouse_access',
@@ -27,6 +27,8 @@ export enum AiIdentityFailureSeverity {
 }
 
 export const SNOWFLAKE_LOGIN_PLACEHOLDER = '{snowflake_login}';
+export const AI_IDENTITY_NAME_PLACEHOLDER = '{ai_identity_name}';
+export const DEFAULT_AI_IDENTITY_ROLE_TEMPLATE = `${AI_IDENTITY_NAME_PLACEHOLDER}_ROLE`;
 
 export const DEFAULT_AI_TWIN_NAME_TEMPLATE = `${SNOWFLAKE_LOGIN_PLACEHOLDER}_AI`;
 
@@ -38,6 +40,7 @@ export type AiIdentityAccount = {
     aiIdentityAccountUuid: string;
     snowflakeAccount: string;
     twinNameTemplate: string | null;
+    roleTemplate: string | null;
     lastFullCheckAt: Date | null;
     counts: AiIdentityStateCounts;
 };
@@ -84,6 +87,7 @@ export enum AiIdentitySort {
 
 export type AiIdentityFilter = {
     aiIdentityAccountUuid: string;
+    aiIdentityUuids?: string[] | null;
     states: AiIdentityState[];
     reasons: AiIdentityFailureReason[];
     projectUuid: string | null;
@@ -148,6 +152,7 @@ export type AiIdentityJob = {
     total: number;
     done: number;
     fileUrl: string | null;
+    skipped: { email: string; reason: string }[];
     error: string | null;
     createdAt: Date;
 };
@@ -159,11 +164,12 @@ export type AiIdentityBulkTestRequest = {
 export type AiIdentityExportRequest = {
     filter: AiIdentityFilter;
     format: AiIdentityExportFormat;
-    roleForTwin: string | null;
+    roleForTwin?: string | null;
 };
 
 export type UpdateAiIdentityAccount = {
     twinNameTemplate: string | null;
+    roleTemplate: string | null;
 };
 
 export type UpdateAiIdentity = {
@@ -188,6 +194,11 @@ export type AiAccessForUser = {
 export type ApiAiIdentityAccountsResponse = {
     status: 'ok';
     results: AiIdentityAccount[];
+};
+
+export type ApiAiIdentityPreviewResponse = {
+    status: 'ok';
+    results: AiIdentity[];
 };
 
 export type ApiAiIdentityAccountResponse = {
@@ -238,6 +249,13 @@ export const AI_IDENTITY_NEEDS_SIGN_IN_MESSAGE =
 
 export const AI_IDENTITY_ASK_ADMIN_MESSAGE =
     "Your AI identity isn't set up yet. Ask an admin to set it up.";
+
+export const getAiIdentityPersonLabel = (state: AiIdentityState): string => {
+    if (state === AiIdentityState.READY) return 'Ready';
+    if (state === AiIdentityState.NEEDS_SIGN_IN)
+        return 'Needs Snowflake sign-in';
+    return 'Not ready';
+};
 
 export const getAiIdentityPersonMessage = (state: AiIdentityState): string =>
     state === AiIdentityState.NEEDS_SIGN_IN

@@ -71,6 +71,8 @@ import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import AiDocumentCards from './AiDocumentCards';
+import { AiIdentityCallout } from './AiIdentityCallout';
+import { parseAiIdentityRefusal } from './aiIdentityRefusal';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import {
@@ -568,6 +570,17 @@ const AssistantBubbleContent: FC<{
             ? { metadata: liveOutput.metadata, origin: 'stream' }
             : null;
     })();
+
+    const identityRefusal =
+        parseAiIdentityRefusal(message.errorMessage) ??
+        parseAiIdentityRefusal(streamingError);
+    if (identityRefusal)
+        return (
+            <AiIdentityCallout
+                state={identityRefusal.state}
+                message={identityRefusal.message}
+            />
+        );
 
     return (
         <>

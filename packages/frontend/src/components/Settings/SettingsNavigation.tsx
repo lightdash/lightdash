@@ -1,4 +1,4 @@
-import { Box, Highlight, Stack, Text, Title } from '@mantine/core';
+import { Badge, Box, Highlight, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
@@ -45,7 +45,19 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
                     exact={item.exact}
                     onClick={item.onClick}
                     leftSection={leftSection}
-                    rightSection={item.isBeta ? <BetaBadge /> : undefined}
+                    rightSection={
+                        item.badge && item.badge > 0 ? (
+                            <Badge
+                                color="red"
+                                size="sm"
+                                aria-label={`${item.badge} failed AI identities`}
+                            >
+                                {item.badge}
+                            </Badge>
+                        ) : item.isBeta ? (
+                            <BetaBadge />
+                        ) : undefined
+                    }
                     // Navigation anchors for scope walkthroughs (data-tour-via):
                     //   data-tour-nav="validator" data-tour-hint="Open the Validator"
                     data-tour-nav={item.tourNav}

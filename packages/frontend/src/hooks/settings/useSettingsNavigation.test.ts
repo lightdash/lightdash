@@ -28,6 +28,8 @@ const settingsContext = (
     isServiceAccountsEnabled: false,
     isAiCopilotEnabledOrTrial: true,
     aiAccessRestrictionsFlag: undefined,
+    snowflakeAiTwinsFlag: undefined,
+    aiIdentityAccounts: undefined,
     shouldShowAiAgentReviews: false,
     canManageOrgAiAgent: true,
     hasAnyAiAgentAccess: true,
@@ -35,6 +37,7 @@ const settingsContext = (
     dataAppsFlag: undefined,
     dataAppAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
+    isSnowflakeAiTwinsFlagLoading: false,
     externalSourcesFlag: undefined,
     isResultsCacheEnabled: false,
     embeddingEnabled: undefined,
@@ -133,6 +136,41 @@ describe('MCP settings navigation', () => {
                 )
                 .map(({ label, to }) => ({ label, to })),
         ).toEqual([{ label: 'Connect', to: '/generalSettings/mcp/connect' }]);
+    });
+});
+
+describe('AI identities settings navigation', () => {
+    it('shows the failed count only to an org admin with the flag', () => {
+        const items = organizationNavigation({
+            user: {
+                ability: { can: () => true },
+            } as unknown as SettingsContext['user'],
+            snowflakeAiTwinsFlag: {
+                enabled: true,
+            } as SettingsContext['snowflakeAiTwinsFlag'],
+            aiIdentityAccounts: [
+                {
+                    aiIdentityAccountUuid: 'account',
+                    snowflakeAccount: 'SNOWFLAKE',
+                    twinNameTemplate: null,
+                    roleTemplate: null,
+                    lastFullCheckAt: null,
+                    counts: {
+                        ready: 2,
+                        pending: 1,
+                        failed: 3,
+                        needs_sign_in: 0,
+                        total: 6,
+                    },
+                },
+            ],
+        });
+        expect(
+            items?.find((item) => item.label === 'AI identities'),
+        ).toMatchObject({
+            badge: 3,
+            to: '/generalSettings/aiIdentities',
+        });
     });
 });
 

@@ -717,6 +717,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             }) =>
                 new AiAgentService({
                     aiIdentityModel: models.getAiIdentityModel(),
+                    aiIdentityService: repository.getAiIdentityService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     userModel: models.getUserModel(),

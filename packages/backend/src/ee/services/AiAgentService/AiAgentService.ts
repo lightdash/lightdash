@@ -286,6 +286,7 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import { AiIdentityService } from '../../../services/AiIdentityService/AiIdentityService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -555,6 +556,10 @@ import {
 } from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
+import {
+    AiIdentityPromptRefusalError,
+    getAiIdentityRefusal,
+} from './aiIdentityRefusal';
 import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
 import {
     redactStreamToolOutputs,
@@ -801,6 +806,7 @@ type AiAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
     openIdIdentityModel: OpenIdIdentityModel;
     aiIdentityModel: AiIdentityModel;
+    aiIdentityService: Pick<AiIdentityService, 'getAiAccessForUser'>;
     projectService: ProjectService;
     schedulerClient: CommercialSchedulerClient;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
@@ -1142,6 +1148,11 @@ export class AiAgentService extends BaseService {
     private readonly openIdIdentityModel: OpenIdIdentityModel;
 
     private readonly aiIdentityModel: AiIdentityModel;
+
+    private readonly aiIdentityService: Pick<
+        AiIdentityService,
+        'getAiAccessForUser'
+    >;
 
     private readonly projectService: ProjectService;
 
@@ -1691,6 +1702,7 @@ export class AiAgentService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.openIdIdentityModel = dependencies.openIdIdentityModel;
         this.aiIdentityModel = dependencies.aiIdentityModel;
+        this.aiIdentityService = dependencies.aiIdentityService;
         this.projectService = dependencies.projectService;
         this.schedulerClient = dependencies.schedulerClient;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
@@ -7412,6 +7424,41 @@ export class AiAgentService extends BaseService {
             });
         }
 
+        if (prompt.response === null) {
+            const access = await this.aiIdentityService.getAiAccessForUser({
+                account: fromSession(user),
+                projectUuid: prompt.projectUuid,
+            });
+            const refusal = getAiIdentityRefusal(access);
+            if (refusal) {
+                const errorMessage = JSON.stringify(refusal);
+                await this.aiAgentModel.updateModelResponse({
+                    promptUuid: prompt.promptUuid,
+                    errorMessage,
+                });
+                this.inFlightStreamPrompts.delete(prompt.promptUuid);
+                await this.aiIdentityModel.addEvent({
+                    organizationUuid: user.organizationUuid,
+                    aiIdentityAccountUuid: null,
+                    aiIdentityUuid: null,
+                    actorType: 'user',
+                    actorUserUuid: user.userUuid,
+                    action: refusal.code,
+                    targetCount: 1,
+                    status: 'error',
+                    detail: errorMessage,
+                });
+                this.logger.info('AI identity request refused', {
+                    reason: refusal.code,
+                    state: refusal.state,
+                    userUuid: user.userUuid,
+                    projectUuid: prompt.projectUuid,
+                    promptUuid: prompt.promptUuid,
+                });
+                throw new AiIdentityPromptRefusalError(refusal);
+            }
+        }
+
         const targetThreadMessages = threadMessages.slice(
             0,
             targetPromptIndex + 1,
@@ -7844,6 +7891,7 @@ export class AiAgentService extends BaseService {
                     );
                 }
             }
+            if (e instanceof AiIdentityPromptRefusalError) throw e;
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
@@ -8512,6 +8560,7 @@ export class AiAgentService extends BaseService {
             );
             return response;
         } catch (e) {
+            if (e instanceof AiIdentityPromptRefusalError) throw e;
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
         }

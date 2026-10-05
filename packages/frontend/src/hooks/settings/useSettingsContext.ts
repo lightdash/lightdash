@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
 import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiCreditUsage } from '../../ee/features/aiCredits/hooks/useAiCreditUsage';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
+import { aiIdentityApi } from '../../features/aiIdentities/api';
 import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
@@ -35,6 +37,10 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: aiAccessRestrictionsFlag } = useServerFeatureFlag(
         FeatureFlags.AiAccessRestrictions,
     );
+    const {
+        data: snowflakeAiTwinsFlag,
+        isInitialLoading: isSnowflakeAiTwinsFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.SnowflakeAiTwins);
     const isAiCopilotEnabledOrTrial =
         aiOrganizationSettingsQuery.isSuccess &&
         (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
@@ -176,6 +182,11 @@ export const useSettingsContext = (): SettingsContext => {
             subject('Organization', { organizationUuid }),
         ) ??
             false);
+    const { data: aiIdentityAccounts } = useQuery({
+        queryKey: ['ai-identity-accounts'],
+        queryFn: aiIdentityApi.accounts,
+        enabled: snowflakeAiTwinsFlag?.enabled === true && isOrganizationAdmin,
+    });
     // The page only exists for an organization with a contract in force.
     const { data: aiCreditUsage, isInitialLoading: isAiCreditUsageLoading } =
         useAiCreditUsage({
@@ -246,6 +257,8 @@ export const useSettingsContext = (): SettingsContext => {
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         aiAccessRestrictionsFlag,
+        snowflakeAiTwinsFlag,
+        aiIdentityAccounts,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
@@ -256,6 +269,7 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
             dataAppAnalysisFlagQuery.isInitialLoading,
+        isSnowflakeAiTwinsFlagLoading,
         externalSourcesFlag,
         isResultsCacheEnabled,
         embeddingEnabled,

@@ -1,12 +1,14 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AI_IDENTITY_NAME_PLACEHOLDER,
     AiAccessForUser,
     AiIdentity,
     AiIdentityAccount,
     AiIdentityBulkTestRequest,
     AiIdentityDetail,
     AiIdentityExportRequest,
+    AiIdentityFailureReason,
     AiIdentityFilter,
     AiIdentityJob,
     AiIdentityJobKind,
@@ -25,8 +27,10 @@ import {
     normalizeSnowflakeAccount,
     NotFoundError,
     ParameterError,
+    resolveAiIdentityRole,
     SCHEDULER_TASKS,
     SNOWFLAKE_LOGIN_PLACEHOLDER,
+    validateAiIdentityRoleTemplate,
     WarehouseTypes,
 } from '@lightdash/common';
 import { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -134,6 +138,7 @@ export class AiIdentityService extends BaseService {
         aiIdentityAccountUuid: string | null,
         aiIdentityUuid: string | null,
         targetCount = 1,
+        aiIdentityJobUuid: string | null = null,
     ): Promise<void> {
         await this.args.aiIdentityModel.addEvent({
             organizationUuid,
@@ -146,6 +151,7 @@ export class AiIdentityService extends BaseService {
             actorUserUuid: account.user.id ?? null,
             action,
             targetCount,
+            aiIdentityJobUuid,
             status: 'success',
             detail: null,
         });
@@ -229,6 +235,7 @@ export class AiIdentityService extends BaseService {
         account: Account,
         aiIdentityAccountUuid: string,
         twinNameTemplate: string | null,
+        roleTemplate: string | null = null,
     ): Promise<AiIdentityAccount> {
         const { organizationUuid } = await this.checkAccount(
             account,
@@ -244,9 +251,11 @@ export class AiIdentityService extends BaseService {
             throw new ParameterError(
                 'AI user name template must contain {snowflake_login} and use only letters, numbers, _ or $',
             );
+        if (roleTemplate !== null) validateAiIdentityRoleTemplate(roleTemplate);
         const result = await this.args.aiIdentityModel.updateAccountTemplate(
             aiIdentityAccountUuid,
             twinNameTemplate,
+            roleTemplate,
         );
         await this.log(
             account,
@@ -289,6 +298,7 @@ export class AiIdentityService extends BaseService {
     async getDetail(
         account: Account,
         aiIdentityUuid: string,
+        includeReads = false,
     ): Promise<AiIdentityDetail> {
         const { organizationUuid, identity } = await this.checkIdentity(
             account,
@@ -300,6 +310,7 @@ export class AiIdentityService extends BaseService {
                 1,
                 20,
                 aiIdentityUuid,
+                includeReads,
             ),
             this.args.aiIdentityModel.list(
                 {
@@ -326,6 +337,31 @@ export class AiIdentityService extends BaseService {
             identity.aiIdentityAccountUuid,
             aiIdentityUuid,
         );
+        const warehouse =
+            identity.failureReason === AiIdentityFailureReason.WAREHOUSE_ACCESS
+                ? (
+                      await this.projectForAccount(
+                          organizationUuid,
+                          identity.snowflakeAccount,
+                      )
+                  ).credentials.warehouse
+                : null;
+        const identityAccount = await this.args.aiIdentityModel.getAccount(
+            identity.aiIdentityAccountUuid,
+        );
+        const roleTemplate = identityAccount?.roleTemplate ?? null;
+        const roleForTwin =
+            roleTemplate !== null &&
+            (!roleTemplate.includes(SNOWFLAKE_LOGIN_PLACEHOLDER) ||
+                identity.snowflakeLogin !== null) &&
+            (!roleTemplate.includes(AI_IDENTITY_NAME_PLACEHOLDER) ||
+                identity.twinName !== null)
+                ? resolveAiIdentityRole(
+                      roleTemplate,
+                      identity.snowflakeLogin,
+                      identity.twinName,
+                  )
+                : null;
         return {
             identity,
             fixSql:
@@ -335,7 +371,8 @@ export class AiIdentityService extends BaseService {
                           reason: identity.failureReason,
                           twinName: identity.twinName,
                           publicKey: identity.publicKey,
-                          roleForTwin: null,
+                          roleForTwin,
+                          warehouse,
                       }),
             sameReasonCount: Math.max(0, list.pagination.totalResults - 1),
             history: events.data,
@@ -493,6 +530,7 @@ export class AiIdentityService extends BaseService {
                         : 'user',
                 actorUserUuid: account.user.id,
                 action,
+                aiIdentityJobUuid: job.jobUuid,
                 targetCount: 0,
                 status: 'error',
                 detail,
@@ -505,6 +543,8 @@ export class AiIdentityService extends BaseService {
             action,
             filter.aiIdentityAccountUuid,
             null,
+            0,
+            job.jobUuid,
         );
         return job;
     }
@@ -525,17 +565,22 @@ export class AiIdentityService extends BaseService {
         account: Account,
         request: AiIdentityExportRequest,
     ): Promise<AiIdentityJob> {
-        if (
-            request.roleForTwin !== null &&
-            !/^[A-Za-z_][A-Za-z0-9_$]*$/.test(request.roleForTwin)
-        )
-            throw new ParameterError('Invalid Snowflake role');
+        const roleForTwin =
+            request.roleForTwin === undefined
+                ? (
+                      await this.checkAccount(
+                          account,
+                          request.filter.aiIdentityAccountUuid,
+                      )
+                  ).identityAccount.roleTemplate
+                : request.roleForTwin;
+        if (roleForTwin !== null) validateAiIdentityRoleTemplate(roleForTwin);
         return this.queueJob(
             account,
             AiIdentityJobKind.EXPORT,
             request.filter,
             request.format,
-            request.roleForTwin,
+            roleForTwin,
             'export',
         );
     }
@@ -573,12 +618,24 @@ export class AiIdentityService extends BaseService {
         );
         return job;
     }
-    async getRequestLog(account: Account, page: number, pageSize: number) {
+    async getPreview(account: Account, aiIdentityAccountUuid: string) {
+        await this.checkAccount(account, aiIdentityAccountUuid);
+        return this.args.aiIdentityModel.preview(aiIdentityAccountUuid);
+    }
+
+    async getRequestLog(
+        account: Account,
+        page: number,
+        pageSize: number,
+        includeReads = false,
+    ) {
         const organizationUuid = await this.checkAdmin(account);
         const result = await this.args.aiIdentityModel.listEvents(
             organizationUuid,
             page,
             pageSize,
+            null,
+            includeReads,
         );
         await this.log(account, organizationUuid, 'list', null, null);
         return result;
@@ -684,6 +741,7 @@ export class AiIdentityService extends BaseService {
                 organizationUuid: job.organizationUuid,
                 aiIdentityAccountUuid: job.aiIdentityAccountUuid,
                 aiIdentityUuid: null,
+                aiIdentityJobUuid: jobUuid,
                 actorType: 'scheduler',
                 actorUserUuid: null,
                 action: job.kind,
@@ -700,6 +758,7 @@ export class AiIdentityService extends BaseService {
                 organizationUuid: job.organizationUuid,
                 aiIdentityAccountUuid: job.aiIdentityAccountUuid,
                 aiIdentityUuid: null,
+                aiIdentityJobUuid: jobUuid,
                 actorType: 'scheduler',
                 actorUserUuid: null,
                 action: job.kind,
@@ -711,7 +770,10 @@ export class AiIdentityService extends BaseService {
         }
     }
     private async runTest(
-        job: AiIdentityJob & { filter: AiIdentityFilter },
+        job: AiIdentityJob & {
+            filter: AiIdentityFilter;
+            organizationUuid: string;
+        },
     ): Promise<void> {
         let afterUuid: string | null = null;
         let done = 0;
@@ -734,11 +796,36 @@ export class AiIdentityService extends BaseService {
             if (ids.length === 0) return;
             await forEachSequential(ids, async (id) => {
                 try {
-                    await this.testIdentityByUuid(id);
+                    const result = await this.testIdentityByUuid(id);
+                    await this.args.aiIdentityModel.addEvent({
+                        organizationUuid: job.organizationUuid,
+                        aiIdentityAccountUuid: result.aiIdentityAccountUuid,
+                        aiIdentityUuid: id,
+                        actorType: 'scheduler',
+                        actorUserUuid: null,
+                        action: 'tested',
+                        targetCount: 1,
+                        status:
+                            result.state === AiIdentityState.READY
+                                ? 'success'
+                                : 'error',
+                        detail: result.state,
+                    });
                 } catch (error) {
                     this.logger.warn('AI identity check failed', {
                         aiIdentityUuid: id,
                         error,
+                    });
+                    await this.args.aiIdentityModel.addEvent({
+                        organizationUuid: job.organizationUuid,
+                        aiIdentityAccountUuid: job.filter.aiIdentityAccountUuid,
+                        aiIdentityUuid: id,
+                        actorType: 'scheduler',
+                        actorUserUuid: null,
+                        action: 'tested',
+                        targetCount: 1,
+                        status: 'error',
+                        detail: 'failed',
                     });
                 }
                 afterUuid = id;
@@ -769,31 +856,108 @@ export class AiIdentityService extends BaseService {
             roleForTwin: string | null;
         },
     ): Promise<void> {
-        const identities: AiIdentity[] = [];
-        const loadPage = async (page: number): Promise<void> => {
-            const result = await this.args.aiIdentityModel.list(
-                job.filter,
-                AiIdentitySort.NAME,
-                'asc',
-                page,
-                100,
-            );
-            identities.push(...result.data);
-            if (
-                identities.length < result.pagination.totalResults &&
-                result.data.length > 0
-            )
-                await loadPage(page + 1);
+        const loadAll = async (
+            filter: AiIdentityFilter,
+        ): Promise<AiIdentity[]> => {
+            const rows: AiIdentity[] = [];
+            const loadPage = async (page: number): Promise<void> => {
+                const result = await this.args.aiIdentityModel.list(
+                    filter,
+                    AiIdentitySort.NAME,
+                    'asc',
+                    page,
+                    100,
+                );
+                rows.push(...result.data);
+                if (
+                    rows.length < result.pagination.totalResults &&
+                    result.data.length > 0
+                )
+                    await loadPage(page + 1);
+            };
+            await loadPage(1);
+            return rows;
         };
-        await loadPage(1);
+        const identities = await loadAll(job.filter);
+        const notSignedIn =
+            job.filter.states.length > 0 &&
+            !job.filter.states.includes(AiIdentityState.NEEDS_SIGN_IN)
+                ? await loadAll({
+                      ...job.filter,
+                      states: [AiIdentityState.NEEDS_SIGN_IN],
+                      reasons: [],
+                  })
+                : [];
+        const roleCannotBeFilled = (identity: AiIdentity): boolean =>
+            Boolean(
+                (job.roleForTwin?.includes(SNOWFLAKE_LOGIN_PLACEHOLDER) &&
+                    identity.snowflakeLogin === null) ||
+                (job.roleForTwin?.includes(AI_IDENTITY_NAME_PLACEHOLDER) &&
+                    identity.twinName === null),
+            );
+        const skipped = [
+            ...identities
+                .filter(roleCannotBeFilled)
+                .map(({ email, twinName }) => ({
+                    email,
+                    reason:
+                        twinName === null
+                            ? 'no Snowflake login recorded; ask them to sign in to Snowflake or set an AI identity name'
+                            : 'no Snowflake login recorded, so the role template could not be filled; ask them to sign in to Snowflake or use {ai_identity_name} in the role template',
+                })),
+            ...notSignedIn.map(({ email }) => ({
+                email,
+                reason: 'no Snowflake login recorded; ask them to sign in to Snowflake or set an AI identity name',
+            })),
+        ];
+        const exportIdentities = skipped.length
+            ? identities.filter((identity) => !roleCannotBeFilled(identity))
+            : identities;
         let url: string;
         if (job.format === 'sql') {
             url = await this.args.fileStorageClient.uploadTextFile(
                 Buffer.from(
-                    buildAiTwinProvisioningSql({
-                        identities,
-                        roleForTwin: job.roleForTwin,
-                    }),
+                    job.filter.reasons.length === 1 &&
+                        job.filter.reasons[0] ===
+                            AiIdentityFailureReason.KEY_OR_USER_REJECTED
+                        ? [
+                              ...skipped.map(
+                                  ({ email, reason }) =>
+                                      `-- Skipped ${email}: ${reason}`,
+                              ),
+                              ...exportIdentities.flatMap((identity) => {
+                                  const roleTemplate = job.roleForTwin;
+                                  const role =
+                                      roleTemplate !== null &&
+                                      (!roleTemplate.includes(
+                                          SNOWFLAKE_LOGIN_PLACEHOLDER,
+                                      ) ||
+                                          identity.snowflakeLogin !== null) &&
+                                      (!roleTemplate.includes(
+                                          AI_IDENTITY_NAME_PLACEHOLDER,
+                                      ) ||
+                                          identity.twinName !== null)
+                                          ? resolveAiIdentityRole(
+                                                roleTemplate,
+                                                identity.snowflakeLogin,
+                                                identity.twinName,
+                                            )
+                                          : null;
+                                  const sql = buildAiIdentityFixSql({
+                                      reason: AiIdentityFailureReason.KEY_OR_USER_REJECTED,
+                                      twinName: identity.twinName,
+                                      publicKey: identity.publicKey,
+                                      roleForTwin: role,
+                                      warehouse: null,
+                                  });
+                                  return sql === null ? [] : [sql];
+                              }),
+                          ].join('\n')
+                        : buildAiTwinProvisioningSql({
+                              identities: exportIdentities,
+                              roleForTwin: job.roleForTwin,
+                              skipped,
+                          }),
                 ),
                 job.jobUuid,
                 'sql',
@@ -820,7 +984,9 @@ export class AiIdentityService extends BaseService {
             );
         } else {
             url = await this.args.fileStorageClient.uploadTextFile(
-                Buffer.from(JSON.stringify(identities)),
+                Buffer.from(
+                    JSON.stringify({ identities: exportIdentities, skipped }),
+                ),
                 job.jobUuid,
                 'json',
             );
@@ -829,6 +995,7 @@ export class AiIdentityService extends BaseService {
             total: identities.length,
             done: identities.length,
             fileUrl: url,
+            skipped,
         });
     }
     private async runSync(
@@ -1078,5 +1245,53 @@ export class AiIdentityService extends BaseService {
                 );
             }
         });
+    }
+    async getMyAiIdentities(account: Account): Promise<
+        Array<{
+            aiIdentityAccountUuid: string;
+            accountLabel: string;
+            aiIdentityName: string | null;
+            state: AiIdentityState;
+            lastCheckedAt: Date | null;
+            action: AiAccessForUser['action'];
+            message: string | null;
+        }>
+    > {
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid) throw new ForbiddenError();
+        const flag = await this.args.featureFlagModel.get({
+            featureFlagId: FeatureFlags.SnowflakeAiTwins,
+            user: { organizationUuid, userUuid: account.user.id },
+        });
+        if (!flag.enabled) return [];
+        const accounts =
+            await this.args.aiIdentityModel.listAccounts(organizationUuid);
+        const identities = await Promise.all(
+            accounts.map(async (identityAccount) => {
+                const identity = await this.args.aiIdentityModel.find({
+                    aiIdentityAccountUuid:
+                        identityAccount.aiIdentityAccountUuid,
+                    userUuid: account.user.id,
+                });
+                const state = identity?.state ?? AiIdentityState.NEEDS_SIGN_IN;
+                let action: AiAccessForUser['action'] = null;
+                if (state === AiIdentityState.NEEDS_SIGN_IN) action = 'sign_in';
+                else if (state !== AiIdentityState.READY) action = 'ask_admin';
+                return {
+                    aiIdentityAccountUuid:
+                        identityAccount.aiIdentityAccountUuid,
+                    accountLabel: identityAccount.snowflakeAccount,
+                    aiIdentityName: identity?.twinName ?? null,
+                    state,
+                    lastCheckedAt: identity?.checkedAt ?? null,
+                    action,
+                    message:
+                        state === AiIdentityState.READY
+                            ? null
+                            : getAiIdentityPersonMessage(state),
+                };
+            }),
+        );
+        return identities;
     }
 }

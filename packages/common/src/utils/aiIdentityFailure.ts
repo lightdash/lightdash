@@ -19,7 +19,7 @@ export const classifyAiIdentityFailure = (
     )
         return AiIdentityFailureReason.NOT_SERVICE_AGENT;
     if (/JWT token is invalid/i.test(message))
-        return AiIdentityFailureReason.PUBLIC_KEY_NOT_SET;
+        return AiIdentityFailureReason.KEY_OR_USER_REJECTED;
     if (
         /Failed to select Snowflake warehouse|No active warehouse/i.test(
             message,
@@ -42,10 +42,11 @@ export const getAiIdentityFailureGroupCopy = (
     severity: AiIdentityFailureSeverity;
 } => {
     switch (reason) {
-        case AiIdentityFailureReason.PUBLIC_KEY_NOT_SET:
+        case AiIdentityFailureReason.KEY_OR_USER_REJECTED:
             return {
-                title: 'Public key not set',
-                explanation: 'Snowflake rejects the AI identity key.',
+                title: 'Snowflake rejected the AI identity',
+                explanation:
+                    'The Snowflake user may be missing or its public key may not be set.',
                 fix: 'Create the user and set its public key.',
                 severity: AiIdentityFailureSeverity.AVAILABILITY,
             };
@@ -106,25 +107,41 @@ export const buildAiIdentityFixSql = ({
     twinName,
     publicKey,
     roleForTwin,
+    warehouse,
 }: {
     reason: AiIdentityFailureReason;
     twinName: string | null;
     publicKey: string | null;
     roleForTwin: string | null;
+    warehouse: string | null;
 }): string | null => {
     if (twinName === null) return null;
     const user = quoteIdentifier(twinName);
     switch (reason) {
-        case AiIdentityFailureReason.PUBLIC_KEY_NOT_SET:
+        case AiIdentityFailureReason.KEY_OR_USER_REJECTED:
             return publicKey === null
                 ? null
-                : `CREATE USER IF NOT EXISTS ${user} TYPE = SERVICE_AGENT RSA_PUBLIC_KEY = '${publicKey}';\nALTER USER ${user} SET RSA_PUBLIC_KEY = '${publicKey}';`;
+                : [
+                      `CREATE USER IF NOT EXISTS ${user} TYPE = SERVICE_AGENT RSA_PUBLIC_KEY = '${publicKey.replace(/'/g, "''")}'${roleForTwin === null ? '' : ` DEFAULT_ROLE = ${quoteIdentifier(roleForTwin)}`};`,
+                      `ALTER USER ${user} SET RSA_PUBLIC_KEY = '${publicKey.replace(/'/g, "''")}';`,
+                      ...(roleForTwin === null
+                          ? []
+                          : [
+                                `ALTER USER ${user} SET DEFAULT_ROLE = ${quoteIdentifier(roleForTwin)};`,
+                                `GRANT ROLE ${quoteIdentifier(roleForTwin)} TO USER ${user};`,
+                            ]),
+                  ].join('\n');
         case AiIdentityFailureReason.NOT_SERVICE_AGENT:
             return `ALTER USER ${user} SET TYPE = SERVICE_AGENT;`;
         case AiIdentityFailureReason.DISABLED_OR_LOCKED:
             return `ALTER USER ${user} SET DISABLED = FALSE;\nALTER USER ${user} UNSET MINS_TO_UNLOCK;`;
         case AiIdentityFailureReason.WAREHOUSE_ACCESS:
-            return `GRANT USAGE ON WAREHOUSE <warehouse> TO ROLE ${roleForTwin === null ? '<role>' : quoteIdentifier(roleForTwin)};`;
+            if (warehouse === null)
+                return '-- Select a warehouse in the connection before granting warehouse usage.';
+            return roleForTwin === null
+                ? `-- Replace AI_ROLE with the role your automation grants to this AI identity.
+-- GRANT USAGE ON WAREHOUSE ${quoteIdentifier(warehouse)} TO ROLE AI_ROLE;`
+                : `GRANT USAGE ON WAREHOUSE ${quoteIdentifier(warehouse)} TO ROLE ${quoteIdentifier(roleForTwin)};`;
         case AiIdentityFailureReason.WRONG_USER:
         case AiIdentityFailureReason.NETWORK_POLICY:
         case AiIdentityFailureReason.UNKNOWN:

@@ -56,6 +56,43 @@ const filter = {
 };
 
 describe('AiIdentityModel', () => {
+    it('returns the saved role template with the account', async () => {
+        tracker.on.select('ai_identity_accounts').responseOnce([
+            {
+                ai_identity_account_uuid: 'account',
+                organization_uuid: 'org',
+                snowflake_account: 'ACCT',
+                twin_name_template: '{snowflake_login}_AI',
+                role_template: '{ai_identity_name}_ROLE',
+                last_full_check_at: null,
+            },
+        ]);
+        tracker.on.select('ai_identities').responseOnce([]);
+        await expect(model.getAccount('account')).resolves.toMatchObject({
+            roleTemplate: '{ai_identity_name}_ROLE',
+        });
+    });
+
+    it('stores the job link on an audit event', async () => {
+        tracker.on.insert('ai_identity_events').responseOnce(1);
+        await model.addEvent({
+            organizationUuid: 'org',
+            aiIdentityAccountUuid: 'account',
+            aiIdentityUuid: null,
+            aiIdentityJobUuid: 'job',
+            actorType: 'user',
+            actorUserUuid: 'user',
+            action: 'export',
+            targetCount: 0,
+            status: 'success',
+            detail: null,
+        });
+        expect(tracker.history.insert[0].sql).toContain(
+            '"ai_identity_job_uuid"',
+        );
+        expect(tracker.history.insert[0].bindings).toContain('job');
+    });
+
     it('finds the newest delivered Slack DM for one person and organization since the cutoff', async () => {
         const since = new Date('2026-10-04T12:00:00Z');
         const createdAt = new Date('2026-10-05T10:00:00Z');
@@ -100,6 +137,118 @@ describe('AiIdentityModel', () => {
         ).toBeNull();
     });
 
+    it('keeps bulk test results in identity history but out of the request log', async () => {
+        tracker.on.select('ai_identity_events').responseOnce([{ count: '0' }]);
+        tracker.on.select('ai_identity_events').responseOnce([]);
+        await model.listEvents('org', 1, 20);
+        expect(tracker.history.select[0].sql).toContain(
+            'not "ai_identity_events"."action" =',
+        );
+        expect(tracker.history.select[0].bindings).toContain('tested');
+        tracker.reset();
+        tracker.on.select('ai_identity_events').responseOnce([{ count: '0' }]);
+        tracker.on.select('ai_identity_events').responseOnce([]);
+        await model.listEvents('org', 1, 20, 'identity');
+        expect(tracker.history.select[0].bindings).not.toContain('tested');
+        expect(tracker.history.select[0].bindings).toContain('list');
+    });
+
+    it.each(['success', 'error'])(
+        'merges the latest job %s into the initiating request before pagination',
+        async (status) => {
+            tracker.on
+                .select('ai_identity_events')
+                .responseOnce([{ count: '1' }]);
+            tracker.on.select('ai_identity_events').responseOnce([
+                {
+                    ai_identity_event_uuid: 'request',
+                    actor_type: 'api',
+                    actor_user_uuid: 'user',
+                    first_name: 'First',
+                    last_name: 'Last',
+                    action: 'export',
+                    status: 'success',
+                    target_count: 0,
+                    ai_identity_job_uuid: 'job',
+                    job_status: 'done',
+                    outcome_status: status,
+                    outcome_target_count: 12,
+                    outcome_detail:
+                        status === 'error' ? 'Storage unavailable' : null,
+                },
+            ]);
+            const result = await model.listEvents('org', 2, 20);
+            expect(result.data[0]).toMatchObject({
+                aiIdentityEventUuid: 'request',
+                actorType: 'api',
+                actorName: 'First Last',
+                action: 'export',
+                status,
+                targetCount: 12,
+                detail: `Job job (done)${status === 'error' ? ' · Storage unavailable' : ''}`,
+            });
+            expect(result.pagination.totalResults).toBe(1);
+            for (const query of tracker.history.select) {
+                expect(query.sql).toContain('not exists');
+                expect(query.sql).toContain(
+                    '"request"."organization_uuid" = "ai_identity_events"."organization_uuid"',
+                );
+                expect(query.sql).toContain(
+                    '"request"."ai_identity_job_uuid" = "ai_identity_events"."ai_identity_job_uuid"',
+                );
+                expect(query.bindings).toEqual(
+                    expect.arrayContaining(['user', 'api']),
+                );
+            }
+            expect(tracker.history.select[1].sql).toContain(
+                'LEFT JOIN LATERAL',
+            );
+            expect(tracker.history.select[1].sql).toContain(
+                'ORDER BY outcome.created_at DESC',
+            );
+            expect(tracker.history.select[1].bindings.slice(-2)).toEqual([
+                20, 20,
+            ]);
+        },
+    );
+
+    it('preserves scheduler-only and legacy events without an outcome', async () => {
+        tracker.on.select('ai_identity_events').responseOnce([{ count: '2' }]);
+        tracker.on.select('ai_identity_events').responseOnce([
+            {
+                actor_type: 'scheduler',
+                first_name: null,
+                status: 'success',
+                target_count: 7,
+                detail: null,
+                ai_identity_job_uuid: 'daily',
+            },
+            {
+                actor_type: 'user',
+                first_name: 'First',
+                last_name: 'Last',
+                status: 'error',
+                target_count: 0,
+                detail: 'Old error',
+                ai_identity_job_uuid: null,
+            },
+        ]);
+        const result = await model.listEvents('org', 1, 20);
+        expect(result.data).toEqual([
+            expect.objectContaining({
+                actorType: 'scheduler',
+                status: 'success',
+                targetCount: 7,
+                detail: 'Job daily',
+            }),
+            expect.objectContaining({
+                actorType: 'user',
+                status: 'error',
+                detail: 'Old error',
+            }),
+        ]);
+    });
+
     it('finds an identity by account and person without returning its private key', async () => {
         tracker.on.select('ai_identities').responseOnce([row]);
         const identity = await model.find({
@@ -116,6 +265,19 @@ describe('AiIdentityModel', () => {
         );
         expect(tracker.history.select[0].sql).not.toContain(
             'encrypted_private_key',
+        );
+    });
+
+    it('maps stored legacy key failures to the combined reason', async () => {
+        tracker.on
+            .select('ai_identities')
+            .responseOnce([{ ...row, failure_reason: 'public_key_not_set' }]);
+        const found = await model.find({
+            aiIdentityAccountUuid: 'account',
+            userUuid: 'user',
+        });
+        expect(found?.failureReason).toBe(
+            AiIdentityFailureReason.KEY_OR_USER_REJECTED,
         );
     });
 
@@ -154,7 +316,7 @@ describe('AiIdentityModel', () => {
             {
                 ...filter,
                 states: [AiIdentityState.FAILED],
-                reasons: [AiIdentityFailureReason.PUBLIC_KEY_NOT_SET],
+                reasons: [AiIdentityFailureReason.KEY_OR_USER_REJECTED],
                 search: 'first',
                 staleOnly: true,
             },
@@ -184,6 +346,68 @@ describe('AiIdentityModel', () => {
         const sql = tracker.history.select.map((query) => query.sql).join(' ');
         expect(sql).toContain('project_group_access');
         expect(tracker.history.select[0].bindings).toContain('project');
+    });
+
+    it('limits a bulk filter to selected identity UUIDs', async () => {
+        tracker.on.select('ai_identities').responseOnce([]);
+        tracker.on.select('ai_identities').responseOnce([]);
+        await model.list(
+            { ...filter, aiIdentityUuids: ['first-id', 'second-id'] },
+            AiIdentitySort.SEVERITY,
+            'asc',
+            1,
+            20,
+        );
+        const sql = tracker.history.select.map((query) => query.sql).join(' ');
+        expect(sql).toContain('"ai_identities"."ai_identity_uuid" in');
+        expect(tracker.history.select[0].bindings).toContain('first-id');
+        expect(tracker.history.select[0].bindings).toContain('second-id');
+    });
+
+    it('samples risky names across the account without exposing private keys', async () => {
+        tracker.on
+            .select('ai_identities')
+            .responseOnce([
+                { ...row, ai_identity_uuid: 'missing', snowflake_login: null },
+            ]);
+        tracker.on.select('ai_identities').responseOnce([
+            {
+                ...row,
+                ai_identity_uuid: 'punctuation',
+                snowflake_login: 'FIRST.LAST',
+            },
+        ]);
+        tracker.on.select('ai_identities').responseOnce([
+            {
+                ...row,
+                ai_identity_uuid: 'long',
+                snowflake_login: 'A'.repeat(256),
+            },
+        ]);
+        tracker.on.select('ai_identities').responseOnce([row]);
+
+        const identities = await model.preview('account');
+
+        expect(identities.map((identity) => identity.aiIdentityUuid)).toEqual([
+            'missing',
+            'punctuation',
+            'long',
+        ]);
+        expect(tracker.history.select).toHaveLength(4);
+        expect(tracker.history.select[0].sql).toContain(
+            'snowflake_login" is null',
+        );
+        expect(tracker.history.select[1].sql).toContain('snowflake_login ~ $');
+        expect(tracker.history.select[2].sql).toContain(
+            'length(ai_identities.snowflake_login) > 255',
+        );
+        expect(tracker.history.select[3].sql).toContain(
+            'order by "ai_identities"."created_at" desc',
+        );
+        tracker.history.select.forEach((query) => {
+            expect(query.bindings).toContain('account');
+            expect(query.sql).not.toContain('encrypted_private_key');
+        });
     });
 
     it('stores encrypted keys and resets the prior check', async () => {

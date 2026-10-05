@@ -27,6 +27,7 @@ const account: AiIdentityAccount = {
     aiIdentityAccountUuid: 'account-1',
     snowflakeAccount: 'ACCOUNT',
     twinNameTemplate: null,
+    roleTemplate: null,
     lastFullCheckAt: null,
     counts,
 };
@@ -38,6 +39,7 @@ const job: AiIdentityJob = {
     done: 1,
     fileUrl: 'https://storage.example/export',
     error: null,
+    skipped: [],
     createdAt: new Date(),
 };
 const identity: AiIdentity = {
@@ -81,6 +83,8 @@ afterEach(() => {
 });
 
 it('shows the selected project identity, last check and action', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-05T12:23:00Z'));
     const access: AiAccessForUser = {
         projectUuid: 'project-1',
         restrictionsOn: true,
@@ -104,7 +108,7 @@ it('shows the selected project identity, last check and action', async () => {
         expect.stringContaining('PERSON_AI'),
     );
     expect(process.stdout.write).toHaveBeenCalledWith(
-        expect.stringContaining('2026-10-05T12:00:00.000Z'),
+        expect.stringContaining('23 minutes ago'),
     );
     expect(process.stdout.write).toHaveBeenCalledWith(
         expect.stringContaining('Ask an admin'),
@@ -140,7 +144,7 @@ it('pages through all list results with the chosen state', async () => {
             pagination: { ...page.pagination, totalPageCount: 2 },
         })
         .mockResolvedValueOnce(page);
-    await aiIdentitiesListHandler({ pending: true, format: 'json' });
+    await aiIdentitiesListHandler({ pending: true, format: 'table' });
     expect(lightdashApi).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -154,7 +158,62 @@ it('pages through all list results with the chosen state', async () => {
         }),
     );
     expect(process.stdout.write).toHaveBeenCalledWith(
-        `${JSON.stringify([identity], null, 2)}\n`,
+        expect.stringContaining('person@example.com'),
+    );
+});
+
+it('downloads JSON with identities and skipped people', async () => {
+    vi.mocked(lightdashApi)
+        .mockResolvedValueOnce([account])
+        .mockResolvedValueOnce({ ...job, skipped: [] });
+    const json = JSON.stringify({ identities: [identity], skipped: [] });
+    vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: async () => json,
+    } as Awaited<ReturnType<typeof fetch>>);
+    await aiIdentitiesListHandler({ format: 'json' });
+    expect(process.stdout.write).toHaveBeenCalledWith(json);
+});
+
+it('uses the account role unless --no-roles overrides it', async () => {
+    vi.mocked(lightdashApi)
+        .mockResolvedValueOnce([account])
+        .mockResolvedValueOnce(job)
+        .mockResolvedValueOnce([account])
+        .mockResolvedValueOnce(job);
+    vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: async () => 'SQL',
+    } as Awaited<ReturnType<typeof fetch>>);
+    await aiIdentitiesListHandler({ format: 'sql' });
+    await aiIdentitiesListHandler({ format: 'sql', roles: false });
+    expect(
+        JSON.parse(String(vi.mocked(lightdashApi).mock.calls[1][0].body)),
+    ).not.toHaveProperty('roleForTwin');
+    expect(
+        JSON.parse(String(vi.mocked(lightdashApi).mock.calls[3][0].body)),
+    ).toHaveProperty('roleForTwin', null);
+});
+
+it('warns when a completed export skipped people', async () => {
+    vi.mocked(lightdashApi)
+        .mockResolvedValueOnce([account])
+        .mockResolvedValueOnce({
+            ...job,
+            skipped: [
+                { email: 'missing@example.com', reason: 'No Snowflake login' },
+            ],
+        });
+    vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: async () => '-- Skipped 1 people',
+    } as Awaited<ReturnType<typeof fetch>>);
+    await aiIdentitiesListHandler({
+        format: 'sql',
+        roleTemplate: '{snowflake_login}_AI_ROLE',
+    });
+    expect(process.stderr.write).toHaveBeenCalledWith(
+        'Warning: skipped 1 person; see the comment at the top\n',
     );
 });
 
@@ -224,14 +283,13 @@ it('polls exports every two seconds and downloads without forwarding the API tok
                     staleOnly: false,
                 },
                 format: 'sql',
-                roleForTwin: null,
             }),
         }),
     );
 });
 
 it('writes CSV to the output file', async () => {
-    const output = `/tmp/ai-identities-test-${process.pid}.csv`;
+    const output = `/tmp/fb1-ai-identities-test-${process.pid}.csv`;
     vi.mocked(lightdashApi)
         .mockResolvedValueOnce([account])
         .mockResolvedValueOnce(job);
@@ -248,16 +306,39 @@ it('writes CSV to the output file', async () => {
     }
 });
 
+it('does not show a zero of zero progress line before the export has a total', async () => {
+    vi.useFakeTimers();
+    vi.mocked(lightdashApi)
+        .mockResolvedValueOnce([account])
+        .mockResolvedValueOnce({
+            ...job,
+            status: AiIdentityJobStatus.QUEUED,
+            total: 0,
+            done: 0,
+        })
+        .mockResolvedValueOnce(job);
+    vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: async () => 'SQL',
+    } as Awaited<ReturnType<typeof fetch>>);
+    const result = aiIdentitiesListHandler({ format: 'sql' });
+    await vi.advanceTimersByTimeAsync(2000);
+    await result;
+    expect(process.stderr.write).not.toHaveBeenCalledWith(
+        expect.stringContaining('0/0'),
+    );
+});
+
 it('fails on an unsuccessful job or download', async () => {
     vi.mocked(lightdashApi)
         .mockResolvedValueOnce([account])
         .mockResolvedValueOnce({
             ...job,
             status: AiIdentityJobStatus.FAILED,
-            error: 'Export failed',
+            error: 'Permission denied',
         });
     await expect(aiIdentitiesListHandler({ format: 'sql' })).rejects.toThrow(
-        'Export failed',
+        'Export failed: Permission denied',
     );
     expect(fetch).not.toHaveBeenCalled();
     vi.mocked(lightdashApi)
@@ -292,5 +373,80 @@ it.each([true, false])('submits a bulk test with failed=%s', async (failed) => {
                 },
             }),
         }),
+    );
+});
+
+it.each([
+    { roleTemplate: '{snowflake_login}_AI_ROLE' },
+    { role: 'FIXED_ROLE' },
+])('passes the role option to SQL export: %s', async (option) => {
+    vi.mocked(lightdashApi)
+        .mockResolvedValueOnce([account])
+        .mockResolvedValueOnce(job);
+    vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: async () => 'SQL',
+    } as Awaited<ReturnType<typeof fetch>>);
+    await aiIdentitiesListHandler({ format: 'sql', ...option });
+    expect(lightdashApi).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+            body: expect.stringContaining(
+                JSON.stringify(option.roleTemplate ?? option.role),
+            ),
+        }),
+    );
+});
+
+it('rejects conflicting role options and role options without an export format', async () => {
+    await expect(
+        aiIdentitiesListHandler({
+            format: 'sql',
+            role: 'ROLE',
+            roleTemplate: 'OTHER',
+        }),
+    ).rejects.toThrow('either');
+    await expect(
+        aiIdentitiesListHandler({ format: 'table', role: 'ROLE' }),
+    ).rejects.toThrow('--format sql or json');
+    await expect(
+        aiIdentitiesListHandler({ format: 'sql', roleTemplate: '{unknown}' }),
+    ).rejects.toThrow('Invalid Snowflake role');
+    expect(lightdashApi).not.toHaveBeenCalled();
+});
+
+it.each([AiIdentityState.PENDING, AiIdentityState.FAILED])(
+    'shows Not ready for personal state %s',
+    async (state) => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            state,
+            aiIdentityName: 'PERSON_AI',
+            lastCheckedAt: null,
+            message: 'Ask an admin.',
+        });
+        await aiIdentityHandler({ project: 'project' });
+        expect(process.stdout.write).toHaveBeenCalledWith(
+            expect.stringContaining('Not ready'),
+        );
+    },
+);
+
+it('keeps machine state and ISO timestamps in personal JSON', async () => {
+    const access: AiAccessForUser = {
+        projectUuid: 'project',
+        restrictionsOn: true,
+        warehouseType: 'snowflake',
+        aiIdentityRequired: true,
+        state: AiIdentityState.FAILED,
+        aiIdentityName: 'PERSON_AI',
+        lastCheckedAt: new Date('2026-10-05T12:00:00Z'),
+        action: 'ask_admin',
+        message: 'Ask an admin.',
+        rawSqlAllowed: false,
+    };
+    vi.mocked(lightdashApi).mockResolvedValue(access);
+    await aiIdentityHandler({ project: 'project', format: 'json' });
+    expect(process.stdout.write).toHaveBeenCalledExactlyOnceWith(
+        `${JSON.stringify(access, null, 2)}\n`,
     );
 });

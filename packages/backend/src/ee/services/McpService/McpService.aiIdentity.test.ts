@@ -158,6 +158,7 @@ it.each([
         structuredContent: {
             error: {
                 code: 'ai_identity_not_ready',
+                label: 'Not ready',
                 state: 'pending',
                 message: access.message,
                 settingsUrl:
@@ -262,6 +263,7 @@ it('maps a query-path identity error into the same structured error', async () =
     expect(result.structuredContent).toEqual({
         error: {
             code: 'ai_identity_not_ready',
+            label: 'Not ready',
             state: 'failed',
             message: access.message,
             settingsUrl:
@@ -322,8 +324,13 @@ it('returns AI access for the current or explicit project', async () => {
     expect(isProjectScopedMcpTool(McpToolName.GET_AI_ACCESS)).toBe(false);
     const callback = registered.get(McpToolName.GET_AI_ACCESS)!;
     expect(await callback({}, extra)).toEqual({
-        content: [{ type: 'text', text: JSON.stringify(access) }],
-        structuredContent: access,
+        content: [
+            {
+                type: 'text',
+                text: JSON.stringify({ ...access, label: 'Not ready' }),
+            },
+        ],
+        structuredContent: { ...access, label: 'Not ready' },
     });
     await callback({ projectUuid: 'explicit-project' }, extra);
     expect(aiIdentityService.getAiAccessForUser).toHaveBeenLastCalledWith({
@@ -406,6 +413,7 @@ it('preserves a query-path refusal from the registered SQL handler', async () =>
     expect(result.structuredContent).toMatchObject({
         error: {
             code: 'ai_identity_not_ready',
+            label: 'Needs Snowflake sign-in',
             state: 'needs_sign_in',
             message: getAiIdentityPersonMessage(AiIdentityState.NEEDS_SIGN_IN),
         },

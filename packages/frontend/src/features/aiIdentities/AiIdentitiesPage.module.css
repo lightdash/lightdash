@@ -1,0 +1,69 @@
+.groupCard {
+    min-width: 15rem;
+    max-width: 18rem;
+}
+
+.groupCardActive {
+    outline: 2px solid var(--mantine-color-text);
+}
+
+.tableContainer {
+    max-height: 36rem;
+}
+
+.row {
+    cursor: pointer;
+}
+
+.identityName {
+    white-space: nowrap;
+    font-family: var(--mantine-font-family-monospace);
+}
+
+.fixSql {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.fixSql :global(.mantine-CodeHighlight-code) {
+    width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.fixSql :global(.mantine-CodeHighlight-pre) {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.fixSql :global(.mantine-CodeHighlight-controls) {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.statRow {
+    gap: var(--mantine-spacing-xs);
+}
+
+.statTile {
+    min-width: 120px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border: 1px solid transparent;
+    border-radius: var(--mantine-radius-md);
+}
+
+.statTile:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.statTile[data-active] {
+    border-color: var(--mantine-color-default-border);
+}
+
+.statNumber {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}

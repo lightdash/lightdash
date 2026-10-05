@@ -12,6 +12,7 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
+import { AiIdentitySection } from './AiIdentitySection';
 import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
@@ -24,6 +25,9 @@ export const MyWarehouseConnectionsPanel = () => {
     const { data: health } = useHealth();
     const { data: aiSignInFlag } = useServerFeatureFlag(
         FeatureFlags.SnowflakeAiSignIn,
+    );
+    const { data: aiIdentitiesFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiTwins,
     );
     const defaultCredentials = credentials?.filter(
         ({ purpose }) => purpose !== UserWarehouseCredentialPurpose.AI,
@@ -71,8 +75,12 @@ export const MyWarehouseConnectionsPanel = () => {
                 </Button>
             }
         >
-            {showAiSignIn && (
-                <SnowflakeAiSignInSection credentials={credentials ?? []} />
+            {aiIdentitiesFlag?.enabled ? (
+                <AiIdentitySection />
+            ) : (
+                showAiSignIn && (
+                    <SnowflakeAiSignInSection credentials={credentials ?? []} />
+                )
             )}
             {defaultCredentials && defaultCredentials.length > 0 ? (
                 <>

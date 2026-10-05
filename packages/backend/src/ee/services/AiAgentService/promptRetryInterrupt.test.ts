@@ -1,3 +1,4 @@
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', async (importOriginal) => ({
@@ -28,6 +29,7 @@ type PrivateService = {
 };
 
 const user = {
+    ...defaultSessionUser,
     organizationUuid: 'organization-uuid',
     userUuid: 'user-uuid',
 };
@@ -40,6 +42,11 @@ const buildService = (promptState: {
     const resetPromptResponseForRetry = vi.fn().mockResolvedValue(true);
     const deleteAiPromptInterrupt = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
+        aiIdentityService: {
+            getAiAccessForUser: vi
+                .fn()
+                .mockResolvedValue({ aiIdentityRequired: false }),
+        },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             ai: { copilot: { embeddingEnabled: false } },

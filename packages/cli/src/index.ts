@@ -2023,6 +2023,11 @@ program
         '--project <uuid>',
         'Project UUID (defaults to the selected project)',
     )
+    .addOption(
+        new Option('--format <format>', 'Output format')
+            .choices(['table', 'json'])
+            .default('table'),
+    )
     .action(aiIdentityHandler);
 
 const aiIdentities = program
@@ -2049,6 +2054,12 @@ aiIdentities
             .default('table'),
     )
     .option('--output <file>', 'Write output to a file instead of stdout')
+    .option(
+        '--role-template <template>',
+        'Role name template, for example {snowflake_login}_AI_ROLE',
+    )
+    .option('--role <name>', 'Fixed role name for every AI identity')
+    .option('--no-roles', 'Do not grant roles in this export')
     .action(aiIdentitiesListHandler);
 aiIdentities
     .command('test')

@@ -11,6 +11,7 @@ import {
     ApiAiIdentityEventsResponse,
     ApiAiIdentityJobResponse,
     ApiAiIdentityListResponse,
+    ApiAiIdentityPreviewResponse,
     ApiAiIdentityResponse,
     ApiErrorPayload,
     assertRegisteredAccount,
@@ -83,6 +84,7 @@ export class AiIdentityController extends BaseController {
                     req.account,
                     aiIdentityAccountUuid,
                     update.twinNameTemplate,
+                    update.roleTemplate,
                 ),
         };
     }
@@ -154,6 +156,7 @@ export class AiIdentityController extends BaseController {
         @Request() req: express.Request,
         @Query() page?: number,
         @Query() pageSize?: number,
+        @Query() includeReads?: boolean,
     ): Promise<ApiAiIdentityEventsResponse> {
         assertRegisteredAccount(req.account);
         return {
@@ -164,7 +167,25 @@ export class AiIdentityController extends BaseController {
                     req.account,
                     Math.max(1, page ?? 1),
                     Math.min(100, Math.max(1, pageSize ?? 50)),
+                    includeReads ?? false,
                 ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('accounts/{aiIdentityAccountUuid}/preview')
+    @OperationId('getAiIdentityPreview')
+    async getPreview(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiAiIdentityPreviewResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .getPreview(req.account, aiIdentityAccountUuid),
         };
     }
 
@@ -234,13 +255,14 @@ export class AiIdentityController extends BaseController {
     async getDetail(
         @Path() aiIdentityUuid: UUID,
         @Request() req: express.Request,
+        @Query() includeReads?: boolean,
     ): Promise<ApiAiIdentityDetailResponse> {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getAiIdentityService()
-                .getDetail(req.account, aiIdentityUuid),
+                .getDetail(req.account, aiIdentityUuid, includeReads ?? false),
         };
     }
 
@@ -331,6 +353,36 @@ export class AiAccessController extends BaseController {
             results: await this.services
                 .getAiIdentityService()
                 .getAiAccessForUser({ account: req.account, projectUuid }),
+        };
+    }
+}
+
+@Route('/api/v2/user/me/ai-identities')
+@Response<ApiErrorPayload>('default', 'Error')
+@Tags('v2', 'AI identities')
+export class MyAiIdentitiesController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('')
+    @OperationId('getMyAiIdentities')
+    async getMyAiIdentities(@Request() req: express.Request): Promise<{
+        status: 'ok';
+        results: Array<{
+            aiIdentityAccountUuid: string;
+            accountLabel: string;
+            aiIdentityName: string | null;
+            state: AiIdentityState;
+            lastCheckedAt: Date | null;
+            action: 'sign_in' | 'ask_admin' | null;
+            message: string | null;
+        }>;
+    }> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .getMyAiIdentities(req.account),
         };
     }
 }

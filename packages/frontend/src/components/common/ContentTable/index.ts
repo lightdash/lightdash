@@ -1,5 +1,6 @@
 export { ContentTable } from './ContentTable';
 export { ContentTableSearchInput } from './ContentTableSearchInput';
+export { SelectAllMatching } from './SelectAllMatching';
 export { useContentTable } from './useContentTable';
 export { getColumnHeaderLabel } from './utils';
 export type { ContentTableSearchInputProps } from './ContentTableSearchInput';

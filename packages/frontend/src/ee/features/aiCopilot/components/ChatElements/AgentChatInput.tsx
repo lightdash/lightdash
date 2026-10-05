@@ -75,6 +75,10 @@ import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import { useAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { useAgentSkills } from '../../hooks/useAiAgentSkills';
+import {
+    useAiIdentityAccess,
+    isAiIdentityBlocked,
+} from '../../hooks/useAiIdentityAccess';
 import { useCsvSourceAttachment } from '../../hooks/useCsvSourceAttachment';
 import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
 import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
@@ -105,6 +109,10 @@ import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
+import {
+    AiIdentityAccessNotice,
+    AiIdentityTrustNotice,
+} from './AiIdentityCallout';
 import {
     ComposerThemeButton,
     ComposerThemeMenuEntry,
@@ -324,7 +332,7 @@ export const AgentChatInput = ({
     onSubmit,
     onStartDeepResearch,
     loading = false,
-    disabled = false,
+    disabled: disabledProp = false,
     disabledReason,
     placeholder = 'Ask anything',
     messageCount = 0,
@@ -352,6 +360,26 @@ export const AgentChatInput = ({
     footerNotice,
     showFastMode = true,
 }: AgentChatInputProps) => {
+    const identityFlag = useServerFeatureFlag(FeatureFlags.SnowflakeAiTwins);
+    const checkIdentity = !!projectUuid && identityFlag.data?.enabled === true;
+    const aiAccess = useAiIdentityAccess(
+        checkIdentity ? projectUuid : undefined,
+    );
+    const disabled =
+        disabledProp ||
+        (!!projectUuid && identityFlag.isLoading) ||
+        (checkIdentity &&
+            (!aiAccess.isSuccess || isAiIdentityBlocked(aiAccess.data)));
+    const accessNotice = (
+        <AiIdentityAccessNotice access={aiAccess} enabled={checkIdentity} />
+    );
+    const trustNotice =
+        checkIdentity &&
+        aiAccess.data?.aiIdentityRequired &&
+        !isAiIdentityBlocked(aiAccess.data) &&
+        aiAccess.data.aiIdentityName ? (
+            <AiIdentityTrustNotice name={aiAccess.data.aiIdentityName} />
+        ) : null;
     const user = useUser(true);
     const app = useApp();
     const isPhoneLayout = useMediaQuery('(max-width: 32em)', undefined, {
@@ -1494,6 +1522,7 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
+                {accessNotice}
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
@@ -1531,6 +1560,9 @@ export const AgentChatInput = ({
                     </Text>
                 )}
 
+                {trustNotice && (
+                    <Box className={styles.footerNotice}>{trustNotice}</Box>
+                )}
                 {!disabled && footerNotice && (
                     <Box className={styles.footerNotice}>{footerNotice}</Box>
                 )}
@@ -1546,6 +1578,7 @@ export const AgentChatInput = ({
             }`}
             data-dense={dense}
         >
+            {accessNotice}
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
             <Box className={styles.dropTarget} {...dropTargetProps}>
@@ -1630,6 +1663,9 @@ export const AgentChatInput = ({
                 </Paper>
             )}
 
+            {trustNotice && (
+                <Box className={styles.footerNotice}>{trustNotice}</Box>
+            )}
             {!disabled && footerNotice && (
                 <Box className={styles.footerNotice}>{footerNotice}</Box>
             )}

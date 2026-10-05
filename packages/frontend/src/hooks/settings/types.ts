@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type AiIdentityAccount,
     type FeatureFlag,
     type HealthState,
     type Organization,
@@ -24,6 +25,7 @@ export type SettingsPageSection = {
 
 export type SettingsNavigationItem = {
     label: string;
+    badge?: number;
     to: string;
     icon: TablerIcon;
     /** Render the gradient AI orb instead of `icon` in the sidebar. */
@@ -78,6 +80,8 @@ export type SettingsContext = {
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;
     aiAccessRestrictionsFlag: FeatureFlag | undefined;
+    snowflakeAiTwinsFlag: FeatureFlag | undefined;
+    aiIdentityAccounts: AiIdentityAccount[] | undefined;
     shouldShowAiAgentReviews: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
     canManageOrgAiAgent: boolean;
@@ -88,6 +92,7 @@ export type SettingsContext = {
     dataAppsFlag: FeatureFlag | undefined;
     dataAppAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    isSnowflakeAiTwinsFlagLoading: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
     isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;

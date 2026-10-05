@@ -1,7 +1,9 @@
 import {
     AiIdentityJobStatus,
     AiIdentityState,
+    getAiIdentityPersonLabel,
     ParameterError,
+    validateAiIdentityRoleTemplate,
     type AiAccessForUser,
     type AiIdentity,
     type AiIdentityAccount,
@@ -24,6 +26,9 @@ type IdentityListOptions = {
     needsSignIn?: boolean;
     state?: string;
     format?: 'table' | 'json' | 'sql' | 'csv';
+    roleTemplate?: string;
+    role?: string;
+    roles?: boolean;
     output?: string;
 };
 
@@ -96,7 +101,8 @@ const pollJob = async (job: AiIdentityJob): Promise<AiIdentityJob> => {
         job.status === AiIdentityJobStatus.QUEUED ||
         job.status === AiIdentityJobStatus.RUNNING
     ) {
-        process.stderr.write(`${job.status}: ${job.done}/${job.total}\n`);
+        if (job.total > 0)
+            process.stderr.write(`Exporting ${job.done} of ${job.total}…\n`);
         await new Promise<void>((resolve) => {
             setTimeout(resolve, 2000);
         });
@@ -108,15 +114,37 @@ const pollJob = async (job: AiIdentityJob): Promise<AiIdentityJob> => {
         return pollJob(nextJob);
     }
     if (job.status === AiIdentityJobStatus.FAILED)
-        throw new Error(job.error ?? 'The AI identity job failed.');
+        throw new ParameterError(
+            `Export failed: ${job.error ?? 'The AI identity job failed.'}`,
+        );
     if (job.status !== AiIdentityJobStatus.DONE)
         throw new Error(`Unknown job status: ${job.status}`);
     process.stderr.write(`done: ${job.done}/${job.total}\n`);
     return job;
 };
 
+const relativeTime = (value: Date): string => {
+    const seconds = (new Date(value).getTime() - Date.now()) / 1000;
+    const units = [
+        ['year', 365 * 86400],
+        ['month', 30 * 86400],
+        ['day', 86400],
+        ['hour', 3600],
+        ['minute', 60],
+        ['second', 1],
+    ] as const;
+    const [unit, duration] =
+        units.find(([, size]) => Math.abs(seconds) >= size) ??
+        units[units.length - 1];
+    return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(
+        Math.round(seconds / duration),
+        unit,
+    );
+};
+
 export const aiIdentityHandler = async (options: {
     project?: string;
+    format?: 'table' | 'json';
 }): Promise<void> => {
     const config = await getConfig();
     const projectUuid =
@@ -132,15 +160,22 @@ export const aiIdentityHandler = async (options: {
         url: `/api/v2/user/me/ai-access?${new URLSearchParams({ projectUuid })}`,
         body: undefined,
     });
+    if (options.format === 'json') {
+        await writeOutput(`${JSON.stringify(access, null, 2)}\n`);
+        return;
+    }
     process.stdout.write(
         `${columnify([
             {
-                state: access.state ?? 'not required',
+                state:
+                    access.state === null
+                        ? 'Not required'
+                        : getAiIdentityPersonLabel(access.state),
                 identity: access.aiIdentityName ?? '-',
                 lastCheck:
                     access.lastCheckedAt === null
                         ? 'never'
-                        : new Date(access.lastCheckedAt).toISOString(),
+                        : relativeTime(access.lastCheckedAt),
                 action: access.message ?? 'No action needed.',
             },
         ])}\n`,
@@ -150,18 +185,41 @@ export const aiIdentityHandler = async (options: {
 export const aiIdentitiesListHandler = async (
     options: IdentityListOptions,
 ): Promise<void> => {
+    if (
+        [
+            options.role,
+            options.roleTemplate,
+            options.roles === false ? 'none' : undefined,
+        ].filter((value) => value !== undefined).length > 1
+    )
+        throw new ParameterError(
+            'Choose either --role, --role-template or --no-roles.',
+        );
+    const roleForTwin =
+        options.roles === false ? null : (options.roleTemplate ?? options.role);
+    if (roleForTwin !== undefined) {
+        if (options.format !== 'sql' && options.format !== 'json')
+            throw new ParameterError(
+                'Role options require --format sql or json.',
+            );
+        if (roleForTwin !== null) validateAiIdentityRoleTemplate(roleForTwin);
+    }
     const states = getStates(options);
     const format = options.format ?? 'table';
     if (!['table', 'json', 'sql', 'csv'].includes(format))
         throw new ParameterError('Format must be table, json, sql or csv.');
     const account = await resolveAccount(options.account);
     const filter = makeFilter(account, states);
-    if (format === 'sql' || format === 'csv') {
+    if (format === 'sql' || format === 'csv' || format === 'json') {
         const job = await pollJob(
             await lightdashApi<AiIdentityJob>({
                 method: 'POST',
                 url: `${baseUrl}/export`,
-                body: JSON.stringify({ filter, format, roleForTwin: null }),
+                body: JSON.stringify({
+                    filter,
+                    format,
+                    ...(roleForTwin === undefined ? {} : { roleForTwin }),
+                }),
             }),
         );
         if (!job.fileUrl)
@@ -170,6 +228,10 @@ export const aiIdentitiesListHandler = async (
         if (!response.ok)
             throw new Error(`The export download failed (${response.status}).`);
         await writeOutput(await response.text(), options.output);
+        if (job.skipped?.length)
+            process.stderr.write(
+                `Warning: skipped ${job.skipped.length === 1 ? '1 person' : `${job.skipped.length} people`}; ${format === 'sql' ? 'see the comment at the top' : 'see skipped'}\n`,
+            );
         return;
     }
     const identities: AiIdentity[] = [];
@@ -189,21 +251,18 @@ export const aiIdentitiesListHandler = async (
         if (page < result.pagination.totalPageCount) await readPage(page + 1);
     };
     await readPage(1);
-    const text =
-        format === 'json'
-            ? JSON.stringify(identities, null, 2)
-            : columnify(
-                  identities.map((identity) => ({
-                      person: identity.email,
-                      identity: identity.twinName ?? '-',
-                      state: identity.state,
-                      lastCheck:
-                          identity.checkedAt === null
-                              ? 'never'
-                              : new Date(identity.checkedAt).toISOString(),
-                      reason: identity.failureReason ?? '-',
-                  })),
-              );
+    const text = columnify(
+        identities.map((identity) => ({
+            person: identity.email,
+            identity: identity.twinName ?? '-',
+            state: identity.state,
+            lastCheck:
+                identity.checkedAt === null
+                    ? 'never'
+                    : relativeTime(identity.checkedAt),
+            reason: identity.failureReason ?? '-',
+        })),
+    );
     await writeOutput(`${text}\n`, options.output);
 };
 

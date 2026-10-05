@@ -91,6 +91,8 @@ export const useSettingsNavigation = (
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         aiAccessRestrictionsFlag,
+        snowflakeAiTwinsFlag,
+        aiIdentityAccounts,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
@@ -109,6 +111,13 @@ export const useSettingsNavigation = (
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const isDataAppAnalysisEnabled = dataAppAnalysisFlag?.enabled ?? false;
     const isExternalSourcesEnabled = externalSourcesFlag?.enabled ?? false;
+    const showAiIdentities =
+        snowflakeAiTwinsFlag?.enabled === true &&
+        (user?.ability?.can('manage', 'Organization') ?? false);
+    const failedAiIdentities = aiIdentityAccounts?.reduce(
+        (total, account) => total + account.counts.failed,
+        0,
+    );
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
@@ -502,6 +511,18 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (showAiIdentities) {
+            organizationItems.push({
+                label: 'AI identities',
+                to: '/generalSettings/aiIdentities',
+                icon: IconUserShield,
+                badge: failedAiIdentities,
+                keywords: ['snowflake', 'provisioning', 'identity'],
+                children: [],
+                exact: true,
+            });
+        }
+
         if (
             ability?.can('manage', 'Organization') &&
             isServiceAccountsEnabled
@@ -791,7 +812,7 @@ export const useSettingsNavigation = (
                         false))
                     ? [
                           {
-                              label: 'Agent data scope',
+                              label: 'AI access',
                               to: `${base}/agentDataScope`,
                               icon: IconDatabaseCog,
                               keywords: [
@@ -1244,6 +1265,8 @@ export const useSettingsNavigation = (
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         aiAccessRestrictionsFlag,
+        showAiIdentities,
+        failedAiIdentities,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
