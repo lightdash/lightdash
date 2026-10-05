@@ -117,6 +117,11 @@ const makeMcpService = ({
     aiWritebackService: Record<string, unknown>;
 }) =>
     new McpService({
+        aiIdentityService: {
+            getAiAccessForUser: vi
+                .fn()
+                .mockResolvedValue({ aiIdentityRequired: false }),
+        },
         aiAgentService: {},
         aiAgentToolsService: { createRuntime: vi.fn() },
         aiOrganizationSettingsService: {},

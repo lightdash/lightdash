@@ -79,6 +79,11 @@ const makeExtra = () => ({
 
 const makeMcpService = (createRuntime: () => unknown) =>
     new McpService({
+        aiIdentityService: {
+            getAiAccessForUser: vi
+                .fn()
+                .mockResolvedValue({ aiIdentityRequired: false }),
+        },
         aiAgentService: {},
         aiAgentToolsService: { createRuntime },
         aiOrganizationSettingsService: {},

@@ -1,7 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AI_IDENTITY_NOT_READY_CODE,
     AiAgentWithContext,
+    AiIdentityNotReadyError,
+    AiIdentityState,
     AiResultType,
     AiWritebackRunStatus,
     aiWritebackRunStatusToMcpTaskStatus,
@@ -29,6 +32,7 @@ import {
     ForbiddenError,
     generateDataAppToolDefinition,
     generateHashesToolDefinition,
+    getAiIdentityPersonMessage,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
     getContextToolDefinition,
@@ -137,6 +141,7 @@ import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { AiIdentityService } from '../../../services/AiIdentityService/AiIdentityService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -220,6 +225,7 @@ export enum McpToolName {
     EDIT_CONTENT = 'edit_content',
     CREATE_SCHEDULED_DELIVERY = 'create_scheduled_delivery',
     LIST_PROJECTS = 'list_projects',
+    GET_AI_ACCESS = 'get_ai_access',
     GET_CONTEXT = 'get_context',
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
@@ -250,6 +256,7 @@ const projectIndependentMcpToolNames = new Set<string>([
     McpToolName.GENERATE_HASHES,
     McpToolName.LIST_PROJECTS,
     McpToolName.GET_CONTEXT,
+    McpToolName.GET_AI_ACCESS,
     McpToolName.GET_CURRENT_PROJECT,
     McpToolName.LIST_SKILLS,
     McpToolName.READ_SKILL,
@@ -420,6 +427,7 @@ type McpServiceArguments = {
     aiAgentSkillService: AiAgentSkillService;
     aiRouterService: AiRouterService;
     aiWritebackService: AiWritebackService;
+    aiIdentityService: AiIdentityService;
 };
 
 export type ExtraContext = {
@@ -559,6 +567,8 @@ export class McpService extends BaseService {
 
     private aiWritebackService: AiWritebackService;
 
+    private aiIdentityService: AiIdentityService;
+
     private mcpServer: McpServer;
 
     constructor({
@@ -582,6 +592,7 @@ export class McpService extends BaseService {
         aiAgentSkillService,
         aiRouterService,
         aiWritebackService,
+        aiIdentityService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -604,6 +615,7 @@ export class McpService extends BaseService {
         this.aiAgentSkillService = aiAgentSkillService;
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
+        this.aiIdentityService = aiIdentityService;
         try {
             this.mcpServer = this.buildMcpServer({
                 runSqlEnabled: false,
@@ -1527,6 +1539,7 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
                 } catch (e) {
+                    if (e instanceof AiIdentityNotReadyError) throw e;
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
                     this.logger.error(
@@ -1596,6 +1609,7 @@ export class McpService extends BaseService {
                 args.agentUuid,
             );
         } catch (e) {
+            if (e instanceof AiIdentityNotReadyError) throw e;
             const errorMessage = getErrorMessage(e);
             this.logger.error(
                 `[McpService] ${errorLogContext}: ${errorMessage}`,
@@ -1812,6 +1826,7 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
                 } catch (e) {
+                    if (e instanceof AiIdentityNotReadyError) throw e;
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
                     this.logger.error(
@@ -2812,7 +2827,32 @@ export class McpService extends BaseService {
                     >,
                 ) => {
                     const ctx = getMcpContext(extra);
-                    const projectList = await this.getAccessibleProjects(ctx);
+                    const projects = await this.getAccessibleProjects(ctx);
+                    const { user, account } = McpService.getAccount(ctx);
+                    const enabled = await this.isAiIdentityEnabled(user);
+                    const projectList = enabled
+                        ? await Promise.all(
+                              projects.map(async (project) => {
+                                  const access =
+                                      await this.aiIdentityService.getAiAccessForUser(
+                                          {
+                                              account,
+                                              projectUuid: project.projectUuid,
+                                          },
+                                      );
+                                  return access.aiIdentityRequired &&
+                                      access.state !== AiIdentityState.READY
+                                      ? {
+                                            ...project,
+                                            aiAccess: {
+                                                state: access.state,
+                                                action: access.action,
+                                            },
+                                        }
+                                      : project;
+                              }),
+                          )
+                        : projects;
 
                     return {
                         content: [
@@ -3452,6 +3492,7 @@ export class McpService extends BaseService {
                             appliedParametersNote,
                         });
                     } catch (e) {
+                        if (e instanceof AiIdentityNotReadyError) throw e;
                         const errorMessage =
                             e instanceof Error ? e.message : String(e);
                         this.logger.error(
@@ -3564,6 +3605,7 @@ export class McpService extends BaseService {
                                 fields: results.fields,
                             });
                         } catch (e) {
+                            if (e instanceof AiIdentityNotReadyError) throw e;
                             const errorMessage =
                                 e instanceof Error ? e.message : String(e);
                             this.logger.error(
@@ -3621,8 +3663,21 @@ export class McpService extends BaseService {
                         agentUuid,
                     );
 
+                    const identityRefusal: {
+                        error: AiIdentityNotReadyError | null;
+                    } = { error: null };
                     const searchFieldValuesTool = getSearchFieldValues({
-                        searchFieldValues: toolsRuntime.searchFieldValues,
+                        searchFieldValues: async (input) => {
+                            try {
+                                return await toolsRuntime.searchFieldValues(
+                                    input,
+                                );
+                            } catch (error) {
+                                if (error instanceof AiIdentityNotReadyError)
+                                    identityRefusal.error = error;
+                                throw error;
+                            }
+                        },
                         getExplore: async ({ table }) =>
                             unwrapMcpRuntimeResult(
                                 await toolsRuntime.getExplore({ table }),
@@ -3638,6 +3693,8 @@ export class McpService extends BaseService {
                             messages: [],
                         },
                     );
+
+                    if (identityRefusal.error) throw identityRefusal.error;
 
                     return this.buildScopedResponse(
                         ctx,
@@ -3739,6 +3796,7 @@ export class McpService extends BaseService {
                             sqlRunnerUrl,
                         });
                     } catch (e) {
+                        if (e instanceof AiIdentityNotReadyError) throw e;
                         const errorMessage =
                             e instanceof Error ? e.message : String(e);
                         this.logger.error(
@@ -3918,6 +3976,7 @@ export class McpService extends BaseService {
                             'Query was not started by an MCP query tool',
                         );
                     } catch (e) {
+                        if (e instanceof AiIdentityNotReadyError) throw e;
                         const errorMessage =
                             e instanceof Error ? e.message : String(e);
                         this.logger.error(
@@ -4444,7 +4503,132 @@ export class McpService extends BaseService {
             options.req.account,
         );
 
+        if (
+            options.req.user &&
+            (await this.isAiIdentityEnabled(options.req.user))
+        ) {
+            this.registerAiAccessTool(newServer);
+        }
+
         return newServer;
+    }
+
+    private async isAiIdentityEnabled(user: SessionUser): Promise<boolean> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.SnowflakeAiTwins,
+        });
+        return enabled;
+    }
+
+    private registerAiAccessTool(server: McpServer): void {
+        server.registerTool(
+            McpToolName.GET_AI_ACCESS,
+            {
+                title: 'Get AI access',
+                description:
+                    'Get your AI identity state, required action and whether raw SQL is allowed in a project. Defaults to the current project.',
+                inputSchema: { projectUuid: projectUuidInput.optional() },
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                    openWorldHint: false,
+                },
+            },
+            this.wrapToolCallback(
+                McpToolName.GET_AI_ACCESS,
+                async (
+                    args: { projectUuid?: string },
+                    extra: RequestHandlerExtra<
+                        ServerRequest,
+                        ServerNotification
+                    >,
+                ) => {
+                    const ctx = getMcpContext(extra);
+                    const { account } = McpService.getAccount(ctx);
+                    const projectUuid =
+                        args.projectUuid === undefined
+                            ? await this.resolveProjectUuid(ctx)
+                            : await this.resolveToolProjectUuid(
+                                  ctx,
+                                  args.projectUuid,
+                              );
+                    const access =
+                        await this.aiIdentityService.getAiAccessForUser({
+                            account,
+                            projectUuid,
+                        });
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: JSON.stringify(access),
+                            },
+                        ],
+                        structuredContent: { ...access },
+                    };
+                },
+            ),
+        );
+    }
+
+    private aiIdentityErrorResult(
+        state: AiIdentityState,
+        settingsUrl: string,
+    ): CallToolResult {
+        const message = getAiIdentityPersonMessage(state);
+        return {
+            isError: true,
+            content: [{ type: 'text', text: message }],
+            structuredContent: {
+                error: {
+                    code: AI_IDENTITY_NOT_READY_CODE,
+                    state,
+                    message,
+                    settingsUrl: new URL(
+                        settingsUrl,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                },
+            },
+        };
+    }
+
+    private async checkToolAiAccess(
+        toolName: string,
+        toolArgs: unknown,
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): Promise<CallToolResult | null> {
+        const dataTools = new Set<string>([
+            McpToolName.RUN_METRIC_QUERY,
+            McpToolName.RUN_SQL,
+            McpToolName.SEARCH_FIELD_VALUES,
+            McpToolName.RENDER_CHART,
+            McpToolName.GET_QUERY_RESULT,
+            McpToolName.RUN_AI_WRITEBACK,
+            McpToolName.GENERATE_DATA_APP,
+            McpToolName.ITERATE_DATA_APP,
+        ]);
+        if (!dataTools.has(toolName)) return null;
+        const ctx = getMcpContext(extra);
+        const { account } = McpService.getAccount(ctx);
+        const args = mcpToolScopeArgsSchema.parse(toolArgs);
+        const projectUuid = await this.resolveToolProjectUuid(
+            ctx,
+            args.projectUuid,
+        );
+        const access = await this.aiIdentityService.getAiAccessForUser({
+            account,
+            projectUuid,
+        });
+        return access.aiIdentityRequired &&
+            access.state !== AiIdentityState.READY
+            ? this.aiIdentityErrorResult(
+                  access.state ?? AiIdentityState.PENDING,
+                  '/generalSettings/myWarehouseConnections',
+              )
+            : null;
     }
 
     private registerSkillToolHandlers(): void {
@@ -5094,7 +5278,12 @@ export class McpService extends BaseService {
                 cbArgs.length > 1 ? [cbArgs[0], cbArgs[1]] : [{}, cbArgs[0]];
             const startedAt = Date.now();
             try {
-                const result = await handler(...cbArgs);
+                const refusal = await this.checkToolAiAccess(
+                    toolName,
+                    toolArgs,
+                    extra,
+                );
+                const result = refusal ?? (await handler(...cbArgs));
                 const legacyContextInjected =
                     getMcpContext(extra).authInfo?.extra
                         .legacyContextInjected === true;
@@ -5142,6 +5331,12 @@ export class McpService extends BaseService {
                     status: 'error',
                     errorMessage: getErrorMessage(error),
                 });
+                if (error instanceof AiIdentityNotReadyError) {
+                    return this.aiIdentityErrorResult(
+                        error.data.state,
+                        error.data.settingsUrl,
+                    );
+                }
                 throw error;
             }
         };

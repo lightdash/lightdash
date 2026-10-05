@@ -567,6 +567,11 @@ const makeMcpService = ({
     };
 
     const service = new McpService({
+        aiIdentityService: {
+            getAiAccessForUser: vi
+                .fn()
+                .mockResolvedValue({ aiIdentityRequired: false }),
+        },
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {

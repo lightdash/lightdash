@@ -98,6 +98,28 @@ The local build is a pre-flight check; Lightdash rebuilds the source when it is
 uploaded. Existing apps can still be checked out with
 `lightdash download --apps <slug>`.
 
+## AI identities
+
+Show your AI identity and its next action with `lightdash ai-identity --project <uuid>`.
+The project defaults to `LIGHTDASH_PROJECT_UUID` or your selected project.
+
+Organization admins can list and test identities:
+
+```shell
+lightdash ai-identities list --pending --format json
+lightdash ai-identities list --account <uuid> --pending --format sql --output setup.sql
+lightdash ai-identities list --needs-sign-in --format csv
+lightdash ai-identities test --failed
+lightdash ai-identities test --all
+```
+
+Use `--state ready|pending|failed|needs_sign_in` for an explicit state filter.
+List output supports `table` (default), `json`, `sql` and `csv`. SQL and CSV
+exports run as background jobs. Progress goes to stderr and the export goes to
+stdout, or to `--output <file>`. With several Snowflake accounts, select one with
+`--account <uuid>`; with one account, the CLI selects it automatically.
+Tests cover everyone by default; use `--failed` to limit them to failed identities.
+
 ## Development
 
 First build the package

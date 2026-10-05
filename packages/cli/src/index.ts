@@ -15,6 +15,11 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import {
+    aiIdentitiesListHandler,
+    aiIdentitiesTestHandler,
+    aiIdentityHandler,
+} from './handlers/aiIdentity';
 import { appsBuildHandler } from './handlers/apps/build';
 import { createAppHandler } from './handlers/apps/createApp';
 import { appsPreviewHandler } from './handlers/apps/preview';
@@ -2010,6 +2015,48 @@ program
     )
     .option('--verbose', undefined, false)
     .action(preAggregateCheckExternalHandler);
+
+program
+    .command('ai-identity')
+    .description('Show your AI identity state and next action')
+    .option(
+        '--project <uuid>',
+        'Project UUID (defaults to the selected project)',
+    )
+    .action(aiIdentityHandler);
+
+const aiIdentities = program
+    .command('ai-identities')
+    .description('Manage AI identities for your organization');
+aiIdentities
+    .command('list')
+    .description('List AI identities or export setup SQL and CSV')
+    .option('--account <uuid>', 'Snowflake AI identity account UUID')
+    .option('--pending', 'Show pending identities')
+    .option('--failed', 'Show failed identities')
+    .option('--needs-sign-in', 'Show people who need to sign in')
+    .addOption(
+        new Option('--state <state>', 'Filter by state').choices([
+            'ready',
+            'pending',
+            'failed',
+            'needs_sign_in',
+        ]),
+    )
+    .addOption(
+        new Option('--format <format>', 'Output format')
+            .choices(['table', 'json', 'sql', 'csv'])
+            .default('table'),
+    )
+    .option('--output <file>', 'Write output to a file instead of stdout')
+    .action(aiIdentitiesListHandler);
+aiIdentities
+    .command('test')
+    .description('Test AI identities and print job progress')
+    .option('--account <uuid>', 'Snowflake AI identity account UUID')
+    .option('--failed', 'Test only failed identities')
+    .option('--all', 'Test everyone (default)')
+    .action(aiIdentitiesTestHandler);
 
 program
     .command('sql')
