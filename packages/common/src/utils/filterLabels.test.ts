@@ -20,11 +20,25 @@ describe('getFilterOperatorOptions', () => {
         const options = getFilterOperatorOptions(
             FilterType.STRING,
             undefined,
-            withOverride({ 'filters.operators.equals': 'est' }),
+            withOverride({
+                'filters.operators.equals': 'est',
+                'filters.operators.doesNotStartWith': 'ne commence pas par',
+                'filters.operators.doesNotEndWith': 'ne finit pas par',
+            }),
         );
-        expect(
-            options.find(({ value }) => value === FilterOperator.EQUALS)?.label,
-        ).toEqual('est');
+        expect(options).toEqual(
+            expect.arrayContaining([
+                { value: FilterOperator.EQUALS, label: 'est' },
+                {
+                    value: FilterOperator.NOT_STARTS_WITH,
+                    label: 'ne commence pas par',
+                },
+                {
+                    value: FilterOperator.NOT_ENDS_WITH,
+                    label: 'ne finit pas par',
+                },
+            ]),
+        );
     });
 
     it('defaults to English without a resolver', () => {
@@ -32,6 +46,25 @@ describe('getFilterOperatorOptions', () => {
         expect(
             options.find(({ value }) => value === FilterOperator.EQUALS)?.label,
         ).toEqual('is');
+    });
+
+    it.each([
+        [FilterOperator.NOT_STARTS_WITH, 'does not start with'],
+        [FilterOperator.NOT_ENDS_WITH, 'does not end with'],
+    ])('offers %s only for string fields', (operator, label) => {
+        expect(getFilterOperatorOptions(FilterType.STRING)).toContainEqual({
+            value: operator,
+            label,
+        });
+        [FilterType.NUMBER, FilterType.DATE, FilterType.BOOLEAN].forEach(
+            (filterType) => {
+                expect(
+                    getFilterOperatorOptions(filterType).map(
+                        ({ value }) => value,
+                    ),
+                ).not.toContain(operator);
+            },
+        );
     });
 
     it('uses date-specific labels for date filters', () => {

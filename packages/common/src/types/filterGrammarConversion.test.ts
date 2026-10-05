@@ -115,7 +115,7 @@ describe('convertMetricFilterToDbt', () => {
         expect(convertMetricFilterToDbt(filters)).toEqual(expected);
     });
 
-    it('should convert STARTS_WITH and ENDS_WITH filters correctly', () => {
+    it('round-trips positive and negated prefix/suffix filters through dbt', () => {
         const filters: MetricFilterRule[] = [
             {
                 target: { fieldRef: 'field1' },
@@ -129,12 +129,37 @@ describe('convertMetricFilterToDbt', () => {
                 operator: FilterOperator.ENDS_WITH,
                 values: ['katie'],
             },
+            {
+                target: { fieldRef: 'field3' },
+                id: '3',
+                operator: FilterOperator.NOT_STARTS_WITH,
+                values: ['katie', '', 'tom'],
+            },
+            {
+                target: { fieldRef: 'field4' },
+                id: '4',
+                operator: FilterOperator.NOT_ENDS_WITH,
+                values: ['katie', '', 'tom'],
+            },
         ];
         const expected: DbtColumnLightdashMetric['filters'] = [
             { field1: 'katie%' },
             { field2: '%katie' },
+            { field3: '!katie%' },
+            { field3: '!tom%' },
+            { field4: '!%katie' },
+            { field4: '!%tom' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        const dbtFilters = convertMetricFilterToDbt(filters);
+        expect(dbtFilters).toEqual(expected);
+        expect(parseFilters(dbtFilters)).toEqual([
+            { ...filters[0], id: expect.any(String) },
+            { ...filters[1], id: expect.any(String) },
+            { ...filters[2], id: expect.any(String), values: ['katie'] },
+            { ...filters[2], id: expect.any(String), values: ['tom'] },
+            { ...filters[3], id: expect.any(String), values: ['katie'] },
+            { ...filters[3], id: expect.any(String), values: ['tom'] },
+        ]);
     });
 
     it('should convert GREATER_THAN and GREATER_THAN_OR_EQUAL filters correctly', () => {

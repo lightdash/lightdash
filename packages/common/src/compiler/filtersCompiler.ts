@@ -255,6 +255,15 @@ export const renderStringFilterSql = (
                     : `(${dimensionSql}) LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
             );
             return startWithQuery?.join('\n  OR\n  ') || 'true';
+        case FilterOperator.NOT_STARTS_WITH: {
+            if (!nonEmptyFilterValues?.length) return 'true';
+            const notStartsWithQuery = nonEmptyFilterValues.map((v) =>
+                !caseSensitive
+                    ? `UPPER(${dimensionSql}) NOT LIKE ${stringQuoteChar}${wrapValue(v)}%${stringQuoteChar}`
+                    : `(${dimensionSql}) NOT LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
+            );
+            return `(${notStartsWithQuery.join('\n  AND\n  ')} OR (${dimensionSql}) IS NULL)`;
+        }
         case FilterOperator.ENDS_WITH:
             const endsWithQuery = nonEmptyFilterValues?.map((v) =>
                 !caseSensitive
@@ -262,6 +271,15 @@ export const renderStringFilterSql = (
                     : `(${dimensionSql}) LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
             );
             return endsWithQuery?.join('\n  OR\n  ') || 'true';
+        case FilterOperator.NOT_ENDS_WITH: {
+            if (!nonEmptyFilterValues?.length) return 'true';
+            const notEndsWithQuery = nonEmptyFilterValues.map((v) =>
+                !caseSensitive
+                    ? `UPPER(${dimensionSql}) NOT LIKE ${stringQuoteChar}%${wrapValue(v)}${stringQuoteChar}`
+                    : `(${dimensionSql}) NOT LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
+            );
+            return `(${notEndsWithQuery.join('\n  AND\n  ')} OR (${dimensionSql}) IS NULL)`;
+        }
         default:
             return raiseInvalidFilterError('string', filter);
     }

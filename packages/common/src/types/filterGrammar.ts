@@ -36,9 +36,13 @@ const parseOperator = (
         case FilterOperator.INCLUDE:
             return isTrue ? FilterOperator.INCLUDE : FilterOperator.NOT_INCLUDE;
         case FilterOperator.STARTS_WITH:
-            return FilterOperator.STARTS_WITH;
+            return isTrue
+                ? FilterOperator.STARTS_WITH
+                : FilterOperator.NOT_STARTS_WITH;
         case FilterOperator.ENDS_WITH:
-            return FilterOperator.ENDS_WITH;
+            return isTrue
+                ? FilterOperator.ENDS_WITH
+                : FilterOperator.NOT_ENDS_WITH;
         case '>':
             return FilterOperator.GREATER_THAN;
         case '>=':

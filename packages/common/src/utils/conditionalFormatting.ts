@@ -496,6 +496,8 @@ export const hasMatchingConditionalRules = (
                     throw new NotImplementedError();
 
                 case FilterOperator.NOT_INCLUDE:
+                case FilterOperator.NOT_STARTS_WITH:
+                case FilterOperator.NOT_ENDS_WITH:
                 case FilterOperator.IN_THE_PAST:
                 case FilterOperator.NOT_IN_THE_PAST:
                 case FilterOperator.IN_THE_NEXT:

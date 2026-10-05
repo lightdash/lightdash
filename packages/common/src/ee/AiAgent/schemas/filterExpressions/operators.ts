@@ -40,7 +40,9 @@ const unsupportedTypes = {
 
 const stringOperators = [
     FilterOperator.STARTS_WITH,
+    FilterOperator.NOT_STARTS_WITH,
     FilterOperator.ENDS_WITH,
+    FilterOperator.NOT_ENDS_WITH,
     FilterOperator.INCLUDE,
     FilterOperator.NOT_INCLUDE,
 ] as const;

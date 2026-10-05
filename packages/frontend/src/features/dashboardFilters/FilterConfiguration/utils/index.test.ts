@@ -14,6 +14,7 @@ import {
     getValidSqlColumnReferences,
     getTabsForFilterRule,
     hasSavedFilterValueChanged,
+    isFilterEnabled,
 } from './index';
 
 // Helper to create a mock filter rule
@@ -86,6 +87,20 @@ describe('getValidSqlColumnReferences', () => {
             ]),
         ).toEqual(['orders_id', 'orders_total']);
     });
+});
+
+describe('isFilterEnabled', () => {
+    it.each([FilterOperator.NOT_STARTS_WITH, FilterOperator.NOT_ENDS_WITH])(
+        'requires a value before enabling a %s dashboard filter',
+        (operator) => {
+            expect(
+                isFilterEnabled(createMockFilterRule({ operator, values: [] })),
+            ).toBe(false);
+            expect(isFilterEnabled(createMockFilterRule({ operator }))).toBe(
+                true,
+            );
+        },
+    );
 });
 
 describe('hasSavedFilterValueChanged', () => {

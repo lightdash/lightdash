@@ -47,7 +47,9 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                     // by default it shows a correct placeholder which is "Min value" and "Max value"
                     return '';
                 case FilterOperator.ENDS_WITH:
+                case FilterOperator.NOT_ENDS_WITH:
                 case FilterOperator.STARTS_WITH:
+                case FilterOperator.NOT_STARTS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.LESS_THAN_OR_EQUAL:
@@ -72,7 +74,9 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_EQUALS:
                     return resolve('filters.placeholders.startTyping');
                 case FilterOperator.STARTS_WITH:
+                case FilterOperator.NOT_STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
+                case FilterOperator.NOT_ENDS_WITH:
                     return resolve('filters.placeholders.enterValues');
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
@@ -127,7 +131,9 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_PERIOD_TO_DATE:
                     return '';
                 case FilterOperator.STARTS_WITH:
+                case FilterOperator.NOT_STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
+                case FilterOperator.NOT_ENDS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.NOT_IN_BETWEEN:
@@ -150,7 +156,9 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.LESS_THAN_OR_EQUAL:
                 case FilterOperator.GREATER_THAN_OR_EQUAL:
                 case FilterOperator.STARTS_WITH:
+                case FilterOperator.NOT_STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
+                case FilterOperator.NOT_ENDS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.IN_THE_PAST:
