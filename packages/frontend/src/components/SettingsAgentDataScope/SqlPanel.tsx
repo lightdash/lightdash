@@ -1,22 +1,38 @@
-import { Button, Code, CopyButton, ScrollArea, Stack } from '@mantine/core';
+import { Button, Group, Stack, Text } from '@mantine/core';
+import CodeBlock from '../common/CodeBlock/CodeBlock';
 
 export const SqlPanel = ({
     sql,
-    copyLabel = 'Copy SQL',
+    summary,
+    language = 'sql',
+    filename = 'ai-boundary.sql',
 }: {
     sql: string;
-    copyLabel?: string;
+    summary: string;
+    language?: 'sql' | 'bash';
+    filename?: string;
 }) => (
     <Stack gap="xs">
-        <ScrollArea h={240}>
-            <Code block>{sql}</Code>
-        </ScrollArea>
-        <CopyButton value={sql}>
-            {({ copied, copy }) => (
-                <Button size="xs" variant="default" onClick={copy}>
-                    {copied ? 'Copied' : copyLabel}
+        <Text size="sm">{summary}</Text>
+        <CodeBlock
+            code={sql}
+            language={language}
+            withExpandButton
+            maxCollapsedHeight={240}
+            defaultExpanded={false}
+        />
+        {language === 'sql' && sql.split('\n').length > 30 && (
+            <Group justify="flex-end">
+                <Button
+                    component="a"
+                    href={`data:application/sql;charset=utf-8,${encodeURIComponent(sql)}`}
+                    download={filename}
+                    size="xs"
+                    variant="default"
+                >
+                    Download .sql
                 </Button>
-            )}
-        </CopyButton>
+            </Group>
+        )}
     </Stack>
 );

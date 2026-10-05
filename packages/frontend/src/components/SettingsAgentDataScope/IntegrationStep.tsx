@@ -9,7 +9,6 @@ export const IntegrationStep = ({
     sql,
     cloud,
     account,
-    setAccount,
     envBlock,
     enabled,
 }: {
@@ -20,7 +19,6 @@ export const IntegrationStep = ({
     sql: string;
     cloud: boolean;
     account: string;
-    setAccount: (value: string) => void;
     envBlock: string;
     enabled: boolean;
 }) => (
@@ -37,7 +35,10 @@ export const IntegrationStep = ({
             onChange={(event) => setRoles(event.currentTarget.value)}
         />
         {sql ? (
-            <SqlPanel sql={sql} />
+            <SqlPanel
+                sql={sql}
+                summary="Creates the optional Snowflake OAuth integration and retrieves its client credentials for your deployment admin."
+            />
         ) : (
             <Text c="dimmed" fz="sm">
                 Enter a valid integration name and at least one role.
@@ -46,7 +47,6 @@ export const IntegrationStep = ({
         <IntegrationEnvironment
             cloud={cloud}
             account={account}
-            setAccount={setAccount}
             envBlock={envBlock}
         />
         <Text fz="sm">

@@ -16,3 +16,12 @@ describe('Snowflake AI boundary guide visibility', () => {
         },
     );
 });
+
+it('shows the guide with AI identities when optional OAuth is disabled', () => {
+    expect(shouldShowSnowflakeAiBoundaryGuide(true, false, true, true)).toBe(
+        true,
+    );
+    expect(shouldShowSnowflakeAiBoundaryGuide(true, false, false, true)).toBe(
+        false,
+    );
+});

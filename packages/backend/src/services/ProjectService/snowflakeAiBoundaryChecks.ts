@@ -3,6 +3,9 @@ import {
     quoteSnowflakeAiIdentifier,
     SNOWFLAKE_AI_STRING_MASK,
     type SnowflakeAiBoundaryCheck,
+    type SnowflakeAiBoundaryGuideConfig,
+    type SnowflakeAiBoundarySection,
+    type SnowflakeAiBoundarySectionStatus,
     type SnowflakeAiBoundaryTestBody,
 } from '@lightdash/common';
 
@@ -44,14 +47,29 @@ export const getUnavailableSnowflakeAiBoundaryChecks =
         },
     ];
 
+export const getSnowflakeEarlierResultsCoverage = (
+    restrictionsEnabled: boolean,
+): SnowflakeAiBoundaryCheck => ({
+    id: 'result_scan_blocked',
+    status: restrictionsEnabled ? 'covered' : 'not_covered',
+    detail: restrictionsEnabled
+        ? 'Snowflake lets an AI session read earlier query results. Lightdash covers this by turning off raw SQL from AI while restrictions are on.'
+        : 'Snowflake lets an AI session read earlier query results. Turn on AI access restrictions to turn off raw SQL from AI.',
+    fixStep: 7,
+});
+
 export const runSnowflakeAiBoundaryChecks = async ({
     client,
     protectedColumn,
     warehouseQueryId,
+    aiIdentitiesEnabled = true,
+    restrictionsEnabled = false,
 }: {
     client: ReadOnlyClient;
     protectedColumn: SnowflakeAiBoundaryTestBody['protectedColumn'];
     warehouseQueryId: string | null;
+    aiIdentitiesEnabled?: boolean;
+    restrictionsEnabled?: boolean;
 }): Promise<SnowflakeAiBoundaryCheck[]> => {
     const results: SnowflakeAiBoundaryCheck[] = [];
     try {
@@ -77,7 +95,11 @@ export const runSnowflakeAiBoundaryChecks = async ({
             fixStep: !active ? 2 : 4,
         });
     } catch {
-        return getUnavailableSnowflakeAiBoundaryChecks();
+        return getUnavailableSnowflakeAiBoundaryChecks().map((check) =>
+            !aiIdentitiesEnabled && check.id === 'result_scan_blocked'
+                ? getSnowflakeEarlierResultsCoverage(restrictionsEnabled)
+                : check,
+        );
     }
 
     if (protectedColumn === null) {
@@ -122,7 +144,9 @@ export const runSnowflakeAiBoundaryChecks = async ({
         }
     }
 
-    if (warehouseQueryId === null) {
+    if (!aiIdentitiesEnabled) {
+        results.push(getSnowflakeEarlierResultsCoverage(restrictionsEnabled));
+    } else if (warehouseQueryId === null) {
         results.push({
             id: 'result_scan_blocked',
             status: 'skipped',
@@ -141,8 +165,8 @@ export const runSnowflakeAiBoundaryChecks = async ({
             results.push({
                 id: 'result_scan_blocked',
                 status: 'fail',
-                detail: 'The agent session can read an earlier query result. Snowflake does not block this, so keep AI access restrictions on: raw SQL from AI then stays off.',
-                fixStep: 7,
+                detail: 'Your AI identity can read an earlier result from your personal sign-in. Review the AI identity before allowing AI requests.',
+                fixStep: 5,
             });
         } catch (error) {
             results.push({
@@ -171,4 +195,77 @@ export const runSnowflakeAiBoundaryChecks = async ({
         });
     }
     return results;
+};
+
+export const getSnowflakeAiBoundaryStatuses = ({
+    state,
+    aiSignInEnabled,
+    aiIdentitiesEnabled,
+    memberCount,
+    readyIdentityCount,
+    signedInMemberCount,
+    restrictionsOn,
+}: { restrictionsOn: boolean } & Pick<
+    SnowflakeAiBoundaryGuideConfig,
+    | 'state'
+    | 'aiSignInEnabled'
+    | 'aiIdentitiesEnabled'
+    | 'memberCount'
+    | 'readyIdentityCount'
+    | 'signedInMemberCount'
+>): SnowflakeAiBoundaryGuideConfig['statuses'] => {
+    const checks =
+        state.lastTest?.aiIdentitiesEnabled === aiIdentitiesEnabled
+            ? state.lastTest.checks
+            : [];
+    const checkStatus = (
+        ids: SnowflakeAiBoundaryCheck['id'][],
+    ): SnowflakeAiBoundarySectionStatus | null => {
+        const selected = checks.filter((check) => ids.includes(check.id));
+        if (
+            selected.some(
+                (check) =>
+                    check.status === 'fail' || check.status === 'not_covered',
+            )
+        )
+            return 'needs_attention';
+        if (
+            selected.length === ids.length &&
+            selected.every(
+                (check) =>
+                    check.status === 'pass' || check.status === 'covered',
+            )
+        )
+            return 'verified';
+        return null;
+    };
+    const marked = (section: SnowflakeAiBoundarySection) =>
+        state.marks[section]
+            ? ('marked_done' as const)
+            : ('not_started' as const);
+    const ready = aiIdentitiesEnabled
+        ? readyIdentityCount
+        : signedInMemberCount;
+    return {
+        prerequisites:
+            checkStatus(['agent_active', 'masked_column']) === 'verified'
+                ? 'verified'
+                : marked('prerequisites'),
+        masking: checkStatus(['masked_column']) ?? marked('masking'),
+        session_policy:
+            checkStatus(['agent_active', 'secondary_roles_blocked']) ??
+            marked('session_policy'),
+        identities: (() => {
+            if (memberCount > 0 && ready === memberCount) return 'verified';
+            return restrictionsOn ? 'needs_attention' : 'not_started';
+        })(),
+        oauth: aiSignInEnabled ? 'verified' : marked('oauth'),
+        checks:
+            checkStatus([
+                'agent_active',
+                'masked_column',
+                'result_scan_blocked',
+                'secondary_roles_blocked',
+            ]) ?? 'not_started',
+    };
 };

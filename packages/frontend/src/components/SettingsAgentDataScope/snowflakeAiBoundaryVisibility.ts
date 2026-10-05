@@ -2,4 +2,6 @@ export const shouldShowSnowflakeAiBoundaryGuide = (
     guideEnabled: boolean,
     signInEnabled: boolean,
     canUpdateProject: boolean,
-): boolean => guideEnabled && signInEnabled && canUpdateProject;
+    aiIdentitiesEnabled = false,
+): boolean =>
+    guideEnabled && (signInEnabled || aiIdentitiesEnabled) && canUpdateProject;

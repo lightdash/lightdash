@@ -603,6 +603,10 @@ const getMockedProjectService = (
         } as unknown as EncryptionUtil,
         userModel: {
             invalidateSessionUserCache: vi.fn(),
+            getUserDetailsByUuid: vi.fn(async () => ({
+                firstName: 'Admin',
+                lastName: 'User',
+            })),
         } as unknown as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         featureFlagModel:
@@ -14918,38 +14922,43 @@ describe('Snowflake AI boundary guide access', () => {
     } as CreateWarehouseCredentials;
 
     it.each([
-        FeatureFlags.SnowflakeAiBoundaryGuide,
-        FeatureFlags.SnowflakeAiSignIn,
-    ])('requires %s on the config and test endpoints', async (disabledFlag) => {
-        const getFlag = vi.fn(
-            async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
-                enabled: featureFlagId !== disabledFlag,
-            }),
-        );
-        const service = getMockedProjectService(lightdashConfigMock, {
-            featureFlagModel: { get: getFlag } as unknown as FeatureFlagModel,
-        });
-        const getCredentials = vi
-            .spyOn(projectModel, 'getWarehouseCredentialsForProject')
-            .mockResolvedValue(snowflake);
-        try {
-            await expect(
-                service.getSnowflakeAiBoundaryGuideConfig(
-                    developerAccount as RegisteredAccount,
-                    projectSummary.projectUuid,
-                ),
-            ).rejects.toThrow(ForbiddenError);
-            await expect(
-                service.testSnowflakeAiBoundary(
-                    developerAccount as RegisteredAccount,
-                    projectSummary.projectUuid,
-                    { protectedColumn: null },
-                ),
-            ).rejects.toThrow(ForbiddenError);
-        } finally {
-            getCredentials.mockRestore();
-        }
-    });
+        [[FeatureFlags.SnowflakeAiBoundaryGuide]],
+        [[FeatureFlags.SnowflakeAiSignIn, FeatureFlags.SnowflakeAiTwins]],
+    ])(
+        'requires the guide and a Snowflake AI path (disabled: %s)',
+        async (disabledFlags) => {
+            const getFlag = vi.fn(
+                async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
+                    enabled: !disabledFlags.includes(featureFlagId),
+                }),
+            );
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: getFlag,
+                } as unknown as FeatureFlagModel,
+            });
+            const getCredentials = vi
+                .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+                .mockResolvedValue(snowflake);
+            try {
+                await expect(
+                    service.getSnowflakeAiBoundaryGuideConfig(
+                        developerAccount as RegisteredAccount,
+                        projectSummary.projectUuid,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                await expect(
+                    service.testSnowflakeAiBoundary(
+                        developerAccount as RegisteredAccount,
+                        projectSummary.projectUuid,
+                        { protectedColumn: null },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            } finally {
+                getCredentials.mockRestore();
+            }
+        },
+    );
 
     it('requires project update permission', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
@@ -15082,6 +15091,11 @@ describe('Snowflake AI boundary guide access', () => {
             .mockResolvedValue(snowflake);
         Reflect.set(
             projectModel,
+            'setSnowflakeAiBoundaryGuideEvidence',
+            vi.fn(async () => undefined),
+        );
+        Reflect.set(
+            projectModel,
             'getRecentNonAiWarehouseQueryId',
             vi.fn(async () => null),
         );
@@ -15149,7 +15163,7 @@ describe('Snowflake AI boundary guide access', () => {
             expect(results.map(({ status }) => status)).toEqual([
                 'pass',
                 'skipped',
-                'skipped',
+                'not_covered',
                 'pass',
             ]);
             expect(disconnect).toHaveBeenCalledOnce();

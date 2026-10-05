@@ -1,4 +1,5 @@
 import {
+    getAiTwinSessionCeilingSql,
     getAgenticEnvBlock,
     getAgenticIntegrationSql,
     getAgentMaskingSql,
@@ -14,7 +15,11 @@ export const useGuideSql = ({
     tagDatabase,
     tagSchema,
     protectedSchemas,
+    aiIdentitiesEnabled,
+    identityNames,
 }: {
+    aiIdentitiesEnabled: boolean;
+    identityNames: string[];
     integrationName: string;
     redirectUri: string;
     roles: string;
@@ -57,6 +62,15 @@ export const useGuideSql = ({
     }, [tagDatabase, tagSchema, protectedSchemas]);
     const ceilingSql = useMemo(() => {
         try {
+            if (aiIdentitiesEnabled) {
+                if (identityNames.length === 0) return '';
+                return getAiTwinSessionCeilingSql({
+                    database: tagDatabase,
+                    schema: tagSchema,
+                    blockedRoles: [],
+                    twinNames: identityNames,
+                });
+            }
             return getSessionCeilingSql({
                 database: tagDatabase,
                 schema: tagSchema,
@@ -65,6 +79,6 @@ export const useGuideSql = ({
         } catch {
             return '';
         }
-    }, [tagDatabase, tagSchema]);
+    }, [tagDatabase, tagSchema, aiIdentitiesEnabled, identityNames]);
     return { integrationSql, envBlock, maskingSql, ceilingSql };
 };

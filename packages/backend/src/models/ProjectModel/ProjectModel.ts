@@ -80,6 +80,9 @@ import {
     type CreateBigqueryCredentials,
     type PersonSignIn,
     type SignInSubject,
+    type SnowflakeAiBoundaryAttribution,
+    type SnowflakeAiBoundaryGuideState,
+    type SnowflakeAiBoundarySection,
     type StoredSignInSubject,
     type SummaryExplore,
 } from '@lightdash/common';
@@ -7595,6 +7598,55 @@ export class ProjectModel {
         }
 
         return project.agent_sql_scope ?? null;
+    }
+
+    async getSnowflakeAiBoundaryGuideState(
+        projectUuid: string,
+    ): Promise<SnowflakeAiBoundaryGuideState> {
+        const rows = await this.database<{
+            project_uuid: string;
+            section: SnowflakeAiBoundarySection | 'last_test';
+            evidence:
+                | SnowflakeAiBoundaryAttribution
+                | NonNullable<SnowflakeAiBoundaryGuideState['lastTest']>;
+        }>('snowflake_ai_boundary_guide_state')
+            .where('project_uuid', projectUuid)
+            .select('section', 'evidence');
+        const marks: SnowflakeAiBoundaryGuideState['marks'] = {};
+        let lastTest: SnowflakeAiBoundaryGuideState['lastTest'] = null;
+        for (const row of rows) {
+            if (row.section === 'last_test') {
+                lastTest = row.evidence as NonNullable<
+                    SnowflakeAiBoundaryGuideState['lastTest']
+                >;
+            } else {
+                marks[row.section] = row.evidence;
+            }
+        }
+        return { marks, lastTest };
+    }
+
+    async setSnowflakeAiBoundaryGuideEvidence(
+        projectUuid: string,
+        section: SnowflakeAiBoundarySection | 'last_test',
+        evidence:
+            | SnowflakeAiBoundaryAttribution
+            | NonNullable<SnowflakeAiBoundaryGuideState['lastTest']>
+            | null,
+    ): Promise<void> {
+        const table = this.database('snowflake_ai_boundary_guide_state');
+        if (evidence === null) {
+            await table.where({ project_uuid: projectUuid, section }).delete();
+        } else {
+            await table
+                .insert({
+                    project_uuid: projectUuid,
+                    section,
+                    evidence: JSON.stringify(evidence),
+                })
+                .onConflict(['project_uuid', 'section'])
+                .merge(['evidence']);
+        }
     }
 
     async getSnowflakeAiBoundaryMemberCounts(

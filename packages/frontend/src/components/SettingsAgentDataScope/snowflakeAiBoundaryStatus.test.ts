@@ -1,81 +1,81 @@
+import { type SnowflakeAiBoundaryGuideConfig } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getSnowflakeAiBoundaryStepStatuses } from './snowflakeAiBoundaryStatus';
+import {
+    getBoundarySecuritySummary,
+    getRefusedMemberCount,
+    needsRestrictionsConfirmation,
+} from './snowflakeAiBoundaryStatus';
 
-describe('Snowflake AI boundary guide statuses', () => {
-    const base = {
-        isSnowflake: true,
-        enterpriseConfirmed: false,
-        roleConfirmed: false,
-        aiSignInEnabled: false,
-        maskingConfirmed: false,
-        ceilingConfirmed: false,
-        signedIn: false,
-        checks: null,
-        restrictionsEnabled: false,
-    } as const;
+const config: SnowflakeAiBoundaryGuideConfig = {
+    redirectUri: '',
+    snowflakeAccount: '',
+    cloud: false,
+    aiSignInEnabled: false,
+    signedIn: false,
+    memberCount: 3,
+    signedInMemberCount: 1,
+    readyIdentityCount: 2,
+    aiIdentityAccountUuid: null,
+    aiIdentitiesEnabled: true,
+    identityNames: [],
+    restrictionsEnabled: false,
+    boundaryVerified: false,
+    state: { marks: {}, lastTest: null },
+    statuses: {
+        prerequisites: 'not_started',
+        masking: 'not_started',
+        session_policy: 'not_started',
+        identities: 'needs_attention',
+        oauth: 'not_started',
+        checks: 'not_started',
+    },
+};
 
-    it('stops on a non-Snowflake project', () => {
+describe('boundary restrictions confirmation', () => {
+    it('counts people who will be refused using the active identity path', () => {
+        expect(getRefusedMemberCount(config)).toBe(1);
         expect(
-            getSnowflakeAiBoundaryStepStatuses({
-                ...base,
-                isSnowflake: false,
-            })[0],
-        ).toBe('failed');
+            getRefusedMemberCount({ ...config, aiIdentitiesEnabled: false }),
+        ).toBe(2);
     });
-
-    it('derives done states from current configuration and confirmations', () => {
+    it('requires confirmation for unrun checks even when every identity is ready', () => {
         expect(
-            getSnowflakeAiBoundaryStepStatuses({
-                ...base,
-                enterpriseConfirmed: true,
-                roleConfirmed: true,
-                aiSignInEnabled: true,
-                maskingConfirmed: true,
-                ceilingConfirmed: true,
-                signedIn: true,
-                restrictionsEnabled: true,
+            needsRestrictionsConfirmation({ ...config, readyIdentityCount: 3 }),
+        ).toBe(true);
+    });
+    it('requires confirmation when a person is not ready even with verified checks', () => {
+        expect(
+            needsRestrictionsConfirmation({
+                ...config,
+                statuses: { ...config.statuses, checks: 'verified' },
             }),
-        ).toEqual(['done', 'done', 'done', 'done', 'done', 'to do', 'done']);
+        ).toBe(true);
     });
-
-    it('marks failed checks as failed and skipped checks as to do', () => {
+    it('does not require confirmation when checks and every identity are ready', () => {
         expect(
-            getSnowflakeAiBoundaryStepStatuses({
-                ...base,
-                checks: [
-                    {
-                        id: 'agent_active',
-                        status: 'fail',
-                        detail: '',
-                        fixStep: 2,
-                    },
-                ],
-            })[5],
-        ).toBe('failed');
-        expect(
-            getSnowflakeAiBoundaryStepStatuses({
-                ...base,
-                checks: [
-                    {
-                        id: 'masked_column',
-                        status: 'skipped',
-                        detail: '',
-                        fixStep: 3,
-                    },
-                ],
-            })[5],
-        ).toBe('to do');
+            needsRestrictionsConfirmation({
+                ...config,
+                readyIdentityCount: 3,
+                statuses: { ...config.statuses, checks: 'verified' },
+            }),
+        ).toBe(false);
     });
-
-    it('keeps completed steps done after the admin moves on', () => {
-        expect(
-            getSnowflakeAiBoundaryStepStatuses({
-                ...base,
-                enterpriseConfirmed: true,
-                roleConfirmed: true,
-                maskingConfirmed: true,
-                ceilingConfirmed: true,
-            }).slice(0, 4),
-        ).toEqual(['done', 'to do', 'done', 'done']);
+    it('exports attributed manual evidence without calling it verified', () => {
+        const summary = getBoundarySecuritySummary({
+            ...config,
+            state: {
+                marks: {
+                    masking: {
+                        userUuid: 'user',
+                        name: 'Test Admin',
+                        at: '2026-10-05T10:00:00Z',
+                    },
+                },
+                lastTest: null,
+            },
+        });
+        expect(summary).toContain('marked as done by Test Admin on 2026-10-05');
+        expect(summary).toContain('Checks have not run.');
+        expect(summary).toContain('Does not cover:');
     });
 });
