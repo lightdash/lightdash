@@ -268,6 +268,7 @@ import {
     WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseDatabaseListing,
+    WarehouseSignInRejection,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -526,7 +527,12 @@ type RefreshTokenRotationSource =
           kind: 'organization';
           organizationWarehouseCredentialsUuid: string;
       }
-    | { kind: 'user'; userWarehouseCredentialsUuid: string }
+    | {
+          kind: 'user';
+          userWarehouseCredentialsUuid: string;
+          needsSignIn: boolean;
+          projectUuid: string;
+      }
     | {
           kind: 'warehouseConnection';
           project: WarehouseConnectionProject;
@@ -1567,7 +1573,34 @@ export class ProjectService extends BaseService {
                 } catch (e2: unknown) {
                     errorMessage = 'Error refreshing snowflake token';
                 }
-                throw new SnowflakeTokenError(errorMessage);
+                let rejection: WarehouseSignInRejection | null = null;
+                if (e !== null && typeof e === 'object') {
+                    const response = e as {
+                        statusCode?: number;
+                        data?: unknown;
+                    };
+                    if (
+                        (response.statusCode === 400 ||
+                            response.statusCode === 401) &&
+                        typeof response.data === 'string'
+                    ) {
+                        try {
+                            const body: unknown = JSON.parse(response.data);
+                            if (
+                                body !== null &&
+                                typeof body === 'object' &&
+                                'error' in body &&
+                                body.error === 'invalid_grant'
+                            ) {
+                                rejection =
+                                    WarehouseSignInRejection.INVALID_GRANT;
+                            }
+                        } catch {
+                            rejection = null;
+                        }
+                    }
+                }
+                throw new SnowflakeTokenError(errorMessage, { rejection });
             }
         }
 
@@ -1730,14 +1763,23 @@ export class ProjectService extends BaseService {
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
         const refreshed = await this.refreshCredentials(args, userUuid).catch(
-            (error: unknown) =>
-                source.kind === 'project'
-                    ? this.attributeSharedSignInExpiry(
-                          source.projectUuid,
-                          args,
-                          error,
-                      )
-                    : Promise.reject(error),
+            async (error: unknown) => {
+                if (source.kind === 'project') {
+                    return this.attributeSharedSignInExpiry(
+                        source.projectUuid,
+                        args,
+                        error,
+                    );
+                }
+                if (source.kind === 'user') {
+                    await this.markPersonalCredentialOnRejection(
+                        source.projectUuid,
+                        source.userWarehouseCredentialsUuid,
+                        error,
+                    );
+                }
+                throw error;
+            },
         );
 
         const newRefreshToken =
@@ -1753,6 +1795,18 @@ export class ProjectService extends BaseService {
                 oldRefreshToken,
                 newRefreshToken,
             });
+        }
+
+        if (
+            source.kind === 'user' &&
+            source.needsSignIn &&
+            (args.type === WarehouseTypes.SNOWFLAKE ||
+                args.type === WarehouseTypes.DATABRICKS)
+        ) {
+            await this.clearPersonalCredentialAfterSuccess(
+                source.projectUuid,
+                source.userWarehouseCredentialsUuid,
+            );
         }
 
         return refreshed;
@@ -2237,6 +2291,7 @@ export class ProjectService extends BaseService {
             ),
         } as CreateWarehouseCredentials;
         let userWarehouseCredentialsUuid: string | undefined;
+        let userWarehouseCredentialsNeedsSignIn = false;
 
         if (purpose === 'compile') {
             return {
@@ -2325,9 +2380,14 @@ export class ProjectService extends BaseService {
                         kind: 'user',
                         userWarehouseCredentialsUuid:
                             userWarehouseCredentials.uuid,
+                        needsSignIn:
+                            userWarehouseCredentials.needsSignIn != null,
+                        projectUuid,
                     },
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
+                userWarehouseCredentialsNeedsSignIn =
+                    userWarehouseCredentials.needsSignIn != null;
             } else if (credentials.requireUserCredentials) {
                 this.trackExtraConnectionCredentialsRequired({
                     organizationUuid: project.organizationUuid,
@@ -2374,6 +2434,9 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            ...(userWarehouseCredentialsUuid
+                ? { userWarehouseCredentialsNeedsSignIn }
+                : {}),
         };
     }
 
@@ -2929,6 +2992,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
+        let userWarehouseCredentialsNeedsSignIn = false;
 
         if (
             credentials.type === WarehouseTypes.DUCKDB &&
@@ -3018,9 +3082,14 @@ export class ProjectService extends BaseService {
                         kind: 'user',
                         userWarehouseCredentialsUuid:
                             userWarehouseCredentials.uuid,
+                        needsSignIn:
+                            userWarehouseCredentials.needsSignIn != null,
+                        projectUuid,
                     },
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
+                userWarehouseCredentialsNeedsSignIn =
+                    userWarehouseCredentials.needsSignIn != null;
             } else if (credentials.requireUserCredentials) {
                 this.logger.warn(
                     `No ${credentials.type} user warehouse credentials found for user ${userId} on project ${projectUuid} (requireUserCredentials enabled, host mismatch: ${!!hostMismatch})`,
@@ -3072,6 +3141,9 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            ...(userWarehouseCredentialsUuid
+                ? { userWarehouseCredentialsNeedsSignIn }
+                : {}),
         };
     }
 
@@ -3153,10 +3225,14 @@ export class ProjectService extends BaseService {
         ) {
             // if existing client uses identical credentials, use it
             return {
-                warehouseClient: this.withSharedSignInAttribution(
+                warehouseClient: this.withPersonalSignInMark(
                     projectUuid,
                     credentials,
-                    existingClient,
+                    this.withSharedSignInAttribution(
+                        projectUuid,
+                        credentials,
+                        existingClient,
+                    ),
                 ),
                 sshTunnel,
                 tunnelConnectMs,
@@ -3235,14 +3311,130 @@ export class ProjectService extends BaseService {
         );
         this.warehouseClients[cacheKey] = client;
         return {
-            warehouseClient: this.withSharedSignInAttribution(
+            warehouseClient: this.withPersonalSignInMark(
                 projectUuid,
                 credentials,
-                client,
+                this.withSharedSignInAttribution(
+                    projectUuid,
+                    credentials,
+                    client,
+                ),
             ),
             sshTunnel,
             tunnelConnectMs,
         };
+    }
+
+    private async isPersonalSignInMarkEnabled(
+        projectUuid: string,
+    ): Promise<boolean> {
+        try {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.WarehouseSignInMark,
+            });
+            return enabled;
+        } catch (error) {
+            this.logger.warn(
+                `Could not resolve warehouse sign-in mark flag: ${getErrorMessage(error)}`,
+            );
+            return false;
+        }
+    }
+
+    private async markPersonalCredentialOnRejection(
+        projectUuid: string,
+        uuid: string,
+        error: unknown,
+    ): Promise<void> {
+        if (!isWarehouseTokenError(error)) return;
+        const rejection = error.data.rejection as
+            | WarehouseSignInRejection
+            | null
+            | undefined;
+        if (rejection == null) return;
+        try {
+            if (!(await this.isPersonalSignInMarkEnabled(projectUuid))) return;
+            await this.userWarehouseCredentialsModel.markNeedsSignIn(
+                uuid,
+                rejection,
+            );
+        } catch (writeError) {
+            this.logger.warn(
+                `Could not mark user warehouse credential for sign-in: ${getErrorMessage(writeError)}`,
+            );
+        }
+    }
+
+    private async clearPersonalCredentialAfterSuccess(
+        projectUuid: string,
+        uuid: string,
+    ): Promise<void> {
+        try {
+            if (!(await this.isPersonalSignInMarkEnabled(projectUuid))) return;
+            await this.userWarehouseCredentialsModel.clearNeedsSignIn(uuid);
+        } catch (writeError) {
+            this.logger.warn(
+                `Could not clear user warehouse sign-in mark: ${getErrorMessage(writeError)}`,
+            );
+        }
+    }
+
+    private withPersonalSignInMark<T extends object>(
+        projectUuid: string,
+        credentials: CreateWarehouseCredentials,
+        client: T,
+    ): T {
+        const personal = credentials as CreateWarehouseCredentials & {
+            userWarehouseCredentialsUuid?: string;
+            userWarehouseCredentialsNeedsSignIn?: boolean;
+        };
+        if (
+            credentials.type !== WarehouseTypes.BIGQUERY ||
+            !personal.userWarehouseCredentialsUuid
+        ) {
+            return client;
+        }
+        const uuid = personal.userWarehouseCredentialsUuid;
+        let needsSignIn = personal.userWarehouseCredentialsNeedsSignIn === true;
+        return new Proxy(client, {
+            get: (target, property) => {
+                const value = Reflect.get(target, property, target);
+                if (typeof value !== 'function') return value;
+                return (...args: unknown[]) => {
+                    const result = value.apply(target, args);
+                    if (!(result instanceof Promise)) return result;
+                    return result.then(
+                        async (answer: unknown) => {
+                            if (needsSignIn) {
+                                needsSignIn = false;
+                                await this.clearPersonalCredentialAfterSuccess(
+                                    projectUuid,
+                                    uuid,
+                                );
+                            }
+                            return answer;
+                        },
+                        async (error: unknown) => {
+                            if (
+                                isWarehouseTokenError(error) &&
+                                error.data.rejection != null
+                            ) {
+                                await this.markPersonalCredentialOnRejection(
+                                    projectUuid,
+                                    uuid,
+                                    error,
+                                );
+                                needsSignIn = true;
+                            }
+                            throw error;
+                        },
+                    );
+                };
+            },
+        });
     }
 
     private withSharedSignInAttribution<T extends object>(

@@ -13,6 +13,7 @@ import {
     setCatalogTimestampDomain,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseSignInRejection,
     type BigqueryProject,
     type CreateBigqueryCredentials,
     type WarehouseNestedColumnShape,
@@ -717,6 +718,9 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
         await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
             BigqueryTokenError,
         );
+        await expect(executeAsyncQuery(warehouse)).rejects.toMatchObject({
+            data: { rejection: WarehouseSignInRejection.INVALID_RAPT },
+        });
         await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
             'Google rejected the BigQuery refresh token (invalid_grant: Token has been expired or revoked.; invalid_rapt). Reconnect your BigQuery account in personal settings.',
         );

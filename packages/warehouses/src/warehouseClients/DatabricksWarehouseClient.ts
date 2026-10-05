@@ -10,6 +10,7 @@ import {
     AnyType,
     CreateDatabricksCredentials,
     DatabricksAuthenticationType,
+    DatabricksTokenError,
     DimensionType,
     getDatabricksUnnestSql,
     getErrorMessage,
@@ -28,6 +29,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
@@ -1011,6 +1013,24 @@ export const refreshDatabricksOAuthToken = async (
 
     if (!response.ok) {
         const errorText = await response.text();
+        if (response.status === 400 || response.status === 401) {
+            try {
+                const parsed: unknown = JSON.parse(errorText);
+                if (
+                    parsed !== null &&
+                    typeof parsed === 'object' &&
+                    'error' in parsed &&
+                    parsed.error === 'invalid_grant'
+                ) {
+                    throw new DatabricksTokenError(
+                        'Databricks rejected the refresh token',
+                        { rejection: WarehouseSignInRejection.INVALID_GRANT },
+                    );
+                }
+            } catch (error) {
+                if (error instanceof DatabricksTokenError) throw error;
+            }
+        }
         throw new Error(
             `Failed to refresh Databricks OAuth token: ${response.status} ${errorText}`,
         );
