@@ -587,7 +587,7 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         expect(queryByTestId('explore-back')).toBeNull();
     });
 
-    it('restores the unsaved query of each drill-down source on back', async () => {
+    it('restores the unsaved root query on back from a nested drill-down', async () => {
         const { getByTestId, queryByTestId } = render(
             <Explore
                 token={mockToken}
@@ -622,19 +622,6 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         fireEvent.click(getByTestId('explore-back'));
         await waitFor(() => {
             expect(getByTestId('embed-explore').dataset.metrics).toBe(
-                'payments_drill_unsaved',
-            );
-        });
-        expect(getByTestId('embed-explore').dataset.exploreId).toBe(
-            'payments_drill',
-        );
-        expect(getByTestId('embed-explore').dataset.runQueryOnLoad).toBe(
-            'false',
-        );
-
-        fireEvent.click(getByTestId('explore-back'));
-        await waitFor(() => {
-            expect(getByTestId('embed-explore').dataset.metrics).toBe(
                 'payments_unsaved',
             );
         });
@@ -645,6 +632,49 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         expect(getByTestId('embed-explore').dataset.runQueryOnLoad).toBe(
             'true',
         );
+        expect(queryByTestId('explore-back')).toBeNull();
+    });
+
+    it('starts a fresh navigation when the host returns to an earlier chart', async () => {
+        const renderExplore = (exploreId: string, chartUuid: string) => (
+            <Explore
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId={exploreId}
+                savedChart={{ uuid: chartUuid, tableName: exploreId } as never}
+            />
+        );
+        const { getByTestId, queryByTestId, rerender } = render(
+            renderExplore('payments', 'chart-a'),
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments',
+            );
+        });
+
+        fireEvent.click(getByTestId('explore-drill-down-unsaved'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments_drill',
+            );
+        });
+
+        rerender(renderExplore('orders', 'chart-b'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'chart-b',
+            );
+        });
+
+        rerender(renderExplore('payments', 'chart-a'));
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'chart-a',
+            );
+        });
+        expect(getByTestId('embed-explore').dataset.exploreId).toBe('payments');
         expect(queryByTestId('explore-back')).toBeNull();
     });
 });
