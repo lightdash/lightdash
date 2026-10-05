@@ -223,6 +223,7 @@ import {
 } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { sanitizeDuckdbError } from '../../utils/duckdb/sanitizeDuckdbError';
+import { isAiAgentEmbedAccount } from '../../utils/embedAiAgentAccount';
 import {
     processFieldsForExport,
     streamJsonlData,
@@ -1532,6 +1533,27 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    private assertEmbedAiAgentCanDownload(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+    ): void {
+        if (
+            isAiAgentEmbedAccount(account) &&
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('EmbedCsvExport', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Embed token is not allowed to download AI agent results',
+            );
+        }
+    }
+
     async getAsyncQueryResults({
         account,
         projectUuid,
@@ -1877,6 +1899,13 @@ export class AsyncQueryService extends ProjectService {
         pollingOptions?: PollingOptions,
     ) {
         const { queryUuid, projectUuid, account } = args;
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        this.assertEmbedAiAgentCanDownload(
+            account,
+            organizationUuid,
+            projectUuid,
+        );
         await this.pollForQueryCompletion({
             account,
             projectUuid,
@@ -1944,6 +1973,11 @@ export class AsyncQueryService extends ProjectService {
                 'Scheduled downloads are unavailable for internal analytics',
             );
         }
+        this.assertEmbedAiAgentCanDownload(
+            account,
+            project.organizationUuid,
+            payload.projectUuid,
+        );
 
         const { organizationUuid } = account.organization;
 
@@ -2139,6 +2173,11 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         const { organizationUuid } = project;
+        this.assertEmbedAiAgentCanDownload(
+            account,
+            organizationUuid,
+            projectUuid,
+        );
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,

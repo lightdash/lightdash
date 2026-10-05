@@ -24,6 +24,7 @@ import {
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC, type ReactNode } from 'react';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -96,6 +97,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
 
         const user = useUser(true);
         const health = useHealth();
+        const isEmbedded = useIsEmbedded();
         const [limit, setLimit] = useState<Limit>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
@@ -163,7 +165,10 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         });
                     },
                     onSuccess: (response) => {
-                        pollJobStatus(response.jobId)
+                        pollJobStatus(
+                            response.jobId,
+                            isEmbedded ? projectUuid : undefined,
+                        )
                             .then(async (details) => {
                                 if (!details?.fileUrl) {
                                     throw new Error(

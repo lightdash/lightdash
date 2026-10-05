@@ -10,6 +10,7 @@ import {
     AnyType,
     ApiChartAndResults,
     ApiCompiledMergeQueryResults,
+    ApiCompiledQueryResults,
     ApiCreatePreviewResults,
     ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
@@ -414,6 +415,7 @@ import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
+import { isAiAgentEmbedAccount } from '../../utils/embedAiAgentAccount';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
@@ -8017,6 +8019,45 @@ export class ProjectService extends BaseService {
                 'User cannot run queries with custom SQL fields',
             );
         }
+    }
+
+    private cannotViewEmbedCompiledSql(
+        account: Account,
+        projectUuid: string,
+    ): boolean {
+        return (
+            isAiAgentEmbedAccount(account) &&
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('EmbedCompiledSql', {
+                    organizationUuid:
+                        account.embed.organization.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        );
+    }
+
+    async compileQueryForResponse(args: {
+        account: Account;
+        body: MetricQuery & {
+            parameters?: ParametersValuesMap;
+            pivotConfiguration?: PivotConfiguration;
+        };
+        projectUuid: string;
+        exploreName: string;
+        usePreAggregateCache?: boolean;
+    }): Promise<ApiCompiledQueryResults> {
+        const { parameterReferences, query, pivotQuery } =
+            await this.compileQuery(args);
+        if (this.cannotViewEmbedCompiledSql(args.account, args.projectUuid)) {
+            return { query: '', parameterReferences };
+        }
+        return {
+            query,
+            parameterReferences,
+            ...(pivotQuery && { pivotQuery }),
+        };
     }
 
     async compileQuery(

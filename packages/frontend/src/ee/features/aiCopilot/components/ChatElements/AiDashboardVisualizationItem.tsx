@@ -23,6 +23,7 @@ import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useCanViewAiAgentSql } from '../../hooks/useCanViewAiAgentSql';
 import {
     getAiAgentDashboardChartVizQueryKey,
     useAiAgentDashboardChartVizQuery,
@@ -70,11 +71,13 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
             queryExecutionHandle.data?.query?.queryUuid,
         );
 
+        const canViewSql = useCanViewAiAgentSql();
         const { data: compiledSql } = useCompiledSqlFromMetricQuery({
             tableName:
                 queryExecutionHandle.data?.query.metricQuery?.exploreName,
             projectUuid,
             metricQuery: queryExecutionHandle.data?.query.metricQuery,
+            enabled: canViewSql,
         });
 
         const isQueryLoading =
@@ -182,7 +185,9 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                             linkToMessage: false,
                         }}
                         message={message}
-                        compiledSql={compiledSql?.query}
+                        compiledSql={
+                            canViewSql ? compiledSql?.query : undefined
+                        }
                         merge={null}
                     />
                 </Group>

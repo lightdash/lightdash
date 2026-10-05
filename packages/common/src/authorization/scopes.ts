@@ -1348,7 +1348,8 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:EmbedCsvExport',
-        description: 'Export individual embedded chart tiles as CSV',
+        description:
+            'Export results from embedded chart tiles and AI agent answers',
         isEnterprise: true,
         group: ScopeGroup.EMBED,
         dependencies: [],
@@ -1432,6 +1433,14 @@ const scopes: Scope[] = [
                 description: 'Use embedded AI agents',
             },
         ],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedCompiledSql',
+        description: 'View compiled SQL in embeds',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
 

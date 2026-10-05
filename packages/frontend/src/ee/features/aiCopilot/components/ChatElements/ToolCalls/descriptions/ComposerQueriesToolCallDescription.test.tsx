@@ -2,10 +2,15 @@ import { QuerySourceType, type ToolComposerQueryNode } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../../../testing/testUtils';
+import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import { store } from '../../../../store';
 import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
+
+vi.mock('../../../../hooks/useCanViewAiAgentSql', () => ({
+    useCanViewAiAgentSql: vi.fn(() => true),
+}));
 
 const sqlNode = (nodeId: string, title: string, sql: string) =>
     ({
@@ -18,6 +23,10 @@ const sqlNode = (nodeId: string, title: string, sql: string) =>
     }) satisfies ToolComposerQueryNode;
 
 describe('ComposerQueriesToolCallDescription', () => {
+    beforeEach(() => {
+        vi.mocked(useCanViewAiAgentSql).mockReturnValue(true);
+    });
+
     it('renders node titles and source context, with SQL behind a collapsed row', async () => {
         const { container } = renderWithProviders(
             <ComposerQueriesToolCallDescription
@@ -63,6 +72,21 @@ describe('ComposerQueriesToolCallDescription', () => {
         expect(container.querySelector('code')).toHaveTextContent(
             'select payment_method, target_revenue from targets_csv',
         );
+    });
+
+    it('hides node SQL without the SQL scope but keeps the card readable', () => {
+        vi.mocked(useCanViewAiAgentSql).mockReturnValue(false);
+        const { container } = renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[sqlNode('orders', 'Orders', 'select secret from t')]}
+                nodeStatuses={{ orders: { status: 'running' } }}
+            />,
+        );
+
+        expect(screen.getByText('Orders')).toBeInTheDocument();
+        expect(screen.getByText('Warehouse SQL')).toBeInTheDocument();
+        expect(container.querySelector('code')).not.toBeInTheDocument();
+        expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
     });
 
     it('opens only the running node and marks the rest with their status', () => {

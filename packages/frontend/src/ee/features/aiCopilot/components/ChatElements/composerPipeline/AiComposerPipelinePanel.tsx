@@ -60,6 +60,7 @@ import reactFlowStyles from '../../../../../../components/common/ReactFlow/react
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
+import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
@@ -209,54 +210,58 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
     projectUuid,
 }) => {
     const [queryOpen, setQueryOpen] = useState(false);
+    const canViewSql = useCanViewAiAgentSql();
     return (
         <>
             {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
                 <SemanticFields query={query} />
             )}
             {/* Reading or copying the query must not display the node. */}
-            <Box
-                className={styles.details}
-                onClick={(event) => event.stopPropagation()}
-            >
-                <UnstyledButton
-                    className={styles.queryToggle}
-                    onClick={() => setQueryOpen((value) => !value)}
-                    aria-expanded={queryOpen}
+            {canViewSql && (
+                <Box
+                    className={styles.details}
+                    onClick={(event) => event.stopPropagation()}
                 >
-                    <MantineIcon
-                        icon={IconChevronRight}
-                        size={11}
-                        stroke={1.6}
-                        className={clsx(
-                            styles.chevron,
-                            queryOpen && styles.chevronOpen,
-                        )}
-                    />
-                    {queryOpen ? 'Hide query' : 'View query'}
-                </UnstyledButton>
-                <Collapse
-                    expanded={queryOpen}
-                    transitionDuration={240}
-                    transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
-                >
-                    <Box className={styles.code}>
-                        {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
-                            queryOpen && (
-                                <SemanticQuerySql
-                                    query={query}
-                                    projectUuid={projectUuid}
+                    <UnstyledButton
+                        className={styles.queryToggle}
+                        onClick={() => setQueryOpen((value) => !value)}
+                        aria-expanded={queryOpen}
+                    >
+                        <MantineIcon
+                            icon={IconChevronRight}
+                            size={11}
+                            stroke={1.6}
+                            className={clsx(
+                                styles.chevron,
+                                queryOpen && styles.chevronOpen,
+                            )}
+                        />
+                        {queryOpen ? 'Hide query' : 'View query'}
+                    </UnstyledButton>
+                    <Collapse
+                        expanded={queryOpen}
+                        transitionDuration={240}
+                        transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
+                    >
+                        <Box className={styles.code}>
+                            {query.sourceType ===
+                            QuerySourceType.SEMANTIC_LAYER ? (
+                                queryOpen && (
+                                    <SemanticQuerySql
+                                        query={query}
+                                        projectUuid={projectUuid}
+                                    />
+                                )
+                            ) : (
+                                <CodeBlock
+                                    code={formattedSqlOf(query)}
+                                    language="sql"
                                 />
-                            )
-                        ) : (
-                            <CodeBlock
-                                code={formattedSqlOf(query)}
-                                language="sql"
-                            />
-                        )}
-                    </Box>
-                </Collapse>
-            </Box>
+                            )}
+                        </Box>
+                    </Collapse>
+                </Box>
+            )}
         </>
     );
 };

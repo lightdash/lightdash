@@ -27,6 +27,7 @@ import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import { SqlApprovalActions, type SqlApprovalTarget } from '../SqlApprovalCard';
 import { ToolCallChip } from '../ToolCallChip';
 import rowStyles from '../ToolCallRow.module.css';
@@ -147,8 +148,9 @@ const getNodePresentation = (
 };
 
 const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
+    const canViewSql = useCanViewAiAgentSql();
     const formattedSql = useMemo(() => {
-        if (!('sql' in node) || !node.sql) return null;
+        if (!canViewSql || !('sql' in node) || !node.sql) return null;
         return formatSql(
             node.sql,
             node.sourceType === QuerySourceType.DUCKDB ||
@@ -156,7 +158,7 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
                 ? WarehouseTypes.DUCKDB
                 : undefined,
         );
-    }, [node]);
+    }, [node, canViewSql]);
 
     if (node.sourceType === QuerySourceType.SEMANTIC_LAYER) {
         return (

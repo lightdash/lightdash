@@ -170,23 +170,17 @@ export class ExploreController extends BaseController {
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
         this.setStatus(200);
 
-        const { parameterReferences, query, pivotQuery } = await this.services
-            .getProjectService()
-            .compileQuery({
-                account: req.account!,
-                body,
-                projectUuid,
-                exploreName: exploreId,
-                usePreAggregateCache: body.usePreAggregateCache,
-            });
-
         return {
             status: 'ok',
-            results: {
-                query,
-                parameterReferences,
-                ...(pivotQuery && { pivotQuery }),
-            },
+            results: await this.services
+                .getProjectService()
+                .compileQueryForResponse({
+                    account: req.account!,
+                    body,
+                    projectUuid,
+                    exploreName: exploreId,
+                    usePreAggregateCache: body.usePreAggregateCache,
+                }),
         };
     }
 

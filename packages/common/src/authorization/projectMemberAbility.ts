@@ -4,6 +4,7 @@ import { type ProjectMemberRole } from '../types/projectMemberRole';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import {
+    DEVELOPER_EMBED_SUBJECTS,
     INTERACTIVE_VIEWER_EMBED_SUBJECTS,
     VIEWER_EMBED_SUBJECTS,
     type MemberAbility,
@@ -286,6 +287,11 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        DEVELOPER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                projectUuid: member.projectUuid,
+            });
+        });
         can('manage', 'PreAggregation', {
             projectUuid: member.projectUuid,
         });

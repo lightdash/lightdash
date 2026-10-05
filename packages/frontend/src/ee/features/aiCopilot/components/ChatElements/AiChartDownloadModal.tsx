@@ -18,6 +18,8 @@ type Props = {
     projectUuid: string;
     chartName: string | null;
     mergeQuery: MergeQuery | null;
+    /** Downloads this already-executed query as shown, without re-running it. */
+    executedQueryUuid: string | null;
 };
 
 export const AiChartDownloadModal: FC<Props> = ({
@@ -26,6 +28,7 @@ export const AiChartDownloadModal: FC<Props> = ({
     projectUuid,
     chartName,
     mergeQuery,
+    executedQueryUuid,
 }) => {
     const {
         chartConfig,
@@ -64,6 +67,8 @@ export const AiChartDownloadModal: FC<Props> = ({
             _limitType: Limit,
             exportPivotedData: boolean = true,
         ) => {
+            if (executedQueryUuid) return executedQueryUuid;
+
             if (!metricQuery || !itemsMap) {
                 throw new Error('Missing artifact query data');
             }
@@ -82,6 +87,7 @@ export const AiChartDownloadModal: FC<Props> = ({
         },
         [
             chartConfig,
+            executedQueryUuid,
             itemsMap,
             mergeQuery,
             metricQuery,
@@ -100,7 +106,8 @@ export const AiChartDownloadModal: FC<Props> = ({
             getDownloadQueryUuid={getDownloadQueryUuid}
             columnOrder={columnOrder}
             chartName={chartName ?? undefined}
-            pivotConfig={downloadPivotConfig}
+            pivotConfig={executedQueryUuid ? undefined : downloadPivotConfig}
+            hideLimitSelection={!!executedQueryUuid}
             customLabels={
                 tableConfig
                     ? getCustomLabelsFromColumnProperties(
