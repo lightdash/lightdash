@@ -23,6 +23,7 @@ const getTagsForTask: {
         payload: TaskPayloadMap[K],
     ) => Record<string, string>;
 } = {
+    [SCHEDULER_TASKS.REMIND_PAUSED_SIGN_IN]: () => ({}),
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

@@ -3,6 +3,7 @@ import {
     Button,
     Divider,
     Group,
+    Select,
     Text,
     Tooltip,
     useMantineTheme,
@@ -30,6 +31,8 @@ type SchedulerTopToolbarProps = GroupProps &
         | 'setSelectedFormats'
         | 'setSelectedResourceType'
         | 'setSelectedDestinations'
+        | 'selectedSignInState'
+        | 'setSelectedSignInState'
     > & {
         isFetching: boolean;
         currentResultsCount: number;
@@ -42,6 +45,7 @@ type SchedulerTopToolbarProps = GroupProps &
         // Feature toggles
         hideCreatedByFilter?: boolean;
         hideBulkReassign?: boolean;
+        showSignInPauseFilter?: boolean;
         // Optional created by filter props (only needed when hideCreatedByFilter is false)
         selectedCreatedByUserUuids?: string[];
         setSelectedCreatedByUserUuids?: (userUuids: string[]) => void;
@@ -59,6 +63,9 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
         setSelectedCreatedByUserUuids,
         selectedDestinations,
         setSelectedDestinations,
+        selectedSignInState,
+        setSelectedSignInState,
+        showSignInPauseFilter = false,
         isFetching,
         currentResultsCount,
         hasActiveFilters,
@@ -132,6 +139,34 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                         selectedDestinations={selectedDestinations}
                         setSelectedDestinations={setSelectedDestinations}
                     />
+                    {showSignInPauseFilter && (
+                        <Select
+                            aria-label="Sign-in pause filter"
+                            size="xs"
+                            w={230}
+                            value={selectedSignInState}
+                            onChange={(value) => {
+                                if (
+                                    value === 'all' ||
+                                    value === 'paused' ||
+                                    value === 'personal'
+                                ) {
+                                    setSelectedSignInState(value);
+                                }
+                            }}
+                            data={[
+                                { value: 'all', label: 'All sign-in states' },
+                                {
+                                    value: 'paused',
+                                    label: 'Paused, sign-in expired',
+                                },
+                                {
+                                    value: 'personal',
+                                    label: 'Will pause if sign-in expires',
+                                },
+                            ]}
+                        />
+                    )}
                 </Group>
 
                 <Group

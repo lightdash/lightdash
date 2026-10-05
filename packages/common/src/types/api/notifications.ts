@@ -10,6 +10,7 @@ export enum ApiNotificationResourceType {
     AiReview = 'aiReview',
     ContentReview = 'contentReview',
     AiCreditAllowance = 'aiCreditAllowance',
+    SchedulerSignInPause = 'schedulerSignInPause',
 }
 
 interface NotificationDashboardTileCommentMetadata {
@@ -68,11 +69,17 @@ export type NotificationAiCreditAllowance = NotificationBase & {
     };
 };
 
+export type NotificationSchedulerSignInPause = NotificationBase & {
+    resourceType: ApiNotificationResourceType.SchedulerSignInPause;
+    metadata: undefined;
+};
+
 export type Notification =
     | NotificationDashboardComment
     | NotificationAiReview
     | NotificationContentReview
-    | NotificationAiCreditAllowance;
+    | NotificationAiCreditAllowance
+    | NotificationSchedulerSignInPause;
 
 export type ApiNotificationUpdateParams = Pick<Notification, 'viewed'>;
 export type ApiNotificationsResults = Notification[];

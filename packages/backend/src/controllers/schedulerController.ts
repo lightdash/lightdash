@@ -263,6 +263,7 @@ export class SchedulerController extends BaseController {
         @Query() resourceUuids?: string,
         @Query() destinations?: string,
         @Query() includeLatestRun?: boolean,
+        @Query() signInState?: 'paused' | 'personal',
     ): Promise<ApiSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -301,6 +302,7 @@ export class SchedulerController extends BaseController {
                         destinations: destinations
                             ? destinations.split(',')
                             : undefined,
+                        signInState,
                     },
                     includeLatestRun,
                 ),
@@ -341,6 +343,7 @@ export class SchedulerController extends BaseController {
         @Query() resourceUuids?: string,
         @Query() destinations?: string,
         @Query() includeLatestRun?: boolean,
+        @Query() signInState?: 'paused' | 'personal',
     ): Promise<ApiSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -369,6 +372,7 @@ export class SchedulerController extends BaseController {
             resourceType,
             resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
             destinations: destinations ? destinations.split(',') : undefined,
+            signInState,
         };
 
         return {

@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { SchedulerFormat } from '@lightdash/common';
+import { FeatureFlags, SchedulerFormat } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -19,6 +19,7 @@ import { SchedulerDeleteModal } from '../../features/scheduler';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
 import { getSchedulerDeliveryType } from '../../features/scheduler/components/types';
 import { useSendNowSchedulerByUuid } from '../../features/scheduler/hooks/useScheduler';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import {
@@ -26,6 +27,7 @@ import {
     getSchedulerLink,
     type SchedulerItem,
 } from './SchedulersViewUtils';
+import { canSendMissedRun } from './signInPauseDisplay';
 
 interface SchedulersViewActionMenuProps {
     isOpen?: boolean;
@@ -53,6 +55,9 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
     const [isAsCodeOpen, asCodeModalHandlers] = useDisclosure(false);
     const queryClient = useQueryClient();
     const { user } = useApp();
+    const { data: pauseFlag } = useServerFeatureFlag(
+        FeatureFlags.ScheduledSignInPause,
+    );
 
     const contentAsCodeSubject =
         projectUuid && organizationUuid
@@ -124,7 +129,9 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                         leftSection={<MantineIcon icon={IconSend} />}
                         onClick={() => setIsConfirmOpen(true)}
                     >
-                        Send now
+                        {pauseFlag?.enabled && canSendMissedRun(item)
+                            ? 'Send the missed run now'
+                            : 'Send now'}
                     </Menu.Item>
                     {isScheduledDelivery && userCanViewAsCode && (
                         <Menu.Item

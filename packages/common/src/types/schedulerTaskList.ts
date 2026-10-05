@@ -253,6 +253,7 @@ export const SCHEDULER_TASKS = {
     REPLACE_CUSTOM_FIELDS: 'replaceCustomFields',
     INDEX_CATALOG: 'indexCatalog',
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
+    REMIND_PAUSED_SIGN_IN: 'remindPausedSignIn',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
     EXPORT_CONTENT: 'exportContent',
     EXPORT_DOCUMENT_PDF: 'exportDocumentPdf',
@@ -305,6 +306,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS]: ReplaceCustomFieldsPayload;
     [SCHEDULER_TASKS.INDEX_CATALOG]: SchedulerIndexCatalogJobPayload;
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
+    [SCHEDULER_TASKS.REMIND_PAUSED_SIGN_IN]: TraceTaskBase;
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.EXPORT_CONTENT]: ExportContentPayload;
     [SCHEDULER_TASKS.EXPORT_DOCUMENT_PDF]: ExportDocumentPdfPayload;

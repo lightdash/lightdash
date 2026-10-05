@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    FeatureFlags,
     getHumanReadableCronExpression,
     isEmailTarget,
     isGoogleChatTarget,
@@ -44,6 +45,7 @@ import { useSchedulerFilters } from '../../features/scheduler/hooks/useScheduler
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
 import GoogleChatSvg from '../../svgs/googlechat.svg?react';
 import SlackSvg from '../../svgs/slack.svg?react';
@@ -66,6 +68,7 @@ import {
     type SchedulerItem,
 } from './SchedulersViewUtils';
 import { SchedulerTopToolbar } from './SchedulerTopToolbar';
+import { signInWarehouseLabel } from './signInPauseDisplay';
 
 interface SchedulersTableProps {
     projectUuid?: string;
@@ -87,6 +90,9 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     isUserScope = false,
 }) => {
     const theme = useMantineTheme();
+    const { data: pauseFlag } = useServerFeatureFlag(
+        FeatureFlags.ScheduledSignInPause,
+    );
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -99,6 +105,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         selectedResourceType,
         selectedCreatedByUserUuids,
         selectedDestinations,
+        selectedSignInState,
         sortField,
         sortDirection,
         setSearch,
@@ -106,6 +113,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         setSelectedResourceType,
         setSelectedCreatedByUserUuids,
         setSelectedDestinations,
+        setSelectedSignInState,
         setSorting,
         hasActiveFilters,
         resetFilters,
@@ -320,6 +328,17 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         </Text>
                                     </Tooltip>
                                 </Anchor>
+                                {pauseFlag?.enabled &&
+                                    item.pausedReason === 'sign_in_expired' && (
+                                        <Badge color="yellow" size="sm">
+                                            Paused:{' '}
+                                            {item.createdByName || 'Owner'}'s{' '}
+                                            {signInWarehouseLabel(
+                                                item.pausedWarehouseType,
+                                            )}{' '}
+                                            sign-in expired
+                                        </Badge>
+                                    )}
                                 {item.savedChartName ? (
                                     <Group gap="two">
                                         <MantineIcon
@@ -762,6 +781,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
 
         return baseColumns;
     }, [
+        pauseFlag?.enabled,
         isUserScope,
         project,
         projectUuid,
@@ -889,6 +909,9 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     }
                     selectedDestinations={selectedDestinations}
                     setSelectedDestinations={setSelectedDestinations}
+                    selectedSignInState={selectedSignInState}
+                    setSelectedSignInState={setSelectedSignInState}
+                    showSignInPauseFilter={!!pauseFlag?.enabled}
                     isFetching={isFetching || isLoading}
                     currentResultsCount={totalFetched}
                     hasActiveFilters={hasActiveFilters}

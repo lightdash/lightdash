@@ -9,6 +9,7 @@ import {
     NotificationAiReview,
     NotificationContentReview,
     NotificationDashboardComment,
+    NotificationSchedulerSignInPause,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -26,6 +27,50 @@ export class NotificationsModel {
 
     constructor(args: NotificationsModelArguments) {
         this.database = args.database;
+    }
+
+    async createSchedulerSignInPauseNotification({
+        userUuid,
+        schedulerUuid,
+        message,
+        url,
+    }: {
+        userUuid: string;
+        schedulerUuid: string;
+        message: string;
+        url: string;
+    }): Promise<void> {
+        await this.database(NotificationsTableName).insert({
+            user_uuid: userUuid,
+            resource_uuid: schedulerUuid,
+            resource_type: DbNotificationResourceType.SchedulerSignInPause,
+            message,
+            url,
+            metadata: '{}',
+        });
+    }
+
+    async getSchedulerSignInPauseNotifications(
+        userUuid: string,
+    ): Promise<NotificationSchedulerSignInPause[]> {
+        const rows = await this.database(NotificationsTableName)
+            .select()
+            .where('user_uuid', userUuid)
+            .where(
+                'resource_type',
+                DbNotificationResourceType.SchedulerSignInPause,
+            )
+            .orderBy('created_at', 'desc');
+        return rows.map((row) => ({
+            notificationId: row.notification_id,
+            resourceType: ApiNotificationResourceType.SchedulerSignInPause,
+            message: row.message ?? undefined,
+            url: row.url ?? undefined,
+            viewed: row.viewed,
+            createdAt: row.created_at,
+            resourceUuid: row.resource_uuid ?? undefined,
+            metadata: undefined,
+        }));
     }
 
     async getDashboardCommentNotifications(

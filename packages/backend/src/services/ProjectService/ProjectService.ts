@@ -375,6 +375,7 @@ import {
 } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
@@ -450,6 +451,7 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
+import { SchedulerSignInPauseService } from '../SchedulerSignInPauseService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -581,6 +583,7 @@ export type ProjectServiceArguments = {
     warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
     warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
     schedulerClient: SchedulerClient;
+    schedulerModel?: SchedulerModel;
     downloadFileModel: DownloadFileModel;
     fileStorageClient: FileStorageClient;
     groupsModel: GroupsModel;
@@ -747,6 +750,8 @@ export class ProjectService extends BaseService {
 
     schedulerClient: SchedulerClient;
 
+    schedulerModel?: SchedulerModel;
+
     downloadFileModel: DownloadFileModel;
 
     fileStorageClient: FileStorageClient;
@@ -838,6 +843,7 @@ export class ProjectService extends BaseService {
         warehouseConnectionIdentityModel,
         emailModel,
         schedulerClient,
+        schedulerModel,
         downloadFileModel,
         fileStorageClient,
         groupsModel,
@@ -898,6 +904,7 @@ export class ProjectService extends BaseService {
         this.warehouseConnectionTablesModel = warehouseConnectionTablesModel;
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
+        this.schedulerModel = schedulerModel;
         this.downloadFileModel = downloadFileModel;
         this.fileStorageClient = fileStorageClient;
         this.groupsModel = groupsModel;
@@ -3001,6 +3008,39 @@ export class ProjectService extends BaseService {
             : personal;
     }
 
+    async getSchedulerPersonalSignInState(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<{
+        warehouseType: WarehouseTypes;
+        runsOnPersonalSignIn: boolean;
+        hasPersonalCredential: boolean;
+        needsSignIn: boolean;
+        personalCredentialsRequired: boolean;
+    }> {
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const personal = await this.selectPersonalWarehouseCredentials(
+            projectUuid,
+            userUuid,
+            credentials,
+        );
+        return {
+            warehouseType: credentials.type,
+            runsOnPersonalSignIn:
+                personal !== undefined ||
+                credentials.requireUserCredentials === true,
+            hasPersonalCredential: personal !== undefined,
+            needsSignIn:
+                personal?.needsSignIn !== null &&
+                personal?.needsSignIn !== undefined,
+            personalCredentialsRequired:
+                credentials.requireUserCredentials === true,
+        };
+    }
+
     private async getSingleRouteWarehouseCredentials({
         projectUuid,
         userId,
@@ -3437,6 +3477,19 @@ export class ProjectService extends BaseService {
         try {
             if (!(await this.isPersonalSignInMarkEnabled(projectUuid))) return;
             await this.userWarehouseCredentialsModel.clearNeedsSignIn(uuid);
+            if (this.schedulerModel) {
+                const credential =
+                    await this.userWarehouseCredentialsModel.getByUuid(uuid);
+                const project = await this.projectModel.getSummary(projectUuid);
+                await SchedulerSignInPauseService.resumeAfterSignIn({
+                    featureFlagModel: this.featureFlagModel,
+                    schedulerModel: this.schedulerModel,
+                    schedulerClient: this.schedulerClient,
+                    organizationUuid: project.organizationUuid,
+                    userUuid: credential.userUuid,
+                    warehouseType: credential.credentials.type,
+                });
+            }
         } catch (writeError) {
             this.logger.warn(
                 `Could not clear user warehouse sign-in mark: ${getErrorMessage(writeError)}`,

@@ -10,6 +10,7 @@ export enum DbNotificationResourceType {
     AiReviewItem = 'ai_review_item',
     ContentReviewRequest = 'content_review_request',
     AiCreditAllowance = 'ai_credit_allowance',
+    SchedulerSignInPause = 'scheduler_sign_in_pause',
 }
 
 export const NotificationsTableName = 'notifications';

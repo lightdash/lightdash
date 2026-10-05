@@ -73,6 +73,11 @@ const interactiveViewer: SessionUser = {
 };
 
 const chartSchedulerInPrivateSpace: ChartScheduler = {
+    pausedReason: null,
+    pausedAt: null,
+    pausedWarehouseType: null,
+    missedRunAt: null,
+    runsOnPersonalSignIn: false,
     schedulerUuid: 'schedulerUuid',
     slug: 'scheduler',
     name: 'scheduler',
@@ -1766,5 +1771,51 @@ describe('SchedulerService', () => {
                 appUpdateSchedulerModel.updateScheduler,
             ).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('scheduled sign-in reminders', () => {
+    it('claims a due reminder once before sending email', async () => {
+        const sendGenericNotificationEmail = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const claimSignInReminder = vi
+            .fn()
+            .mockResolvedValueOnce(1)
+            .mockResolvedValueOnce(0);
+        const service = Object.assign(
+            Object.create(SchedulerService.prototype),
+            {
+                schedulerModel: {
+                    findSignInRemindersDue: vi.fn().mockResolvedValue([
+                        {
+                            organizationUuid: 'organization-1',
+                            userUuid: 'user-1',
+                            warehouseType: 'bigquery',
+                        },
+                    ]),
+                    claimSignInReminder,
+                },
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                userService: {
+                    getSignInPauseRecipients: vi.fn().mockResolvedValue([
+                        {
+                            userUuid: 'user-1',
+                            email: 'owner@example.com',
+                        },
+                    ]),
+                },
+                emailClient: { sendGenericNotificationEmail },
+                lightdashConfig: { siteUrl: 'https://example.com' },
+            },
+        ) as SchedulerService;
+
+        await service.sendSignInReminders();
+        await service.sendSignInReminders();
+
+        expect(sendGenericNotificationEmail).toHaveBeenCalledTimes(1);
+        expect(claimSignInReminder).toHaveBeenCalledTimes(2);
     });
 });

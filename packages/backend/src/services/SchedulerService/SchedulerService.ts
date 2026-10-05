@@ -4,6 +4,7 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     getSchedulerResourceTypeAndId,
@@ -72,7 +73,9 @@ import {
 } from '../../database/entities/scheduler';
 import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { JobModel } from '../../models/JobModel/JobModel';
+import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -82,6 +85,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 import { BaseService } from '../BaseService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -104,6 +108,9 @@ type SchedulerServiceArguments = {
     userService: UserService;
     jobModel: JobModel;
     spacePermissionService: SpacePermissionService;
+    notificationsModel?: NotificationsModel;
+    featureFlagModel?: FeatureFlagModel;
+    projectService?: ProjectService;
 };
 
 const getLightdashJobUuid = (
@@ -158,6 +165,12 @@ export class SchedulerService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    notificationsModel?: NotificationsModel;
+
+    featureFlagModel?: FeatureFlagModel;
+
+    projectService?: ProjectService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -175,6 +188,9 @@ export class SchedulerService extends BaseService {
         userService,
         jobModel,
         spacePermissionService,
+        notificationsModel,
+        featureFlagModel,
+        projectService,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -193,6 +209,108 @@ export class SchedulerService extends BaseService {
         this.userService = userService;
         this.jobModel = jobModel;
         this.spacePermissionService = spacePermissionService;
+        this.notificationsModel = notificationsModel;
+        this.featureFlagModel = featureFlagModel;
+        this.projectService = projectService;
+    }
+
+    private async withPersonalSignInState(
+        organizationUuid: string,
+        result: KnexPaginatedData<SchedulerAndTargets[]>,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        if (!this.featureFlagModel || !this.projectService) return result;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.ScheduledSignInPause,
+        });
+        if (!enabled) return result;
+
+        const states = new Map<string, Promise<boolean>>();
+        const data = await Promise.all(
+            result.data.map(async (scheduler) => {
+                if (!scheduler.projectUuid) return scheduler;
+                const key = `${scheduler.projectUuid}:${scheduler.createdBy}`;
+                let state = states.get(key);
+                if (!state) {
+                    state =
+                        this.projectService!.getSchedulerPersonalSignInState(
+                            scheduler.projectUuid,
+                            scheduler.createdBy,
+                        )
+                            .then((value) => value.runsOnPersonalSignIn)
+                            .catch(() => false);
+                    states.set(key, state);
+                }
+                return {
+                    ...scheduler,
+                    runsOnPersonalSignIn: await state,
+                };
+            }),
+        );
+        return { ...result, data };
+    }
+
+    private async filterForSignInState(
+        organizationUuid: string,
+        result: KnexPaginatedData<SchedulerAndTargets[]>,
+        filter: 'paused' | 'personal' | undefined,
+        paginateArgs: KnexPaginateArgs | undefined,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        const withState = await this.withPersonalSignInState(
+            organizationUuid,
+            result,
+        );
+        if (!filter) return withState;
+        const data = withState.data.filter((scheduler) =>
+            filter === 'paused'
+                ? scheduler.pausedReason === 'sign_in_expired'
+                : scheduler.runsOnPersonalSignIn,
+        );
+        if (!paginateArgs) return { data };
+        return {
+            data: data.slice(
+                (paginateArgs.page - 1) * paginateArgs.pageSize,
+                paginateArgs.page * paginateArgs.pageSize,
+            ),
+            pagination: {
+                ...paginateArgs,
+                totalResults: data.length,
+                totalPageCount: Math.ceil(data.length / paginateArgs.pageSize),
+            },
+        };
+    }
+
+    async sendSignInReminders(): Promise<void> {
+        if (!this.featureFlagModel) return;
+        const due = await this.schedulerModel.findSignInRemindersDue();
+        await Promise.all(
+            due.map(async ({ organizationUuid, userUuid, warehouseType }) => {
+                const { enabled } = await this.featureFlagModel!.get({
+                    user: { organizationUuid },
+                    featureFlagId: FeatureFlags.ScheduledSignInPause,
+                });
+                if (!enabled) return;
+                const count = await this.schedulerModel.claimSignInReminder(
+                    organizationUuid,
+                    userUuid,
+                    warehouseType,
+                );
+                if (count === 0) return;
+                const recipients =
+                    await this.userService.getSignInPauseRecipients(
+                        userUuid,
+                        organizationUuid,
+                    );
+                if (recipients.length === 0) return;
+                const url = `${this.lightdashConfig.siteUrl}/generalSettings/myWarehouseConnections`;
+                await this.emailClient.sendGenericNotificationEmail(
+                    recipients.map((recipient) => recipient.email),
+                    `Reconnect your ${warehouseType} sign-in`,
+                    `${count} scheduled deliveries are still paused`,
+                    `Reconnect your ${warehouseType} sign-in to resume them: ${url}`,
+                );
+            }),
+        );
     }
 
     public async getSchedulerProjectContext(
@@ -531,6 +649,7 @@ export class SchedulerService extends BaseService {
             resourceType?: 'chart' | 'dashboard';
             resourceUuids?: string[];
             destinations?: string[];
+            signInState?: 'paused' | 'personal';
         },
         includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
@@ -552,20 +671,35 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const signInFilterEnabled =
+            !!filters?.signInState &&
+            !!this.featureFlagModel &&
+            (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid: projectSummary.organizationUuid },
+                    featureFlagId: FeatureFlags.ScheduledSignInPause,
+                })
+            ).enabled;
         const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid,
             organizationUuid: projectSummary.organizationUuid,
-            paginateArgs,
+            paginateArgs: signInFilterEnabled ? undefined : paginateArgs,
             searchQuery,
             sort,
-            filters,
+            filters: signInFilterEnabled
+                ? filters
+                : { ...filters, signInState: undefined },
         });
 
-        if (!includeLatestRun) {
-            return schedulers;
-        }
-
-        return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
+        const filtered = await this.filterForSignInState(
+            projectSummary.organizationUuid,
+            schedulers,
+            signInFilterEnabled ? filters?.signInState : undefined,
+            paginateArgs,
+        );
+        return includeLatestRun
+            ? this.schedulerModel.attachLatestRunToSchedulers(filtered)
+            : filtered;
     }
 
     // App state is user-supplied JSON destined for a render URL — reject
@@ -882,6 +1016,7 @@ export class SchedulerService extends BaseService {
             resourceType?: 'chart' | 'dashboard';
             resourceUuids?: string[];
             destinations?: string[];
+            signInState?: 'paused' | 'personal';
         },
         includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
@@ -897,22 +1032,38 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const signInFilterEnabled =
+            !!filters?.signInState &&
+            !!this.featureFlagModel &&
+            (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid: user.organizationUuid },
+                    featureFlagId: FeatureFlags.ScheduledSignInPause,
+                })
+            ).enabled;
         const schedulers = await this.schedulerModel.getSchedulers({
             organizationUuid: user.organizationUuid,
-            paginateArgs,
+            paginateArgs: signInFilterEnabled ? undefined : paginateArgs,
             searchQuery,
             sort,
             filters: {
                 ...filters,
+                signInState: signInFilterEnabled
+                    ? filters?.signInState
+                    : undefined,
                 createdByUserUuids: [user.userUuid],
             },
         });
 
-        if (!includeLatestRun) {
-            return schedulers;
-        }
-
-        return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
+        const filtered = await this.filterForSignInState(
+            user.organizationUuid,
+            schedulers,
+            signInFilterEnabled ? filters?.signInState : undefined,
+            paginateArgs,
+        );
+        return includeLatestRun
+            ? this.schedulerModel.attachLatestRunToSchedulers(filtered)
+            : filtered;
     }
 
     async getSchedulerDefaultTimezone(schedulerUuid: string | undefined) {
@@ -1903,7 +2054,7 @@ export class SchedulerService extends BaseService {
 
         await this.checkViewResource(user, scheduler);
 
-        return this.schedulerClient.addScheduledDeliveryJob(
+        const job = await this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
             {
                 ...scheduler,
@@ -1915,6 +2066,15 @@ export class SchedulerService extends BaseService {
             },
             schedulerUuid,
         );
+        if (this.featureFlagModel) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.ScheduledSignInPause,
+            });
+            if (enabled)
+                await this.schedulerModel.clearMissedRun(schedulerUuid);
+        }
+        return job;
     }
 
     async updateSchedulersWithDefaultTimezone(

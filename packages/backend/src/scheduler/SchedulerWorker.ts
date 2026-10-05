@@ -704,6 +704,11 @@ export class SchedulerWorker extends SchedulerTask {
                 },
             },
             {
+                task: SCHEDULER_TASKS.REMIND_PAUSED_SIGN_IN,
+                pattern: '0 7 * * *',
+                options: { backfillPeriod: 24 * 3600 * 1000, maxAttempts: 3 },
+            },
+            {
                 task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
                 pattern:
                     this.lightdashConfig.scheduler.queryHistory.cleanup
@@ -807,6 +812,9 @@ export class SchedulerWorker extends SchedulerTask {
 
     protected getFullTaskList(): TypedTaskList {
         return {
+            [SCHEDULER_TASKS.REMIND_PAUSED_SIGN_IN]: async () => {
+                await this.schedulerService.sendSignInReminders();
+            },
             [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: async () => {
                 const currentDateStartOfDay = moment()
                     .utc()

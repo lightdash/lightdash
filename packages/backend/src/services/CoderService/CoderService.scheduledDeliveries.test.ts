@@ -65,6 +65,11 @@ const user: SessionUser = {
 };
 
 const scheduler: SchedulerAndTargets = {
+    pausedReason: null,
+    pausedAt: null,
+    pausedWarehouseType: null,
+    missedRunAt: null,
+    runsOnPersonalSignIn: false,
     schedulerUuid: 'scheduler-uuid',
     slug: 'weekly-orders',
     name: 'Weekly orders',

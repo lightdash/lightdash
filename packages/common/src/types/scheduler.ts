@@ -138,6 +138,11 @@ export type SchedulerBase = {
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
+    pausedReason: 'sign_in_expired' | null;
+    pausedAt: Date | null;
+    pausedWarehouseType: string | null;
+    missedRunAt: Date | null;
+    runsOnPersonalSignIn: boolean;
     notificationFrequency?: NotificationFrequency;
     includeLinks: boolean;
     /**
@@ -347,6 +352,11 @@ export type CreateSchedulerAndTargets = Omit<
     | 'dashboardName'
     | 'savedSqlName'
     | 'plainTextEmail'
+    | 'pausedReason'
+    | 'pausedAt'
+    | 'pausedWarehouseType'
+    | 'missedRunAt'
+    | 'runsOnPersonalSignIn'
 > & {
     // Optional on the wire so existing API clients keep working; absent means
     // the branded HTML email, which is what they already get.

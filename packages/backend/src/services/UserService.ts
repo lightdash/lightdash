@@ -134,6 +134,7 @@ import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../models/RolesModel';
+import { SchedulerModel } from '../models/SchedulerModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { UserLearnProgressModel } from '../models/UserLearnProgressModel';
@@ -142,6 +143,7 @@ import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { wrapSentryTransaction } from '../utils';
 import {
     getOrganizationSystemRoleScopes,
@@ -150,6 +152,7 @@ import {
 import { processAvatarImage } from '../utils/processAvatarImage';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
+import { SchedulerSignInPauseService } from './SchedulerSignInPauseService';
 
 const AWS_SSO_DEVICE_GRANT_TYPE =
     'urn:ietf:params:oauth:grant-type:device_code';
@@ -188,6 +191,8 @@ type UserServiceArguments = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
+    schedulerModel?: SchedulerModel;
+    schedulerClient?: SchedulerClient;
     userAvatarModel: UserAvatarModel;
     userOnboardingModel: UserOnboardingModel;
     userLearnProgressModel: UserLearnProgressModel;
@@ -322,6 +327,10 @@ export class UserService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly schedulerModel?: SchedulerModel;
+
+    private readonly schedulerClient?: SchedulerClient;
+
     private readonly rolesModel: RolesModel;
 
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
@@ -352,6 +361,8 @@ export class UserService extends BaseService {
         warehouseAvailableTablesModel,
         projectModel,
         featureFlagModel,
+        schedulerModel,
+        schedulerClient,
         userAvatarModel,
         userOnboardingModel,
         userLearnProgressModel,
@@ -380,6 +391,8 @@ export class UserService extends BaseService {
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
+        this.schedulerModel = schedulerModel;
+        this.schedulerClient = schedulerClient;
         this.userAvatarModel = userAvatarModel;
         this.userOnboardingModel = userOnboardingModel;
         this.userLearnProgressModel = userLearnProgressModel;
@@ -2357,6 +2370,28 @@ export class UserService extends BaseService {
         return this.userModel.findSessionUserByUUID(userUuid);
     }
 
+    async getSignInPauseRecipients(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<{ userUuid: string; email: string }[]> {
+        const member = await this.organizationMemberProfileModel
+            .getOrganizationMemberByUuid(organizationUuid, userUuid)
+            .catch(() => undefined);
+        if (member?.isActive && member.email) {
+            return [{ userUuid, email: member.email }];
+        }
+        const admins =
+            await this.organizationMemberProfileModel.getOrganizationAdmins(
+                organizationUuid,
+            );
+        return admins
+            .filter((admin) => admin.isActive && !!admin.email)
+            .map((admin) => ({
+                userUuid: admin.userUuid,
+                email: admin.email,
+            }));
+    }
+
     async getSessionByUserUuidAndOrg(
         userUuid: string,
         organizationUuid: string,
@@ -3963,6 +3998,10 @@ export class UserService extends BaseService {
                 warehouseType: data.credentials.type,
             },
         });
+        await this.resumeSchedulersAfterCredentialSave(
+            user,
+            data.credentials.type,
+        );
         return this.userWarehouseCredentialsModel.getByUuid(
             userWarehouseCredentialsUuid,
         );
@@ -3993,12 +4032,36 @@ export class UserService extends BaseService {
                 warehouseType: data.credentials.type,
             },
         });
+        await this.resumeSchedulersAfterCredentialSave(
+            user,
+            data.credentials.type,
+        );
         const credentials = await this.userWarehouseCredentialsModel.getByUuid(
             userWarehouseCredentialsUuid,
         );
         return signInMarkEnabled
             ? credentials
             : { ...credentials, needsSignIn: null };
+    }
+
+    private async resumeSchedulersAfterCredentialSave(
+        user: SessionUser,
+        warehouseType: WarehouseTypes,
+    ): Promise<void> {
+        if (
+            !this.schedulerModel ||
+            !this.schedulerClient ||
+            !isUserWithOrg(user)
+        )
+            return;
+        await SchedulerSignInPauseService.resumeAfterSignIn({
+            featureFlagModel: this.featureFlagModel,
+            schedulerModel: this.schedulerModel,
+            schedulerClient: this.schedulerClient,
+            organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
+            warehouseType,
+        });
     }
 
     async deleteWarehouseCredentials(

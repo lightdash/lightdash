@@ -51,6 +51,12 @@ export type SchedulerDb = {
     custom_viewport_width: number | null;
     thresholds: ThresholdOptions[] | null;
     enabled: boolean;
+    paused_reason: 'sign_in_expired' | null;
+    paused_at: Date | null;
+    paused_user_uuid: string | null;
+    paused_warehouse_type: string | null;
+    paused_reminded_at: Date | null;
+    missed_run_at: Date | null;
     notification_frequency: NotificationFrequency | null;
     selected_tabs: string[] | null;
     include_links: boolean;
@@ -157,6 +163,12 @@ export type SchedulerInsert = Omit<
     | 'created_at'
     | 'deleted_at'
     | 'deleted_by_user_uuid'
+    | 'paused_reason'
+    | 'paused_at'
+    | 'paused_user_uuid'
+    | 'paused_warehouse_type'
+    | 'paused_reminded_at'
+    | 'missed_run_at'
     | 'filters'
     | 'parameters'
     | 'thresholds'
@@ -187,6 +199,17 @@ export type SchedulerTable = Knex.CompositeTableType<
     | Pick<SchedulerDb, 'created_by' | 'updated_at'>
     | Pick<SchedulerDb, 'cron'>
     | Pick<SchedulerDb, 'deleted_at' | 'deleted_by_user_uuid'>
+    | Partial<
+          Pick<
+              SchedulerDb,
+              | 'paused_reason'
+              | 'paused_at'
+              | 'paused_user_uuid'
+              | 'paused_warehouse_type'
+              | 'paused_reminded_at'
+              | 'missed_run_at'
+          >
+      >
 >;
 
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<

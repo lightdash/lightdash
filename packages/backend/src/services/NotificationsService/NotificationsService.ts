@@ -40,6 +40,10 @@ export class NotificationsService extends BaseService {
                 return this.notificationsModel.getAiCreditAllowanceNotifications(
                     userUuid,
                 );
+            case ApiNotificationResourceType.SchedulerSignInPause:
+                return this.notificationsModel.getSchedulerSignInPauseNotifications(
+                    userUuid,
+                );
             default:
                 return assertUnreachable(
                     type,

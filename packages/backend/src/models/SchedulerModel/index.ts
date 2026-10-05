@@ -147,6 +147,11 @@ export class SchedulerModel {
             options: scheduler.options,
             thresholds: scheduler.thresholds ?? undefined,
             enabled: scheduler.enabled,
+            pausedReason: scheduler.paused_reason,
+            pausedAt: scheduler.paused_at,
+            pausedWarehouseType: scheduler.paused_warehouse_type,
+            missedRunAt: scheduler.missed_run_at,
+            runsOnPersonalSignIn: false,
             notificationFrequency:
                 scheduler.notification_frequency ?? undefined,
             includeLinks: scheduler.include_links,
@@ -649,6 +654,7 @@ export class SchedulerModel {
             resourceType?: 'chart' | 'dashboard' | 'sqlChart' | 'app';
             resourceUuids?: string[];
             destinations?: string[];
+            signInState?: 'paused' | 'personal';
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         // Resolve organization_id once — used to scope all sub-queries
@@ -725,6 +731,13 @@ export class SchedulerModel {
             baseQuery = baseQuery.whereIn(
                 `${SchedulerTableName}.format`,
                 filters.formats,
+            );
+        }
+
+        if (filters?.signInState === 'paused') {
+            baseQuery = baseQuery.where(
+                `${SchedulerTableName}.paused_reason`,
+                'sign_in_expired',
             );
         }
 
@@ -1233,6 +1246,188 @@ export class SchedulerModel {
             .where('scheduler_uuid', schedulerUuid);
 
         return this.getSchedulerAndTargets(schedulerUuid);
+    }
+
+    async pauseForExpiredSignIn({
+        schedulerUuid,
+        organizationUuid,
+        userUuid,
+        warehouseType,
+    }: {
+        schedulerUuid: string;
+        organizationUuid: string;
+        userUuid: string;
+        warehouseType: string;
+    }): Promise<{ paused: boolean; firstForUser: boolean }> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `${userUuid}:${warehouseType}`,
+            ]);
+            const [{ count }] = await trx(SchedulerTableName)
+                .join(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_uuid`,
+                    `${SchedulerTableName}.project_uuid`,
+                )
+                .where(
+                    `${ProjectTableName}.organization_uuid`,
+                    organizationUuid,
+                )
+                .where(`${SchedulerTableName}.paused_user_uuid`, userUuid)
+                .where(
+                    `${SchedulerTableName}.paused_warehouse_type`,
+                    warehouseType,
+                )
+                .where(`${SchedulerTableName}.paused_reason`, 'sign_in_expired')
+                .count<{ count: string }[]>('*');
+            const updated = await trx(SchedulerTableName)
+                .where('scheduler_uuid', schedulerUuid)
+                .whereNull('paused_reason')
+                .whereNull('deleted_at')
+                .update(
+                    {
+                        paused_reason: 'sign_in_expired',
+                        paused_at: new Date(),
+                        paused_user_uuid: userUuid,
+                        paused_warehouse_type: warehouseType,
+                        paused_reminded_at: null,
+                    },
+                    ['scheduler_uuid'],
+                );
+            return {
+                paused: updated.length > 0,
+                firstForUser: updated.length > 0 && Number(count) === 0,
+            };
+        });
+    }
+
+    async recordMissedRun(schedulerUuid: string, when: Date): Promise<void> {
+        await this.database(SchedulerTableName)
+            .where('scheduler_uuid', schedulerUuid)
+            .where('paused_reason', 'sign_in_expired')
+            .whereNull('missed_run_at')
+            .update({ missed_run_at: when });
+    }
+
+    async clearMissedRun(schedulerUuid: string): Promise<void> {
+        await this.database(SchedulerTableName)
+            .where('scheduler_uuid', schedulerUuid)
+            .whereNull('paused_reason')
+            .update({ missed_run_at: null });
+    }
+
+    async findPausedForSignIn(
+        userUuid: string,
+        warehouseType: string,
+        organizationUuid: string,
+    ): Promise<{ schedulerUuid: string; name: string; pausedAt: Date }[]> {
+        const rows = await this.database(SchedulerTableName)
+            .join(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${SchedulerTableName}.project_uuid`,
+            )
+            .select(
+                `${SchedulerTableName}.scheduler_uuid`,
+                `${SchedulerTableName}.name`,
+                `${SchedulerTableName}.paused_at`,
+            )
+            .where(`${ProjectTableName}.organization_uuid`, organizationUuid)
+            .where(`${SchedulerTableName}.paused_user_uuid`, userUuid)
+            .where(`${SchedulerTableName}.paused_warehouse_type`, warehouseType)
+            .where(`${SchedulerTableName}.paused_reason`, 'sign_in_expired')
+            .whereNull(`${SchedulerTableName}.deleted_at`);
+        return rows.map((row) => ({
+            schedulerUuid: row.scheduler_uuid,
+            name: row.name,
+            pausedAt: row.paused_at!,
+        }));
+    }
+
+    async findSignInRemindersDue(): Promise<
+        {
+            organizationUuid: string;
+            userUuid: string;
+            warehouseType: string;
+        }[]
+    > {
+        const rows = (await this.database(SchedulerTableName)
+            .join(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${SchedulerTableName}.project_uuid`,
+            )
+            .distinct(
+                `${ProjectTableName}.organization_uuid`,
+                `${SchedulerTableName}.paused_user_uuid`,
+                `${SchedulerTableName}.paused_warehouse_type`,
+            )
+            .where(`${SchedulerTableName}.paused_reason`, 'sign_in_expired')
+            .whereNull(`${SchedulerTableName}.paused_reminded_at`)
+            .whereRaw(
+                `${SchedulerTableName}.paused_at <= now() - interval '3 days'`,
+            )) as {
+            organization_uuid: string;
+            paused_user_uuid: string;
+            paused_warehouse_type: string;
+        }[];
+        return rows.map((row) => ({
+            organizationUuid: row.organization_uuid,
+            userUuid: row.paused_user_uuid!,
+            warehouseType: row.paused_warehouse_type!,
+        }));
+    }
+
+    async claimSignInReminder(
+        organizationUuid: string,
+        userUuid: string,
+        warehouseType: string,
+    ): Promise<number> {
+        const updated = await this.database(SchedulerTableName)
+            .where('paused_user_uuid', userUuid)
+            .where('paused_warehouse_type', warehouseType)
+            .where('paused_reason', 'sign_in_expired')
+            .whereNull('paused_reminded_at')
+            .whereRaw("paused_at <= now() - interval '3 days'")
+            .whereIn(
+                'project_uuid',
+                this.database(ProjectTableName)
+                    .select('project_uuid')
+                    .where('organization_uuid', organizationUuid),
+            )
+            .update({ paused_reminded_at: new Date() }, ['scheduler_uuid']);
+        return updated.length;
+    }
+
+    async resumeAfterSignIn(
+        userUuid: string,
+        warehouseType: string,
+        organizationUuid: string,
+    ): Promise<{ schedulerUuid: string; format: SchedulerFormat }[]> {
+        const rows = await this.database(SchedulerTableName)
+            .where('paused_user_uuid', userUuid)
+            .where('paused_warehouse_type', warehouseType)
+            .where('paused_reason', 'sign_in_expired')
+            .whereIn(
+                'project_uuid',
+                this.database(ProjectTableName)
+                    .select('project_uuid')
+                    .where('organization_uuid', organizationUuid),
+            )
+            .update(
+                {
+                    paused_reason: null,
+                    paused_at: null,
+                    paused_user_uuid: null,
+                    paused_warehouse_type: null,
+                    paused_reminded_at: null,
+                },
+                ['scheduler_uuid', 'format'],
+            );
+        return rows.map((row) => ({
+            schedulerUuid: row.scheduler_uuid,
+            format: row.format,
+        }));
     }
 
     async updateOwner(

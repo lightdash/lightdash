@@ -93,6 +93,14 @@ export const NotificationsMenu: FC<{
     const hasAiCreditAllowanceNotifications =
         aiCreditAllowanceNotifications &&
         aiCreditAllowanceNotifications.length > 0;
+    const { data: scheduledSignInPauseFlag } = useServerFeatureFlag(
+        FeatureFlags.ScheduledSignInPause,
+    );
+    const { data: signInPauseNotifications } = useGetNotifications(
+        NotificationResourceType.SchedulerSignInPause,
+        !!scheduledSignInPauseFlag?.enabled,
+    );
+    const hasSignInPauseNotifications = !!signInPauseNotifications?.length;
     const notifications = useMemo<Notification[]>(
         () =>
             [
@@ -100,6 +108,7 @@ export const NotificationsMenu: FC<{
                 ...(aiReviewNotifications ?? []),
                 ...(contentReviewNotifications ?? []),
                 ...(aiCreditAllowanceNotifications ?? []),
+                ...(signInPauseNotifications ?? []),
             ].sort(
                 (a, b) =>
                     new Date(b.createdAt).getTime() -
@@ -110,10 +119,18 @@ export const NotificationsMenu: FC<{
             aiReviewNotifications,
             contentReviewNotifications,
             dashboardCommentsNotifications,
+            signInPauseNotifications,
         ],
     );
 
     const showNotificationBadge = () => {
+        if (
+            signInPauseNotifications?.some(
+                (notification) => !notification.viewed,
+            )
+        ) {
+            return true;
+        }
         /**
          * Show notification badge if:
          * - User can manage validations and there are unread validation errors
@@ -176,6 +193,12 @@ export const NotificationsMenu: FC<{
                         notifications={[notification]}
                     />
                 );
+            case NotificationResourceType.SchedulerSignInPause:
+                return (
+                    <Menu.Item component="a" href={notification.url}>
+                        {notification.message}
+                    </Menu.Item>
+                );
             default:
                 return assertUnreachable(
                     notification,
@@ -189,7 +212,8 @@ export const NotificationsMenu: FC<{
         canUserManageValidations ||
         canViewAiReviews ||
         canViewContentReviews ||
-        canViewAiCreditAlerts;
+        canViewAiCreditAlerts ||
+        !!scheduledSignInPauseFlag?.enabled;
 
     return shouldDisplayMenu ? (
         <Menu
@@ -242,7 +266,8 @@ export const NotificationsMenu: FC<{
                     !hasDashboardCommentsNotifications &&
                     !hasAiReviewNotifications &&
                     !hasContentReviewNotifications &&
-                    !hasAiCreditAllowanceNotifications && (
+                    !hasAiCreditAllowanceNotifications &&
+                    !hasSignInPauseNotifications && (
                         <Menu.Item fz="sm">No notifications</Menu.Item>
                     )}
             </Menu.Dropdown>

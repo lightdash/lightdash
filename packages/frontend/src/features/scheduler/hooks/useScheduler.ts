@@ -120,6 +120,7 @@ const getPaginatedSchedulers = async (
         resourceType?: 'chart' | 'dashboard';
         resourceUuids?: string[];
         destinations?: DestinationType[];
+        signInState?: 'paused' | 'personal';
     },
     includeLatestRun?: boolean,
 ) => {
@@ -142,6 +143,7 @@ const getPaginatedSchedulers = async (
         ...(filters?.destinations
             ? { destinations: filters.destinations.join(',') }
             : {}),
+        ...(filters?.signInState ? { signInState: filters.signInState } : {}),
         ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),
     }).toString();
 
@@ -162,6 +164,7 @@ const getUserPaginatedSchedulers = async (
         resourceType?: 'chart' | 'dashboard';
         resourceUuids?: string[];
         destinations?: DestinationType[];
+        signInState?: 'paused' | 'personal';
     },
     includeLatestRun?: boolean,
 ) => {
@@ -181,6 +184,7 @@ const getUserPaginatedSchedulers = async (
         ...(filters?.destinations
             ? { destinations: filters.destinations.join(',') }
             : {}),
+        ...(filters?.signInState ? { signInState: filters.signInState } : {}),
         ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),
     }).toString();
 
@@ -252,6 +256,7 @@ export const useSchedulerRuns = ({
         statuses?: SchedulerRunStatus[];
         createdByUserUuids?: string[];
         destinations?: DestinationType[];
+        signInState?: 'paused' | 'personal';
         resourceType?: 'chart' | 'dashboard';
         resourceUuids?: string[];
     };

@@ -24,6 +24,7 @@ import {
     ExportContentPayload,
     ExportCsvDashboardPayload,
     ExportDocumentPdfPayload,
+    FeatureFlags,
     FieldReferenceError,
     FieldType,
     ForbiddenError,
@@ -74,6 +75,7 @@ import {
     MAX_SAFE_INTEGER,
     MetricType,
     MissingConfigError,
+    MissingWarehouseCredentialsError,
     NotEnoughResults,
     NotFoundError,
     NotificationFrequency,
@@ -86,6 +88,7 @@ import {
     pivotResultsAsCsv,
     QueryExecutionContext,
     ReadFileError,
+    RedshiftIamTokenError,
     RenameResourcesPayload,
     ReplaceableCustomFields,
     ReplaceCustomFields,
@@ -211,6 +214,7 @@ import { ValidationService } from '../services/ValidationService/ValidationServi
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { buildGoogleSheetsFilterSummaryRows } from '../utils/googleSheetsFilterSummary';
+import { isWarehouseTokenError } from '../utils/sharedSignInExpiry';
 import { SchedulerClient } from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
@@ -4112,6 +4116,166 @@ export default class SchedulerTask {
         return SchedulerTask.evaluateThreshold(thresholds, results).met;
     }
 
+    private async pauseForExpiredPersonalSignIn({
+        schedulerUuid,
+        organizationUuid,
+        projectUuid,
+        userUuid,
+        error,
+    }: {
+        schedulerUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        userUuid: string;
+        error: unknown;
+    }): Promise<boolean> {
+        if (!this.projectService?.featureFlagModel) return false;
+        const { enabled } = await this.projectService.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.ScheduledSignInPause,
+        });
+        if (!enabled) return false;
+
+        const state = await this.projectService.getSchedulerPersonalSignInState(
+            projectUuid,
+            userUuid,
+        );
+        const rejectedToken =
+            (isWarehouseTokenError(error) ||
+                error instanceof RedshiftIamTokenError) &&
+            error.data.rejection !== null;
+        const missingPersonalCredential =
+            state.personalCredentialsRequired &&
+            (!state.hasPersonalCredential ||
+                error instanceof MissingWarehouseCredentialsError);
+        if (
+            !state.needsSignIn &&
+            !missingPersonalCredential &&
+            !(state.runsOnPersonalSignIn && rejectedToken)
+        ) {
+            return false;
+        }
+
+        const result =
+            await this.schedulerService.schedulerModel.pauseForExpiredSignIn({
+                schedulerUuid,
+                organizationUuid,
+                userUuid,
+                warehouseType: state.warehouseType,
+            });
+        try {
+            if (result.firstForUser) {
+                const paused =
+                    await this.schedulerService.schedulerModel.findPausedForSignIn(
+                        userUuid,
+                        state.warehouseType,
+                        organizationUuid,
+                    );
+                const recipients =
+                    await this.userService.getSignInPauseRecipients(
+                        userUuid,
+                        organizationUuid,
+                    );
+                if (recipients.length > 0) {
+                    const warehouseNames: Record<string, string> = {
+                        bigquery: 'BigQuery',
+                        snowflake: 'Snowflake',
+                        databricks: 'Databricks',
+                    };
+                    const warehouseName =
+                        warehouseNames[state.warehouseType] ??
+                        state.warehouseType;
+                    const title = `Your ${warehouseName} sign-in expired. ${paused.length} scheduled deliveries are paused.`;
+                    const reconnectUrl = `${this.lightdashConfig.siteUrl}/generalSettings/myWarehouseConnections`;
+                    await Promise.all(
+                        recipients.map((recipient) =>
+                            this.schedulerService.notificationsModel?.createSchedulerSignInPauseNotification(
+                                {
+                                    userUuid: recipient.userUuid,
+                                    schedulerUuid,
+                                    message: `${title} ${paused.map((item) => item.name).join(', ')}`,
+                                    url: reconnectUrl,
+                                },
+                            ),
+                        ),
+                    );
+                    await this.emailClient.sendGenericNotificationEmail(
+                        recipients.map((recipient) => recipient.email),
+                        title,
+                        title,
+                        `${paused.map((item) => `- ${item.name}`).join('\n')}\n\nReconnect: ${reconnectUrl}`,
+                    );
+                }
+            }
+            if (result.paused) {
+                const scheduler =
+                    await this.schedulerService.schedulerModel.getSchedulerAndTargets(
+                        schedulerUuid,
+                    );
+                if (
+                    scheduler.format !== SchedulerFormat.GSHEETS &&
+                    scheduler.thresholds === undefined
+                ) {
+                    const owner =
+                        await this.userService.getSessionByUserUuid(userUuid);
+                    const ownerName =
+                        `${owner.firstName} ${owner.lastName}`.trim();
+                    const notice = `This scheduled delivery is paused until ${ownerName} signs in to ${state.warehouseType} again.`;
+                    await Promise.all(
+                        scheduler.targets.map(async (target) => {
+                            try {
+                                if (isCreateSchedulerSlackTarget(target)) {
+                                    if (!this.slackClient.isEnabled) return;
+                                    await this.slackClient.postMessage({
+                                        organizationUuid,
+                                        channel: target.channel,
+                                        text: notice,
+                                    });
+                                } else if (
+                                    isCreateSchedulerMsTeamsTarget(target)
+                                ) {
+                                    await this.msTeamsClient.postDeliveryFailureNotificationToRecipient(
+                                        {
+                                            webhookUrl: target.webhook,
+                                            contentName: scheduler.name,
+                                            contactSentence: notice,
+                                        },
+                                    );
+                                } else if (
+                                    isCreateSchedulerGoogleChatTarget(target)
+                                ) {
+                                    await this.googleChatClient.postDeliveryFailureNotificationToRecipient(
+                                        {
+                                            webhookUrl:
+                                                target.googleChatWebhook,
+                                            contentName: scheduler.name,
+                                            contactSentence: notice,
+                                        },
+                                    );
+                                } else if ('recipient' in target) {
+                                    await this.emailClient.sendDeliveryFailureNotificationToRecipient(
+                                        target.recipient,
+                                        scheduler.name,
+                                        notice,
+                                    );
+                                }
+                            } catch (notificationError) {
+                                Logger.error(
+                                    `Failed to notify recipient about paused scheduler ${schedulerUuid}: ${getErrorMessage(notificationError)}`,
+                                );
+                            }
+                        }),
+                    );
+                }
+            }
+        } catch (notificationError) {
+            Logger.error(
+                `Failed to send sign-in pause notification for scheduler ${schedulerUuid}: ${getErrorMessage(notificationError)}`,
+            );
+        }
+        return result.paused;
+    }
+
     protected async uploadGsheets(
         jobId: string,
         notification: GsheetsNotificationPayload,
@@ -4153,6 +4317,24 @@ export default class SchedulerTask {
                 await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                     schedulerUuid,
                 );
+
+            if (
+                scheduler.pausedReason === 'sign_in_expired' &&
+                (
+                    await this.projectService.featureFlagModel.get({
+                        user: {
+                            organizationUuid: notification.organizationUuid,
+                        },
+                        featureFlagId: FeatureFlags.ScheduledSignInPause,
+                    })
+                ).enabled
+            ) {
+                await this.schedulerService.schedulerModel.recordMissedRun(
+                    schedulerUuid,
+                    scheduledTime,
+                );
+                return;
+            }
 
             const {
                 format,
@@ -4874,6 +5056,19 @@ export default class SchedulerTask {
                 },
             });
 
+            if (
+                schedulerUuid &&
+                (await this.pauseForExpiredPersonalSignIn({
+                    schedulerUuid,
+                    organizationUuid: notification.organizationUuid,
+                    projectUuid: notification.projectUuid,
+                    userUuid: scheduler?.createdBy ?? notification.userUuid,
+                    error: e,
+                }))
+            ) {
+                return;
+            }
+
             const shouldDisableSync =
                 e instanceof NotFoundError ||
                 e instanceof ForbiddenError ||
@@ -5057,6 +5252,32 @@ export default class SchedulerTask {
                   createdBy: userUuid,
               }
             : persistedOrInlineScheduler;
+
+        const pauseEnabled =
+            !isInlineScheduler &&
+            !!(
+                await this.projectService?.featureFlagModel?.get({
+                    user: {
+                        organizationUuid: schedulerPayload.organizationUuid,
+                    },
+                    featureFlagId: FeatureFlags.ScheduledSignInPause,
+                })
+            )?.enabled;
+
+        if (
+            pauseEnabled &&
+            !isInlineScheduler &&
+            !executionUserUuid &&
+            schedulerUuid &&
+            'pausedReason' in scheduler &&
+            scheduler.pausedReason === 'sign_in_expired'
+        ) {
+            await this.schedulerService.schedulerModel.recordMissedRun(
+                schedulerUuid,
+                scheduledTime,
+            );
+            return;
+        }
 
         if (!scheduler.enabled) {
             await this.schedulerService.logSchedulerJob({
@@ -5633,12 +5854,29 @@ export default class SchedulerTask {
                 },
             });
 
+            if (
+                pauseEnabled &&
+                !isInlineScheduler &&
+                !executionUserUuid &&
+                schedulerUuid &&
+                (await this.pauseForExpiredPersonalSignIn({
+                    schedulerUuid,
+                    organizationUuid: schedulerPayload.organizationUuid,
+                    projectUuid: schedulerPayload.projectUuid,
+                    userUuid,
+                    error: e,
+                }))
+            ) {
+                return;
+            }
+
             // Send failure notification email to scheduler creator
             try {
-                const user =
-                    await this.userService.getSessionByUserUuid(
-                        schedulerOwnerUuid,
-                    );
+                const user = await this.userService.getSessionByUserUuid(
+                    pauseEnabled && executionUserUuid
+                        ? executionUserUuid
+                        : schedulerOwnerUuid,
+                );
                 if (user.email) {
                     const schedulerUrl =
                         scheduler.savedChartUuid || scheduler.dashboardUuid

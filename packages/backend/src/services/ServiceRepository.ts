@@ -986,6 +986,7 @@ export class ServiceRepository
                         this.models.getWarehouseConnectionIdentityModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    schedulerModel: this.models.getSchedulerModel(),
                     natsClient: this.clients.getNatsClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
@@ -1259,6 +1260,9 @@ export class ServiceRepository
                     userService: this.getUserService(),
                     jobModel: this.models.getJobModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    notificationsModel: this.models.getNotificationsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectService: this.getProjectService(),
                 }),
         );
     }
@@ -1467,6 +1471,8 @@ export class ServiceRepository
                         this.models.getWarehouseAvailableTablesModel(),
                     projectModel: this.models.getProjectModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    schedulerModel: this.models.getSchedulerModel(),
+                    schedulerClient: this.clients.getSchedulerClient(),
                     userAvatarModel: this.models.getUserAvatarModel(),
                     userOnboardingModel: this.models.getUserOnboardingModel(),
                     userLearnProgressModel:

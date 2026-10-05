@@ -269,6 +269,11 @@ describe('bulk model rename discovery', () => {
         },
     };
     const alert: SchedulerAndTargets = {
+        pausedReason: null,
+        pausedAt: null,
+        pausedWarehouseType: null,
+        missedRunAt: null,
+        runsOnPersonalSignIn: false,
         schedulerUuid: 'alert',
         slug: 'alert',
         name: 'Alert on an unchanged chart',

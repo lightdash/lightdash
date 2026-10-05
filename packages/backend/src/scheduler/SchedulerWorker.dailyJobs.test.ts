@@ -35,6 +35,11 @@ const projectContext = {
 };
 
 const makeScheduler = (schedulerUuid: string): SchedulerAndTargets => ({
+    pausedReason: null,
+    pausedAt: null,
+    pausedWarehouseType: null,
+    missedRunAt: null,
+    runsOnPersonalSignIn: false,
     schedulerUuid,
     slug: schedulerUuid,
     name: schedulerUuid,

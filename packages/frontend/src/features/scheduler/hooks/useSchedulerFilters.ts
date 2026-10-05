@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router';
 export type DestinationType = 'slack' | 'email' | 'msteams' | 'googlechat';
 
 export type SchedulerFilters = {
+    signInState?: 'paused' | 'personal';
     search?: string;
     createdByUserUuids?: string[];
     formats?: SchedulerFormat[];
@@ -22,6 +23,7 @@ export interface SchedulerFiltersState {
     selectedResourceType: 'all' | SchedulerFilters['resourceType'];
     selectedResourceUuids: NonNullable<SchedulerFilters['resourceUuids']>;
     selectedDestinations: DestinationType[];
+    selectedSignInState: 'all' | 'paused' | 'personal';
     sortField: 'name' | 'createdAt';
     sortDirection: 'asc' | 'desc';
 }
@@ -33,6 +35,7 @@ const DEFAULT_FILTERS: SchedulerFiltersState = {
     selectedResourceType: 'all',
     selectedResourceUuids: [],
     selectedDestinations: [],
+    selectedSignInState: 'all',
     sortField: 'name',
     sortDirection: 'asc',
 };
@@ -80,6 +83,8 @@ export const useSchedulerFilters = () => {
     >(DEFAULT_FILTERS.selectedResourceUuids);
     const [selectedDestinations, setSelectedDestinationsState] =
         useState<DestinationType[]>(initialDestinations);
+    const [selectedSignInState, setSelectedSignInState] =
+        useState<SchedulerFiltersState['selectedSignInState']>('all');
     const [sortField, setSortFieldState] = useState<
         SchedulerFiltersState['sortField']
     >(DEFAULT_FILTERS.sortField);
@@ -184,6 +189,7 @@ export const useSchedulerFilters = () => {
         setSelectedResourceTypeState(DEFAULT_FILTERS.selectedResourceType);
         setSelectedResourceUuidsState(DEFAULT_FILTERS.selectedResourceUuids);
         setSelectedDestinationsState(DEFAULT_FILTERS.selectedDestinations);
+        setSelectedSignInState(DEFAULT_FILTERS.selectedSignInState);
         setSortFieldState(DEFAULT_FILTERS.sortField);
         setSortDirectionState(DEFAULT_FILTERS.sortDirection);
 
@@ -208,6 +214,7 @@ export const useSchedulerFilters = () => {
                 DEFAULT_FILTERS.selectedResourceUuids.length ||
             selectedDestinations.length !==
                 DEFAULT_FILTERS.selectedDestinations.length ||
+            selectedSignInState !== DEFAULT_FILTERS.selectedSignInState ||
             sortField !== DEFAULT_FILTERS.sortField ||
             sortDirection !== DEFAULT_FILTERS.sortDirection
         );
@@ -218,6 +225,7 @@ export const useSchedulerFilters = () => {
         selectedResourceType,
         selectedResourceUuids,
         selectedDestinations,
+        selectedSignInState,
         sortField,
         sortDirection,
     ]);
@@ -248,6 +256,9 @@ export const useSchedulerFilters = () => {
         if (selectedDestinations.length > 0) {
             result.destinations = selectedDestinations;
         }
+        if (selectedSignInState !== 'all') {
+            result.signInState = selectedSignInState;
+        }
 
         return result;
     }, [
@@ -257,6 +268,7 @@ export const useSchedulerFilters = () => {
         selectedResourceType,
         selectedResourceUuids,
         selectedDestinations,
+        selectedSignInState,
     ]);
 
     return {
@@ -266,6 +278,7 @@ export const useSchedulerFilters = () => {
         selectedResourceType,
         selectedResourceUuids,
         selectedDestinations,
+        selectedSignInState,
         sortField,
         sortDirection,
 
@@ -277,6 +290,7 @@ export const useSchedulerFilters = () => {
         setSelectedResourceType,
         setSelectedResourceUuids,
         setSelectedDestinations,
+        setSelectedSignInState,
         setSorting,
 
         resetFilters,

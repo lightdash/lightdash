@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ChartType,
     DashboardTileTypes,
     DimensionType,
@@ -68,6 +69,148 @@ import {
     thresholdIncreasedByMock,
     thresholdLessThanMock,
 } from './SchedulerTask.mock';
+
+describe('expired personal sign-in pause', () => {
+    const createTask = (flagEnabled: boolean, needsSignIn: boolean) => {
+        const pauseForExpiredSignIn = vi.fn().mockResolvedValue({
+            paused: true,
+            firstForUser: false,
+        });
+        const task = Object.assign(Object.create(SchedulerTask.prototype), {
+            projectService: {
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: flagEnabled }),
+                },
+                getSchedulerPersonalSignInState: vi.fn().mockResolvedValue({
+                    warehouseType: 'bigquery',
+                    runsOnPersonalSignIn: true,
+                    hasPersonalCredential: true,
+                    personalCredentialsRequired: true,
+                    needsSignIn,
+                }),
+            },
+            schedulerService: {
+                schedulerModel: {
+                    pauseForExpiredSignIn,
+                    getSchedulerAndTargets: vi.fn().mockResolvedValue({
+                        format: SchedulerFormat.GSHEETS,
+                    }),
+                },
+            },
+        }) as SchedulerTask;
+        return { task, pauseForExpiredSignIn };
+    };
+
+    const args = {
+        schedulerUuid: 'scheduler-1',
+        organizationUuid: 'organization-1',
+        projectUuid: 'project-1',
+        userUuid: 'user-1',
+        error: new Error('query failed'),
+    };
+
+    it('pauses a marked personal credential without disabling the schedule', async () => {
+        const { task, pauseForExpiredSignIn } = createTask(true, true);
+        expect(
+            await (task as AnyType).pauseForExpiredPersonalSignIn(args),
+        ).toBe(true);
+        expect(pauseForExpiredSignIn).toHaveBeenCalledWith({
+            schedulerUuid: args.schedulerUuid,
+            organizationUuid: args.organizationUuid,
+            userUuid: args.userUuid,
+            warehouseType: 'bigquery',
+        });
+    });
+
+    it('leaves network failures and flag-off runs on their old path', async () => {
+        const network = createTask(true, false);
+        expect(
+            await (network.task as AnyType).pauseForExpiredPersonalSignIn(args),
+        ).toBe(false);
+        expect(network.pauseForExpiredSignIn).not.toHaveBeenCalled();
+        const flagOff = createTask(false, true);
+        expect(
+            await (flagOff.task as AnyType).pauseForExpiredPersonalSignIn(args),
+        ).toBe(false);
+        expect(flagOff.pauseForExpiredSignIn).not.toHaveBeenCalled();
+    });
+
+    it('tells the owner and delivery recipients only for the first pause', async () => {
+        const sendGenericNotificationEmail = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const sendDeliveryFailureNotificationToRecipient = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const createSchedulerSignInPauseNotification = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const pauseForExpiredSignIn = vi
+            .fn()
+            .mockResolvedValueOnce({ paused: true, firstForUser: true })
+            .mockResolvedValueOnce({ paused: false, firstForUser: false });
+        const task = Object.assign(Object.create(SchedulerTask.prototype), {
+            projectService: {
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                getSchedulerPersonalSignInState: vi.fn().mockResolvedValue({
+                    warehouseType: 'bigquery',
+                    runsOnPersonalSignIn: true,
+                    hasPersonalCredential: true,
+                    personalCredentialsRequired: true,
+                    needsSignIn: true,
+                }),
+            },
+            schedulerService: {
+                schedulerModel: {
+                    pauseForExpiredSignIn,
+                    findPausedForSignIn: vi.fn().mockResolvedValue([
+                        {
+                            schedulerUuid: 'scheduler-1',
+                            name: 'Weekly report',
+                        },
+                    ]),
+                    getSchedulerAndTargets: vi.fn().mockResolvedValue({
+                        name: 'Weekly report',
+                        format: SchedulerFormat.PDF,
+                        thresholds: undefined,
+                        targets: [{ recipient: 'reader@example.com' }],
+                    }),
+                },
+                notificationsModel: { createSchedulerSignInPauseNotification },
+            },
+            userService: {
+                getSignInPauseRecipients: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { userUuid: 'user-1', email: 'owner@example.com' },
+                    ]),
+                getSessionByUserUuid: vi.fn().mockResolvedValue({
+                    firstName: 'Jane',
+                    lastName: 'Doe',
+                }),
+            },
+            emailClient: {
+                sendGenericNotificationEmail,
+                sendDeliveryFailureNotificationToRecipient,
+            },
+            lightdashConfig: { siteUrl: 'https://example.com' },
+        }) as SchedulerTask;
+
+        expect(
+            await (task as AnyType).pauseForExpiredPersonalSignIn(args),
+        ).toBe(true);
+        expect(
+            await (task as AnyType).pauseForExpiredPersonalSignIn(args),
+        ).toBe(false);
+        expect(sendGenericNotificationEmail).toHaveBeenCalledTimes(1);
+        expect(createSchedulerSignInPauseNotification).toHaveBeenCalledTimes(1);
+        expect(
+            sendDeliveryFailureNotificationToRecipient,
+        ).toHaveBeenCalledTimes(1);
+    });
+});
 
 vi.mock('@lightdash/common', async () => ({
     ...(await vi.importActual<typeof import('@lightdash/common')>(
@@ -1670,6 +1813,11 @@ describe('uploadGsheets — SQL chart values', () => {
 
 describe('handleScheduledDelivery execution identity', () => {
     const persistedScheduler = {
+        pausedReason: null,
+        pausedAt: null,
+        pausedWarehouseType: null,
+        missedRunAt: null,
+        runsOnPersonalSignIn: false,
         schedulerUuid: 'scheduler-1',
         slug: 'scheduler',
         name: 'scheduler',

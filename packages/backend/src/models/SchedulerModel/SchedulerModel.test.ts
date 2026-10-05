@@ -229,6 +229,11 @@ describe('Scheduler model test', () => {
         it('limits child job ranking to runs for the requested schedulers', async () => {
             tracker.on.select(/scheduler_log/).response([]);
             const scheduler: SchedulerAndTargets = {
+                pausedReason: null,
+                pausedAt: null,
+                pausedWarehouseType: null,
+                missedRunAt: null,
+                runsOnPersonalSignIn: false,
                 schedulerUuid: 'scheduler-1',
                 slug: 'daily-dashboard',
                 name: 'Daily dashboard',
