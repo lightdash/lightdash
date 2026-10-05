@@ -14972,10 +14972,67 @@ describe('Snowflake AI boundary guide access', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('refuses the test without the caller AI sign-in', async () => {
+    it('runs the test as the caller AI user when AI users are on', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
                 get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getCredentials = vi
+            .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+            .mockResolvedValue(snowflake);
+        const resolveTwin = vi
+            .spyOn(
+                service as unknown as {
+                    resolveSnowflakeAiTwin: (
+                        ...args: unknown[]
+                    ) => Promise<never>;
+                },
+                'resolveSnowflakeAiTwin',
+            )
+            .mockRejectedValue(
+                new ForbiddenError(
+                    "Your AI identity isn't set up yet. Ask your admin.",
+                ),
+            );
+        const resolveIdentity = vi.spyOn(
+            service as unknown as {
+                resolveAiAccessIdentity: (...args: unknown[]) => Promise<null>;
+            },
+            'resolveAiAccessIdentity',
+        );
+        try {
+            await expect(
+                service.testSnowflakeAiBoundary(
+                    developerAccount as RegisteredAccount,
+                    projectSummary.projectUuid,
+                    { protectedColumn: null },
+                ),
+            ).rejects.toThrow("Your AI identity isn't set up yet");
+            expect(resolveTwin).toHaveBeenCalledWith(
+                expect.objectContaining({ surface: 'boundary_test' }),
+            );
+            expect(resolveIdentity).not.toHaveBeenCalled();
+        } finally {
+            getCredentials.mockRestore();
+            resolveTwin.mockRestore();
+            resolveIdentity.mockRestore();
+        }
+    });
+
+    it('refuses the test without the caller AI sign-in', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                    }),
+                ),
             } as unknown as FeatureFlagModel,
         });
         const getCredentials = vi
@@ -15008,7 +15065,16 @@ describe('Snowflake AI boundary guide access', () => {
     it('opens the test client with only the caller AI credential', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {
             featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: true })),
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        enabled:
+                            featureFlagId !== FeatureFlags.SnowflakeAiTwins,
+                    }),
+                ),
             } as unknown as FeatureFlagModel,
         });
         const getCredentials = vi

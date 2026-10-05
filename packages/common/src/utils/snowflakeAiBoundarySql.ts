@@ -99,7 +99,7 @@ export const getAgentMaskingSql = ({
     return statements.join('\n\n');
 };
 
-export const getSessionCeilingSql = ({
+const getSessionPolicySql = ({
     database,
     schema,
     blockedRoles,
@@ -124,5 +124,30 @@ export const getSessionCeilingSql = ({
             throw new Error('Enter a valid Snowflake role');
     });
     const yaml = `privilege_scopes:\n  allowed_privileges:\n    - privileges: [data read]\n      account: [all]\nrole_scopes:\n  blocked_roles: [${roles.join(', ')}]\n  allow_role_switching: false`;
-    return `CREATE RESTRICTED SESSION SCOPE ${scope} AS $$\n${yaml}\n$$;\n\nCREATE SESSION POLICY ${policy} AGENT_RESTRICTED_SESSION_SCOPE = ${sqlString(scope)};\n\nALTER ACCOUNT SET SESSION POLICY ${policy};`;
+    return `CREATE RESTRICTED SESSION SCOPE ${scope} AS $$\n${yaml}\n$$;\n\nCREATE SESSION POLICY ${policy} AGENT_RESTRICTED_SESSION_SCOPE = ${sqlString(scope)};`;
+};
+
+export const getSessionCeilingSql = (options: {
+    database: string;
+    schema: string;
+    blockedRoles: string[];
+}): string =>
+    `${getSessionPolicySql(options)}\n\nALTER ACCOUNT SET SESSION POLICY ${qualified(options.database, options.schema, 'LIGHTDASH_AI_SESSION_POLICY')};`;
+
+export const getAiTwinSessionCeilingSql = (options: {
+    database: string;
+    schema: string;
+    blockedRoles: string[];
+    twinNames: string[];
+}): string => {
+    const policy = qualified(
+        options.database,
+        options.schema,
+        'LIGHTDASH_AI_SESSION_POLICY',
+    );
+    const assignments = [...new Set(options.twinNames)].map(
+        (name) =>
+            `ALTER USER ${quoteSnowflakeAiIdentifier(name)} SET SESSION POLICY ${policy};`,
+    );
+    return [getSessionPolicySql(options), ...assignments].join('\n\n');
 };

@@ -15881,6 +15881,56 @@ export class ProjectService extends BaseService {
         };
     }
 
+    private async resolveSnowflakeAiBoundaryIdentity(
+        account: RegisteredAccount,
+        projectUuid: string,
+        credentials: CreateWarehouseCredentials,
+    ): Promise<
+        Extract<
+            AiAccessIdentity,
+            { kind: 'snowflake_ai_twin' | 'snowflake_ai_sign_in' }
+        >
+    > {
+        if (credentials.type !== WarehouseTypes.SNOWFLAKE) {
+            throw new ForbiddenError('The project does not use Snowflake');
+        }
+        const project = await this.projectModel.getSummary(projectUuid);
+        const twinFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: project.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.SnowflakeAiTwins,
+        });
+        if (twinFlag.enabled) {
+            return this.resolveSnowflakeAiTwin({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: true,
+                isServiceAccount: false,
+                credentials,
+                surface: 'boundary_test',
+                context: QueryExecutionContext.AI,
+                warehouseConnectionUuid: undefined,
+            });
+        }
+        const identity = await this.resolveAiAccessIdentity({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: true,
+            isServiceAccount: false,
+            context: QueryExecutionContext.AI,
+            credentials,
+            rawSql: false,
+        });
+        if (identity?.kind !== 'snowflake_ai_sign_in') {
+            throw new ForbiddenError(
+                'Sign in to Snowflake for AI before testing the boundary',
+            );
+        }
+        return identity;
+    }
+
     async testSnowflakeAiBoundary(
         account: RegisteredAccount,
         projectUuid: string,
@@ -15896,33 +15946,25 @@ export class ProjectService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        const identity = await this.resolveAiAccessIdentity({
+        const identity = await this.resolveSnowflakeAiBoundaryIdentity(
+            account,
             projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: true,
-            isServiceAccount: false,
-            context: QueryExecutionContext.AI,
             credentials,
-            rawSql: false,
-        });
-        if (identity?.kind !== 'snowflake_ai_sign_in') {
-            throw new ForbiddenError(
-                'Sign in to Snowflake for AI before testing the boundary',
-            );
-        }
-        if (identity.credentials.type !== WarehouseTypes.SNOWFLAKE) {
-            throw new ForbiddenError(
-                'The AI sign-in is not a Snowflake credential',
-            );
-        }
+        );
         const queryId = await this.projectModel.getRecentNonAiWarehouseQueryId(
             projectUuid,
             account.user.id,
         );
-        const aiCredentials = {
-            ...identity.credentials,
-            userWarehouseCredentialsUuid: identity.credentialUuid,
-        };
+        const aiCredentials =
+            identity.kind === 'snowflake_ai_twin'
+                ? {
+                      ...identity.credentials,
+                      aiIdentityUuid: identity.aiIdentityUuid,
+                  }
+                : {
+                      ...identity.credentials,
+                      userWarehouseCredentialsUuid: identity.credentialUuid,
+                  };
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             aiCredentials,

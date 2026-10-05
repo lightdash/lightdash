@@ -3,6 +3,7 @@ import {
     getAgenticEnvBlock,
     getAgenticIntegrationSql,
     getAgentMaskingSql,
+    getAiTwinSessionCeilingSql,
     getSessionCeilingSql,
     quoteSnowflakeAiIdentifier,
     SNOWFLAKE_AI_STRING_MASK,
@@ -122,5 +123,34 @@ describe('getAgenticIntegrationSql redirect URI scheme', () => {
                 preAuthorizedRoles: ['ANALYST'],
             }),
         ).not.toContain('OAUTH_ALLOW_NON_TLS_REDIRECT_URI');
+    });
+});
+
+describe('AI twin session policy', () => {
+    const options = { database: 'DATA', schema: 'SECURITY', blockedRoles: [] };
+    it('attaches the policy only to named AI users, quotes names and deduplicates', () => {
+        const sql = getAiTwinSessionCeilingSql({
+            ...options,
+            twinNames: ['ALICE_AI', 'B"OB_AI', 'ALICE_AI'],
+        });
+        expect(sql).toContain('CREATE RESTRICTED SESSION SCOPE');
+        expect(sql).toContain('CREATE SESSION POLICY');
+        expect(sql).toContain(
+            'ALTER USER "ALICE_AI" SET SESSION POLICY "DATA"."SECURITY"."LIGHTDASH_AI_SESSION_POLICY";',
+        );
+        expect(sql).toContain('ALTER USER "B""OB_AI"');
+        expect(sql.match(/ALTER USER/g)).toHaveLength(2);
+        expect(sql).not.toContain('ALTER ACCOUNT');
+    });
+    it('handles no names and rejects invalid names', () => {
+        expect(
+            getAiTwinSessionCeilingSql({ ...options, twinNames: [] }),
+        ).not.toContain('ALTER USER');
+        expect(() =>
+            getAiTwinSessionCeilingSql({
+                ...options,
+                twinNames: ['bad\nname'],
+            }),
+        ).toThrow();
     });
 });
