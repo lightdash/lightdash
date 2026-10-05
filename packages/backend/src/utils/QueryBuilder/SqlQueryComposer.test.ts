@@ -43,6 +43,14 @@ const baseArgs = {
 };
 
 describe('SqlQueryComposer', () => {
+    it('does not infer semantic lineage from raw SQL column names', () => {
+        expect(
+            new SqlQueryComposer({
+                ...baseArgs,
+                pivotConfiguration: undefined,
+            }).getSemanticUsage(),
+        ).toEqual({ status: 'unavailable', references: [] });
+    });
     it('wraps the user SQL and builds the mock metric query when there is no pivot', () => {
         const composer = new SqlQueryComposer({
             ...baseArgs,

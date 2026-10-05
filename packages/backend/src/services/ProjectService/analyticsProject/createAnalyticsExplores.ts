@@ -38,6 +38,11 @@ import {
     contentReachSql,
 } from '../../../analytics/systemExplores/contentReach';
 import {
+    semanticUsageColumns,
+    semanticUsageMetrics,
+    semanticUsageSql,
+} from '../../../analytics/systemExplores/semanticUsage';
+import {
     systemStreamMetrics,
     userActivityMetrics,
 } from '../../../analytics/systemExplores/systemStreamMetrics';
@@ -72,6 +77,7 @@ export const analyticsExploreNames = [
     'content_health',
     'agent_requests',
     'agent_request_events',
+    'semantic_usage',
 ] as const;
 
 /** Compile backend-owned system models without querying remote storage. */
@@ -87,6 +93,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            semantic_usage: {
+                columns: semanticUsageColumns,
+                metrics: semanticUsageMetrics,
+            },
             content_health: {
                 columns: contentHealthColumns,
                 metrics: contentHealthMetrics,
@@ -121,6 +131,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             },
         };
         const modelDefinition =
+            name === 'semantic_usage' ||
             name === 'user_activity' ||
             name === 'tool_activity' ||
             name === 'content_reach' ||
@@ -222,6 +233,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                         content_reach: contentReachSql,
                         content_health: contentHealthSql,
                         agent_requests: agentRequestsSql,
+                        semantic_usage: semanticUsageSql,
                     } as Partial<Record<typeof name, string>>
                 )[name] ?? `"${name}"`,
             database: 'memory',
@@ -244,6 +256,17 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
         table.dimensions.project_id.label = 'Project UUID';
+        if (name === 'query_events') {
+            table.dimensions.semantic_field_references.hidden = true;
+        }
+        if (name === 'semantic_usage') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.field_identity.hidden = true;
+            table.dimensions.definition_hash.description =
+                'Hash of the captured field definition. No historical dependency graph or rename mapping is inferred.';
+            table.dimensions.lineage_status.description =
+                'Captured: direct field references known. Partial: some references omitted or unsupported. Unavailable: SQL-only or capture failed. Not captured: historical query without field capture.';
+        }
         if (name === 'content_health') {
             table.dimensions.org_id.hidden = true;
             table.dimensions.observed_viewers.description =
@@ -286,7 +309,11 @@ export const createAnalyticsExplores = (): Explore[] => {
 
     return analyticsExploreNames.map((name) => {
         const dimensions: Exclude<UsageDimensionName, 'content'>[] = [];
-        if (name === 'query_events' || name === 'export_events') {
+        if (
+            name === 'query_events' ||
+            name === 'export_events' ||
+            name === 'semantic_usage'
+        ) {
             dimensions.push('charts', 'dashboards', 'users');
         } else if (name !== 'content_health') {
             dimensions.push('users');
@@ -341,6 +368,8 @@ export const createAnalyticsExplores = (): Explore[] => {
         const label = friendlyName(name);
         const includeQueryMetadata = name === 'export_events';
         const appTableName = 'lightdash_apps';
+        const includeAppMetadata =
+            name === 'data_app_events' || name === 'semantic_usage';
         const appFields = buildDimensionsFromColumns({
             qualifyColumnReferences: true,
             tableName: appTableName,
@@ -356,21 +385,20 @@ export const createAnalyticsExplores = (): Explore[] => {
         });
         appFields.org_id.hidden = true;
         appFields.name.label = 'App name';
-        appFields.name.sql =
-            "COALESCE(${TABLE}.name, ${data_app_events.app_id}, 'Unknown app')";
+        appFields.name.sql = `COALESCE(\${TABLE}.name, \${${name}.app_id}, 'Unknown app')`;
         return compiler.compileExplore({
             name,
             label,
             tags: [],
             baseTable: name,
             joinedTables: [
-                ...(name === 'data_app_events'
+                ...(includeAppMetadata
                     ? [
                           {
                               table: appTableName,
                               type: 'left' as const,
                               relationship: JoinRelationship.MANY_TO_ONE,
-                              sqlOn: '${data_app_events.org_id} = ${lightdash_apps.org_id} AND ${data_app_events.project_id} = ${lightdash_apps.project_id} AND ${data_app_events.app_id} = ${lightdash_apps.app_id}',
+                              sqlOn: `\${${name}.org_id} = \${lightdash_apps.org_id} AND \${${name}.project_id} = \${lightdash_apps.project_id} AND \${${name}.app_id} = \${lightdash_apps.app_id}`,
                           },
                       ]
                     : []),
@@ -407,7 +435,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             meta: {},
             targetDatabase: sqlBuilder.getAdapterType(),
             tables: {
-                ...(name === 'data_app_events'
+                ...(includeAppMetadata
                     ? {
                           [appTableName]: {
                               name: appTableName,

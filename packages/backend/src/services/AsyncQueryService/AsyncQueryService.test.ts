@@ -1953,6 +1953,80 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncQuery', () => {
+        test.each([false, true])(
+            'captures semantic metadata only when usage is enabled (%s), including result cache hits',
+            async (enabled) => {
+                const service = getMockedAsyncQueryService({
+                    ...lightdashConfigMock,
+                    usageEvents: {
+                        ...lightdashConfigMock.usageEvents,
+                        enabled,
+                    },
+                });
+                vi.spyOn(service, 'findResultsCache').mockResolvedValue({
+                    cacheHit: true,
+                    cacheKey: 'cache',
+                    totalRowCount: 10,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    expiresAt: new Date(),
+                    fileName: 'file',
+                    columns: expectedColumns,
+                    originalColumns: expectedColumns,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                });
+                const semanticUsage = {
+                    status: 'captured' as const,
+                    references: [],
+                };
+                const composer = createQueryComposerMock();
+                composer.getSemanticUsage = vi.fn(() => semanticUsage);
+                const track = vi.spyOn(analyticsMock, 'trackAccount');
+                try {
+                    await service['executeAsyncQuery'](
+                        {
+                            account: sessionAccount,
+                            projectUuid,
+                            context: QueryExecutionContext.EXPLORE,
+                            queryTags: {
+                                query_context: QueryExecutionContext.EXPLORE,
+                            },
+                            queryComposer: composer,
+                            warehouseCredentials: warehouseCredentialsMock,
+                            warehouseConnectionUuid: null,
+                        },
+                        { query: metricQueryMock },
+                    );
+                    expect(composer.getSemanticUsage).toHaveBeenCalledTimes(
+                        enabled ? 1 : 0,
+                    );
+                    const { calls } = vi.mocked(
+                        service.queryHistoryModel.create,
+                    ).mock;
+                    const stored =
+                        calls[calls.length - 1][1].requestParameters.queryUsage;
+                    expect(stored?.semanticUsage).toEqual(
+                        enabled ? semanticUsage : undefined,
+                    );
+                    expect(track).toHaveBeenCalledWith(
+                        sessionAccount,
+                        expect.objectContaining({
+                            event: 'query.completed',
+                            properties: expect.objectContaining({
+                                cacheHit: true,
+                                semanticUsage: enabled
+                                    ? semanticUsage
+                                    : undefined,
+                            }),
+                        }),
+                    );
+                } finally {
+                    track.mockRestore();
+                }
+            },
+        );
+
         const serviceWithCache = getMockedAsyncQueryService({
             ...lightdashConfigMock,
             results: {
@@ -5775,6 +5849,7 @@ describe('AsyncQueryService', () => {
                         schedulerId: null,
                         dashboardTileId: 'tile-a',
                         actorType: 'registered_user',
+                        semanticUsage: { status: 'captured', references: [] },
                     },
                 });
                 expect(completed()).toHaveLength(1);
@@ -5784,6 +5859,7 @@ describe('AsyncQueryService', () => {
                         responseTimeMs: uploadFails ? 9500 : 11500,
                         dashboardTileId: 'tile-a',
                         workloadOrigin: 'interactive',
+                        semanticUsage: { status: 'captured', references: [] },
                     },
                 });
             } finally {

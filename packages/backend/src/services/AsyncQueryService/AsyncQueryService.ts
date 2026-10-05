@@ -3285,6 +3285,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         history: Parameters<QueryHistoryModel['create']>[1],
         binding?: Parameters<QueryHistoryModel['create']>[2],
+        semanticUsage?: QueryUsageMetadata['semanticUsage'],
     ) {
         const context = getQueryRequestContext();
         let actorType = 'anonymous';
@@ -3303,6 +3304,14 @@ export class AsyncQueryService extends ProjectService {
             appId: context.app_uuid ?? null,
             appVersion: context.app_version ?? null,
             schedulerId: context.scheduler?.scheduler_uuid ?? null,
+            ...(this.lightdashConfig.usageEvents.enabled
+                ? {
+                      semanticUsage: semanticUsage ?? {
+                          status: 'unavailable' as const,
+                          references: [],
+                      },
+                  }
+                : {}),
             dashboardTileId:
                 'tileUuid' in history.requestParameters
                     ? (history.requestParameters.tileUuid ?? null)
@@ -4925,16 +4934,17 @@ export class AsyncQueryService extends ProjectService {
                         originalColumns: originalColumns ?? null,
                     };
                     const { queryUuid: queryHistoryUuid, queryUsage } =
-                        warehouseConnectionUuid
-                            ? await this.createQueryHistory(
-                                  account,
-                                  queryHistory,
-                                  { warehouseConnectionUuid },
-                              )
-                            : await this.createQueryHistory(
-                                  account,
-                                  queryHistory,
-                              );
+                        await this.createQueryHistory(
+                            account,
+                            queryHistory,
+                            warehouseConnectionUuid
+                                ? { warehouseConnectionUuid }
+                                : undefined,
+                            this.lightdashConfig.usageEvents.enabled &&
+                                !isPreviewProject
+                                ? queryComposer.getSemanticUsage()
+                                : undefined,
+                        );
                     const historyCreateMs = Date.now() - historyCreateStart;
                     const connectionAnalytics =
                         this.getQueryConnectionAnalyticsProperties({

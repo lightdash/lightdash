@@ -1,8 +1,12 @@
 import Analytics from '@rudderstack/rudder-sdk-node';
+import { EventEmitter } from 'events';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import Logger from '../logging/logger';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
+import { EventStreamSink } from './eventStream/EventStreamSink';
+import { eventStreamRegistry } from './eventStream/registry';
 import { LightdashAnalytics } from './LightdashAnalytics';
+import type { QueryCompletedEvent } from './LightdashAnalytics';
 
 // writeKey drives the tracking-enabled check inside flushEvents()
 const buildAnalytics = (writeKey: string) =>
@@ -23,6 +27,66 @@ const queueOf = (analytics: LightdashAnalytics, size: number) => {
 };
 
 describe('LightdashAnalytics', () => {
+    it('keeps semantic references in the usage copy only, without adding events or mutating the caller', () => {
+        const writer = { push: vi.fn(), flush: vi.fn(), close: vi.fn() };
+        const eventEmitter = new EventEmitter();
+        const metricEvent = vi.fn();
+        eventEmitter.on('analytics.track.query.completed', metricEvent);
+        const analytics = new LightdashAnalytics({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                rudder: { writeKey: 'test', dataPlaneUrl: 'notrack' },
+                prometheus: {
+                    ...lightdashConfigMock.prometheus,
+                    enabled: true,
+                    eventMetricsEnabled: true,
+                },
+            },
+            writeKey: 'notrack',
+            dataPlaneUrl: 'notrack',
+            options: { enable: false },
+            eventEmitter,
+            eventStreamSink: new EventStreamSink(eventStreamRegistry, writer),
+        });
+        const payload = {
+            event: 'query.completed',
+            userId: 'user',
+            properties: {
+                organizationId: 'org',
+                projectId: 'project',
+                isPreviewProject: false,
+                semanticUsage: {
+                    status: 'captured',
+                    references: [{ fieldId: 'private_field' }],
+                },
+            },
+        } as QueryCompletedEvent;
+        const track = vi
+            .spyOn(Analytics.prototype, 'track')
+            .mockImplementation(() => {});
+        try {
+            analytics.track(payload);
+            expect(writer.push).toHaveBeenCalledTimes(1);
+            expect(writer.push).toHaveBeenCalledWith(
+                'query_events',
+                expect.objectContaining({
+                    semantic_lineage_status: 'captured',
+                    semantic_field_references: '[{"fieldId":"private_field"}]',
+                }),
+            );
+            expect(track).toHaveBeenCalledTimes(1);
+            expect(track.mock.calls[0][0].properties).not.toHaveProperty(
+                'semanticUsage',
+            );
+            expect(metricEvent.mock.calls[0][0].properties).not.toHaveProperty(
+                'semanticUsage',
+            );
+            expect(payload.properties.semanticUsage).toBeDefined();
+        } finally {
+            track.mockRestore();
+        }
+    });
+
     it('tracks one aggregated feature flag check event per entry', () => {
         const analytics = new LightdashAnalytics({
             lightdashConfig: lightdashConfigMock,
