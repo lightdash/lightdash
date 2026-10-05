@@ -167,6 +167,7 @@ describe('ExploreCompilationSummary', () => {
             modelsWithSqlFiltersCount: 2,
             columnAccessFiltersCount: 2,
             additionalDimensionsCount: 2,
+            nestedFieldsCount: 0,
         });
         expect(summary.caseSensitiveExplores).toEqual([
             { name: 'orders', value: true },
@@ -180,6 +181,35 @@ describe('ExploreCompilationSummary', () => {
             { table: 'broken', name: 'broken_id', value: false },
             { table: 'orders_override', name: 'order_id', value: true },
         ]);
+    });
+
+    it('counts fields on tables unnested from repeated columns', () => {
+        const summary = new ExploreCompilationSummary();
+        const orders = explore('orders', 'orders', {
+            orders: table(
+                'orders',
+                { order_id: { name: 'order_id' } },
+                { order_count: { name: 'order_count' } },
+            ),
+            orders__items: {
+                ...table(
+                    'orders__items',
+                    { sku: { name: 'sku' }, offset: { name: 'offset' } },
+                    { item_count: { name: 'item_count' } },
+                ),
+                nestedFrom: {
+                    parentTable: 'orders',
+                    columnPath: 'items',
+                    elementSql: '"orders__items"',
+                    offsetSql: '"orders__items_offset"',
+                    joinCondition: null,
+                },
+            },
+        });
+
+        summary.add(orders, true);
+
+        expect(summary.analytics).toMatchObject({ nestedFieldsCount: 3 });
     });
 
     it('accepts an error explore whose base table is absent', () => {

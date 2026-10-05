@@ -891,6 +891,24 @@ type OrganizationAllowedEmailDomainUpdatedEvent = BaseTrack & {
     };
 };
 
+type OrganizationColorPaletteEvent = BaseTrack & {
+    event:
+        | 'organization_color_palette.created'
+        | 'organization_color_palette.activated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        colorPaletteId: string;
+    };
+};
+
+type EmailWhitelabelDomainCreatedEvent = BaseTrack & {
+    event: 'email_whitelabel_domain.created';
+    properties: {
+        organizationId: string;
+    };
+};
+
 type MetricFlowQueryEvent = BaseTrack & {
     event: 'metricflow_query.executed';
     properties: {
@@ -1399,6 +1417,8 @@ type ProjectCompiledEvent = BaseTrack & {
         modelsWithSqlFiltersCount: number;
         columnAccessFiltersCount: number;
         additionalDimensionsCount: number;
+        nestedFieldsCount: number;
+        hasProjectContext: boolean;
         dbtSourceCount: number;
     };
 };
@@ -1937,6 +1957,16 @@ export type SchedulerTimezoneUpdateEvent = BaseTrack & {
         projectId: string;
         organizationId?: string;
         timeZone: string;
+    };
+};
+
+type DefaultUserSpacesUpdatedEvent = BaseTrack & {
+    event: 'default_user_spaces.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        hasDefaultUserSpaces: boolean;
     };
 };
 
@@ -3149,6 +3179,7 @@ export type AiAgentCreatedEvent = BaseTrack & {
         modelProvider: string | null;
         modelName: string | null;
         reasoningEnabled: boolean | null;
+        contentToolsEnabled: boolean;
         autoProvisioned?: boolean;
     };
 };
@@ -3250,6 +3281,7 @@ export type AiAgentUpdatedEvent = BaseTrack & {
         modelProvider: string | null;
         modelName: string | null;
         reasoningEnabled: boolean | null;
+        contentToolsEnabled: boolean;
     };
 };
 
@@ -4564,6 +4596,8 @@ type TypedEvent =
     | UpdateOrganizationEvent
     | DeleteOrganizationEvent
     | OrganizationAllowedEmailDomainUpdatedEvent
+    | OrganizationColorPaletteEvent
+    | EmailWhitelabelDomainCreatedEvent
     | UserWarehouseCredentialsEvent
     | UserWarehouseCredentialsDeleteEvent
     | WarehouseConnectEvent
@@ -4644,6 +4678,7 @@ type TypedEvent =
     | SourceCodeEvent
     | SourceCodeBranchPullRequestEvent
     | SchedulerTimezoneUpdateEvent
+    | DefaultUserSpacesUpdatedEvent
     | CreateTagEvent
     | CategoriesAppliedEvent
     | CustomFieldsReplaced
