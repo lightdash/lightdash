@@ -6,8 +6,10 @@ import {
 } from '@lightdash/common';
 import { getInstallationToken } from '../clients/github/Github';
 
+// Worded for "this connection" because the same errors surface for a project's
+// own connection and for its additional dbt sources.
 export const GITHUB_APP_NOT_INSTALLED_MESSAGE =
-    'This project is set to authenticate with the GitHub App, but the app is not installed for your organization. Install it from Settings > Integrations > GitHub, or switch the project to a personal access token.';
+    'This connection is set to authenticate with the GitHub App, but the app is not installed for your organization. Install it from Settings > Integrations > GitHub, or switch the connection to a personal access token.';
 
 /**
  * A connection that says "use the GitHub App" but has no installation to use
@@ -28,7 +30,7 @@ export const assertGithubInstallationResolved = (
 };
 
 const GITHUB_APP_INSTALLATION_GONE_MESSAGE =
-    'This project is set to authenticate with the Lightdash GitHub App, but its installation no longer exists on GitHub. Reinstall the app from Settings > Integrations > GitHub, or switch the project to a personal access token.';
+    'This connection is set to authenticate with the Lightdash GitHub App, but its installation no longer exists on GitHub. Reinstall the app from Settings > Integrations > GitHub, or switch the connection to a personal access token.';
 
 // GitHub answers 404 when asked to mint a token for an installation that has
 // been uninstalled; the client surfaces it as "Not Found - https://docs…".
