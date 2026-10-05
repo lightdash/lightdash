@@ -21,6 +21,7 @@ import {
     FilterGroupItem,
     FilterOperator,
     FilterRule,
+    getAllReferences,
     getCustomMetricDimensionId,
     getDimensionMapFromTables,
     getDimensions,
@@ -2633,6 +2634,23 @@ export class MetricQueryBuilder {
         return warnings;
     }
 
+    private metricReadsRawColumns(metric: CompiledMetric): boolean {
+        return getAllReferences(metric.sql).some((reference) => {
+            if (reference === 'TABLE') {
+                return true;
+            }
+            const { refTable, refName } = getParsedReference(
+                reference,
+                metric.table,
+            );
+            return (
+                this.exploreDimensions[
+                    getItemId({ table: refTable, name: refName })
+                ] !== undefined
+            );
+        });
+    }
+
     /**
      * Helper function to replace metric references in SQL with CTE references
      */
@@ -2819,6 +2837,7 @@ export class MetricQueryBuilder {
         const nonAggReferencingDd =
             this.getNonAggregateMetricsReferencingDistinct();
         const metricsWithCteReferences: Array<CompiledMetric> = [];
+        const metricsWithTableReference: Array<CompiledMetric> = [];
         const skippedDimensionReferences: Array<CompiledDimension> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -2840,10 +2859,16 @@ export class MetricQueryBuilder {
                     if (!nonAggReferencingDd.has(getItemId(metricObject))) {
                         metricsWithCteReferences.push(metricObject);
                     }
-                    const metricReferences = parseAllReferences(
-                        metricObject.sql,
-                        metricObject.table,
-                    );
+                    const references = getAllReferences(metricObject.sql);
+                    if (references.includes('TABLE')) {
+                        metricsWithTableReference.push(metricObject);
+                    }
+                    // ${TABLE} is the metric's own table, not a field
+                    const metricReferences = references
+                        .filter((reference) => reference !== 'TABLE')
+                        .map((reference) =>
+                            getParsedReference(reference, metricObject.table),
+                        );
                     metricReferences.forEach((metricReference) => {
                         const referenceId = getItemId({
                             table: metricReference.refTable,
@@ -2899,6 +2924,25 @@ export class MetricQueryBuilder {
                 );
             }
         });
+
+        // ${TABLE} only resolves in the raw scan. Fail loudly where the metric
+        // would be projected from CTEs that no longer have its table in scope.
+        const throwTableReferenceError = (metric: CompiledMetric) => {
+            throw new FieldReferenceError(
+                `Tried to reference \${TABLE} from metric "${getItemId(
+                    metric,
+                )}" on a table that is aggregated separately. Reference a metric on "${
+                    metric.table
+                }" instead.`,
+            );
+        };
+        metricsWithTableReference
+            .filter(
+                (metric) =>
+                    nonAggReferencingDd.has(getItemId(metric)) ||
+                    nestedAggOuterIds.has(getItemId(metric)),
+            )
+            .forEach(throwTableReferenceError);
 
         // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];
@@ -2988,8 +3032,12 @@ export class MetricQueryBuilder {
                     (t) => t !== metric.table,
                 );
                 if (referencesAnotherTable) {
-                    if (isNonAggregateMetric(metric)) {
-                        // These will be part of the final select. The SQL will be processed later to replace metric references with CTE references
+                    // Metric references are replaced with CTE references in the
+                    // final select; raw columns stay in the inflated scan.
+                    if (
+                        isNonAggregateMetric(metric) &&
+                        !this.metricReadsRawColumns(metric)
+                    ) {
                         return;
                     }
                     // We don't support other scenarios yet
@@ -3256,6 +3304,7 @@ export class MetricQueryBuilder {
             }
         });
         if (ctes.length > 0) {
+            metricsWithTableReference.forEach(throwTableReferenceError);
             const unaffectedMetrics = [
                 ...metricsObjects,
                 ...referencedMetricObjects,
