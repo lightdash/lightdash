@@ -19,13 +19,10 @@ const HealthLoaded: FC = () => {
     return health.data ? <span>health loaded</span> : null;
 };
 
-const renderNotice = (
-    staticIp: string | undefined,
-    variant: 'list' | 'summary' = 'list',
-) =>
+const renderNotice = (staticIp: string | undefined) =>
     renderWithProviders(
         <>
-            <EgressIpNotice variant={variant} />
+            <EgressIpNotice />
             <HealthLoaded />
         </>,
         { health: { staticIp } },
@@ -123,28 +120,12 @@ describe('EgressIpNotice', () => {
         expect(window.getSelection()?.toString()).toBe('35.1.1.1');
     });
 
-    it.each([
-        [
-            '35.245.81.252',
-            'Lightdash connects to your warehouse from this IP address: 35.245.81.252. You can copy it in the next step.',
-        ],
-        [
-            '35.1.1.1,35.2.2.2',
-            'Lightdash connects to your warehouse from these IP addresses: 35.1.1.1, 35.2.2.2. You can copy them in the next step.',
-        ],
-    ])('summarises %s on a new connection', async (staticIp, text) => {
-        renderNotice(staticIp, 'summary');
-
-        expect(await screen.findByText(text)).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /^Copy/ })).toBeNull();
-    });
-
     it('renders nothing when the kill switch is on', async () => {
         const { rerender } = renderNotice('35.1.1.1');
         expect(await screen.findByText('35.1.1.1')).toBeInTheDocument();
 
         flag.enabled = false;
-        rerender(<EgressIpNotice variant="list" />);
+        rerender(<EgressIpNotice />);
 
         expect(screen.queryByText('35.1.1.1')).toBeNull();
     });

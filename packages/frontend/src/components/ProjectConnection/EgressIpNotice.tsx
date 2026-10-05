@@ -128,21 +128,10 @@ export const EgressIpList: FC<{ ips: string[] }> = ({ ips }) => {
     );
 };
 
-export const EgressIpNotice: FC<{ variant: 'list' | 'summary' }> = ({
-    variant,
-}) => {
+export const EgressIpNotice: FC = () => {
     const ips = useEgressIps();
     if (ips.length === 0) return null;
     const { noun, pronoun } = describeEgressIps(ips.length);
-
-    if (variant === 'summary') {
-        return (
-            <Text size="sm" c="dimmed">
-                Lightdash connects to your warehouse from {noun}:{' '}
-                {ips.join(', ')}. You can copy {pronoun} in the next step.
-            </Text>
-        );
-    }
 
     return (
         <Stack gap="xs">

@@ -40,9 +40,7 @@ export const ConnectionFields: FC<{
                 <Text size="sm" c="dimmed">
                     {intro}
                 </Text>
-                <EgressIpNotice
-                    variant={isNewConnection ? 'summary' : 'list'}
-                />
+                {!isNewConnection && <EgressIpNotice />}
                 {showName && (
                     <TextInput
                         ref={nameRef}

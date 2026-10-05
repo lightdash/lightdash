@@ -33,9 +33,7 @@ const WarehouseIpHint: FC<{ isProjectUpdate: boolean }> = ({
         FeatureFlags.EgressIpNotice,
     );
     if (egressIpNoticeFlag.data?.enabled !== false)
-        return (
-            <EgressIpNotice variant={isProjectUpdate ? 'list' : 'summary'} />
-        );
+        return isProjectUpdate ? <EgressIpNotice /> : null;
     if (!health.data?.staticIp) return null;
 
     return (
