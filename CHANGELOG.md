@@ -1,3 +1,10 @@
+## [2.428.5](https://github.com/lightdash/lightdash/compare/2.428.4...2.428.5) (2026-10-05)
+
+
+### Bug Fixes
+
+* quote pre-aggregate serving column references ([#30482](https://github.com/lightdash/lightdash/issues/30482)) ([19ca748](https://github.com/lightdash/lightdash/commit/19ca7488a467494e6e03983ffb0a16f7961a7428))
+
 ## [2.428.4](https://github.com/lightdash/lightdash/compare/2.428.3...2.428.4) (2026-10-05)
 
 
