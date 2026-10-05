@@ -398,8 +398,6 @@ export class ContentReviewRequestService extends BaseService {
             targetSpaceUuid: string;
         },
         moveOptions: { tx: Knex; checkForAccess: boolean; trackEvent: boolean },
-        // Only Documents are versioned for review
-        expectedVersionUuid: string | null,
     ): Promise<unknown> {
         switch (contentType) {
             case ContentReviewContentType.CHART:
@@ -420,19 +418,14 @@ export class ContentReviewRequestService extends BaseService {
                     moveArgs,
                     moveOptions,
                 );
+            // Document moves always check access, so approval has its own path
             case ContentReviewContentType.DOCUMENT:
-                if (expectedVersionUuid === null) {
-                    throw new ConflictError(
-                        'This request has no reviewed Document version',
-                    );
-                }
                 return this.documentService.moveApprovedToSpace(
                     fromSession(user),
                     {
                         projectUuid: moveArgs.projectUuid,
                         documentUuid: moveArgs.itemUuid,
                         targetSpaceUuid: moveArgs.targetSpaceUuid,
-                        expectedVersionUuid,
                     },
                     { tx: moveOptions.tx },
                 );
@@ -643,31 +636,15 @@ export class ContentReviewRequestService extends BaseService {
         };
     }
 
-    // A Document can be approved only at the version that was submitted
-    private async isOutdated(request: ContentReviewRequest): Promise<boolean> {
-        if (
-            request.status !== ContentReviewRequestStatus.PENDING ||
-            request.contentVersionUuid === null
-        ) {
-            return false;
-        }
-        const latest =
-            await this.contentReviewRequestModel.findLatestDocumentVersionUuid(
-                request.contentUuid,
-            );
-        return latest !== request.contentVersionUuid;
-    }
-
     private async toDetail(
         user: SessionUser,
         context: ProjectContext,
         request: ContentReviewRequest,
         settings: ContentReviewSettings,
     ): Promise<ContentReviewRequestDetail> {
-        const [lookups, canReview, isOutdated] = await Promise.all([
+        const [lookups, canReview] = await Promise.all([
             this.lookupContent([request]),
             this.canReview(user, request, settings, context.organizationUuid),
-            this.isOutdated(request),
         ]);
         const item = ContentReviewRequestService.toListItem(request, lookups);
         const moveSet =
@@ -678,7 +655,6 @@ export class ContentReviewRequestService extends BaseService {
         return {
             ...item,
             moveSet,
-            isOutdated,
             canReview,
             canVerify: this.canVerify(user, context, request.contentType),
             verifyByDefault: settings.verifyOnApproveDefault,
@@ -711,16 +687,14 @@ export class ContentReviewRequestService extends BaseService {
                 'Only content in your personal space can be submitted for review',
             );
         }
-        const contentVersionUuid =
-            body.contentType === ContentReviewContentType.DOCUMENT
-                ? (
-                      await this.documentService.get(
-                          fromSession(user),
-                          projectUuid,
-                          body.contentUuid,
-                      )
-                  ).version.versionUuid
-                : null;
+        // Documents are feature-flagged; this also checks the requester's access
+        if (body.contentType === ContentReviewContentType.DOCUMENT) {
+            await this.documentService.get(
+                fromSession(user),
+                projectUuid,
+                body.contentUuid,
+            );
+        }
 
         const targetSpace = await this.getSpaceInfo(body.targetSpaceUuid);
         if (
@@ -793,7 +767,6 @@ export class ContentReviewRequestService extends BaseService {
                 projectUuid,
                 contentType: body.contentType,
                 contentUuid: body.contentUuid,
-                contentVersionUuid,
                 sourceSpaceUuid: personalSpace.uuid,
                 targetSpaceUuid: targetSpace.uuid,
                 requestedByUserUuid: user.userUuid,
@@ -1036,11 +1009,6 @@ export class ContentReviewRequestService extends BaseService {
         if (targetSpaceUuid === null) {
             throw new ConflictError('The target space no longer exists');
         }
-        if (await this.isOutdated(request)) {
-            throw new ConflictError(
-                'This Document changed after review was requested. Ask the requester to submit it again',
-            );
-        }
 
         const moveSet = await this.computeMoveSet(request);
         // Access was checked above against the target; the per-type move
@@ -1064,10 +1032,6 @@ export class ContentReviewRequestService extends BaseService {
                         item.contentType,
                         moveArgs,
                         moveOptions,
-                        // Rechecked under the move's row lock
-                        item.contentUuid === request.contentUuid
-                            ? request.contentVersionUuid
-                            : null,
                     );
                 }
                 return this.contentReviewRequestModel.approve(

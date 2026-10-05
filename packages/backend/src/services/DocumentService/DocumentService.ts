@@ -636,12 +636,10 @@ export class DocumentService extends BaseService {
             projectUuid,
             documentUuid,
             targetSpaceUuid,
-            expectedVersionUuid,
         }: {
             projectUuid: string;
             documentUuid: string;
             targetSpaceUuid: string;
-            expectedVersionUuid: string;
         },
         { tx }: { tx?: Knex } = {},
     ): Promise<void> {
@@ -676,7 +674,7 @@ export class DocumentService extends BaseService {
                 sourceSpaceUuid: document.spaceUuid,
                 targetSpaceUuid,
             },
-            { tx, expectedVersionUuid },
+            { tx },
         );
     }
 

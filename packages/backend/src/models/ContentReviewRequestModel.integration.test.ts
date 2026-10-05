@@ -108,7 +108,6 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
         projectUuid,
         contentType: ContentReviewContentType.CHART,
         contentUuid: randomUUID(),
-        contentVersionUuid: null,
         sourceSpaceUuid: personalSpaceUuid,
         targetSpaceUuid: sharedSpaceUuid,
         requestedByUserUuid: userUuid,

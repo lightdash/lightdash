@@ -971,7 +971,6 @@ describe('DocumentService', () => {
                     projectUuid,
                     documentUuid,
                     targetSpaceUuid: 'destination',
-                    expectedVersionUuid: 'reviewed-version',
                 },
             );
             expect(
@@ -988,7 +987,7 @@ describe('DocumentService', () => {
                     sourceSpaceUuid: spaceUuid,
                     targetSpaceUuid: 'destination',
                 },
-                { tx: undefined, expectedVersionUuid: 'reviewed-version' },
+                { tx: undefined },
             );
         });
 
@@ -1002,7 +1001,6 @@ describe('DocumentService', () => {
                     projectUuid,
                     documentUuid,
                     targetSpaceUuid: 'destination',
-                    expectedVersionUuid: 'reviewed-version',
                 }),
             ).rejects.toThrow(ForbiddenError);
             expect(documentModel.moveToSpace).not.toHaveBeenCalled();
@@ -1020,7 +1018,6 @@ describe('DocumentService', () => {
                         projectUuid,
                         documentUuid,
                         targetSpaceUuid: 'destination',
-                        expectedVersionUuid: 'reviewed-version',
                     },
                 ),
             ).rejects.toThrow(NotFoundError);
@@ -1037,7 +1034,6 @@ describe('DocumentService', () => {
                         projectUuid,
                         documentUuid,
                         targetSpaceUuid: 'destination',
-                        expectedVersionUuid: 'reviewed-version',
                     },
                 ),
             ).rejects.toThrow(ForbiddenError);

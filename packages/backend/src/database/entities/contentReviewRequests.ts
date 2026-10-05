@@ -7,7 +7,6 @@ export type DbContentReviewRequest = {
     project_uuid: string;
     content_type: string;
     content_uuid: string;
-    content_version_uuid: string | null;
     source_space_uuid: string;
     target_space_uuid: string | null;
     requested_by_user_uuid: string;
@@ -36,7 +35,6 @@ export type CreateDbContentReviewRequest = Pick<
     | 'project_uuid'
     | 'content_type'
     | 'content_uuid'
-    | 'content_version_uuid'
     | 'source_space_uuid'
     | 'target_space_uuid'
     | 'requested_by_user_uuid'

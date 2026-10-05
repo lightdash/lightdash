@@ -128,7 +128,6 @@ const pendingRequest: ContentReviewRequest = {
     projectUuid: PROJECT,
     contentType: ContentReviewContentType.CHART,
     contentUuid: CHART,
-    contentVersionUuid: null,
     sourceSpaceUuid: PERSONAL_SPACE,
     targetSpaceUuid: SHARED_SPACE,
     requestedBy: { userUuid: REQUESTER, firstName: 'Test', lastName: 'User' },
@@ -161,7 +160,6 @@ const buildService = () => {
         findDashboardLocations: vi.fn().mockResolvedValue([]),
         findSqlChartLocations: vi.fn().mockResolvedValue([]),
         findDocumentLocations: vi.fn().mockResolvedValue([]),
-        findLatestDocumentVersionUuid: vi.fn().mockResolvedValue(null),
         findSpaceInfo: vi.fn().mockResolvedValue(spaces),
         findPendingByContentUuids: vi.fn().mockResolvedValue(new Map()),
         findPendingByContent: vi.fn().mockResolvedValue(null),
@@ -768,7 +766,6 @@ describe('ContentReviewRequestService', () => {
 
     describe('Documents', () => {
         const DOCUMENT = 'document-uuid';
-        const SUBMITTED_VERSION = 'version-1';
         const documentLocation = {
             uuid: DOCUMENT,
             name: 'Q3 review',
@@ -781,42 +778,37 @@ describe('ContentReviewRequestService', () => {
             ...pendingRequest,
             contentType: ContentReviewContentType.DOCUMENT,
             contentUuid: DOCUMENT,
-            contentVersionUuid: SUBMITTED_VERSION,
+        };
+        const documentBody = {
+            ...submitBody,
+            contentType: ContentReviewContentType.DOCUMENT,
+            contentUuid: DOCUMENT,
         };
 
-        const buildDocumentService = (latestVersion: string) => {
+        const buildDocumentService = () => {
             const built = buildService();
             built.contentReviewRequestModel.findDocumentLocations.mockResolvedValue(
                 [documentLocation],
-            );
-            built.contentReviewRequestModel.findLatestDocumentVersionUuid.mockResolvedValue(
-                latestVersion,
             );
             built.contentReviewRequestModel.getByUuid.mockResolvedValue(
                 documentRequest,
             );
             built.documentService.get.mockResolvedValue({
                 documentUuid: DOCUMENT,
-                version: { versionUuid: latestVersion },
             });
             return built;
         };
 
-        test('submit records the version under review and shares it with reviewers', async () => {
+        test('submit shares the Document with reviewers', async () => {
             const { service, contentReviewRequestModel, directAccessModel } =
-                buildDocumentService(SUBMITTED_VERSION);
+                buildDocumentService();
 
-            await service.submit(requester, PROJECT, {
-                ...submitBody,
-                contentType: ContentReviewContentType.DOCUMENT,
-                contentUuid: DOCUMENT,
-            });
+            await service.submit(requester, PROJECT, documentBody);
 
             expect(contentReviewRequestModel.create).toHaveBeenCalledWith(
                 expect.objectContaining({
                     contentType: ContentReviewContentType.DOCUMENT,
                     contentUuid: DOCUMENT,
-                    contentVersionUuid: SUBMITTED_VERSION,
                 }),
             );
             expect(directAccessModel.upsertAccess).toHaveBeenCalledWith(
@@ -833,36 +825,31 @@ describe('ContentReviewRequestService', () => {
                 contentReviewRequestModel,
                 directAccessModel,
                 documentService,
-            } = buildDocumentService(SUBMITTED_VERSION);
+            } = buildDocumentService();
             documentService.get.mockRejectedValue(
                 new ForbiddenError('Documents are not enabled'),
             );
 
             await expect(
-                service.submit(requester, PROJECT, {
-                    ...submitBody,
-                    contentType: ContentReviewContentType.DOCUMENT,
-                    contentUuid: DOCUMENT,
-                }),
+                service.submit(requester, PROJECT, documentBody),
             ).rejects.toThrow('Documents are not enabled');
             expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
             expect(contentReviewRequestModel.create).not.toHaveBeenCalled();
         });
 
-        test('approve moves the reviewed version and never verifies', async () => {
+        test('approve moves the Document through its approved-move path and never verifies', async () => {
             const {
                 service,
                 contentReviewRequestModel,
                 documentService,
                 contentVerificationModel,
-            } = buildDocumentService(SUBMITTED_VERSION);
+            } = buildDocumentService();
 
             const detail = await service.get(
                 verifier,
                 PROJECT,
                 pendingRequest.uuid,
             );
-            expect(detail.isOutdated).toBe(false);
             expect(detail.canVerify).toBe(false);
 
             await service.approve(verifier, PROJECT, pendingRequest.uuid, {
@@ -876,7 +863,6 @@ describe('ContentReviewRequestService', () => {
                     projectUuid: PROJECT,
                     documentUuid: DOCUMENT,
                     targetSpaceUuid: SHARED_SPACE,
-                    expectedVersionUuid: SUBMITTED_VERSION,
                 },
                 { tx: 'tx' },
             );
@@ -886,32 +872,6 @@ describe('ContentReviewRequestService', () => {
                 expect.anything(),
             );
             expect(contentVerificationModel.verify).not.toHaveBeenCalled();
-        });
-
-        test('an edit after submission blocks approval but not rejection', async () => {
-            const { service, contentReviewRequestModel, documentService } =
-                buildDocumentService('version-2');
-
-            const detail = await service.get(
-                verifier,
-                PROJECT,
-                pendingRequest.uuid,
-            );
-            expect(detail.isOutdated).toBe(true);
-
-            await expect(
-                service.approve(verifier, PROJECT, pendingRequest.uuid, {
-                    verify: false,
-                    note: null,
-                }),
-            ).rejects.toThrow('changed after review was requested');
-            expect(documentService.moveApprovedToSpace).not.toHaveBeenCalled();
-            expect(contentReviewRequestModel.approve).not.toHaveBeenCalled();
-
-            await service.reject(verifier, PROJECT, pendingRequest.uuid, {
-                note: 'Resubmit the latest version',
-            });
-            expect(contentReviewRequestModel.reject).toHaveBeenCalled();
         });
     });
 

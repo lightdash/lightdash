@@ -1,5 +1,4 @@
 import {
-    ConflictError,
     ContentReviewContentType,
     ContentReviewRequestStatus,
     SEED_ORG_1_ADMIN,
@@ -86,7 +85,6 @@ describe('Document review requests on the migrated schema', () => {
             projectUuid: SEED_PROJECT.project_uuid,
             contentType: ContentReviewContentType.DOCUMENT,
             contentUuid: document.documentUuid,
-            contentVersionUuid: document.version.versionUuid,
             sourceSpaceUuid,
             targetSpaceUuid,
             requestedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -97,12 +95,12 @@ describe('Document review requests on the migrated schema', () => {
         return { document, request };
     };
 
-    test('stores a Document request with the version under review', async () => {
+    test('stores a Document request and resolves its location', async () => {
         const { document, request } = await submit();
 
         expect(request).toMatchObject({
             contentType: ContentReviewContentType.DOCUMENT,
-            contentVersionUuid: document.version.versionUuid,
+            contentUuid: document.documentUuid,
             status: ContentReviewRequestStatus.PENDING,
         });
         expect(
@@ -115,50 +113,6 @@ describe('Document review requests on the migrated schema', () => {
                 deleted: false,
             }),
         ]);
-        expect(
-            await reviewModel.findLatestDocumentVersionUuid(
-                document.documentUuid,
-            ),
-        ).toBe(document.version.versionUuid);
-    });
-
-    test('moves only the reviewed version', async () => {
-        const { document } = await submit();
-        const edited = await documentModel.updateContent(
-            SEED_PROJECT.project_uuid,
-            document.documentUuid,
-            {
-                baseVersionUuid: document.version.versionUuid,
-                content: { markdown: '# Findings\n\nEdited', charts: {} },
-                expectedSpaceUuid: sourceSpaceUuid,
-            },
-            SEED_ORG_1_ADMIN.user_uuid,
-        );
-        const move = (expectedVersionUuid: string) =>
-            documentModel.moveToSpace(
-                {
-                    projectUuid: SEED_PROJECT.project_uuid,
-                    documentUuid: document.documentUuid,
-                    sourceSpaceUuid,
-                    targetSpaceUuid,
-                },
-                { expectedVersionUuid },
-            );
-
-        await expect(move(document.version.versionUuid)).rejects.toThrow(
-            ConflictError,
-        );
-        expect(
-            (
-                await documentModel.get(
-                    SEED_PROJECT.project_uuid,
-                    document.documentUuid,
-                )
-            ).spaceUuid,
-        ).toBe(sourceSpaceUuid);
-
-        const moved = await move(edited.version.versionUuid);
-        expect(moved.spaceUuid).toBe(targetSpaceUuid);
     });
 
     test('deleting the Document cancels its pending request', async () => {

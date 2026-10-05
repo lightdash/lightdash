@@ -17,10 +17,7 @@ import {
     type DbContentReviewRequest,
 } from '../database/entities/contentReviewRequests';
 import { DashboardsTableName } from '../database/entities/dashboards';
-import {
-    DocumentsTableName,
-    DocumentVersionsTableName,
-} from '../database/entities/documents';
+import { DocumentsTableName } from '../database/entities/documents';
 import { ProjectTableName } from '../database/entities/projects';
 import {
     SavedChartsTableName,
@@ -52,7 +49,6 @@ const parseRow = (
     projectUuid: row.project_uuid,
     contentType: row.content_type as ContentReviewContentType,
     contentUuid: row.content_uuid,
-    contentVersionUuid: row.content_version_uuid,
     sourceSpaceUuid: row.source_space_uuid,
     targetSpaceUuid: row.target_space_uuid,
     requestedBy: {
@@ -85,7 +81,6 @@ export type CreateContentReviewRequest = {
     projectUuid: string;
     contentType: ContentReviewContentType;
     contentUuid: string;
-    contentVersionUuid: string | null;
     sourceSpaceUuid: string;
     targetSpaceUuid: string;
     requestedByUserUuid: string;
@@ -271,7 +266,6 @@ export class ContentReviewRequestModel {
                 project_uuid: request.projectUuid,
                 content_type: request.contentType,
                 content_uuid: request.contentUuid,
-                content_version_uuid: request.contentVersionUuid,
                 source_space_uuid: request.sourceSpaceUuid,
                 target_space_uuid: request.targetSpaceUuid,
                 requested_by_user_uuid: request.requestedByUserUuid,
@@ -569,23 +563,6 @@ export class ContentReviewRequestModel {
                 `${DocumentsTableName}.deleted_at`,
             );
         return rows.map(parseLocationRow);
-    }
-
-    async findLatestDocumentVersionUuid(
-        documentUuid: string,
-    ): Promise<string | null> {
-        const row = await this.database(DocumentVersionsTableName)
-            .innerJoin(
-                DocumentsTableName,
-                `${DocumentsTableName}.document_id`,
-                `${DocumentVersionsTableName}.document_id`,
-            )
-            .where(`${DocumentsTableName}.document_uuid`, documentUuid)
-            .orderBy(`${DocumentVersionsTableName}.version_number`, 'desc')
-            .first<{ document_version_uuid: string } | undefined>(
-                `${DocumentVersionsTableName}.document_version_uuid`,
-            );
-        return row?.document_version_uuid ?? null;
     }
 
     async findSpaceInfo(
