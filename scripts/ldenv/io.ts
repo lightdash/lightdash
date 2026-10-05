@@ -6,9 +6,11 @@ import { existsSync } from 'node:fs';
 import {
     lstat,
     mkdir,
+    readdir,
     readFile,
     rename,
     rm,
+    stat,
     writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
@@ -396,26 +398,81 @@ export async function foregroundWork<T>(work: () => Promise<T>): Promise<T> {
         'foreground',
         `${process.pid}-${randomUUID()}.json`,
     );
-    await writeJson(file, { pid: process.pid });
+    const identity = await currentProcessIdentity();
+    const lease: ForegroundLease = {
+        pid: process.pid,
+        start: identity?.start ?? null,
+    };
+    await writeJson(file, lease);
     try {
         return await priority.run('foreground', work);
     } finally {
         await rm(file, { force: true });
     }
 }
+type ForegroundLease = { pid: number; start?: string | null };
+const processStartSlackMs = 2000;
+async function sameProcess(
+    pid: number | null,
+    recordedAt: number,
+    start?: string | null,
+): Promise<boolean> {
+    if (!pid || !alive(pid)) return false;
+    const identity = await processIdentity(pid);
+    if (!identity) return true;
+    if (start) return identity.start === start;
+    const started = Date.parse(identity.start);
+    if (!Number.isFinite(started) || !Number.isFinite(recordedAt)) return true;
+    return started <= recordedAt + processStartSlackMs;
+}
+async function liveLease(file: string): Promise<boolean> {
+    let lease: ForegroundLease;
+    let recordedAt: number;
+    try {
+        [lease, recordedAt] = await Promise.all([
+            readJson<ForegroundLease>(file),
+            stat(file).then((stats) => stats.mtimeMs),
+        ]);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+        throw error;
+    }
+    if (await sameProcess(lease.pid, recordedAt, lease.start)) return true;
+    await rm(file, { force: true });
+    return false;
+}
 export async function foregroundActive(): Promise<boolean> {
-    const leases = await listJson<{ pid: number }>(
-        path.join(home, 'foreground'),
+    const directory = path.join(home, 'foreground');
+    const names = await readdir(directory).catch(
+        (error: NodeJS.ErrnoException) => {
+            if (error.code === 'ENOENT') return [];
+            throw error;
+        },
     );
-    if (leases.some((lease) => alive(lease.pid))) return true;
+    const leases = await Promise.all(
+        names
+            .filter((name) => name.endsWith('.json'))
+            .map((name) => liveLease(path.join(directory, name))),
+    );
+    if (leases.some(Boolean)) return true;
     const instances = await listJson<Instance>(path.join(home, 'instances'));
-    return instances.some(
-        (instance) =>
-            instance.kind !== 'warming' &&
-            instance.kind !== 'spare' &&
-            (instance.phase === 'starting' || instance.phase === 'preparing') &&
-            alive(instance.monitorPid),
+    const monitors = await Promise.all(
+        instances
+            .filter(
+                (instance) =>
+                    instance.kind !== 'warming' &&
+                    instance.kind !== 'spare' &&
+                    (instance.phase === 'starting' ||
+                        instance.phase === 'preparing'),
+            )
+            .map((instance) =>
+                sameProcess(
+                    instance.monitorPid,
+                    Date.parse(instance.updatedAt),
+                ),
+            ),
     );
+    return monitors.some(Boolean);
 }
 export async function yieldToForeground(): Promise<void> {
     if (priority.getStore() !== 'background' || sharedLock.getStore()) return;
