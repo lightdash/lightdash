@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    getAllowedParameterValue,
     getItemId,
     isLightdashParameterOption,
     resolveParameterDefault,
@@ -63,7 +64,7 @@ const getDimensionType = (paramType: string | undefined): DimensionType => {
 export const ParameterInput: FC<ParameterInputProps> = ({
     paramKey,
     parameter,
-    value,
+    value: rawValue,
     onParameterChange,
     size,
     projectUuid,
@@ -71,6 +72,14 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     disabled,
     isError,
 }) => {
+    // A value outside the parameter's fixed options is treated as unset
+    const value = useMemo(
+        () =>
+            rawValue == null
+                ? null
+                : getAllowedParameterValue(parameter, rawValue),
+        [parameter, rawValue],
+    );
     const multiSelectRef = useRef<HTMLInputElement>(null);
 
     const [search, setSearch] = useState('');

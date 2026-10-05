@@ -3,6 +3,7 @@ import {
     type ParametersValuesMap,
 } from '../types/parameters';
 import { resolveParameterDefault } from './parameterDefaults';
+import { omitDisallowedParameterValues } from './parameterOptions';
 import { isReservedParameterName } from './reservedParameters';
 
 // Project defaults < explore defaults < virtual-view saved values
@@ -37,13 +38,6 @@ const resolveDefinitionDefaults = (
         {},
     );
 
-const withoutUndefinedValues = (
-    values: ParametersValuesMap,
-): ParametersValuesMap =>
-    Object.fromEntries(
-        Object.entries(values).filter(([, value]) => value !== undefined),
-    );
-
 export const getEffectiveParameterDefinitions = ({
     projectDefinitions,
     exploreDefinitions,
@@ -64,7 +58,13 @@ export const resolveFallbackParameterValues = ({
 }: ParameterFallbackSources): ParametersValuesMap => ({
     ...resolveDefinitionDefaults(projectDefinitions, now, timezone),
     ...resolveDefinitionDefaults(exploreDefinitions, now, timezone),
-    ...withoutUndefinedValues(virtualViewSavedValues),
+    ...omitDisallowedParameterValues(
+        virtualViewSavedValues,
+        getEffectiveParameterDefinitions({
+            projectDefinitions,
+            exploreDefinitions,
+        }),
+    ),
 });
 
 // A chart's saved value applies only when the dashboard has no value and the definition no default
@@ -84,13 +84,22 @@ export const canUseChartSavedParameterValue = ({
 // Untargeted: chart-saved values only.
 export const getDashboardTileParameterOverrides = ({
     definitions,
-    dashboardValues,
-    chartSavedValues,
+    dashboardValues: rawDashboardValues,
+    chartSavedValues: rawChartSavedValues,
     isTargeted,
 }: DashboardTileParameterInputs & {
     definitions: ParameterDefinitions;
 }): ParametersValuesMap => {
-    if (!isTargeted) return withoutUndefinedValues(chartSavedValues);
+    // Values outside a parameter's fixed options count as unset
+    const dashboardValues = omitDisallowedParameterValues(
+        rawDashboardValues,
+        definitions,
+    );
+    const chartSavedValues = omitDisallowedParameterValues(
+        rawChartSavedValues,
+        definitions,
+    );
+    if (!isTargeted) return chartSavedValues;
 
     const keys = new Set([
         ...Object.keys(chartSavedValues),
@@ -146,7 +155,11 @@ export const getDashboardTileParameterSource = ({
     if (getDashboardTileParameterOverrides(inputs)[key] === undefined) {
         return DashboardTileParameterSource.DEFAULT;
     }
-    return inputs.isTargeted && inputs.dashboardValues[key] !== undefined
+    const dashboardValues = omitDisallowedParameterValues(
+        inputs.dashboardValues,
+        inputs.definitions,
+    );
+    return inputs.isTargeted && dashboardValues[key] !== undefined
         ? DashboardTileParameterSource.DASHBOARD
         : DashboardTileParameterSource.CHART;
 };
@@ -166,11 +179,19 @@ export type DashboardParameterStatusInputs = {
 // whether each referencing tile has a chart-saved value for them.
 const getKeysResolvedPerTile = ({
     tiles,
-    dashboardValues,
+    dashboardValues: rawDashboardValues,
     definitions,
-}: DashboardParameterStatusInputs): Map<string, boolean[]> =>
-    tiles.reduce((acc, { parameterReferences, chartSavedValues }) => {
-        new Set(parameterReferences).forEach((key) => {
+}: DashboardParameterStatusInputs): Map<string, boolean[]> => {
+    const dashboardValues = omitDisallowedParameterValues(
+        rawDashboardValues,
+        definitions,
+    );
+    return tiles.reduce((acc, tile) => {
+        const chartSavedValues = omitDisallowedParameterValues(
+            tile.chartSavedValues,
+            definitions,
+        );
+        new Set(tile.parameterReferences).forEach((key) => {
             if (
                 isReservedParameterName(key) ||
                 !canUseChartSavedParameterValue({
@@ -188,6 +209,7 @@ const getKeysResolvedPerTile = ({
         });
         return acc;
     }, new Map<string, boolean[]>());
+};
 
 // A key is missing when any referencing tile has no dashboard value, default or chart-saved value.
 export const getMissingRequiredDashboardParameters = (
