@@ -602,6 +602,36 @@ export class AiIdentityModel {
             .delete();
     }
 
+    async findLatestSlackDmEvent({
+        organizationUuid,
+        userUuid,
+        since,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        since: Date;
+    }): Promise<{ aiIdentityEventUuid: string; createdAt: Date } | null> {
+        const row = await this.database('ai_identity_events')
+            .where({
+                organization_uuid: organizationUuid,
+                actor_user_uuid: userUuid,
+                action: 'slack_dm',
+                status: 'success',
+            })
+            .where('created_at', '>', since)
+            .orderBy('created_at', 'desc')
+            .first<{ ai_identity_event_uuid: string; created_at: Date }>(
+                'ai_identity_event_uuid',
+                'created_at',
+            );
+        return row
+            ? {
+                  aiIdentityEventUuid: row.ai_identity_event_uuid,
+                  createdAt: row.created_at,
+              }
+            : null;
+    }
+
     async addEvent(event: {
         organizationUuid: string;
         aiIdentityAccountUuid: string | null;

@@ -716,6 +716,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AiAgentService({
+                    aiIdentityModel: models.getAiIdentityModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     userModel: models.getUserModel(),
@@ -1685,6 +1686,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         ],
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
+                aiIdentityService:
+                    context.serviceRepository.getAiIdentityService(),
                 usageDimensionsModel: context.models.getUsageDimensionsModel(),
                 lightdashConfig: context.lightdashConfig,
                 analytics: context.analytics,

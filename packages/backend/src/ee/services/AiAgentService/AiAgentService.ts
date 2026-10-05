@@ -31,6 +31,8 @@ import {
     AiAgentVizConfig,
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
+    AiIdentityNotReadyError,
+    AiIdentityState,
     AiMcpCredentialScope,
     AiMcpGithubAvailability,
     AiMcpGithubConnectMode,
@@ -98,6 +100,7 @@ import {
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
     getAiAgentSkillListingText,
+    getAiIdentityPersonMessage,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
     getErrorMessage,
@@ -262,6 +265,7 @@ import { safeUrl } from '../../../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
+import { AiIdentityModel } from '../../../models/AiIdentityModel';
 import { AppModel } from '../../../models/AppModel';
 import {
     CatalogModel,
@@ -796,6 +800,7 @@ type AiAgentServiceDependencies = {
     rolesModel: RolesModel;
     lightdashConfig: LightdashConfig;
     openIdIdentityModel: OpenIdIdentityModel;
+    aiIdentityModel: AiIdentityModel;
     projectService: ProjectService;
     schedulerClient: CommercialSchedulerClient;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
@@ -1135,6 +1140,8 @@ export class AiAgentService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly openIdIdentityModel: OpenIdIdentityModel;
+
+    private readonly aiIdentityModel: AiIdentityModel;
 
     private readonly projectService: ProjectService;
 
@@ -1683,6 +1690,7 @@ export class AiAgentService extends BaseService {
         this.rolesModel = dependencies.rolesModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.openIdIdentityModel = dependencies.openIdIdentityModel;
+        this.aiIdentityModel = dependencies.aiIdentityModel;
         this.projectService = dependencies.projectService;
         this.schedulerClient = dependencies.schedulerClient;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
@@ -2226,6 +2234,70 @@ export class AiAgentService extends BaseService {
                 ? enableFastDecisions
                 : battleProfile === 'fast';
         return enabled ? this.getDecisionClient(user) : undefined;
+    }
+
+    private async getSlackPromptErrorMessage(
+        slackPrompt: SlackPrompt,
+        error: unknown,
+        defaultMessage: string,
+    ): Promise<string> {
+        if (!(error instanceof AiIdentityNotReadyError)) {
+            return this.getPromptErrorMessage(
+                {
+                    userUuid: slackPrompt.createdByUserUuid,
+                    organizationUuid: slackPrompt.organizationUuid,
+                },
+                error,
+                defaultMessage,
+            );
+        }
+        let reply =
+            "I can't query data for you yet. Ask an admin about your AI identity.";
+        try {
+            const recentEvent =
+                await this.aiIdentityModel.findLatestSlackDmEvent({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    userUuid: slackPrompt.createdByUserUuid,
+                    since: new Date(Date.now() - 86_400_000),
+                });
+            if (!recentEvent) {
+                let status: 'success' | 'error' = 'success';
+                try {
+                    const result = await this.slackClient.postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackUserId,
+                        text: `${getAiIdentityPersonMessage(error.data.state as AiIdentityState)}\n<${this.lightdashConfig.siteUrl}${error.data.settingsUrl}|Open your settings>`,
+                    });
+                    if (!result.ok)
+                        throw new Error('Slack DM was not delivered');
+                    reply =
+                        "I can't query data for you yet. I've sent you a direct message with the details.";
+                } catch (dmError) {
+                    status = 'error';
+                    Logger.warn('Failed to send AI identity Slack DM', dmError);
+                }
+                await this.aiIdentityModel.addEvent({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    aiIdentityAccountUuid: null,
+                    aiIdentityUuid: null,
+                    actorType: 'scheduler',
+                    actorUserUuid: slackPrompt.createdByUserUuid,
+                    action: 'slack_dm',
+                    targetCount: 1,
+                    status,
+                    detail: null,
+                });
+            } else {
+                reply =
+                    "I can't query data for you yet. See the direct message I sent you earlier.";
+            }
+        } catch (notificationError) {
+            Logger.warn(
+                'Failed to record AI identity Slack DM',
+                notificationError,
+            );
+        }
+        return reply;
     }
 
     private async getPromptErrorMessage(
@@ -16828,8 +16900,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 );
                 return false;
             }
-            const userFacingMessage = await this.getPromptErrorMessage(
-                user,
+            const userFacingMessage = await this.getSlackPromptErrorMessage(
+                slackPrompt,
                 error,
                 AiAgentService.agentFailedMessage(agent?.name),
             );
@@ -16985,11 +17057,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     });
             }
         } catch (e) {
-            const userFacingMessage = await this.getPromptErrorMessage(
-                {
-                    userUuid: slackPrompt.createdByUserUuid,
-                    organizationUuid: slackPrompt.organizationUuid,
-                },
+            const userFacingMessage = await this.getSlackPromptErrorMessage(
+                slackPrompt,
                 e,
                 AiAgentService.agentFailedMessage(agent?.name),
             );

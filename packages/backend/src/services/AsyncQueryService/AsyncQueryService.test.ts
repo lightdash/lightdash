@@ -1,6 +1,8 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     Account,
+    AiIdentityNotReadyError,
+    AiIdentityState,
     AnyType,
     assertUnreachable,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
@@ -6734,6 +6736,47 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        it.each([
+            AiIdentityState.NEEDS_SIGN_IN,
+            AiIdentityState.PENDING,
+            AiIdentityState.FAILED,
+        ])(
+            'refuses a Slack query with a %s identity before warehouse execution',
+            async (state) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const warehouse = vi.spyOn(service, '_getWarehouseClient');
+                const execute = vi.spyOn(
+                    service as unknown as {
+                        executeAsyncQuery: () => Promise<unknown>;
+                    },
+                    'executeAsyncQuery',
+                );
+                const error = new AiIdentityNotReadyError(state);
+                const resolveCredentials = vi.fn().mockRejectedValue(error);
+                Object.assign(service, {
+                    getWarehouseCredentialsWithConnection: resolveCredentials,
+                });
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: 'SELECT 1',
+                        context: QueryExecutionContext.AI,
+                        aiSurface: 'slack_agent',
+                    }),
+                ).rejects.toBe(error);
+                expect(resolveCredentials).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        rawSql: true,
+                        context: QueryExecutionContext.AI,
+                        aiSurface: 'slack_agent',
+                    }),
+                );
+                expect(warehouse).not.toHaveBeenCalled();
+                expect(execute).not.toHaveBeenCalled();
+            },
+        );
+
         it('refuses AI raw SQL before opening a warehouse connection', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const warehouse = vi.spyOn(service, '_getWarehouseClient');

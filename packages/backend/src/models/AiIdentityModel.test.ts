@@ -56,6 +56,50 @@ const filter = {
 };
 
 describe('AiIdentityModel', () => {
+    it('finds the newest delivered Slack DM for one person and organization since the cutoff', async () => {
+        const since = new Date('2026-10-04T12:00:00Z');
+        const createdAt = new Date('2026-10-05T10:00:00Z');
+        tracker.on.select('ai_identity_events').responseOnce([
+            {
+                ai_identity_event_uuid: 'event',
+                created_at: createdAt,
+            },
+        ]);
+        expect(
+            await model.findLatestSlackDmEvent({
+                organizationUuid: 'org',
+                userUuid: 'user',
+                since,
+            }),
+        ).toEqual({ aiIdentityEventUuid: 'event', createdAt });
+        const query = tracker.history.select[0];
+        expect(query.sql).toContain('"organization_uuid" = $1');
+        expect(query.sql).toContain('"actor_user_uuid" = $2');
+        expect(query.sql).toContain('"action" = $3');
+        expect(query.sql).toContain('"created_at" > $5');
+        expect(query.sql).toContain('order by "created_at" desc limit $6');
+        expect(query.sql).toContain('"status" = $4');
+        expect(query.bindings).toEqual([
+            'org',
+            'user',
+            'slack_dm',
+            'success',
+            since,
+            1,
+        ]);
+    });
+
+    it('returns null when there is no recent Slack DM attempt', async () => {
+        tracker.on.select('ai_identity_events').responseOnce([]);
+        expect(
+            await model.findLatestSlackDmEvent({
+                organizationUuid: 'org',
+                userUuid: 'user',
+                since: new Date(),
+            }),
+        ).toBeNull();
+    });
+
     it('finds an identity by account and person without returning its private key', async () => {
         tracker.on.select('ai_identities').responseOnce([row]);
         const identity = await model.find({

@@ -112,6 +112,9 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(
         'CREATE INDEX ai_identity_events_org_created_desc_idx ON ai_identity_events (organization_uuid, created_at DESC)',
     );
+    await knex.schema.alterTable('ai_identity_events', (table) => {
+        table.index(['actor_user_uuid', 'action', 'created_at']);
+    });
     await knex.schema.createTable('ai_identity_jobs', (table) => {
         table
             .uuid('job_uuid')
