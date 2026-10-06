@@ -232,6 +232,13 @@ import {
     runWithOtelSpanContext,
 } from '../../../tracing/tracing';
 import { VERSION } from '../../../version';
+import {
+    AppThumbnails,
+    type AppThumbnailCapture,
+    type AppThumbnailSettings,
+    type ThumbnailApp,
+    type ThumbnailVersion,
+} from '../../clients/AppThumbnailClient';
 import { ChartRegistryClient } from '../../clients/ChartRegistryClient';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
@@ -280,13 +287,6 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
-import {
-    AppThumbnails,
-    type AppThumbnailCapture,
-    type AppThumbnailSettings,
-    type ThumbnailApp,
-    type ThumbnailVersion,
-} from './appThumbnails';
 import { assertChartTypesEnabled } from './chartTypeFeatureGate';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,

@@ -11,7 +11,7 @@ import {
     type AppThumbnailVersionStore,
     type ThumbnailApp,
     type ThumbnailVersion,
-} from './appThumbnails';
+} from './AppThumbnailClient';
 
 const APP_UUID = 'app-1';
 const PROJECT_UUID = 'project-1';
