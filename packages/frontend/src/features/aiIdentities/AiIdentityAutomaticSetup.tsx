@@ -22,7 +22,11 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { IconCheck, IconClock, IconX } from '@tabler/icons-react';
+import {
+    IconCircleCheckFilled,
+    IconCircleXFilled,
+    IconClock,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
@@ -50,9 +54,9 @@ const aiRoleExpansionSummary = (
 const checklistIcon = (status: AiIdentitySetupCheckItem['status']) => {
     switch (status) {
         case 'passed':
-            return <MantineIcon icon={IconCheck} color="green" />;
+            return <MantineIcon icon={IconCircleCheckFilled} color="green.6" />;
         case 'failed':
-            return <MantineIcon icon={IconX} color="red" />;
+            return <MantineIcon icon={IconCircleXFilled} color="red.6" />;
         case 'pending':
             return <MantineIcon icon={IconClock} color="dimmed" />;
         default:
