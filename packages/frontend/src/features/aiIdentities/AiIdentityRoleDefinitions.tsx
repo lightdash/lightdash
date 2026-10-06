@@ -2,24 +2,12 @@ import {
     type AiIdentityProvisioningSettings,
     type AiIdentityAiRoleDefinition,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Paper,
-    SimpleGrid,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-} from '@mantine/core';
+import { Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import Callout from '../../components/common/Callout';
-import {
-    aiRolePreviewText,
-    isValidSchemaSelection,
-} from '../../components/common/SchemaRuleInput/schemaRule';
-import { SchemaRuleInput } from '../../components/common/SchemaRuleInput/SchemaRuleInput';
+import { isValidSchemaSelection } from '../../components/common/SchemaRuleInput/schemaRule';
 import { useTables } from '../sqlRunner/hooks/useTables';
+import { AiIdentityRoleEditor } from './AiIdentityRoleEditor';
 import { aiIdentityProvisioningApi } from './api';
 import { useProvisioningChange } from './useProvisioning';
 
@@ -31,6 +19,7 @@ type RoleRow = Pick<
 export const AiIdentityRoleDefinitions: FC<{
     settings: AiIdentityProvisioningSettings;
 }> = ({ settings }) => {
+    const [savedMessage, setSavedMessage] = useState<string | null>(null);
     const [draft, setDraft] = useState<RoleRow[] | null>(null);
     const rows =
         draft ??
@@ -76,65 +65,33 @@ export const AiIdentityRoleDefinitions: FC<{
                 {rows.map((row, index) => (
                     <Paper key={row.id} withBorder p="sm">
                         <Stack gap="xs">
-                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                                <TextInput
-                                    label="AI role name"
-                                    value={row.roleName}
-                                    onChange={(event) =>
-                                        update(index, {
-                                            ...row,
-                                            roleName: event.currentTarget.value,
-                                        })
-                                    }
-                                />
-                                <TextInput
-                                    label="Warehouse"
-                                    value={row.warehouse}
-                                    onChange={(event) =>
-                                        update(index, {
-                                            ...row,
-                                            warehouse:
-                                                event.currentTarget.value,
-                                        })
-                                    }
-                                />
-                            </SimpleGrid>
-                            <Text size="sm">
-                                AI can read all schemas in{' '}
-                                {row.schemaRule.database || 'the database'},
-                                except:
-                            </Text>
-                            <SchemaRuleInput
-                                label="Exclude schemas that match"
-                                description={null}
-                                catalogSchemas={schemas}
-                                value={{
-                                    database: row.schemaRule.database,
-                                    patterns: row.schemaRule.excludePatterns,
-                                }}
-                                preview={aiRolePreviewText}
-                                onChange={({ database, patterns }) =>
-                                    update(index, {
-                                        ...row,
-                                        schemaRule: {
-                                            database,
-                                            excludePatterns: patterns,
-                                        },
-                                    })
+                            <AiIdentityRoleEditor
+                                roleName={row.roleName}
+                                warehouse={row.warehouse}
+                                schemaRule={row.schemaRule}
+                                schemas={schemas}
+                                catalogLoaded={
+                                    catalog.data !== undefined &&
+                                    !catalog.isError
                                 }
+                                onChange={(value) => {
+                                    setSavedMessage(null);
+                                    update(index, { ...row, ...value });
+                                }}
                             />
                             <Group justify="flex-end">
                                 <Button
                                     variant="subtle"
                                     color="red"
-                                    onClick={() =>
+                                    onClick={() => {
+                                        setSavedMessage(null);
                                         setDraft(
                                             rows.filter(
                                                 (_, rowIndex) =>
                                                     rowIndex !== index,
                                             ),
-                                        )
-                                    }
+                                        );
+                                    }}
                                 >
                                     Remove
                                 </Button>
@@ -142,10 +99,19 @@ export const AiIdentityRoleDefinitions: FC<{
                         </Stack>
                     </Paper>
                 ))}
+                {savedMessage && (
+                    <Callout variant="success" hideIcon>
+                        <Text span fw={700}>
+                            Saved.
+                        </Text>{' '}
+                        {savedMessage}
+                    </Callout>
+                )}
                 <Group justify="space-between">
                     <Button
                         variant="default"
-                        onClick={() =>
+                        onClick={() => {
+                            setSavedMessage(null);
                             setDraft([
                                 ...rows,
                                 {
@@ -158,8 +124,8 @@ export const AiIdentityRoleDefinitions: FC<{
                                         excludePatterns: [],
                                     },
                                 },
-                            ])
-                        }
+                            ]);
+                        }}
                     >
                         Add AI role
                     </Button>
@@ -196,7 +162,47 @@ export const AiIdentityRoleDefinitions: FC<{
                                             }),
                                         ),
                                     ),
-                                { onSuccess: () => setDraft(null) },
+                                {
+                                    onSuccess: (saved) => {
+                                        const matches =
+                                            saved.aiRoleExpansions.flatMap(
+                                                (expansion) => {
+                                                    if (
+                                                        !expansion.catalogLoaded
+                                                    )
+                                                        return [];
+                                                    const previous =
+                                                        settings.aiRoles.find(
+                                                            (role) =>
+                                                                role.roleName ===
+                                                                expansion.roleName,
+                                                        );
+                                                    return expansion.excludedByPattern.filter(
+                                                        ({ pattern }) =>
+                                                            !previous?.schemaRule.excludePatterns.some(
+                                                                (entry) =>
+                                                                    entry.toUpperCase() ===
+                                                                    pattern.toUpperCase(),
+                                                            ),
+                                                    );
+                                                },
+                                            );
+                                        setSavedMessage(
+                                            matches.length > 0
+                                                ? matches
+                                                      .map(
+                                                          ({
+                                                              pattern,
+                                                              count,
+                                                          }) =>
+                                                              `${count} ${count === 1 ? 'schema matches' : 'schemas match'} ${pattern}.`,
+                                                      )
+                                                      .join(' ')
+                                                : 'AI roles updated.',
+                                        );
+                                        setDraft(null);
+                                    },
+                                },
                             )
                         }
                     >

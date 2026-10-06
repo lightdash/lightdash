@@ -6,6 +6,7 @@ export type AiIdentitySchemaRule = {
 export type AiIdentitySchemaRuleExpansion = {
     allowed: string[];
     excluded: string[];
+    excludedByPattern: { pattern: string; count: number }[];
 };
 
 export type AiIdentityUngrantedSchemas = {

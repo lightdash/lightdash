@@ -64,6 +64,10 @@ describe('expandAiIdentitySchemaRule', () => {
         ).toEqual({
             allowed: ['ANALYTICS_DB.EVENTS_RAW', 'ANALYTICS_DB.SALES'],
             excluded: ['ANALYTICS_DB.HR_RESTRICTED', 'ANALYTICS_DB.PII_PEOPLE'],
+            excludedByPattern: [
+                { pattern: '*_RESTRICTED', count: 1 },
+                { pattern: 'PII_*', count: 1 },
+            ],
         });
     });
 
@@ -77,6 +81,9 @@ describe('expandAiIdentitySchemaRule', () => {
         );
         expect(result.allowed).toHaveLength(4);
         expect(result.excluded).toEqual([]);
+        expect(result.excludedByPattern).toEqual([
+            { pattern: '*_SECRET', count: 0 },
+        ]);
     });
 
     it('allows all safe schemas with no exclusions', () => {
@@ -93,6 +100,43 @@ describe('expandAiIdentitySchemaRule', () => {
         expect([...allowed, ...excluded]).not.toContain(
             'ANALYTICS_DB.INFORMATION_SCHEMA',
         );
+    });
+
+    it('counts each unique schema under its first matching pattern, in rule order', () => {
+        const result = expandAiIdentitySchemaRule(
+            {
+                database: 'DB',
+                excludePatterns: ['*_RAW', 'PII_*', '*_CLEAR', '*_raw'],
+            },
+            [
+                'DB.PII_RAW',
+                'db.pii_raw',
+                'DB.PII_PEOPLE',
+                'DB.SALES_RAW',
+                'DB.PUBLIC',
+                'DB.INFORMATION_SCHEMA',
+                'OTHER.PII_RAW',
+            ],
+        );
+        expect(result.excluded).toHaveLength(3);
+        expect(result.excludedByPattern).toEqual([
+            { pattern: '*_RAW', count: 2 },
+            { pattern: 'PII_*', count: 1 },
+            { pattern: '*_CLEAR', count: 0 },
+            { pattern: '*_raw', count: 0 },
+        ]);
+        expect(
+            result.excludedByPattern.reduce(
+                (total, entry) => total + entry.count,
+                0,
+            ),
+        ).toBe(result.excluded.length);
+        expect(
+            expandAiIdentitySchemaRule(
+                { database: 'DB', excludePatterns: [] },
+                [],
+            ).excludedByPattern,
+        ).toEqual([]);
     });
 
     it('rejects an invalid pattern', () => {

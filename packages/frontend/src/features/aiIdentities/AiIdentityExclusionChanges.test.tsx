@@ -9,7 +9,7 @@ import { actionLabel } from './eventLabels';
 
 vi.mock('./api', () => ({ aiIdentityApi: { requestLog: vi.fn() } }));
 
-it('shows who, role, patterns and relative time with the full time on hover', async () => {
+it('shows change sentences and HH:MM with the full date on hover', async () => {
     const createdAt = new Date(Date.now() - 120000);
     vi.mocked(aiIdentityApi.requestLog).mockResolvedValue({
         data: [
@@ -41,17 +41,23 @@ it('shows who, role, patterns and relative time with the full time on hover', as
             </QueryClientProvider>
         </MantineProvider>,
     );
-    expect(screen.getByText('Changes to exclusions')).toBeInTheDocument();
+    expect(screen.getByText('Change log')).toBeInTheDocument();
     expect(
-        await screen.findByText('Alex Admin · Exclusions changed'),
+        await screen.findByText('Alex Admin excluded PII_* in ANALYST_AI'),
     ).toBeInTheDocument();
     expect(
-        screen.getByText(
-            'ANALYST_AI · Database: DB · Added: PII_* · Removed: *_RAW',
-        ),
+        screen.getByText('Alex Admin removed *_RAW from ANALYST_AI'),
     ).toBeInTheDocument();
     expect(aiIdentityApi.requestLog).toHaveBeenCalledWith(1, false, 'account');
-    await userEvent.hover(screen.getByText('2 minutes ago'));
+    await userEvent.hover(
+        screen.getAllByText(
+            createdAt.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            }),
+        )[0],
+    );
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
         createdAt.toLocaleString(),
     );

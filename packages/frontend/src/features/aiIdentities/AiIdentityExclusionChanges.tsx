@@ -1,10 +1,17 @@
-import { Button, Paper, Stack, Text, Title } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { type FC } from 'react';
 import Callout from '../../components/common/Callout';
-import { RelativeTime } from './AiIdentityEventDisplay';
 import { aiIdentityApi } from './api';
-import { actionLabel, actorLabel } from './eventLabels';
+import { exclusionChangeRows } from './exclusionChanges';
 
 export const AiIdentityExclusionChanges: FC<{ accountUuid: string }> = ({
     accountUuid,
@@ -18,11 +25,13 @@ export const AiIdentityExclusionChanges: FC<{ accountUuid: string }> = ({
                 ? page.pagination.page + 1
                 : undefined,
     });
-    const events = query.data?.pages.flatMap((page) => page.data) ?? [];
+    const rows = exclusionChangeRows(
+        query.data?.pages.flatMap((page) => page.data) ?? [],
+    );
     return (
-        <Paper p="md">
+        <Paper p={18} withBorder radius="md">
             <Stack gap="sm">
-                <Title order={5}>Changes to exclusions</Title>
+                <Title order={5}>Change log</Title>
                 {query.isLoading && <Text size="sm">Loading changes…</Text>}
                 {query.isError && (
                     <Callout variant="danger">
@@ -36,20 +45,48 @@ export const AiIdentityExclusionChanges: FC<{ accountUuid: string }> = ({
                         </Button>
                     </Callout>
                 )}
-                {!query.isLoading && !query.isError && events.length === 0 && (
+                {!query.isLoading && !query.isError && rows.length === 0 && (
                     <Text size="sm" c="dimmed">
                         No changes to exclusions yet.
                     </Text>
                 )}
-                {events.map((event) => (
-                    <Stack key={event.aiIdentityEventUuid} gap={2}>
-                        <Text size="sm">
-                            {actorLabel(event)} · {actionLabel(event.action)}
-                        </Text>
-                        <Text size="sm">{event.detail}</Text>
-                        <RelativeTime value={event.createdAt} />
-                    </Stack>
-                ))}
+                <Stack gap={0}>
+                    {rows.map(({ id, createdAt, sentence }) => (
+                        <Group
+                            key={id}
+                            wrap="nowrap"
+                            align="flex-start"
+                            gap="xl"
+                            py={6}
+                            style={{
+                                borderBottom:
+                                    '1px solid var(--mantine-color-gray-2)',
+                            }}
+                        >
+                            <Tooltip
+                                label={new Date(createdAt).toLocaleString()}
+                            >
+                                <Text
+                                    component="time"
+                                    dateTime={new Date(createdAt).toISOString()}
+                                    size="sm"
+                                    w={48}
+                                    style={{ flexShrink: 0 }}
+                                >
+                                    {new Date(createdAt).toLocaleTimeString(
+                                        'en-GB',
+                                        {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            hour12: false,
+                                        },
+                                    )}
+                                </Text>
+                            </Tooltip>
+                            <Text size="sm">{sentence}</Text>
+                        </Group>
+                    ))}
+                </Stack>
                 {query.hasNextPage && (
                     <Button
                         variant="default"

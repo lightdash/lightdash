@@ -135,6 +135,7 @@ export type AiIdentityAiRoleExpansion = {
     roleName: string;
     allowed: string[];
     excluded: string[];
+    excludedByPattern: { pattern: string; count: number }[];
     catalogLoaded: boolean;
 };
 

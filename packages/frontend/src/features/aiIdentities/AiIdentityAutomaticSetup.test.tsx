@@ -159,12 +159,14 @@ it('shows saved role expansions and ungranted schemas in setup', () => {
                 roleName: 'AI_ROLE',
                 allowed: ['DB.PUBLIC'],
                 excluded: ['DB.PII_PEOPLE'],
+                excludedByPattern: [{ pattern: 'PII_*', count: 1 }],
                 catalogLoaded: true,
             },
             {
                 roleName: 'OTHER_ROLE',
                 allowed: [],
                 excluded: [],
+                excludedByPattern: [],
                 catalogLoaded: false,
             },
         ],
@@ -194,7 +196,7 @@ it('shows saved role expansions and ungranted schemas in setup', () => {
 it('shows the exclusion history next to the roles and warns about broader access', async () => {
     renderSetup(settings);
     expect(screen.getByText('Role definitions')).toBeInTheDocument();
-    expect(screen.getByText('Changes to exclusions')).toBeInTheDocument();
+    expect(screen.getByText('Change log')).toBeInTheDocument();
     expect(
         await screen.findByText('No changes to exclusions yet.'),
     ).toBeInTheDocument();

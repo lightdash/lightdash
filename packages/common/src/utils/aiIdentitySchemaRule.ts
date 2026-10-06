@@ -73,5 +73,16 @@ export const expandAiIdentitySchemaRule = (
         { database: rule.database, patterns: rule.excludePatterns },
         catalogSchemas,
     );
-    return { allowed: unmatched, excluded: matched };
+    const patterns = rule.excludePatterns.map(toRegExp);
+    const excludedByPattern = rule.excludePatterns.map((pattern) => ({
+        pattern,
+        count: 0,
+    }));
+    matched.forEach((qualified) => {
+        const index = patterns.findIndex((pattern) =>
+            pattern.test(qualified.split('.')[1]),
+        );
+        excludedByPattern[index].count += 1;
+    });
+    return { allowed: unmatched, excluded: matched, excludedByPattern };
 };
