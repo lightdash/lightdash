@@ -1,3 +1,10 @@
+## [2.443.2](https://github.com/lightdash/lightdash/compare/2.443.1...2.443.2) (2026-10-06)
+
+
+### Bug Fixes
+
+* **trino:** apply timezone before running queries ([#30548](https://github.com/lightdash/lightdash/issues/30548)) ([97009f1](https://github.com/lightdash/lightdash/commit/97009f1f10df44d0d08988eaf26172afe9237fbf))
+
 ## [2.443.1](https://github.com/lightdash/lightdash/compare/2.443.0...2.443.1) (2026-10-06)
 
 
