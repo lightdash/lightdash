@@ -6,7 +6,10 @@ import { gunzipSync, gzipSync } from 'zlib';
 import { buildAccount } from '../services/ProjectService/ProjectService.mock';
 import { type ServiceRepository } from '../services/ServiceRepository';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
-import { ProjectController } from './projectController';
+import {
+    ProjectController,
+    SnowflakeAiBoundaryGuideController,
+} from './projectController';
 
 describe('ProjectController AI access restrictions', () => {
     test('gets and updates the setting through ProjectService', async () => {
@@ -178,6 +181,60 @@ describe('ProjectController merge routes', () => {
         );
         expect(executeLegacyAsyncMergeQuery).toHaveBeenCalledWith(
             expect.objectContaining({ account, projectUuid: 'project-uuid' }),
+        );
+    });
+});
+
+describe('Snowflake AI boundary guide routes', () => {
+    test('routes guide reads, updates and checks through ProjectService', async () => {
+        const config = { state: { marks: {}, lastTest: null } };
+        const checks = [{ id: 'agent_active', status: 'pass' }];
+        const getSnowflakeAiBoundaryGuideConfig = vi.fn(async () => config);
+        const updateSnowflakeAiBoundaryGuideState = vi.fn(async () => config);
+        const testSnowflakeAiBoundary = vi.fn(async () => checks);
+        const services = {
+            getProjectService: () => ({
+                getSnowflakeAiBoundaryGuideConfig,
+                updateSnowflakeAiBoundaryGuideState,
+                testSnowflakeAiBoundary,
+            }),
+        } as unknown as ServiceRepository;
+        const legacy = new ProjectController(services);
+        const guide = new SnowflakeAiBoundaryGuideController(services);
+        const account = buildAccount();
+        const request = { account } as express.Request;
+        const update = { section: 'masking' as const, markedDone: true };
+        const body = { protectedColumn: null };
+
+        expect(
+            await legacy.getSnowflakeAiBoundaryGuide('project-uuid', request),
+        ).toEqual({ status: 'ok', results: config });
+        expect(await guide.getGuide('project-uuid', request)).toEqual({
+            status: 'ok',
+            results: config,
+        });
+        expect(
+            await guide.updateGuide('project-uuid', request, update),
+        ).toEqual({ status: 'ok', results: config });
+        expect(
+            await legacy.testSnowflakeAiBoundary('project-uuid', body, request),
+        ).toEqual({ status: 'ok', results: checks });
+        expect(await guide.testBoundary('project-uuid', request, body)).toEqual(
+            { status: 'ok', results: checks },
+        );
+        expect(getSnowflakeAiBoundaryGuideConfig).toHaveBeenCalledWith(
+            account,
+            'project-uuid',
+        );
+        expect(updateSnowflakeAiBoundaryGuideState).toHaveBeenCalledWith(
+            account,
+            'project-uuid',
+            update,
+        );
+        expect(testSnowflakeAiBoundary).toHaveBeenCalledWith(
+            account,
+            'project-uuid',
+            body,
         );
     });
 });

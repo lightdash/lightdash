@@ -31,6 +31,7 @@ import {
     getPersonSignIn,
     GroupType,
     IdContentMapping,
+    isAiAccessQueryContext,
     isExploreError,
     isUserManagedExplore,
     normalizeWarehouseCredentials,
@@ -48,6 +49,7 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    QueryExecutionContext,
     resolveSignInSubject,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
@@ -70,6 +72,7 @@ import {
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     USER_MANAGED_EXPLORE_TYPES,
+    UserWarehouseCredentialPurpose,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
@@ -77,6 +80,9 @@ import {
     type CreateBigqueryCredentials,
     type PersonSignIn,
     type SignInSubject,
+    type SnowflakeAiBoundaryAttribution,
+    type SnowflakeAiBoundaryGuideState,
+    type SnowflakeAiBoundarySection,
     type StoredSignInSubject,
     type SummaryExplore,
 } from '@lightdash/common';
@@ -222,6 +228,7 @@ import {
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { usersInProjectSql } from '../AnalyticsModelSql';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { clearProjectExtraRoles } from '../roleSetUtils';
@@ -7591,6 +7598,115 @@ export class ProjectModel {
         }
 
         return project.agent_sql_scope ?? null;
+    }
+
+    async getSnowflakeAiBoundaryGuideState(
+        projectUuid: string,
+    ): Promise<SnowflakeAiBoundaryGuideState> {
+        const rows = await this.database<{
+            project_uuid: string;
+            section: SnowflakeAiBoundarySection | 'last_test';
+            evidence:
+                | SnowflakeAiBoundaryAttribution
+                | NonNullable<SnowflakeAiBoundaryGuideState['lastTest']>;
+        }>('snowflake_ai_boundary_guide_state')
+            .where('project_uuid', projectUuid)
+            .select('section', 'evidence');
+        const marks: SnowflakeAiBoundaryGuideState['marks'] = {};
+        let lastTest: SnowflakeAiBoundaryGuideState['lastTest'] = null;
+        for (const row of rows) {
+            if (row.section === 'last_test') {
+                lastTest = row.evidence as NonNullable<
+                    SnowflakeAiBoundaryGuideState['lastTest']
+                >;
+            } else {
+                marks[row.section] = row.evidence;
+            }
+        }
+        return { marks, lastTest };
+    }
+
+    async setSnowflakeAiBoundaryGuideEvidence(
+        projectUuid: string,
+        section: SnowflakeAiBoundarySection | 'last_test',
+        evidence:
+            | SnowflakeAiBoundaryAttribution
+            | NonNullable<SnowflakeAiBoundaryGuideState['lastTest']>
+            | null,
+    ): Promise<void> {
+        const table = this.database('snowflake_ai_boundary_guide_state');
+        if (evidence === null) {
+            await table.where({ project_uuid: projectUuid, section }).delete();
+        } else {
+            await table
+                .insert({
+                    project_uuid: projectUuid,
+                    section,
+                    evidence: JSON.stringify(evidence),
+                })
+                .onConflict(['project_uuid', 'section'])
+                .merge(['evidence']);
+        }
+    }
+
+    async getSnowflakeAiBoundaryMemberCounts(
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<{ memberCount: number; signedInMemberCount: number }> {
+        const result = await this.database.raw<{
+            rows: { memberCount: string; signedInMemberCount: string }[];
+        }>(
+            `WITH project_users AS (${usersInProjectSql()})
+             SELECT COUNT(DISTINCT project_users.user_uuid) AS "memberCount",
+                    COUNT(DISTINCT c.user_uuid) AS "signedInMemberCount"
+             FROM project_users
+             LEFT JOIN user_warehouse_credentials AS c
+               ON c.user_uuid = project_users.user_uuid
+              AND c.warehouse_type = :warehouseType
+              AND c.purpose = :purpose`,
+            {
+                projectUuid,
+                organizationUuid,
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                purpose: UserWarehouseCredentialPurpose.AI,
+            },
+        );
+        const row = result.rows[0];
+        return {
+            memberCount: Number(row?.memberCount ?? 0),
+            signedInMemberCount: Number(row?.signedInMemberCount ?? 0),
+        };
+    }
+
+    async getRecentNonAiWarehouseQueryId(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<string | null> {
+        const aiContexts = Object.values(QueryExecutionContext).filter(
+            isAiAccessQueryContext,
+        );
+        const row = await this.database('query_history')
+            .where('project_uuid', projectUuid)
+            .where('created_by_user_uuid', userUuid)
+            .whereNotNull('warehouse_query_id')
+            .whereNotIn('context', aiContexts)
+            .whereIn('context', [
+                QueryExecutionContext.DASHBOARD,
+                QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
+                QueryExecutionContext.EXPLORE,
+                QueryExecutionContext.CHART,
+                QueryExecutionContext.SQL_CHART,
+                QueryExecutionContext.SQL_RUNNER,
+                QueryExecutionContext.COMPOSE_SQL_RUNNER,
+            ])
+            .where(
+                'created_at',
+                '>=',
+                new Date(Date.now() - 24 * 60 * 60 * 1000),
+            )
+            .orderBy('created_at', 'desc')
+            .first<{ warehouse_query_id: string }>('warehouse_query_id');
+        return row?.warehouse_query_id ?? null;
     }
 
     async getAiAccessRestrictions(projectUuid: string): Promise<boolean> {

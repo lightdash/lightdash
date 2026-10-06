@@ -162,6 +162,31 @@ describe('SnowflakeWarehouseClient', () => {
         executeMock.mockImplementation(defaultExecute);
     });
 
+    it('runs boundary checks on one agent connection and closes it', async () => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+        });
+        const connection = interactiveConnectionMock(executeMock);
+        const getConnection = vi
+            .spyOn(
+                warehouse as unknown as {
+                    getConnection: () => Promise<Connection>;
+                },
+                'getConnection',
+            )
+            .mockResolvedValue(connection);
+        await warehouse.withBoundarySession(async (client) => {
+            await client.runQuery('SELECT 1', {});
+            await client.runQuery('SELECT 2', {});
+        });
+        expect(getConnection).toHaveBeenCalledOnce();
+        expect(
+            executeMock.mock.calls.map(([options]) => options.sqlText),
+        ).toEqual(['SELECT 1', 'SELECT 2']);
+        expect(connection.destroy).toHaveBeenCalledOnce();
+    });
+
     it('checks an AI session before the first statement', async () => {
         executeMock.mockImplementationOnce(({ complete }) => {
             complete(undefined, {}, [

@@ -78,6 +78,8 @@ export type SettingsContext = {
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;
     aiAccessRestrictionsFlag: FeatureFlag | undefined;
+    snowflakeAiBoundaryGuideFlag: FeatureFlag | undefined;
+    snowflakeAiSignInFlag: FeatureFlag | undefined;
     shouldShowAiAgentReviews: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
     canManageOrgAiAgent: boolean;

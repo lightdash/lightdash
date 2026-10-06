@@ -83,6 +83,549 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
     </SettingsPage>
 );
 
+type ProjectSettingsRoutesOptions = {
+    projectUuid: ReturnType<typeof useProjectUuid>;
+    learnerCopyOnly: boolean;
+    isSoftDeleteEnabled: boolean;
+    isPgWireEnabled: boolean;
+    isGitProject: boolean;
+    isResultsCacheEnabled: boolean;
+    ability:
+        | NonNullable<ReturnType<typeof useApp>['user']['data']>['ability']
+        | undefined;
+    canManageExternalConnections: boolean;
+    canManageExternalSources: boolean;
+    canViewContentReviewSettings: boolean;
+    isAiCopilotEnabledOrTrial: boolean;
+    canManageOrgAiAgent: boolean;
+    aiAccessRestrictionsFlagEnabled: boolean | undefined;
+    snowflakeAiBoundaryGuideFlagEnabled: boolean | undefined;
+    snowflakeAiSignInFlagEnabled: boolean | undefined;
+    isAiAccessRestrictionsFlagLoading: boolean;
+    isSnowflakeAiBoundaryGuideFlagLoading: boolean;
+    isSnowflakeAiSignInFlagLoading: boolean;
+    project: ReturnType<typeof useProject>['data'];
+};
+
+const getProjectSettingsRoutes = ({
+    projectUuid,
+    learnerCopyOnly,
+    isSoftDeleteEnabled,
+    isPgWireEnabled,
+    isGitProject,
+    isResultsCacheEnabled,
+    ability,
+    canManageExternalConnections,
+    canManageExternalSources,
+    canViewContentReviewSettings,
+    isAiCopilotEnabledOrTrial,
+    canManageOrgAiAgent,
+    aiAccessRestrictionsFlagEnabled,
+    snowflakeAiBoundaryGuideFlagEnabled,
+    snowflakeAiSignInFlagEnabled,
+    isAiAccessRestrictionsFlagLoading,
+    isSnowflakeAiBoundaryGuideFlagLoading,
+    isSnowflakeAiSignInFlagLoading,
+    project,
+}: ProjectSettingsRoutesOptions): RouteObject[] => {
+    if (!projectUuid) {
+        return [];
+    }
+    if (learnerCopyOnly) {
+        return [
+            {
+                path: `/${LEARNER_COPY_SETTINGS_PAGE}`,
+                element: <SettingsValidator projectUuid={projectUuid} />,
+            },
+            {
+                path: '*',
+                element: (
+                    <Navigate
+                        to={`/generalSettings/projectManagement/${projectUuid}/${LEARNER_COPY_SETTINGS_PAGE}`}
+                        replace
+                    />
+                ),
+            },
+        ];
+    }
+    return [
+        {
+            path: `/settings`,
+            element: (
+                <ProjectSettingsPage
+                    title="Connection settings"
+                    description="Manage this project's warehouse and semantic layer connections."
+                >
+                    <UpdateProjectConnection projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        {
+            path: `/tablesConfiguration`,
+            element: (
+                <ProjectSettingsPage
+                    title="Tables configuration"
+                    description="Choose which dbt models are available in this project."
+                >
+                    <ProjectTablesConfiguration projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        {
+            path: `/projectAccess`,
+            element: (
+                <ProjectSettingsPage
+                    title="Project access"
+                    description="Manage who can access this project and what they can do."
+                    actions={
+                        <SettingsPageDocumentationLink
+                            href="https://docs.lightdash.com/references/roles"
+                            label="Roles documentation"
+                        />
+                    }
+                >
+                    <ProjectUserAccess projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        {
+            path: `/appearance`,
+            element: (
+                <ProjectSettingsPage
+                    title="Appearance"
+                    description="Customize colors and chart styling for this project."
+                >
+                    <ProjectAppearance projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        ...(canManageExternalSources
+            ? [
+                  {
+                      path: `/externalSources`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="External sources"
+                              description="Upload files to query them alongside your warehouse."
+                          >
+                              <ExternalSourcesSettingsPanel
+                                  projectUuid={projectUuid}
+                              />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        {
+            path: `/usageAnalytics`,
+            element: (
+                <ProjectSettingsPage
+                    title="Usage analytics"
+                    description="Review how people use this project's content."
+                >
+                    <SettingsUsageAnalytics projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        {
+            path: `/scheduledDeliveries`,
+            element: (
+                <ProjectSettingsPage
+                    title="Syncs & scheduled deliveries"
+                    description="Configure delivery defaults and manage this project's schedules."
+                >
+                    <SettingsScheduler projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        {
+            path: `/validator`,
+            element: <SettingsValidator projectUuid={projectUuid} />,
+        },
+        {
+            path: `/verifiedContent`,
+            element: (
+                <ProjectSettingsPage
+                    title="Verified content"
+                    description="Review verified charts, dashboards, and data apps in this project."
+                >
+                    <VerifiedContentPanel projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        ...(canViewContentReviewSettings
+            ? [
+                  {
+                      path: `/reviewRequests`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="Review requests"
+                              description="Who reviews content submitted from personal spaces, and what happens on approval."
+                          >
+                              <ContentReviewSettingsPanel
+                                  projectUuid={projectUuid}
+                              />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        {
+            path: `/dataOps`,
+            element: (
+                <ProjectSettingsPage
+                    title="Data ops"
+                    description="Configure workflows for promoting content between projects."
+                >
+                    <DataOps projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        {
+            path: `/defaultUserSpaces`,
+            element: (
+                <ProjectSettingsPage
+                    title="Default user spaces"
+                    description="Choose whether project members receive a personal space automatically."
+                >
+                    <DefaultUserSpaces projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        ...(isSoftDeleteEnabled
+            ? [
+                  {
+                      path: `/recentlyDeleted`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="Recently deleted"
+                              description="Review and restore recently deleted project content."
+                          >
+                              <RecentlyDeletedPage projectUuid={projectUuid} />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        {
+            path: `/parameters`,
+            element: (
+                <ProjectSettingsPage
+                    title="Parameters"
+                    description="Review reusable values defined for project queries and content."
+                    actions={
+                        <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters" />
+                    }
+                >
+                    <ProjectParameters projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        ...(isAiCopilotEnabledOrTrial ||
+        isAiAccessRestrictionsFlagLoading ||
+        isSnowflakeAiBoundaryGuideFlagLoading ||
+        isSnowflakeAiSignInFlagLoading ||
+        !project ||
+        (snowflakeAiBoundaryGuideFlagEnabled === true &&
+            snowflakeAiSignInFlagEnabled === true &&
+            !!project &&
+            (ability?.can('update', subject('Project', project)) ?? false)) ||
+        shouldShowAiAccessRestrictions(
+            aiAccessRestrictionsFlagEnabled ?? false,
+            !!project &&
+                (ability?.can('update', subject('Project', project)) ?? false),
+        )
+            ? [
+                  {
+                      path: `/agentDataScope`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="AI access"
+                              description="Manage AI access restrictions and set up Snowflake access for AI."
+                          >
+                              <SettingsAgentDataScope
+                                  projectUuid={projectUuid}
+                                  isSnowflake={
+                                      project?.warehouseConnection?.type ===
+                                      'snowflake'
+                                  }
+                                  canUpdateProject={
+                                      !!project &&
+                                      (ability?.can(
+                                          'update',
+                                          subject('Project', project),
+                                      ) ??
+                                          false)
+                                  }
+                                  showAiAccessRestrictions={shouldShowAiAccessRestrictions(
+                                      aiAccessRestrictionsFlagEnabled ?? false,
+                                      !!project &&
+                                          (ability?.can(
+                                              'update',
+                                              subject('Project', project),
+                                          ) ??
+                                              false),
+                                  )}
+                              />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
+            ? [
+                  {
+                      path: `/aiRegion`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="AI region"
+                              description="Choose which AI provider credential, and therefore which region, serves this project."
+                          >
+                              <ProjectAiRegionPanel projectUuid={projectUuid} />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        {
+            path: `/queryTimezone`,
+            element: (
+                <ProjectSettingsPage
+                    title="Project time zone"
+                    description="Set the default time zone used by this project."
+                    actions={
+                        <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/developer/timezones" />
+                    }
+                >
+                    <SettingsQueryTimezone projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        {
+            path: `/previewsConfig`,
+            element: (
+                <ProjectSettingsPage
+                    title="Preview settings"
+                    description="Configure preview project expiration and cleanup."
+                >
+                    <ProjectPreviewExpiration projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        {
+            path: `/compilationHistory`,
+            element: <CompilationHistory projectUuid={projectUuid} />,
+        },
+        ...(isPgWireEnabled
+            ? [
+                  {
+                      path: `/semanticLayer`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="Semantic layer"
+                              description="Configure this project's semantic layer connection."
+                          >
+                              <SemanticLayerConnectionPanel
+                                  projectUuid={projectUuid}
+                              />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        ...(isGitProject
+            ? [
+                  {
+                      path: `/pullRequests`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="Pull requests"
+                              description="Review pull requests opened for this project's code."
+                          >
+                              <PullRequestsPage projectUuid={projectUuid} />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        ...(isGitProject
+            ? [
+                  {
+                      path: `/contentReview`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="Content review"
+                              description="Unpublished changes made in this project, awaiting a reviewer to write them back to the repo."
+                          >
+                              <ContentReviewPage projectUuid={projectUuid} />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        ...(isResultsCacheEnabled
+            ? [
+                  {
+                      path: `/caching`,
+                      element: (
+                          <ProjectSettingsPage
+                              title="Results caching"
+                              description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                          >
+                              <ProjectResultsCache projectUuid={projectUuid} />
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        {
+            path: `/preAggregates`,
+            children: [
+                {
+                    index: true,
+                    element: (
+                        <Navigate
+                            to={`/generalSettings/projectManagement/${projectUuid}/preAggregates/audit`}
+                            replace
+                        />
+                    ),
+                },
+                {
+                    path: `materializations`,
+                    element: (
+                        <PreAggregateMaterializations
+                            projectUuid={projectUuid}
+                        />
+                    ),
+                },
+                {
+                    path: `audit`,
+                    element: <PreAggregateAudit projectUuid={projectUuid} />,
+                },
+            ],
+        },
+        {
+            path: '*',
+            element: <Navigate to={`/generalSettings`} />,
+        },
+        {
+            path: '/embed', // commercial route
+            element: (
+                <ProjectSettingsPage
+                    title="Embed configuration"
+                    description="Configure embedded access for this project."
+                >
+                    <SettingsEmbed projectUuid={projectUuid} />
+                </ProjectSettingsPage>
+            ),
+        },
+        ...(ability?.can('manage', 'Organization')
+            ? [
+                  {
+                      path: '/embed/cors',
+                      element: (
+                          <ProjectSettingsPage
+                              title="CORS"
+                              description="Control which external browser origins can call the Lightdash API."
+                              actions={
+                                  <SettingsPageDocumentationLink
+                                      href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
+                                      label="Embedding documentation"
+                                  />
+                              }
+                          >
+                              <SettingsGridCard>
+                                  <Stack gap="xs">
+                                      <Title order={5}>Allowed origins</Title>
+                                      <Text c="dimmed" fz="xs">
+                                          CORS controls which external browser
+                                          origins can call the Lightdash API.
+                                          Add exact origins like
+                                          https://app.example.com or wildcard
+                                          subdomains like *.example.com. Use
+                                          regex only for advanced patterns.
+                                      </Text>
+                                  </Stack>
+                                  <CorsSettingsPanel />
+                              </SettingsGridCard>
+                          </ProjectSettingsPage>
+                      ),
+                  },
+              ]
+            : []),
+        ...(canManageExternalConnections
+            ? [
+                  {
+                      path: `/dataAppConnections`,
+                      element: (
+                          <DataAppConnectionsPanel projectUuid={projectUuid} />
+                      ),
+                  },
+              ]
+            : []),
+    ];
+};
+
+const getProjectSettingsPermissions = ({
+    project,
+    ability,
+    isDataAppsEnabled,
+    externalSourcesEnabled,
+    contentReviewAvailable,
+}: Pick<ProjectSettingsRoutesOptions, 'project' | 'ability'> & {
+    isDataAppsEnabled: boolean;
+    externalSourcesEnabled: boolean;
+    contentReviewAvailable: boolean;
+}) => {
+    const canManageExternalConnections =
+        isDataAppsEnabled &&
+        !!project &&
+        (ability?.can(
+            'manage',
+            subject('ExternalConnection', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
+    const canManageExternalSources =
+        externalSourcesEnabled &&
+        !!project &&
+        (ability?.can(
+            'manage',
+            subject('ExternalSource', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
+    const canViewContentReviewSettings =
+        contentReviewAvailable &&
+        !!project &&
+        (ability?.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
+    return {
+        canManageExternalConnections,
+        canManageExternalSources,
+        canViewContentReviewSettings,
+    };
+};
+
+const isAiCopilotAvailable = (
+    settings: ReturnType<typeof useAiOrganizationSettings>,
+): boolean =>
+    settings.isSuccess &&
+    (settings.data.isCopilotEnabled || settings.data.isTrial);
+
 const ProjectSettings: FC<{
     externalSourcesEnabled: boolean;
     /** A learner's training copy: the Validator only, every other page redirects to it. */
@@ -107,10 +650,9 @@ const ProjectSettings: FC<{
                 organizationUuid: user.data?.organizationUuid,
             }),
         ) ?? false;
-    const isAiCopilotEnabledOrTrial =
-        aiOrganizationSettingsQuery.isSuccess &&
-        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
-            aiOrganizationSettingsQuery.data.isTrial);
+    const isAiCopilotEnabledOrTrial = isAiCopilotAvailable(
+        aiOrganizationSettingsQuery,
+    );
     const isPgWireEnabled = organization?.pgWire?.enabled ?? false;
     // Only relevant when the project's code lives in a Git provider, since the
     // section lists PRs opened against that repo.
@@ -120,503 +662,80 @@ const ProjectSettings: FC<{
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
         useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
-    const { data: aiAccessRestrictionsFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAccessRestrictions,
-    );
+    const {
+        data: aiAccessRestrictionsFlag,
+        isLoading: isAiAccessRestrictionsFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.AiAccessRestrictions);
+    const {
+        data: snowflakeAiBoundaryGuideFlag,
+        isLoading: isSnowflakeAiBoundaryGuideFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.SnowflakeAiBoundaryGuide);
+    const {
+        data: snowflakeAiSignInFlag,
+        isLoading: isSnowflakeAiSignInFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.SnowflakeAiSignIn);
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const canManageExternalConnections =
-        isDataAppsEnabled &&
-        !!project &&
-        (user.data?.ability.can(
-            'manage',
-            subject('ExternalConnection', {
-                organizationUuid: project.organizationUuid,
-                projectUuid: project.projectUuid,
-            }),
-        ) ??
-            false);
-
-    const canManageExternalSources =
-        externalSourcesEnabled &&
-        !!project &&
-        (user.data?.ability.can(
-            'manage',
-            subject('ExternalSource', {
-                organizationUuid: project.organizationUuid,
-                projectUuid: project.projectUuid,
-            }),
-        ) ??
-            false);
-
     const contentReviewAvailability = useContentReviewAvailability();
-    const canViewContentReviewSettings =
-        contentReviewAvailability.isAvailable &&
-        !!project &&
-        (user.data?.ability.can(
-            'manage',
-            subject('Project', {
-                organizationUuid: project.organizationUuid,
-                projectUuid: project.projectUuid,
-            }),
-        ) ??
-            false);
-
-    const routes = useMemo<RouteObject[]>(() => {
-        if (!projectUuid) {
-            return [];
-        }
-        if (learnerCopyOnly) {
-            return [
-                {
-                    path: `/${LEARNER_COPY_SETTINGS_PAGE}`,
-                    element: <SettingsValidator projectUuid={projectUuid} />,
-                },
-                {
-                    path: '*',
-                    element: (
-                        <Navigate
-                            to={`/generalSettings/projectManagement/${projectUuid}/${LEARNER_COPY_SETTINGS_PAGE}`}
-                            replace
-                        />
-                    ),
-                },
-            ];
-        }
-        return [
-            {
-                path: `/settings`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Connection settings"
-                        description="Manage this project's warehouse and semantic layer connections."
-                    >
-                        <UpdateProjectConnection projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            {
-                path: `/tablesConfiguration`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Tables configuration"
-                        description="Choose which dbt models are available in this project."
-                    >
-                        <ProjectTablesConfiguration projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            {
-                path: `/projectAccess`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Project access"
-                        description="Manage who can access this project and what they can do."
-                        actions={
-                            <SettingsPageDocumentationLink
-                                href="https://docs.lightdash.com/references/roles"
-                                label="Roles documentation"
-                            />
-                        }
-                    >
-                        <ProjectUserAccess projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            {
-                path: `/appearance`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Appearance"
-                        description="Customize colors and chart styling for this project."
-                    >
-                        <ProjectAppearance projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            ...(canManageExternalSources
-                ? [
-                      {
-                          path: `/externalSources`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="External sources"
-                                  description="Upload files to query them alongside your warehouse."
-                              >
-                                  <ExternalSourcesSettingsPanel
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            {
-                path: `/usageAnalytics`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Usage analytics"
-                        description="Review how people use this project's content."
-                    >
-                        <SettingsUsageAnalytics projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            {
-                path: `/scheduledDeliveries`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Syncs & scheduled deliveries"
-                        description="Configure delivery defaults and manage this project's schedules."
-                    >
-                        <SettingsScheduler projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            {
-                path: `/validator`,
-                element: <SettingsValidator projectUuid={projectUuid} />,
-            },
-            {
-                path: `/verifiedContent`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Verified content"
-                        description="Review verified charts, dashboards, and data apps in this project."
-                    >
-                        <VerifiedContentPanel projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            ...(canViewContentReviewSettings
-                ? [
-                      {
-                          path: `/reviewRequests`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Review requests"
-                                  description="Who reviews content submitted from personal spaces, and what happens on approval."
-                              >
-                                  <ContentReviewSettingsPanel
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            {
-                path: `/dataOps`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Data ops"
-                        description="Configure workflows for promoting content between projects."
-                    >
-                        <DataOps projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            {
-                path: `/defaultUserSpaces`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Default user spaces"
-                        description="Choose whether project members receive a personal space automatically."
-                    >
-                        <DefaultUserSpaces projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            ...(isSoftDeleteEnabled
-                ? [
-                      {
-                          path: `/recentlyDeleted`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Recently deleted"
-                                  description="Review and restore recently deleted project content."
-                              >
-                                  <RecentlyDeletedPage
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            {
-                path: `/parameters`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Parameters"
-                        description="Review reusable values defined for project queries and content."
-                        actions={
-                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters" />
-                        }
-                    >
-                        <ProjectParameters projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            // Only registered when the instance has AI agents at all — same
-            // gate as the AI agents navigation section.
-            ...(isAiCopilotEnabledOrTrial ||
-            shouldShowAiAccessRestrictions(
-                aiAccessRestrictionsFlag?.enabled ?? false,
-                !!project &&
-                    (user.data?.ability.can(
-                        'update',
-                        subject('Project', project),
-                    ) ??
-                        false),
-            )
-                ? [
-                      {
-                          path: `/agentDataScope`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Agent data scope"
-                                  description="Limit which schemas an AI agent can read when it writes raw SQL."
-                              >
-                                  <SettingsAgentDataScope
-                                      projectUuid={projectUuid}
-                                      showAiAccessRestrictions={shouldShowAiAccessRestrictions(
-                                          aiAccessRestrictionsFlag?.enabled ??
-                                              false,
-                                          !!project &&
-                                              (user.data?.ability.can(
-                                                  'update',
-                                                  subject('Project', project),
-                                              ) ??
-                                                  false),
-                                      )}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
-                ? [
-                      {
-                          path: `/aiRegion`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="AI region"
-                                  description="Choose which AI provider credential, and therefore which region, serves this project."
-                              >
-                                  <ProjectAiRegionPanel
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            {
-                path: `/queryTimezone`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Project time zone"
-                        description="Set the default time zone used by this project."
-                        actions={
-                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/developer/timezones" />
-                        }
-                    >
-                        <SettingsQueryTimezone projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            {
-                path: `/previewsConfig`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Preview settings"
-                        description="Configure preview project expiration and cleanup."
-                    >
-                        <ProjectPreviewExpiration projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            {
-                path: `/compilationHistory`,
-                element: <CompilationHistory projectUuid={projectUuid} />,
-            },
-            ...(isPgWireEnabled
-                ? [
-                      {
-                          path: `/semanticLayer`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Semantic layer"
-                                  description="Configure this project's semantic layer connection."
-                              >
-                                  <SemanticLayerConnectionPanel
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            ...(isGitProject
-                ? [
-                      {
-                          path: `/pullRequests`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Pull requests"
-                                  description="Review pull requests opened for this project's code."
-                              >
-                                  <PullRequestsPage projectUuid={projectUuid} />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            ...(isGitProject
-                ? [
-                      {
-                          path: `/contentReview`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Content review"
-                                  description="Unpublished changes made in this project, awaiting a reviewer to write them back to the repo."
-                              >
-                                  <ContentReviewPage
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            ...(isResultsCacheEnabled
-                ? [
-                      {
-                          path: `/caching`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Results caching"
-                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
-                              >
-                                  <ProjectResultsCache
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            {
-                path: `/preAggregates`,
-                children: [
-                    {
-                        index: true,
-                        element: (
-                            <Navigate
-                                to={`/generalSettings/projectManagement/${projectUuid}/preAggregates/audit`}
-                                replace
-                            />
-                        ),
-                    },
-                    {
-                        path: `materializations`,
-                        element: (
-                            <PreAggregateMaterializations
-                                projectUuid={projectUuid}
-                            />
-                        ),
-                    },
-                    {
-                        path: `audit`,
-                        element: (
-                            <PreAggregateAudit projectUuid={projectUuid} />
-                        ),
-                    },
-                ],
-            },
-            {
-                path: '*',
-                element: <Navigate to={`/generalSettings`} />,
-            },
-            {
-                path: '/embed', // commercial route
-                element: (
-                    <ProjectSettingsPage
-                        title="Embed configuration"
-                        description="Configure embedded access for this project."
-                    >
-                        <SettingsEmbed projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
-            ...(user.data?.ability.can('manage', 'Organization')
-                ? [
-                      {
-                          path: '/embed/cors',
-                          element: (
-                              <ProjectSettingsPage
-                                  title="CORS"
-                                  description="Control which external browser origins can call the Lightdash API."
-                                  actions={
-                                      <SettingsPageDocumentationLink
-                                          href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
-                                          label="Embedding documentation"
-                                      />
-                                  }
-                              >
-                                  <SettingsGridCard>
-                                      <Stack gap="xs">
-                                          <Title order={5}>
-                                              Allowed origins
-                                          </Title>
-                                          <Text c="dimmed" fz="xs">
-                                              CORS controls which external
-                                              browser origins can call the
-                                              Lightdash API. Add exact origins
-                                              like https://app.example.com or
-                                              wildcard subdomains like
-                                              *.example.com. Use regex only for
-                                              advanced patterns.
-                                          </Text>
-                                      </Stack>
-                                      <CorsSettingsPanel />
-                                  </SettingsGridCard>
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
-            ...(canManageExternalConnections
-                ? [
-                      {
-                          path: `/dataAppConnections`,
-                          element: (
-                              <DataAppConnectionsPanel
-                                  projectUuid={projectUuid}
-                              />
-                          ),
-                      },
-                  ]
-                : []),
-        ];
-    }, [
-        projectUuid,
-        learnerCopyOnly,
-        isSoftDeleteEnabled,
-        isPgWireEnabled,
-        isGitProject,
-        isResultsCacheEnabled,
-        user.data?.ability,
+    const {
         canManageExternalConnections,
         canManageExternalSources,
         canViewContentReviewSettings,
-        isAiCopilotEnabledOrTrial,
-        canManageOrgAiAgent,
-        aiAccessRestrictionsFlag?.enabled,
+    } = getProjectSettingsPermissions({
         project,
-    ]);
+        ability: user.data?.ability,
+        isDataAppsEnabled,
+        externalSourcesEnabled,
+        contentReviewAvailable: contentReviewAvailability.isAvailable,
+    });
+
+    const routes = useMemo<RouteObject[]>(
+        () =>
+            getProjectSettingsRoutes({
+                projectUuid,
+                learnerCopyOnly,
+                isSoftDeleteEnabled,
+                isPgWireEnabled,
+                isGitProject,
+                isResultsCacheEnabled,
+                ability: user.data?.ability,
+                canManageExternalConnections,
+                canManageExternalSources,
+                canViewContentReviewSettings,
+                isAiCopilotEnabledOrTrial,
+                canManageOrgAiAgent,
+                aiAccessRestrictionsFlagEnabled:
+                    aiAccessRestrictionsFlag?.enabled,
+                snowflakeAiBoundaryGuideFlagEnabled:
+                    snowflakeAiBoundaryGuideFlag?.enabled,
+                snowflakeAiSignInFlagEnabled: snowflakeAiSignInFlag?.enabled,
+                isAiAccessRestrictionsFlagLoading,
+                isSnowflakeAiBoundaryGuideFlagLoading,
+                isSnowflakeAiSignInFlagLoading,
+                project,
+            }),
+        [
+            projectUuid,
+            learnerCopyOnly,
+            isSoftDeleteEnabled,
+            isPgWireEnabled,
+            isGitProject,
+            isResultsCacheEnabled,
+            user.data?.ability,
+            canManageExternalConnections,
+            canManageExternalSources,
+            canViewContentReviewSettings,
+            isAiCopilotEnabledOrTrial,
+            canManageOrgAiAgent,
+            aiAccessRestrictionsFlag?.enabled,
+            snowflakeAiBoundaryGuideFlag?.enabled,
+            snowflakeAiSignInFlag?.enabled,
+            isAiAccessRestrictionsFlagLoading,
+            isSnowflakeAiBoundaryGuideFlagLoading,
+            isSnowflakeAiSignInFlagLoading,
+            project,
+        ],
+    );
     const routesElements = useRoutes(routes);
 
     if (error) {
@@ -627,33 +746,23 @@ const ProjectSettings: FC<{
     // hard load (e.g. the builder's "New connection" deep link opening in a new
     // tab) the flag is still pending, so without this wait the nested catch-all
     // below bounces to the settings index before the route exists.
-    const isAwaitingDataAppConnectionsRoute =
-        isDataAppsFlagLoading &&
-        !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
-            location.pathname,
-        );
-    const isAwaitingCachingRoute =
-        isResultsCacheFlagLoading &&
-        !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/caching',
-            location.pathname,
-        );
-    const isAwaitingReviewRequestsRoute =
-        contentReviewAvailability.isLoading &&
-        !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/reviewRequests',
-            location.pathname,
-        );
+    const isAwaitingRoute = [
+        { path: 'dataAppConnections', loading: isDataAppsFlagLoading },
+        { path: 'caching', loading: isResultsCacheFlagLoading },
+        {
+            path: 'reviewRequests',
+            loading: contentReviewAvailability.isLoading,
+        },
+    ].some(
+        ({ path, loading }) =>
+            loading &&
+            !!matchPath(
+                `/generalSettings/projectManagement/:projectUuid/${path}`,
+                location.pathname,
+            ),
+    );
 
-    if (
-        isInitialLoading ||
-        !project ||
-        !projectUuid ||
-        isAwaitingDataAppConnectionsRoute ||
-        isAwaitingCachingRoute ||
-        isAwaitingReviewRequestsRoute
-    ) {
+    if (isInitialLoading || !project || !projectUuid || isAwaitingRoute) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading project" loading />

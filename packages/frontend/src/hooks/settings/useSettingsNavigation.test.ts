@@ -28,6 +28,8 @@ const settingsContext = (
     isServiceAccountsEnabled: false,
     isAiCopilotEnabledOrTrial: true,
     aiAccessRestrictionsFlag: undefined,
+    snowflakeAiBoundaryGuideFlag: undefined,
+    snowflakeAiSignInFlag: undefined,
     shouldShowAiAgentReviews: false,
     canManageOrgAiAgent: true,
     hasAnyAiAgentAccess: true,
