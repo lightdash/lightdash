@@ -528,6 +528,10 @@ export type ScopeTourDefinition = {
     /** Frontend files whose markers produced the steps. */
     sources: string[];
     steps: ScopeTourStepDefinition[];
+    /** Other scopes this lesson teaches with the same controls (data-tour-covers). */
+    covers?: string[];
+    /** The scope whose lesson this entry is a copy of; the library shows that one. */
+    coveredBy?: string;
 };
 
 export type ScopeTourBuild = {
@@ -1162,7 +1166,13 @@ export const buildTours = (
             }
             if (coveredBy.has(covered)) continue;
             coveredBy.set(covered, marker.scope);
-            tours.push({ ...primaryTours.get(marker.scope)!, scope: covered });
+            // The lesson is one: the primary entry lists what else it
+            // covers, and the copy under the covered scope points back, so
+            // the library draws one card and a deep link to either works.
+            const primary = primaryTours.get(marker.scope)!;
+            primary.covers = [...(primary.covers ?? []), covered];
+            const { covers: _covers, ...lesson } = primary;
+            tours.push({ ...lesson, scope: covered, coveredBy: marker.scope });
         }
     }
     tours.push(...buildLessonTours(lessons, files));

@@ -208,6 +208,46 @@ describe('useLearnProgress', () => {
         ]);
     });
 
+    it('records every scope a covering lesson teaches when it is finished', async () => {
+        api.mockResolvedValueOnce(server);
+        const { result } = setup();
+        await waitFor(() =>
+            expect(result.current.progress.isSettled).toBe(true),
+        );
+        api.mockResolvedValueOnce(server);
+        api.mockResolvedValueOnce({
+            ...server,
+            completed: [
+                ...server.completed,
+                'manage:ContentVerification',
+                'view:ContentVerification',
+            ],
+        });
+
+        // Finished under the covered scope: the lesson is still one, so
+        // both scopes are recorded, the instance is told one at a time.
+        act(() =>
+            result.current.actions.markScopeCompleted(
+                'view:ContentVerification',
+            ),
+        );
+
+        await waitFor(() => expect(api).toHaveBeenCalledTimes(3));
+        expect(
+            calls()
+                .slice(1)
+                .map((call) => call.url),
+        ).toEqual([
+            '/user/learn-progress/manage%3AContentVerification/completed',
+            '/user/learn-progress/view%3AContentVerification/completed',
+        ]);
+        expect(result.current.progress.completed).toEqual([
+            'view:Dashboard',
+            'manage:ContentVerification',
+            'view:ContentVerification',
+        ]);
+    });
+
     it('asks the instance again when it refuses a write', async () => {
         api.mockResolvedValueOnce(server);
         const { result } = setup();

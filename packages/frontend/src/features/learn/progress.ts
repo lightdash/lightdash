@@ -12,6 +12,7 @@ import {
 import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { lessonScopesFor } from '../scopeTours/tourFor';
 
 /**
  * What the learner has done with walkthroughs, kept on the instance per
@@ -43,6 +44,17 @@ const postCompleted = (scope: string) =>
         method: 'POST',
         body: undefined,
     });
+
+/**
+ * Finishing a lesson records every scope it teaches (a lesson declared
+ * with data-tour-covers stands for several), one after the other so the
+ * instance folds each into the same record; its last answer has them all.
+ */
+const postLessonCompleted = (scope: string) =>
+    lessonScopesFor(scope).reduce<Promise<LearnProgress>>(
+        (previous, each) => previous.then(() => postCompleted(each)),
+        Promise.resolve(EMPTY),
+    );
 
 const postMerge = (progress: LearnProgress) =>
     lightdashApi<LearnProgress>({
@@ -196,14 +208,15 @@ export const useLearnProgressActions = () => {
         onError,
     });
     const completed = useMutation<LearnProgress, ApiError, string>(
-        postCompleted,
+        postLessonCompleted,
         {
             onMutate: async (scope) => {
                 await settle();
+                const scopes = lessonScopesFor(scope);
                 fold(queryClient, (previous) => ({
                     ...previous,
-                    started: union(previous.started, scope),
-                    completed: union(previous.completed, scope),
+                    started: scopes.reduce(union, previous.started),
+                    completed: scopes.reduce(union, previous.completed),
                 }));
             },
             onSuccess,

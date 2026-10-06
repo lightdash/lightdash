@@ -1,9 +1,9 @@
 import { Box, Button, Group, Stack, Text } from '@mantine/core';
 import { type FC, useMemo } from 'react';
 import MantineModal from '../../components/common/MantineModal';
-import { tourFor } from '../scopeTours/tourFor';
+import { lessonScopesFor, tourFor } from '../scopeTours/tourFor';
 import { useLearnAvailability } from './availability';
-import { buildLearnCatalogue, focusModules } from './catalogue';
+import { buildLearnCatalogue, focusModules, isComplete } from './catalogue';
 import styles from './Learn.module.css';
 import { useLearnProgress } from './progress';
 import { useLearnAccess } from './useLearnAccess';
@@ -44,12 +44,14 @@ export const LearnDoneModal: FC<Props> = ({
     const available = catalogue.filter((m) => m.available);
     // The finished module counts as complete here whatever the stored
     // progress says (a reload before it was written), so the count includes
-    // it and Next never points back at it.
-    const completedHere = completed.includes(scope)
-        ? completed
-        : [...completed, scope];
+    // it and Next never points back at it. A lesson stands for every scope
+    // it covers, so all of them count.
+    const completedHere = lessonScopesFor(scope).reduce(
+        (list, each) => (list.includes(each) ? list : [...list, each]),
+        completed,
+    );
     const doneCount = available.filter((m) =>
-        completedHere.includes(m.scope),
+        isComplete(completedHere, m),
     ).length;
     const { resume, recommended } = focusModules(
         held,

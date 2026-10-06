@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { CURRICULUM } from '../scopeTours/curriculum';
 import { tourFor } from '../scopeTours/tourFor';
-import { ROLE_LABELS, SYSTEM_ROLE_SCOPES } from './access';
+import { ROLE_LABELS, ROLE_ORDER, SYSTEM_ROLE_SCOPES } from './access';
 import { COMING_SOON_SCOPES } from './comingSoon';
 import { SANDBOX_LESSONS } from './sandboxLessons';
 
@@ -62,10 +62,16 @@ export type LearnModule = {
     /** A scope walkthrough over the product, or a docs-page lesson in the workspace. */
     kind: 'scope' | 'docs';
     scope: string;
+    /**
+     * Every scope the card stands for: `scope`, then the ones the same
+     * lesson teaches with the same controls (data-tour-covers). One lesson
+     * is one card, whatever it covers.
+     */
+    scopes: string[];
     title: string;
     group: LearnGroup;
     gate: LearnGate | null;
-    /** The lowest project role that holds the scope; null if none does. */
+    /** The lowest project role that holds any of the scopes; null if none does. */
     minRole: ProjectMemberRole | null;
     available: boolean;
     blurb: string;
@@ -119,6 +125,14 @@ const stripBold = (text: string) => text.replace(/\*\*/g, '');
 const minRoleFor = (scope: string): ProjectMemberRole | null =>
     SYSTEM_ROLE_SCOPES.find((system) => system.held.has(scope))?.role ?? null;
 
+/** The lowest of the roles that hold any of the scopes; null if none does. */
+const lowestRoleFor = (scopes: string[]): ProjectMemberRole | null =>
+    scopes
+        .map(minRoleFor)
+        .filter((role): role is ProjectMemberRole => role !== null)
+        .sort((a, b) => ROLE_ORDER.indexOf(a) - ROLE_ORDER.indexOf(b))[0] ??
+    null;
+
 /** One module per lesson, in declaration order; the tour under the lesson id names it. */
 const docsModules = (): LearnModule[] =>
     SANDBOX_LESSONS.map((lesson) => {
@@ -126,6 +140,7 @@ const docsModules = (): LearnModule[] =>
         return {
             kind: 'docs',
             scope: lesson.id,
+            scopes: [lesson.id],
             title: tour?.title ?? lesson.id.replace(/^docs:/, ''),
             group: DEVELOPER,
             gate: 'sandbox',
@@ -151,14 +166,20 @@ export const buildLearnCatalogue = (): LearnModule[] => {
                 trainee.has(scope.name) &&
                 !scope.name.includes('@') &&
                 (tourFor(scope.name) !== undefined ||
-                    comingSoon.has(scope.name)),
+                    comingSoon.has(scope.name)) &&
+                // A lesson that teaches several scopes with the same
+                // controls is one card, under the scope it was declared
+                // on; the copies under the scopes it covers draw nothing.
+                tourFor(scope.name)?.coveredBy === undefined,
         )
         .map((scope) => {
             const tour = tourFor(scope.name);
-            const minRole = minRoleFor(scope.name);
+            const scopes = [scope.name, ...(tour?.covers ?? [])];
+            const minRole = lowestRoleFor(scopes);
             return {
                 kind: 'scope' as const,
                 scope: scope.name,
+                scopes,
                 // A built walkthrough names itself (data-tour-title); a
                 // module still to come keeps the registry's words, minus
                 // the "all" that reads as a threat on a card.
@@ -198,8 +219,15 @@ const taughtAt = (module: LearnModule): number => {
             SANDBOX_LESSONS.findIndex((lesson) => lesson.id === module.scope)
         );
     }
-    const at = CURRICULUM.indexOf(module.scope);
-    return at < 0 ? CURRICULUM.length : at;
+    // A lesson that covers several scopes is taught where the first of
+    // them comes up.
+    const at = Math.min(
+        ...module.scopes.map((scope) => {
+            const index = CURRICULUM.indexOf(scope);
+            return index < 0 ? CURRICULUM.length : index;
+        }),
+    );
+    return at;
 };
 
 /** Available first, then the modules the learner holds, then in teaching order. */
@@ -229,13 +257,28 @@ export const focusModules = (
 ): { resume?: LearnModule; recommended?: LearnModule } => {
     const walkthroughs = available.filter((module) => module.available);
     const resume = walkthroughs.find(
-        (m) => m.scope === lastStarted && !completed.includes(m.scope),
+        (m) =>
+            lastStarted !== null &&
+            m.scopes.includes(lastStarted) &&
+            !isComplete(completed, m),
     );
     const recommended = sortForLearner(held, walkthroughs).find(
-        (m) => m.scope !== resume?.scope && !completed.includes(m.scope),
+        (m) => m.scope !== resume?.scope && !isComplete(completed, m),
     );
     return { resume, recommended };
 };
+
+/**
+ * Whether the learner has finished a module: any of the scopes its lesson
+ * teaches is recorded as complete. Finishing the lesson records them all,
+ * and progress recorded under a covered scope before that still counts.
+ */
+export const isComplete = (completed: string[], module: LearnModule) =>
+    module.scopes.some((scope) => completed.includes(scope));
+
+/** Whether the learner has started a module's lesson under any of its scopes. */
+export const isStarted = (started: string[], module: LearnModule) =>
+    module.scopes.some((scope) => started.includes(scope));
 
 /**
  * Whether the learner holds a module's feature. Membership, not rank: their
@@ -244,7 +287,9 @@ export const focusModules = (
  * can change the project's source code (DOCS_LESSON_SCOPE).
  */
 export const holds = (held: Set<string>, module: LearnModule): boolean =>
-    held.has(module.kind === 'docs' ? DOCS_LESSON_SCOPE : module.scope);
+    module.kind === 'docs'
+        ? held.has(DOCS_LESSON_SCOPE)
+        : module.scopes.some((scope) => held.has(scope));
 
 /**
  * What a card says about a module the learner cannot practise yet: the

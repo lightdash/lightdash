@@ -202,7 +202,11 @@ browser, because the learner walks straight to the new field and a cached list w
   proves.
 - **Generation.** `scripts/scope-tours/generate.ts` reads the markers and the docs repository
   (`LIGHTDASH_DOCS_DIR`) and writes `packages/frontend/src/features/scopeTours/generated.ts`: one tour per scope,
-  step text taken from cited docs sentences, links allowlisted to the docs site. `check.ts` enforces the rules
+  step text taken from cited docs sentences, links allowlisted to the docs site. A lesson that teaches several
+  scopes with the same controls (`data-tour-covers`) is still one lesson: the generated entry for the scope it was
+  declared on lists what it `covers`, the copies under the covered scopes point back with `coveredBy`, the library
+  draws one card (labelled with the lowest role that holds any of them), finishing it records every scope, and a
+  deep link to either scope opens the same tour. `check.ts` enforces the rules
   (one control per step, docs anchors exist, no typed steps without a suggestion, titles and bodies within
   length, routes known) and CI runs it with `scope-tours-check.yml`; `smoke.ts` completes every tour on a running
   instance by clicking only what it highlights. The smoke runs by hand, not in CI, so a product change that keeps

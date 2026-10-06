@@ -10,7 +10,7 @@ import useApp from '../../providers/App/useApp';
 import { type LearnStartSource } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { tourFor } from '../scopeTours/tourFor';
+import { lessonScopesFor, tourFor } from '../scopeTours/tourFor';
 import {
     createTrainingPreview,
     tourUrlInCopy,
@@ -75,7 +75,9 @@ export const useStartWalkthrough = (
                     trainingProjectUuid,
                     scope,
                     source,
-                    isRestart: completed.includes(scope),
+                    isRestart: lessonScopesFor(scope).some((each) =>
+                        completed.includes(each),
+                    ),
                 },
             });
             openInCopy({ scope });
