@@ -28,6 +28,7 @@ const baseProps = {
     isFetchingEarlier: false,
     fetchEarlier: vi.fn(),
     currentThreadNumber: null as number | null,
+    thumbnailSource: null,
 };
 
 describe('AppHistoryDrawer', () => {

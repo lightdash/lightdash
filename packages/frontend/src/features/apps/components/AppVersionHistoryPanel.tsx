@@ -35,6 +35,9 @@ import {
 } from '../utils/versionNarration';
 import classes from './AppVersionHistoryPanel.module.css';
 import AppVersionNarration from './AppVersionNarration';
+import AppVersionThumbnail, {
+    type AppVersionThumbnailSource,
+} from './AppVersionThumbnail';
 import VersionHistoryDisclosure from './VersionHistoryDisclosure';
 
 export type AppVersionHistoryPanelProps = {
@@ -65,6 +68,8 @@ export type AppVersionHistoryPanelProps = {
     renderEntryExtras?: (version: ApiAppVersionSummary) => ReactNode;
     /** The app's current thread; a rule tops the list when it has no versions yet. */
     currentThreadNumber: number | null;
+    /** Where version thumbnails are read from; null in a host that has none. */
+    thumbnailSource: AppVersionThumbnailSource | null;
 };
 
 /** Colours the version pill and its dot on the rail. */
@@ -191,6 +196,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
     showTimeline = true,
     renderEntryExtras,
     currentThreadNumber,
+    thumbnailSource,
 }) => {
     const groups = groupVersionsByThread(versions);
     const isEmpty = groups.length === 0 && liveBuild === null;
@@ -223,6 +229,9 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
               version.error ??
               'Build failed, nothing was published')
             : null;
+
+        const view = () =>
+            onView(isPreviewing || isCurrent ? null : version.version);
 
         const node = (
             <Box className={classes.entry} data-live={isCurrent || undefined}>
@@ -275,13 +284,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                                 leftSection={
                                     <MantineIcon icon={IconEye} size={12} />
                                 }
-                                onClick={() =>
-                                    onView(
-                                        isPreviewing || isCurrent
-                                            ? null
-                                            : version.version,
-                                    )
-                                }
+                                onClick={view}
                             >
                                 {isPreviewing ? 'Previewing' : 'Preview'}
                             </Button>
@@ -294,6 +297,14 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                     </Text>
                 )}
                 <VersionAuthor user={version.createdByUser} />
+
+                {isReady && version.hasThumbnail && thumbnailSource && (
+                    <AppVersionThumbnail
+                        source={thumbnailSource}
+                        version={version.version}
+                        onView={view}
+                    />
+                )}
 
                 {renderEntryExtras?.(version)}
 

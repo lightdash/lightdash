@@ -15,6 +15,7 @@ import AppIframePreview, {
 import { getVisiblePreviewTokenError } from '../hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../hooks/useAppPreviewToken';
 import {
+    refreshAppThumbnailQueries,
     useAppThumbnailUpload,
     useAppThumbnailUrl,
 } from '../hooks/useAppThumbnail';
@@ -184,8 +185,10 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                     : (app.latestVersionNumber ?? null),
                 file,
             });
-            void queryClient.invalidateQueries({
-                queryKey: ['app-thumbnail', projectUuid, app.uuid],
+            void refreshAppThumbnailQueries(queryClient, {
+                projectUuid,
+                appUuid: app.uuid,
+                change: 'captured',
             });
         } catch (err) {
             // Cancelled mid-capture — the failure is expected, stay quiet.

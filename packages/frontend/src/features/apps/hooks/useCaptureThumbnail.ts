@@ -2,7 +2,10 @@ import { isApiError } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useAppThumbnailUpload } from './useAppThumbnail';
+import {
+    refreshAppThumbnailQueries,
+    useAppThumbnailUpload,
+} from './useAppThumbnail';
 
 type Args = {
     /** Null until the surface knows which app it is showing (no-op then).
@@ -39,8 +42,10 @@ export const useCaptureThumbnail = ({ app, capture }: Args) => {
         try {
             const file = await capture();
             await uploadThumbnail({ projectUuid, appUuid, version, file });
-            void queryClient.invalidateQueries({
-                queryKey: ['app-thumbnail', projectUuid, appUuid],
+            void refreshAppThumbnailQueries(queryClient, {
+                projectUuid,
+                appUuid,
+                change: 'captured',
             });
             showToastSuccess({ title: 'Thumbnail updated' });
         } catch (err) {
