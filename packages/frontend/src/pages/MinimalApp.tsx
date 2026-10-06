@@ -79,7 +79,12 @@ export default function MinimalApp() {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
+    } = useAppPreviewToken(
+        projectUuid,
+        appUuid,
+        latestReadyVersion,
+        'delivery',
+    );
 
     const previewOrigin = usePreviewOrigin();
 

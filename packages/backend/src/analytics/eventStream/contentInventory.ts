@@ -14,6 +14,7 @@ export const contentInventoryColumns: CompactedStreamColumn[] = [
         'owner_id',
         'owner_name',
         'owner_status',
+        'app_template',
     ].map((name) => ({ name, type: 'VARCHAR' as const })),
     ...['created_at', 'deleted_at', 'snapshot_at'].map((name) => ({
         name,

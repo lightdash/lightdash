@@ -38,6 +38,11 @@ import {
     contentReachSql,
 } from '../../../analytics/systemExplores/contentReach';
 import {
+    dataAppReachColumns,
+    dataAppReachMetrics,
+    dataAppReachSql,
+} from '../../../analytics/systemExplores/dataAppReach';
+import {
     semanticUsageColumns,
     semanticUsageMetrics,
     semanticUsageSql,
@@ -78,6 +83,7 @@ export const analyticsExploreNames = [
     'agent_requests',
     'agent_request_events',
     'semantic_usage',
+    'data_app_reach',
 ] as const;
 
 /** Compile backend-owned system models without querying remote storage. */
@@ -93,6 +99,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            data_app_reach: {
+                columns: dataAppReachColumns,
+                metrics: dataAppReachMetrics,
+            },
             semantic_usage: {
                 columns: semanticUsageColumns,
                 metrics: semanticUsageMetrics,
@@ -137,7 +147,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'content_reach' ||
             name === 'content_health' ||
             name === 'agent_requests' ||
-            name === 'agent_request_events'
+            name === 'agent_request_events' ||
+            name === 'data_app_reach'
                 ? model[name]
                 : {
                       columns: compactedStreamSchemas[name],
@@ -155,6 +166,17 @@ export const createAnalyticsExplores = (): Explore[] => {
             ]),
         );
 
+        if (name === 'data_app_reach') {
+            metrics.seven_day_adoption_rate = {
+                ...base,
+                name: 'seven_day_adoption_rate',
+                label: 'Seven day adoption rate',
+                type: MetricType.NUMBER,
+                sql: '1.0 * COUNT(DISTINCT ${adopted_app_id}) / NULLIF(COUNT(DISTINCT ${mature_app_id}), 0)',
+                description:
+                    'Share of mature captured launches with non-builder adoption observed within seven days. Unknown launches and incomplete windows are excluded.',
+            };
+        }
         if (name === 'tool_activity') {
             metrics.error_rate = {
                 ...base,
@@ -234,6 +256,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                         content_health: contentHealthSql,
                         agent_requests: agentRequestsSql,
                         semantic_usage: semanticUsageSql,
+                        data_app_reach: dataAppReachSql,
                     } as Partial<Record<typeof name, string>>
                 )[name] ?? `"${name}"`,
             database: 'memory',
@@ -266,6 +289,22 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'Hash of the captured field definition. No historical dependency graph or rename mapping is inferred.';
             table.dimensions.lineage_status.description =
                 'Captured: direct field references known. Partial: some references omitted or unsupported. Unavailable: SQL-only or capture failed. Not captured: historical query without field capture.';
+        }
+        if (name === 'data_app_reach') {
+            for (const field of [
+                'org_id',
+                'consumer_id',
+                'returning_consumer_id',
+                'mature_app_id',
+                'adopted_app_id',
+            ])
+                table.dimensions[field].hidden = true;
+            table.dimensions.render_status.description =
+                'SDK started is a startup signal, not proof of successful rendering or human attention. Older bundles cannot report runtime errors.';
+            table.dimensions.is_builder.description =
+                'Creator or version author as of the preview-token snapshot. Later builders do not reclassify past views. Null means unknown.';
+            table.dimensions.launched_at.description =
+                'First captured transition to a ready app in a space, outside preview projects. Creation and project promotion alone are not launches. Earlier launches stay unknown.';
         }
         if (name === 'content_health') {
             table.dimensions.org_id.hidden = true;

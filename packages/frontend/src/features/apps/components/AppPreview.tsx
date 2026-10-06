@@ -90,7 +90,12 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             data: token,
             isLoading,
             error,
-        } = useAppPreviewToken(projectUuid, appUuid, version);
+        } = useAppPreviewToken(
+            projectUuid,
+            appUuid,
+            version,
+            dataAppVizMode ? 'chart' : 'builder',
+        );
 
         const previewOrigin = usePreviewOrigin();
         const previewUrl = token

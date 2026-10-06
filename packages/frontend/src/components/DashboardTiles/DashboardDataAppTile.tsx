@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { IconAppsOff, IconCode, IconFilter } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
+import { useLocation } from 'react-router';
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
@@ -134,6 +135,7 @@ const DashboardFiltersIndicator: FC<{
 };
 
 const DataAppTile: FC<Props> = (props) => {
+    const { pathname } = useLocation();
     const {
         tile: {
             properties: { title, appUuid, appDeletedAt },
@@ -259,7 +261,16 @@ const DataAppTile: FC<Props> = (props) => {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
+    } = useAppPreviewToken(
+        projectUuid,
+        appUuid,
+        latestReadyVersion,
+        pathname.startsWith('/minimal')
+            ? 'delivery'
+            : props.isEditMode
+              ? 'builder'
+              : 'dashboard',
+    );
 
     // Bump the iframe URL whenever the active filters change so the app
     // reloads and its mount-time metric queries re-fire — by then the bridge

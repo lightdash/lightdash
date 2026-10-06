@@ -1,6 +1,8 @@
 import { LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+import type { DataAppReachContext } from '../analytics/eventStream/dataAppReachStream';
 import { LightdashSecrets } from '../config/parseConfig';
 
 const PREVIEW_TOKEN_TYPE = 'app-preview';
@@ -16,6 +18,27 @@ export type PreviewTokenPayload = {
     projectUuid: string;
     /** Exact public HTTPS origins admitted to this app's img-src policy. */
     browserImageOrigins: string[];
+    reach: DataAppReachContext | null;
+};
+
+const reachContextSchema = z.object({
+    viewContext: z.enum([
+        'builder',
+        'standalone',
+        'dashboard',
+        'chart',
+        'delivery',
+        'unknown',
+        'embed',
+    ]),
+    isBuilder: z.boolean().nullable(),
+    creatorId: z.string().nullable(),
+    isShared: z.boolean(),
+    isPreviewProject: z.boolean(),
+});
+const normalizeReachContext = (value: unknown): DataAppReachContext | null => {
+    const parsed = reachContextSchema.safeParse(value);
+    return parsed.success ? parsed.data : null;
 };
 
 const normalizeBrowserImageOrigins = (origins: unknown): string[] | null => {
@@ -64,6 +87,7 @@ export const mintPreviewToken = (
     organizationUuid: string,
     projectUuid: string,
     browserImageOrigins: string[] = [],
+    reach: DataAppReachContext | null = null,
 ): string => {
     const normalizedOrigins = normalizeBrowserImageOrigins(browserImageOrigins);
     if (!normalizedOrigins) {
@@ -79,6 +103,7 @@ export const mintPreviewToken = (
             organizationUuid,
             projectUuid,
             browserImageOrigins: normalizedOrigins,
+            reach,
         } satisfies PreviewTokenPayload,
         deriveSigningKey(lightdashSecrets.active),
         {
@@ -141,6 +166,7 @@ export const verifyPreviewTokenClaims = (
                         'browserImageOrigins'
                     >),
                     browserImageOrigins,
+                    reach: normalizeReachContext(decoded.reach),
                 },
             };
         } catch {

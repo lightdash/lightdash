@@ -73,7 +73,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             try {
                 await db.raw('CREATE SCHEMA ??', [schema]);
                 await db.raw(`
-                    CREATE TABLE apps (app_id uuid PRIMARY KEY, name text, project_uuid uuid, space_uuid uuid, created_at timestamp, deleted_at timestamp);
+                    CREATE TABLE apps (app_id uuid PRIMARY KEY, template text, name text, project_uuid uuid, space_uuid uuid, created_at timestamp, deleted_at timestamp);
                     CREATE TABLE dashboard_versions (dashboard_version_id integer, dashboard_id integer);
                     CREATE TABLE dashboard_tile_charts (dashboard_version_id integer, saved_chart_id integer);
                     CREATE TABLE dashboard_tile_sql_charts (dashboard_version_id integer, saved_sql_uuid uuid);

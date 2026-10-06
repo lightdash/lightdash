@@ -28,6 +28,11 @@ import {
     type DataAppStreamEvent,
 } from './dataAppEventsStream';
 import {
+    dataAppReachColumns,
+    dataAppReachProjections,
+    type DataAppReachEvent,
+} from './dataAppReachStream';
+import {
     exportEventsCompactedColumns,
     exportEventsProjections,
 } from './exportEventsStream';
@@ -48,6 +53,7 @@ import type { CompactedStreamColumn } from './types';
  * below; nothing else needs to change.
  */
 export type ProjectedEvent =
+    | DataAppReachEvent
     | ContentViewEvent
     | QueryCompletedEvent
     | AiUsageEvent
@@ -73,6 +79,7 @@ export const eventStreamRegistry: EventStreamRegistry = {
     ...queryEventsProjections,
     ...aiUsageProjections,
     ...agentStepsProjections,
+    ...dataAppReachProjections,
     ...dataAppEventsProjections,
     ...exportEventsProjections,
     ...mcpToolCallsProjections,
@@ -88,6 +95,7 @@ export const compactedStreamSchemas: Record<
     CompactedStreamColumn[]
 > = {
     agent_request_events: agentRequestEventsColumns,
+    data_app_reach_events: dataAppReachColumns,
     content_views: contentViewsColumns,
     query_events: queryEventsCompactedColumns,
     ai_usage: aiUsageCompactedColumns,

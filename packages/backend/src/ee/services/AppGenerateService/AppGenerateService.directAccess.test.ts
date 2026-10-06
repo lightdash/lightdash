@@ -66,7 +66,7 @@ const buildUser = (): SessionUser => {
     } as unknown as SessionUser;
 };
 
-const buildService = (role: SpaceMemberRole) => {
+const buildService = (role: SpaceMemberRole, capture = false) => {
     const appModel = {
         findApp: vi.fn().mockResolvedValue(app),
         getApp: vi.fn().mockResolvedValue(app),
@@ -112,6 +112,15 @@ const buildService = (role: SpaceMemberRole) => {
         }),
         getLatestReadyVersion: vi.fn().mockResolvedValue({ version: 2 }),
         moveToSpace: vi.fn(),
+        getReachContext: vi.fn().mockResolvedValue({
+            created_by_user_uuid: 'owner-uuid',
+            space_uuid: SPACE_UUID,
+            template: null,
+            is_builder: false,
+            is_preview_project: false,
+            ready_version: 2,
+            has_other_ready: false,
+        }),
     };
     const accessContext = {
         organizationUuid: ORGANIZATION_UUID,
@@ -137,16 +146,18 @@ const buildService = (role: SpaceMemberRole) => {
     const userModel = {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(buildUser()),
     };
+    const analytics = { track: vi.fn(), trackDataAppReach: vi.fn() };
     const service = new AppGenerateService({
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
+            usageEvents: { enabled: capture },
             lightdashSecrets: {
                 active: 'test-secret',
                 fallbacks: [],
                 all: ['test-secret'],
             },
         } as never,
-        analytics: { track: vi.fn() } as never,
+        analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
         userModel: userModel as never,
@@ -189,7 +200,7 @@ const buildService = (role: SpaceMemberRole) => {
             unverify: async () => undefined,
         } as never,
     });
-    return { appModel, service, spacePermissionService, userModel };
+    return { appModel, service, spacePermissionService, userModel, analytics };
 };
 
 describe('AppGenerateService direct app access', () => {
@@ -301,5 +312,147 @@ describe('AppGenerateService direct app access', () => {
         await expect(
             queuedAuthorization.authorizePipelineExecution(payload),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('optional Data App reach capture', () => {
+    const read = async (service: AppGenerateService) =>
+        verifyPreviewTokenClaims(
+            await service.getPreviewToken(
+                buildUser(),
+                PROJECT_UUID,
+                APP_UUID,
+                2,
+                'standalone',
+            ),
+            { active: 'test-secret', fallbacks: [], all: ['test-secret'] },
+        );
+    it('does no extra metadata work with the flag disabled', async () => {
+        const { service, appModel } = buildService(SpaceMemberRole.VIEWER);
+        expect(await read(service)).toMatchObject({
+            ok: true,
+            payload: { reach: null },
+        });
+        expect(appModel.getReachContext).not.toHaveBeenCalled();
+    });
+    it('signs backend-derived attribution separately from the requested UI context', async () => {
+        const { service } = buildService(SpaceMemberRole.VIEWER, true);
+        expect(await read(service)).toMatchObject({
+            ok: true,
+            payload: {
+                reach: {
+                    viewContext: 'standalone',
+                    isBuilder: false,
+                    creatorId: 'owner-uuid',
+                    isShared: true,
+                    isPreviewProject: false,
+                },
+            },
+        });
+    });
+    it('keeps previews available if optional metadata fails', async () => {
+        const { service, appModel } = buildService(
+            SpaceMemberRole.VIEWER,
+            true,
+        );
+        appModel.getReachContext.mockRejectedValueOnce(
+            new Error('metadata timeout'),
+        );
+        expect(await read(service)).toMatchObject({
+            ok: true,
+            payload: { reach: null },
+        });
+    });
+    it.each([true, null])(
+        'preserves known builders and unknown builder history (%s)',
+        async (isBuilder) => {
+            const { service, appModel } = buildService(
+                SpaceMemberRole.VIEWER,
+                true,
+            );
+            appModel.getReachContext.mockResolvedValueOnce({
+                created_by_user_uuid: null,
+                space_uuid: SPACE_UUID,
+                template: null,
+                is_builder: isBuilder,
+                is_preview_project: false,
+                ready_version: 2,
+                has_other_ready: true,
+            });
+            expect(await read(service)).toMatchObject({
+                payload: { reach: { isBuilder, creatorId: null } },
+            });
+        },
+    );
+    it('records a first share after a successful move, but does not manufacture prior launch history', async () => {
+        const { service, appModel, analytics } = buildService(
+            SpaceMemberRole.VIEWER,
+            true,
+        );
+        appModel.getApp.mockResolvedValueOnce({
+            ...app,
+            space_uuid: null,
+        } as never);
+        await service.moveToSpace(
+            buildUser(),
+            {
+                projectUuid: PROJECT_UUID,
+                itemUuid: APP_UUID,
+                targetSpaceUuid: SPACE_UUID,
+            },
+            { checkForAccess: false },
+        );
+        await vi.waitFor(() =>
+            expect(analytics.trackDataAppReach).toHaveBeenCalledOnce(),
+        );
+        expect(analytics.trackDataAppReach).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    stage: 'launched',
+                    eventId: `launch:${APP_UUID}`,
+                    version: 2,
+                }),
+            }),
+        );
+        await service.moveToSpace(
+            buildUser(),
+            {
+                projectUuid: PROJECT_UUID,
+                itemUuid: APP_UUID,
+                targetSpaceUuid: SPACE_UUID,
+            },
+            { checkForAccess: false },
+        );
+    });
+    it('does not record an uncommitted share', async () => {
+        const { service, appModel, analytics } = buildService(
+            SpaceMemberRole.VIEWER,
+            true,
+        );
+        appModel.getApp.mockResolvedValueOnce({
+            ...app,
+            space_uuid: null,
+        } as never);
+        let rollback!: (error: Error) => void;
+        const executionPromise = new Promise<void>((_resolve, reject) => {
+            rollback = reject;
+        });
+        await service.moveToSpace(
+            buildUser(),
+            {
+                projectUuid: PROJECT_UUID,
+                itemUuid: APP_UUID,
+                targetSpaceUuid: SPACE_UUID,
+            },
+            {
+                checkForAccess: false,
+                tx: { isTransaction: true, executionPromise } as never,
+            },
+        );
+        expect(analytics.trackDataAppReach).not.toHaveBeenCalled();
+        rollback(new Error('rolled back'));
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(analytics.trackDataAppReach).not.toHaveBeenCalled();
     });
 });

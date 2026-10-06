@@ -45,7 +45,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 CREATE TABLE dashboards (dashboard_id integer PRIMARY KEY, dashboard_uuid uuid UNIQUE, space_id integer, name text, created_at timestamptz, deleted_at timestamptz, owner_user_uuid uuid);
                 CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, created_at timestamptz, deleted_at timestamptz);
                 CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, created_at timestamptz, deleted_at timestamptz);
-                CREATE TABLE apps (app_id uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, name text, created_at timestamptz, deleted_at timestamptz);
+                CREATE TABLE apps (app_id uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, name text, created_at timestamptz, deleted_at timestamptz, template text);
                 CREATE TABLE dashboard_versions (dashboard_version_id integer PRIMARY KEY, dashboard_id integer);
                 CREATE INDEX ON dashboard_versions(dashboard_id);
                 CREATE TABLE dashboard_tile_charts (dashboard_version_id integer, saved_chart_id integer);

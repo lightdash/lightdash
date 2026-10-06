@@ -102,7 +102,7 @@ export default function AppPreviewTest() {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, version);
+    } = useAppPreviewToken(projectUuid, appUuid, version, 'standalone');
 
     // Panel is opt-in here (most viewers aren't technical), but bridge events
     // are captured regardless so earlier queries show once it's opened.

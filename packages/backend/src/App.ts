@@ -716,6 +716,7 @@ export default class App {
                             },
                         });
                     },
+                    (event) => this.analytics.trackDataAppReach(event),
                 ),
             );
         }

@@ -38,9 +38,15 @@ export function announceSdkManifest(targetWindow: Window): () => void {
         const type: unknown = (event.data as { type?: unknown })?.type;
         if (type === 'lightdash:sdk:ready') post();
     };
+    const reportRenderError = () =>
+        targetWindow.postMessage({ type: 'lightdash:sdk:render-error' }, '*');
+    window.addEventListener('error', reportRenderError);
+    window.addEventListener('unhandledrejection', reportRenderError);
     window.addEventListener('message', handler);
     const cleanup = () => {
         window.removeEventListener('message', handler);
+        window.removeEventListener('error', reportRenderError);
+        window.removeEventListener('unhandledrejection', reportRenderError);
         if (activeCleanup === cleanup) activeCleanup = null;
     };
     activeCleanup = cleanup;

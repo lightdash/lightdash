@@ -1565,3 +1565,12 @@ export type DataAppVizContext = {
     drillDown: { enabled: boolean };
     pointMenu: { enabled: boolean };
 };
+
+/** Where a data app is opened; unknown keeps older clients unclassified. */
+export type DataAppViewContext =
+    | 'builder'
+    | 'standalone'
+    | 'dashboard'
+    | 'chart'
+    | 'delivery'
+    | 'unknown';

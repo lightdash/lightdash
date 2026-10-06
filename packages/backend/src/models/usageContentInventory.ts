@@ -129,6 +129,7 @@ export const usageContentInventoryQuery = (
             'created_at', i.created_at, 'deleted_at', COALESCE(i.deleted_at, i.parent_deleted_at, s.deleted_at),
             'is_deleted', i.deleted_at IS NOT NULL OR i.parent_deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL,
             'snapshot_at', CURRENT_TIMESTAMP,
+            'app_template', (SELECT a.template FROM apps a WHERE i.content_type = 'data_app' AND a.app_id = i.content_id),
             'owner_id', i.owner_id, 'owner_name', NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''),
             'owner_status', CASE WHEN NOT i.supports_owner THEN 'Not recorded'
                 WHEN i.owner_id IS NULL THEN 'Unassigned'

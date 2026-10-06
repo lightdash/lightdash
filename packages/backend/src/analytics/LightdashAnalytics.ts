@@ -90,6 +90,7 @@ import {
     type AiUsageEvent,
 } from './aiUsage';
 import type { ContentViewMetadata } from './eventStream/contentViewsStream';
+import type { DataAppReachEvent } from './eventStream/dataAppReachStream';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
     UpgradeEventName,
@@ -4807,6 +4808,10 @@ export class LightdashAnalytics extends Analytics {
             `Analytics event ${payload.event} has no userId or anonymousId; using the instance anonymous id`,
         );
         return { ...payload, anonymousId: LightdashAnalytics.anonymousId };
+    }
+
+    trackDataAppReach(payload: DataAppReachEvent): void {
+        this.eventStreamSink?.handle(payload);
     }
 
     track<T extends BaseTrack>(
