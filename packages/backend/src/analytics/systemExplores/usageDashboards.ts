@@ -7,6 +7,7 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
+import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
 import { usageChartSpecs } from './usageDashboardCharts';
 import { usageDashboardSpecs } from './usageDashboardDefinitions';
 import type {
@@ -56,6 +57,9 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
                 eChartsConfig: {
                     showAxisTicks: false,
                     series: yFields.map((field, index) => ({
+                        ...(spec.fieldLabels?.[field]
+                            ? { name: spec.fieldLabels[field] }
+                            : {}),
                         type: seriesType,
                         color: ['#5C7CFA', '#12B886'][index % 2],
                         showSymbol: true,
@@ -72,11 +76,18 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
         config: {
             showTableNames: false,
             hideRowNumbers: true,
-            columns: Object.fromEntries(
-                spec.dimensions
-                    .filter((field) => field.endsWith('_id'))
-                    .map((field) => [field, { visible: false }]),
-            ),
+            columns: {
+                ...Object.fromEntries(
+                    spec.dimensions
+                        .filter((field) => field.endsWith('_id'))
+                        .map((field) => [field, { visible: false }]),
+                ),
+                ...Object.fromEntries(
+                    Object.entries(spec.fieldLabels ?? {}).map(
+                        ([field, name]) => [field, { name }],
+                    ),
+                ),
+            },
         },
     };
 };
@@ -118,10 +129,10 @@ const buildChart = (
             ? {
                   dimensions: {
                       id: `${spec.key}-filters`,
-                      and: spec.filters.map(({ field, values }) => ({
+                      and: spec.filters.map(({ field, values, operator }) => ({
                           id: `${spec.key}-${field}`,
                           target: { fieldId: field },
-                          operator: FilterOperator.EQUALS,
+                          operator: operator ?? FilterOperator.EQUALS,
                           values,
                       })),
                   },
@@ -129,10 +140,16 @@ const buildChart = (
             : {},
         sorts: spec.sorts,
         limit: spec.limit,
-        tableCalculations: [],
+        tableCalculations: spec.tableCalculations ?? [],
     },
     chartConfig: chartConfig(spec),
-    tableConfig: { columnOrder: [...spec.dimensions, ...spec.metrics] },
+    tableConfig: {
+        columnOrder: [
+            ...spec.dimensions,
+            ...spec.metrics,
+            ...(spec.tableCalculations ?? []).map(({ name }) => name),
+        ],
+    },
 });
 
 const note = (
@@ -155,7 +172,7 @@ const note = (
 export const buildUsageDashboards = (
     existingBundles: AnalyticsContentBundle[],
 ): AnalyticsContentBundle[] =>
-    usageDashboardSpecs.map((spec) => {
+    [...usageDashboardSpecs, adoptionDashboardSpec].map((spec) => {
         const existing = existingBundles.find(
             ({ dashboard }) => dashboard.slug === spec.key,
         );
@@ -194,9 +211,10 @@ export const buildUsageDashboards = (
                 );
                 y += 2;
                 const sectionCharts = section.charts.map((key) => {
-                    const definition = usageChartSpecs.find(
-                        (item) => item.key === key,
-                    );
+                    const definition = [
+                        ...usageChartSpecs,
+                        ...adoptionChartSpecs,
+                    ].find((item) => item.key === key);
                     if (!definition)
                         throw new Error(`Unknown built-in chart: ${key}`);
                     const definitionChart = buildChart(

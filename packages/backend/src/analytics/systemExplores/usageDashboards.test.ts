@@ -6,6 +6,7 @@ import {
     type Filters,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { compileMetricQuery } from '../../queryCompiler';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { compactedStreamSchemas } from '../eventStream/registry';
@@ -21,13 +22,17 @@ const explores = createAnalyticsExplores();
 const compile = (chart: ChartAsCode) =>
     new MetricQueryBuilder({
         explore: explores.find(({ name }) => name === chart.tableName)!,
-        compiledMetricQuery: {
-            ...chart.metricQuery,
-            filters: chart.metricQuery.filters as Filters,
-            compiledAdditionalMetrics: [],
-            compiledTableCalculations: [],
-            compiledCustomDimensions: [],
-        },
+        compiledMetricQuery: compileMetricQuery({
+            explore: explores.find(({ name }) => name === chart.tableName)!,
+            metricQuery: {
+                ...chart.metricQuery,
+                filters: chart.metricQuery.filters as Filters,
+            },
+            warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                WarehouseTypes.DUCKDB,
+            ),
+            availableParameters: [],
+        }),
         warehouseSqlBuilder: warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB),
         intrinsicUserAttributes: {},
         parameterDefinitions: {},
@@ -42,6 +47,125 @@ describe('built-in usage dashboards', () => {
             expect(chart.metricQuery.limit).toBeLessThanOrEqual(5000);
         },
     );
+
+    it('reconciles Adoption prompts, audience and creator filters against synthetic activity', async () => {
+        const instance = await DuckDBInstance.create(':memory:');
+        const db = await instance.connect();
+        try {
+            const tables = {
+                ...compactedStreamSchemas,
+                user_activity: userActivityColumns,
+                ...Object.fromEntries(
+                    Object.entries(usageDimensionSchemas).map(
+                        ([name, columns]) => [
+                            usageDimensionTable(
+                                name as keyof typeof usageDimensionSchemas,
+                            ),
+                            columns,
+                        ],
+                    ),
+                ),
+            };
+            for (const [name, columns] of Object.entries(tables)) {
+                await db.run(
+                    `CREATE TABLE "${name}" (${columns.map((column) => `"${column.name}" ${column.type}`).join(', ')})`,
+                );
+            }
+            await db.run(
+                `INSERT INTO lightdash_users VALUES ('org','a','Alex'),('org','b','Alex'),('other','a','Wrong tenant')`,
+            );
+            await db.run(`INSERT INTO user_activity (org_id, project_id, user_id, activity_date, event_count) VALUES
+                ('org','project','a','2026-01-05',2),('org','project','a','2026-01-06',3),('org','project','b','2026-01-05',1),('org','project',NULL,'2026-01-05',4)`);
+            await db.run(`INSERT INTO agent_request_events (org_id,project_id,event_id,prompt_id,stage,user_id,event_ts,surface,agent_id) VALUES
+                ('org','project','one','one','created','a','2026-01-05','web_app','agent'),
+                ('org','project','two','two','created','a','2026-01-05','web_app','agent'),
+                ('org','project','three','three','created','b','2026-01-05','web_app','agent'),
+                ('org','project','four','four','created',NULL,'2026-01-05','web_app','agent'),
+                ('org','project','slack','slack','created','a','2026-01-05','slack','agent'),
+                ('org','project','embed','embed','created','a','2026-01-05','embed','agent'),
+                ('org','project','completed','one','outcome','a','2026-01-05',NULL,'agent')`);
+            await db.run(
+                "INSERT INTO agent_request_events SELECT * FROM agent_request_events WHERE event_id='one'",
+            );
+            await db.run(`INSERT INTO lightdash_content (org_id,project_id,content_type,content_id,content_name,app_template,is_deleted,snapshot_at) VALUES
+                ('org','project','data_app','app','Sales','dashboard',false,CURRENT_TIMESTAMP),
+                ('org','project','data_app','zero','No reads','dashboard',false,CURRENT_TIMESTAMP)`);
+            await db.run(`INSERT INTO data_app_events (org_id,project_id,app_id,user_id,event_ts,event_name) VALUES
+                ('org','project','app','a','2026-01-05','data_app.created'),
+                ('org','project','app','b','2026-01-05','data_app.view')`);
+            await db.run(`INSERT INTO data_app_reach_events (org_id,project_id,app_id,user_id,event_id,view_id,event_ts,stage,outcome,is_reload,view_context,is_builder,is_shared,is_preview_project) VALUES
+                ('org','project','app','b','reader-load','reader','2026-01-05','load','served',false,'standalone',false,true,false),
+                ('org','project','app','b','reader-ready','reader','2026-01-05','sdk_ready',NULL,false,'standalone',false,true,false),
+                ('org','project','app','a','builder-load','builder','2026-01-05','load','served',false,'standalone',true,true,false),
+                ('org','project','app','a','builder-ready','builder','2026-01-05','sdk_ready',NULL,false,'standalone',true,true,false),
+                ('org','project','app','b','reload-load','reload','2026-01-05','load','served',true,'standalone',false,true,false),
+                ('org','project','app','b','reload-ready','reload','2026-01-05','sdk_ready',NULL,true,'standalone',false,true,false)`);
+            await db.run('UPDATE data_app_reach_events SET version = 1');
+            const rows = new Map<string, Record<string, unknown>[]>();
+            for (const chart of charts.filter(
+                (c) => c.dashboardSlug === 'lightdash-analytics-adoption',
+            )) {
+                rows.set(
+                    chart.slug.replace(
+                        'lightdash-analytics-adoption-adoption-',
+                        '',
+                    ),
+                    (
+                        await db.runAndReadAll(compile(chart).query)
+                    ).getRowObjectsJS(),
+                );
+            }
+            expect(
+                rows
+                    .get('active-people-day')
+                    ?.map((row) => Number(row.user_activity_unique_users)),
+            ).toEqual([2, 1]);
+            expect(
+                rows
+                    .get('active-people-week')
+                    ?.map((row) => Number(row.user_activity_unique_users)),
+            ).toEqual([2]);
+            expect(rows.get('people-history')).toHaveLength(3);
+            expect(rows.get('ask-ai-questions')).toEqual([
+                expect.objectContaining({ agent_requests_total_requests: 4n }),
+            ]);
+            expect(rows.get('ask-ai-people')).toEqual([
+                expect.objectContaining({
+                    agent_requests_distinct_requesters: 2n,
+                }),
+            ]);
+            expect(rows.get('ask-ai-frequency')).toEqual([
+                expect.objectContaining({ questions_per_person: 1.5 }),
+            ]);
+            expect(rows.get('ask-ai-users')).toHaveLength(3);
+            expect(rows.get('app-creators')).toEqual([
+                expect.objectContaining({
+                    lightdash_users_name: 'Alex',
+                    data_app_events_user_id: 'a',
+                    data_app_events_unique_apps: 1n,
+                }),
+            ]);
+            expect(rows.get('app-reader-detail')).toEqual([
+                expect.objectContaining({
+                    lightdash_users_name: 'Alex',
+                    data_app_reach_user_id: 'b',
+                    data_app_reach_qualifying_views: 1n,
+                }),
+            ]);
+            expect(rows.get('app-first-audience')).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        data_app_reach_app_name: 'No reads',
+                        data_app_reach_distinct_consumers: 0n,
+                        data_app_reach_adoption_status: 'Launch unknown',
+                    }),
+                ]),
+            );
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
 
     it('executes every chart on empty history and keeps app-name joins isolated without fanout', async () => {
         const instance = await DuckDBInstance.create(':memory:');
