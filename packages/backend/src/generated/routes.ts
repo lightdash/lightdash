@@ -40082,7 +40082,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ContentReviewContentType: {
         dataType: 'refEnum',
-        enums: ['chart', 'dashboard', 'sql_chart'],
+        enums: ['chart', 'dashboard', 'sql_chart', 'document'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ContentReviewSimilarContentItem: {

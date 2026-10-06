@@ -1,3 +1,10 @@
+# [2.442.0](https://github.com/lightdash/lightdash/compare/2.441.0...2.442.0) (2026-10-06)
+
+
+### Features
+
+* **content-review:** review and approve moving Documents to shared spaces ([#30494](https://github.com/lightdash/lightdash/issues/30494)) ([62f4313](https://github.com/lightdash/lightdash/commit/62f431382de5ef43d37ac05fcfe8b31e4ba74ac4))
+
 # [2.441.0](https://github.com/lightdash/lightdash/compare/2.440.2...2.441.0) (2026-10-06)
 
 
