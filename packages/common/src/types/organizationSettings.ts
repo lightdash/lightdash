@@ -94,6 +94,12 @@ export type OrganizationSettings = {
      * syntax.
      */
     corsAllowedDomains: string[] | null;
+    /**
+     * Whether a data app version gets a thumbnail captured automatically when
+     * it becomes ready. On unless the org turned it off, so `null` (or no
+     * stored row) resolves to `true`.
+     */
+    dataAppAutomaticThumbnailsEnabled: boolean | null;
 };
 
 export const DEFAULT_INVITE_LINK_EXPIRATION_DAYS = 3;
@@ -311,4 +317,7 @@ export const resolveEffectiveOrganizationSettings = (
     queryLimit: raw.queryLimit ?? instanceDefaults.queryLimit,
     csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
     corsAllowedDomains: raw.corsAllowedDomains ?? [],
+    // On by default — no instance default, so an unset value resolves to true.
+    dataAppAutomaticThumbnailsEnabled:
+        raw.dataAppAutomaticThumbnailsEnabled ?? true,
 });

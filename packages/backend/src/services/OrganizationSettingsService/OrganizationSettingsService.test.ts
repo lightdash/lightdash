@@ -5,6 +5,7 @@ import {
     ParameterError,
     type PossibleAbilities,
     type RegisteredAccount,
+    type UpdateOrganizationSettings,
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -154,5 +155,79 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
             }),
         ).rejects.toThrow(ParameterError);
         expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+    });
+});
+
+describe('OrganizationSettingsService — automatic data app thumbnails', () => {
+    const member = {
+        ...account,
+        user: {
+            ...account.user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Organization', action: 'view' },
+            ]),
+        },
+    } as unknown as RegisteredAccount;
+
+    // A store that keeps what was written, so reads reflect earlier updates.
+    const buildStatefulService = () => {
+        let stored: UpdateOrganizationSettings = {};
+        const organizationSettingsModel = {
+            get: async () => stored,
+            update: async (
+                _orgUuid: string,
+                patch: UpdateOrganizationSettings,
+            ) => {
+                stored = { ...stored, ...patch };
+                return stored;
+            },
+        } as unknown as OrganizationSettingsModel;
+        return new OrganizationSettingsService({
+            lightdashConfig: lightdashConfigMock,
+            organizationSettingsModel,
+            featureFlagModel: {} as unknown as FeatureFlagModel,
+        });
+    };
+
+    it('is on for an organization that has never changed it', async () => {
+        const service = buildStatefulService();
+
+        const settings = await service.getOrganizationSettings(account);
+
+        expect(settings.dataAppAutomaticThumbnailsEnabled).toBe(true);
+    });
+
+    it('lets an organization manager turn it off and back on', async () => {
+        const service = buildStatefulService();
+
+        await service.updateOrganizationSettings(account, {
+            dataAppAutomaticThumbnailsEnabled: false,
+        });
+        expect(
+            (await service.getOrganizationSettings(account))
+                .dataAppAutomaticThumbnailsEnabled,
+        ).toBe(false);
+
+        await service.updateOrganizationSettings(account, {
+            dataAppAutomaticThumbnailsEnabled: true,
+        });
+        expect(
+            (await service.getOrganizationSettings(account))
+                .dataAppAutomaticThumbnailsEnabled,
+        ).toBe(true);
+    });
+
+    it('refuses a change from a user who cannot manage the organization', async () => {
+        const service = buildStatefulService();
+
+        await expect(
+            service.updateOrganizationSettings(member, {
+                dataAppAutomaticThumbnailsEnabled: false,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            (await service.getOrganizationSettings(account))
+                .dataAppAutomaticThumbnailsEnabled,
+        ).toBe(true);
     });
 });

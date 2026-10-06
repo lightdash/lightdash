@@ -276,6 +276,51 @@ describe('AppThumbnailClient', () => {
         });
     });
 
+    describe('with automatic capture turned off for the organization', () => {
+        it('still saves a manual capture', async () => {
+            const s = buildScenario();
+            s.state.automaticCaptureEnabled = false;
+            await s.becomeReady({ version: 1 });
+
+            await s.thumbnails.setManualThumbnail(manager, {
+                ...APP,
+                version: 1,
+                image: image('hand-picked state'),
+            });
+
+            expect(await s.versionThumbnail(1)).toBe('hand-picked state');
+            expect(await s.appThumbnail()).toBe('hand-picked state');
+        });
+
+        it('keeps showing the thumbnails captured before it was turned off', async () => {
+            const s = buildScenario();
+            await s.becomeReady({ version: 1 });
+
+            s.state.automaticCaptureEnabled = false;
+
+            expect(await s.versionThumbnail(1)).toBe(
+                `render of app-1 v1 as ${CREATOR_UUID}`,
+            );
+            expect(await s.appThumbnail()).toBe(
+                `render of app-1 v1 as ${CREATOR_UUID}`,
+            );
+        });
+
+        it('captures only the versions that become ready after it is turned back on', async () => {
+            const s = buildScenario();
+            s.state.automaticCaptureEnabled = false;
+            await s.becomeReady({ version: 1 });
+
+            s.state.automaticCaptureEnabled = true;
+            await s.becomeReady({ version: 2 });
+
+            expect(await s.versionThumbnail(1)).toBeNull();
+            expect(await s.versionThumbnail(2)).toBe(
+                `render of app-1 v2 as ${CREATOR_UUID}`,
+            );
+        });
+    });
+
     describe("a data app's thumbnail", () => {
         it("is its latest ready version's thumbnail", async () => {
             const s = buildScenario();
