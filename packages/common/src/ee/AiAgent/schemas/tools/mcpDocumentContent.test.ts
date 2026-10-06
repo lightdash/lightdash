@@ -281,9 +281,21 @@ describe('MCP Document content', () => {
         { type: 'content', baseVersionUuid, content: { cells: [] } },
         { type: 'content', baseVersionUuid, markdown },
         { type: 'chart', baseVersionUuid, patch: [] },
-        { type: 'metadata', spaceSlug: 'another-space' },
+        { type: 'metadata', spaceUuid: 'another-space' },
     ])('rejects invalid edit shape %j', (edit) => {
         expect(mcpDocumentEditSchema.safeParse(edit).success).toBe(false);
+    });
+
+    test('accepts saving a personal Document into a Space by slug', () => {
+        const edit = { type: 'metadata', spaceSlug: 'another-space' };
+        expect(mcpDocumentEditSchema.parse(edit)).toEqual(edit);
+    });
+
+    test('creates a personal Document when spaceSlug is null', () => {
+        expect(
+            documentAsCodeSchema.parse({ ...document, spaceSlug: null })
+                .spaceSlug,
+        ).toBeNull();
     });
 
     test('accepts metadata separately from content operations', () => {
