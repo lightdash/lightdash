@@ -250,11 +250,8 @@ export class AppThumbnails {
         await this.objectStorage.delete(appLevelThumbnailKey(appUuid));
     }
 
-    /**
-     * Gives `to` the thumbnail of `from`, if it has one. A copy is not a
-     * capture, so it ignores the automatic capture setting. The caller is
-     * responsible for authorizing the operation that needs the copy.
-     */
+    // Gives `to` the thumbnail of `from`, if it has one; not a capture, so the
+    // automatic capture setting does not apply. The caller authorizes the operation.
     async copyThumbnail({
         from,
         to,
