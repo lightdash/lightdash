@@ -1,3 +1,10 @@
+# [2.438.0](https://github.com/lightdash/lightdash/compare/2.437.0...2.438.0) (2026-10-06)
+
+
+### Features
+
+* **embed:** hide compiled SQL from embed viewers without the SQL scope ([#30524](https://github.com/lightdash/lightdash/issues/30524)) ([56d52cb](https://github.com/lightdash/lightdash/commit/56d52cb24b93c199b40cfbb2b6397b6bc5f778c6))
+
 # [2.437.0](https://github.com/lightdash/lightdash/compare/2.436.1...2.437.0) (2026-10-06)
 
 
