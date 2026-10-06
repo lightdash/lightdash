@@ -257,6 +257,7 @@ export enum ScreenshotContext {
     EXPORT_CHART = 'export_chart',
     EXPORT_AI_ARTIFACT = 'export_ai_artifact',
     EXPORT_DOCUMENT = 'export_document',
+    DATA_APP_THUMBNAIL = 'data_app_thumbnail',
 }
 
 // Default values
@@ -1348,6 +1349,57 @@ export class UnfurlService extends BaseService {
     }
 
     /**
+     * Renders one version of a data app to a PNG under the acting user's
+     * identity, without hosting the image. Single attempt, and it fails when
+     * the version never signals it rendered, instead of returning whatever
+     * is on the page. The caller must check the version is ready.
+     */
+    async captureDataAppVersion({
+        projectUuid,
+        appUuid,
+        appName,
+        version,
+        authUserUuid,
+        organizationUuid,
+    }: {
+        projectUuid: UUID;
+        appUuid: UUID;
+        appName: string;
+        version: number;
+        authUserUuid: UUID;
+        organizationUuid: UUID;
+    }): Promise<Buffer> {
+        const minimalAppUrl = new URL(
+            `/minimal/projects/${projectUuid}/apps/${appUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        );
+        minimalAppUrl.searchParams.set('version', String(version));
+
+        const cookie = await this.getUserCookie(authUserUuid);
+        const result = await this.saveScreenshot({
+            authUserUuid,
+            imageId: `app-thumbnail_${snakeCaseName(appName)}_${useNanoid()}`,
+            cookie,
+            url: minimalAppUrl.href,
+            lightdashPage: LightdashPage.APP,
+            organizationUuid,
+            resourceUuid: appUuid,
+            resourceName: appName,
+            context: ScreenshotContext.DATA_APP_THUMBNAIL,
+            contextId: `${appUuid}:${version}`,
+            selectedTabs: null,
+            retries: 1,
+            requireSuccessfulRender: true,
+        });
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError(
+                'Unable to capture data app version',
+            );
+        }
+        return result.imageBuffer;
+    }
+
+    /**
      * Prints a saved Document version to A4 PDF as the user, so their access and
      * user attributes apply; charts that fail print an error and count in `numFailures`.
      */
@@ -2263,6 +2315,7 @@ export class UnfurlService extends BaseService {
                                 },
                             });
                         } catch (waitError) {
+                            if (requireSuccessfulRender) throw waitError;
                             // Fall through to the animation buffer so the
                             // screenshot still happens for apps that never
                             // signal (older bundles, or pathological cases).
