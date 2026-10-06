@@ -1,4 +1,9 @@
 import {
+    AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE,
+    AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+    AI_QUERY_READS_EARLIER_RESULTS_MESSAGE,
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
@@ -60,6 +65,17 @@ describe('isAgentRecoverableError', () => {
 });
 
 describe('toolErrorHandler', () => {
+    it.each([
+        new AiQueryRefusedError(AI_QUERY_READS_EARLIER_RESULTS_MESSAGE),
+        new AiQueryRefusedError(AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE),
+        new AiQueryProcedureUnavailableError(
+            AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+        ),
+    ])('returns the procedure error verbatim', (error) => {
+        expect(toolErrorHandler(error, 'Error running SQL query.')).toBe(
+            error.message,
+        );
+    });
     beforeEach(() => {
         captureException.mockClear();
     });

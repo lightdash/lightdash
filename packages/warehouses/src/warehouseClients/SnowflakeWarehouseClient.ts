@@ -1,14 +1,22 @@
 import {
+    AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE,
+    AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+    AI_QUERY_READS_EARLIER_RESULTS_MESSAGE,
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
     ForbiddenError,
+    getAiQueryProcedureCallSql,
     getErrorMessage,
     getWarehouseTableType,
     isWeekDay,
+    LightdashError,
     Metric,
     MetricType,
     ParseError,
+    parseSnowflakeProcedureName,
     setCatalogTimestampDomain,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
@@ -217,6 +225,23 @@ export const checkSnowflakeAgentSessionWithToken = async (
             });
         }
     }
+};
+
+const SNOWFLAKE_STATEMENT_ERROR_CODE = '000709';
+
+const SNOWFLAKE_SCRIPTING_PREFIX =
+    /^Uncaught exception of type '[^']*' on line \d+ at position \d+ : /;
+
+export const stripSnowflakeScriptingPrefixes = (
+    message: string,
+): { message: string; raisedInsideProcedure: boolean } => {
+    let stripped = message;
+    let raisedInsideProcedure = false;
+    while (SNOWFLAKE_SCRIPTING_PREFIX.test(stripped)) {
+        stripped = stripped.replace(SNOWFLAKE_SCRIPTING_PREFIX, '');
+        raisedInsideProcedure = true;
+    }
+    return { message: stripped, raisedInsideProcedure };
 };
 
 const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
@@ -757,6 +782,32 @@ export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
 }
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
+    private getAiQueryProcedure(): string | null {
+        const setting = this.credentials.aiQueryProcedure?.trim();
+        if (!this.credentials.requireAgentSession || !setting) return null;
+        const procedure = parseSnowflakeProcedureName(setting);
+        if (!procedure || this.isInteractiveAuthenticator()) {
+            throw new AiQueryProcedureUnavailableError(
+                AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+            );
+        }
+        return procedure;
+    }
+
+    private getUserQueryExecution(sql: string, values?: AnyType[]) {
+        const procedure = this.getAiQueryProcedure();
+        if (!procedure) return { sqlText: sql, binds: values };
+        if (values?.length) {
+            throw new AiQueryRefusedError(
+                AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE,
+            );
+        }
+        return {
+            sqlText: getAiQueryProcedureCallSql(procedure),
+            binds: [sql],
+        };
+    }
+
     private static readonly MAX_QUERY_TAG_LENGTH = 2000;
 
     connectionOptions: ConnectionOptions;
@@ -1622,6 +1673,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         },
     ) {
         const startTime = performance.now();
+        const execution = this.getUserQueryExecution(sql, options?.values);
 
         if (resultsStreamCallback) {
             return new Promise<{
@@ -1633,8 +1685,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 fetchMs: number;
             }>((resolve, reject) => {
                 connection.execute({
-                    sqlText: sql,
-                    binds: options?.values,
+                    ...execution,
                     streamResult: true,
                     complete: (err, stmt) => {
                         if (err) {
@@ -1705,8 +1756,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             durationMs: number;
         }>((resolve, reject) => {
             connection.execute({
-                sqlText: sql,
-                binds: options?.values,
+                ...execution,
                 asyncExec: true,
                 complete: (err, stmt) => {
                     if (err) {
@@ -1787,15 +1837,19 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         options?: {
             values?: AnyType[];
         },
+        routeAiProcedure: boolean = true,
     ): Promise<void> {
+        const execution = routeAiProcedure
+            ? this.getUserQueryExecution(sqlText, options?.values)
+            : { sqlText, binds: options?.values };
         return new Promise<void>((resolve, reject) => {
             connection.execute({
-                sqlText,
-                binds: options?.values,
+                ...execution,
                 streamResult: true,
                 complete: (err, stmt) => {
                     if (err) {
                         reject(err);
+                        return;
                     }
 
                     const fields = this.getFieldsFromStatement(stmt);
@@ -1902,6 +1956,40 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
     }
 
+    private async runDirectCatalogQuery(
+        sql: string,
+        tags?: Record<string, string>,
+        values?: AnyType[],
+    ): Promise<WarehouseResults> {
+        const connection = await this.getConnection();
+        const result: WarehouseResults = { fields: {}, rows: [] };
+        try {
+            await this.prepareWarehouse(connection, { tags });
+            await this.executeStreamStatement(
+                connection,
+                sql,
+                ({ fields, rows }) => {
+                    result.fields = fields;
+                    result.rows.push(...rows);
+                },
+                { values },
+                false,
+            );
+            return result;
+        } catch (error) {
+            throw this.parseError(error as SnowflakeError, sql);
+        } finally {
+            await this.destroyConnection(
+                connection,
+                this.connectionOptions.authenticator,
+            );
+        }
+    }
+
+    async test(): Promise<void> {
+        await this.runDirectCatalogQuery('SELECT 1');
+    }
+
     async getCatalog(
         config: {
             database: string;
@@ -2003,10 +2091,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             query,
             databaseName,
         });
-        const { rows } = await this.runQuery(
+        const { rows } = await this.runDirectCatalogQuery(
             query,
             {},
-            undefined,
             databaseName ? [databaseName] : undefined,
         );
         return rows.map((row: Record<string, AnyType>) => ({
@@ -2051,7 +2138,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             query,
             values,
         });
-        const { rows } = await this.runQuery(query, tags, undefined, values);
+        const { rows } = await this.runDirectCatalogQuery(query, tags, values);
         return this.parseWarehouseCatalog(
             rows,
             mapFieldType,
@@ -2121,6 +2208,34 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     }
 
     parseError(error: SnowflakeError, query: string = '') {
+        if (error instanceof LightdashError) return error;
+        const procedure = this.getAiQueryProcedure();
+        if (procedure) {
+            const { message, raisedInsideProcedure } =
+                stripSnowflakeScriptingPrefixes(error?.message ?? '');
+            if (
+                String(error?.code ?? '').padStart(6, '0') ===
+                    SNOWFLAKE_STATEMENT_ERROR_CODE &&
+                /not found/i.test(message)
+            ) {
+                return new AiQueryRefusedError(
+                    AI_QUERY_READS_EARLIER_RESULTS_MESSAGE,
+                );
+            }
+            if (
+                !raisedInsideProcedure &&
+                /does not exist|not authorized|unknown (user-defined )?(function|procedure)/i.test(
+                    message,
+                )
+            ) {
+                return new AiQueryProcedureUnavailableError(
+                    AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+                );
+            }
+            return new WarehouseQueryError(
+                'Snowflake could not run this query.',
+            );
+        }
         if (this.credentials.requireAgentSession) {
             return new WarehouseQueryError(
                 'Snowflake could not run this query.',

@@ -1,6 +1,11 @@
 import { Ability, subject } from '@casl/ability';
 import {
     Account,
+    AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE,
+    AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+    AI_QUERY_READS_EARLIER_RESULTS_MESSAGE,
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -29,6 +34,7 @@ import {
     getDbtManifestVersion,
     getItemId,
     getModelsFromManifest,
+    isAiAccessQueryContext,
     JobStatusType,
     JobStepStatusType,
     JobStepType,
@@ -14099,6 +14105,34 @@ describe('Snowflake AI query credentials', () => {
         authenticationType: SnowflakeAuthenticationType.SSO,
         requireUserCredentials: true,
     } as CreateWarehouseCredentials;
+    it('rejects malformed Snowflake procedure names on connection writes', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const warehouseConnection = {
+            ...snowflake,
+            aiQueryProcedure: 'DB.SCHEMA.RUN_SQL; SELECT 1',
+        } as CreateSnowflakeCredentials;
+        expect(() =>
+            service.assertCanWriteWarehouseConnection(
+                developerAccount,
+                {
+                    organizationUuid: projectSummary.organizationUuid,
+                    provisioningSource: null,
+                },
+                { warehouseConnection },
+            ),
+        ).toThrowError(
+            'Enter the AI query procedure as database.schema.procedure',
+        );
+        await expect(
+            service.updateWarehouseCredentials(
+                projectSummary.projectUuid,
+                developerAccount,
+                { warehouseConnection },
+            ),
+        ).rejects.toThrowError(
+            'Enter the AI query procedure as database.schema.procedure',
+        );
+    });
     it('classifies a data app warehouse query before credential selection', async () => {
         const service = getMockedProjectService(lightdashConfigMock);
         const appContext = vi
@@ -14551,6 +14585,196 @@ describe('Snowflake AI query credentials', () => {
             refreshToken: 'ai-refresh',
         },
     } as UserWarehouseCredentialsWithSecrets;
+
+    it.each(
+        Object.values(QueryExecutionContext)
+            .filter(isAiAccessQueryContext)
+            .flatMap((context) => [
+                { context, procedureFlag: true },
+                { context, procedureFlag: false },
+            ]),
+    )(
+        'gates the AI query procedure for $context with flag $procedureFlag',
+        async ({ context, procedureFlag }) => {
+            const procedure = 'DB.SCHEMA.RUN_SQL';
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        enabled:
+                            featureFlagId === FeatureFlags.AiQueryProcedure
+                                ? procedureFlag
+                                : true,
+                    })),
+                } as unknown as FeatureFlagModel,
+            });
+            const getRestrictions = vi
+                .spyOn(projectModel, 'getAiAccessRestrictions')
+                .mockResolvedValue(true);
+            const findAiCredentialWithSecrets = vi.fn(async () => aiCredential);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findAiCredentialWithSecrets: typeof findAiCredentialWithSecrets;
+                    };
+                }
+            ).userWarehouseCredentialsModel = { findAiCredentialWithSecrets };
+            (
+                service as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        credentials: CreateWarehouseCredentials,
+                    ) => Promise<CreateWarehouseCredentials>;
+                }
+            ).refreshCredentialsAndPersistRotation = async (value) => value;
+            try {
+                const identity = await (
+                    service as unknown as {
+                        resolveAiAccessIdentity: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            isServiceAccount: boolean;
+                            context: QueryExecutionContext;
+                            credentials: CreateWarehouseCredentials;
+                        }) => Promise<{
+                            credentials: CreateSnowflakeCredentials;
+                        }>;
+                    }
+                ).resolveAiAccessIdentity({
+                    projectUuid: projectSummary.projectUuid,
+                    userId: 'user-uuid',
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                    context,
+                    credentials: {
+                        ...(snowflake as CreateSnowflakeCredentials),
+                        aiQueryProcedure: ` ${procedure} `,
+                    },
+                });
+                expect(identity.credentials.requireAgentSession).toBe(true);
+                expect(identity.credentials.aiQueryProcedure).toBe(
+                    procedureFlag ? procedure : undefined,
+                );
+            } finally {
+                getRestrictions.mockRestore();
+            }
+        },
+    );
+
+    it('omits the procedure when AI access restrictions are off', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getRestrictions = vi
+            .spyOn(projectModel, 'getAiAccessRestrictions')
+            .mockResolvedValue(false);
+        const findAiCredentialWithSecrets = vi.fn(async () => aiCredential);
+        (
+            service as unknown as {
+                userWarehouseCredentialsModel: {
+                    findAiCredentialWithSecrets: typeof findAiCredentialWithSecrets;
+                };
+            }
+        ).userWarehouseCredentialsModel = { findAiCredentialWithSecrets };
+        (
+            service as unknown as {
+                refreshCredentialsAndPersistRotation: (
+                    credentials: CreateWarehouseCredentials,
+                ) => Promise<CreateWarehouseCredentials>;
+            }
+        ).refreshCredentialsAndPersistRotation = async (value) => value;
+        try {
+            const identity = await (
+                service as unknown as {
+                    resolveAiAccessIdentity: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                        isServiceAccount: boolean;
+                        context: QueryExecutionContext;
+                        credentials: CreateWarehouseCredentials;
+                    }) => Promise<{ credentials: CreateSnowflakeCredentials }>;
+                }
+            ).resolveAiAccessIdentity({
+                projectUuid: projectSummary.projectUuid,
+                userId: 'user-uuid',
+                isRegisteredUser: true,
+                isServiceAccount: false,
+                context: QueryExecutionContext.AI,
+                credentials: {
+                    ...(snowflake as CreateSnowflakeCredentials),
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+                },
+            });
+            expect(identity.credentials.aiQueryProcedure).toBeUndefined();
+        } finally {
+            getRestrictions.mockRestore();
+        }
+    });
+
+    it.each([
+        [
+            new AiQueryRefusedError(AI_QUERY_READS_EARLIER_RESULTS_MESSAGE),
+            'reads_earlier_results',
+        ],
+        [
+            new AiQueryRefusedError(AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE),
+            'ai_query_procedure_bind_values',
+        ],
+        [
+            new AiQueryProcedureUnavailableError(
+                AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+            ),
+            'ai_query_procedure_unavailable',
+        ],
+    ] as const)('audits procedure refusal %s', async (error, reason) => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const audit = vi
+            .spyOn(winston, 'logAuditEvent')
+            .mockImplementation(vi.fn());
+        try {
+            const client = (
+                service as unknown as {
+                    withSharedSignInAttribution: <T extends object>(
+                        projectUuid: string,
+                        credentials: CreateWarehouseCredentials,
+                        client: T,
+                        aiAccessAudit: {
+                            organizationUuid: string;
+                            userUuid: string;
+                            surface: 'ai_agent';
+                        },
+                    ) => T;
+                }
+            ).withSharedSignInAttribution(
+                projectSummary.projectUuid,
+                snowflake,
+                {
+                    runQuery: async () => {
+                        throw error;
+                    },
+                },
+                {
+                    organizationUuid: projectSummary.organizationUuid,
+                    userUuid: 'user-uuid',
+                    surface: 'ai_agent',
+                },
+            );
+            await expect(client.runQuery()).rejects.toBe(error);
+            expect(audit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'ai_access.query_refused',
+                    resource: expect.objectContaining({
+                        metadata: expect.objectContaining({ reason }),
+                    }),
+                }),
+            );
+        } finally {
+            audit.mockRestore();
+        }
+    });
 
     it('explains when Snowflake for AI is not set up and audits the refusal', async () => {
         const service = getMockedProjectService(lightdashConfigMock, {

@@ -1,4 +1,9 @@
 import {
+    AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE,
+    AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+    AI_QUERY_READS_EARLIER_RESULTS_MESSAGE,
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
@@ -21,6 +26,7 @@ import {
     mapSnowflakeDiagnosticError,
     SnowflakeDiagnosticError,
     SnowflakeWarehouseClient,
+    stripSnowflakeScriptingPrefixes,
 } from './SnowflakeWarehouseClient';
 import {
     columns,
@@ -91,6 +97,33 @@ const interactiveConnectionMock = (
         ),
     }) as unknown as Connection;
 
+const mockUserQueryConnection = (warehouse: SnowflakeWarehouseClient) => {
+    const connection = interactiveConnectionMock(executeMock);
+    Object.assign(connection, {
+        getResultsFromQueryId: vi.fn(
+            ({
+                complete,
+            }: {
+                complete: (
+                    error: undefined,
+                    statement: { getNumRows: () => number },
+                ) => void;
+            }) => {
+                complete(undefined, { getNumRows: () => 1 });
+                return Promise.resolve();
+            },
+        ),
+    });
+    vi.spyOn(
+        warehouse as unknown as { getConnection: () => Promise<Connection> },
+        'getConnection',
+    ).mockResolvedValue(connection);
+    vi.spyOn(
+        warehouse as unknown as { prepareWarehouse: () => Promise<void> },
+        'prepareWarehouse',
+    ).mockResolvedValue(undefined);
+};
+
 type OAuthCredentialWriter = {
     write(key: string, token: string): Promise<void>;
 };
@@ -143,6 +176,275 @@ describe('isSnowflakeAgentActivatedValue', () => {
 });
 
 describe('SnowflakeWarehouseClient', () => {
+    it.each(['stream', 'async stream', 'async execute'])(
+        'binds the exact caller SQL for %s',
+        async (path) => {
+            const sql = 'SELECT * FROM ORDERS LIMIT 17';
+            const warehouse = new SnowflakeWarehouseClient({
+                ...credentials,
+                requireAgentSession: true,
+                aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+            });
+            mockUserQueryConnection(warehouse);
+            if (path === 'stream') {
+                await warehouse.streamQuery(sql, () => {}, {});
+            } else {
+                await warehouse.executeAsyncQuery(
+                    { sql, values: undefined, tags: {}, timezone: 'UTC' },
+                    path === 'async stream' ? () => {} : undefined,
+                );
+            }
+            const execution = executeMock.mock.calls.at(-1)?.[0] as
+                | { sqlText: string; binds?: unknown[] }
+                | undefined;
+            expect(execution?.sqlText).toBe('CALL DB.SCHEMA.RUN_SQL(?)');
+            expect(execution?.sqlText).not.toContain(sql);
+            expect(execution?.binds).toEqual([sql]);
+        },
+    );
+
+    it.each([
+        { requireAgentSession: false, aiQueryProcedure: 'DB.SCHEMA.RUN_SQL' },
+        { requireAgentSession: true, aiQueryProcedure: undefined },
+        { requireAgentSession: true, aiQueryProcedure: '   ' },
+    ])('keeps direct execution for %o', async (settings) => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            ...settings,
+        });
+        mockUserQueryConnection(warehouse);
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+        expect(executeMock.mock.calls.at(-1)?.[0].sqlText).toBe('SELECT 1');
+    });
+
+    it('maps CALL fields and rows like a direct statement', async () => {
+        const run = async (routed: boolean) => {
+            const warehouse = new SnowflakeWarehouseClient({
+                ...credentials,
+                requireAgentSession: routed,
+                aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+            });
+            mockUserQueryConnection(warehouse);
+            const results: Array<{ fields: unknown; rows: unknown }> = [];
+            await warehouse.streamQuery(
+                'SELECT 1',
+                ({ fields, rows }) => {
+                    results.push({ fields, rows });
+                },
+                {},
+            );
+            return results;
+        };
+        const direct = await run(false);
+        const routed = await run(true);
+        expect(executeMock.mock.calls.at(-1)?.[0].sqlText).toBe(
+            'CALL DB.SCHEMA.RUN_SQL(?)',
+        );
+        expect(routed).toEqual(direct);
+        expect(direct).toEqual([
+            expect.objectContaining({ rows: [expectedRow] }),
+        ]);
+    });
+
+    it('keeps catalog queries direct in an agent session', async () => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+            aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+        });
+        mockUserQueryConnection(warehouse);
+        executeMock.mockImplementation(({ complete }) => {
+            complete(undefined, {
+                streamRows: () => Readable.from([]),
+                getColumns: () => queryColumnsMock,
+            });
+        });
+        await warehouse.getAllTables();
+        await warehouse.getFields('ORDERS');
+        await warehouse.test();
+        const catalogQueries = executeMock.mock.calls.map(
+            ([options]) => options.sqlText,
+        );
+        expect(catalogQueries).toHaveLength(3);
+        expect(catalogQueries[0]).toContain('information_schema.tables');
+        expect(catalogQueries[1]).toContain('information_schema.columns');
+        expect(catalogQueries[2]).toBe('SELECT 1');
+    });
+
+    it.each([
+        {
+            name: 'DB.SCHEMA.RUN_SQL; DROP TABLE T',
+            values: undefined,
+            errorName: AiQueryProcedureUnavailableError.name,
+            message: AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+        },
+        {
+            name: 'DB.SCHEMA.RUN_SQL',
+            values: [1],
+            errorName: AiQueryRefusedError.name,
+            message: AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE,
+        },
+    ])(
+        'refuses $name with values $values before executing SQL',
+        async ({ name, values, errorName, message }) => {
+            const warehouse = new SnowflakeWarehouseClient({
+                ...credentials,
+                requireAgentSession: true,
+                aiQueryProcedure: name,
+            });
+            mockUserQueryConnection(warehouse);
+            await expect(
+                warehouse.streamQuery('SELECT 1', () => {}, { values }),
+            ).rejects.toEqual(
+                expect.objectContaining({ name: errorName, message }),
+            );
+            expect(executeMock).not.toHaveBeenCalled();
+        },
+    );
+
+    it('classifies blocked earlier results and missing procedures without leaking driver text', () => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+            aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+        });
+        const queryId = '01bf5a2e-0001-2b3c-0000-0004d5e6f789';
+        const refusals = [
+            `Uncaught exception of type 'STATEMENT_ERROR' on line 5 at position 9 : Statement ${queryId} not found`,
+            `Uncaught exception of type 'STATEMENT_ERROR' on line 5 at position 9 : Uncaught exception of type 'STATEMENT_ERROR' on line 1 at position 0 : Statement ${queryId} not found`,
+        ];
+        for (const message of refusals) {
+            const error = warehouse.parseError({
+                code: '000709',
+                sqlState: '02000',
+                message,
+            } as never);
+            expect(error).toEqual(
+                expect.objectContaining({
+                    name: 'AiQueryRefusedError',
+                    message: AI_QUERY_READS_EARLIER_RESULTS_MESSAGE,
+                }),
+            );
+            expect(error.message).not.toContain(queryId);
+        }
+        expect(
+            warehouse.parseError({
+                code: '002003',
+                message: `Uncaught exception of type 'STATEMENT_ERROR' on line 5 at position 9 : Object 'T' does not exist or not authorized.`,
+            } as never).message,
+        ).toBe('Snowflake could not run this query.');
+        expect(
+            warehouse.parseError({
+                code: '002141',
+                message: `Uncaught exception of type 'STATEMENT_ERROR' on line 5 at position 9 : Unknown user-defined function DB.SCHEMA.RUN_SQL.`,
+            } as never).message,
+        ).toBe('Snowflake could not run this query.');
+        expect(
+            warehouse.parseError({
+                code: '002141',
+                message: 'Unknown user-defined function DB.SCHEMA.RUN_SQL.',
+            } as never),
+        ).toEqual(
+            expect.objectContaining({
+                name: 'AiQueryProcedureUnavailableError',
+                message: AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+            }),
+        );
+        expect(
+            warehouse.parseError({
+                code: '000630',
+                message: `Uncaught exception of type 'STATEMENT_ERROR' on line 5 at position 9 : Statement reached its statement or warehouse timeout of 5 second(s) and was canceled.`,
+            } as never).message,
+        ).toBe('Snowflake could not run this query.');
+    });
+
+    it('strips nested Snowflake Scripting prefixes', () => {
+        expect(
+            stripSnowflakeScriptingPrefixes(
+                `Uncaught exception of type 'STATEMENT_ERROR' on line 5 at position 9 : Uncaught exception of type 'EXPRESSION_ERROR' on line 2 at position 14 : Division by zero`,
+            ),
+        ).toEqual({ message: 'Division by zero', raisedInsideProcedure: true });
+        expect(stripSnowflakeScriptingPrefixes('Division by zero')).toEqual({
+            message: 'Division by zero',
+            raisedInsideProcedure: false,
+        });
+    });
+
+    it('closes the connection after every routed query', async () => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+            aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+        });
+        mockUserQueryConnection(warehouse);
+        const destroySpy = vi
+            .spyOn(
+                warehouse as unknown as {
+                    destroyConnection: () => Promise<void>;
+                },
+                'destroyConnection',
+            )
+            .mockResolvedValue(undefined);
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+        await warehouse.executeAsyncQuery(
+            { sql: 'SELECT 1', values: undefined, tags: {}, timezone: 'UTC' },
+            undefined,
+        );
+        expect(destroySpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('refuses to route on a cached interactive connection', async () => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+            aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+        });
+        mockUserQueryConnection(warehouse);
+        vi.spyOn(
+            warehouse as unknown as {
+                isInteractiveAuthenticator: () => boolean;
+            },
+            'isInteractiveAuthenticator',
+        ).mockReturnValue(true);
+        await expect(
+            warehouse.streamQuery('SELECT 1', () => {}, {}),
+        ).rejects.toEqual(
+            expect.objectContaining({
+                message: AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+            }),
+        );
+        expect(executeMock).not.toHaveBeenCalled();
+    });
+
+    it('does not retry a missing procedure as raw SQL', async () => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+            aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+        });
+        mockUserQueryConnection(warehouse);
+        executeMock.mockImplementation(({ complete }) => {
+            complete(
+                Object.assign(
+                    new Error(
+                        'SQL compilation error: Unknown user-defined function DB.SCHEMA.RUN_SQL.',
+                    ),
+                    { code: '002141' },
+                ),
+            );
+        });
+        await expect(
+            warehouse.streamQuery('SELECT 1', () => {}, {}),
+        ).rejects.toEqual(
+            expect.objectContaining({
+                message: AI_QUERY_PROCEDURE_UNAVAILABLE_MESSAGE,
+            }),
+        );
+        expect(executeMock).toHaveBeenCalledTimes(1);
+        expect(executeMock.mock.calls[0]?.[0].sqlText).toBe(
+            'CALL DB.SCHEMA.RUN_SQL(?)',
+        );
+    });
     it('does not pass Snowflake query IDs from driver errors to an agent session', () => {
         const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
         const warehouse = new SnowflakeWarehouseClient({

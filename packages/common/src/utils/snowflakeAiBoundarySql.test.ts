@@ -3,6 +3,8 @@ import {
     getAgenticEnvBlock,
     getAgenticIntegrationSql,
     getAgentMaskingSql,
+    getAiQueryProcedureSettingValue,
+    getAiQueryProcedureSql,
     getSessionCeilingSql,
     quoteSnowflakeAiIdentifier,
     SNOWFLAKE_AI_STRING_MASK,
@@ -123,4 +125,131 @@ describe('getAgenticIntegrationSql redirect URI scheme', () => {
             }),
         ).not.toContain('OAUTH_ALLOW_NON_TLS_REDIRECT_URI');
     });
+});
+
+describe('AI query procedure SQL', () => {
+    const options = {
+        database: 'ANALYTICS',
+        schema: 'AI_GOVERNANCE',
+        name: 'RUN_SQL',
+        ownerRole: 'OWNER',
+        aiRoles: ['ANALYST', 'READER'],
+        allowedSchemas: [
+            { database: 'DATA', schema: 'PUBLIC' },
+            { database: 'DATA', schema: 'REPORTS' },
+        ],
+    };
+
+    it('generates the complete procedure and grants in order', () => {
+        expect(getAiQueryProcedureSql(options)).toBe(`USE ROLE "OWNER";
+CREATE PROCEDURE "ANALYTICS"."AI_GOVERNANCE"."RUN_SQL"(Q STRING)
+RETURNS TABLE()
+LANGUAGE SQL
+EXECUTE AS RESTRICTED CALLER
+AS
+$$
+DECLARE rs RESULTSET;
+BEGIN
+  rs := (EXECUTE IMMEDIATE :Q);
+  RETURN TABLE(rs);
+END;
+$$;
+GRANT CALLER DATA READ ON SCHEMA "DATA"."PUBLIC" TO ROLE "OWNER";
+GRANT CALLER DATA READ ON SCHEMA "DATA"."REPORTS" TO ROLE "OWNER";
+GRANT CALLER COMPUTE USAGE ON ACCOUNT TO ROLE "OWNER";
+GRANT USAGE ON PROCEDURE "ANALYTICS"."AI_GOVERNANCE"."RUN_SQL"(STRING) TO ROLE "ANALYST";
+GRANT USAGE ON PROCEDURE "ANALYTICS"."AI_GOVERNANCE"."RUN_SQL"(STRING) TO ROLE "READER";`);
+        expect(getAiQueryProcedureSettingValue(options)).toBe(
+            '"ANALYTICS"."AI_GOVERNANCE"."RUN_SQL"',
+        );
+    });
+
+    it('quotes unusual identifiers in the procedure, setting and grants', () => {
+        const odd = {
+            ...options,
+            database: 'Data base',
+            schema: 'A.B',
+            name: 'run"sql',
+            ownerRole: 'own"er',
+            aiRoles: ['ai"role'],
+            allowedSchemas: [{ database: 'A.B', schema: 'a"b' }],
+        };
+        const setting = '"Data base"."A.B"."run""sql"';
+        expect(getAiQueryProcedureSettingValue(odd)).toBe(setting);
+        const sql = getAiQueryProcedureSql(odd);
+        expect(sql).toContain(`CREATE PROCEDURE ${setting}(Q STRING)`);
+        expect(sql).toContain('USE ROLE "own""er";');
+        expect(sql).toContain(
+            'GRANT CALLER DATA READ ON SCHEMA "A.B"."a""b" TO ROLE "own""er";',
+        );
+        expect(sql).toContain(
+            `GRANT USAGE ON PROCEDURE ${setting}(STRING) TO ROLE "ai""role";`,
+        );
+    });
+
+    it.each(['database', 'schema', 'name', 'ownerRole'] as const)(
+        'rejects an empty %s',
+        (field) => {
+            expect(() =>
+                getAiQueryProcedureSql({ ...options, [field]: '' }),
+            ).toThrow('Enter a valid Snowflake name');
+        },
+    );
+
+    it('rejects empty lists and invalid list members', () => {
+        expect(() =>
+            getAiQueryProcedureSql({ ...options, aiRoles: [] }),
+        ).toThrow('Enter at least one AI role');
+        expect(() =>
+            getAiQueryProcedureSql({ ...options, allowedSchemas: [] }),
+        ).toThrow('Enter at least one allowed schema');
+        expect(() =>
+            getAiQueryProcedureSql({ ...options, aiRoles: [''] }),
+        ).toThrow('Enter a valid Snowflake name');
+        expect(() =>
+            getAiQueryProcedureSql({
+                ...options,
+                allowedSchemas: [{ database: 'DATA', schema: '' }],
+            }),
+        ).toThrow('Enter a valid Snowflake name');
+        expect(() =>
+            getAiQueryProcedureSettingValue({ ...options, name: '' }),
+        ).toThrow('Enter a valid Snowflake name');
+    });
+
+    it('adds program usage to the allowed privileges YAML', () => {
+        expect(
+            getSessionCeilingSql({
+                database: 'DATA',
+                schema: 'SECURITY',
+                blockedRoles: [],
+                programUsageSchema: {
+                    database: 'ANALYTICS',
+                    schema: 'AI_GOVERNANCE',
+                },
+            }),
+        ).toContain(
+            '      account: [all]\n    - privileges: [program usage]\n      schemas: [ANALYTICS.AI_GOVERNANCE]\nrole_scopes:',
+        );
+    });
+
+    it.each(['', 'A.B', 'a"b', 'a b', '1ABC', 'a\nb', 'x]'])(
+        'rejects unsafe YAML names: %j',
+        (name) => {
+            for (const field of ['database', 'schema']) {
+                expect(() =>
+                    getSessionCeilingSql({
+                        database: 'DATA',
+                        schema: 'SECURITY',
+                        blockedRoles: [],
+                        programUsageSchema: {
+                            database: 'DATA',
+                            schema: 'SAFE',
+                            [field]: name,
+                        },
+                    }),
+                ).toThrow('Enter a valid Snowflake name');
+            }
+        },
+    );
 });

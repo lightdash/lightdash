@@ -2,6 +2,8 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AiAgentWithContext,
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     AiResultType,
     AiWritebackRunStatus,
     aiWritebackRunStatusToMcpTaskStatus,
@@ -3469,7 +3471,11 @@ export class McpService extends BaseService {
                                 {
                                     type: 'text' as const,
                                     text:
-                                        e instanceof AiAccessRestrictionsError
+                                        e instanceof
+                                            AiAccessRestrictionsError ||
+                                        e instanceof AiQueryRefusedError ||
+                                        e instanceof
+                                            AiQueryProcedureUnavailableError
                                             ? errorMessage
                                             : `Error running metric query: ${errorMessage}`,
                                 },
@@ -3764,7 +3770,11 @@ export class McpService extends BaseService {
                                 {
                                     type: 'text' as const,
                                     text:
-                                        e instanceof AiAccessRestrictionsError
+                                        e instanceof
+                                            AiAccessRestrictionsError ||
+                                        e instanceof AiQueryRefusedError ||
+                                        e instanceof
+                                            AiQueryProcedureUnavailableError
                                             ? errorMessage
                                             : `Error running SQL query: ${errorMessage}`,
                                 },
@@ -3951,7 +3961,12 @@ export class McpService extends BaseService {
                             content: [
                                 {
                                     type: 'text' as const,
-                                    text: `Error getting query result: ${errorMessage}`,
+                                    text:
+                                        e instanceof AiQueryRefusedError ||
+                                        e instanceof
+                                            AiQueryProcedureUnavailableError
+                                            ? errorMessage
+                                            : `Error getting query result: ${errorMessage}`,
                                 },
                             ],
                             isError: true,

@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type ApiError,
     type SnowflakeAiBoundaryCheck,
     type SnowflakeAiBoundaryGuideConfig,
@@ -13,6 +14,7 @@ import {
     useAiAccessRestrictions,
     useProjectUpdateAiAccessRestrictions,
 } from '../../hooks/useProject';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useGuideSql } from './useGuideSql';
 
 export const useBoundaryGuide = ({
@@ -24,6 +26,8 @@ export const useBoundaryGuide = ({
     isSnowflake: boolean;
     showAiAccessRestrictions: boolean;
 }) => {
+    const procedureFlag = useServerFeatureFlag(FeatureFlags.AiQueryProcedure);
+    const aiQueryProcedureEnabled = procedureFlag.data?.enabled === true;
     const queryClient = useQueryClient();
     const queryKey = ['snowflake-ai-boundary-guide', projectUuid];
     const config = useQuery<SnowflakeAiBoundaryGuideConfig, ApiError>({
@@ -75,6 +79,11 @@ export const useBoundaryGuide = ({
     const [inputs, setInputs] = useState({
         integrationName: '',
         roles: '',
+        procedureDatabase: '',
+        procedureSchema: '',
+        procedureName: 'LIGHTDASH_AI_RUN_SQL',
+        procedureOwnerRole: '',
+        allowedSchemas: [] as string[],
         tagDatabase: '',
         tagSchema: '',
         selectedSchemas: [] as string[],
@@ -94,6 +103,7 @@ export const useBoundaryGuide = ({
         [catalogQuery.data],
     );
     const selectedSchemaSet = new Set(inputs.selectedSchemas);
+    const allowedSchemaSet = new Set(inputs.allowedSchemas);
     const protectedSchemas = schemas.filter((schema) =>
         selectedSchemaSet.has(schema.key),
     );
@@ -102,9 +112,14 @@ export const useBoundaryGuide = ({
         redirectUri: config.data?.redirectUri ?? '',
         account: config.data?.snowflakeAccount ?? '',
         protectedSchemas,
+        aiQueryProcedureEnabled,
+        allowedSchemas: schemas.filter((schema) =>
+            allowedSchemaSet.has(schema.key),
+        ),
     });
     return {
         config,
+        aiQueryProcedureEnabled,
         mark,
         test,
         catalogQuery,

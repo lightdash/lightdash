@@ -2561,6 +2561,44 @@ describe('ProjectModel', () => {
 
     describe('mergeMissingProjectConfigSecrets', () => {
         test.each([
+            [undefined, 'DB.SCHEMA.RUN_SQL'],
+            ['', ''],
+            ['DB.SCHEMA.NEW_SQL', 'DB.SCHEMA.NEW_SQL'],
+        ])(
+            'preserves a saved Snowflake procedure when the update sends %s',
+            (incoming, expected) => {
+                const connection: CreateSnowflakeCredentials = {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    account: 'account',
+                    user: 'user',
+                    password: 'password',
+                    database: 'database',
+                    warehouse: 'warehouse',
+                    schema: 'schema',
+                };
+                const result = ProjectModel.mergeMissingProjectConfigSecrets(
+                    {
+                        ...expectedProject,
+                        warehouseConnection: {
+                            ...connection,
+                            aiQueryProcedure: incoming,
+                        },
+                    },
+                    {
+                        ...expectedProject,
+                        warehouseConnection: {
+                            ...connection,
+                            aiQueryProcedure: 'DB.SCHEMA.RUN_SQL',
+                        },
+                    },
+                );
+                expect(result.warehouseConnection).toMatchObject({
+                    aiQueryProcedure: expected,
+                });
+            },
+        );
+
+        test.each([
             [true, undefined, true],
             [false, undefined, false],
             [undefined, undefined, undefined],

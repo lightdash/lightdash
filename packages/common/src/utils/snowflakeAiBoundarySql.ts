@@ -103,10 +103,12 @@ const getSessionPolicySql = ({
     database,
     schema,
     blockedRoles,
+    programUsageSchema,
 }: {
     database: string;
     schema: string;
     blockedRoles: string[];
+    programUsageSchema?: { database: string; schema: string };
 }): string => {
     const scope = qualified(database, schema, 'LIGHTDASH_AI_RESTRICTED_SCOPE');
     const policy = qualified(database, schema, 'LIGHTDASH_AI_SESSION_POLICY');
@@ -123,7 +125,18 @@ const getSessionPolicySql = ({
         if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(role))
             throw new Error('Enter a valid Snowflake role');
     });
-    const yaml = `privilege_scopes:\n  allowed_privileges:\n    - privileges: [data read, compute usage]\n      account: [all]\nrole_scopes:\n  blocked_roles: [${roles.join(', ')}]\n  allow_role_switching: false`;
+    if (
+        programUsageSchema &&
+        ![programUsageSchema.database, programUsageSchema.schema].every(
+            (part) => /^[A-Za-z_][A-Za-z0-9_$]*$/.test(part),
+        )
+    ) {
+        throw new Error('Enter a valid Snowflake name');
+    }
+    const programUsage = programUsageSchema
+        ? `    - privileges: [program usage]\n      schemas: [${programUsageSchema.database}.${programUsageSchema.schema}]\n`
+        : '';
+    const yaml = `privilege_scopes:\n  allowed_privileges:\n    - privileges: [data read, compute usage]\n      account: [all]\n${programUsage}role_scopes:\n  blocked_roles: [${roles.join(', ')}]\n  allow_role_switching: false`;
     return `CREATE RESTRICTED SESSION SCOPE ${scope} AS $$\n${yaml}\n$$;\n\nCREATE SESSION POLICY ${policy} AGENT_RESTRICTED_SESSION_SCOPE = ${sqlString(scope)};`;
 };
 
@@ -131,5 +144,66 @@ export const getSessionCeilingSql = (options: {
     database: string;
     schema: string;
     blockedRoles: string[];
+    programUsageSchema?: { database: string; schema: string };
 }): string =>
     `${getSessionPolicySql(options)}\n\nALTER ACCOUNT SET SESSION POLICY ${qualified(options.database, options.schema, 'LIGHTDASH_AI_SESSION_POLICY')};`;
+
+export const getAiQueryProcedureSettingValue = ({
+    database,
+    schema,
+    name,
+}: {
+    database: string;
+    schema: string;
+    name: string;
+}): string => qualified(database, schema, name);
+
+export const getAiQueryProcedureSql = ({
+    database,
+    schema,
+    name,
+    ownerRole,
+    aiRoles,
+    allowedSchemas,
+}: {
+    database: string;
+    schema: string;
+    name: string;
+    ownerRole: string;
+    aiRoles: string[];
+    allowedSchemas: { database: string; schema: string }[];
+}): string => {
+    const procedure = getAiQueryProcedureSettingValue({
+        database,
+        schema,
+        name,
+    });
+    const owner = quoteSnowflakeAiIdentifier(ownerRole);
+    if (allowedSchemas.length === 0)
+        throw new Error('Enter at least one allowed schema');
+    if (aiRoles.length === 0) throw new Error('Enter at least one AI role');
+    return [
+        `USE ROLE ${owner};`,
+        `CREATE PROCEDURE ${procedure}(Q STRING)
+RETURNS TABLE()
+LANGUAGE SQL
+EXECUTE AS RESTRICTED CALLER
+AS
+$$
+DECLARE rs RESULTSET;
+BEGIN
+  rs := (EXECUTE IMMEDIATE :Q);
+  RETURN TABLE(rs);
+END;
+$$;`,
+        ...allowedSchemas.map(
+            (allowed) =>
+                `GRANT CALLER DATA READ ON SCHEMA ${qualified(allowed.database, allowed.schema)} TO ROLE ${owner};`,
+        ),
+        `GRANT CALLER COMPUTE USAGE ON ACCOUNT TO ROLE ${owner};`,
+        ...aiRoles.map(
+            (role) =>
+                `GRANT USAGE ON PROCEDURE ${procedure}(STRING) TO ROLE ${quoteSnowflakeAiIdentifier(role)};`,
+        ),
+    ].join('\n');
+};

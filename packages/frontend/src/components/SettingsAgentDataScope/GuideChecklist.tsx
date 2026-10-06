@@ -2,6 +2,7 @@ import { type SnowflakeAiBoundarySection } from '@lightdash/common';
 import { Anchor, Checkbox, List, Stack, Text } from '@mantine/core';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { AiQueryProcedureStep } from './AiQueryProcedureStep';
 import { BoundaryTestStep } from './BoundaryTestStep';
 import { GuideSection } from './GuideSection';
 import { IntegrationStep } from './IntegrationStep';
@@ -23,6 +24,7 @@ export const GuideChecklist = ({
     const { config, inputs, setInputs, mark } = guide;
     if (!config.data) return null;
     const data = config.data;
+    const openedSections = new Set(opened);
     const sections: {
         id: SnowflakeAiBoundarySection;
         title: string;
@@ -82,6 +84,18 @@ export const GuideChecklist = ({
             manual: true,
             content: <MaskingStep guide={guide} />,
         },
+        ...(guide.aiQueryProcedureEnabled
+            ? [
+                  {
+                      id: 'query_procedure' as const,
+                      title: 'AI query procedure',
+                      summary:
+                          'Create a procedure for AI queries and save it on the connection.',
+                      manual: true,
+                      content: <AiQueryProcedureStep guide={guide} />,
+                  },
+              ]
+            : []),
         {
             id: 'session_policy',
             title: 'Limit what AI sessions can do',
@@ -127,7 +141,7 @@ export const GuideChecklist = ({
                     summary={section.summary}
                     status={data.statuses[section.id]}
                     mark={data.state.marks[section.id]}
-                    isOpen={opened.includes(section.id)}
+                    isOpen={openedSections.has(section.id)}
                     onToggle={(open) => onToggle(section.id, open)}
                 >
                     {section.content}

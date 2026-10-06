@@ -58,6 +58,28 @@ export class ForbiddenError extends LightdashError {
     }
 }
 
+export class AiQueryRefusedError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AiQueryRefusedError',
+            statusCode: 403,
+            data: {},
+        });
+    }
+}
+
+export class AiQueryProcedureUnavailableError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AiQueryProcedureUnavailableError',
+            statusCode: 403,
+            data: {},
+        });
+    }
+}
+
 export class GoogleNotConnectedError extends LightdashError {
     constructor(message = 'Google account not connected') {
         super({

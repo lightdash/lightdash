@@ -44,6 +44,8 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // coding agent summarize long sessions: opt-in only, rolled out per org
     // from Console.
     FeatureFlags.DataAppAgentCostOptimizations,
+    // Changes how AI queries run on Snowflake: opt-in per org from Console.
+    FeatureFlags.AiQueryProcedure,
 ]);
 
 export const ALL_FEATURE_FLAG_IDS: readonly string[] = [

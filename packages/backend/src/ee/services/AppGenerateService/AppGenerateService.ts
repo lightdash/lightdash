@@ -12,6 +12,8 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject, type Ability } from '@casl/ability';
 import {
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     AlreadyExistsError,
     APP_UPGRADE_PROMPT_LABEL,
     APP_VERSION_CANCELLED_BY_USER,
@@ -6749,7 +6751,12 @@ export class AppGenerateService extends BaseService {
                 });
             return { status: 'available', rows, truncated };
         } catch (error) {
-            if (error instanceof AiAccessRestrictionsError) throw error;
+            if (
+                error instanceof AiAccessRestrictionsError ||
+                error instanceof AiQueryRefusedError ||
+                error instanceof AiQueryProcedureUnavailableError
+            )
+                throw error;
             this.logger.warn(
                 `Sample query failed for chart ${chartUuid}: ${getErrorMessage(error)}`,
             );

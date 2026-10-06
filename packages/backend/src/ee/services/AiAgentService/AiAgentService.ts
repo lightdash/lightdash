@@ -41,6 +41,8 @@ import {
     AiPrompt,
     AiPromptContext,
     AiPromptSteer,
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
@@ -12915,7 +12917,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     ),
                 )
                 .catch((error) => {
-                    if (error instanceof AiAccessRestrictionsError) throw error;
+                    if (
+                        error instanceof AiAccessRestrictionsError ||
+                        error instanceof AiQueryRefusedError ||
+                        error instanceof AiQueryProcedureUnavailableError
+                    )
+                        throw error;
                     Logger.warn(
                         `AI agent value search failed for ${fieldId}: ${getErrorMessage(error)}`,
                     );

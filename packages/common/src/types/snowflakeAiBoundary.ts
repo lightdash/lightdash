@@ -42,7 +42,8 @@ export type SnowflakeAiBoundarySection =
     | 'session_policy'
     | 'sign_in'
     | 'oauth'
-    | 'checks';
+    | 'checks'
+    | 'query_procedure';
 
 export type SnowflakeAiBoundarySectionStatus =
     | 'verified'

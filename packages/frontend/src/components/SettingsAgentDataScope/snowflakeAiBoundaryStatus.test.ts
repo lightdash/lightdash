@@ -24,6 +24,7 @@ const config: SnowflakeAiBoundaryGuideConfig = {
         sign_in: 'needs_attention',
         oauth: 'not_started',
         checks: 'not_started',
+        query_procedure: 'not_started',
     },
 };
 

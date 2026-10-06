@@ -182,6 +182,14 @@ Snowflake sign-in for AI. An organization must also enable
 `snowflake-ai-sign-in` so people can connect it. Enabling either flag does not
 set up the Snowflake security integration or the project toggle.
 
+`ai-query-procedure` is organization-scoped and off by default. It has no custom
+handler and follows the standard ENV and Console precedence above. It needs
+`ai-access-restrictions` and the project toggle to be on. A Snowflake admin
+must create a Snowflake SQL procedure with `EXECUTE AS RESTRICTED CALLER` and
+grant the person's AI sign-in permission to call it. When enabled with a
+procedure configured, Lightdash sends every AI query
+through that procedure and never falls back to a direct query.
+
 ## Code references
 
 - [Flag registration](../packages/common/src/types/featureFlags.ts)

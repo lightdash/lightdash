@@ -154,6 +154,9 @@ const SnowflakeForm: FC<{
     const showSaveCredentials = !!health.data?.isSaveCredentialsFormEnabled;
     const isEditMode = !!savedProject;
 
+    const aiQueryProcedureFlag = useServerFeatureFlag(
+        FeatureFlags.AiQueryProcedure,
+    );
     const warehouseConnectFlag = useServerFeatureFlag(
         FeatureFlags.NewOnboarding,
     );
@@ -695,6 +698,19 @@ const SnowflakeForm: FC<{
                                                 },
                                             )}
                                         />
+
+                                        {aiQueryProcedureFlag.data?.enabled ===
+                                            true && (
+                                            <TextInput
+                                                name="warehouse.aiQueryProcedure"
+                                                label="AI query procedure"
+                                                description="Fully qualified name, for example ANALYTICS.AI_GOVERNANCE.RUN_SQL. AI queries run through this procedure when AI access restrictions are on. Leave empty to turn it off."
+                                                {...form.getInputProps(
+                                                    'warehouse.aiQueryProcedure',
+                                                )}
+                                                disabled={disabled}
+                                            />
+                                        )}
 
                                         <TextInput
                                             name="warehouse.queryTag"

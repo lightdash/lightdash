@@ -137,6 +137,7 @@ export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     requireUserCredentials: false,
     clientSessionKeepAlive: false,
     queryTag: '',
+    aiQueryProcedure: '',
     accessUrl: '',
     startOfWeek: undefined,
     dataTimezone: undefined,

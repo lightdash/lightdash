@@ -724,16 +724,28 @@ export class ProjectModel {
         const savedWarehouse = completeProjectConfig.warehouseConnection;
         // CLI credential refreshes omit project-only settings. Preserve the
         // opt-in unless the update explicitly enables or disables it.
-        const warehouseConnection =
+        let warehouseConnection = incomingWarehouse;
+        if (
             incomingWarehouse.type === WarehouseTypes.BIGQUERY &&
             savedWarehouse?.type === WarehouseTypes.BIGQUERY
-                ? {
-                      ...incomingWarehouse,
-                      allowUserCredentials:
-                          incomingWarehouse.allowUserCredentials ??
-                          savedWarehouse.allowUserCredentials,
-                  }
-                : incomingWarehouse;
+        ) {
+            warehouseConnection = {
+                ...incomingWarehouse,
+                allowUserCredentials:
+                    incomingWarehouse.allowUserCredentials ??
+                    savedWarehouse.allowUserCredentials,
+            };
+        } else if (
+            incomingWarehouse.type === WarehouseTypes.SNOWFLAKE &&
+            savedWarehouse?.type === WarehouseTypes.SNOWFLAKE
+        ) {
+            warehouseConnection = {
+                ...incomingWarehouse,
+                aiQueryProcedure:
+                    incomingWarehouse.aiQueryProcedure ??
+                    savedWarehouse.aiQueryProcedure,
+            };
+        }
         return {
             ...incompleteProjectConfig,
             dbtConnection: ProjectModel.mergeMissingDbtConfigSecrets(
