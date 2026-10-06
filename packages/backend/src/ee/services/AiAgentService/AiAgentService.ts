@@ -306,7 +306,10 @@ import {
 import { wrapSentryTransaction } from '../../../utils';
 import { redactItemsMapSql } from '../../../utils/embedCompiledSql';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
-import { type DbAiPromptTurnDecisionOutcome } from '../../database/entities/ai';
+import {
+    type DbAiPromptTurnDecision,
+    type DbAiPromptTurnDecisionOutcome,
+} from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
@@ -373,6 +376,7 @@ import { Compaction } from '../ai/compaction';
 import {
     resolveAiDecisionClient,
     type AiDecisionClient,
+    type AiDecisionUsage,
 } from '../ai/decisions/AiDecisionClient';
 import {
     applyChartIntent,
@@ -402,6 +406,15 @@ import {
     findStaleChartMetadata,
     type ChartMetadata,
 } from '../ai/decisions/chartTitle';
+import {
+    decideDocumentEdit,
+    describeDocumentEdit,
+    DOCUMENT_EDIT_THRESHOLDS,
+    getDocumentEdit,
+    getDocumentEditCharts,
+    type DocumentEditContext,
+    type DocumentEditResolution,
+} from '../ai/decisions/documentEdit';
 import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
@@ -438,6 +451,7 @@ import {
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
+import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
 import { RUN_SQL_REJECTED_OUTPUT } from '../ai/tools/runSql';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
@@ -534,7 +548,10 @@ import {
 import { isSqlScopeConfigured } from '../ai/utils/sqlScope';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
-import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import {
+    AiAgentToolsService,
+    type AiAgentToolsRuntime,
+} from '../AiAgentToolsService/AiAgentToolsService';
 import { type AiCreditService } from '../AiCreditService';
 import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
 import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
@@ -618,6 +635,18 @@ type ChartTurnContext = {
     explore: Explore;
     catalogFields: Array<{ candidate: FieldCandidate; tableName: string }>;
     intentContext: ChartIntentContext;
+};
+
+type DocumentTurnContext = {
+    context: DocumentEditContext;
+    editContent: AiAgentToolsRuntime['editContent'];
+};
+
+type StaticToolCall = {
+    toolCallId: string;
+    toolName: string;
+    input: unknown;
+    output: unknown;
 };
 
 // The fast edit reply waits this long for a one-number result before sending without it.
@@ -13502,6 +13531,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         pendingText,
         responseStartedAt,
         decisionUsage,
+        toolCall,
     }: {
         user: SessionUser;
         prompt: AiWebAppPrompt;
@@ -13511,6 +13541,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         pendingText: Promise<string | null>;
         responseStartedAt: number;
         decisionUsage: () => { inputTokens: number; outputTokens: number };
+        /** A tool call made without the model, streamed so the client reacts to it as to the agent's own. */
+        toolCall?: StaticToolCall;
     }): Promise<AgentResponseStream> {
         const firstTokenAt = new Date().toISOString();
         this.prometheusMetrics?.aiAgentTTFTHistogram?.observe(
@@ -13552,6 +13584,19 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const stream = createUIMessageStream({
             execute: async ({ writer }) => {
                 writer.write({ type: 'start' });
+                if (toolCall) {
+                    writer.write({
+                        type: 'tool-input-available',
+                        toolCallId: toolCall.toolCallId,
+                        toolName: toolCall.toolName,
+                        input: toolCall.input,
+                    });
+                    writer.write({
+                        type: 'tool-output-available',
+                        toolCallId: toolCall.toolCallId,
+                        output: toolCall.output,
+                    });
+                }
                 writer.write({ type: 'text-start', id: prompt.promptUuid });
                 writer.write({
                     type: 'text-delta',
@@ -13646,7 +13691,89 @@ Use your existing tools to inspect them when relevant to the user's question (re
             outcome = 'clarify';
             intent = { question: chart.question, options: chart.options };
         } else if (chart) outcome = chart.type;
-        const operation = chart ? 'chart-intent' : 'model-routing';
+        await this.saveTurnDecision({
+            prompt,
+            decisions,
+            decision: {
+                operation: chart ? 'chart-intent' : 'model-routing',
+                outcome,
+                reason,
+                intent,
+                applied,
+                fallback_reason: fallbackReason,
+                simple_data_answer: turn.decision.simpleDataAnswer,
+                answers: turn.answers,
+                thresholds: CHART_INTENT_THRESHOLDS,
+            },
+            latencyMs,
+            serviceMs,
+        });
+    }
+
+    private async recordDocumentEditDecision({
+        prompt,
+        decisions,
+        decision: { resolution, answers },
+        latencyMs,
+        serviceMs,
+        applied,
+        fallbackReason,
+    }: {
+        prompt: AiPrompt;
+        decisions: AiDecisionClient;
+        decision: {
+            resolution: DocumentEditResolution;
+            answers: object | null;
+        };
+        latencyMs: number;
+        serviceMs: number | null;
+        applied: boolean;
+        fallbackReason: string | null;
+    }): Promise<void> {
+        await this.saveTurnDecision({
+            prompt,
+            decisions,
+            decision: {
+                operation: 'document-edit',
+                outcome: answers === null ? 'unavailable' : resolution.type,
+                reason:
+                    resolution.type === 'unresolved' ? resolution.reason : null,
+                intent: resolution.type === 'intent' ? resolution.intent : null,
+                applied,
+                fallback_reason: fallbackReason,
+                simple_data_answer: false,
+                answers,
+                thresholds: DOCUMENT_EDIT_THRESHOLDS,
+            },
+            latencyMs,
+            serviceMs,
+        });
+    }
+
+    private async saveTurnDecision({
+        prompt,
+        decisions,
+        decision,
+        latencyMs,
+        serviceMs,
+    }: {
+        prompt: AiPrompt;
+        decisions: AiDecisionClient;
+        decision: Pick<
+            DbAiPromptTurnDecision,
+            | 'operation'
+            | 'outcome'
+            | 'reason'
+            | 'intent'
+            | 'applied'
+            | 'fallback_reason'
+            | 'simple_data_answer'
+            | 'answers'
+            | 'thresholds'
+        >;
+        latencyMs: number;
+        serviceMs: number | null;
+    }): Promise<void> {
         this.analytics.track<AiAgentTurnDecisionEvent>({
             event: 'ai_agent.turn_decision',
             userId: prompt.createdByUserUuid,
@@ -13656,10 +13783,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 aiAgentId: prompt.agentUuid,
                 promptId: prompt.promptUuid,
                 threadId: prompt.threadUuid,
-                operation,
-                outcome,
-                applied,
-                fallbackReason,
+                operation: decision.operation,
+                outcome: decision.outcome,
+                applied: decision.applied,
+                fallbackReason: decision.fallback_reason,
                 latencyMs: Math.round(latencyMs),
                 serviceMs: serviceMs === null ? null : Math.round(serviceMs),
                 jevModel: decisions.modelName,
@@ -13667,24 +13794,215 @@ Use your existing tools to inspect them when relevant to the user's question (re
         });
         try {
             await this.aiAgentModel.createPromptDecision({
+                ...decision,
                 ai_prompt_uuid: prompt.promptUuid,
-                operation,
-                outcome,
-                reason,
-                intent,
-                applied,
-                fallback_reason: fallbackReason,
-                simple_data_answer: turn.decision.simpleDataAnswer,
-                answers: turn.answers,
-                thresholds: CHART_INTENT_THRESHOLDS,
                 latency_ms: Math.round(latencyMs),
                 jev_service_ms:
                     serviceMs === null ? null : Math.round(serviceMs),
                 jev_model: decisions.modelName,
             });
         } catch (error) {
-            Logger.warn(`Unable to record AI turn decision: ${String(error)}`);
+            Logger.warn(
+                `Unable to record AI ${decision.operation} decision: ${String(error)}`,
+            );
         }
+    }
+
+    private canUseContentTools(
+        user: SessionUser,
+        agent: AiAgent,
+        target: {
+            organizationUuid: string;
+            projectUuid: string;
+            promptUuid: string;
+            threadUuid: string;
+        },
+    ): boolean {
+        return (
+            agent.enableContentTools &&
+            agent.enableDataAccess &&
+            this.createAuditedAbility(user).can(
+                'create',
+                subject('ContentAsCode', {
+                    organizationUuid: target.organizationUuid,
+                    projectUuid: target.projectUuid,
+                    metadata: {
+                        promptUuid: target.promptUuid,
+                        threadUuid: target.threadUuid,
+                        agentUuid: agent.uuid,
+                    },
+                }),
+            )
+        );
+    }
+
+    /** The Document pinned to the thread, read as the agent would, when the agent may edit it. */
+    private async loadDocumentTurnContext({
+        user,
+        prompt,
+        agent,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+    }): Promise<DocumentTurnContext | null> {
+        const [documentUuid, promptContext] = await Promise.all([
+            this.aiAgentModel.findThreadDocumentUuid(prompt.threadUuid),
+            this.aiAgentModel.getContextForPromptUuids([prompt.promptUuid]),
+        ]);
+        // Other pinned content could be what "it" means, so only the agent can tell.
+        const pinsOtherContent = (
+            promptContext.get(prompt.promptUuid) ?? []
+        ).some((item) => item.type !== 'document');
+        if (
+            documentUuid === null ||
+            pinsOtherContent ||
+            !this.canUseContentTools(user, agent, prompt)
+        ) {
+            return null;
+        }
+        const { enabled: documentsEnabled } = await this.featureFlagService.get(
+            {
+                user,
+                featureFlagId: FeatureFlags.Documents,
+            },
+        );
+        if (!documentsEnabled) {
+            return null;
+        }
+        const runtime = this.aiAgentToolsService.createRuntime({
+            user,
+            account: fromSession(user),
+            organizationUuid: prompt.organizationUuid,
+            projectUuid: prompt.projectUuid,
+            source: 'ai_agent',
+            enableDocuments: true,
+            catalogSearchContext: CatalogSearchContext.AI_AGENT,
+            defaultQueryExecutionContext: QueryExecutionContext.AI,
+            tags: agent.tags,
+            spaceAccess: agent.spaceAccess,
+            agentUuid: agent.uuid,
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
+        });
+        const document = await runtime.readContent({
+            type: 'document',
+            documentUuid,
+            chartId: null,
+        });
+        if (
+            document.type !== 'document' ||
+            document.content.markdown === null
+        ) {
+            return null;
+        }
+        const { slug, name, markdown } = document.content;
+        return {
+            context: {
+                slug,
+                name,
+                versionUuid: document.versionUuid,
+                markdown,
+                charts: getDocumentEditCharts(markdown),
+            },
+            editContent: runtime.editContent,
+        };
+    }
+
+    /** Applies a Document edit JEV is sure about through editContent, so the agent model never runs. */
+    private async tryApplyDocumentEdit({
+        user,
+        prompt,
+        agent,
+        decisions,
+        document,
+        decision,
+        latencyMs,
+        serviceMs,
+        responseStartedAt,
+        decisionUsage,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        decisions: AiDecisionClient;
+        document: DocumentTurnContext;
+        decision: Awaited<ReturnType<typeof decideDocumentEdit>>;
+        latencyMs: number;
+        serviceMs: number | null;
+        responseStartedAt: number;
+        decisionUsage: () => { inputTokens: number; outputTokens: number };
+    }): Promise<AgentResponseStream | null> {
+        const record = (applied: boolean, fallbackReason: string | null) =>
+            this.recordDocumentEditDecision({
+                prompt,
+                decisions,
+                decision,
+                latencyMs,
+                serviceMs,
+                applied,
+                fallbackReason,
+            });
+        const { resolution } = decision;
+        if (resolution.type !== 'intent') {
+            await record(false, null);
+            return null;
+        }
+        if (await this.aiAgentModel.hasAiPromptInterrupt(prompt.promptUuid)) {
+            await record(false, 'interrupted');
+            return null;
+        }
+
+        const toolCall = {
+            toolCallId: `jev_${randomUUID()}`,
+            toolName: 'editContent',
+            input: {
+                slug: document.context.slug,
+                type: 'document' as const,
+                documentEdit: getDocumentEdit(
+                    resolution.intent,
+                    document.context,
+                ),
+            },
+        };
+        const output = await executeEditContent(
+            { editContent: document.editContent, documentsEnabled: true },
+            toolCall.input,
+        );
+        if (output.metadata.status !== 'success') {
+            await record(false, 'edit-failed');
+            return null;
+        }
+
+        // Persisted like the agent's own call, so the thread replays the edit.
+        await this.aiAgentModel.createToolCall({
+            promptUuid: prompt.promptUuid,
+            toolCallId: toolCall.toolCallId,
+            toolName: toolCall.toolName,
+            toolArgs: toolCall.input,
+            parentToolCallId: null,
+        });
+        await this.aiAgentModel.createToolResults([
+            {
+                promptUuid: prompt.promptUuid,
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                result: output.result,
+                metadata: output.metadata,
+            },
+        ]);
+        const stream = await this.respondWithStaticText({
+            user,
+            prompt,
+            agent,
+            text: describeDocumentEdit(resolution.intent, document.context),
+            pendingText: Promise.resolve(null),
+            responseStartedAt,
+            decisionUsage,
+            toolCall: { ...toolCall, output },
+        });
+        await record(true, null);
+        return stream;
     }
 
     async generateOrStreamAgentResponse(
@@ -13865,7 +14183,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const fastExperienceEnabled = decisions !== undefined;
         let forceChartMutationRouting = false;
         let chartMutationContext: AiSemanticChartArtifactConfig | undefined;
-        const chartTurn =
+        const [chartTurn, documentTurn] = await Promise.all([
             decisions &&
             stream &&
             !isSlackPrompt(prompt) &&
@@ -13880,11 +14198,49 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 prompt.threadCreatedFrom,
                 undefined,
             ) === undefined
-                ? await this.loadChartTurnContext({
+                ? this.loadChartTurnContext({
                       user,
                       prompt,
                       agent: agentSettings,
                   }).catch(() => null)
+                : null,
+            decisions &&
+            stream &&
+            !isSlackPrompt(prompt) &&
+            responseExecution.mode === 'standard' &&
+            !options.runtimeOptions &&
+            !options.toolHints?.length &&
+            !responseExecution.toolAllowlist
+                ? this.loadDocumentTurnContext({
+                      user,
+                      prompt,
+                      agent: agentSettings,
+                  }).catch(() => null)
+                : null,
+        ]);
+        // Asked alongside the turn decision, with its own usage so its service time is recorded apart.
+        const documentDecisionUsage: AiDecisionUsage = {
+            inputTokens: 0,
+            outputTokens: 0,
+            serviceMs: null,
+        };
+        const documentDecisionStartedAt = performance.now();
+        const documentDecision =
+            decisionClient && documentTurn
+                ? decideDocumentEdit({
+                      decisions: decisionClient.withUsage(
+                          documentDecisionUsage,
+                      ),
+                      prompt: prompt.prompt,
+                      conversation: decisionHistory.slice(-3),
+                      context: documentTurn.context,
+                  })
+                      .then((decision) => ({
+                          decision,
+                          latencyMs:
+                              performance.now() - documentDecisionStartedAt,
+                      }))
+                      .catch(() => null)
                 : null;
         const decisionStartedAt = performance.now();
         // A click on a choice from the previous turn applies its stored edit without asking JEV again.
@@ -13926,6 +14282,39 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 : null);
         const decisionLatencyMs = performance.now() - decisionStartedAt;
         const decisionServiceMs = decisionUsage?.serviceMs ?? null;
+        const documentEdit = await documentDecision;
+        if (
+            decisions &&
+            documentTurn &&
+            documentEdit &&
+            !isSlackPrompt(prompt)
+        ) {
+            const reply = await this.tryApplyDocumentEdit({
+                user,
+                prompt,
+                agent: agentSettings,
+                decisions,
+                document: documentTurn,
+                decision: documentEdit.decision,
+                latencyMs: documentEdit.latencyMs,
+                serviceMs: documentDecisionUsage.serviceMs,
+                responseStartedAt,
+                decisionUsage: () => ({
+                    inputTokens:
+                        (decisionUsage?.inputTokens ?? 0) +
+                        documentDecisionUsage.inputTokens,
+                    outputTokens:
+                        (decisionUsage?.outputTokens ?? 0) +
+                        documentDecisionUsage.outputTokens,
+                }),
+            }).catch((error) => {
+                Logger.warn(`Fast Document edit failed: ${String(error)}`);
+                return null;
+            });
+            if (reply) {
+                return reply;
+            }
+        }
         const turnDecision = turn?.decision ?? null;
         const chartResolution = turnDecision?.chart ?? null;
         let chartEditFallbackReason: string | null = null;
@@ -14383,21 +14772,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
             promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
         const canUseContentTools =
-            agentSettings.enableContentTools &&
-            agentSettings.enableDataAccess &&
             hasTrustedPromptUserIdentity &&
-            this.createAuditedAbility(user).can(
-                'create',
-                subject('ContentAsCode', {
-                    organizationUuid: promptProject.organizationUuid,
-                    projectUuid: promptProject.projectUuid,
-                    metadata: {
-                        promptUuid: prompt.promptUuid,
-                        threadUuid: prompt.threadUuid,
-                        agentUuid: agentSettings.uuid,
-                    },
-                }),
-            );
+            this.canUseContentTools(user, agentSettings, {
+                organizationUuid: promptProject.organizationUuid,
+                projectUuid: promptProject.projectUuid,
+                promptUuid: prompt.promptUuid,
+                threadUuid: prompt.threadUuid,
+            });
         const enableGenerateDataApp =
             canUseContentTools &&
             (await this.aiAgentToolsService.canGenerateDataApp({

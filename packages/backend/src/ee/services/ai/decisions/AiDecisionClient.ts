@@ -67,6 +67,7 @@ const LOGGED_OPERATIONS = new Set([
     'context-preload',
     'correction-pick',
     'dashboard-layout',
+    'document-edit',
     'empty-result-diagnosis',
     'field-recovery',
     'filter-value',

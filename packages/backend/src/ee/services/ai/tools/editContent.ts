@@ -65,6 +65,85 @@ const toStructuredContent = (
               warnings,
           };
 
+/** Runs an edit exactly as the agent's editContent tool does, for callers that apply an edit without the model. */
+export const executeEditContent = async (
+    { editContent, documentsEnabled = false, artifacts }: Dependencies,
+    args: z.infer<typeof mcpEditContentArgsSchema>,
+) => {
+    const { slug, type, patch, documentEdit } = args;
+    try {
+        (documentsEnabled
+            ? mcpEditContentArgsSchema
+            : toolEditContentArgsSchema
+        ).parse(args);
+        const getEditArgs = async (): Promise<Parameters<EditContentFn>[0]> => {
+            if (type === 'document') {
+                if (patch !== undefined || documentEdit === undefined) {
+                    throw new ParameterError(
+                        'Documents require documentEdit instead of patch.',
+                    );
+                }
+                return {
+                    slug,
+                    type,
+                    documentEdit:
+                        documentEdit.type === 'content'
+                            ? {
+                                  ...documentEdit,
+                                  ...(await resolveDocumentConversationTags(
+                                      documentEdit,
+                                      artifacts,
+                                  )),
+                              }
+                            : documentEdit,
+                };
+            }
+            if (documentEdit !== undefined || patch === undefined) {
+                throw new ParameterError(
+                    'Charts and dashboards require patch instead of documentEdit.',
+                );
+            }
+            return { slug, type, patch };
+        };
+        const result = await editContent(await getEditArgs());
+        const warnings = getContentWarnings(result);
+        const metadata = {
+            status: 'success' as const,
+            slug: result.content.slug,
+            name: result.content.name,
+            uuid: result.uuid,
+            href: result.href,
+            versionUuids:
+                result.type === 'document'
+                    ? {
+                          before:
+                              documentEdit?.type === 'content'
+                                  ? documentEdit.baseVersionUuid
+                                  : null,
+                          after: result.versionUuid,
+                      }
+                    : result.versionUuids,
+            warnings,
+        };
+
+        return {
+            result: contentResult({
+                content: result.type === 'document' ? result : result.content,
+                href: metadata.href,
+                type: result.type,
+                warnings,
+            }),
+            metadata,
+            structuredContent: toStructuredContent(result, warnings),
+        };
+    } catch (error) {
+        return toolErrorOutput(
+            error,
+            `Error editing ${type} "${slug}". Changes were not applied.`,
+        );
+    }
+};
+
 export const getEditContent = ({
     editContent,
     documentsEnabled = false,
@@ -79,85 +158,11 @@ export const getEditContent = ({
     return tool({
         ...definition,
         inputSchema,
-        execute: async (args) => {
-            const { slug, type, patch, documentEdit } = args;
-            try {
-                (documentsEnabled
-                    ? mcpEditContentArgsSchema
-                    : toolEditContentArgsSchema
-                ).parse(args);
-                const getEditArgs = async (): Promise<
-                    Parameters<EditContentFn>[0]
-                > => {
-                    if (type === 'document') {
-                        if (patch !== undefined || documentEdit === undefined) {
-                            throw new ParameterError(
-                                'Documents require documentEdit instead of patch.',
-                            );
-                        }
-                        return {
-                            slug,
-                            type,
-                            documentEdit:
-                                documentEdit.type === 'content'
-                                    ? {
-                                          ...documentEdit,
-                                          ...(await resolveDocumentConversationTags(
-                                              documentEdit,
-                                              artifacts,
-                                          )),
-                                      }
-                                    : documentEdit,
-                        };
-                    }
-                    if (documentEdit !== undefined || patch === undefined) {
-                        throw new ParameterError(
-                            'Charts and dashboards require patch instead of documentEdit.',
-                        );
-                    }
-                    return { slug, type, patch };
-                };
-                const result = await editContent(await getEditArgs());
-                const warnings = getContentWarnings(result);
-                const metadata = {
-                    status: 'success' as const,
-                    slug: result.content.slug,
-                    name: result.content.name,
-                    uuid: result.uuid,
-                    href: result.href,
-                    versionUuids:
-                        result.type === 'document'
-                            ? {
-                                  before:
-                                      documentEdit?.type === 'content'
-                                          ? documentEdit.baseVersionUuid
-                                          : null,
-                                  after: result.versionUuid,
-                              }
-                            : result.versionUuids,
-                    warnings,
-                };
-
-                return {
-                    result: contentResult({
-                        content:
-                            result.type === 'document'
-                                ? result
-                                : result.content,
-                        href: metadata.href,
-                        type: result.type,
-                        warnings,
-                    }),
-                    metadata,
-                    structuredContent: toStructuredContent(result, warnings),
-                };
-            } catch (error) {
-                return toolErrorOutput(
-                    error,
-                    `Error editing ${type} "${slug}". Changes were not applied.`,
-                );
-            }
-        },
+        execute: (args) =>
+            executeEditContent(
+                { editContent, documentsEnabled, artifacts },
+                args,
+            ),
         toModelOutput: ({ output }) => toModelOutput(output),
     });
 };

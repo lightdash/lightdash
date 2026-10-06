@@ -215,6 +215,7 @@ export const AiPromptDecisionTableName = 'ai_prompt_decision';
 
 export const AI_PROMPT_TURN_DECISION_OPERATIONS = [
     'chart-intent',
+    'document-edit',
     'model-routing',
 ] as const;
 
