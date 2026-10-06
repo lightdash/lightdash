@@ -220,6 +220,7 @@ export class AiIdentityModel {
             lastFullCheckAt: row.last_full_check_at,
             effectiveMode,
             fallbackReason:
+                provisioner !== undefined &&
                 row.creation_mode === AiIdentityCreationMode.AUTOMATIC &&
                 effectiveMode === AiIdentityCreationMode.GUIDED
                     ? `Lightdash pauses automatic creation until the setup check passes. ${(provisioner?.status_message ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
@@ -917,14 +918,9 @@ export class AiIdentityModel {
     }
 
     async deleteProvisioner(aiIdentityAccountUuid: string): Promise<void> {
-        await this.database.transaction(async (trx) => {
-            await trx('ai_identity_accounts')
-                .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
-                .update({ creation_mode: AiIdentityCreationMode.GUIDED });
-            await trx('ai_identity_provisioners')
-                .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
-                .delete();
-        });
+        await this.database('ai_identity_provisioners')
+            .where({ ai_identity_account_uuid: aiIdentityAccountUuid })
+            .delete();
     }
 
     async getCachedCatalogSchemas(

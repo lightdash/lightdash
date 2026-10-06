@@ -360,6 +360,7 @@ export class AiIdentityService extends BaseService {
                 ? AiIdentityCreationMode.AUTOMATIC
                 : AiIdentityCreationMode.GUIDED;
         const fallbackReason =
+            provisioner !== null &&
             mode === AiIdentityCreationMode.AUTOMATIC &&
             effectiveMode === AiIdentityCreationMode.GUIDED
                 ? `Lightdash pauses automatic creation until the setup check passes. ${(provisioner?.statusMessage ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
