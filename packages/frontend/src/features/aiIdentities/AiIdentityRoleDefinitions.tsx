@@ -1,11 +1,11 @@
 import {
+    AiIdentitySchemaRuleMode,
     type AiIdentityProvisioningSettings,
     type UpdateAiIdentityAiRoleDefinition,
 } from '@lightdash/common';
 import {
     Button,
     Group,
-    MultiSelect,
     Paper,
     SimpleGrid,
     Stack,
@@ -13,8 +13,13 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import Callout from '../../components/common/Callout';
+import {
+    aiRolePreviewText,
+    isValidSchemaRule,
+} from '../../components/common/SchemaRuleInput/schemaRule';
+import { SchemaRuleInput } from '../../components/common/SchemaRuleInput/SchemaRuleInput';
 import { useTables } from '../sqlRunner/hooks/useTables';
 import { aiIdentityProvisioningApi } from './api';
 import { useProvisioningChange } from './useProvisioning';
@@ -28,18 +33,21 @@ export const AiIdentityRoleDefinitions: FC<{
     const rows =
         draft ??
         settings.aiRoles.map(
-            ({ aiIdentityAiRoleUuid, roleName, warehouse, schemas }) => ({
+            ({ aiIdentityAiRoleUuid, roleName, warehouse, schemaRule }) => ({
                 id: aiIdentityAiRoleUuid,
                 roleName,
                 warehouse,
-                schemas,
+                schemaRule,
             }),
         );
     const change = useProvisioningChange(settings.aiIdentityAccountUuid);
     const catalog = useTables({ projectUuid: settings.catalogProjectUuid });
-    const schemas = Object.entries(catalog.data ?? {}).flatMap(
-        ([database, entries]) =>
-            Object.keys(entries).map((schema) => `${database}.${schema}`),
+    const schemas = useMemo(
+        () =>
+            Object.entries(catalog.data ?? {}).flatMap(([database, entries]) =>
+                Object.keys(entries).map((schema) => `${database}.${schema}`),
+            ),
+        [catalog.data],
     );
     const update = (index: number, value: RoleRow) =>
         setDraft(
@@ -50,8 +58,8 @@ export const AiIdentityRoleDefinitions: FC<{
             <Stack gap="sm">
                 <Title order={5}>1. Define AI roles</Title>
                 <Text fz="sm">
-                    Pick schemas without personal data. Leave schemas empty for
-                    an existing role that your team has already created.
+                    Set a schema rule for each AI role. Exclude personal data,
+                    or use an existing role that your team has created.
                 </Text>
                 {catalog.isError && (
                     <Callout variant="danger">
@@ -89,13 +97,15 @@ export const AiIdentityRoleDefinitions: FC<{
                                     }
                                 />
                             </SimpleGrid>
-                            <MultiSelect
-                                label="Allowed schemas"
-                                data={schemas}
-                                value={row.schemas}
-                                searchable
-                                onChange={(value) =>
-                                    update(index, { ...row, schemas: value })
+                            <SchemaRuleInput
+                                label="Schema rule"
+                                description={null}
+                                catalogSchemas={schemas}
+                                value={row.schemaRule}
+                                allowExistingRole
+                                preview={aiRolePreviewText}
+                                onChange={(schemaRule) =>
+                                    update(index, { ...row, schemaRule })
                                 }
                             />
                             <Group justify="flex-end">
@@ -127,7 +137,12 @@ export const AiIdentityRoleDefinitions: FC<{
                                     id: crypto.randomUUID(),
                                     roleName: '',
                                     warehouse: settings.defaultWarehouse,
-                                    schemas: [],
+                                    schemaRule: {
+                                        mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
+                                        database:
+                                            schemas[0]?.split('.')[0] ?? '',
+                                        patterns: [],
+                                    },
                                 },
                             ])
                         }
@@ -140,7 +155,9 @@ export const AiIdentityRoleDefinitions: FC<{
                             rows.some(
                                 (row) =>
                                     !row.roleName.trim() ||
-                                    (row.schemas.length > 0 &&
+                                    !isValidSchemaRule(row.schemaRule) ||
+                                    (row.schemaRule.mode !==
+                                        AiIdentitySchemaRuleMode.EXISTING_ROLE &&
                                         !row.warehouse.trim()),
                             )
                         }
@@ -154,11 +171,11 @@ export const AiIdentityRoleDefinitions: FC<{
                                             ({
                                                 roleName,
                                                 warehouse,
-                                                schemas,
+                                                schemaRule,
                                             }) => ({
                                                 roleName,
                                                 warehouse,
-                                                schemas,
+                                                schemaRule,
                                             }),
                                         ),
                                     ),

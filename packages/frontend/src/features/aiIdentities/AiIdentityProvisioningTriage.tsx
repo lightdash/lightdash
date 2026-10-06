@@ -12,6 +12,7 @@ import { useState, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import MantineModal from '../../components/common/MantineModal';
+import { AiIdentityUngrantedSchemas } from './AiIdentityUngrantedSchemas';
 import { findingLabels, isProvisioningFallback } from './provisioning';
 import { useProvisioning } from './useProvisioning';
 
@@ -31,6 +32,7 @@ export const AiIdentityProvisioningTriage: FC<{
     if (!settings) return null;
     return (
         <>
+            <AiIdentityUngrantedSchemas entries={settings.ungrantedSchemas} />
             {isProvisioningFallback(settings) && (
                 <Callout variant="warning">
                     {settings.fallbackReason ??

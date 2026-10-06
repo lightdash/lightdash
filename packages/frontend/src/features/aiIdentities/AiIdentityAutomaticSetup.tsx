@@ -3,6 +3,8 @@ import {
     AI_IDENTITY_SHOW_USERS_NOTICE,
     AiIdentityCreationMode,
     AiIdentityProvisionerStatus,
+    AiIdentitySchemaRuleMode,
+    type AiIdentityAiRoleExpansion,
     DEFAULT_AI_IDENTITY_PROVISIONER_USER,
     DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
     type AiIdentityProvisioningSettings,
@@ -21,13 +23,26 @@ import { useState, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import MantineModal from '../../components/common/MantineModal';
+import { SchemaNames } from '../../components/common/SchemaRuleInput/SchemaRuleInput';
 import { RelativeTime } from './AiIdentityEventDisplay';
 import { AiIdentityProvisioningReview } from './AiIdentityProvisioningReview';
 import { AiIdentityRoleDefinitions } from './AiIdentityRoleDefinitions';
 import { AiIdentityRoleMappings } from './AiIdentityRoleMappings';
+import { AiIdentityUngrantedSchemas } from './AiIdentityUngrantedSchemas';
 import { aiIdentityProvisioningApi } from './api';
 import { provisionerStatusLabels } from './provisioning';
 import { useProvisioningChange } from './useProvisioning';
+
+const aiRoleExpansionSummary = (
+    expansion: AiIdentityAiRoleExpansion,
+    mode: AiIdentitySchemaRuleMode | null,
+): string => {
+    if (mode === AiIdentitySchemaRuleMode.EXISTING_ROLE)
+        return `${expansion.roleName}: keeps its current schema access.`;
+    if (!expansion.catalogLoaded && mode !== AiIdentitySchemaRuleMode.LIST)
+        return `${expansion.roleName}: the schema catalog is not loaded yet, so the script grants no schemas.`;
+    return `${expansion.roleName}: ${expansion.allowed.length} ${expansion.allowed.length === 1 ? 'schema' : 'schemas'} allowed, ${expansion.excluded.length} excluded.`;
+};
 
 const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
     settings,
@@ -136,6 +151,29 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                         )
                     }
                 />
+                {settings.aiRoleExpansions.map((expansion) => (
+                    <Stack key={expansion.roleName} gap="xs">
+                        <Text size="sm">
+                            {aiRoleExpansionSummary(
+                                expansion,
+                                settings.aiRoles.find(
+                                    (aiRole) =>
+                                        aiRole.roleName === expansion.roleName,
+                                )?.schemaRule.mode ?? null,
+                            )}
+                        </Text>
+                        {expansion.catalogLoaded &&
+                            expansion.excluded.length > 0 && (
+                                <details>
+                                    <summary>Show excluded schemas</summary>
+                                    <SchemaNames
+                                        schemas={expansion.excluded}
+                                        limit={null}
+                                    />
+                                </details>
+                            )}
+                    </Stack>
+                ))}
                 {settings.setupSql && (
                     <>
                         <Text fz="sm">
@@ -175,6 +213,9 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
         <Paper p="md">
             <Stack gap="sm">
                 <Title order={5}>3. Check the provisioner</Title>
+                <AiIdentityUngrantedSchemas
+                    entries={settings.ungrantedSchemas}
+                />
                 {settings.mode === AiIdentityCreationMode.AUTOMATIC &&
                     (settings.effectiveMode ===
                     AiIdentityCreationMode.AUTOMATIC ? (

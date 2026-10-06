@@ -1,6 +1,7 @@
-import { MultiSelect, Select, Stack, Paper, Text } from '@mantine/core';
+import { Select, Stack, Paper, Text } from '@mantine/core';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import InlineErrorState from '../common/InlineErrorState';
+import { SchemaRuleInput } from '../common/SchemaRuleInput/SchemaRuleInput';
 import { SqlPanel } from './SqlPanel';
 import { type BoundaryGuide } from './useBoundaryGuide';
 
@@ -23,20 +24,19 @@ export const MaskingStep = ({ guide }: { guide: BoundaryGuide }) => {
         );
     return (
         <Stack gap="sm">
-            <MultiSelect
+            <SchemaRuleInput
                 label="Protected schemas"
-                description="Generate masking SQL for columns in these schemas. Review and run it, then check the results."
-                data={schemas.map((schema) => ({
-                    value: schema.key,
-                    label: schema.label,
-                }))}
-                value={inputs.selectedSchemas}
-                searchable
-                clearable
-                nothingFoundMessage="No matching schemas"
-                size="xs"
-                onChange={(selectedSchemas) =>
-                    setInputs((value) => ({ ...value, selectedSchemas }))
+                description="The rule selects schemas to protect. Review and run the masking SQL, then check the results."
+                catalogSchemas={guide.catalogSchemas}
+                value={inputs.schemaRule}
+                allowExistingRole={false}
+                preview={{
+                    allowed: 'protected',
+                    excluded: 'not protected',
+                    listed: 'allowed',
+                }}
+                onChange={(schemaRule) =>
+                    setInputs((value) => ({ ...value, schemaRule }))
                 }
             />
             <Select
@@ -69,11 +69,11 @@ export const MaskingStep = ({ guide }: { guide: BoundaryGuide }) => {
                     }))
                 }
             />
-            {maskingSql && inputs.selectedSchemas.length > 0 && (
+            {maskingSql && guide.protectedSchemas.length > 0 && (
                 <SqlPanel
                     sql={maskingSql}
                     filename="ai-masking.sql"
-                    summary={`Creates a tag and nine masking policies, then tags ${inputs.selectedSchemas.length} schemas. AI sessions see masked strings or NULL.`}
+                    summary={`Creates a tag and nine masking policies, then tags ${guide.protectedSchemas.length} schemas. AI sessions see masked strings or NULL.`}
                 />
             )}
         </Stack>

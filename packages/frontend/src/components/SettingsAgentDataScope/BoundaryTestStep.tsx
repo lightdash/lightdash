@@ -33,7 +33,9 @@ export const BoundaryTestStep = ({
                 })),
             ),
     );
-    const selectedSchemaSet = new Set(inputs.selectedSchemas);
+    const selectedSchemaSet = new Set(
+        guide.protectedSchemas.map((schema) => schema.key),
+    );
     const selectedTable = tables.find((table) =>
         selectedSchemaSet.has(JSON.stringify([table.database, table.schema])),
     );

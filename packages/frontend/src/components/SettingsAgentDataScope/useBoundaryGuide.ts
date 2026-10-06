@@ -1,4 +1,7 @@
 import {
+    AiIdentitySchemaRuleMode,
+    expandAiIdentitySchemaRule,
+    type AiIdentitySchemaRule,
     type ApiError,
     type SnowflakeAiBoundaryCheck,
     type SnowflakeAiBoundaryGuideConfig,
@@ -13,6 +16,7 @@ import {
     useAiAccessRestrictions,
     useProjectUpdateAiAccessRestrictions,
 } from '../../hooks/useProject';
+import { isValidSchemaRule } from '../common/SchemaRuleInput/schemaRule';
 import { useGuideSql } from './useGuideSql';
 
 export const useBoundaryGuide = ({
@@ -77,7 +81,11 @@ export const useBoundaryGuide = ({
         roles: '',
         tagDatabase: '',
         tagSchema: '',
-        selectedSchemas: [] as string[],
+        schemaRule: {
+            mode: AiIdentitySchemaRuleMode.ONLY_MATCHING,
+            database: '',
+            patterns: [],
+        } as AiIdentitySchemaRule,
         protectedColumn: null as SnowflakeAiBoundaryTestBody['protectedColumn'],
     });
     const schemas = useMemo(
@@ -93,10 +101,18 @@ export const useBoundaryGuide = ({
             ),
         [catalogQuery.data],
     );
-    const selectedSchemaSet = new Set(inputs.selectedSchemas);
-    const protectedSchemas = schemas.filter((schema) =>
-        selectedSchemaSet.has(schema.key),
+    const catalogSchemas = useMemo(
+        () => schemas.map((schema) => schema.label),
+        [schemas],
     );
+    const protectedSchemas = useMemo(() => {
+        if (!isValidSchemaRule(inputs.schemaRule)) return [];
+        const allowed = new Set(
+            expandAiIdentitySchemaRule(inputs.schemaRule, catalogSchemas)
+                .allowed,
+        );
+        return schemas.filter((schema) => allowed.has(schema.label));
+    }, [inputs.schemaRule, catalogSchemas, schemas]);
     const sql = useGuideSql({
         ...inputs,
         redirectUri: config.data?.redirectUri ?? '',
@@ -115,6 +131,8 @@ export const useBoundaryGuide = ({
         inputs,
         setInputs,
         schemas,
+        catalogSchemas,
+        protectedSchemas,
         ...sql,
     };
 };

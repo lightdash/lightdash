@@ -51,6 +51,8 @@ const settings: AiIdentityProvisioningSettings = {
     defaultWarehouse: 'COMPUTE_WH',
     mappings: [],
     findings: [],
+    aiRoleExpansions: [],
+    ungrantedSchemas: [],
     worstCaseNotice: '',
     showUsersNotice: '',
 };
@@ -135,5 +137,45 @@ it('puts each step hint inside its own step', () => {
     ).toBeInTheDocument();
     expect(
         screen.getByText('Review Check the provisioner first.'),
+    ).toBeInTheDocument();
+});
+
+it('shows saved role expansions and ungranted schemas in setup', () => {
+    renderSetup({
+        ...settings,
+        aiRoleExpansions: [
+            {
+                roleName: 'AI_ROLE',
+                allowed: ['DB.PUBLIC'],
+                excluded: ['DB.PII_PEOPLE'],
+                catalogLoaded: true,
+            },
+            {
+                roleName: 'OTHER_ROLE',
+                allowed: [],
+                excluded: [],
+                catalogLoaded: false,
+            },
+        ],
+        ungrantedSchemas: [
+            {
+                roleName: 'AI_ROLE',
+                schemas: ['DB.NEW'],
+                fixSql: 'GRANT USAGE ON SCHEMA DB.NEW TO ROLE AI_ROLE;',
+            },
+        ],
+    });
+    expect(
+        screen.getByText('AI_ROLE: 1 schema allowed, 1 excluded.'),
+    ).toBeInTheDocument();
+    expect(
+        screen.getByText(
+            'OTHER_ROLE: the schema catalog is not loaded yet, so the script grants no schemas.',
+        ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Show excluded schemas'));
+    expect(screen.getByText('DB.PII_PEOPLE')).toBeInTheDocument();
+    expect(
+        screen.getByText('1 new schema is not granted to AI_ROLE'),
     ).toBeInTheDocument();
 });

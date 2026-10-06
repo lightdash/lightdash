@@ -70,6 +70,8 @@ const settings: AiIdentityProvisioningSettings = {
     defaultWarehouse: 'COMPUTE_WH',
     mappings: [],
     findings: [],
+    aiRoleExpansions: [],
+    ungrantedSchemas: [],
     worstCaseNotice: '',
     showUsersNotice: '',
 };
@@ -395,4 +397,35 @@ it('only permits runs when automatic creation is effective and the provisioner i
             readyPlan,
         ),
     ).toBe(false);
+});
+
+it('shows ungranted schemas with admin SQL and a download in triage', async () => {
+    vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
+        ...settings,
+        ungrantedSchemas: [
+            {
+                roleName: 'AI_ROLE',
+                schemas: ['DB.NEW'],
+                fixSql: 'GRANT USAGE ON SCHEMA DB.NEW TO ROLE AI_ROLE;',
+            },
+        ],
+    });
+    renderWithClient(
+        <AiIdentityProvisioningTriage
+            accountUuid="account"
+            onSetup={vi.fn()}
+        />,
+    );
+    expect(
+        await screen.findByText('1 new schema is not granted to AI_ROLE'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('DB.NEW')).toBeInTheDocument();
+    expect(
+        screen.getByText(/Run this SQL as an admin role/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Download .sql' })).toHaveAttribute(
+        'href',
+        `data:application/sql;charset=utf-8,${encodeURIComponent('GRANT USAGE ON SCHEMA DB.NEW TO ROLE AI_ROLE;')}`,
+    );
 });
