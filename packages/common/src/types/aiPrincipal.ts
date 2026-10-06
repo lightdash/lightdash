@@ -198,7 +198,7 @@ export type AiPrincipal = {
 };
 
 export type AiPrincipalWithSecrets = AiPrincipal & {
-    privateKey: string | null;
+    secret: string | null;
 };
 
 export type AiSetupScriptPart = {

@@ -285,10 +285,10 @@ export class AiAccessService extends BaseService {
                     );
                 verifiedPrincipal = {
                     ...recorded,
-                    privateKey: principal.privateKey,
+                    secret: principal.secret,
                 };
             }
-            const { privateKey, ...publicPrincipal } = verifiedPrincipal;
+            const { secret, ...publicPrincipal } = verifiedPrincipal;
             return {
                 principal: publicPrincipal,
                 transport: policy.transport,

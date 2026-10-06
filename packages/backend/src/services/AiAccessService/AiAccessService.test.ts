@@ -73,7 +73,7 @@ const principal: AiPrincipalWithSecrets = {
     lastProbe: null,
     publicKey: null,
     publicKeyFingerprint: null,
-    privateKey: null,
+    secret: null,
     createdAt: new Date(),
     updatedAt: new Date(),
 };
@@ -269,7 +269,7 @@ describe('AiAccessService', () => {
             expect.objectContaining({ ok: true }),
         );
         expect(plan?.principal.status).toBe(AiPrincipalStatus.READY);
-        expect(plan?.principal).not.toHaveProperty('privateKey');
+        expect(plan?.principal).not.toHaveProperty('secret');
         expect(plan?.audit.queryTags).toEqual({ ai_principal: 'ai_shared' });
     });
     test('records a failed probe and refuses', async () => {

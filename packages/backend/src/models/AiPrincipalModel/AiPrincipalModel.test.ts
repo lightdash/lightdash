@@ -24,7 +24,7 @@ const principal = {
     last_probe: null,
     public_key: null,
     public_key_fingerprint: null,
-    encrypted_private_key: Buffer.from('encrypted'),
+    encrypted_secret: Buffer.from('encrypted'),
     created_at: now,
     updated_at: now,
 };
@@ -136,8 +136,8 @@ describe('AiPrincipalModel', () => {
     });
     test('encrypts the private key before storing it', async () => {
         tracker.on.update('ai_principals').response(1);
-        await model.setKeyPair('principal', {
-            privateKey: 'private',
+        await model.setSecret('principal', {
+            secret: 'private',
             publicKey: 'public',
             publicKeyFingerprint: 'fingerprint',
         });
@@ -145,9 +145,7 @@ describe('AiPrincipalModel', () => {
         expect(tracker.history.update[0].bindings).toContainEqual(
             Buffer.from('ciphertext'),
         );
-        expect(tracker.history.update[0].sql).toContain(
-            'encrypted_private_key',
-        );
+        expect(tracker.history.update[0].sql).toContain('encrypted_secret');
     });
     test.each([true, false])('records probe status for ok=%s', async (ok) => {
         const probe = ok
@@ -182,13 +180,13 @@ describe('AiPrincipalModel', () => {
     test('decrypts only when requesting a principal with secrets', async () => {
         tracker.on.select('ai_principals').response([principal]);
         expect(await model.getPrincipal('principal')).toMatchObject({
-            privateKey: 'private',
+            secret: 'private',
         });
-        expect(decrypt).toHaveBeenCalledWith(principal.encrypted_private_key);
+        expect(decrypt).toHaveBeenCalledWith(principal.encrypted_secret);
         decrypt.mockClear();
         const rows = await model.listPrincipals('policy');
-        expect(rows[0]).not.toHaveProperty('privateKey');
-        expect(rows[0]).not.toHaveProperty('encrypted_private_key');
+        expect(rows[0]).not.toHaveProperty('secret');
+        expect(rows[0]).not.toHaveProperty('encrypted_secret');
         expect(decrypt).not.toHaveBeenCalled();
     });
     test('rejects missing principals', async () => {

@@ -101,7 +101,7 @@ export async function up(knex: Knex): Promise<void> {
         table.jsonb('last_probe').nullable();
         table.text('public_key').nullable();
         table.text('public_key_fingerprint').nullable();
-        table.binary('encrypted_private_key').nullable();
+        table.binary('encrypted_secret').nullable();
         table.timestamps(true, true);
         table.unique(['ai_access_policy_uuid', 'ref'], {
             indexName: 'ai_principals_policy_ref_unique',
