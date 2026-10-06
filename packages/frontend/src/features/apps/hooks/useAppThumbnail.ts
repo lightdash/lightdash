@@ -112,11 +112,8 @@ export const useAppThumbnailUrl = (
 // Signed URLs last 15 minutes.
 const VERSION_THUMBNAIL_STALE_TIME_MS = 10 * 60 * 1000;
 
-/**
- * Fetches the thumbnail URL of one version of an app. Errors when the version
- * has none. The key extends the app thumbnail key, so refreshing an app's
- * thumbnail also refreshes its versions'.
- */
+// Errors when the version has no thumbnail. The key extends the app thumbnail
+// key, so refreshing an app's thumbnail also refreshes its versions'.
 export const useAppVersionThumbnailUrl = (
     projectUuid: string | undefined,
     appUuid: string | undefined,

@@ -1,4 +1,5 @@
 import { Box, Image, UnstyledButton } from '@mantine/core';
+import { useIntersection } from '@mantine/hooks';
 import { useEffect, useState, type FC } from 'react';
 import { useAppVersionThumbnailUrl } from '../hooks/useAppThumbnail';
 import classes from './AppVersionThumbnail.module.css';
@@ -20,22 +21,16 @@ type Props = {
  * the row scrolls into view; its space is held until then so rows do not jump.
  */
 const AppVersionThumbnail: FC<Props> = ({ source, version, onView }) => {
-    const [frame, setFrame] = useState<HTMLDivElement | null>(null);
+    const { ref: frameRef, entry: frameEntry } = useIntersection({
+        rootMargin: '200px',
+    });
+    const isInView = frameEntry?.isIntersecting === true;
+    // Latched, so the image stays loaded once its row has been on screen.
     const [hasBeenInView, setHasBeenInView] = useState(false);
 
     useEffect(() => {
-        if (frame === null || hasBeenInView) return;
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries.some((entry) => entry.isIntersecting)) {
-                    setHasBeenInView(true);
-                }
-            },
-            { rootMargin: '200px' },
-        );
-        observer.observe(frame);
-        return () => observer.disconnect();
-    }, [frame, hasBeenInView]);
+        if (isInView) setHasBeenInView(true);
+    }, [isInView]);
 
     const thumbnail = useAppVersionThumbnailUrl(
         source.projectUuid,
@@ -57,7 +52,7 @@ const AppVersionThumbnail: FC<Props> = ({ source, version, onView }) => {
     }
 
     return (
-        <Box ref={setFrame} className={classes.frame}>
+        <Box ref={frameRef} className={classes.frame}>
             {thumbnailUrl !== null && (
                 <UnstyledButton
                     className={classes.button}
