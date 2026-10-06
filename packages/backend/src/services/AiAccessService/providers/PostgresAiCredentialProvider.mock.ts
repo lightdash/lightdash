@@ -1,0 +1,50 @@
+import {
+    AI_DIRECT_TRANSPORT,
+    AiPrincipalKind,
+    AiPrincipalStatus,
+    WarehouseTypes,
+    type AiAccessPolicy,
+    type AiPrincipalWithSecrets,
+    type CreatePostgresCredentials,
+} from '@lightdash/common';
+
+export const connection: CreatePostgresCredentials = {
+    type: WarehouseTypes.POSTGRES,
+    host: 'localhost',
+    port: 5432,
+    user: 'connection',
+    password: 'test-password',
+    dbname: 'test',
+    schema: 'public',
+};
+export const policy: AiAccessPolicy = {
+    aiAccessPolicyUuid: 'policy',
+    projectUuid: 'project',
+    warehouseConnectionUuid: null,
+    enabled: true,
+    principalKind: AiPrincipalKind.SHARED,
+    transport: AI_DIRECT_TRANSPORT,
+    sharedRef: 'ai_shared',
+    twinNameTemplate: 'ai_{email_local_part}_{user_uuid}',
+    groupMappings: [],
+    policySource: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+export const principal: AiPrincipalWithSecrets = {
+    aiPrincipalUuid: 'principal',
+    aiAccessPolicyUuid: 'policy',
+    kind: AiPrincipalKind.SHARED,
+    ref: 'ai_shared',
+    userUuid: null,
+    groupUuid: null,
+    status: AiPrincipalStatus.PENDING,
+    failureReason: null,
+    statusMessage: null,
+    lastProbe: null,
+    publicKey: null,
+    publicKeyFingerprint: null,
+    secret: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
