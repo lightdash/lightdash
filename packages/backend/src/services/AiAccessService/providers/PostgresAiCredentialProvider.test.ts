@@ -6,13 +6,15 @@ import {
     UnexpectedServerError,
     WarehouseTypes,
 } from '@lightdash/common';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { type UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { PostgresAiCredentialProvider } from './PostgresAiCredentialProvider';
 import {
     connection,
     policy,
     principal,
 } from './PostgresAiCredentialProvider.mock';
-import { getAiCredentialProvider } from './registry';
+import { createAiCredentialProviderRegistry } from './registry';
 
 const { runQuery } = vi.hoisted(() => ({ runQuery: vi.fn() }));
 vi.mock('@lightdash/warehouses', () => ({
@@ -36,9 +38,13 @@ describe('PostgresAiCredentialProvider', () => {
     beforeEach(() => vi.resetAllMocks());
 
     test('registers Postgres with supported capabilities', () => {
-        expect(getAiCredentialProvider(WarehouseTypes.POSTGRES)).toBeInstanceOf(
-            PostgresAiCredentialProvider,
-        );
+        expect(
+            createAiCredentialProviderRegistry({
+                lightdashConfig: lightdashConfigMock,
+                userWarehouseCredentialsModel:
+                    {} as UserWarehouseCredentialsModel,
+            })(WarehouseTypes.POSTGRES),
+        ).toBeInstanceOf(PostgresAiCredentialProvider);
         expect(provider.capabilities()).toEqual({
             warehouseType: WarehouseTypes.POSTGRES,
             principals: {

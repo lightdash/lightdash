@@ -1,5 +1,6 @@
 import {
     type AiAccessPolicy,
+    type AiAccessRefusalReason,
     type AiAssurance,
     type AiPrincipalWithSecrets,
     type AiProbeResult,
@@ -54,6 +55,10 @@ export interface AiCredentialProvider<
     capabilities(connection: T): AiWarehouseCapabilities;
 
     createSecret(): Promise<AiCreatedSecret | null>;
+
+    missingPrerequisite(
+        args: AiMintArgs<T>,
+    ): Promise<AiAccessRefusalReason | null>;
 
     mint(args: AiMintArgs<T>): Promise<AiMintedCredentials<T>>;
 

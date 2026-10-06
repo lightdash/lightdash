@@ -22,6 +22,7 @@ import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AiAccessService } from './AiAccessService/AiAccessService';
+import { createAiCredentialProviderRegistry } from './AiAccessService/providers/registry';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
@@ -962,6 +963,11 @@ export class ServiceRepository
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    providerRegistry: createAiCredentialProviderRegistry({
+                        lightdashConfig: this.context.lightdashConfig,
+                        userWarehouseCredentialsModel:
+                            this.models.getUserWarehouseCredentialsModel(),
+                    }),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     aiPrincipalModel: this.models.getAiPrincipalModel(),

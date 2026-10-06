@@ -17,19 +17,22 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type AiPrincipalModel } from '../../models/AiPrincipalModel/AiPrincipalModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
+import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
 import { aiExecutionPlanMock } from './AiAccessService.mock';
 import {
     type AiCreatedSecret,
     type AiCredentialProvider,
 } from './providers/AiCredentialProvider';
-import { getAiCredentialProvider } from './providers/registry';
+import { createAiCredentialProviderRegistry } from './providers/registry';
+import { SnowflakeAiCredentialProvider } from './providers/SnowflakeAiCredentialProvider';
 
 const connection: CreateWarehouseCredentials = {
     type: WarehouseTypes.POSTGRES,
@@ -132,6 +135,9 @@ const setup = () => {
             setupFormat: AiSetupScriptFormat.SQL,
         })),
         createSecret: vi.fn(async (): Promise<AiCreatedSecret | null> => null),
+        missingPrerequisite: vi.fn(
+            async (): Promise<AiAccessRefusalReason | null> => null,
+        ),
         mint: vi.fn(async () => ({
             credentials: { ...connection, user: 'ai' },
             assurances: [],
@@ -171,6 +177,42 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    test('reports a missing sign-in without minting', async () => {
+        const { service, provider } = setup();
+        provider.missingPrerequisite.mockResolvedValue(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        expect(await service.getAiAccessForUser(args)).toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
+                action: 'sign_in',
+            },
+        });
+        expect(provider.missingPrerequisite).toHaveBeenCalledWith(
+            expect.objectContaining({
+                person: { userUuid: 'user', email: 'a.b+tag@example.test' },
+            }),
+        );
+        expect(provider.createSecret.mock.invocationCallOrder[0]).toBeLessThan(
+            provider.missingPrerequisite.mock.invocationCallOrder[0],
+        );
+        expect(provider.mint).not.toHaveBeenCalled();
+        expect(provider.probe).not.toHaveBeenCalled();
+    });
+    test('does not check prerequisites separately when resolving a plan', async () => {
+        const { service, provider } = setup();
+        await service.resolvePlan(args);
+        expect(provider.missingPrerequisite).not.toHaveBeenCalled();
+    });
+    test('registers Snowflake', () => {
+        const registry = createAiCredentialProviderRegistry({
+            lightdashConfig: lightdashConfigMock,
+            userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        });
+        expect(registry(WarehouseTypes.SNOWFLAKE)).toBeInstanceOf(
+            SnowflakeAiCredentialProvider,
+        );
+    });
     test.each([aiExecutionPlanMock.principal.lastProbe, null])(
         'records the audit with probe %s',
         async (lastProbe) => {
@@ -478,11 +520,16 @@ describe('AiAccessService', () => {
     });
     test.each(
         Object.values(WarehouseTypes).filter(
-            (type) => type !== WarehouseTypes.POSTGRES,
+            (type) =>
+                type !== WarehouseTypes.POSTGRES &&
+                type !== WarehouseTypes.SNOWFLAKE,
         ),
     )('registry refuses %s with its capability reason', async (type) => {
         const { service, registry } = setup();
-        const unavailable = getAiCredentialProvider(type);
+        const unavailable = createAiCredentialProviderRegistry({
+            lightdashConfig: lightdashConfigMock,
+            userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        })(type);
         registry.mockReturnValue(unavailable);
         const capabilities = unavailable.capabilities(connection);
         expect(

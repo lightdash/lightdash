@@ -65,6 +65,10 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
         };
     }
 
+    async missingPrerequisite(): Promise<null> {
+        return null;
+    }
+
     async mint({
         connection,
         principal,
