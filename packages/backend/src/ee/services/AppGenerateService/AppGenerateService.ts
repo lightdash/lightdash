@@ -2538,10 +2538,13 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
     ): Promise<{ thumbnailUrl: string }> {
-        const thumbnailUrl = await this.appThumbnails.getVersionThumbnailUrl(
-            user,
-            { projectUuid, appUuid, version },
-        );
+        await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
+        const thumbnailUrl =
+            await this.appThumbnailClient.getVersionThumbnailUrl({
+                projectUuid,
+                appUuid,
+                version,
+            });
         if (thumbnailUrl === null) {
             throw new NotFoundError('App version thumbnail not found');
         }

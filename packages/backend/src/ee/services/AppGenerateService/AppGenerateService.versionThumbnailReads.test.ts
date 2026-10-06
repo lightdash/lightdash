@@ -1,4 +1,3 @@
-import { S3Client } from '@aws-sdk/client-s3';
 import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
@@ -7,6 +6,7 @@ import {
     SpaceMemberRole,
     type SessionUser,
 } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -193,15 +193,10 @@ const buildService = ({ canView }: { canView: boolean }) => {
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
-        appRuntimeS3: {
-            client: new S3Client({
-                region: 'us-east-1',
-                credentials: { accessKeyId: 'key', secretAccessKey: 'secret' },
-            }),
-            bucket: 'apps',
-        },
-        thumbnailCapture: null,
-        thumbnailSettings: null,
+        appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock({
+            appModel: appModel as never,
+        }),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
