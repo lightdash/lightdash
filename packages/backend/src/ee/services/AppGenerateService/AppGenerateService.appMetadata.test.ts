@@ -1,6 +1,7 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import { generateText } from 'ai';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import {
     AppGenerateService,
     buildAppMetadataSchema,
@@ -76,8 +77,7 @@ function buildService() {
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
-        thumbnailCapture: null,
-        thumbnailSettings: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

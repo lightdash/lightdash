@@ -2,6 +2,7 @@ import {
     type AppCaptureThumbnailJobPayload,
     type AppGeneratePipelineJobPayload,
 } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -135,13 +136,9 @@ function buildService({
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
-        thumbnailCapture: headlessBrowserConfigured
-            ? {
-                  isAvailable: () => true,
-                  render: async () => Buffer.from('png'),
-              }
-            : null,
-        thumbnailSettings: null,
+        appThumbnailClient: buildAppThumbnailClientMock({
+            headlessBrowserConfigured,
+        }),
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
     });

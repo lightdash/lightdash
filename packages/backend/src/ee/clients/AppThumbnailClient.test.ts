@@ -1,17 +1,12 @@
-import {
-    ForbiddenError,
-    NotFoundError,
-    type AppVersionStatus,
-    type SessionUser,
-} from '@lightdash/common';
+import { NotFoundError, type AppVersionStatus } from '@lightdash/common';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type DbAppVersion } from '../../database/entities/apps';
 import {
     appLevelThumbnailKey,
-    AppThumbnails,
-    type AppThumbnailObjectStorage,
-    type AppThumbnailVersionStore,
-    type ThumbnailApp,
-    type ThumbnailVersion,
+    AppThumbnailClient,
+    type AppThumbnailClientArgs,
 } from './AppThumbnailClient';
+import { createInMemoryAppThumbnailStorage } from './AppThumbnailClient.mock';
 
 const APP_UUID = 'app-1';
 const PROJECT_UUID = 'project-1';
@@ -19,14 +14,13 @@ const ORGANIZATION_UUID = 'org-1';
 const CREATOR_UUID = 'creator-1';
 const APP = { projectUuid: PROJECT_UUID, appUuid: APP_UUID };
 
-const asUser = (userUuid: string) => ({ userUuid }) as SessionUser;
-const manager = asUser('manager-1');
-const viewer = asUser('viewer-1');
-const stranger = asUser('stranger-1');
-
 const image = (label: string) => Buffer.from(label);
 
-type AppSeed = Partial<Pick<ThumbnailApp, 'appUuid' | 'isCustomChartType'>>;
+type AppModelFake = AppThumbnailClientArgs['appModel'];
+type AppRow = Awaited<ReturnType<AppModelFake['getApp']>>;
+type VersionRow = NonNullable<Awaited<ReturnType<AppModelFake['getVersion']>>>;
+
+type AppSeed = { appUuid?: string; isCustomChartType?: boolean };
 type VersionSeed = {
     version: number;
     status: AppVersionStatus;
@@ -43,132 +37,108 @@ const buildScenario = ({
     versions?: VersionSeed[];
     legacyImage?: Buffer | null;
 } = {}) => {
-    const appRows = new Map<string, ThumbnailApp>(
+    const appRows = new Map<string, AppRow>(
         apps.map((seed) => {
-            const app: ThumbnailApp = {
-                appUuid: seed.appUuid ?? APP_UUID,
-                projectUuid: PROJECT_UUID,
-                organizationUuid: ORGANIZATION_UUID,
-                spaceUuid: null,
-                createdByUserUuid: CREATOR_UUID,
+            const row = {
+                app_id: seed.appUuid ?? APP_UUID,
+                project_uuid: PROJECT_UUID,
+                organization_uuid: ORGANIZATION_UUID,
+                space_uuid: null,
+                created_by_user_uuid: CREATOR_UUID,
                 name: 'Revenue app',
-                isCustomChartType: seed.isCustomChartType ?? false,
-            };
-            return [app.appUuid, app];
+                template: seed.isCustomChartType ? 'data_app_viz' : 'dashboard',
+            } as AppRow;
+            return [row.app_id, row];
         }),
     );
-    const versionRows = new Map<string, ThumbnailVersion[]>();
-    const versionsOf = (appUuid: string) => versionRows.get(appUuid) ?? [];
+    const versionRows: VersionRow[] = [];
+    const versionsOf = (appUuid: string) =>
+        versionRows.filter((row) => row.app_id === appUuid);
     const addVersion = (seed: VersionSeed) => {
-        const appUuid = seed.appUuid ?? APP_UUID;
-        versionRows.set(appUuid, [
-            ...versionsOf(appUuid),
-            {
-                version: seed.version,
-                status: seed.status,
-                createdByUserUuid: seed.createdByUserUuid ?? CREATOR_UUID,
-                thumbnail: null,
-            },
-        ]);
+        versionRows.push({
+            app_id: seed.appUuid ?? APP_UUID,
+            version: seed.version,
+            status: seed.status,
+            created_by_user_uuid: seed.createdByUserUuid ?? CREATOR_UUID,
+            thumbnail_captured_at: null,
+            thumbnail_is_manual: null,
+        } as Partial<DbAppVersion> as VersionRow);
     };
     versions.forEach(addVersion);
     const findRow = (appUuid: string, version: number) =>
         versionsOf(appUuid).find((row) => row.version === version) ?? null;
 
-    const versionStore: AppThumbnailVersionStore = {
+    const appModel: AppModelFake = {
         getApp: async (appUuid, projectUuid) => {
             const app = appRows.get(appUuid);
-            if (!app || app.projectUuid !== projectUuid) {
+            if (!app || app.project_uuid !== projectUuid) {
                 throw new NotFoundError(`App not found: ${appUuid}`);
             }
             return app;
         },
-        findAppByUuid: async (appUuid) => appRows.get(appUuid) ?? null,
-        findVersion: async (appUuid, version) => {
+        findAppByUuid: async (appUuid) => appRows.get(appUuid),
+        getVersion: async (appUuid, version) => {
             const row = findRow(appUuid, version);
             return row ? { ...row } : null;
         },
-        findLatestReadyVersion: async (appUuid) => {
+        getLatestReadyVersion: async (appUuid) => {
             const ready = versionsOf(appUuid)
                 .filter((row) => row.status === 'ready')
                 .sort((a, b) => b.version - a.version);
             return ready.length > 0 ? { ...ready[0] } : null;
         },
         hasAnyVersionThumbnail: async (appUuid) =>
-            versionsOf(appUuid).some((row) => row.thumbnail !== null),
-        setThumbnail: async (appUuid, version, { isManual }) => {
+            versionsOf(appUuid).some(
+                (row) => row.thumbnail_captured_at !== null,
+            ),
+        setVersionThumbnail: async (appUuid, version, { isManual }) => {
             const row = findRow(appUuid, version);
             if (!row) return false;
-            if (!isManual && row.thumbnail?.isManual) return false;
-            row.thumbnail = { isManual };
+            if (!isManual && row.thumbnail_is_manual) return false;
+            row.thumbnail_captured_at = new Date();
+            row.thumbnail_is_manual = isManual;
             return true;
         },
-        clearThumbnail: async (appUuid, version) => {
+        clearVersionThumbnail: async (appUuid, version) => {
             const row = findRow(appUuid, version);
-            if (row) row.thumbnail = null;
+            if (!row) return;
+            row.thumbnail_captured_at = null;
+            row.thumbnail_is_manual = null;
         },
     };
 
-    const objects = new Map<string, Buffer>();
-    const urlPrefix = 'https://storage.test/';
-    const objectStorage: AppThumbnailObjectStorage = {
-        put: async (key, body) => {
-            objects.set(key, body);
-        },
-        exists: async (key) => objects.has(key),
-        copy: async (fromKey, toKey) => {
-            const body = objects.get(fromKey);
-            if (!body) throw new Error(`No such object: ${fromKey}`);
-            objects.set(toKey, body);
-        },
-        delete: async (key) => {
-            objects.delete(key);
-        },
-        getSignedUrl: async (key) => `${urlPrefix}${key}`,
-    };
-    /** What a browser following the signed URL would download. */
-    const download = (url: string | null): string | null => {
-        if (url === null) return null;
-        return objects.get(url.slice(urlPrefix.length))?.toString() ?? null;
-    };
+    const { storage, objects, download } = createInMemoryAppThumbnailStorage();
 
     const state = {
-        headlessBrowserConfigured: true,
-        automaticCaptureEnabled: true,
         renderFails: false,
         // Runs while the headless render is in flight.
         duringRender: async () => {},
     };
+    const lightdashConfig = {
+        ...lightdashConfigMock,
+        headlessBrowser: {
+            ...lightdashConfigMock.headlessBrowser,
+            host: 'headless-browser' as string | undefined,
+        },
+    };
 
-    const thumbnails = new AppThumbnails({
-        versionStore,
-        objectStorage,
-        capture: {
-            isAvailable: () => state.headlessBrowserConfigured,
-            render: async ({ app, version, asUserUuid }) => {
+    const thumbnails = new AppThumbnailClient({
+        lightdashConfig,
+        appModel,
+        unfurlService: {
+            captureDataAppVersion: async ({
+                appUuid,
+                version,
+                authUserUuid,
+            }) => {
                 await state.duringRender();
                 if (state.renderFails) throw new Error('Render timed out');
                 return image(
-                    `render of ${app.appUuid} v${version} as ${asUserUuid}`,
+                    `render of ${appUuid} v${version} as ${authUserUuid}`,
                 );
             },
         },
-        settings: {
-            isAutomaticCaptureEnabled: async () =>
-                state.automaticCaptureEnabled,
-        },
-        access: {
-            assertCanView: async (user) => {
-                if (user.userUuid === stranger.userUuid) {
-                    throw new ForbiddenError('Cannot view app');
-                }
-            },
-            assertCanManage: async (user) => {
-                if (user.userUuid !== manager.userUuid) {
-                    throw new ForbiddenError('Cannot manage app');
-                }
-            },
-        },
+        storage,
     });
 
     if (legacyImage) {
@@ -179,6 +149,9 @@ const buildScenario = ({
         thumbnails,
         state,
         addVersion,
+        removeHeadlessBrowser: () => {
+            lightdashConfig.headlessBrowser.host = undefined;
+        },
         statusOf: (version: number, appUuid = APP_UUID) =>
             findRow(appUuid, version)?.status ?? null,
         /** A build finished: the version is ready, and its capture job runs if one is enqueued. */
@@ -187,26 +160,27 @@ const buildScenario = ({
             addVersion({ ...seed, status: 'ready' });
             const app = appRows.get(appUuid);
             if (!app) throw new Error(`No such app: ${appUuid}`);
-            if (await thumbnails.shouldCaptureAutomatically(app)) {
+            const shouldCapture = await thumbnails.shouldCaptureAutomatically({
+                organizationUuid: app.organization_uuid,
+                isCustomChartType: app.template === 'data_app_viz',
+            });
+            if (shouldCapture) {
                 await thumbnails.captureVersion({
                     appUuid,
                     version: seed.version,
                 });
             }
         },
-        appThumbnail: async (user = viewer, app = APP) =>
-            download(await thumbnails.getAppThumbnailUrl(user, app)),
-        versionThumbnail: async (version: number, user = viewer, app = APP) =>
+        appThumbnail: async (app = APP) =>
+            download(await thumbnails.getAppThumbnailUrl(app)),
+        versionThumbnail: async (version: number, app = APP) =>
             download(
-                await thumbnails.getVersionThumbnailUrl(user, {
-                    ...app,
-                    version,
-                }),
+                await thumbnails.getVersionThumbnailUrl({ ...app, version }),
             ),
     };
 };
 
-describe('AppThumbnails', () => {
+describe('AppThumbnailClient', () => {
     describe('automatic capture when a version becomes ready', () => {
         it('gives the version a thumbnail rendered as its creator', async () => {
             const s = buildScenario();
@@ -236,34 +210,9 @@ describe('AppThumbnails', () => {
             );
         });
 
-        it('captures nothing while automatic capture is turned off for the organization', async () => {
-            const s = buildScenario();
-            s.state.automaticCaptureEnabled = false;
-
-            await s.becomeReady({ version: 1 });
-
-            expect(await s.versionThumbnail(1)).toBeNull();
-        });
-
-        it('still captures a version whose capture was enqueued before automatic capture was turned off', async () => {
-            const s = buildScenario({
-                versions: [{ version: 1, status: 'ready' }],
-            });
-            s.state.automaticCaptureEnabled = false;
-
-            await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
-
-            expect(await s.versionThumbnail(1)).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
-        });
-
         it('captures nothing when no headless browser is configured', async () => {
             const s = buildScenario();
-            s.state.headlessBrowserConfigured = false;
+            s.removeHeadlessBrowser();
 
             await s.becomeReady({ version: 1 });
             const outcome = await s.thumbnails.captureVersion({
@@ -386,7 +335,7 @@ describe('AppThumbnails', () => {
                 versions: [{ version: 1, status: 'ready' }],
             });
 
-            await s.thumbnails.setManualThumbnail(manager, {
+            await s.thumbnails.setManualThumbnail({
                 ...APP,
                 version: null,
                 image: image('chart type image'),
@@ -395,7 +344,7 @@ describe('AppThumbnails', () => {
             expect(await s.appThumbnail()).toBe('chart type image');
             expect(await s.versionThumbnail(1)).toBeNull();
 
-            await s.thumbnails.removeThumbnail(manager, {
+            await s.thumbnails.removeThumbnail({
                 ...APP,
                 version: null,
             });
@@ -408,7 +357,7 @@ describe('AppThumbnails', () => {
             const s = buildScenario();
             await s.becomeReady({ version: 1 });
 
-            await s.thumbnails.setManualThumbnail(manager, {
+            await s.thumbnails.setManualThumbnail({
                 ...APP,
                 version: 1,
                 image: image('hand-picked state'),
@@ -423,7 +372,7 @@ describe('AppThumbnails', () => {
             await s.becomeReady({ version: 1 });
             await s.becomeReady({ version: 2 });
 
-            await s.thumbnails.setManualThumbnail(manager, {
+            await s.thumbnails.setManualThumbnail({
                 ...APP,
                 version: 1,
                 image: image('hand-picked state'),
@@ -444,7 +393,7 @@ describe('AppThumbnails', () => {
                 ],
             });
 
-            const saved = await s.thumbnails.setManualThumbnail(manager, {
+            const saved = await s.thumbnails.setManualThumbnail({
                 ...APP,
                 version: null,
                 image: image('hand-picked state'),
@@ -461,14 +410,14 @@ describe('AppThumbnails', () => {
             });
 
             await expect(
-                s.thumbnails.setManualThumbnail(manager, {
+                s.thumbnails.setManualThumbnail({
                     ...APP,
                     version: 1,
                     image: image('hand-picked state'),
                 }),
             ).rejects.toThrow();
             await expect(
-                s.thumbnails.setManualThumbnail(manager, {
+                s.thumbnails.setManualThumbnail({
                     ...APP,
                     version: 7,
                     image: image('hand-picked state'),
@@ -481,7 +430,7 @@ describe('AppThumbnails', () => {
             const s = buildScenario({
                 versions: [{ version: 1, status: 'ready' }],
             });
-            await s.thumbnails.setManualThumbnail(manager, {
+            await s.thumbnails.setManualThumbnail({
                 ...APP,
                 version: 1,
                 image: image('hand-picked state'),
@@ -500,7 +449,7 @@ describe('AppThumbnails', () => {
                 versions: [{ version: 1, status: 'ready' }],
             });
             s.state.duringRender = async () => {
-                await s.thumbnails.setManualThumbnail(manager, {
+                await s.thumbnails.setManualThumbnail({
                     ...APP,
                     version: 1,
                     image: image('hand-picked state'),
@@ -523,7 +472,7 @@ describe('AppThumbnails', () => {
             });
             await s.becomeReady({ version: 1 });
 
-            await s.thumbnails.removeThumbnail(manager, {
+            await s.thumbnails.removeThumbnail({
                 ...APP,
                 version: 1,
             });
@@ -535,13 +484,13 @@ describe('AppThumbnails', () => {
         it('deletes a manual thumbnail', async () => {
             const s = buildScenario();
             await s.becomeReady({ version: 1 });
-            await s.thumbnails.setManualThumbnail(manager, {
+            await s.thumbnails.setManualThumbnail({
                 ...APP,
                 version: 1,
                 image: image('hand-picked state'),
             });
 
-            await s.thumbnails.removeThumbnail(manager, {
+            await s.thumbnails.removeThumbnail({
                 ...APP,
                 version: null,
             });
@@ -556,7 +505,7 @@ describe('AppThumbnails', () => {
                 legacyImage: image('old app-level image'),
             });
 
-            await s.thumbnails.removeThumbnail(manager, {
+            await s.thumbnails.removeThumbnail({
                 ...APP,
                 version: null,
             });
@@ -567,7 +516,7 @@ describe('AppThumbnails', () => {
         it('is not sticky: the next version is still captured', async () => {
             const s = buildScenario();
             await s.becomeReady({ version: 1 });
-            await s.thumbnails.removeThumbnail(manager, {
+            await s.thumbnails.removeThumbnail({
                 ...APP,
                 version: null,
             });
@@ -601,17 +550,16 @@ describe('AppThumbnails', () => {
             );
         });
 
-        it("gives a duplicate's first version the source version's thumbnail, even with automatic capture off", async () => {
+        it("gives a duplicate's first version the source version's thumbnail", async () => {
             const s = buildScenario({
                 apps: [{}, { appUuid: 'app-copy' }],
             });
             await s.becomeReady({ version: 4 });
-            await s.thumbnails.setManualThumbnail(manager, {
+            await s.thumbnails.setManualThumbnail({
                 ...APP,
                 version: 4,
                 image: image('hand-picked state'),
             });
-            s.state.automaticCaptureEnabled = false;
 
             s.addVersion({ appUuid: 'app-copy', version: 1, status: 'ready' });
             await s.thumbnails.copyThumbnail({
@@ -620,12 +568,8 @@ describe('AppThumbnails', () => {
             });
 
             const copy = { projectUuid: PROJECT_UUID, appUuid: 'app-copy' };
-            expect(await s.versionThumbnail(1, viewer, copy)).toBe(
-                'hand-picked state',
-            );
-            expect(await s.appThumbnail(viewer, copy)).toBe(
-                'hand-picked state',
-            );
+            expect(await s.versionThumbnail(1, copy)).toBe('hand-picked state');
+            expect(await s.appThumbnail(copy)).toBe('hand-picked state');
         });
 
         it('copies nothing from a version without a thumbnail', async () => {
@@ -645,53 +589,13 @@ describe('AppThumbnails', () => {
         });
     });
 
-    describe('permissions', () => {
-        it('lets anyone who can view the app read its thumbnails', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-
-            expect(await s.appThumbnail(viewer)).not.toBeNull();
-            expect(await s.versionThumbnail(1, viewer)).not.toBeNull();
-        });
-
-        it('refuses reads without view permission', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-
-            await expect(s.appThumbnail(stranger)).rejects.toThrow(
-                ForbiddenError,
-            );
-            await expect(s.versionThumbnail(1, stranger)).rejects.toThrow(
-                ForbiddenError,
-            );
-        });
-
-        it('refuses manual capture and remove without manage permission', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-
-            await expect(
-                s.thumbnails.setManualThumbnail(viewer, {
-                    ...APP,
-                    version: 1,
-                    image: image('hand-picked state'),
-                }),
-            ).rejects.toThrow(ForbiddenError);
-            await expect(
-                s.thumbnails.removeThumbnail(viewer, { ...APP, version: 1 }),
-            ).rejects.toThrow(ForbiddenError);
-
-            expect(await s.versionThumbnail(1)).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
-        });
-
+    describe('lookup', () => {
         it('does not find an app through another project', async () => {
             const s = buildScenario();
             await s.becomeReady({ version: 1 });
 
             await expect(
-                s.appThumbnail(viewer, {
+                s.appThumbnail({
                     projectUuid: 'other-project',
                     appUuid: APP_UUID,
                 }),

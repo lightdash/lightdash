@@ -17,6 +17,7 @@ import { Readable } from 'node:stream';
 import { extract as tarExtract, pack as tarPack } from 'tar-stream';
 import { getQueryRequestContext } from '../../../logging/winston';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 import {
     TEMPLATE_DEPENDENCIES,
@@ -242,8 +243,7 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
-        thumbnailCapture: null,
-        thumbnailSettings: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

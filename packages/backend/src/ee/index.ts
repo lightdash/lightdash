@@ -30,6 +30,10 @@ import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { failInFlightAiAgentStreams } from './aiAgentShutdown';
 import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
+import {
+    AppRuntimeThumbnailStorage,
+    AppThumbnailClient,
+} from './clients/AppThumbnailClient';
 import { ChartRegistryClient } from './clients/ChartRegistryClient';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
@@ -598,25 +602,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     sandboxManager: null,
                     appRuntimeS3: null,
-                    thumbnailCapture: {
-                        isAvailable: () =>
-                            context.lightdashConfig.headlessBrowser?.host !==
-                            undefined,
-                        render: ({ app, version, asUserUuid }) =>
-                            repository
-                                .getUnfurlService()
-                                .captureDataAppVersion({
-                                    projectUuid: app.projectUuid,
-                                    appUuid: app.appUuid,
-                                    appName: app.name,
-                                    version,
-                                    authUserUuid: asUserUuid,
-                                    organizationUuid: app.organizationUuid,
-                                }),
-                    },
-                    thumbnailSettings: {
-                        isAutomaticCaptureEnabled: async () => true,
-                    },
+                    appThumbnailClient: new AppThumbnailClient({
+                        lightdashConfig: context.lightdashConfig,
+                        appModel: models.getAppModel(),
+                        unfurlService: repository.getUnfurlService(),
+                        storage: new AppRuntimeThumbnailStorage({
+                            lightdashConfig: context.lightdashConfig,
+                        }),
+                    }),
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,
                     }),

@@ -340,6 +340,7 @@ truth for names and defaults.
 
 - `packages/common/src/ee/apps/` — shared types, version stages, data references, SDK bridge routes and features.
 - `packages/backend/src/ee/services/AppGenerateService/` — the pipeline, authorization, coding agent environments.
+- `packages/backend/src/ee/clients/AppThumbnailClient.ts` — thumbnail rules: capture, manual images, copies, which image an app shows. Callers authorize first.
 - `packages/backend/src/routers/appPreviewRouter.ts` — serving, tokens, CSP.
 - `packages/frontend/src/features/apps/` — builder, preview, bridge, inspector.
 - `packages/frontend/src/features/chartTypes/builder/` — standalone Chart Studio.
