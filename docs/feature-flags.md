@@ -182,3 +182,28 @@ The internal analytics incident is the counterexample: the UI used the standard
 resolver while its backend checked only ENV. Enabling Console made the menu
 visible but could never enable the API. An ENV workaround can restore availability;
 the proper fix is to use the standard resolver across entry points.
+
+## Snowflake sign-in for AI
+
+`snowflake-ai-sign-in` is off by default, including preview defaults. It uses the
+standard resolver without a custom handler. Use organization overrides for Cloud
+rollouts; standard user overrides also apply. Self-hosted instances can use the
+generic ENV lists and precedence described above.
+
+The flag gates the sign-in routes, settings section, and
+selection of the AI credential for Snowflake AI and MCP queries. The deployment
+also needs an Enterprise license and a second Snowflake OAuth security integration
+with `IS_AGENTIC = TRUE`. Configure its OAuth endpoints and client credentials in
+`SNOWFLAKE_AI_OAUTH_*`. The customer manages restricted session scopes and masking
+policies in Snowflake. The app does not configure data access.
+
+Each sign-in and token refresh checks agent activation with the new token. Each
+new AI connection checks activation again and disables cached results. A failed
+check refuses the connection. AI and dashboard credentials use separate rows and
+client cache entries.
+
+Console changes apply to the next backend flag resolution. Reload or refetch the
+settings page to update the UI. ENV and OAuth configuration changes need a process
+restart. Disabling the flag preserves saved credentials and restores the existing
+credential-selection path; it does not cancel queries already in progress or
+revoke Snowflake tokens. This flag does not enforce AI access restrictions.

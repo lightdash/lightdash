@@ -22,7 +22,7 @@ export const SnowflakeAiSignInSection = ({
             <Stack gap="sm">
                 <Title order={5}>Snowflake sign-in for AI</Title>
                 <Text c="dimmed" fz="sm">
-                    AI agents and MCP use this narrower sign-in for Snowflake.
+                    AI agents and MCP use this separate Snowflake sign-in.
                 </Text>
                 <Group gap="sm">
                     <Text fz="sm">
