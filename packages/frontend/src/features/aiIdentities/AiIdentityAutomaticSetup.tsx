@@ -407,7 +407,8 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                     entries={settings.ungrantedSchemas}
                     issues={settings.automaticSync.issues}
                 />
-                {settings.mode === AiIdentityCreationMode.AUTOMATIC &&
+                {settings.provisioner !== null &&
+                    settings.mode === AiIdentityCreationMode.AUTOMATIC &&
                     settings.effectiveMode !==
                         AiIdentityCreationMode.AUTOMATIC && (
                         <Callout

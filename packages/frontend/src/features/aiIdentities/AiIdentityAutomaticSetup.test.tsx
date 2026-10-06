@@ -422,3 +422,15 @@ it('shows Not set up before the first grant sync run', () => {
     expect(screen.getByText('Not set up')).toBeInTheDocument();
     expect(screen.queryByText('UNSAFE')).not.toBeInTheDocument();
 });
+
+it('does not show automatic creation as paused before a setup exists', () => {
+    renderSetup({
+        ...settings,
+        provisioner: null,
+        mode: AiIdentityCreationMode.AUTOMATIC,
+        effectiveMode: AiIdentityCreationMode.GUIDED,
+    });
+    expect(
+        screen.queryByText('Automatic creation is paused'),
+    ).not.toBeInTheDocument();
+});
