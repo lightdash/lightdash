@@ -76,10 +76,12 @@ import Analytics, {
 } from '@rudderstack/rudder-sdk-node';
 import { EventEmitter } from 'events';
 import { Request } from 'express';
+import ExecutionContext from 'node-execution-context';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import Logger from '../logging/logger';
+import type { ExecutionContextInfo } from '../logging/winston';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
@@ -4838,12 +4840,25 @@ export class LightdashAnalytics extends Analytics {
 
     static anonymousId = process.env.LIGHTDASH_INSTALL_ID || uuidv4();
 
+    // A fresh object per call, because rudderstack manipulates the arg.
+    // Events tracked while handling a request also say which client made it
+    // (web app, CLI, Desktop...), so any event can be filtered by client.
+    private eventContext(): Record<string, AnyType> {
+        const requestMethod = ExecutionContext.exists()
+            ? ExecutionContext.get<ExecutionContextInfo>().request_method
+            : undefined;
+        return {
+            ...this.lightdashContext,
+            ...(requestMethod ? { requestMethod } : {}),
+        };
+    }
+
     identify(payload: Identify) {
         if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
 
         super.identify({
             ...payload,
-            context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+            context: this.eventContext(),
         });
     }
 
@@ -4912,7 +4927,7 @@ export class LightdashAnalytics extends Analytics {
             super.track({
                 ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
-                context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+                context: this.eventContext(),
                 properties: payload.properties.isTrackingAnonymized
                     ? basicEventProperties
                     : {
@@ -4928,7 +4943,7 @@ export class LightdashAnalytics extends Analytics {
             super.track({
                 ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
-                context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+                context: this.eventContext(),
                 properties: {
                     ...payload.properties,
                     email: payload.properties.isTrackingAnonymized
@@ -4949,7 +4964,7 @@ export class LightdashAnalytics extends Analytics {
             super.track({
                 ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
-                context: { ...this.lightdashContext },
+                context: this.eventContext(),
                 properties: payload.properties.isTrackingAnonymized
                     ? basicEventProperties
                     : {
@@ -4966,7 +4981,7 @@ export class LightdashAnalytics extends Analytics {
             super.track({
                 ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
-                context: { ...this.lightdashContext },
+                context: this.eventContext(),
                 properties: omitExternalUserId(payload.properties),
             });
             return;
@@ -4975,7 +4990,7 @@ export class LightdashAnalytics extends Analytics {
         super.track({
             ...LightdashAnalytics.ensureActor(payload),
             event: `${this.lightdashContext.app.name}.${payload.event}`,
-            context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+            context: this.eventContext(),
         });
     }
 
@@ -4984,7 +4999,7 @@ export class LightdashAnalytics extends Analytics {
 
         super.group({
             ...payload,
-            context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+            context: this.eventContext(),
         });
     }
 
