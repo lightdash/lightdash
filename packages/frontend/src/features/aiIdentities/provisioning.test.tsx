@@ -252,12 +252,46 @@ it('blocks runs while mappings are unsaved', () => {
     ).toBeDisabled();
     expect(aiIdentityProvisioningApi.plan).not.toHaveBeenCalled();
 });
-it('opens automatic setup and shows a rejected mode change inline', async () => {
+it('opens automatic setup without saving the mode before the provisioner is verified', async () => {
     vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
         ...settings,
         mode: AiIdentityCreationMode.GUIDED,
         effectiveMode: AiIdentityCreationMode.GUIDED,
         provisioner: null,
+    });
+    renderWithClient(
+        <AiIdentityCreationSetup
+            account={
+                { aiIdentityAccountUuid: 'account' } as Parameters<
+                    typeof AiIdentityCreationSetup
+                >[0]['account']
+            }
+            onJob={vi.fn()}
+            onProvisioningJob={vi.fn()}
+        />,
+    );
+    await waitFor(() =>
+        expect(
+            screen.getByRole('radio', { name: 'Lightdash creates them' }),
+        ).toBeEnabled(),
+    );
+    fireEvent.click(
+        screen.getByRole('radio', { name: 'Lightdash creates them' }),
+    );
+    expect(await screen.findByText('Automatic setup')).toBeInTheDocument();
+    expect(screen.queryByText('Guided export')).not.toBeInTheDocument();
+    expect(aiIdentityProvisioningApi.update).not.toHaveBeenCalled();
+});
+
+it('shows a rejected mode change inline', async () => {
+    vi.mocked(aiIdentityProvisioningApi.settings).mockResolvedValue({
+        ...settings,
+        mode: AiIdentityCreationMode.GUIDED,
+        effectiveMode: AiIdentityCreationMode.GUIDED,
+        provisioner: {
+            ...settings.provisioner!,
+            status: AiIdentityProvisionerStatus.READY,
+        },
     });
     vi.mocked(aiIdentityProvisioningApi.update).mockRejectedValue({
         error: { message: 'Check the provisioner first.' },
@@ -284,8 +318,6 @@ it('opens automatic setup and shows a rejected mode change inline', async () => 
     expect(
         await screen.findByText('Check the provisioner first.'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Automatic setup')).toBeInTheDocument();
-    expect(screen.queryByText('Guided export')).not.toBeInTheDocument();
     expect(aiIdentityProvisioningApi.update).toHaveBeenCalledWith('account', {
         mode: AiIdentityCreationMode.AUTOMATIC,
     });

@@ -1,5 +1,6 @@
 import {
     AiIdentityCreationMode,
+    AiIdentityProvisionerStatus,
     type AiIdentityAccount,
 } from '@lightdash/common';
 import { Paper, Radio, Stack, Title } from '@mantine/core';
@@ -37,6 +38,12 @@ export const AiIdentityCreationSetup: FC<{
                                     ? AiIdentityCreationMode.AUTOMATIC
                                     : AiIdentityCreationMode.GUIDED;
                             setSelectedMode(next);
+                            if (
+                                next === AiIdentityCreationMode.AUTOMATIC &&
+                                query.data?.provisioner?.status !==
+                                    AiIdentityProvisionerStatus.READY
+                            )
+                                return;
                             change.mutate(() =>
                                 aiIdentityProvisioningApi.update(uuid, {
                                     mode: next,
