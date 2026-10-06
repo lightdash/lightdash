@@ -1,4 +1,10 @@
-import { type DashboardFilterRule } from '@lightdash/common';
+import {
+    createDashboardFilterRuleFromField,
+    isMetric,
+    type DashboardFieldTarget,
+    type DashboardFilterableField,
+    type DashboardFilterRule,
+} from '@lightdash/common';
 import {
     useCallback,
     useMemo,
@@ -10,6 +16,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     findFilterRule,
     isFilterRuleDirty,
+    removeFilterRule,
     replaceFilterRule,
     type FilterSidebarSnapshot,
 } from './sidebarState';
@@ -20,7 +27,9 @@ import {
 } from './useFilterSidebar';
 
 type SidebarState = {
-    filterId: string;
+    // null while a new filter has no field yet
+    filterId: string | null;
+    isNew: boolean;
     snapshot: FilterSidebarSnapshot;
 };
 
@@ -34,9 +43,38 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         (c) => c.setHaveFiltersChanged,
     );
 
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+
     const [state, setState] = useState<SidebarState | null>(null);
     const [activeSection, setActiveSection] =
         useState<FilterSidebarSection>('fields');
+    const [waitingField, setWaitingField] =
+        useState<DashboardFieldTarget | null>(null);
+    const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
+        null,
+    );
+    // Session only: fields kept listed while they sit on no chart.
+    const [listedFieldIds, setListedFieldIds] = useState<string[]>([]);
+
+    const listFieldId = useCallback((fieldId: string) => {
+        setListedFieldIds((ids) =>
+            ids.includes(fieldId) ? ids : [...ids, fieldId],
+        );
+    }, []);
+
+    const unlistFieldId = useCallback((fieldId: string) => {
+        setListedFieldIds((ids) => ids.filter((id) => id !== fieldId));
+    }, []);
+
+    const resetSession = useCallback(() => {
+        setState(null);
+        setActiveSection('fields');
+        setWaitingField(null);
+        setHighlightedFieldId(null);
+        setListedFieldIds([]);
+    }, []);
 
     const open = useCallback(
         (filterId: string) => {
@@ -45,11 +83,63 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
                     ? current
                     : {
                           filterId,
+                          isNew: false,
                           snapshot: { dashboardFilters, haveFiltersChanged },
                       },
             );
         },
         [dashboardFilters, haveFiltersChanged],
+    );
+
+    const openNew = useCallback(() => {
+        setState((current) =>
+            current !== null
+                ? current
+                : {
+                      filterId: null,
+                      isNew: true,
+                      snapshot: { dashboardFilters, haveFiltersChanged },
+                  },
+        );
+    }, [dashboardFilters, haveFiltersChanged]);
+
+    const addFirstField = useCallback(
+        (field: DashboardFilterableField) => {
+            if (state === null || !state.isNew || state.filterId !== null)
+                return;
+            const newRule: DashboardFilterRule =
+                createDashboardFilterRuleFromField({
+                    field,
+                    availableTileFilters: filterableFieldsByTileUuid ?? {},
+                    isTemporary: false,
+                });
+            setDashboardFilters((filters) =>
+                isMetric(field)
+                    ? { ...filters, metrics: [...filters.metrics, newRule] }
+                    : {
+                          ...filters,
+                          dimensions: [...filters.dimensions, newRule],
+                      },
+            );
+            setHaveFiltersChanged(true);
+            setState({ ...state, filterId: newRule.id });
+        },
+        [
+            state,
+            filterableFieldsByTileUuid,
+            setDashboardFilters,
+            setHaveFiltersChanged,
+        ],
+    );
+
+    const removeFilterById = useCallback(
+        (filterId: string) => {
+            setDashboardFilters((filters) =>
+                removeFilterRule(filters, filterId),
+            );
+            setHaveFiltersChanged(true);
+        },
+        [setDashboardFilters, setHaveFiltersChanged],
     );
 
     const updateFilter = useCallback(
@@ -64,47 +154,77 @@ export const FilterSidebarProvider: FC<PropsWithChildren> = ({ children }) => {
         if (state === null) return;
         setDashboardFilters(state.snapshot.dashboardFilters);
         setHaveFiltersChanged(state.snapshot.haveFiltersChanged);
-        setState(null);
-        setActiveSection('fields');
-    }, [state, setDashboardFilters, setHaveFiltersChanged]);
+        resetSession();
+    }, [state, setDashboardFilters, setHaveFiltersChanged, resetSession]);
 
-    const apply = useCallback(() => {
-        setState(null);
-        setActiveSection('fields');
-    }, []);
+    const apply = resetSession;
+
+    const editingFilterId = state?.filterId ?? null;
+    const removeFilter = useCallback(() => {
+        if (editingFilterId === null) return;
+        removeFilterById(editingFilterId);
+        resetSession();
+    }, [editingFilterId, removeFilterById, resetSession]);
 
     const value = useMemo<FilterSidebarContextValue>(
         () => ({
             editing: state === null ? null : { filterId: state.filterId },
+            isNew: state?.isNew ?? false,
             originalFilterRule:
-                state === null
+                state === null || editingFilterId === null
                     ? null
                     : findFilterRule(
                           state.snapshot.dashboardFilters,
-                          state.filterId,
+                          editingFilterId,
                       ),
+            editingRule:
+                editingFilterId === null
+                    ? null
+                    : findFilterRule(dashboardFilters, editingFilterId),
+            waitingField,
+            setWaitingField,
+            highlightedFieldId,
+            setHighlightedFieldId,
+            listedFieldIds,
+            listFieldId,
+            unlistFieldId,
             activeSection,
             setActiveSection,
             open,
+            openNew,
+            addFirstField,
+            removeFilter,
+            removeFilterById,
             updateFilter,
             cancel,
             apply,
             isDirty:
                 state !== null &&
+                editingFilterId !== null &&
                 isFilterRuleDirty(
                     state.snapshot.dashboardFilters,
                     dashboardFilters,
-                    state.filterId,
+                    editingFilterId,
                 ),
         }),
         [
             state,
+            editingFilterId,
             activeSection,
             open,
+            openNew,
+            addFirstField,
+            removeFilter,
+            removeFilterById,
             updateFilter,
             cancel,
             apply,
             dashboardFilters,
+            waitingField,
+            highlightedFieldId,
+            listedFieldIds,
+            listFieldId,
+            unlistFieldId,
         ],
     );
 

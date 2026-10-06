@@ -1,0 +1,5 @@
+.count {
+    flex-shrink: 0;
+    margin-left: var(--mantine-spacing-xs);
+    text-transform: none;
+}

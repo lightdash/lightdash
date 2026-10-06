@@ -2,6 +2,8 @@ import { type ComponentProps, type FC } from 'react';
 import Page from '../../components/common/Page/Page';
 import { FilterSidebar } from './FilterSidebar';
 import { FilterSidebarProvider } from './FilterSidebarProvider';
+import { TabCounts } from './TabCounts';
+import { TileOverlays } from './TileOverlay';
 import { useFilterSidebar } from './useFilterSidebar';
 
 type Props = ComponentProps<typeof Page>;
@@ -27,5 +29,7 @@ const PageWithFilterSidebar: FC<Props> = (props) => {
 export const FilterSidebarPage: FC<Props> = (props) => (
     <FilterSidebarProvider>
         <PageWithFilterSidebar {...props} />
+        <TileOverlays />
+        <TabCounts />
     </FilterSidebarProvider>
 );

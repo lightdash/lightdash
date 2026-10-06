@@ -131,7 +131,7 @@ export const FilterBar: FC<Props> = ({
                             )}
                             {isEditMode ? (
                                 <>
-                                    <AddFilter activeTabUuid={activeTabUuid} />
+                                    <AddFilter />
                                     <FilterPills
                                         activeTabUuid={activeTabUuid}
                                     />

@@ -1,0 +1,213 @@
+import {
+    getItemId,
+    isDashboardDataAppTileType,
+    isDashboardFieldTarget,
+    type DashboardFieldTarget,
+    type DashboardFilterableField,
+    type DashboardFilterRule,
+    type DashboardTab,
+    type DashboardTile,
+} from '@lightdash/common';
+import { getFilterTileRelation } from '../dashboardFilters/FilterConfiguration/utils';
+
+export type FieldsByTile =
+    | Record<string, DashboardFilterableField[]>
+    | undefined;
+
+export type FieldCount = { applied: number; possible: number };
+export type TabCount = { applied: number; total: number };
+
+export const doesTileOfferField = (
+    tile: DashboardTile,
+    fieldId: string,
+    fieldsByTile: FieldsByTile,
+): boolean =>
+    fieldsByTile?.[tile.uuid]?.some((field) => getItemId(field) === fieldId) ??
+    false;
+
+export const isTileFilterable = (
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+): boolean => fieldsByTile?.[tile.uuid] !== undefined;
+
+// Mirrors the shipped "auto" relation, data app tiles included.
+export const getDefaultTileField = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+): DashboardFieldTarget | null =>
+    isDashboardDataAppTileType(tile) ||
+    doesTileOfferField(tile, rule.target.fieldId, fieldsByTile)
+        ? rule.target
+        : null;
+
+export const getTileField = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+): DashboardFieldTarget | null => {
+    const { relation, tileConfig } = getFilterTileRelation(rule, tile.uuid);
+    if (relation === 'disabled') return null;
+    if (relation === 'mapped' && isDashboardFieldTarget(tileConfig))
+        return tileConfig;
+    return getDefaultTileField(rule, tile, fieldsByTile);
+};
+
+export const isTileChanged = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+): boolean => {
+    if (rule.tileTargets?.[tile.uuid] === undefined) return false;
+    const current = getTileField(rule, tile, fieldsByTile);
+    const fallback = getDefaultTileField(rule, tile, fieldsByTile);
+    return (current?.fieldId ?? null) !== (fallback?.fieldId ?? null);
+};
+
+const getPeerTargets = (rule: DashboardFilterRule): DashboardFieldTarget[] =>
+    Object.values(rule.tileTargets ?? {}).filter(isDashboardFieldTarget);
+
+export const getFilterFields = (
+    rule: DashboardFilterRule,
+    listedFieldIds: string[],
+): string[] => [
+    ...new Set([
+        rule.target.fieldId,
+        ...getPeerTargets(rule).map((target) => target.fieldId),
+        ...listedFieldIds,
+    ]),
+];
+
+export const getFieldCount = (
+    rule: DashboardFilterRule,
+    fieldId: string,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+): FieldCount => ({
+    possible: tiles.filter((tile) =>
+        doesTileOfferField(tile, fieldId, fieldsByTile),
+    ).length,
+    applied: tiles.filter(
+        (tile) => getTileField(rule, tile, fieldsByTile)?.fieldId === fieldId,
+    ).length,
+});
+
+const withTileTargets = (
+    rule: DashboardFilterRule,
+    tileTargets: NonNullable<DashboardFilterRule['tileTargets']>,
+): DashboardFilterRule => {
+    const rest = Object.fromEntries(
+        Object.entries(rule).filter(([key]) => key !== 'tileTargets'),
+    ) as Omit<DashboardFilterRule, 'tileTargets'>;
+    return Object.keys(tileTargets).length > 0
+        ? { ...rest, tileTargets }
+        : rest;
+};
+
+export const setTileField = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    field: DashboardFieldTarget | null,
+    fieldsByTile: FieldsByTile,
+): DashboardFilterRule => {
+    const fallback = getDefaultTileField(rule, tile, fieldsByTile);
+    const others = Object.fromEntries(
+        Object.entries(rule.tileTargets ?? {}).filter(
+            ([tileUuid]) => tileUuid !== tile.uuid,
+        ),
+    );
+    if ((field?.fieldId ?? null) === (fallback?.fieldId ?? null)) {
+        return withTileTargets(rule, others);
+    }
+    return withTileTargets(rule, { ...others, [tile.uuid]: field ?? false });
+};
+
+export const applyFieldToAll = (
+    rule: DashboardFilterRule,
+    field: DashboardFieldTarget,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+): DashboardFilterRule =>
+    tiles
+        .filter((tile) => doesTileOfferField(tile, field.fieldId, fieldsByTile))
+        .reduce(
+            (next, tile) => setTileField(next, tile, field, fieldsByTile),
+            rule,
+        );
+
+export const removeFieldFromAll = (
+    rule: DashboardFilterRule,
+    fieldId: string,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+): DashboardFilterRule =>
+    tiles
+        .filter(
+            (tile) =>
+                getTileField(rule, tile, fieldsByTile)?.fieldId === fieldId,
+        )
+        .reduce(
+            (next, tile) => setTileField(next, tile, null, fieldsByTile),
+            rule,
+        );
+
+export const removeField = (
+    rule: DashboardFilterRule,
+    fieldId: string,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+): DashboardFilterRule => {
+    if (fieldId !== rule.target.fieldId) {
+        const kept = Object.fromEntries(
+            Object.entries(rule.tileTargets ?? {}).filter(
+                ([, entry]) =>
+                    !(
+                        isDashboardFieldTarget(entry) &&
+                        entry.fieldId === fieldId
+                    ),
+            ),
+        );
+        return withTileTargets(rule, kept);
+    }
+
+    const promoted = getPeerTargets(rule).find(
+        (target) => target.fieldId !== fieldId,
+    );
+    if (promoted === undefined) return rule;
+
+    const base: DashboardFilterRule = withTileTargets(
+        { ...rule, target: promoted },
+        {},
+    );
+    return tiles.reduce((next, tile) => {
+        const effective = getTileField(rule, tile, fieldsByTile);
+        if (effective?.fieldId === fieldId) return next;
+        return setTileField(next, tile, effective, fieldsByTile);
+    }, base);
+};
+
+export const getTabCounts = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    fieldsByTile: FieldsByTile,
+): Record<string, TabCount> =>
+    Object.fromEntries(
+        tabs.map((tab) => {
+            const tabTiles = tiles.filter(
+                (tile) =>
+                    tile.tabUuid === tab.uuid &&
+                    isTileFilterable(tile, fieldsByTile),
+            );
+            return [
+                tab.uuid,
+                {
+                    total: tabTiles.length,
+                    applied: tabTiles.filter(
+                        (tile) =>
+                            getTileField(rule, tile, fieldsByTile) !== null,
+                    ).length,
+                },
+            ];
+        }),
+    );

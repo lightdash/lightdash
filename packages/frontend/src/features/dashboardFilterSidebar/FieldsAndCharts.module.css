@@ -1,0 +1,42 @@
+.row {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.rowHighlighted {
+    border-color: var(--mantine-primary-color-filled);
+    background-color: var(--mantine-primary-color-light);
+}
+
+.rowWaiting {
+    border-style: dashed;
+}
+
+.rowMain {
+    flex: 1;
+    min-width: 0;
+    padding: var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.rowActions {
+    padding-right: var(--mantine-spacing-xs);
+    opacity: 0;
+}
+
+.row:hover .rowActions,
+.row:focus-within .rowActions,
+.rowActionsVisible {
+    opacity: 1;
+}
+
+.option {
+    width: 100%;
+    padding: var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.option:hover,
+.option:focus-visible {
+    background-color: var(--mantine-color-default-hover);
+}

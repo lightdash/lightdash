@@ -25,3 +25,25 @@
     border-color: var(--mantine-primary-color-filled);
     border-width: 2px;
 }
+
+.draftPill {
+    border-style: dashed;
+}
+
+.pill {
+    position: relative;
+    display: inline-flex;
+}
+
+.removePill {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    opacity: 0;
+    transition: opacity 100ms ease;
+}
+
+.pill:hover .removePill,
+.pill:focus-within .removePill {
+    opacity: 1;
+}

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
     findFilterRule,
     isFilterRuleDirty,
+    removeFilterRule,
     replaceFilterRule,
 } from './sidebarState';
 
@@ -46,5 +47,13 @@ describe('sidebarState', () => {
         });
         expect(isFilterRuleDirty(filters, edited, 'a')).toBe(true);
         expect(isFilterRuleDirty(filters, edited, 'b')).toBe(false);
+    });
+
+    it('removes a rule by id from dimensions or metrics', () => {
+        expect(removeFilterRule(filters, 'a').dimensions).toEqual([
+            rule('b', ['2']),
+        ]);
+        expect(removeFilterRule(filters, 'm').metrics).toEqual([]);
+        expect(removeFilterRule(filters, 'missing')).toEqual(filters);
     });
 });

@@ -2,8 +2,10 @@ import {
     getConditionalRuleLabelFromItem,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Button, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Text, Tooltip } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import pillClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
@@ -17,7 +19,7 @@ type Props = {
 
 export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const getUiString = useUiStrings();
-    const { editing, open } = useFilterSidebar();
+    const { editing, isNew, open, removeFilterById } = useFilterSidebar();
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -68,7 +70,10 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                           getUiString,
                       )
                     : null;
-                const name = filter.label || labels?.field || 'Filter';
+                const isDraft = isNew && isSelected && !filter.label;
+                const name = isDraft
+                    ? 'New filter'
+                    : filter.label || labels?.field || 'Filter';
                 return (
                     <Tooltip
                         key={filter.id}
@@ -79,38 +84,59 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                                 : 'filters.notAppliedToAnyTiles',
                         )}
                     >
-                        <Button
-                            size="xs"
-                            variant="default"
-                            aria-pressed={isSelected}
-                            classNames={{ label: pillClasses.label }}
-                            className={[
-                                pillClasses.button,
-                                isOrphaned ? pillClasses.inactiveFilter : '',
-                                isSelected ? classes.selectedPill : '',
-                            ].join(' ')}
-                            onClick={() => open(filter.id)}
-                        >
-                            <Text fz="inherit" span>
-                                <Text fw={600} span>
-                                    {name}
-                                </Text>{' '}
-                                {filter.disabled || labels === null ? (
-                                    <Text span c="dimmed">
-                                        is any value
-                                    </Text>
-                                ) : (
-                                    <>
+                        <Box className={classes.pill}>
+                            <Button
+                                size="xs"
+                                variant="default"
+                                aria-pressed={isSelected}
+                                classNames={{ label: pillClasses.label }}
+                                className={[
+                                    pillClasses.button,
+                                    isOrphaned
+                                        ? pillClasses.inactiveFilter
+                                        : '',
+                                    isSelected ? classes.selectedPill : '',
+                                    isDraft ? classes.draftPill : '',
+                                ].join(' ')}
+                                onClick={() => open(filter.id)}
+                            >
+                                <Text fz="inherit" span>
+                                    <Text fw={600} span>
+                                        {name}
+                                    </Text>{' '}
+                                    {filter.disabled || labels === null ? (
                                         <Text span c="dimmed">
-                                            {labels.operator}
-                                        </Text>{' '}
-                                        <Text fw={700} span>
-                                            {labels.value}
+                                            is any value
                                         </Text>
-                                    </>
-                                )}
-                            </Text>
-                        </Button>
+                                    ) : (
+                                        <>
+                                            <Text span c="dimmed">
+                                                {labels.operator}
+                                            </Text>{' '}
+                                            <Text fw={700} span>
+                                                {labels.value}
+                                            </Text>
+                                        </>
+                                    )}
+                                </Text>
+                            </Button>
+                            {editing === null && (
+                                <Tooltip label="Remove filter">
+                                    <ActionIcon
+                                        size="xs"
+                                        radius="xl"
+                                        variant="default"
+                                        aria-label="Remove filter"
+                                        className={classes.removePill}
+                                        onClick={() =>
+                                            removeFilterById(filter.id)
+                                        }
+                                    >
+                                        <MantineIcon icon={IconX} size="sm" />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </Box>
                     </Tooltip>
                 );
             })}

@@ -1,5 +1,8 @@
 import {
+    DimensionType,
+    FieldType,
     FilterOperator,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
@@ -29,6 +32,17 @@ const initialFilters: DashboardFilters = {
     dimensions: [rule('a', ['1']), rule('b', ['2'])],
     metrics: [],
     tableCalculations: [],
+};
+
+const statusField: DashboardFilterableField = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name: 'status',
+    label: 'Status',
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: '${TABLE}.status',
+    hidden: false,
 };
 
 const latest: { filters: DashboardFilters; changed: boolean } = {
@@ -101,5 +115,65 @@ describe('FilterSidebarProvider', () => {
         expect(latest.changed).toBe(true);
         expect(result.current.editing).toBeNull();
         expect(result.current.isDirty).toBe(false);
+    });
+
+    it('opens a new filter with no field and drops the draft on cancel', () => {
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.openNew());
+        expect(result.current.editing).toEqual({ filterId: null });
+        expect(result.current.isNew).toBe(true);
+        expect(result.current.editingRule).toBeNull();
+        expect(latest.filters).toEqual(initialFilters);
+
+        act(() => result.current.addFirstField(statusField));
+        expect(latest.filters.dimensions).toHaveLength(3);
+        const draft = latest.filters.dimensions[2];
+        expect(draft.target.fieldId).toBe('orders_status');
+        expect(draft.label).toBeUndefined();
+        expect(draft.disabled).toBe(true);
+        expect(result.current.editing).toEqual({ filterId: draft.id });
+        expect(result.current.isNew).toBe(true);
+        expect(latest.changed).toBe(true);
+
+        act(() => result.current.cancel());
+        expect(latest.filters).toEqual(initialFilters);
+        expect(latest.changed).toBe(false);
+        expect(result.current.editing).toBeNull();
+        expect(result.current.isNew).toBe(false);
+    });
+
+    it('ignores openNew while a filter is being edited', () => {
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.open('a'));
+        act(() => result.current.openNew());
+        expect(result.current.editing).toEqual({ filterId: 'a' });
+        expect(result.current.isNew).toBe(false);
+    });
+
+    it('removes the editing filter and closes without restoring', () => {
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.open('a'));
+        act(() => result.current.removeFilter());
+
+        expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
+        expect(latest.changed).toBe(true);
+        expect(result.current.editing).toBeNull();
+    });
+
+    it('removes a filter by id without opening the sidebar', () => {
+        const { result } = renderHook(() => useFilterSidebar(), {
+            wrapper: Wrapper,
+        });
+        act(() => result.current.removeFilterById('b'));
+
+        expect(latest.filters.dimensions).toEqual([rule('a', ['1'])]);
+        expect(latest.changed).toBe(true);
+        expect(result.current.editing).toBeNull();
     });
 });

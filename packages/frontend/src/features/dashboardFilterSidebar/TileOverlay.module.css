@@ -1,0 +1,46 @@
+.overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: var(--mantine-spacing-xs);
+    border: 2px solid transparent;
+    border-radius: var(--mantine-radius-md);
+    pointer-events: none;
+}
+
+.overlay[data-highlighted] {
+    border-color: var(--mantine-primary-color-filled);
+}
+
+.chips {
+    max-width: 100%;
+}
+
+.chip,
+.chipDashed,
+.badge {
+    pointer-events: auto;
+    box-shadow: var(--mantine-shadow-xs);
+}
+
+.chip,
+.chipDashed {
+    max-width: 100%;
+    font-weight: 500;
+}
+
+.chipDashed {
+    border-style: dashed;
+    color: var(--mantine-color-dimmed);
+}
+
+.note {
+    padding: 0 var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-xl);
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-dimmed);
+    opacity: 0.85;
+}

@@ -1,0 +1,138 @@
+import {
+    Badge,
+    Box,
+    Button,
+    Group,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
+import { type FC } from 'react';
+import classes from './FieldsAndCharts.module.css';
+import { type FieldCount } from './peers';
+
+const pluralizeCharts = (count: number): string =>
+    count === 1 ? 'chart' : 'charts';
+
+type Props = {
+    label: string;
+    tableLabel: string;
+    count: FieldCount;
+    isWaiting: boolean;
+    isHighlighted: boolean;
+    isNotSaved: boolean;
+    canRemove: boolean;
+    onToggleHighlight: () => void;
+    onAll: () => void;
+    onNone: () => void;
+    onRemove: () => void;
+};
+
+export const FieldRow: FC<Props> = ({
+    label,
+    tableLabel,
+    count,
+    isWaiting,
+    isHighlighted,
+    isNotSaved,
+    canRemove,
+    onToggleHighlight,
+    onAll,
+    onNone,
+    onRemove,
+}) => {
+    const showAll = count.applied < count.possible;
+    const showNone = !isWaiting && count.applied > 0;
+    const showRemove = isWaiting || canRemove;
+    const rowClassName = [
+        classes.row,
+        isHighlighted ? classes.rowHighlighted : '',
+        isWaiting ? classes.rowWaiting : '',
+    ]
+        .filter(Boolean)
+        .join(' ');
+
+    return (
+        <Group
+            className={rowClassName}
+            justify="space-between"
+            wrap="nowrap"
+            gap="xs"
+        >
+            <UnstyledButton
+                className={classes.rowMain}
+                aria-pressed={isHighlighted}
+                onClick={onToggleHighlight}
+            >
+                <Group gap="xs" wrap="nowrap">
+                    <Text fz="sm" fw={600} truncate>
+                        {label}
+                    </Text>
+                    {isNotSaved && (
+                        <Tooltip label="A field on no charts is not saved yet. It will be gone after a reload.">
+                            <Badge
+                                size="xs"
+                                variant="light"
+                                color="gray"
+                                flex="none"
+                            >
+                                Not saved
+                            </Badge>
+                        </Tooltip>
+                    )}
+                </Group>
+                <Text fz="xs" c="dimmed" truncate>
+                    {isWaiting
+                        ? `${tableLabel} · not added yet`
+                        : `${tableLabel} · ${count.applied} of ${
+                              count.possible
+                          } ${pluralizeCharts(count.possible)}`}
+                </Text>
+            </UnstyledButton>
+            <Box
+                className={`${classes.rowActions} ${
+                    isWaiting ? classes.rowActionsVisible : ''
+                }`}
+            >
+                <Group gap={4} wrap="nowrap">
+                    {showAll && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            aria-label={`Add to all ${count.possible} ${tableLabel} charts`}
+                            onClick={onAll}
+                        >
+                            All {count.possible}
+                        </Button>
+                    )}
+                    {showNone && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            aria-label={
+                                count.applied === 1
+                                    ? 'Remove from the 1 chart'
+                                    : `Remove from all ${count.applied} charts`
+                            }
+                            onClick={onNone}
+                        >
+                            None
+                        </Button>
+                    )}
+                    {showRemove && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            aria-label={`Remove ${label} from this filter`}
+                            onClick={onRemove}
+                        >
+                            Remove
+                        </Button>
+                    )}
+                </Group>
+            </Box>
+        </Group>
+    );
+};
