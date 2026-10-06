@@ -92,6 +92,8 @@ import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
+import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
+import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
@@ -545,6 +547,12 @@ const Settings: FC = () => {
             const canManageAiAnalysis =
                 canViewActivity && dataAppAnalysisFlag?.enabled === true;
 
+            if (canViewActivity) {
+                allowedRoutes.push({
+                    path: '/dataApps/general',
+                    element: <DataAppGeneralSettingsPage />,
+                });
+            }
             if (canManageThemes) {
                 allowedRoutes.push({
                     path: '/dataApps/themes',
@@ -564,19 +572,14 @@ const Settings: FC = () => {
                 });
             }
             // Land on whichever sub-page the user can actually reach.
-            if (canManageThemes || canViewActivity) {
+            const dataAppsLanding = getDataAppsSettingsLanding({
+                canManageOrganization: canViewActivity,
+                canManageThemes,
+            });
+            if (dataAppsLanding) {
                 allowedRoutes.push({
                     path: '/dataApps',
-                    element: (
-                        <Navigate
-                            to={
-                                canManageThemes
-                                    ? '/generalSettings/dataApps/themes'
-                                    : '/generalSettings/dataApps/activity'
-                            }
-                            replace
-                        />
-                    ),
+                    element: <Navigate to={dataAppsLanding} replace />,
                 });
             }
         }
