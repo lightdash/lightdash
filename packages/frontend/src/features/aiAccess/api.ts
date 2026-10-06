@@ -16,7 +16,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 
-export const aiAccessUrl = (
+const aiAccessUrl = (
     projectUuid: string,
     path: string,
     connection: string | null,
