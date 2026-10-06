@@ -113,6 +113,7 @@ export * from './templating/liquidSql';
 export * from './templating/template';
 export * from './types/account';
 export * from './types/adminNotifications';
+export * from './types/aiPrincipal';
 export * from './types/analytics';
 export * from './types/any';
 export * from './types/api';

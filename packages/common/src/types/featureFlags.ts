@@ -5,6 +5,18 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /**
+     * Every AI-originated query runs as an AI principal that the warehouse
+     * can tell from the person. Off by default; organization scope; no handler.
+     */
+    AiPrincipals = 'ai-principals',
+
+    /**
+     * Lets a Snowflake AI access policy choose the procedure transport.
+     * Off by default; organization scope; no handler.
+     */
+    AiProcedureTransport = 'ai-procedure-transport',
+
     MultiConnectionProjects = 'multi-connection-projects',
     /** Independent Documents containing narrative and saved chart definitions. */
     Documents = 'documents',
