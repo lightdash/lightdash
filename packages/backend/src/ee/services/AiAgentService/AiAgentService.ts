@@ -4996,6 +4996,7 @@ export class AiAgentService extends BaseService {
                 ...AiAgentService.getModelConfigAnalyticsProperties(
                     agent.modelConfig,
                 ),
+                contentToolsEnabled: agent.enableContentTools,
                 ...(options?.autoProvisioned ? { autoProvisioned: true } : {}),
             },
         });
@@ -6746,6 +6747,7 @@ export class AiAgentService extends BaseService {
                 ...AiAgentService.getModelConfigAnalyticsProperties(
                     updatedAgent.modelConfig,
                 ),
+                contentToolsEnabled: updatedAgent.enableContentTools,
             },
         });
 

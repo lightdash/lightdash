@@ -531,6 +531,16 @@ export class DashboardService
             ).length,
             tabsCount: dashboard.tabs.length,
             parametersCount: Object.keys(dashboard.parameters || {}).length,
+            isDateZoomDisabled: dashboard.config?.isDateZoomDisabled ?? false,
+            dateZoomGranularitiesCount:
+                dashboard.config?.dateZoomGranularities?.length ?? 0,
+            defaultDateZoomGranularity:
+                dashboard.config?.defaultDateZoomGranularity ?? null,
+            dateZoomControlsCount:
+                dashboard.config?.dateZoomConfig?.controls.length ?? 0,
+            dateZoomTileTargetsCount: Object.keys(
+                dashboard.config?.dateZoomConfig?.tileTargets ?? {},
+            ).length,
         };
     }
 
@@ -725,12 +735,16 @@ export class DashboardService
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
-                ...SavedChartService.getCreateEventProperties(duplicatedChart, {
-                    viaDashboardGrant: sourceContext.access.some(
-                        (row) => row.grantedVia === 'dashboard',
-                    ),
-                    grantOnly: sourceContext.directOnly,
-                }),
+                ...SavedChartService.getCreateEventProperties(
+                    duplicatedChart,
+                    {
+                        viaDashboardGrant: sourceContext.access.some(
+                            (row) => row.grantedVia === 'dashboard',
+                        ),
+                        grantOnly: sourceContext.directOnly,
+                    },
+                    cachedExplore,
+                ),
                 dashboardId: duplicatedChart.dashboardUuid ?? undefined,
                 duplicated: true,
                 virtualViewId:
@@ -3323,6 +3337,7 @@ export class DashboardService
                 timeZone: scheduler.timezone,
                 includeLinks: scheduler.includeLinks,
                 plainTextEmail: scheduler.plainTextEmail,
+                isThresholdAlert: (scheduler.thresholds?.length ?? 0) > 0,
             },
         };
         this.analytics.track(createSchedulerData);

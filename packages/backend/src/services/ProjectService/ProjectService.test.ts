@@ -7126,6 +7126,7 @@ describe('ProjectService', () => {
         ])(
             'admin sets hasDefaultUserSpaces=$hasDefaultUserSpaces (backfill queued: $queuesBackfill)',
             async ({ hasDefaultUserSpaces, queuesBackfill }) => {
+                const track = vi.spyOn(analyticsMock, 'track');
                 const adminUser: SessionUser = {
                     ...user,
                     role: OrganizationMemberRole.ADMIN,
@@ -7165,6 +7166,16 @@ describe('ProjectService', () => {
                               ],
                           ]
                         : [],
+                );
+                expect(track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'default_user_spaces.updated',
+                        properties: {
+                            organizationId: projectSummary.organizationUuid,
+                            projectId: projectUuid,
+                            hasDefaultUserSpaces,
+                        },
+                    }),
                 );
             },
         );

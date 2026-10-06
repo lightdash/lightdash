@@ -571,6 +571,7 @@ export type MetricQueryExecutionProperties = {
     additionalMetricsCurrencyFormatCount: number;
     additionalMetricsNumberFormatCount: number;
     additionalMetricsCustomFormatCount: number;
+    periodOverPeriodMetricsCount: number;
     numFixedWidthBinCustomDimensions: number;
     numFixedBinsBinCustomDimensions: number;
     numCustomRangeBinCustomDimensions: number;
@@ -894,6 +895,24 @@ type OrganizationAllowedEmailDomainUpdatedEvent = BaseTrack & {
     };
 };
 
+type OrganizationColorPaletteEvent = BaseTrack & {
+    event:
+        | 'organization_color_palette.created'
+        | 'organization_color_palette.activated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        colorPaletteId: string;
+    };
+};
+
+type EmailWhitelabelDomainCreatedEvent = BaseTrack & {
+    event: 'email_whitelabel_domain.created';
+    properties: {
+        organizationId: string;
+    };
+};
+
 type MetricFlowQueryEvent = BaseTrack & {
     event: 'metricflow_query.executed';
     properties: {
@@ -1059,6 +1078,8 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         filtersCount: number;
         sortsCount: number;
         tableCalculationsCount: number;
+        additionalMetricsCount: number;
+        periodOverPeriodMetricsCount: number;
         pivotCount: number;
         chartType: ChartType;
         cartesian?: {
@@ -1070,6 +1091,7 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
             margins: string;
             showLegend: boolean;
             hasCustomTooltip: boolean;
+            hasDateXAxis: boolean;
         };
         pie?: {
             isDonut: boolean;
@@ -1399,6 +1421,8 @@ type ProjectCompiledEvent = BaseTrack & {
         modelsWithSqlFiltersCount: number;
         columnAccessFiltersCount: number;
         additionalDimensionsCount: number;
+        nestedFieldsCount: number;
+        hasProjectContext: boolean;
         dbtSourceCount: number;
     };
 };
@@ -1480,6 +1504,11 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         duplicated?: boolean;
         tabsCount?: number;
         parametersCount: number;
+        isDateZoomDisabled: boolean;
+        dateZoomGranularitiesCount: number;
+        defaultDateZoomGranularity: string | null;
+        dateZoomControlsCount: number;
+        dateZoomTileTargetsCount: number;
     };
 };
 
@@ -1921,6 +1950,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         timeZone: string | undefined;
         includeLinks: boolean;
         plainTextEmail: boolean;
+        isThresholdAlert: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {
@@ -1930,6 +1960,16 @@ export type SchedulerTimezoneUpdateEvent = BaseTrack & {
         projectId: string;
         organizationId?: string;
         timeZone: string;
+    };
+};
+
+type DefaultUserSpacesUpdatedEvent = BaseTrack & {
+    event: 'default_user_spaces.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        hasDefaultUserSpaces: boolean;
     };
 };
 
@@ -3143,6 +3183,7 @@ export type AiAgentCreatedEvent = BaseTrack & {
         modelProvider: string | null;
         modelName: string | null;
         reasoningEnabled: boolean | null;
+        contentToolsEnabled: boolean;
         autoProvisioned?: boolean;
     };
 };
@@ -3244,6 +3285,7 @@ export type AiAgentUpdatedEvent = BaseTrack & {
         modelProvider: string | null;
         modelName: string | null;
         reasoningEnabled: boolean | null;
+        contentToolsEnabled: boolean;
     };
 };
 
@@ -4558,6 +4600,8 @@ type TypedEvent =
     | UpdateOrganizationEvent
     | DeleteOrganizationEvent
     | OrganizationAllowedEmailDomainUpdatedEvent
+    | OrganizationColorPaletteEvent
+    | EmailWhitelabelDomainCreatedEvent
     | UserWarehouseCredentialsEvent
     | UserWarehouseCredentialsDeleteEvent
     | WarehouseConnectEvent
@@ -4638,6 +4682,7 @@ type TypedEvent =
     | SourceCodeEvent
     | SourceCodeBranchPullRequestEvent
     | SchedulerTimezoneUpdateEvent
+    | DefaultUserSpacesUpdatedEvent
     | CreateTagEvent
     | CategoriesAppliedEvent
     | CustomFieldsReplaced
