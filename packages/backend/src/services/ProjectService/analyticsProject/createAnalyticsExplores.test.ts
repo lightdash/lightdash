@@ -1,9 +1,124 @@
-import { MetricType, WarehouseTypes } from '@lightdash/common';
+import { FilterOperator, MetricType, WarehouseTypes } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { MetricQueryBuilder } from '../../../utils/QueryBuilder/MetricQueryBuilder';
 import { createAnalyticsExplores } from './createAnalyticsExplores';
 
 describe('createAnalyticsExplores', () => {
+    it('exposes one field list per Explore including available names and slugs', () => {
+        const explores = createAnalyticsExplores();
+        for (const explore of explores) {
+            expect(
+                Object.values(explore.tables)
+                    .filter((table) => !table.hidden)
+                    .map((table) => table.name),
+            ).toEqual([explore.baseTable]);
+        }
+        const ai = explores.find(({ name }) => name === 'ai_usage')!;
+        expect(ai.tables.ai_usage.dimensions.user_name.hidden).toBe(false);
+        expect(ai.tables.ai_usage.dimensions.agent_name.hidden).toBe(false);
+        const exports = explores.find(({ name }) => name === 'export_events')!;
+        expect(exports.tables.export_events.dimensions).toMatchObject({
+            chart_name: { label: 'Chart name', hidden: false },
+            chart_slug: { label: 'Chart slug', hidden: false },
+            dashboard_name: { label: 'Dashboard name', hidden: false },
+            dashboard_slug: { label: 'Dashboard slug', hidden: false },
+            chart_id: { hidden: false },
+            dashboard_id: { hidden: false },
+            explore_name: { hidden: false },
+        });
+    });
+
+    it.each([
+        ['ai_usage', 'lightdash_users_name', 'user_name', 'total_ai_calls'],
+        ['ai_usage', 'lightdash_agents_name', 'agent_name', 'total_ai_calls'],
+        [
+            'query_events',
+            'lightdash_charts_slug',
+            'chart_slug',
+            'total_queries',
+        ],
+        [
+            'export_events',
+            'lightdash_dashboards_name',
+            'dashboard_name',
+            'total_events',
+        ],
+        ['export_events', 'query_events_chart_id', 'chart_id', 'total_events'],
+        ['data_app_events', 'lightdash_apps_name', 'app_name', 'total_views'],
+        [
+            'data_app_events',
+            'lightdash_apps_project_name',
+            'project_name',
+            'total_views',
+        ],
+        ['user_activity', 'lightdash_users_name', 'user_name', 'total_events'],
+    ])(
+        'keeps the same SQL work for %s %s selections, filters and sorts',
+        (name, original, alias, metric) => {
+            const explore = createAnalyticsExplores().find(
+                (item) => item.name === name,
+            )!;
+            const compile = (fieldId: string | null) =>
+                new MetricQueryBuilder({
+                    explore,
+                    compiledMetricQuery: {
+                        exploreName: name,
+                        dimensions: fieldId ? [fieldId] : [],
+                        metrics: [`${name}_${metric}`],
+                        filters: fieldId
+                            ? {
+                                  dimensions: {
+                                      id: 'filter-group',
+                                      and: [
+                                          {
+                                              id: 'filter',
+                                              target: { fieldId },
+                                              operator: FilterOperator.EQUALS,
+                                              values: ['Example'],
+                                          },
+                                      ],
+                                  },
+                              }
+                            : {},
+                        sorts: fieldId ? [{ fieldId, descending: false }] : [],
+                        limit: 50,
+                        tableCalculations: [],
+                        compiledTableCalculations: [],
+                        compiledAdditionalMetrics: [],
+                        compiledCustomDimensions: [],
+                    },
+                    warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                        WarehouseTypes.DUCKDB,
+                    ),
+                    intrinsicUserAttributes: {},
+                    parameterDefinitions: {},
+                    timezone: 'UTC',
+                }).compileQuery();
+            const fieldId = `${name}_${alias}`;
+            const before = compile(original);
+            const after = compile(fieldId);
+            const originalDimension = Object.values(explore.tables)
+                .flatMap((table) => Object.values(table.dimensions))
+                .find((field) => `${field.table}_${field.name}` === original)!;
+            const aliasDimension = explore.tables[name].dimensions[alias];
+            // The compiler wraps references in parentheses; execution otherwise
+            // has exactly the same expressions, joins and storage dependencies.
+            expect(aliasDimension.compiledSql).toBe(
+                `(${originalDimension.compiledSql})`,
+            );
+            expect(after.warnings).toEqual([]);
+            expect(after.query).toBe(
+                before.query
+                    .replaceAll(
+                        originalDimension.compiledSql,
+                        aliasDimension.compiledSql,
+                    )
+                    .replaceAll(original, fieldId),
+            );
+            expect(compile(null).query).not.toContain('JOIN');
+        },
+    );
+
     it.each([
         ['agent_requests', 'users', 'total_requests'],
         ['agent_requests', 'agents', 'total_requests'],
