@@ -63,6 +63,12 @@ import { authorProjectContextEntry } from './ai/projectContext/authorProjectCont
 import { resolveReviewJudgeModel } from './ai/reviewJudgeModel';
 import { authorSkillProposal } from './ai/skills/authorSkillProposal';
 import {
+    emptyRecentSimilarPrompts,
+    rankRecentSimilarPrompts,
+    RECENT_SIMILAR_PROMPTS_WINDOW_DAYS,
+    type AiAgentReviewRecentSimilarPrompts,
+} from './ai/skills/recentSimilarPrompts';
+import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from './ai/utils/aiCallTelemetry';
@@ -70,7 +76,7 @@ import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificati
 import { areReviewsEnabledForSettings } from './AiOrganizationSettingsService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v16';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v17';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -169,6 +175,9 @@ export type AiAgentReviewJudgeEvidencePacket = {
     // Existing review items in this project the judge can dedup against. Each
     // key ("item_1") maps server-side to a fingerprint never shown to the LLM.
     existingReviewItems: AiAgentReviewItemDedupCandidate[];
+    // Other threads on this agent that recently asked for much the same thing,
+    // so repetition across threads is visible without standing phrasing.
+    recentSimilarPrompts: AiAgentReviewRecentSimilarPrompts;
 };
 
 // What a tag-restricted agent can see, mirroring filterExploreByTags.
@@ -1206,8 +1215,13 @@ export class AiAgentReviewClassifierService extends BaseService {
                 )
             ).get(candidate.subject.threadUuid) ?? [];
 
-        const { existingReviewItems, dedupKeyToFingerprint } =
-            await this.loadDedupCandidates(candidate);
+        const [
+            { existingReviewItems, dedupKeyToFingerprint },
+            recentSimilarPrompts,
+        ] = await Promise.all([
+            this.loadDedupCandidates(candidate),
+            this.loadRecentSimilarPrompts(candidate),
+        ]);
 
         return {
             agentConfig,
@@ -1219,8 +1233,39 @@ export class AiAgentReviewClassifierService extends BaseService {
                     semanticContext,
                     threadWritebackPullRequests,
                     existingReviewItems,
+                    recentSimilarPrompts,
                 }),
         };
+    }
+
+    /** A failed load degrades to no matches — it must never fail the review. */
+    private async loadRecentSimilarPrompts(
+        candidate: AiAgentReviewClassifierTurnCandidate,
+    ): Promise<AiAgentReviewRecentSimilarPrompts> {
+        try {
+            const since = new Date();
+            since.setDate(since.getDate() - RECENT_SIMILAR_PROMPTS_WINDOW_DAYS);
+            const recentPrompts =
+                await this.aiAgentReviewClassifierModel.findRecentUserPrompts({
+                    organizationUuid: candidate.subject.organizationUuid,
+                    projectUuid: candidate.subject.projectUuid,
+                    agentUuid: candidate.subject.agentUuid,
+                    excludeThreadUuid: candidate.subject.threadUuid,
+                    since,
+                    limit: 300,
+                });
+            return rankRecentSimilarPrompts(
+                candidate.userPrompt,
+                recentPrompts,
+            );
+        } catch (error) {
+            this.debugLog('RecentSimilarPromptsFailed', {
+                promptUuid: candidate.subject.assistantPromptUuid,
+                errorMessage:
+                    error instanceof Error ? error.message : String(error),
+            });
+            return emptyRecentSimilarPrompts();
+        }
     }
 
     /**
@@ -1697,7 +1742,7 @@ Implicit signal definitions — set these whenever the evidence supports them:
 - tool_error: a tool call errored, timed out, or returned an empty / error result the assistant did not recover from. A human SQL-approval gate expiring (evidence packet pendingApprovalTimeout=true, or a result saying the SQL approval timed out / the user may have stepped away) is NOT a tool_error — it is expected behavior when the user steps away, not a runtime or warehouse defect. Do not promote it as runtime_reliability; when it is the only issue in the turn use promotedToFinding=false (or feedback_quality at most), especially when humanFeedback.score is not negative.
 - product_capability_request: the user asked for something Lightdash cannot currently express.
 - human_intervention: an admin or engineer had to step in.
-- standing_instruction: the user tells the agent how to work, scope, present or verify in standing terms ("always", "from now on", "every time", "as usual", "like last time"), or repeats a steer that previousTurns or existingReviewItems already show them giving — the same format, grouping, filter set or procedure asked for again even though the answer itself was correct. A request stated once, in passing, is not a standing instruction.
+- standing_instruction: the user asks for a PROCEDURE the agent should be able to run on request — several steps, a defined output shape, a set of conventions (which measures, how to split, how to sort, what to flag) — and the evidence shows it is recurring: standing phrasing ("always", "from now on", "every time", "as usual", "like last time"), the same steer repeated in previousTurns or existingReviewItems, or recentSimilarPrompts showing other threads on this agent asking for the same procedure (treat threadCount >= 2 as recurring; userCount > 1 is the strongest signal). A request stated once, in passing, with no match anywhere, is not a standing instruction. A repeated PLAIN QUESTION ("what was revenue last month?", "how many orders yesterday?") is not a standing instruction either, however often it recurs — that is a case for verified content, not a skill.
 
 Grounding rules for next_user_* signals — these override everything below:
 - The evidence packet's nextUserPrompt field is the ONLY evidence for next_user_correction, next_user_dispute, and next_user_retry. When nextUserPrompt is null there is no next user turn: never emit these signals, and never imagine or predict what the user would say next.
@@ -1715,7 +1760,7 @@ Decision rules — apply in order:
    - Promote next_user_correction when the correction is about field choice, metric choice, explore/source selection, scoping, business definition, missing data, or whether the assistant can connect the requested data.
    - Promote next_user_retry only when the previous answer was failed, empty, non-substantive, off-target, or only offered a workaround instead of answering the user's actual question.
    - Do not promote output_shape_correction alone, routine drill-downs, normal follow-up questions, or chart/format-only changes when the assistant answered the user's actual question — unless standing_instruction also applies.
-   - Promote standing_instruction when the steer is a multi-step procedure or a presentation convention the agent should follow on request: signal=standing_instruction, primaryRootCause=agent_configuration, agentConfigurationSettings=["skills"], fixTargets=["agent_configuration_change"], recommendation.actionType=create_skill, and one targetRef of type agent_config with setting "skills". Set subcategories to exactly one stable kebab-case key naming the procedure (for example "weekly-revenue-table") so repeats collapse onto one item. Do not promote when agentConfig.skills already covers the procedure (promotedToFinding=false, primaryRootCause=not_a_failure), and route a business definition or a which-explore rule to project_context instead of a skill.
+   - Promote standing_instruction only when the recurring request is a multi-step procedure or a presentation convention (never a plain question, even a popular one — leave those with promotedToFinding=false and promotionReason=repeated_question_not_a_procedure): signal=standing_instruction, primaryRootCause=agent_configuration, agentConfigurationSettings=["skills"], fixTargets=["agent_configuration_change"], recommendation.actionType=create_skill, and one targetRef of type agent_config with setting "skills". Set subcategories to exactly one stable kebab-case key naming the procedure (for example "weekly-revenue-table") so repeats collapse onto one item. Do not promote when agentConfig.skills already covers the procedure (promotedToFinding=false, primaryRootCause=not_a_failure), and route a business definition or a which-explore rule to project_context instead of a skill.
 
 When promoting, pick primaryRootCause by mapping the dominant signal:
    - assistant_no_answer where the assistant names a missing join, missing column, missing relationship, or missing field, OR where the warehouse/dbt data the user asked for is not currently exposed (a model/join/field would need to be added) → semantic_layer.
@@ -2069,12 +2114,14 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         semanticContext,
         threadWritebackPullRequests,
         existingReviewItems,
+        recentSimilarPrompts,
     }: {
         candidate: AiAgentReviewClassifierTurnCandidate;
         agentConfig: AiAgentReviewJudgeEvidencePacket['agentConfig'];
         semanticContext: AiAgentReviewJudgeEvidencePacket['semanticContext'];
         threadWritebackPullRequests: AiAgentReviewJudgeEvidencePacket['threadWritebackPullRequests'];
         existingReviewItems: AiAgentReviewItemDedupCandidate[];
+        recentSimilarPrompts: AiAgentReviewRecentSimilarPrompts;
     }): AiAgentReviewJudgeEvidencePacket {
         return {
             subject: candidate.subject,
@@ -2116,6 +2163,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
             toolOutcomes: candidate.toolOutcomes,
             pendingApprovalTimeout: candidate.pendingApprovalTimeout,
             existingReviewItems,
+            recentSimilarPrompts,
         };
     }
 

@@ -1914,6 +1914,68 @@ export class AiAgentReviewClassifierModel {
      * editDbtProject / runAiWriteback tools). Used to warn the judge and to block
      * remediation from opening a second PR on a thread that already has one.
      */
+    /**
+     * Human prompts sent to this agent from other threads in the window, so the
+     * judge can see when several threads keep asking for the same procedure.
+     * Eval, scheduler and API threads are excluded: they are not people
+     * repeating themselves.
+     */
+    async findRecentUserPrompts(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        excludeThreadUuid: string;
+        since: Date;
+        limit: number;
+    }): Promise<
+        {
+            promptUuid: string;
+            threadUuid: string;
+            userUuid: string | null;
+            createdAt: Date;
+            text: string;
+        }[]
+    > {
+        const rows = await this.database(`${AiPromptTableName} as prompt`)
+            .innerJoin(
+                `${AiThreadTableName} as thread`,
+                'thread.ai_thread_uuid',
+                'prompt.ai_thread_uuid',
+            )
+            .where('thread.organization_uuid', args.organizationUuid)
+            .where('thread.project_uuid', args.projectUuid)
+            .where('thread.agent_uuid', args.agentUuid)
+            .whereNot('thread.ai_thread_uuid', args.excludeThreadUuid)
+            .whereIn('thread.created_from', ['web_app', 'slack'])
+            .whereNotNull('prompt.created_by_user_uuid')
+            .where('prompt.created_at', '>=', args.since)
+            .select<
+                {
+                    ai_prompt_uuid: string;
+                    ai_thread_uuid: string;
+                    created_by_user_uuid: string | null;
+                    created_at: Date;
+                    prompt: string;
+                }[]
+            >(
+                'prompt.ai_prompt_uuid',
+                'prompt.ai_thread_uuid',
+                'prompt.created_by_user_uuid',
+                'prompt.created_at',
+                'prompt.prompt',
+            )
+            .orderBy('prompt.created_at', 'desc')
+            .limit(args.limit);
+
+        return rows.map((row) => ({
+            promptUuid: row.ai_prompt_uuid,
+            threadUuid: row.ai_thread_uuid,
+            userUuid: row.created_by_user_uuid,
+            createdAt: row.created_at,
+            text: row.prompt,
+        }));
+    }
+
     async getThreadWritebackPullRequests(
         threadUuids: string[],
     ): Promise<Map<string, { prUrl: string | null; createdAt: Date }[]>> {

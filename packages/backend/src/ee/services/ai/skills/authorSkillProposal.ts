@@ -75,7 +75,9 @@ Set skillProposal to null when the steer is a one-off, is already covered by one
 Otherwise fill every field:
 - name: the slash command. Lowercase letters, digits and single hyphens only, at most ${AI_AGENT_SKILL_NAME_MAX_LENGTH} characters, never starting with "${AI_AGENT_SKILL_RESERVED_NAME_PREFIX}". Name the procedure, not the data ("weekly-revenue-table", not "revenue").
 - description: one sentence, under 200 characters, saying when the agent should load this skill. The agent matches requests against it, so lead with the trigger ("Use when the user asks for ...").
-- instructions: markdown the agent follows, with a "## When to use" section and a numbered "## Steps" section. Use $ARGUMENTS where the user would pass a parameter (a region, a period, a customer). State only what the evidence shows the user asked for, in the order they asked for it. Never invent fields, explores, filters or formats that do not appear in the evidence.`;
+- instructions: markdown the agent follows, with a "## When to use" section and a numbered "## Steps" section. Use $ARGUMENTS where the user would pass a parameter (a region, a period, a customer). State only what the evidence shows the user asked for, in the order they asked for it. Never invent fields, explores, filters or formats that do not appear in the evidence.
+
+The evidence packet field recentSimilarPrompts lists other threads that asked for the same procedure. Use them to tell the fixed part of the procedure (goes in Steps) from what varies between requests (becomes $ARGUMENTS, typically the period or the segment).`;
 
 const buildAuthoringMessages = (
     evidence: SkillProposalAuthoringEvidence,

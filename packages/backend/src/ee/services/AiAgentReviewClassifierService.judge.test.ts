@@ -111,6 +111,12 @@ const replayInput: AiAgentReviewJudgeReplayInput = {
         toolOutcomes: [],
         pendingApprovalTimeout: false,
         existingReviewItems: [],
+        recentSimilarPrompts: {
+            windowDays: 30,
+            threadCount: 0,
+            userCount: 0,
+            prompts: [],
+        },
     },
 };
 

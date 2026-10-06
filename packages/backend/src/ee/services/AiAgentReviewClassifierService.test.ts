@@ -253,6 +253,7 @@ describe('AiAgentReviewClassifierService', () => {
         getThreadWritebackPullRequests: vi.fn().mockResolvedValue(new Map()),
         getAgentMcpCapabilities: vi.fn().mockResolvedValue([]),
         findReviewItemDedupCandidates: vi.fn().mockResolvedValue([]),
+        findRecentUserPrompts: vi.fn().mockResolvedValue([]),
     } as unknown as import('vitest').Mocked<AiAgentReviewClassifierModel>;
     const aiAgentModel = {
         getAgent: vi.fn(),
@@ -352,6 +353,7 @@ describe('AiAgentReviewClassifierService', () => {
         });
         model.findReviewItemDedupCandidates.mockResolvedValue([]);
         model.getThreadWritebackPullRequests.mockResolvedValue(new Map());
+        model.findRecentUserPrompts.mockResolvedValue([]);
         aiAgentReviewNotificationService.notifyNeedsReview.mockResolvedValue(
             undefined,
         );
