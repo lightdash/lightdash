@@ -18,6 +18,7 @@ import {
     WarehouseResults,
     WarehouseTables,
     WarehouseTypes,
+    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseQueryPhase,
@@ -287,8 +288,16 @@ export class PostgresClient<
 
     config: pg.PoolConfig;
 
-    constructor(credentials: T, config: pg.PoolConfig) {
-        super(credentials, new PostgresSqlBuilder(credentials.startOfWeek));
+    constructor(
+        credentials: T,
+        config: pg.PoolConfig,
+        options?: { aiTransport?: AiTransport | null },
+    ) {
+        super(
+            credentials,
+            new PostgresSqlBuilder(credentials.startOfWeek),
+            options,
+        );
         this.config = config;
     }
 
@@ -941,16 +950,23 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
         };
     }
 
-    constructor(credentials: CreatePostgresCredentials) {
+    constructor(
+        credentials: CreatePostgresCredentials,
+        options?: { aiTransport?: AiTransport | null },
+    ) {
         const ssl = getSSLConfigFromMode(credentials);
-        super(credentials, {
-            connectionString: `postgres://${encodeURIComponent(
-                credentials.user,
-            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
-                credentials.host,
-            )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
-            ssl,
-        });
+        super(
+            credentials,
+            {
+                connectionString: `postgres://${encodeURIComponent(
+                    credentials.user,
+                )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
+                    credentials.host,
+                )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
+                ssl,
+            },
+            options,
+        );
     }
 
     private toListedDatabase(name: string): WarehouseListedDatabase {

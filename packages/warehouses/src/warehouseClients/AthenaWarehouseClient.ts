@@ -30,6 +30,7 @@ import {
     WarehouseResults,
     WarehouseTables,
     WarehouseTypes,
+    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
@@ -306,6 +307,7 @@ export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
 type AwsCredentialProvider = ReturnType<typeof fromTemporaryCredentials>;
 
 export type AthenaWarehouseClientOptions = {
+    aiTransport?: AiTransport | null;
     // AWS credentials for web identity auth, resolved by the server.
     awsCredentials?: AwsCredentialProvider;
 };
@@ -320,7 +322,11 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         credentials: CreateAthenaCredentials,
         options?: AthenaWarehouseClientOptions,
     ) {
-        super(credentials, new AthenaSqlBuilder(credentials.startOfWeek));
+        super(
+            credentials,
+            new AthenaSqlBuilder(credentials.startOfWeek),
+            options,
+        );
 
         try {
             const authenticationType =

@@ -13,6 +13,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
@@ -314,8 +315,15 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
 export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredentials> {
     connectionOptions: ConnectionOptions;
 
-    constructor(credentials: CreateTrinoCredentials) {
-        super(credentials, new TrinoSqlBuilder(credentials.startOfWeek));
+    constructor(
+        credentials: CreateTrinoCredentials,
+        options?: { aiTransport?: AiTransport | null },
+    ) {
+        super(
+            credentials,
+            new TrinoSqlBuilder(credentials.startOfWeek),
+            options,
+        );
         this.connectionOptions = {
             auth: new BasicAuth(credentials.user, credentials.password),
             catalog: credentials.dbname,

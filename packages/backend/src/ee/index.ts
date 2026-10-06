@@ -1127,6 +1127,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
+                    aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
@@ -1356,6 +1357,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AsyncQueryService({
+                    aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
                     contentDraftModel: models.getContentDraftModel(),
                     lightdashConfig: context.lightdashConfig,

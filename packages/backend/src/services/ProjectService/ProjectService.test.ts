@@ -1,6 +1,9 @@
 import { Ability, subject } from '@casl/ability';
 import {
     Account,
+    AI_DIRECT_TRANSPORT,
+    AiPrincipalKind,
+    AiPrincipalStatus,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -58,6 +61,7 @@ import {
     SupportedDbtAdapter,
     WarehouseTypes,
     WeekDay,
+    type AiExecutionPlan,
     type ChartSummary,
     type CopyPreviewContentPayload,
     type CreateAthenaCredentials,
@@ -155,6 +159,7 @@ import {
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { type AiAccessService } from '../AiAccessService/AiAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -588,6 +593,9 @@ const getMockedProjectService = (
             invalidateSessionUserCache: vi.fn(),
         } as unknown as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
+        aiAccessService: {
+            resolvePlan: vi.fn(async () => null),
+        } as unknown as AiAccessService,
         featureFlagModel:
             overrides.featureFlagModel ??
             ({
@@ -1300,6 +1308,7 @@ describe('ProjectService', () => {
                 expect(
                     vi.mocked(projectModel.getWarehouseClientFromCredentials),
                 ).toHaveBeenCalledWith(expect.anything(), {
+                    aiTransport: null,
                     enableInstanceCache: expected,
                     projectUuid: targetProjectUuid,
                     logger: expect.anything(),
@@ -1328,6 +1337,7 @@ describe('ProjectService', () => {
             expect(
                 vi.mocked(projectModel.getWarehouseClientFromCredentials),
             ).toHaveBeenCalledWith(expect.anything(), {
+                aiTransport: null,
                 enableInstanceCache: false,
                 projectUuid,
                 logger: expect.anything(),
@@ -6790,9 +6800,10 @@ describe('ProjectService', () => {
                 const uploadResults = vi.fn(async () => undefined);
                 Object.assign(flaggedService, {
                     s3CacheClient: { getIfFresh, uploadResults },
-                    getWarehouseCredentials: vi.fn(
-                        async () => warehouseClientMock.credentials,
-                    ),
+                    getWarehouseCredentialsWithConnection: vi.fn(async () => ({
+                        warehouseCredentials: warehouseClientMock.credentials,
+                        aiPlan: null,
+                    })),
                 });
                 vi.mocked(
                     projectModel.getWarehouseClientFromCredentials,
@@ -7025,12 +7036,15 @@ describe('ProjectService', () => {
             vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
-                'getWarehouseCredentials',
+                'getWarehouseCredentialsWithConnection',
             ).mockImplementation(async (...args: unknown[]) => {
                 const { userId } = args[0] as { userId: string };
                 return {
-                    ...warehouseClientMock.credentials,
-                    userWarehouseCredentialsUuid: `cred-${userId}`,
+                    warehouseCredentials: {
+                        ...warehouseClientMock.credentials,
+                        userWarehouseCredentialsUuid: `cred-${userId}`,
+                    },
+                    aiPlan: null,
                 };
             });
 
@@ -7108,9 +7122,10 @@ describe('ProjectService', () => {
             vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
-                'getWarehouseCredentials',
+                'getWarehouseCredentialsWithConnection',
             ).mockImplementation(async () => ({
-                ...warehouseClientMock.credentials,
+                warehouseCredentials: warehouseClientMock.credentials,
+                aiPlan: null,
             }));
 
             const cacheKeyLookups: string[] = [];
@@ -13936,5 +13951,157 @@ describe('ProjectService.getExploreResponse', () => {
         expect(result.joinedTables[0].compiledSqlOn).toBe(
             '("a".dim1) = ("b".dim1)',
         );
+    });
+});
+
+describe('AI principal credential routing', () => {
+    const projectUuid = 'projectUuid';
+    const credentials: CreateWarehouseCredentials = {
+        type: WarehouseTypes.POSTGRES,
+        host: 'localhost',
+        port: 5432,
+        dbname: 'test',
+        schema: 'public',
+        user: 'ai',
+        password: 'test',
+    };
+    const plan: AiExecutionPlan = {
+        principal: {
+            aiPrincipalUuid: 'ai-one',
+            aiAccessPolicyUuid: 'policy',
+            kind: AiPrincipalKind.SHARED,
+            ref: 'ai',
+            userUuid: null,
+            groupUuid: null,
+            status: AiPrincipalStatus.READY,
+            failureReason: null,
+            statusMessage: null,
+            lastProbe: null,
+            publicKey: null,
+            publicKeyFingerprint: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        },
+        credentials,
+        transport: AI_DIRECT_TRANSPORT,
+        assurances: [],
+        audit: {
+            personUuid: 'user',
+            principalRef: 'ai',
+            queryTags: { ai_principal: 'ai' },
+        },
+    };
+    const resolveCredentials = (configured: ProjectService) =>
+        (
+            configured as unknown as {
+                getWarehouseCredentialsWithConnection: (args: {
+                    projectUuid: string;
+                    userId: string;
+                    isRegisteredUser: boolean;
+                    context: QueryExecutionContext;
+                    binding: { kind: 'original' };
+                }) => Promise<{
+                    warehouseCredentials: CreateWarehouseCredentials;
+                    aiPlan: AiExecutionPlan | null;
+                }>;
+            }
+        ).getWarehouseCredentialsWithConnection({
+            projectUuid,
+            userId: user.userUuid,
+            isRegisteredUser: true,
+            context: QueryExecutionContext.AI,
+            binding: { kind: 'original' },
+        });
+
+    test('uses the AI credentials before looking up personal credentials', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce({
+            ...credentials,
+            user: 'base',
+            requireUserCredentials: true,
+        });
+        vi.spyOn(configured.aiAccessService, 'resolvePlan').mockResolvedValue(
+            plan,
+        );
+        const personal = vi.spyOn(
+            configured.userWarehouseCredentialsModel,
+            'findForProjectWithSecrets',
+        );
+        const result = await resolveCredentials(configured);
+        expect(result.warehouseCredentials).toEqual({
+            ...credentials,
+            userWarehouseCredentialsUuid: undefined,
+        });
+        expect(result.aiPlan).toBe(plan);
+        expect(personal).not.toHaveBeenCalled();
+    });
+    test('uses personal credentials when the resolver returns null', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce({
+            ...credentials,
+            user: 'base',
+            requireUserCredentials: true,
+        });
+        const personal = vi
+            .spyOn(
+                configured.userWarehouseCredentialsModel,
+                'findForProjectWithSecrets',
+            )
+            .mockResolvedValue({
+                uuid: 'personal',
+                credentials: { ...credentials, user: 'person' },
+            });
+        const result = await resolveCredentials(configured);
+        expect(result.warehouseCredentials).toMatchObject({
+            user: 'person',
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        expect(result.aiPlan).toBeNull();
+        expect(personal).toHaveBeenCalledOnce();
+    });
+    test('caches clients separately for different principals with the same credentials', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseClientFromCredentials,
+        ).mockImplementation(() => ({ ...warehouseClientMock }));
+        vi.mocked(projectModel.getWarehouseClientFromCredentials).mockClear();
+        const first = await configured._getWarehouseClient(
+            projectUuid,
+            credentials,
+            { aiPlan: plan },
+        );
+        const second = await configured._getWarehouseClient(
+            projectUuid,
+            credentials,
+            {
+                aiPlan: {
+                    ...plan,
+                    principal: { ...plan.principal, aiPrincipalUuid: 'ai-two' },
+                },
+            },
+        );
+        const again = await configured._getWarehouseClient(
+            projectUuid,
+            credentials,
+            { aiPlan: plan },
+        );
+        expect(first.warehouseClient).not.toBe(second.warehouseClient);
+        expect(Object.keys(configured.warehouseClients)).toHaveLength(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledWith(
+            warehouseClientMock.credentials,
+            expect.objectContaining({ aiTransport: AI_DIRECT_TRANSPORT }),
+        );
+        await first.sshTunnel.disconnect();
+        await second.sshTunnel.disconnect();
+        await again.sshTunnel.disconnect();
     });
 });

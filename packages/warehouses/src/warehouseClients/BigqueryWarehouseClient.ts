@@ -42,6 +42,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseNestedColumnShape,
@@ -436,8 +437,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     client: BigQuery;
 
-    constructor(credentials: CreateBigqueryCredentials) {
-        super(credentials, new BigquerySqlBuilder(credentials.startOfWeek));
+    constructor(
+        credentials: CreateBigqueryCredentials,
+        options?: { aiTransport?: AiTransport | null },
+    ) {
+        super(
+            credentials,
+            new BigquerySqlBuilder(credentials.startOfWeek),
+            options,
+        );
         try {
             this.client = new BigQuery({
                 projectId: credentials.executionProject || credentials.project,
@@ -973,15 +981,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async executeAsyncQuery(
-        { sql, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
         ) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
+        const { sql: transportSql } = this.aiTransport
+            ? this.wrapForTransport(sql, values, this.aiTransport)
+            : { sql };
         try {
             const queryPhaseStart = performance.now();
-            const [job] = await this.createJob(sql, {
+            const [job] = await this.createJob(transportSql, {
                 tags,
                 timezone,
             });
