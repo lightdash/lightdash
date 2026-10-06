@@ -7746,6 +7746,83 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAiQueryFromHistory', () => {
+        afterEach(() => vi.restoreAllMocks());
+
+        const source = (language: 'semantic' | 'sql') =>
+            ({
+                metricQuery: metricQueryMock,
+                pivotConfiguration: null,
+                requestParameters: {
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    query: metricQueryMock,
+                    parameters: { region: 'EU' },
+                    ...(language === 'sql' ? { sql: 'select 1' } : {}),
+                },
+            }) as unknown as QueryHistory;
+
+        it('runs semantic history with the AI context and reads only fresh results', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+            vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue(
+                source('semantic'),
+            );
+            const run = vi
+                .spyOn(
+                    service as unknown as {
+                        runAsyncMetricQueryWithoutPermissionCheck: (
+                            ...args: unknown[]
+                        ) => Promise<unknown>;
+                    },
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({ queryUuid: 'fresh-query' });
+            vi.spyOn(service, 'pollForQueryCompletion').mockResolvedValue(
+                undefined as never,
+            );
+            const read = vi
+                .spyOn(service, 'getRawAsyncQueryResults')
+                .mockResolvedValue({ rows: [{ value: 1 }] } as never);
+
+            await expect(
+                service.executeAiQueryFromHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: 'source-query',
+                    maxRows: 100,
+                }),
+            ).resolves.toEqual({ rows: [{ value: 1 }] });
+            expect(run).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                }),
+                expect.anything(),
+                expect.anything(),
+            );
+            expect(read).toHaveBeenCalledWith(
+                expect.objectContaining({ queryUuid: 'fresh-query' }),
+            );
+        });
+
+        it('refuses SQL history before any warehouse query runs', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue(
+                source('sql'),
+            );
+            const run = vi.spyOn(service, 'getRawAsyncQueryResults');
+
+            await expect(
+                service.executeAiQueryFromHistory({
+                    account: buildAccount(),
+                    projectUuid,
+                    queryUuid: 'source-query',
+                    maxRows: 100,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(run).not.toHaveBeenCalled();
+        });
+    });
+
     describe('executeAsyncUnboundedRerunFromQueryHistory', () => {
         afterEach(() => {
             vi.restoreAllMocks();

@@ -1,4 +1,6 @@
 import {
+    AiEgressBlockReason,
+    AiEgressSurface,
     assertRegisteredAccount,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     EE_SCHEDULER_TASKS,
@@ -45,12 +47,15 @@ import {
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../../models/UserModel';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CsvService } from '../../../services/CsvService/CsvService';
+import { AiAccessRestrictionsError } from '../../../services/ProjectService/ProjectService';
 import { type SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import {
     type DataAppAnalysisOperation,
     type DataAppSourceHash,
@@ -204,6 +209,7 @@ const emptyOutcomeMeta = (sourceCount: number | null): OutcomeMeta => ({
 });
 
 type Dependencies = {
+    projectModel: ProjectModel;
     dataAppAnalysisModel: DataAppAnalysisModel;
     appModel: AppModel;
     userModel: UserModel;
@@ -231,7 +237,8 @@ export class DataAppAnalysisUnavailableError extends ForbiddenError {
             | 'analysis_disabled'
             | 'unsupported_context'
             | 'agent_unavailable'
-            | 'budget_exhausted',
+            | 'budget_exhausted'
+            | 'ai_sign_in_required',
     ) {
         super(message, { code });
         this.name = 'DataAppAnalysisUnavailableError';
@@ -319,6 +326,22 @@ const rowValueSets = (
 };
 
 export class DataAppAnalysisService extends BaseService {
+    private async isAiAccessRestricted(
+        projectUuid: string,
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { userUuid, organizationUuid },
+            featureFlagId: FeatureFlags.AiAccessRestrictions,
+        });
+        return (
+            enabled &&
+            (await this.projectModel.getAiAccessRestrictions(projectUuid))
+        );
+    }
+
+    private readonly projectModel: ProjectModel;
     private readonly dataAppAnalysisModel: DataAppAnalysisModel;
 
     private readonly appModel: AppModel;
@@ -349,6 +372,7 @@ export class DataAppAnalysisService extends BaseService {
 
     constructor(deps: Dependencies) {
         super({ serviceName: 'DataAppAnalysisService' });
+        this.projectModel = deps.projectModel;
         this.dataAppAnalysisModel = deps.dataAppAnalysisModel;
         this.appModel = deps.appModel;
         this.userModel = deps.userModel;
@@ -496,6 +520,13 @@ export class DataAppAnalysisService extends BaseService {
         /** Rows or whole charts left out to fit the model budget. */
         truncated: boolean;
     }> {
+        const restricted = await this.isAiAccessRestricted(
+            projectUuid,
+            account.user.id,
+            account.organization?.organizationUuid ??
+                (await this.projectModel.getSummary(projectUuid))
+                    .organizationUuid,
+        );
         const grounding: GroundingSource[] = [];
         const sectionHashes: DataAppSourceHash[] = [];
         const sections = await sources.reduce<Promise<SectionAccumulator>>(
@@ -518,20 +549,43 @@ export class DataAppAnalysisService extends BaseService {
                         'unsupported_context',
                     );
                 }
-                const { rows, fields, truncated, displayTimezone } =
-                    await this.asyncQueryService
-                        .getRawAsyncQueryResults({
-                            account,
+                const queryArgs = {
+                    account,
+                    projectUuid,
+                    queryUuid: source.queryUuid,
+                    maxRows: MAX_ROWS_PER_CHART,
+                };
+                const { rows, fields, truncated, displayTimezone } = await (
+                    restricted
+                        ? this.asyncQueryService.executeAiQueryFromHistory(
+                              queryArgs,
+                          )
+                        : this.asyncQueryService.getRawAsyncQueryResults(
+                              queryArgs,
+                          )
+                ).catch((error: unknown) => {
+                    if (
+                        restricted &&
+                        error instanceof AiAccessRestrictionsError
+                    ) {
+                        logAiEgressBlock({
+                            surface: AiEgressSurface.DATA_APP_ANALYSIS,
+                            reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                            organizationUuid:
+                                account.organization?.organizationUuid ?? null,
                             projectUuid,
-                            queryUuid: source.queryUuid,
-                            maxRows: MAX_ROWS_PER_CHART,
-                        })
-                        .catch((e: unknown) => {
-                            if (e instanceof ResultsExpiredError) {
-                                throw new DataAppSourcesExpiredError();
-                            }
-                            throw e;
+                            userUuid: account.user.id,
+                            detail: null,
                         });
+                        throw new DataAppAnalysisUnavailableError(
+                            'Sign in to Snowflake for AI to analyse this data.',
+                            'ai_sign_in_required',
+                        );
+                    }
+                    if (error instanceof ResultsExpiredError)
+                        throw new DataAppSourcesExpiredError();
+                    throw error;
+                });
                 const fieldIds = rows[0] ? Object.keys(rows[0]) : [];
                 grounding.push({
                     queryUuid: source.queryUuid,
@@ -622,6 +676,14 @@ export class DataAppAnalysisService extends BaseService {
         sectionHashes: DataAppSourceHash[];
         contentHash: string;
     }): Promise<DataAppAnalysisLookup | null> {
+        if (
+            await this.isAiAccessRestricted(
+                args.projectUuid,
+                args.user.userUuid,
+                args.user.organizationUuid!,
+            )
+        )
+            return null;
         const own = await this.dataAppAnalysisModel.findLatestDetectByHash({
             appUuid: args.appUuid,
             appVersion: args.appVersion,
@@ -833,7 +895,14 @@ export class DataAppAnalysisService extends BaseService {
             }
         }
         const inFlightKey = `${user.userUuid}:${appUuid}:${appVersion}:${contentHash}`;
-        const inFlight = this.inFlightDetects.get(inFlightKey);
+        const restricted = await this.isAiAccessRestricted(
+            projectUuid,
+            user.userUuid,
+            user.organizationUuid!,
+        );
+        const inFlight = restricted
+            ? null
+            : this.inFlightDetects.get(inFlightKey);
         if (inFlight) {
             // Same rows, but a second tab has its own query uuids: hand back
             // the shared findings keyed to this caller's queries.
@@ -874,8 +943,10 @@ export class DataAppAnalysisService extends BaseService {
                     contentHash,
                 });
             })
-            .finally(() => this.inFlightDetects.delete(inFlightKey));
-        this.inFlightDetects.set(inFlightKey, run);
+            .finally(() => {
+                if (!restricted) this.inFlightDetects.delete(inFlightKey);
+            });
+        if (!restricted) this.inFlightDetects.set(inFlightKey, run);
         const done = await run;
         note({
             model: done.modelId,
@@ -1171,7 +1242,13 @@ export class DataAppAnalysisService extends BaseService {
             ),
         );
         const focusForModel =
-            Object.keys(groundedFocus).length > 0 ? groundedFocus : null;
+            !(await this.isAiAccessRestricted(
+                projectUuid,
+                user.userUuid,
+                user.organizationUuid!,
+            )) && Object.keys(groundedFocus).length > 0
+                ? groundedFocus
+                : null;
         const modelStartedAt = Date.now();
         const { text, modelId, usage } =
             await this.aiService.answerDataAppPrompt(user, {
@@ -1353,6 +1430,15 @@ export class DataAppAnalysisService extends BaseService {
         if (!detection.result.anomalies.some((a) => a.id === body.anomalyId)) {
             throw new NotFoundError('Anomaly not found in this analysis');
         }
+        if (
+            await this.isAiAccessRestricted(
+                projectUuid,
+                user.userUuid,
+                user.organizationUuid!,
+            )
+        ) {
+            await this.buildContent(account, projectUuid, detection.sources);
+        }
         await this.assertAgentUsable(user, projectUuid, body.agentUuid);
         await this.assertRate(user.userUuid, appUuid, 'investigate');
         await this.assertDailyBudget(user.organizationUuid!, 'investigate');
@@ -1520,15 +1606,22 @@ export class DataAppAnalysisService extends BaseService {
                 source ? [source] : [],
             );
 
+            const restricted = await this.isAiAccessRestricted(
+                payload.projectUuid,
+                user.userUuid,
+                user.organizationUuid!,
+            );
             const thread = await this.aiAgentService.createAgentThread(
                 user,
                 payload.agentUuid,
                 {
-                    prompt: DataAppAnalysisService.buildInvestigationPrompt(
-                        anomaly,
-                        source?.label ?? null,
-                        content,
-                    ),
+                    prompt: restricted
+                        ? `Investigate the notable patterns in the following data. Explain possible drivers using only these rows and new queries.\n${content}`
+                        : DataAppAnalysisService.buildInvestigationPrompt(
+                              anomaly,
+                              source?.label ?? null,
+                              content,
+                          ),
                     context: [{ type: 'data_app', appUuid: payload.appUuid }],
                 },
                 'data_app',

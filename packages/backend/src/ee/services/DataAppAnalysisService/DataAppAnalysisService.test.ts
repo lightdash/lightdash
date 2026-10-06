@@ -1,4 +1,6 @@
 import {
+    AiEgressBlockReason,
+    AiEgressSurface,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     DimensionType,
     FeatureFlags,
@@ -13,13 +15,19 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
+import { AiAccessRestrictionsError } from '../../../services/ProjectService/ProjectService';
 import { sessionUser } from '../../../services/UserService.mock';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import { assertCanViewApp } from '../AppGenerateService/appAuthz';
 import {
     DataAppAnalysisService,
     DataAppAnalysisUnavailableError,
     DataAppSourcesExpiredError,
 } from './DataAppAnalysisService';
+
+vi.mock('../../../utils/aiEgress/logAiEgressBlock', () => ({
+    logAiEgressBlock: vi.fn(),
+}));
 
 vi.mock('../AppGenerateService/appAuthz', () => ({
     assertCanViewApp: vi.fn().mockResolvedValue({ directOnly: false }),
@@ -82,6 +90,8 @@ const detection = {
 
 function buildService(
     overrides: {
+        restricted?: boolean;
+        restrictionsFlagEnabled?: boolean;
         orgSettingEnabled?: boolean;
         copilotEnabled?: boolean;
         dataAppsEnabled?: boolean;
@@ -108,6 +118,12 @@ function buildService(
         deleteExpiredBatch: vi.fn().mockResolvedValue(0),
     };
     const asyncQueryService = {
+        executeAiQueryFromHistory: vi.fn().mockResolvedValue({
+            rows: [{ orders_status: 'ai-sign-in-only', orders_total: 777 }],
+            fields,
+            truncated: false,
+            displayTimezone: null,
+        }),
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
             context: overrides.queryContext ?? QueryExecutionContext.EXPLORE,
         }),
@@ -158,6 +174,11 @@ function buildService(
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const analytics = { track: vi.fn() };
     const service = new DataAppAnalysisService({
+        projectModel: {
+            getAiAccessRestrictions: vi
+                .fn()
+                .mockResolvedValue(overrides.restricted ?? false),
+        },
         dataAppAnalysisModel,
         appModel,
         externalConnectionModel: {
@@ -169,14 +190,15 @@ function buildService(
             }),
         },
         featureFlagModel: {
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    enabled:
-                        featureFlagId === FeatureFlags.EnableDataAppAnalysis
-                            ? (overrides.analysisEnabled ?? true)
-                            : (overrides.dataAppsEnabled ?? true),
-                }),
-            ),
+            get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
+                if (featureFlagId === FeatureFlags.AiAccessRestrictions)
+                    return {
+                        enabled: overrides.restrictionsFlagEnabled ?? true,
+                    };
+                if (featureFlagId === FeatureFlags.EnableDataAppAnalysis)
+                    return { enabled: overrides.analysisEnabled ?? true };
+                return { enabled: overrides.dataAppsEnabled ?? true };
+            }),
         },
         spacePermissionService: {
             resolveAccess: vi.fn().mockResolvedValue({}),
@@ -777,6 +799,15 @@ describe('DataAppAnalysisService reuse', () => {
         ]);
         expect(b.anomalies[0].queryUuid).toBe('q-other-tab');
     });
+
+    it('runs each restricted detect without sharing an in-flight result', async () => {
+        const { service, aiService } = buildService({ restricted: true });
+        await Promise.all([
+            service.detect(account(), 'proj-1', 'app-1', request),
+            service.detect(account(), 'proj-1', 'app-1', request),
+        ]);
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledTimes(2);
+    });
 });
 
 describe('DataAppAnalysisService.prompt', () => {
@@ -1284,6 +1315,125 @@ describe('DataAppAnalysisService.investigate', () => {
         return { logSchedulerJob, create };
     }
 
+    it.each([true, false])(
+        'uses the expected rows in an investigation with restrictions=%s',
+        async (restricted) => {
+            const { service } = buildInvestigateService();
+            const deps = service as unknown as {
+                projectModel: {
+                    getAiAccessRestrictions: ReturnType<typeof vi.fn>;
+                };
+                asyncQueryService: {
+                    executeAiQueryFromHistory: ReturnType<typeof vi.fn>;
+                    getRawAsyncQueryResults: ReturnType<typeof vi.fn>;
+                };
+                aiAgentService: {
+                    createAgentThread: ReturnType<typeof vi.fn>;
+                    generateAgentThreadResponse: ReturnType<typeof vi.fn>;
+                };
+            };
+            deps.projectModel.getAiAccessRestrictions.mockResolvedValue(
+                restricted,
+            );
+            primeRunInvestigation(service, async () => 'Investigation');
+            await service.runInvestigation(jobPayload, 'job-1', new Date());
+            const { prompt } =
+                deps.aiAgentService.createAgentThread.mock.calls[0][2];
+            expect(prompt).toContain(restricted ? 'ai-sign-in-only' : '1594');
+            if (restricted) {
+                expect(prompt).not.toContain('Returned orders are 12 in Q3');
+                expect(prompt).not.toContain('1594');
+                expect(
+                    deps.asyncQueryService.getRawAsyncQueryResults,
+                ).not.toHaveBeenCalled();
+            }
+            expect(
+                deps.aiAgentService.generateAgentThreadResponse,
+            ).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('uses stored rows when the restrictions flag is off', async () => {
+        const { service } = buildInvestigateService();
+        const deps = service as unknown as {
+            projectModel: { getAiAccessRestrictions: ReturnType<typeof vi.fn> };
+            featureFlagModel: { get: ReturnType<typeof vi.fn> };
+            aiAgentService: { createAgentThread: ReturnType<typeof vi.fn> };
+        };
+        deps.projectModel.getAiAccessRestrictions.mockResolvedValue(true);
+        deps.featureFlagModel.get.mockImplementation(
+            async ({ featureFlagId }: { featureFlagId: string }) => ({
+                enabled: featureFlagId !== FeatureFlags.AiAccessRestrictions,
+            }),
+        );
+        primeRunInvestigation(service, async () => 'Investigation');
+        await service.runInvestigation(jobPayload, 'job-1', new Date());
+        expect(
+            deps.aiAgentService.createAgentThread.mock.calls[0][2].prompt,
+        ).toContain('1594');
+    });
+
+    it('blocks the investigation worker if the AI sign-in expires after queueing', async () => {
+        const { service } = buildInvestigateService();
+        const deps = service as unknown as {
+            projectModel: { getAiAccessRestrictions: ReturnType<typeof vi.fn> };
+            asyncQueryService: {
+                executeAiQueryFromHistory: ReturnType<typeof vi.fn>;
+            };
+            aiAgentService: {
+                createAgentThread: ReturnType<typeof vi.fn>;
+                generateAgentThreadResponse: ReturnType<typeof vi.fn>;
+            };
+        };
+        primeRunInvestigation(service, async () => 'Must not run');
+        deps.projectModel.getAiAccessRestrictions.mockResolvedValue(true);
+        deps.asyncQueryService.executeAiQueryFromHistory.mockRejectedValue(
+            new AiAccessRestrictionsError(),
+        );
+        await expect(
+            service.runInvestigation(jobPayload, 'job-1', new Date()),
+        ).rejects.toThrow('Sign in to Snowflake for AI');
+        expect(deps.aiAgentService.createAgentThread).not.toHaveBeenCalled();
+        expect(
+            deps.aiAgentService.generateAgentThreadResponse,
+        ).not.toHaveBeenCalled();
+        expect(logAiEgressBlock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                surface: AiEgressSurface.DATA_APP_ANALYSIS,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+            }),
+        );
+    });
+
+    it('refuses investigation before queueing without a AI sign-in', async () => {
+        const { service, dataAppInvestigate } = buildInvestigateService();
+        const deps = service as unknown as {
+            projectModel: { getAiAccessRestrictions: ReturnType<typeof vi.fn> };
+            asyncQueryService: {
+                executeAiQueryFromHistory: ReturnType<typeof vi.fn>;
+            };
+        };
+        deps.projectModel.getAiAccessRestrictions.mockResolvedValue(true);
+        deps.asyncQueryService.executeAiQueryFromHistory.mockRejectedValue(
+            new AiAccessRestrictionsError(),
+        );
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                'app-1',
+                'analysis-1',
+                { anomalyId: 'anom-1', agentUuid: 'agent-1' },
+            ),
+        ).rejects.toThrow('Sign in to Snowflake for AI');
+        expect(dataAppInvestigate).not.toHaveBeenCalled();
+        expect(logAiEgressBlock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+            }),
+        );
+    });
+
     it('persists nothing and logs nothing once the run is aborted', async () => {
         const { service } = buildInvestigateService();
         const abort = new AbortController();
@@ -1679,4 +1829,110 @@ describe('DataAppAnalysisService.investigate', () => {
             agentUuid: 'agent-x',
         });
     });
+});
+
+describe('Data app AI egress restrictions', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it.each(['detect', 'prompt'] as const)(
+        'sends only fresh AI rows to %s',
+        async (operation) => {
+            const {
+                service,
+                asyncQueryService,
+                aiService,
+                dataAppAnalysisModel,
+            } = buildService({ restricted: true });
+            const account = buildAccount();
+            if (operation === 'detect') {
+                await service.detect(account, 'proj-1', 'app-1', request);
+            } else {
+                await service.prompt(account, 'proj-1', 'app-1', {
+                    ...request,
+                    prompt: 'Explain this',
+                    focus: { orders_status: 'completed' },
+                });
+            }
+            const provider =
+                operation === 'detect'
+                    ? aiService.detectDataAppAnomalies
+                    : aiService.answerDataAppPrompt;
+            const payload = provider.mock.calls[0][1];
+            expect(payload.content).toContain('ai-sign-in-only');
+            expect(payload.content).toContain('777');
+            expect(payload.content).not.toContain('completed');
+            expect(payload.content).not.toContain('1594');
+            if (operation === 'prompt') expect(payload.focus).toBeNull();
+            expect(
+                asyncQueryService.getRawAsyncQueryResults,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.executeAiQueryFromHistory,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    account,
+                    projectUuid: 'proj-1',
+                    queryUuid: 'q1',
+                }),
+            );
+            expect(
+                dataAppAnalysisModel.findLatestDetectByHash,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['detect', 'prompt'] as const)(
+        'blocks %s and logs the typed reason when the AI sign-in is unavailable',
+        async (operation) => {
+            const { service, asyncQueryService, aiService } = buildService({
+                restricted: true,
+            });
+            asyncQueryService.executeAiQueryFromHistory.mockRejectedValue(
+                new AiAccessRestrictionsError(),
+            );
+            const run =
+                operation === 'detect'
+                    ? service.detect(buildAccount(), 'proj-1', 'app-1', request)
+                    : service.prompt(buildAccount(), 'proj-1', 'app-1', {
+                          ...request,
+                          prompt: 'Explain this',
+                      });
+            await expect(run).rejects.toThrow('Sign in to Snowflake for AI');
+            expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+            expect(aiService.answerDataAppPrompt).not.toHaveBeenCalled();
+            expect(logAiEgressBlock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    surface: AiEgressSurface.DATA_APP_ANALYSIS,
+                    reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                }),
+            );
+        },
+    );
+
+    it.each(['detect', 'prompt'] as const)(
+        'keeps stored rows for %s with restrictions off',
+        async (operation) => {
+            const { service, asyncQueryService, aiService } = buildService();
+            if (operation === 'detect')
+                await service.detect(
+                    buildAccount(),
+                    'proj-1',
+                    'app-1',
+                    request,
+                );
+            else
+                await service.prompt(buildAccount(), 'proj-1', 'app-1', {
+                    ...request,
+                    prompt: 'Explain this',
+                });
+            const provider =
+                operation === 'detect'
+                    ? aiService.detectDataAppAnomalies
+                    : aiService.answerDataAppPrompt;
+            expect(provider.mock.calls[0][1].content).toContain('1594');
+            expect(
+                asyncQueryService.executeAiQueryFromHistory,
+            ).not.toHaveBeenCalled();
+        },
+    );
 });

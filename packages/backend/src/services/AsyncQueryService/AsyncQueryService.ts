@@ -284,6 +284,7 @@ import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import {
+    AiAccessRestrictionsError,
     ProjectService,
     type ProjectServiceArguments,
 } from '../ProjectService/ProjectService';
@@ -6033,6 +6034,63 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: queryComposer.getUsedParameters(),
             resolvedTimezone: queryComposer.getDisplayTimezone(),
         };
+    }
+
+    async executeAiQueryFromHistory({
+        account,
+        projectUuid,
+        queryUuid,
+        maxRows,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        maxRows: number;
+    }) {
+        assertIsAccountWithOrg(account);
+        const source = await this.getAsyncQueryHistory({
+            account,
+            projectUuid,
+            queryUuid,
+        });
+        if (getQueryLanguage(source.requestParameters) === QueryLanguage.SQL) {
+            throw new AiAccessRestrictionsError(
+                'AI cannot use SQL query history under access restrictions.',
+            );
+        }
+        await this.projectModel.resolveWarehouseCredentialRead(projectUuid, {
+            kind: 'query',
+            queryUuid,
+        });
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { queryUuid: freshQueryUuid } =
+            await this.runAsyncMetricQueryWithoutPermissionCheck(
+                {
+                    account,
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    metricQuery: source.metricQuery,
+                    pivotConfiguration: source.pivotConfiguration ?? undefined,
+                    parameters: source.requestParameters.parameters,
+                    dateZoom: getDateZoomFromRequestParameters(
+                        source.requestParameters,
+                    ),
+                },
+                organizationUuid,
+                source,
+            );
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid: freshQueryUuid,
+        });
+        return this.getRawAsyncQueryResults({
+            account,
+            projectUuid,
+            queryUuid: freshQueryUuid,
+            maxRows,
+        });
     }
 
     /**
