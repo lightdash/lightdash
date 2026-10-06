@@ -1,4 +1,4 @@
-import { getErrorMessage, isApiError } from '@lightdash/common';
+import { FeatureFlags, getErrorMessage, isApiError } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -12,7 +12,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconLock } from '@tabler/icons-react';
+import { IconFilter } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, type FC } from 'react';
 import { useTables } from '../../features/sqlRunner/hooks/useTables';
@@ -23,14 +23,19 @@ import {
     useProjectUpdateAiAccessRestrictions,
     useProjectUpdateAgentSqlScope,
 } from '../../hooks/useProject';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import classes from './SettingsAgentDataScope.module.css';
+import { SnowflakeAiBoundaryGuide } from './SnowflakeAiBoundaryGuide';
+import { shouldShowSnowflakeAiBoundaryGuide } from './snowflakeAiBoundaryVisibility';
 
 type SettingsAgentDataScopeProps = {
     projectUuid: string;
     showAiAccessRestrictions: boolean;
+    isSnowflake: boolean;
+    canUpdateProject: boolean;
 };
 
 type AgentDataScopeFormValues = {
@@ -78,7 +83,7 @@ const AgentDataScopeForm: FC<{
                     size="xs"
                     classNames={compactMultiSelectClassNames}
                     label="Allowed schemas"
-                    description="The agent can only read from these. Empty means no restriction."
+                    description="The agent considers these schemas when writing SQL. Empty means all schemas."
                     placeholder={
                         form.values.schemas.length === 0
                             ? 'All schemas (no restriction)'
@@ -95,7 +100,7 @@ const AgentDataScopeForm: FC<{
                     size="xs"
                     classNames={compactMultiSelectClassNames}
                     label="Allowed catalogs"
-                    description="Optional. Restricts which catalogs/databases the schemas above may be read from."
+                    description="Optional. Narrows the catalogs/databases the agent considers for these schemas."
                     placeholder={
                         form.values.catalogs.length === 0
                             ? 'Any catalog'
@@ -113,7 +118,7 @@ const AgentDataScopeForm: FC<{
                     size="xs"
                     classNames={compactMultiSelectClassNames}
                     label="Excluded schemas"
-                    description="The agent can never read these, even if the allow list above would permit them."
+                    description="The agent leaves these schemas out of its SQL context, including schemas in the allow list."
                     placeholder={
                         form.values.deniedSchemas.length === 0
                             ? 'Nothing excluded'
@@ -130,7 +135,7 @@ const AgentDataScopeForm: FC<{
                     size="xs"
                     classNames={compactMultiSelectClassNames}
                     label="Excluded catalogs"
-                    description="Optional. The agent can never read these catalogs/databases."
+                    description="Optional. Leaves these catalogs/databases out of the agent’s SQL context."
                     placeholder={
                         form.values.deniedCatalogs.length === 0
                             ? 'Nothing excluded'
@@ -169,7 +174,22 @@ const AgentDataScopeForm: FC<{
 const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
     projectUuid,
     showAiAccessRestrictions,
+    isSnowflake,
+    canUpdateProject,
 }) => {
+    const { data: guideFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiBoundaryGuide,
+    );
+    const { data: signInFlag } = useServerFeatureFlag(
+        FeatureFlags.SnowflakeAiSignIn,
+    );
+    const showGuide =
+        isSnowflake &&
+        shouldShowSnowflakeAiBoundaryGuide(
+            guideFlag?.enabled === true,
+            signInFlag?.enabled === true,
+            canUpdateProject,
+        );
     const { showToastError, showToastSuccess } = useToaster();
     const { data: scope, isInitialLoading: isLoadingScope } =
         useAgentSqlScope(projectUuid);
@@ -258,7 +278,14 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
 
     return (
         <Stack gap="lg">
-            {showAiAccessRestrictions && (
+            {showGuide && (
+                <SnowflakeAiBoundaryGuide
+                    projectUuid={projectUuid}
+                    isSnowflake={isSnowflake}
+                    showAiAccessRestrictions={showAiAccessRestrictions}
+                />
+            )}
+            {showAiAccessRestrictions && !showGuide && (
                 <SettingsCard p="xl">
                     <Switch
                         label="AI access restrictions"
@@ -288,13 +315,15 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                 <Stack gap="lg">
                     <Group align="flex-start" gap="xs" wrap="nowrap">
                         <Paper p="xxs" radius="sm">
-                            <MantineIcon icon={IconLock} size="md" />
+                            <MantineIcon icon={IconFilter} size="md" />
                         </Paper>
                         <Stack gap={2}>
-                            <Title order={5}>Warehouse access</Title>
+                            <Title order={5}>Agent data scope</Title>
                             <Text size="xs" c="dimmed">
-                                Control which warehouse schemas and catalogs AI
-                                agents can query with SQL.
+                                Narrows which schemas the agent considers when
+                                it writes SQL. This improves answers; it is not
+                                a security boundary. Snowflake grants and AI
+                                access restrictions decide what AI can read.
                             </Text>
                         </Stack>
                     </Group>
@@ -305,13 +334,13 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                         title="How agent data scope works"
                     >
                         <Text fz="xs">
-                            Leave every field empty to let AI agents query the
-                            entire warehouse connection.
+                            Leave every field empty to include all schemas in
+                            the agent’s SQL context.
                         </Text>
                         <Text fz="xs" mt="xs">
-                            Use exclusions to block known schemas or catalogs.
-                            Use allow lists when agents should query only an
-                            approved set; newly added schemas are not included
+                            Use exclusions to leave schemas or catalogs out of
+                            the SQL context. Use allow lists to focus on a
+                            chosen set; newly added schemas are not included
                             automatically.
                         </Text>
                         <Text fz="xs" mt="xs">

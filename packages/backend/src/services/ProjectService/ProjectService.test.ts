@@ -599,6 +599,10 @@ const getMockedProjectService = (
         } as unknown as EncryptionUtil,
         userModel: {
             invalidateSessionUserCache: vi.fn(),
+            getUserDetailsByUuid: vi.fn(async () => ({
+                firstName: 'Admin',
+                lastName: 'User',
+            })),
         } as unknown as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         featureFlagModel:
@@ -15325,5 +15329,218 @@ describe('AI access restrictions setting', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(projectModel.updateAiAccessRestrictions).not.toHaveBeenCalled();
+    });
+});
+
+describe('Snowflake AI boundary guide access', () => {
+    const snowflake = {
+        type: WarehouseTypes.SNOWFLAKE,
+        authenticationType: SnowflakeAuthenticationType.SSO,
+        requireUserCredentials: true,
+    } as CreateWarehouseCredentials;
+
+    it.each([
+        [[FeatureFlags.SnowflakeAiBoundaryGuide]],
+        [[FeatureFlags.SnowflakeAiSignIn]],
+    ])(
+        'requires the guide and a Snowflake AI path (disabled: %s)',
+        async (disabledFlags) => {
+            const getFlag = vi.fn(
+                async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
+                    enabled: !disabledFlags.includes(featureFlagId),
+                }),
+            );
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: getFlag,
+                } as unknown as FeatureFlagModel,
+            });
+            const getCredentials = vi
+                .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+                .mockResolvedValue(snowflake);
+            try {
+                await expect(
+                    service.getSnowflakeAiBoundaryGuideConfig(
+                        developerAccount as RegisteredAccount,
+                        projectSummary.projectUuid,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                await expect(
+                    service.testSnowflakeAiBoundary(
+                        developerAccount as RegisteredAccount,
+                        projectSummary.projectUuid,
+                        { protectedColumn: null },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            } finally {
+                getCredentials.mockRestore();
+            }
+        },
+    );
+
+    it('requires project update permission', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        await expect(
+            service.getSnowflakeAiBoundaryGuideConfig(
+                viewerAccount as RegisteredAccount,
+                projectSummary.projectUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.testSnowflakeAiBoundary(
+                viewerAccount as RegisteredAccount,
+                projectSummary.projectUuid,
+                { protectedColumn: null },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('refuses the test without the caller AI sign-in', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getCredentials = vi
+            .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+            .mockResolvedValue(snowflake);
+        const resolveIdentity = vi
+            .spyOn(
+                service as unknown as {
+                    resolveAiAccessIdentity: (
+                        ...args: unknown[]
+                    ) => Promise<null>;
+                },
+                'resolveAiAccessIdentity',
+            )
+            .mockResolvedValue(null);
+        try {
+            await expect(
+                service.testSnowflakeAiBoundary(
+                    developerAccount as RegisteredAccount,
+                    projectSummary.projectUuid,
+                    { protectedColumn: null },
+                ),
+            ).rejects.toThrow('Sign in to Snowflake for AI');
+        } finally {
+            getCredentials.mockRestore();
+            resolveIdentity.mockRestore();
+        }
+    });
+
+    it('opens the test client with only the caller AI credential', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getCredentials = vi
+            .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+            .mockResolvedValue(snowflake);
+        Reflect.set(
+            projectModel,
+            'setSnowflakeAiBoundaryGuideEvidence',
+            vi.fn(async () => undefined),
+        );
+        Reflect.set(
+            projectModel,
+            'getRecentNonAiWarehouseQueryId',
+            vi.fn(async () => null),
+        );
+        const resolveIdentity = vi
+            .spyOn(
+                service as unknown as {
+                    resolveAiAccessIdentity: (
+                        ...args: unknown[]
+                    ) => Promise<unknown>;
+                },
+                'resolveAiAccessIdentity',
+            )
+            .mockResolvedValue({
+                kind: 'snowflake_ai_sign_in',
+                credentials: {
+                    ...snowflake,
+                    token: 'caller-ai-token',
+                    requireAgentSession: true,
+                },
+                credentialUuid: 'caller-ai-credential',
+            });
+        const runQuery = vi.fn(async (sql: string) => {
+            if (sql === 'USE SECONDARY ROLES ALL') throw new Error('Blocked');
+            return {
+                rows: [
+                    {
+                        AGENT_ACTIVE: true,
+                        ACTIVE_SCOPES: 'scope',
+                        CURRENT_ROLE: 'ANALYST',
+                    },
+                ],
+            };
+        });
+        const disconnect = vi.fn(async () => undefined);
+        const withBoundarySession = vi.fn(
+            async (
+                run: (client: {
+                    runQuery: typeof runQuery;
+                }) => Promise<unknown>,
+            ) => run({ runQuery }),
+        );
+        const getWarehouseClient = vi
+            .spyOn(service, '_getWarehouseClient')
+            .mockResolvedValue({
+                warehouseClient: { withBoundarySession },
+                sshTunnel: { disconnect },
+                tunnelConnectMs: null,
+            } as unknown as Awaited<
+                ReturnType<ProjectService['_getWarehouseClient']>
+            >);
+        try {
+            const results = await service.testSnowflakeAiBoundary(
+                developerAccount as RegisteredAccount,
+                projectSummary.projectUuid,
+                { protectedColumn: null },
+            );
+            expect(resolveIdentity).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: developerAccount.user.id,
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                }),
+            );
+            expect(getWarehouseClient).toHaveBeenCalledWith(
+                projectSummary.projectUuid,
+                expect.objectContaining({
+                    token: 'caller-ai-token',
+                    requireAgentSession: true,
+                    userWarehouseCredentialsUuid: 'caller-ai-credential',
+                }),
+                { bypassCache: true },
+            );
+            expect(results.map(({ status }) => status)).toEqual([
+                'pass',
+                'pass',
+                'skipped',
+                'skipped',
+                'pass',
+            ]);
+            expect(runQuery).toHaveBeenLastCalledWith(
+                'USE SECONDARY ROLES ALL',
+                {},
+            );
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(withBoundarySession).toHaveBeenCalledOnce();
+        } finally {
+            getCredentials.mockRestore();
+            Reflect.deleteProperty(
+                projectModel,
+                'getRecentNonAiWarehouseQueryId',
+            );
+            resolveIdentity.mockRestore();
+            getWarehouseClient.mockRestore();
+        }
     });
 });
