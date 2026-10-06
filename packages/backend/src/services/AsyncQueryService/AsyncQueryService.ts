@@ -3766,6 +3766,7 @@ export class AsyncQueryService extends ProjectService {
         }> => {
             const resolvedCredentials =
                 await this.getWarehouseCredentialsWithConnection({
+                    context: queryTags.query_context,
                     projectUuid,
                     binding: { kind: 'query', queryUuid },
                     userId: userUuid,
@@ -3782,7 +3783,10 @@ export class AsyncQueryService extends ProjectService {
             const warehouseConnection = await this._getWarehouseClient(
                 projectUuid,
                 warehouseCredentials,
-                warehouseCredentialsOverrides,
+                {
+                    ...warehouseCredentialsOverrides,
+                    aiPlan: resolvedCredentials.aiPlan,
+                },
             );
             sshTunnel = warehouseConnection.sshTunnel;
             tunnelConnectMs = warehouseConnection.tunnelConnectMs;
@@ -5784,6 +5788,7 @@ export class AsyncQueryService extends ProjectService {
                         : undefined,
             }),
             this.getWarehouseCredentialsWithConnection({
+                context,
                 projectUuid,
                 binding: {
                     kind: 'explore',
@@ -6585,6 +6590,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnectionUuid,
             connectionRoute,
         } = await this.getWarehouseCredentialsWithConnection({
+            context,
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,
@@ -6920,6 +6926,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnectionUuid,
             connectionRoute,
         } = await this.getWarehouseCredentialsWithConnection({
+            context,
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,
@@ -7693,6 +7700,7 @@ export class AsyncQueryService extends ProjectService {
             projectParameters,
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
+                context,
                 projectUuid,
                 binding: { kind: 'explore', exploreName: explore.name },
                 userId: account.user.id,
@@ -7904,6 +7912,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnectionUuid,
             connectionRoute,
         } = await this.getWarehouseCredentialsWithConnection({
+            context,
             projectUuid,
             binding: {
                 kind: 'query',
@@ -10669,10 +10678,16 @@ export class AsyncQueryService extends ProjectService {
         // These are independent, so load them in parallel.
         const sectionStartWarehouse = performance.now();
         const [
-            { warehouseCredentials, warehouseConnectionUuid, connectionRoute },
+            {
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+                aiPlan,
+            },
             { userAttributes: baseUserAttributes, intrinsicUserAttributes },
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
+                context,
                 projectUuid,
                 binding: chartUuid
                     ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
@@ -10692,6 +10707,7 @@ export class AsyncQueryService extends ProjectService {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
+            { aiPlan },
         );
 
         const baseQueryTags: RunQueryTags = {
@@ -11532,6 +11548,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnectionUuid,
             connectionRoute,
         } = await this.getWarehouseCredentialsWithConnection({
+            context,
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,

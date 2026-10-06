@@ -128,6 +128,7 @@ import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBu
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { type AiAccessService } from '../AiAccessService/AiAccessService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { DocumentService } from '../DocumentService/DocumentService';
@@ -387,6 +388,9 @@ const getMockedAsyncQueryService = (
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        aiAccessService: {
+            resolvePlan: vi.fn(async () => null),
+        } as unknown as AiAccessService,
         getDocumentService: () =>
             ({
                 ...(documentService ?? {
@@ -6221,13 +6225,14 @@ describe('AsyncQueryService', () => {
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
                     projectUuid,
                     originalCredentials,
-                    undefined,
+                    { aiPlan: null },
                 );
 
                 // THEN: Warehouse client created with tunneled credentials
                 expect(
                     mockProjectModel.getWarehouseClientFromCredentials,
                 ).toHaveBeenCalledWith(sshTunnelCredentials, {
+                    aiTransport: null,
                     enableInstanceCache: false,
                     projectUuid: 'project uuid',
                     logger: expect.anything(),

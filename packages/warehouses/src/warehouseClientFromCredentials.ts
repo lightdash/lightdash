@@ -3,6 +3,7 @@ import {
     CreateWarehouseCredentials,
     UnexpectedServerError,
     WarehouseTypes,
+    type AiTransport,
 } from '@lightdash/common';
 import { WarehouseClient } from './types';
 import {
@@ -26,7 +27,7 @@ import { TrinoWarehouseClient } from './warehouseClients/TrinoWarehouseClient';
 
 export type WarehouseClientOptions = DuckdbWarehouseClientOptions &
     ClickhouseWarehouseClientOptions &
-    AthenaWarehouseClientOptions;
+    AthenaWarehouseClientOptions & { aiTransport?: AiTransport | null };
 
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,
@@ -34,17 +35,17 @@ export const warehouseClientFromCredentials = (
 ): WarehouseClient => {
     switch (credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
-            return new SnowflakeWarehouseClient(credentials);
+            return new SnowflakeWarehouseClient(credentials, options);
         case WarehouseTypes.POSTGRES:
-            return new PostgresWarehouseClient(credentials);
+            return new PostgresWarehouseClient(credentials, options);
         case WarehouseTypes.REDSHIFT:
-            return new RedshiftWarehouseClient(credentials);
+            return new RedshiftWarehouseClient(credentials, options);
         case WarehouseTypes.BIGQUERY:
-            return new BigqueryWarehouseClient(credentials);
+            return new BigqueryWarehouseClient(credentials, options);
         case WarehouseTypes.DATABRICKS:
-            return new DatabricksWarehouseClient(credentials);
+            return new DatabricksWarehouseClient(credentials, options);
         case WarehouseTypes.TRINO:
-            return new TrinoWarehouseClient(credentials);
+            return new TrinoWarehouseClient(credentials, options);
         case WarehouseTypes.CLICKHOUSE:
             return new ClickhouseWarehouseClient(credentials, options);
         case WarehouseTypes.ATHENA:

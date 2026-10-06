@@ -28,6 +28,7 @@ import {
     WarehouseResults,
     WarehouseTables,
     WarehouseTypes,
+    type AiTransport,
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseQueryPhase,
@@ -186,6 +187,7 @@ export type DuckdbConnectionCredentials =
     | DuckdbParquetCredentials;
 
 export type DuckdbWarehouseClientOptions = {
+    aiTransport?: AiTransport | null;
     /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
     resourceLimits?: DuckdbResourceLimits;
     /** Resource limits for query sessions. When combined with instanceCacheKey, they apply to the shared warm instance. */
@@ -694,6 +696,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         super(
             effectiveCredentials,
             new DuckdbSqlBuilder(effectiveCredentials.startOfWeek),
+            options,
         );
 
         if (isS3Only) {

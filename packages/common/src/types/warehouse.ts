@@ -1,4 +1,5 @@
 import { type WeekDay } from '../utils/timeFrames';
+import { type AiTransport } from './aiPrincipal';
 import { type QueryExecutionContext } from './analytics';
 import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
@@ -534,6 +535,11 @@ export interface WarehouseSqlBuilder {
 }
 
 export interface WarehouseClient extends WarehouseSqlBuilder {
+    wrapForTransport(
+        sql: string,
+        values: AnyType[] | undefined,
+        transport: AiTransport,
+    ): { sql: string; values: AnyType[] | undefined };
     credentials: CreateWarehouseCredentials;
     getCatalog: (
         config: {
