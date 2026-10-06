@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getAiCreditAllowanceAlertMessage,
     getAiCreditContractWindow,
     getErrorMessage,
@@ -8,7 +7,6 @@ import {
 import { groupBy } from 'lodash';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import Logger from '../../../logging/logger';
-import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type NotificationsModel } from '../../../models/NotificationsModel/NotificationsModel';
 import { type OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
 import {
@@ -30,7 +28,6 @@ type Dependencies = {
         'findUndelivered' | 'markDelivered'
     >;
     contractModel: Pick<AiCreditContractModel, 'find'>;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     organizationMemberProfileModel: Pick<
         OrganizationMemberProfileModel,
         'getOrganizationAdmins'
@@ -69,17 +66,6 @@ const findCurrentPeriod = async (
         period.periodStart.getTime() === alert.windowStart.getTime()
         ? period
         : null;
-};
-
-const isEnabledFor = async (
-    deps: Dependencies,
-    organizationUuid: string,
-): Promise<boolean> => {
-    const flag = await deps.featureFlagModel.get({
-        user: { organizationUuid },
-        featureFlagId: FeatureFlags.AiCredits,
-    });
-    return flag.enabled;
 };
 
 const notifyAdmins = async (
@@ -124,7 +110,7 @@ const deliverPeriodAlerts = async (
     // Thresholds reached together (e.g. one large call) send one alert, for the highest.
     const alert = highestThreshold(alerts);
     const period = await findCurrentPeriod(deps, alert, now);
-    if (period !== null && (await isEnabledFor(deps, alert.organizationUuid))) {
+    if (period !== null) {
         await notifyAdmins(deps, alert, period);
     }
     await deps.allowanceAlertModel.markDelivered(

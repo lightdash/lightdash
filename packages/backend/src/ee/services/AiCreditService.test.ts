@@ -1,7 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
     AiCreditsPausedError,
-    FeatureFlags,
     ForbiddenError,
     type AiCreditContract,
     type AiCreditHold,
@@ -40,17 +39,10 @@ const orgAdmin = () =>
 const member = () => userWith([{ action: 'view', subject: 'Organization' }]);
 
 const buildService = ({
-    flagEnabled = true,
     organizationContract = undefined as AiCreditContract | undefined,
     blockingHold = undefined as AiCreditHold | undefined,
 } = {}) =>
     new AiCreditService({
-        featureFlagModel: {
-            get: vi.fn(async () => ({
-                id: FeatureFlags.AiCredits,
-                enabled: flagEnabled,
-            })),
-        },
         aiCreditUsageModel: {
             summarize: vi.fn(async () => ({
                 ...emptyAccumulator(),
@@ -96,15 +88,6 @@ describe('AiCreditService.getOrganizationUsage', () => {
         ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
-    test('is hidden until the ai-credits flag is on for the organization', async () => {
-        await expect(
-            buildService({ flagEnabled: false }).getOrganizationUsage(
-                orgAdmin(),
-                now,
-            ),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-    });
-
     test('reports on the calendar month and does not say "credits" without a contract', async () => {
         const summary = await buildService().getOrganizationUsage(
             orgAdmin(),
@@ -145,16 +128,6 @@ describe('AiCreditService.getOrganizationDailyUsage', () => {
     test('only organization admins may see daily usage', async () => {
         await expect(
             buildService().getOrganizationDailyUsage(member(), 'user', now),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-    });
-
-    test('is hidden until the ai-credits flag is on for the organization', async () => {
-        await expect(
-            buildService({ flagEnabled: false }).getOrganizationDailyUsage(
-                orgAdmin(),
-                'feature',
-                now,
-            ),
         ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
@@ -215,10 +188,13 @@ describe('AiCreditService.assertAiCreditsAvailable', () => {
         });
     });
 
-    test('links admins to AI credits settings only while the page is enabled', async () => {
+    test('links admins to AI credits settings only while a contract is in force', async () => {
         await expect(
             check(
-                buildService({ blockingHold: hold('allowance_exhausted') }),
+                buildService({
+                    blockingHold: hold('allowance_exhausted'),
+                    organizationContract: contract(),
+                }),
                 orgAdmin(),
             ),
         ).rejects.toThrow(
@@ -226,10 +202,7 @@ describe('AiCreditService.assertAiCreditsAvailable', () => {
         );
         await expect(
             check(
-                buildService({
-                    blockingHold: hold('allowance_exhausted'),
-                    flagEnabled: false,
-                }),
+                buildService({ blockingHold: hold('allowance_exhausted') }),
                 orgAdmin(),
             ),
         ).rejects.toThrow(

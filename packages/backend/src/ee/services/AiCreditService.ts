@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     AiCreditsPausedError,
-    FeatureFlags,
     ForbiddenError,
     getAiCreditContractWindow,
     getAiCreditsPausedMessage,
@@ -15,7 +14,6 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { type AiKeyManagement } from '../../analytics/aiUsage';
-import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../services/BaseService';
 import { type AiCreditContractModel } from '../models/AiCreditContractModel';
 import { type AiCreditHoldModel } from '../models/AiCreditHoldModel';
@@ -25,7 +23,6 @@ import {
 } from '../models/AiCreditUsageModel';
 
 type Dependencies = {
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     aiCreditUsageModel: Pick<
         AiCreditUsageModel,
         'summarize' | 'summarizeByDay'
@@ -49,8 +46,6 @@ const getAiCreditsPausedAudience = ({
 };
 
 export class AiCreditService extends BaseService {
-    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-
     private readonly aiCreditUsageModel: Pick<
         AiCreditUsageModel,
         'summarize' | 'summarizeByDay'
@@ -67,7 +62,6 @@ export class AiCreditService extends BaseService {
 
     constructor(dependencies: Dependencies) {
         super({ serviceName: 'AiCreditService' });
-        this.featureFlagModel = dependencies.featureFlagModel;
         this.aiCreditUsageModel = dependencies.aiCreditUsageModel;
         this.aiCreditContractModel = dependencies.aiCreditContractModel;
         this.aiCreditHoldModel = dependencies.aiCreditHoldModel;
@@ -99,15 +93,12 @@ export class AiCreditService extends BaseService {
             'manage',
             subject('Organization', { organizationUuid }),
         );
+        // The settings page only exists while a contract is in force.
         const canOpenSettings =
             !isEmbedViewer &&
             isOrgAdmin &&
-            (
-                await this.featureFlagModel.get({
-                    user,
-                    featureFlagId: FeatureFlags.AiCredits,
-                })
-            ).enabled;
+            (await this.findCurrentPeriod(organizationUuid, new Date()))
+                .contractInForce !== undefined;
         const audience = getAiCreditsPausedAudience({
             isEmbedViewer,
             isOrgAdmin,
@@ -124,10 +115,11 @@ export class AiCreditService extends BaseService {
         });
     }
 
-    private async assertCanViewUsage(
-        user: SessionUser,
-        organizationUuid: string,
-    ): Promise<void> {
+    private assertCanViewOrganizationUsage(user: SessionUser): string {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User must belong to an organization');
+        }
         const isOrgAdmin = this.createAuditedAbility(user).can(
             'manage',
             subject('Organization', { organizationUuid }),
@@ -137,25 +129,6 @@ export class AiCreditService extends BaseService {
                 'Only organization admins can view AI usage',
             );
         }
-        const flag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.AiCredits,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError(
-                'AI usage in credits is not enabled for this organization',
-            );
-        }
-    }
-
-    private async assertCanViewOrganizationUsage(
-        user: SessionUser,
-    ): Promise<string> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('User must belong to an organization');
-        }
-        await this.assertCanViewUsage(user, organizationUuid);
         return organizationUuid;
     }
 
@@ -184,8 +157,7 @@ export class AiCreditService extends BaseService {
         breakdown: AiCreditUsageBreakdown,
         now: Date = new Date(),
     ): Promise<AiCreditDailyUsage> {
-        const organizationUuid =
-            await this.assertCanViewOrganizationUsage(user);
+        const organizationUuid = this.assertCanViewOrganizationUsage(user);
         const { period } = await this.findCurrentPeriod(organizationUuid, now);
         return this.aiCreditUsageModel.summarizeByDay(
             organizationUuid,
@@ -198,8 +170,7 @@ export class AiCreditService extends BaseService {
         user: SessionUser,
         now: Date = new Date(),
     ): Promise<AiCreditUsageSummary> {
-        const organizationUuid =
-            await this.assertCanViewOrganizationUsage(user);
+        const organizationUuid = this.assertCanViewOrganizationUsage(user);
         const { period, contractInForce } = await this.findCurrentPeriod(
             organizationUuid,
             now,
