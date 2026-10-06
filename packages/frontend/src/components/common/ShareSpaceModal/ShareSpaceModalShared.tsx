@@ -1,13 +1,14 @@
 import {
     OrganizationMemberRole,
-    ProjectMemberRole,
     SpaceMemberRole,
+    type SpaceShareWithPermissions,
     type LightdashUser,
     type Space,
     type SpaceGroup,
     type SpaceShare,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Avatar,
     Badge,
     Group,
@@ -20,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconAlertCircle,
+    IconAlertTriangle,
     IconLock,
     IconUsers,
     IconUsersGroup,
@@ -48,7 +49,7 @@ import { getInitials, getUserNameOrEmail } from './Utils';
 
 type UserAccessListProps = {
     inheritParentPermissions: boolean;
-    accessList: SpaceShare[];
+    accessList: SpaceShareWithPermissions[];
     sessionUser: LightdashUser | undefined;
     onAccessChange: (action: UserAccessAction, user: SpaceShare) => void;
     disabled?: boolean;
@@ -78,9 +79,6 @@ export const UserAccessList: FC<UserAccessListProps> = ({
     return (
         <Stack gap="sm">
             {accessList.map((sharedUser) => {
-                const needsPromotion =
-                    sharedUser.projectRole === ProjectMemberRole.VIEWER &&
-                    sharedUser.role !== SpaceMemberRole.VIEWER;
                 const isSessionUser =
                     sharedUser.userUuid === sessionUser?.userUuid;
 
@@ -98,6 +96,23 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                           }
                         : t,
                 );
+
+                const missingPermissions: string[] = [];
+                if (sharedUser.role !== SpaceMemberRole.VIEWER) {
+                    if (!sharedUser.permissions.canEditCharts)
+                        missingPermissions.push('editing charts');
+                    if (!sharedUser.permissions.canEditDashboards)
+                        missingPermissions.push('editing dashboards');
+                    if (
+                        sharedUser.role === SpaceMemberRole.ADMIN &&
+                        !sharedUser.permissions.canManageSpace
+                    )
+                        missingPermissions.push('managing this space');
+                }
+                const warning =
+                    missingPermissions.length > 0
+                        ? `This user cannot use all of their assigned space access. Their roles do not allow: ${missingPermissions.join(', ')}. Update their organization or project permissions to enable these actions.`
+                        : null;
 
                 return (
                     <Group
@@ -143,25 +158,37 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                             ) : null}
                         </Group>
 
-                        {isSessionUser || !sharedUser.hasDirectAccess ? (
-                            <Badge
-                                size="sm"
-                                color={getAccessColor(sharedUser.role).join(
-                                    '.',
-                                )}
-                                radius="xl"
-                                mr="xs"
-                            >
-                                {UserAccessOptions.find(
-                                    (o) => o.value === sharedUser.role,
-                                )?.title ?? sharedUser.role}
-                            </Badge>
-                        ) : (
-                            <Tooltip
-                                disabled={!needsPromotion}
-                                label="User needs to be promoted to interactive viewer to have this space access"
-                                maw={350}
-                            >
+                        <Group gap="xs" wrap="nowrap">
+                            {warning && (
+                                <Tooltip
+                                    label={warning}
+                                    multiline
+                                    maw={320}
+                                    withArrow
+                                >
+                                    <ActionIcon
+                                        color="orange"
+                                        variant="subtle"
+                                        aria-label={warning}
+                                    >
+                                        <MantineIcon icon={IconAlertTriangle} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            {isSessionUser || !sharedUser.hasDirectAccess ? (
+                                <Badge
+                                    size="sm"
+                                    color={getAccessColor(sharedUser.role).join(
+                                        '.',
+                                    )}
+                                    radius="xl"
+                                    mr="xs"
+                                >
+                                    {UserAccessOptions.find(
+                                        (o) => o.value === sharedUser.role,
+                                    )?.title ?? sharedUser.role}
+                                </Badge>
+                            ) : (
                                 <Select
                                     classNames={{
                                         input: disabled
@@ -199,20 +226,10 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                             );
                                         }
                                     }}
-                                    error={needsPromotion}
-                                    rightSection={
-                                        needsPromotion ? (
-                                            <MantineIcon
-                                                icon={IconAlertCircle}
-                                                size="sm"
-                                                color="red.6"
-                                            />
-                                        ) : null
-                                    }
                                     disabled={disabled}
                                 />
-                            </Tooltip>
-                        )}
+                            )}
+                        </Group>
                     </Group>
                 );
             })}
