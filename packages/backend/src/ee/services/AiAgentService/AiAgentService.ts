@@ -32,6 +32,8 @@ import {
     AiAgentVizConfig,
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
+    AiEgressBlockReason,
+    AiEgressSurface,
     AiMcpCredentialScope,
     AiMcpGithubAvailability,
     AiMcpGithubConnectMode,
@@ -308,6 +310,7 @@ import {
     UnfurlService,
 } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import { redactItemsMapSql } from '../../../utils/embedCompiledSql';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { type DbAiPromptTurnDecisionOutcome } from '../../database/entities/ai';
@@ -16948,6 +16951,38 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // in replyToSlackPromptWithStatus only rethrows when it never posted a
         // card, so this remains the single error post.
         try {
+            if (
+                await this.projectModel.getAiAccessRestrictions(
+                    slackPrompt.projectUuid,
+                )
+            ) {
+                const slackSettings =
+                    await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                        slackPrompt.organizationUuid,
+                    );
+                const linkedUser = slackSettings?.aiRequireOAuth
+                    ? await this.openIdIdentityModel.findIdentityByOpenId(
+                          OpenIdIdentityIssuerType.SLACK,
+                          slackPrompt.slackUserId,
+                      )
+                    : null;
+                if (linkedUser?.userUuid !== slackPrompt.createdByUserUuid) {
+                    logAiEgressBlock({
+                        surface: AiEgressSurface.SLACK_AGENT,
+                        reason: AiEgressBlockReason.OFF_UNDER_RESTRICTIONS,
+                        organizationUuid: slackPrompt.organizationUuid,
+                        projectUuid: slackPrompt.projectUuid,
+                        userUuid: slackPrompt.createdByUserUuid,
+                        detail: null,
+                    });
+                    await this.editPlaceholderOrPost(
+                        slackPrompt,
+                        'Connect your own Slack account before you use this agent.',
+                    );
+                    return;
+                }
+            }
+
             const user = await this.userModel.findSessionUserAndOrgByUuid(
                 slackPrompt.createdByUserUuid,
                 slackPrompt.organizationUuid,

@@ -6876,12 +6876,17 @@ describe('ProjectService', () => {
 
     describe('searchFieldUniqueValues', () => {
         test.each([
-            [QueryExecutionContext.AI, true, false],
-            [QueryExecutionContext.AI, false, true],
-            [QueryExecutionContext.FILTER_AUTOCOMPLETE, true, true],
+            [QueryExecutionContext.AI, true, false, false],
+            [QueryExecutionContext.AI, false, false, true],
+            [QueryExecutionContext.AI, false, true, false],
+            [QueryExecutionContext.FILTER_AUTOCOMPLETE, true, true, true],
         ])(
-            'autocomplete cache for %s with flag %s',
-            async (context, enabled, usesCache) => {
+            'autocomplete cache for %s with flag %s and restrictions %s',
+            async (context, enabled, restricted, usesCache) => {
+                if (context === QueryExecutionContext.AI)
+                    projectModel.getAiAccessRestrictions.mockResolvedValueOnce(
+                        restricted,
+                    );
                 const flaggedService = getMockedProjectService({
                     ...lightdashConfigMock,
                     results: {
@@ -6928,6 +6933,51 @@ describe('ProjectService', () => {
 
                 expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
                 expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+            },
+        );
+
+        test.each([
+            [true, []],
+            [false, ['configured-value']],
+        ])(
+            'configured values with restrictions %s',
+            async (restricted, expectedResults) => {
+                projectModel.getAiAccessRestrictions.mockResolvedValueOnce(
+                    restricted,
+                );
+                const fieldValuesQuery = vi
+                    .spyOn(
+                        service as unknown as {
+                            _getFieldValuesMetricQuery: () => Promise<unknown>;
+                        },
+                        '_getFieldValuesMetricQuery',
+                    )
+                    .mockResolvedValue({
+                        metricQuery: { limit: 10 },
+                        explore: validExplore,
+                        field: validExplore.tables.a.dimensions.dim1,
+                        labelFieldId: null,
+                        staticResults: [
+                            { value: 'configured-value', label: null },
+                        ],
+                    });
+
+                const result = await service.searchFieldUniqueValues(
+                    user,
+                    projectUuid,
+                    'a',
+                    'a_dim1',
+                    '',
+                    10,
+                    undefined,
+                    false,
+                    undefined,
+                    undefined,
+                    QueryExecutionContext.AI,
+                );
+
+                expect(result.results).toEqual(expectedResults);
+                fieldValuesQuery.mockRestore();
             },
         );
 

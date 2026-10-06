@@ -1,5 +1,7 @@
 import {
     Account,
+    AiEgressBlockReason,
+    AiEgressSurface,
     CatalogType,
     ContentType,
     DimensionType,
@@ -22,6 +24,7 @@ import {
     type ExtractedDataReference,
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
+import Logger from '../../../logging/logger';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -164,6 +167,7 @@ const makeService = ({
             ai: { copilot: { maxQueryLimit: 500 } },
         },
         projectModel: {
+            getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
             findExploresFromCache: vi.fn(
                 async (
                     _projectUuid: string,
@@ -3861,4 +3865,149 @@ describe('AiAgentToolsService listDataAppThemes', () => {
 
         expect(themes.map((theme) => theme.slug)).toEqual(['brand', 'dark']);
     });
+});
+
+describe('restricted field value payloads', () => {
+    it.each(['ai_agent', 'mcp'] as const)(
+        'only returns fresh query values to %s',
+        async (source) => {
+            const info = vi.spyOn(Logger, 'info');
+            const searchFieldUniqueValues = vi
+                .fn()
+                .mockResolvedValue({ results: ['fresh-value'], cached: false });
+            const service = makeService({
+                projectModel: {
+                    getAiAccessRestrictions: vi.fn().mockResolvedValue(true),
+                },
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        dimensions: {
+                            status: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'status',
+                                table: 'orders',
+                                filterAutocomplete: {
+                                    fetchFromWarehouse: true,
+                                    values: ['shared-static-value'],
+                                },
+                            },
+                        },
+                    }),
+                },
+                searchFieldUniqueValues,
+            });
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime(
+                          makeRuntimeContext({ source: 'mcp' }),
+                      )
+                    : service.createRuntime(makeRuntimeContext());
+            const payload = await runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'value',
+            });
+            expect(payload).toEqual(
+                source === 'mcp'
+                    ? { results: ['fresh-value'], cached: false }
+                    : ['fresh-value'],
+            );
+            expect(searchFieldUniqueValues).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders',
+                'orders_status',
+                'value',
+                100,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                source === 'mcp'
+                    ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
+                    : QueryExecutionContext.AI,
+                source === 'mcp' ? 'mcp' : undefined,
+            );
+            expect(info).toHaveBeenCalledWith(
+                'AI egress blocked under AI access restrictions',
+                expect.objectContaining({
+                    aiEgressSurface: AiEgressSurface.FIELD_VALUE_SEARCH,
+                    aiEgressReason:
+                        AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                }),
+            );
+        },
+    );
+});
+
+it.each(['ai_agent', 'mcp'] as const)(
+    'blocks warehouse metadata tools under restrictions for %s',
+    async (source) => {
+        const getWarehouseTables = vi.fn().mockResolvedValue({});
+        const getWarehouseFields = vi.fn().mockResolvedValue({});
+        const service = makeService({
+            projectModel: {
+                getAiAccessRestrictions: vi.fn().mockResolvedValue(true),
+            },
+            projectService: { getWarehouseTables, getWarehouseFields },
+        });
+        const runtime =
+            source === 'mcp'
+                ? service.createRuntime(makeRuntimeContext({ source: 'mcp' }))
+                : service.createRuntime(makeRuntimeContext());
+        await expect(runtime.listWarehouseTables()).rejects.toBeInstanceOf(
+            ForbiddenError,
+        );
+        await expect(
+            runtime.describeWarehouseTable({ table: 'orders' }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(getWarehouseTables).not.toHaveBeenCalled();
+        expect(getWarehouseFields).not.toHaveBeenCalled();
+    },
+);
+
+it('keeps warehouse metadata tools available without restrictions', async () => {
+    const getWarehouseTables = vi.fn().mockResolvedValue({});
+    const service = makeService({ projectService: { getWarehouseTables } });
+    await service.createRuntime(makeRuntimeContext()).listWarehouseTables();
+    expect(getWarehouseTables).toHaveBeenCalledExactlyOnceWith(
+        user,
+        projectUuid,
+    );
+});
+
+it('does not return configured autocomplete values to the agent under restrictions', async () => {
+    const service = makeService({
+        projectModel: {
+            getAiAccessRestrictions: vi.fn().mockResolvedValue(true),
+        },
+        explores: {
+            orders: makeExplore({
+                name: 'orders',
+                dimensions: {
+                    status: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.STRING,
+                        name: 'status',
+                        table: 'orders',
+                        filterAutocomplete: {
+                            fetchFromWarehouse: false,
+                            values: ['shared-static-value'],
+                        },
+                    },
+                },
+            }),
+        },
+        searchFieldUniqueValues: vi.fn().mockResolvedValue({ results: [] }),
+    });
+    const payload = await service
+        .createRuntime(makeRuntimeContext())
+        .searchFieldValues({
+            table: 'orders',
+            fieldId: 'orders_status',
+            query: 'value',
+        });
+    expect(payload).toEqual([]);
 });

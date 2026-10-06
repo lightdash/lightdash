@@ -4,6 +4,8 @@ import {
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
     AiAccessSurface,
+    AiEgressBlockReason,
+    AiEgressSurface,
     allowsOptionalUserCredentials,
     AlreadyExistsError,
     AndFilterGroup,
@@ -420,6 +422,7 @@ import {
     TrackingParams,
 } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import { logAiEgressBlock } from '../../utils/aiEgress/logAiEgressBlock';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
@@ -11339,6 +11342,20 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const restrictedAiSearch =
+            isAiAccessQueryContext(context) &&
+            (await this.projectModel.getAiAccessRestrictions(projectUuid));
+        if (restrictedAiSearch) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.FIELD_VALUE_SEARCH,
+                reason: AiEgressBlockReason.SHARED_CACHE_SKIPPED,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: null,
+            });
+        }
+
         const { metricQuery, explore, field, labelFieldId, staticResults } =
             await this._getFieldValuesMetricQuery({
                 projectUuid,
@@ -11352,6 +11369,22 @@ export class ProjectService extends BaseService {
 
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) instead of running a distinct-value scan.
+        if (staticResults && restrictedAiSearch) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.FIELD_VALUE_SEARCH,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                detail: null,
+            });
+            return {
+                search,
+                results: [],
+                refreshedAt: new Date(),
+                cached: false,
+            };
+        }
         if (staticResults) {
             this.analytics.track({
                 event: 'field_value.search',
@@ -11447,7 +11480,8 @@ export class ProjectService extends BaseService {
         const isUserCacheEnabled =
             this.lightdashConfig.results.autocompleteEnabled &&
             !!user.userUuid &&
-            !skipAiAccessCache;
+            !skipAiAccessCache &&
+            !restrictedAiSearch;
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 

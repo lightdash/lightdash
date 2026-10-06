@@ -274,6 +274,7 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
     getAgentSqlScope: vi.fn(async () => null),
+    getAiAccessRestrictions: vi.fn(async () => false),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
@@ -2066,12 +2067,17 @@ describe('AsyncQueryService', () => {
         });
 
         test.each([
-            [QueryExecutionContext.AI, true, false],
-            [QueryExecutionContext.AI, false, true],
-            [QueryExecutionContext.EXPLORE, true, true],
+            [QueryExecutionContext.AI, true, false, false],
+            [QueryExecutionContext.AI, false, false, true],
+            [QueryExecutionContext.AI, false, true, false],
+            [QueryExecutionContext.EXPLORE, true, true, true],
         ])(
-            'cache lookup for %s with flag %s',
-            async (context, enabled, looksUpCache) => {
+            'cache lookup for %s with flag %s and restrictions %s',
+            async (context, enabled, restricted, looksUpCache) => {
+                if (context === QueryExecutionContext.AI)
+                    projectModel.getAiAccessRestrictions.mockResolvedValueOnce(
+                        restricted,
+                    );
                 vi.mocked(
                     serviceWithCache.featureFlagModel.get,
                 ).mockImplementation(async ({ featureFlagId }) => ({
@@ -2110,7 +2116,10 @@ describe('AsyncQueryService', () => {
                 const history = vi.mocked(
                     serviceWithCache.queryHistoryModel.create,
                 ).mock.calls[0][1];
-                if (context === QueryExecutionContext.AI && enabled) {
+                if (
+                    context === QueryExecutionContext.AI &&
+                    (enabled || restricted)
+                ) {
                     expect(history.cacheKey).toMatch(
                         /^[a-f0-9]{64}\.[a-f0-9-]{36}$/,
                     );
@@ -3410,12 +3419,17 @@ describe('AsyncQueryService', () => {
 
     describe('executeAsyncMetricQuery', () => {
         test.each([
-            [QueryExecutionContext.AI, true, 'warehouse'],
-            [QueryExecutionContext.AI, false, 'pre_aggregate'],
-            [QueryExecutionContext.EXPLORE, true, 'pre_aggregate'],
+            [QueryExecutionContext.AI, true, false, 'warehouse'],
+            [QueryExecutionContext.AI, false, false, 'pre_aggregate'],
+            [QueryExecutionContext.AI, false, true, 'warehouse'],
+            [QueryExecutionContext.EXPLORE, true, true, 'pre_aggregate'],
         ] as const)(
-            'routes %s with flag %s to %s',
-            async (context, enabled, target) => {
+            'routes %s with flag %s and restrictions %s to %s',
+            async (context, enabled, restricted, target) => {
+                if (context === QueryExecutionContext.AI)
+                    projectModel.getAiAccessRestrictions.mockResolvedValueOnce(
+                        restricted,
+                    );
                 const service = getMockedAsyncQueryService(lightdashConfigMock);
                 vi.mocked(service.featureFlagModel.get).mockResolvedValue({
                     id: FeatureFlags.AiAccessSkipResultsCache,
@@ -3437,6 +3451,7 @@ describe('AsyncQueryService', () => {
                 const result = await service[
                     'getPreAggregationRoutingDecision'
                 ]({
+                    projectUuid,
                     account: sessionAccount,
                     metricQuery: metricQueryMock,
                     explore: validExplore,
@@ -3458,6 +3473,7 @@ describe('AsyncQueryService', () => {
             });
             await expect(
                 service['getPreAggregationRoutingDecision']({
+                    projectUuid,
                     account: sessionAccount,
                     metricQuery: metricQueryMock,
                     explore: {
@@ -3468,6 +3484,24 @@ describe('AsyncQueryService', () => {
                     forceWarehouse: false,
                 }),
             ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
+        });
+
+        test('routes restricted AI queries without reading the cache flag', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            projectModel.getAiAccessRestrictions.mockResolvedValueOnce(true);
+            vi.mocked(service.featureFlagModel.get).mockRejectedValue(
+                new Error('Flag lookup failed'),
+            );
+            const result = await service['getPreAggregationRoutingDecision']({
+                projectUuid,
+                account: sessionAccount,
+                metricQuery: metricQueryMock,
+                explore: validExplore,
+                context: QueryExecutionContext.AI,
+                forceWarehouse: false,
+            });
+            expect(result.target).toBe('warehouse');
+            expect(service.featureFlagModel.get).not.toHaveBeenCalled();
         });
 
         test.each([

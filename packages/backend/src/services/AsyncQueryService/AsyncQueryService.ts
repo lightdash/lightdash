@@ -3,6 +3,8 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     addFiltersToMetricQuery,
+    AiEgressBlockReason,
+    AiEgressSurface,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
@@ -220,6 +222,7 @@ import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
+import { logAiEgressBlock } from '../../utils/aiEgress/logAiEgressBlock';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import {
     getDuckdbPreAggregateSqlTable,
@@ -953,9 +956,23 @@ export class AsyncQueryService extends ProjectService {
     private async isAiAccessCacheBypassEnabled(
         account: Account,
         context: QueryExecutionContext,
+        projectUuid: string,
     ): Promise<boolean> {
         if (!isAiAccessQueryContext(context)) return false;
         assertIsAccountWithOrg(account);
+        const restricted =
+            await this.projectModel.getAiAccessRestrictions(projectUuid);
+        if (restricted) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.RESULTS_CACHE,
+                reason: AiEgressBlockReason.SHARED_CACHE_SKIPPED,
+                organizationUuid: account.organization.organizationUuid,
+                projectUuid,
+                userUuid: account.user.id,
+                detail: null,
+            });
+            return true;
+        }
         const { enabled } = await this.featureFlagModel.get({
             user: {
                 organizationUuid: account.organization.organizationUuid,
@@ -969,12 +986,14 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async getPreAggregationRoutingDecision({
+        projectUuid,
         metricQuery,
         explore,
         context,
         forceWarehouse,
         account,
     }: {
+        projectUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
@@ -984,6 +1003,7 @@ export class AsyncQueryService extends ProjectService {
         const bypassPreAggregates = await this.isAiAccessCacheBypassEnabled(
             account,
             context,
+            projectUuid,
         );
         if (forceWarehouse || bypassPreAggregates) {
             if (
@@ -1631,9 +1651,18 @@ export class AsyncQueryService extends ProjectService {
             (await this.isAiAccessCacheBypassEnabled(
                 account,
                 QueryExecutionContext.AI,
+                projectUuid,
             )) &&
             !isAiAccessQueryContext(queryHistory.context)
         ) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.RESULTS_CACHE,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid,
+                userUuid: account.user.id,
+                detail: null,
+            });
             throw new ForbiddenError('Query was not started by AI access');
         }
 
@@ -4992,6 +5021,7 @@ export class AsyncQueryService extends ProjectService {
                         await this.isAiAccessCacheBypassEnabled(
                             account,
                             context,
+                            projectUuid,
                         );
                     const sharedCacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
@@ -5936,6 +5966,7 @@ export class AsyncQueryService extends ProjectService {
         };
 
         const routingDecision = await this.getPreAggregationRoutingDecision({
+            projectUuid,
             account,
             metricQuery: effectiveMetricQuery,
             explore,
@@ -5958,7 +5989,11 @@ export class AsyncQueryService extends ProjectService {
             reuseQueryUuid &&
             !invalidateCache &&
             !documentQueryContext &&
-            !(await this.isAiAccessCacheBypassEnabled(account, context))
+            !(await this.isAiAccessCacheBypassEnabled(
+                account,
+                context,
+                projectUuid,
+            ))
         ) {
             const previous = await this.getAsyncQueryHistory({
                 account,
@@ -6992,6 +7027,7 @@ export class AsyncQueryService extends ProjectService {
         const fieldsWithOverrides = queryComposer.getFields();
 
         const routingDecision = await this.getPreAggregationRoutingDecision({
+            projectUuid,
             account,
             metricQuery: metricQueryWithLimit,
             explore,
@@ -7808,6 +7844,7 @@ export class AsyncQueryService extends ProjectService {
         const parameterReferences = queryComposer.getParameterReferences();
 
         const routingDecision = await this.getPreAggregationRoutingDecision({
+            projectUuid,
             account,
             metricQuery: metricQueryWithLimit,
             explore,
@@ -8726,6 +8763,7 @@ export class AsyncQueryService extends ProjectService {
         const cacheKey = (await this.isAiAccessCacheBypassEnabled(
             account,
             context,
+            projectUuid,
         ))
             ? `${sharedCacheKey}.${randomUUID()}`
             : sharedCacheKey;
@@ -9355,6 +9393,7 @@ export class AsyncQueryService extends ProjectService {
         const cacheKey = (await this.isAiAccessCacheBypassEnabled(
             account,
             context,
+            projectUuid,
         ))
             ? `${sharedCacheKey}.${randomUUID()}`
             : sharedCacheKey;
@@ -9571,9 +9610,12 @@ export class AsyncQueryService extends ProjectService {
                           userUuid: null,
                       })
                     : cacheKey;
-            const bypassResultsCache = isAiAccessQueryContext(context)
-                ? (
-                      await this.featureFlagModel.get({
+            const restrictionsEnabled =
+                isAiAccessQueryContext(context) &&
+                (await this.projectModel.getAiAccessRestrictions(projectUuid));
+            const { enabled: flagEnabled } =
+                isAiAccessQueryContext(context) && !restrictionsEnabled
+                    ? await this.featureFlagModel.get({
                           user: {
                               organizationUuid,
                               ...(actor.isRegisteredUser
@@ -9582,8 +9624,18 @@ export class AsyncQueryService extends ProjectService {
                           },
                           featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
                       })
-                  ).enabled
-                : false;
+                    : { enabled: false };
+            const bypassResultsCache = restrictionsEnabled || flagEnabled;
+            if (restrictionsEnabled) {
+                logAiEgressBlock({
+                    surface: AiEgressSurface.RESULTS_CACHE,
+                    reason: AiEgressBlockReason.SHARED_CACHE_SKIPPED,
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: actor.userUuid,
+                    detail: null,
+                });
+            }
             const resultsKey = bypassResultsCache
                 ? `${sharedResultsKey}.${queryUuid}`
                 : sharedResultsKey;
@@ -11495,9 +11547,18 @@ export class AsyncQueryService extends ProjectService {
             (await this.isAiAccessCacheBypassEnabled(
                 account,
                 QueryExecutionContext.AI,
+                projectUuid,
             )) &&
             !isAiAccessQueryContext(queryHistory.context)
         ) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.RESULTS_CACHE,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid,
+                userUuid: account.user.id,
+                detail: null,
+            });
             throw new ForbiddenError('Query was not started by AI access');
         }
 
@@ -11612,6 +11673,7 @@ export class AsyncQueryService extends ProjectService {
         const fields = queryComposer.getFields();
 
         const routingDecision = await this.getPreAggregationRoutingDecision({
+            projectUuid,
             account,
             metricQuery,
             explore,
