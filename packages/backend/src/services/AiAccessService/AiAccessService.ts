@@ -245,6 +245,20 @@ export class AiAccessService extends BaseService {
         });
     }
 
+    private async ensureSecret(
+        principal: AiPrincipalWithSecrets,
+        provider: AiCredentialProvider,
+    ): Promise<AiPrincipalWithSecrets> {
+        if (principal.secret !== null) return principal;
+        const created = await provider.createSecret();
+        if (created === null) return principal;
+        await this.aiPrincipalModel.setSecret(
+            principal.aiPrincipalUuid,
+            created,
+        );
+        return this.aiPrincipalModel.getPrincipal(principal.aiPrincipalUuid);
+    }
+
     async resolvePlan(args: ResolvePlanArgs): Promise<AiExecutionPlan | null> {
         if (!isAiAccessQueryContext(args.context)) return null;
         const policy = await this.enabledPolicy(args);
@@ -258,8 +272,9 @@ export class AiAccessService extends BaseService {
                 throw new UnexpectedServerError(
                     'AI access needs the person to have an email address',
                 );
-            const principal = await this.principal(args, policy, email);
+            let principal = await this.principal(args, policy, email);
             AiAccessService.assertPrincipal(principal);
+            principal = await this.ensureSecret(principal, provider);
             const { credentials, assurances } = await provider.mint({
                 connection: args.connection,
                 principal,
@@ -319,7 +334,7 @@ export class AiAccessService extends BaseService {
         };
         if (!policy) return result;
         try {
-            await this.provider(args, policy);
+            const provider = await this.provider(args, policy);
             const { email } = await this.userModel.getUserDetailsByUuid(
                 args.userUuid,
             );
@@ -327,13 +342,14 @@ export class AiAccessService extends BaseService {
                 throw new UnexpectedServerError(
                     'AI access needs the person to have an email address',
                 );
-            const principal = await this.principal(args, policy, email);
+            let principal = await this.principal(args, policy, email);
+            AiAccessService.assertPrincipal(principal);
+            principal = await this.ensureSecret(principal, provider);
             result.principal = {
                 aiPrincipalUuid: principal.aiPrincipalUuid,
                 ref: principal.ref,
                 status: principal.status,
             };
-            AiAccessService.assertPrincipal(principal);
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
             this.logRefusal(args, policy, error);

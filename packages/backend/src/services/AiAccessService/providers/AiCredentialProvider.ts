@@ -8,6 +8,12 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 
+export type AiCreatedSecret = {
+    secret: string;
+    publicKey: string | null;
+    publicKeyFingerprint: string | null;
+};
+
 export type AiPrincipalPerson = {
     userUuid: string;
     email: string;
@@ -46,6 +52,8 @@ export interface AiCredentialProvider<
     readonly warehouseType: T['type'];
 
     capabilities(connection: T): AiWarehouseCapabilities;
+
+    createSecret(): Promise<AiCreatedSecret | null>;
 
     mint(args: AiMintArgs<T>): Promise<AiMintedCredentials<T>>;
 

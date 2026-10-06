@@ -35,6 +35,10 @@ export class UnavailableAiCredentialProvider<
         };
     }
 
+    async createSecret(): Promise<null> {
+        return null;
+    }
+
     async mint(): Promise<never> {
         throw new AiAccessRefusedError(
             AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,

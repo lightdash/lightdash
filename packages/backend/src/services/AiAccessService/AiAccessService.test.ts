@@ -24,7 +24,10 @@ import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
-import { type AiCredentialProvider } from './providers/AiCredentialProvider';
+import {
+    type AiCreatedSecret,
+    type AiCredentialProvider,
+} from './providers/AiCredentialProvider';
 import { getAiCredentialProvider } from './providers/registry';
 
 const connection: CreateWarehouseCredentials = {
@@ -89,6 +92,7 @@ const setup = () => {
         ),
         createPrincipal: vi.fn(async () => principal),
         getPrincipal: vi.fn(async () => principal),
+        setSecret: vi.fn(async () => {}),
         recordProbe: vi.fn(async (_id: string, probe: AiProbeResult) => ({
             ...principal,
             status: probe.ok
@@ -125,6 +129,7 @@ const setup = () => {
             },
             setupFormat: AiSetupScriptFormat.SQL,
         })),
+        createSecret: vi.fn(async (): Promise<AiCreatedSecret | null> => null),
         mint: vi.fn(async () => ({
             credentials: { ...connection, user: 'ai' },
             assurances: [],
@@ -164,6 +169,65 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    test('creates and reloads a secret before minting', async () => {
+        const { service, model, provider } = setup();
+        const created = {
+            secret: 'generated',
+            publicKey: null,
+            publicKeyFingerprint: null,
+        };
+        provider.createSecret.mockResolvedValue(created);
+        model.getPrincipal.mockResolvedValue({ ...principal, ...created });
+        await service.resolvePlan(args);
+        expect(model.setSecret).toHaveBeenCalledWith('principal', created);
+        expect(model.getPrincipal).toHaveBeenCalledWith('principal');
+        expect(provider.mint).toHaveBeenCalledWith(
+            expect.objectContaining({
+                principal: expect.objectContaining({ secret: 'generated' }),
+            }),
+        );
+        expect(provider.createSecret.mock.invocationCallOrder[0]).toBeLessThan(
+            model.setSecret.mock.invocationCallOrder[0],
+        );
+        expect(model.setSecret.mock.invocationCallOrder[0]).toBeLessThan(
+            model.getPrincipal.mock.invocationCallOrder[0],
+        );
+        expect(model.getPrincipal.mock.invocationCallOrder[0]).toBeLessThan(
+            provider.mint.mock.invocationCallOrder[0],
+        );
+    });
+    test('does not save a secret for a broker', async () => {
+        const { service, model, provider } = setup();
+        await service.resolvePlan(args);
+        expect(provider.createSecret).toHaveBeenCalledOnce();
+        expect(model.setSecret).not.toHaveBeenCalled();
+    });
+    test('creates a secret for setup without minting or probing', async () => {
+        const { service, model, provider } = setup();
+        const created = {
+            secret: 'generated',
+            publicKey: null,
+            publicKeyFingerprint: null,
+        };
+        provider.createSecret.mockResolvedValue(created);
+        model.getPrincipal.mockResolvedValue({ ...principal, ...created });
+        const result = await service.getAiAccessForUser(args);
+        expect(model.setSecret).toHaveBeenCalledWith('principal', created);
+        expect(model.getPrincipal).toHaveBeenCalledWith('principal');
+        expect(result.principal).not.toHaveProperty('secret');
+        expect(provider.mint).not.toHaveBeenCalled();
+        expect(provider.probe).not.toHaveBeenCalled();
+    });
+    test('keeps an existing secret', async () => {
+        const { service, model, provider } = setup();
+        model.findPrincipalByRef.mockResolvedValue({
+            ...principal,
+            secret: 'existing',
+        });
+        await service.resolvePlan(args);
+        expect(provider.createSecret).not.toHaveBeenCalled();
+        expect(model.setSecret).not.toHaveBeenCalled();
+    });
     test('ignores non-AI contexts before checking flags', async () => {
         const { service, flags } = setup();
         expect(
@@ -368,46 +432,43 @@ describe('AiAccessService', () => {
         });
         expect(provider.mint).not.toHaveBeenCalled();
     });
-    test.each(Object.values(WarehouseTypes))(
-        'registry refuses %s with its capability reason',
-        async (type) => {
-            const { service, registry } = setup();
-            const unavailable = getAiCredentialProvider(type);
-            registry.mockReturnValue(unavailable);
-            const capabilities = unavailable.capabilities(connection);
-            expect(
-                Object.values(capabilities.principals).every(
-                    (c) => !c.available,
-                ),
-            ).toBe(true);
-            expect(
-                Object.values(capabilities.transports).every(
-                    (c) => !c.available,
-                ),
-            ).toBe(true);
-            const capability = capabilities.principals.shared;
-            if (capability.available)
-                throw new Error('Expected unavailable provider');
-            await expect(service.resolvePlan(args)).rejects.toMatchObject({
-                refusal: {
-                    reason: AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
-                    message: capability.reason,
-                },
-            });
-            await expect(
-                unavailable.mint({
-                    connection,
-                    principal,
-                    policy,
-                    person: { userUuid: 'user', email: 'user@example.test' },
-                }),
-            ).rejects.toBeInstanceOf(AiAccessRefusedError);
-            await expect(
-                unavailable.probe(connection, []),
-            ).rejects.toBeInstanceOf(AiAccessRefusedError);
-            expect(() =>
-                unavailable.setupScript({ connection, principal, policy }),
-            ).toThrow(AiAccessRefusedError);
-        },
-    );
+    test.each(
+        Object.values(WarehouseTypes).filter(
+            (type) => type !== WarehouseTypes.POSTGRES,
+        ),
+    )('registry refuses %s with its capability reason', async (type) => {
+        const { service, registry } = setup();
+        const unavailable = getAiCredentialProvider(type);
+        registry.mockReturnValue(unavailable);
+        const capabilities = unavailable.capabilities(connection);
+        expect(
+            Object.values(capabilities.principals).every((c) => !c.available),
+        ).toBe(true);
+        expect(
+            Object.values(capabilities.transports).every((c) => !c.available),
+        ).toBe(true);
+        const capability = capabilities.principals.shared;
+        if (capability.available)
+            throw new Error('Expected unavailable provider');
+        await expect(service.resolvePlan(args)).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                message: capability.reason,
+            },
+        });
+        await expect(
+            unavailable.mint({
+                connection,
+                principal,
+                policy,
+                person: { userUuid: 'user', email: 'user@example.test' },
+            }),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+        await expect(unavailable.probe(connection, [])).rejects.toBeInstanceOf(
+            AiAccessRefusedError,
+        );
+        expect(() =>
+            unavailable.setupScript({ connection, principal, policy }),
+        ).toThrow(AiAccessRefusedError);
+    });
 });

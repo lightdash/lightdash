@@ -1,5 +1,6 @@
 import { assertUnreachable, WarehouseTypes } from '@lightdash/common';
 import { type AiCredentialProvider } from './AiCredentialProvider';
+import { PostgresAiCredentialProvider } from './PostgresAiCredentialProvider';
 import { UnavailableAiCredentialProvider } from './UnavailableAiCredentialProvider';
 
 export type AiCredentialProviderRegistry = (
@@ -29,10 +30,7 @@ export const getAiCredentialProvider: AiCredentialProviderRegistry = (type) => {
                 'AI principals for BigQuery are not available in this version.',
             );
         case WarehouseTypes.POSTGRES:
-            return new UnavailableAiCredentialProvider(
-                type,
-                'AI principals for Postgres need a login role per principal. Not available in this version.',
-            );
+            return new PostgresAiCredentialProvider();
         case WarehouseTypes.CLICKHOUSE:
             return new UnavailableAiCredentialProvider(
                 type,
