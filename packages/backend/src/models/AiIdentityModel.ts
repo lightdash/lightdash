@@ -153,7 +153,7 @@ export class AiIdentityModel {
             fallbackReason:
                 row.creation_mode === AiIdentityCreationMode.AUTOMATIC &&
                 effectiveMode === AiIdentityCreationMode.GUIDED
-                    ? `The provisioner cannot sign in to Snowflake: ${provisioner?.status_message ?? 'it is not ready'}. AI identities are created through the guided steps until it works again.`
+                    ? `Lightdash pauses automatic creation until the setup check passes. ${(provisioner?.status_message ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
                     : null,
             counts,
         };

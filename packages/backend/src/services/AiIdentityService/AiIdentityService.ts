@@ -196,7 +196,7 @@ export class AiIdentityService extends BaseService {
         const fallbackReason =
             mode === AiIdentityCreationMode.AUTOMATIC &&
             effectiveMode === AiIdentityCreationMode.GUIDED
-                ? `The provisioner cannot sign in to Snowflake: ${provisioner?.statusMessage ?? 'it is not ready'}. AI identities are created through the guided steps until it works again.`
+                ? `Lightdash pauses automatic creation until the setup check passes. ${(provisioner?.statusMessage ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
                 : null;
         return {
             aiIdentityAccountUuid,
