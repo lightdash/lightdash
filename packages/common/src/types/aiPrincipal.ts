@@ -259,7 +259,7 @@ export enum AiAccessRefusalAction {
 export const AI_ACCESS_REFUSED_CODE = 'ai_access_refused';
 
 export type AiAccessRefusal = {
-    code: typeof AI_ACCESS_REFUSED_CODE;
+    code: 'ai_access_refused';
     reason: AiAccessRefusalReason;
     message: string;
     action: AiAccessRefusalAction | null;

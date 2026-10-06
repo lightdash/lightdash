@@ -177,6 +177,36 @@ describe('AiPrincipalModel', () => {
         });
         expect(tracker.history.update[0].bindings).toContain(status);
     });
+    test('resets status and clears all probe metadata', async () => {
+        tracker.on.update('ai_principals').response([principal]);
+        const result = await model.resetStatus('principal');
+        expect(result).toMatchObject({
+            status: AiPrincipalStatus.PENDING,
+            failureReason: null,
+            statusMessage: null,
+            lastProbe: null,
+        });
+        expect(result).not.toHaveProperty('secret');
+        const query = tracker.history.update[0];
+        expect(query.sql).toContain('"status" = $1');
+        expect(query.sql).toContain('"failure_reason" = $2');
+        expect(query.sql).toContain('"status_message" = $3');
+        expect(query.sql).toContain('"last_probe" = $4');
+        expect(query.bindings).toEqual([
+            AiPrincipalStatus.PENDING,
+            null,
+            null,
+            null,
+            expect.any(Date),
+            'principal',
+        ]);
+    });
+    test('resetStatus rejects a missing principal', async () => {
+        tracker.on.update('ai_principals').response([]);
+        await expect(model.resetStatus('missing')).rejects.toThrow(
+            NotFoundError,
+        );
+    });
     test('decrypts only when requesting a principal with secrets', async () => {
         tracker.on.select('ai_principals').response([principal]);
         expect(await model.getPrincipal('principal')).toMatchObject({

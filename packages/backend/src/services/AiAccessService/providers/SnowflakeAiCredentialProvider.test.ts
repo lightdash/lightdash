@@ -291,7 +291,7 @@ describe('SnowflakeAiCredentialProvider', () => {
     });
     test('generates agent integration and control setup SQL', () => {
         const { provider } = setup();
-        const script = provider.setupScript(mintArgs);
+        const script = provider.setupScript({ ...mintArgs, principal: null });
         expect(script.format).toBe(AiSetupScriptFormat.SQL);
         expect(script.parts[0].body).toContain('IS_AGENTIC = TRUE');
         expect(script.parts[0].body).toContain(

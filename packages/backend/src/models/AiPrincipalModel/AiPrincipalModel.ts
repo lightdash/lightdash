@@ -272,6 +272,20 @@ export class AiPrincipalModel {
         if (!row) throw new NotFoundError('AI principal not found');
         return AiPrincipalModel.principal(row);
     }
+    async resetStatus(aiPrincipalUuid: string): Promise<AiPrincipal> {
+        const [row] = await this.database(AiPrincipalsTableName)
+            .where('ai_principal_uuid', aiPrincipalUuid)
+            .update({
+                status: AiPrincipalStatus.PENDING,
+                failure_reason: null,
+                status_message: null,
+                last_probe: null,
+                updated_at: new Date(),
+            })
+            .returning('*');
+        if (!row) throw new NotFoundError('AI principal not found');
+        return AiPrincipalModel.principal(row);
+    }
     async deletePrincipal(aiPrincipalUuid: string): Promise<void> {
         await this.database(AiPrincipalsTableName)
             .where('ai_principal_uuid', aiPrincipalUuid)

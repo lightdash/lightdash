@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     AI_DIRECT_TRANSPORT,
     AiAccessRefusalReason,
@@ -9,14 +10,20 @@ import {
     AiProcedureRights,
     AiSetupScriptFormat,
     AiTransportKind,
+    ForbiddenError,
+    NotFoundError,
+    ParameterError,
     QueryExecutionContext,
     WarehouseTypes,
     type AiAccessPolicy,
     type AiPrincipalWithSecrets,
     type AiProbeResult,
+    type AiWarehouseCapabilities,
     type CreateWarehouseCredentials,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type AiPrincipalModel } from '../../models/AiPrincipalModel/AiPrincipalModel';
@@ -25,6 +32,7 @@ import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
 import { aiExecutionPlanMock } from './AiAccessService.mock';
 import {
@@ -85,8 +93,24 @@ const principal: AiPrincipalWithSecrets = {
     updatedAt: new Date(),
 };
 
+const account = buildAccount();
+const viewer = {
+    ...account,
+    user: {
+        ...account.user,
+        ability: new Ability<PossibleAbilities>([
+            { action: 'view', subject: 'Project' },
+        ]),
+    },
+};
+
 const setup = () => {
     const model = {
+        getPolicy: vi.fn(async () => policy),
+        upsertPolicy: vi.fn(async () => policy),
+        listPrincipals: vi.fn(async () => []),
+        resetStatus: vi.fn(async () => principal),
+        deletePrincipal: vi.fn(async () => {}),
         insertAudit: vi.fn(async () => {}),
         findPolicy: vi.fn(async (): Promise<AiAccessPolicy | null> => policy),
         findPrincipalByRef: vi.fn(
@@ -95,8 +119,12 @@ const setup = () => {
         findPrincipalForUser: vi.fn(
             async (): Promise<AiPrincipalWithSecrets | null> => principal,
         ),
-        createPrincipal: vi.fn(async () => principal),
-        getPrincipal: vi.fn(async () => principal),
+        createPrincipal: vi.fn(
+            async (
+                _entry: Parameters<AiPrincipalModel['createPrincipal']>[0],
+            ) => principal,
+        ),
+        getPrincipal: vi.fn(async (_id: string) => principal),
         setSecret: vi.fn(async () => {}),
         recordProbe: vi.fn(async (_id: string, probe: AiProbeResult) => ({
             ...principal,
@@ -108,32 +136,34 @@ const setup = () => {
     };
     const provider = {
         warehouseType: WarehouseTypes.POSTGRES,
-        capabilities: vi.fn(() => ({
-            warehouseType: WarehouseTypes.POSTGRES,
-            principals: {
-                person: {
-                    available: true as const,
-                    method: AiCredentialMethod.KEY,
+        capabilities: vi.fn(
+            (): AiWarehouseCapabilities => ({
+                warehouseType: WarehouseTypes.POSTGRES,
+                principals: {
+                    person: {
+                        available: true as const,
+                        method: AiCredentialMethod.KEY,
+                    },
+                    twin: {
+                        available: true as const,
+                        method: AiCredentialMethod.KEY,
+                    },
+                    group: {
+                        available: true as const,
+                        method: AiCredentialMethod.KEY,
+                    },
+                    shared: {
+                        available: true as const,
+                        method: AiCredentialMethod.KEY,
+                    },
                 },
-                twin: {
-                    available: true as const,
-                    method: AiCredentialMethod.KEY,
+                transports: {
+                    direct: { available: true as const },
+                    procedure: { available: true as const },
                 },
-                group: {
-                    available: true as const,
-                    method: AiCredentialMethod.KEY,
-                },
-                shared: {
-                    available: true as const,
-                    method: AiCredentialMethod.KEY,
-                },
-            },
-            transports: {
-                direct: { available: true as const },
-                procedure: { available: true as const },
-            },
-            setupFormat: AiSetupScriptFormat.SQL,
-        })),
+                setupFormat: AiSetupScriptFormat.SQL,
+            }),
+        ),
         createSecret: vi.fn(async (): Promise<AiCreatedSecret | null> => null),
         missingPrerequisite: vi.fn(
             async (): Promise<AiAccessRefusalReason | null> => null,
@@ -154,9 +184,18 @@ const setup = () => {
     } satisfies AiCredentialProvider;
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const groups = {
+        getGroup: vi.fn(async () => ({ organizationUuid: 'org' })),
         findUserGroups: vi.fn(
             async (): Promise<{ uuid: string; name: string }[]> => [],
         ),
+    };
+    const projects = {
+        getSummary: vi.fn(async () => ({ organizationUuid: 'org' })),
+        getWarehouseCredentialsForProject: vi.fn(async () => connection),
+    };
+    const connections = {
+        getProject: vi.fn(async () => ({ projectUuid: 'project' })),
+        getCredentials: vi.fn(async () => connection),
     };
     const registry = vi.fn((): AiCredentialProvider => provider);
     const service = new AiAccessService({
@@ -165,7 +204,9 @@ const setup = () => {
         aiPrincipalModel: model as unknown as AiPrincipalModel,
         groupsModel: groups as unknown as GroupsModel,
         featureFlagModel: flags as unknown as FeatureFlagModel,
-        projectModel: {} as ProjectModel,
+        projectModel: projects as unknown as ProjectModel,
+        warehouseConnectionModel:
+            connections as unknown as WarehouseConnectionModel,
         userModel: {
             getUserDetailsByUuid: vi.fn(async () => ({
                 email: 'a.b+tag@example.test',
@@ -173,10 +214,273 @@ const setup = () => {
         } as unknown as UserModel,
         providerRegistry: registry,
     });
-    return { service, model, provider, flags, groups, registry };
+    return {
+        service,
+        model,
+        provider,
+        flags,
+        groups,
+        registry,
+        projects,
+        connections,
+    };
 };
 
 describe('AiAccessService', () => {
+    test('denies policy writes and principal reads to non-admins', async () => {
+        const { service, model, projects } = setup();
+        await expect(
+            service.upsertPolicy(viewer, 'project', null, policy),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.listPrincipals(viewer, 'project', null),
+        ).rejects.toThrow(ForbiddenError);
+        expect(model.upsertPolicy).not.toHaveBeenCalled();
+        expect(model.listPrincipals).not.toHaveBeenCalled();
+        expect(
+            projects.getWarehouseCredentialsForProject,
+        ).not.toHaveBeenCalled();
+    });
+    test('rejects an unavailable kind with the provider reason', async () => {
+        const { service, model, provider } = setup();
+        const capabilities = provider.capabilities();
+        capabilities.principals.shared = {
+            available: false,
+            reason: 'Unavailable kind',
+        };
+        provider.capabilities.mockReturnValue(capabilities);
+        await expect(
+            service.upsertPolicy(account, 'project', null, policy),
+        ).rejects.toThrow('Unavailable kind');
+        expect(model.upsertPolicy).not.toHaveBeenCalled();
+    });
+    test('rejects an unavailable transport', async () => {
+        const { service, model, provider } = setup();
+        const capabilities = provider.capabilities();
+        capabilities.transports.direct = {
+            available: false,
+            reason: 'Unavailable transport',
+        };
+        provider.capabilities.mockReturnValue(capabilities);
+        await expect(
+            service.upsertPolicy(account, 'project', null, policy),
+        ).rejects.toThrow('Unavailable transport');
+        expect(model.upsertPolicy).not.toHaveBeenCalled();
+    });
+    test.each([null, '', '   '])(
+        'rejects a shared policy with ref %s',
+        async (sharedRef) => {
+            const { service, model } = setup();
+            await expect(
+                service.upsertPolicy(account, 'project', null, {
+                    ...policy,
+                    sharedRef,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(model.upsertPolicy).not.toHaveBeenCalled();
+        },
+    );
+    test('rejects foreign groups before writing', async () => {
+        const { service, model, groups } = setup();
+        groups.getGroup.mockResolvedValue({ organizationUuid: 'other' });
+        await expect(
+            service.upsertPolicy(account, 'project', null, {
+                ...policy,
+                principalKind: AiPrincipalKind.GROUP,
+                groupMappings: [
+                    { groupUuid: 'group', ref: 'ai_group', priority: 1 },
+                ],
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(model.upsertPolicy).not.toHaveBeenCalled();
+    });
+    test('rejects duplicate group refs before writing', async () => {
+        const { service, model } = setup();
+        await expect(
+            service.upsertPolicy(account, 'project', null, {
+                ...policy,
+                principalKind: AiPrincipalKind.GROUP,
+                groupMappings: ['a', 'b'].map((groupUuid) => ({
+                    groupUuid,
+                    ref: 'same',
+                    priority: 1,
+                })),
+            }),
+        ).rejects.toThrow('Group principal references must be unique.');
+        expect(model.upsertPolicy).not.toHaveBeenCalled();
+    });
+    test('creates a principal and secret for each group mapping', async () => {
+        const { service, model, provider } = setup();
+        const groupPolicy = {
+            ...policy,
+            principalKind: AiPrincipalKind.GROUP,
+            groupMappings: ['a', 'b'].map((groupUuid) => ({
+                groupUuid,
+                groupName: groupUuid,
+                ref: `ai_${groupUuid}`,
+                priority: 1,
+            })),
+        };
+        model.upsertPolicy.mockResolvedValue(groupPolicy);
+        model.createPrincipal.mockImplementation(async (entry) => ({
+            ...principal,
+            ...entry,
+            aiPrincipalUuid: entry.ref,
+        }));
+        model.getPrincipal.mockImplementation(async (id) => ({
+            ...principal,
+            aiPrincipalUuid: id,
+        }));
+        const secret = {
+            secret: 'generated',
+            publicKey: null,
+            publicKeyFingerprint: null,
+        };
+        provider.createSecret.mockResolvedValue(secret);
+        await service.upsertPolicy(account, 'project', null, groupPolicy);
+        expect(model.createPrincipal).toHaveBeenCalledTimes(2);
+        for (const groupUuid of ['a', 'b']) {
+            expect(model.createPrincipal).toHaveBeenCalledWith({
+                aiAccessPolicyUuid: 'policy',
+                kind: AiPrincipalKind.GROUP,
+                ref: `ai_${groupUuid}`,
+                groupUuid,
+                userUuid: null,
+            });
+            expect(model.setSecret).toHaveBeenCalledWith(
+                `ai_${groupUuid}`,
+                secret,
+            );
+        }
+        expect(provider.createSecret).toHaveBeenCalledTimes(2);
+    });
+    test('rejects a setup principal from another policy', async () => {
+        const { service, model, provider } = setup();
+        model.getPrincipal.mockResolvedValue({
+            ...principal,
+            aiAccessPolicyUuid: 'other',
+        });
+        await expect(
+            service.getSetupScript(account, 'project', null, 'principal'),
+        ).rejects.toThrow(NotFoundError);
+        expect(provider.setupScript).not.toHaveBeenCalled();
+        expect(provider.createSecret).not.toHaveBeenCalled();
+    });
+    test('passes a null principal for connection setup', async () => {
+        const { service, provider } = setup();
+        await service.getSetupScript(account, 'project', null, null);
+        expect(provider.setupScript).toHaveBeenCalledWith({
+            connection,
+            policy,
+            principal: null,
+        });
+    });
+    test('records a ready principal after a good probe', async () => {
+        const { service, model, provider } = setup();
+        expect(await service.testPrincipal(account, 'principal')).toMatchObject(
+            { status: AiPrincipalStatus.READY },
+        );
+        expect(model.recordProbe).toHaveBeenCalledWith(
+            'principal',
+            expect.objectContaining({ ok: true }),
+        );
+        expect(provider.mint).toHaveBeenCalledWith(
+            expect.objectContaining({
+                person: {
+                    userUuid: account.user.id,
+                    email: 'a.b+tag@example.test',
+                },
+            }),
+        );
+    });
+    test('records a failed probe when mint refuses credentials', async () => {
+        const { service, model, provider } = setup();
+        provider.mint.mockRejectedValue(
+            new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN, {
+                message: 'Sign in again',
+            }),
+        );
+        expect(await service.testPrincipal(account, 'principal')).toMatchObject(
+            { status: AiPrincipalStatus.FAILED },
+        );
+        expect(model.recordProbe).toHaveBeenCalledWith('principal', {
+            ok: false,
+            checkedAt: expect.any(Date),
+            observed: {},
+            reason: AiPrincipalFailureReason.CREDENTIAL_REJECTED,
+            message: 'Sign in again',
+        });
+        expect(provider.probe).not.toHaveBeenCalled();
+    });
+    test('refuses testing another person principal', async () => {
+        const { service, model, provider } = setup();
+        model.getPrincipal.mockResolvedValue({
+            ...principal,
+            userUuid: 'other',
+        });
+        await expect(
+            service.testPrincipal(account, 'principal'),
+        ).rejects.toThrow('Only the person can test their own AI principal.');
+        expect(provider.mint).not.toHaveBeenCalled();
+    });
+    test('regenerates the secret and resets status without probing', async () => {
+        const { service, model, provider } = setup();
+        const secret = {
+            secret: 'new',
+            publicKey: null,
+            publicKeyFingerprint: null,
+        };
+        provider.createSecret.mockResolvedValue(secret);
+        expect(
+            await service.regenerateSecret(account, 'principal'),
+        ).toMatchObject({ status: AiPrincipalStatus.PENDING });
+        expect(model.setSecret).toHaveBeenCalledWith('principal', secret);
+        expect(model.resetStatus).toHaveBeenCalledWith('principal');
+        expect(model.recordProbe).not.toHaveBeenCalled();
+    });
+    test('rejects regeneration for minted credentials', async () => {
+        const { service, model } = setup();
+        await expect(
+            service.regenerateSecret(account, 'principal'),
+        ).rejects.toThrow(
+            'This warehouse mints credentials; there is no secret to regenerate.',
+        );
+        expect(model.setSecret).not.toHaveBeenCalled();
+        expect(model.resetStatus).not.toHaveBeenCalled();
+    });
+    test('gets access for the calling user with view permission', async () => {
+        const { service } = setup();
+        const getAccess = vi.spyOn(service, 'getAiAccessForUser');
+        await service.getMyAccess(viewer, 'project', null);
+        expect(getAccess).toHaveBeenCalledWith({
+            projectUuid: 'project',
+            warehouseConnectionUuid: null,
+            connection,
+            organizationUuid: 'org',
+            userUuid: viewer.user.id,
+            isRegisteredUser: true,
+            isServiceAccount: false,
+        });
+    });
+    test('loads extra connection credentials in the project scope', async () => {
+        const { service, connections, projects } = setup();
+        await service.getCapabilities(account, 'project', 'extra');
+        expect(connections.getProject).toHaveBeenCalledWith('project');
+        expect(connections.getCredentials).toHaveBeenCalledWith(
+            { projectUuid: 'project' },
+            'extra',
+        );
+        expect(
+            projects.getWarehouseCredentialsForProject,
+        ).not.toHaveBeenCalled();
+    });
+    test('rejects a principal under another project route', async () => {
+        const { service, model } = setup();
+        model.getPolicy.mockResolvedValue({ ...policy, projectUuid: 'other' });
+        await expect(
+            service.assertPrincipalProject(account, 'project', 'principal'),
+        ).rejects.toThrow(NotFoundError);
+    });
     test('reports a missing sign-in without minting', async () => {
         const { service, provider } = setup();
         provider.missingPrerequisite.mockResolvedValue(

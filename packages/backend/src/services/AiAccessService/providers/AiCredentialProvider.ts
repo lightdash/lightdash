@@ -35,7 +35,7 @@ export type AiMintedCredentials<T extends CreateWarehouseCredentials> = {
 
 export type AiSetupScriptArgs<T extends CreateWarehouseCredentials> = {
     connection: T;
-    principal: AiPrincipalWithSecrets;
+    principal: AiPrincipalWithSecrets | null;
     policy: AiAccessPolicy;
 };
 

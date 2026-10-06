@@ -181,6 +181,14 @@ describe('PostgresAiCredentialProvider', () => {
         expect(runQuery).not.toHaveBeenCalled();
     });
 
+    test('requires a principal for setup', () => {
+        expect(() =>
+            provider.setupScript({ ...mintArgs, principal: null }),
+        ).toThrow(
+            'This warehouse needs a principal to build the setup script.',
+        );
+    });
+
     test('quotes identifiers and password literals in setup SQL', () => {
         const script = provider.setupScript({
             ...mintArgs,

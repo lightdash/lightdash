@@ -4,6 +4,7 @@ import {
     AiCredentialMethod,
     AiPrincipalFailureReason,
     AiSetupScriptFormat,
+    ParameterError,
     UnexpectedServerError,
     WarehouseTypes,
     type AiAssurance,
@@ -183,6 +184,11 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
         connection,
         principal,
     }: AiSetupScriptArgs<CreatePostgresCredentials>): AiSetupScript {
+        if (principal === null) {
+            throw new ParameterError(
+                'This warehouse needs a principal to build the setup script.',
+            );
+        }
         const ref = quoteIdentifier(principal.ref);
         const schema = quoteIdentifier(connection.schema);
         const password = quoteLiteral(
