@@ -1,3 +1,15 @@
+# [2.441.0](https://github.com/lightdash/lightdash/compare/2.440.2...2.441.0) (2026-10-06)
+
+
+### Bug Fixes
+
+* preserve dashboard tile comments on content uploads ([#30537](https://github.com/lightdash/lightdash/issues/30537)) ([2de1495](https://github.com/lightdash/lightdash/commit/2de149530e5b0c5f8a3696f62a4849a6455dbc3d))
+
+
+### Features
+
+* add a built-in Adoption dashboard ([#30535](https://github.com/lightdash/lightdash/issues/30535)) ([eeb5886](https://github.com/lightdash/lightdash/commit/eeb588615f9291045d2f39d933afae677ef3c67c))
+
 ## [2.440.2](https://github.com/lightdash/lightdash/compare/2.440.1...2.440.2) (2026-10-06)
 
 
