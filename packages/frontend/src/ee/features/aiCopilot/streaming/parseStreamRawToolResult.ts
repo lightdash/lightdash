@@ -12,6 +12,7 @@ import {
     type ToolName,
 } from '@lightdash/common';
 import { type z } from 'zod';
+import { getAiAccessRefusal } from '../components/ChatElements/aiAccessRefusal';
 
 type ParsedToolName = ToolName;
 type McpStreamToolName = `mcp_${string}`;
@@ -202,10 +203,21 @@ export const parseStreamRawToolResult = (
     );
     if (!toolArgs.success || !parsedToolResult?.success) return null;
 
+    const refusal = getAiAccessRefusal(toolResult.toolOutput);
     return {
         toolName: toolResult.toolName,
         toolArgs: toolArgs.data,
-        toolResult: parsedToolResult.data,
+        toolResult: refusal
+            ? {
+                  ...parsedToolResult.data,
+                  structuredContent: {
+                      ...('structuredContent' in parsedToolResult.data
+                          ? parsedToolResult.data.structuredContent
+                          : {}),
+                      refusal,
+                  },
+              }
+            : parsedToolResult.data,
         isPreliminary: toolResult.isPreliminary,
     } as AiAgentToolResult;
 };

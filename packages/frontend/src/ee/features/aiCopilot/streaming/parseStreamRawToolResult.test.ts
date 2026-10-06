@@ -1,3 +1,4 @@
+import { AiAccessRefusalReason } from '@lightdash/common';
 import {
     parseStreamRawToolCall,
     parseStreamRawToolResult,
@@ -115,5 +116,28 @@ describe('parseStreamRawToolResult', () => {
             toolArgs: { type: 'document' },
             toolResult: { metadata: { status: 'success', uuid: 'doc-1' } },
         });
+    });
+});
+
+describe('AI access tool refusals', () => {
+    it('preserves the refusal through output schema parsing', () => {
+        const refusal = {
+            code: 'ai_access_refused',
+            reason: AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+            message: 'Not supported',
+            action: null,
+            settingsUrl: null,
+        };
+        expect(
+            parseStreamRawToolResult({
+                toolName: 'generateVisualization',
+                toolArgs: expressionToolArgs,
+                toolOutput: {
+                    result: 'Not supported',
+                    metadata: { status: 'error' },
+                    structuredContent: { error: 'Not supported', refusal },
+                },
+            }),
+        ).toMatchObject({ toolResult: { structuredContent: { refusal } } });
     });
 });

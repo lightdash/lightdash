@@ -55,6 +55,7 @@ import {
     ComposerSubmitButton,
     PromptComposer,
 } from '../../../../../components/common/PromptComposer';
+import { useMyAiAccess } from '../../../../../features/aiAccess/api';
 import { useCanCreateDataApp } from '../../../../../features/apps/hooks/useCanCreateDataApp';
 import { useOrganizationDesigns } from '../../../../../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useUser from '../../../../../hooks/user/useUser';
@@ -106,6 +107,7 @@ import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
+import { AiAccessCallout } from './AiAccessCallout';
 import {
     ComposerThemeButton,
     ComposerThemeMenuEntry,
@@ -493,6 +495,7 @@ export const AgentChatInput = ({
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
     contentMentionPriorityItemsRef.current = contentMentionPriorityItems;
     // A space-restricted agent cannot read personal data apps, so @ hides them.
+    const aiAccess = useMyAiAccess(projectUuid);
     const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
     const hidePersonalDataAppsRef = useRef(false);
     hidePersonalDataAppsRef.current =
@@ -1493,6 +1496,12 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
+                {projectUuid && aiAccess.data?.refusal && (
+                    <AiAccessCallout
+                        projectUuid={projectUuid}
+                        refusal={aiAccess.data.refusal}
+                    />
+                )}
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
@@ -1545,6 +1554,12 @@ export const AgentChatInput = ({
             }`}
             data-dense={dense}
         >
+            {projectUuid && aiAccess.data?.refusal && (
+                <AiAccessCallout
+                    projectUuid={projectUuid}
+                    refusal={aiAccess.data.refusal}
+                />
+            )}
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
             <Box className={styles.dropTarget} {...dropTargetProps}>

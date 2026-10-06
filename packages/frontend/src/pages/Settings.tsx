@@ -91,6 +91,7 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import { AiAccessPage } from '../features/aiAccess/AiAccessPage';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
@@ -206,6 +207,10 @@ const Settings: FC = () => {
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
+            {
+                path: '/projectManagement/:projectUuid/aiAccess',
+                element: <AiAccessPage />,
+            },
             {
                 path: '/appearance',
                 element: <AppearanceSettingsPanel />,

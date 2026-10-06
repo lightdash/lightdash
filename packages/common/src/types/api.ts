@@ -1,3 +1,12 @@
+import type {
+    ApiAiAccessForUserResponse,
+    ApiAiAccessPolicyResponse,
+    ApiAiPrincipalResponse,
+    ApiAiPrincipalsResponse,
+    ApiAiQueryAuditResponse,
+    ApiAiSetupScriptResponse,
+    ApiAiWarehouseCapabilitiesResponse,
+} from './aiPrincipal';
 import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
@@ -1550,6 +1559,13 @@ type ApiResults =
     | ApiSkillsAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiAiAccessPolicyResponse['results']
+    | ApiAiWarehouseCapabilitiesResponse['results']
+    | ApiAiPrincipalsResponse['results']
+    | ApiAiPrincipalResponse['results']
+    | ApiAiSetupScriptResponse['results']
+    | ApiAiAccessForUserResponse['results']
+    | ApiAiQueryAuditResponse['results']
     | ApiOrganizationRoleSetResponse['results']
     | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']

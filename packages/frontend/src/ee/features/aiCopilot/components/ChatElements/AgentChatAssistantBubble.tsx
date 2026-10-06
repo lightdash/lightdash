@@ -69,6 +69,8 @@ import { isJevTurn } from '../Battle/jevDecision';
 import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
+import { AiAccessCallout } from './AiAccessCallout';
+import { getAiAccessRefusal } from './aiAccessRefusal';
 import { AiArtifactInline } from './AiArtifactInline';
 import AiDocumentCards from './AiDocumentCards';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
@@ -569,8 +571,23 @@ const AssistantBubbleContent: FC<{
             : null;
     })();
 
+    const aiAccessRefusal = [
+        ...(streamingState?.parts ?? []).flatMap((part) =>
+            part.type === 'toolCall'
+                ? [getAiAccessRefusal(part.toolResult)]
+                : [],
+        ),
+        ...message.toolResults.map(getAiAccessRefusal),
+    ].find((refusal) => refusal !== null);
+
     return (
         <>
+            {aiAccessRefusal && (
+                <AiAccessCallout
+                    projectUuid={projectUuid}
+                    refusal={aiAccessRefusal}
+                />
+            )}
             {shouldShowRetry && (
                 <Paper variant="dotted" radius="md" pr="md" bg="ldGray.0">
                     <Group gap="xs" align="center" justify="space-between">
