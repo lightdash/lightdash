@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react';
 
 export type DocumentEditorTarget = {
     projectUuid: string;
-    spaceUuid: string;
+    spaceUuid: string | null;
     documentUuid: string;
     versionUuid: string;
 };

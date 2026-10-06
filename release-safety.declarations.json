@@ -44,6 +44,10 @@
         "documents-markdown-schema-v2-api": {
             "reason": "Documents (beta, documents feature flag) switch to schema version 2: the REST API, content-as-code files, CLI uploads, promotion and MCP Document tools now read and write { markdown, charts } instead of ordered cells, chart queries move from /cells/{cellIndex}/query to /charts/{chartId}/query, and version 1 payloads are rejected. API clients and CLI users with Document files must switch to the new shape.",
             "requiredStop": false
+        },
+        "documents-personal-space-nullable": {
+            "reason": "Documents (beta, documents feature flag) can now be personal: a Document created without a Space is visible only to its creator and admins, and spaceUuid in Document responses and space in Document content items are null until it is moved into a Space. API clients reading these fields must handle null. Requests are unchanged except that spaceUuid becomes optional when creating a Document.",
+            "requiredStop": false
         }
     }
 }

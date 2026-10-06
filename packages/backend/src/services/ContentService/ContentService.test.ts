@@ -316,6 +316,7 @@ describe('Document discovery', () => {
             {
                 contentTypes: [ContentType.DOCUMENT],
                 search: 'weekly',
+                includePersonalDocuments: true,
             },
             {},
             { page: 2, pageSize: 10 },
@@ -332,10 +333,73 @@ describe('Document discovery', () => {
                 documents: {
                     allowedSpaceUuids: ['space'],
                     grantedUuids: ['allowed'],
+                    personal: {
+                        forUserUuid: userUuid,
+                        adminProjectUuids: [projectUuid],
+                    },
                 },
             }),
             {},
             { page: 2, pageSize: 10 },
+        );
+    });
+
+    it('leaves personal Documents out unless the caller opts in', async () => {
+        const deps = createDocumentDiscovery(true);
+        await deps.service.find(
+            createUser(),
+            { contentTypes: [ContentType.DOCUMENT] },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+        expect(deps.findSummaryContents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                documents: expect.not.objectContaining({
+                    personal: expect.anything(),
+                }),
+            }),
+            {},
+            { page: 1, pageSize: 10 },
+        );
+    });
+
+    it("lists only an editor's own personal Documents", async () => {
+        const deps = createDocumentDiscovery(true);
+        const editor = {
+            ...createUser(),
+            ability: defineUserAbility(
+                {
+                    userUuid,
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid,
+                },
+                [
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.EDITOR,
+                        userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        } as SessionUser;
+        await deps.service.find(
+            editor,
+            {
+                contentTypes: [ContentType.DOCUMENT],
+                includePersonalDocuments: true,
+            },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+        expect(deps.findSummaryContents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                documents: expect.objectContaining({
+                    personal: { forUserUuid: userUuid, adminProjectUuids: [] },
+                }),
+            }),
+            {},
+            { page: 1, pageSize: 10 },
         );
     });
 

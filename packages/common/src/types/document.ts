@@ -46,7 +46,8 @@ export type DocumentSummary = {
     documentUuid: string;
     projectUuid: string;
     organizationUuid: string;
-    spaceUuid: string;
+    /** Null for a personal Document, visible only to its creator and admins. */
+    spaceUuid: string | null;
     name: string;
     slug: string;
     description: string;
@@ -121,7 +122,8 @@ export type CreateDocumentRequest = {
     name: string;
     slug?: string;
     description: string;
-    spaceUuid: string;
+    /** Omit to create a personal Document, visible only to its creator and admins. */
+    spaceUuid?: string;
     schemaVersion: 2;
     content: DocumentContent;
     /** Organization member to assign as owner; omitted or null leaves the Document unowned. */
@@ -136,11 +138,9 @@ export type UpdateDocumentMetadataRequest = {
     ownerUserUuid?: string | null;
 };
 
-export type DuplicateDocumentRequest = Pick<
-    CreateDocumentRequest,
-    'name' | 'spaceUuid'
-> &
-    Partial<Pick<CreateDocumentRequest, 'description'>>;
+export type DuplicateDocumentRequest = Pick<CreateDocumentRequest, 'name'> & {
+    spaceUuid: string;
+} & Partial<Pick<CreateDocumentRequest, 'description'>>;
 
 export type UpdateDocumentContentRequest = {
     baseVersionUuid: string;

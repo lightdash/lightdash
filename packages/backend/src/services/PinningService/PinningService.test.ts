@@ -4,6 +4,7 @@ import {
     getUserAbilityBuilder,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     ResourceViewItemType,
     SpaceMemberRole,
     type RegisteredAccount,
@@ -217,6 +218,18 @@ describe('Document pins', () => {
         expect((await result).map(({ data }) => data.uuid)).toEqual([
             documentUuid,
         ]);
+    });
+
+    it('refuses to pin a personal Document', async () => {
+        const { service, documentModel, pinnedListModel } = setup();
+        documentModel.getBySlug.mockResolvedValueOnce({
+            ...document,
+            spaceUuid: null,
+        });
+        await expect(
+            service.toggleDocumentPin(accountFor(), projectUuid, document.slug),
+        ).rejects.toThrow(ParameterError);
+        expect(pinnedListModel.addItem).not.toHaveBeenCalled();
     });
 
     it('denies pin mutations to a document reader without manage PinnedItems', async () => {

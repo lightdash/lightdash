@@ -24,12 +24,16 @@ import {
 import { up as provenanceUp } from '../20260916110000_add_document_space_deletion_provenance';
 import { up as ownerUp } from '../20260930150000_add_document_owner_user_uuid_to_documents';
 import { up as markdownUp } from '../20261002090000_store_documents_as_markdown_with_chart_tags';
+import {
+    down as personalDown,
+    up as personalUp,
+} from '../20261006100000_allow_personal_documents';
 
 describe('DocumentModel PostgreSQL integration', () => {
     let database: Knex;
     let transaction: Knex.Transaction;
     let model: DocumentModel;
-    let input: CreateDocument;
+    let input: CreateDocument & { spaceUuid: string };
 
     beforeAll(() => {
         database = knex({
@@ -78,6 +82,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         await provenanceUp(transaction);
         await ownerUp(transaction);
         await markdownUp(transaction);
+        await personalUp(transaction);
         model = new DocumentModel({ database: transaction });
         const space = await transaction('spaces')
             .join('projects', 'projects.project_id', 'spaces.project_id')
@@ -1683,6 +1688,99 @@ describe('DocumentModel PostgreSQL integration', () => {
             .where('space_uuid', input.spaceUuid)
             .update({ deleted_at: new Date(), deleted_by_user_uuid: null });
         expect(await model.listSpaceUuids(input.projectUuid)).toEqual([]);
+    });
+
+    describe('personal Documents', () => {
+        test('are created and read without a Space', async () => {
+            const document = await model.create({ ...input, spaceUuid: null });
+
+            expect(document.spaceUuid).toBeNull();
+            expect(
+                await model.get(input.projectUuid, document.documentUuid),
+            ).toMatchObject({
+                spaceUuid: null,
+                createdByUserUuid: input.createdByUserUuid,
+            });
+        });
+
+        test('stay out of Space lists', async () => {
+            const inSpace = await model.create(input);
+            await model.create({ ...input, spaceUuid: null });
+
+            expect(await model.listSpaceUuids(input.projectUuid)).toEqual([
+                input.spaceUuid,
+            ]);
+            expect(
+                (
+                    await model.list(input.projectUuid, {
+                        spaceUuids: [input.spaceUuid],
+                        limit: 10,
+                        offset: 0,
+                    })
+                ).map(({ documentUuid }) => documentUuid),
+            ).toEqual([inSpace.documentUuid]);
+        });
+
+        test('move into a Space keeping their identity and versions', async () => {
+            const document = await model.create({ ...input, spaceUuid: null });
+            await model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                {
+                    expectedSpaceUuid: null,
+                    baseVersionUuid: document.version.versionUuid,
+                    content: { markdown: '# Revised', charts: {} },
+                },
+                SEED_ORG_1_ADMIN.user_uuid,
+            );
+
+            const moved = await model.moveToSpace({
+                projectUuid: input.projectUuid,
+                documentUuid: document.documentUuid,
+                sourceSpaceUuid: null,
+                targetSpaceUuid: input.spaceUuid,
+            });
+
+            expect(moved).toMatchObject({
+                documentUuid: document.documentUuid,
+                spaceUuid: input.spaceUuid,
+                version: { versionNumber: 2 },
+            });
+        });
+
+        test('restore without an owning Space', async () => {
+            const document = await model.create({ ...input, spaceUuid: null });
+            await model.softDelete(
+                input.projectUuid,
+                document.documentUuid,
+                SEED_ORG_1_ADMIN.user_uuid,
+                null,
+            );
+
+            await model.restore(input.projectUuid, document.documentUuid);
+
+            expect(
+                await model.get(input.projectUuid, document.documentUuid),
+            ).toMatchObject({ spaceUuid: null });
+        });
+
+        test('block rolling the migration back until they are moved or deleted', async () => {
+            const document = await model.create({ ...input, spaceUuid: null });
+            await transaction.raw('SAVEPOINT personal_down');
+
+            await expect(personalDown(transaction)).rejects.toThrow(
+                /^irreversible:/,
+            );
+            await transaction.raw('ROLLBACK TO SAVEPOINT personal_down');
+            await transaction(DocumentsTableName)
+                .where('document_uuid', document.documentUuid)
+                .delete();
+            await personalDown(transaction);
+
+            await expect(
+                model.create({ ...input, spaceUuid: null }),
+            ).rejects.toThrow();
+        });
     });
 
     test('database uniqueness rejects duplicate version numbers', async () => {

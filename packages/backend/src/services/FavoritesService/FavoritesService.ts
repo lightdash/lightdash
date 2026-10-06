@@ -209,6 +209,11 @@ export class FavoritesService extends BaseService {
                     projectUuid,
                     contentUuid,
                 );
+                if (document.spaceUuid === null) {
+                    throw new ParameterError(
+                        'Move this personal Document to a Space before favoriting it',
+                    );
+                }
                 resolvedContentUuid = document.documentUuid;
                 canViewContent = true;
                 break;

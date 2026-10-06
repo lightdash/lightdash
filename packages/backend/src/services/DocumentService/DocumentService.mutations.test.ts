@@ -1195,6 +1195,58 @@ describe('DocumentService mutations', () => {
     });
 });
 
+describe('DocumentService personal Documents', () => {
+    const personalTarget = {
+        type: 'personalDocument',
+        organizationUuid,
+        projectUuid,
+        createdByUserUuid: userUuid,
+        spaceUuid: null,
+    };
+
+    test('creates a personal Document owned by its creator when no Space is given', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        const personalInput: CreateDocumentRequest = {
+            name: document.name,
+            description: document.description,
+            schemaVersion: 2,
+            content: document.version.content,
+        };
+
+        await service.create(makeAccount(), projectUuid, personalInput);
+
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            userUuid,
+            personalTarget,
+        );
+        expect(documentModel.create).toHaveBeenCalledWith({
+            ...personalInput,
+            spaceUuid: null,
+            projectUuid,
+            createdByUserUuid: userUuid,
+        });
+    });
+
+    test('authorizes edits to a personal Document through its creator', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        documentModel.get.mockResolvedValue({ ...document, spaceUuid: null });
+
+        await service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
+            name: 'Renamed',
+        });
+
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            userUuid,
+            personalTarget,
+        );
+        expect(documentModel.updateMetadata).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+            { name: 'Renamed', expectedSpaceUuid: null },
+        );
+    });
+});
+
 describe('DocumentService ownership', () => {
     const ownerUuid = 'document-owner';
 

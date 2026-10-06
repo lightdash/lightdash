@@ -3113,11 +3113,18 @@ export class PromoteService extends BaseService {
         documentUuid: UUID,
     ) {
         const documentService = this.getDocumentService();
-        const source = await documentService.get(
+        const document = await documentService.get(
             account,
             projectUuid,
             documentUuid,
         );
+        const { spaceUuid } = document;
+        if (spaceUuid === null) {
+            throw new ParameterError(
+                'Move this personal Document to a Space before promoting it',
+            );
+        }
+        const source = { ...document, spaceUuid };
         const { upstreamProjectUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (!upstreamProjectUuid) {

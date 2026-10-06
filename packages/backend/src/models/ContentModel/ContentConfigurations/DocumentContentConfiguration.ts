@@ -17,7 +17,7 @@ export const documentContentConfiguration: ContentConfiguration = {
                 'pinned_document.document_uuid',
                 'documents.document_uuid',
             )
-            .innerJoin('spaces', 'spaces.space_id', 'documents.space_id')
+            .leftJoin('spaces', 'spaces.space_id', 'documents.space_id')
             .innerJoin(
                 'projects',
                 'projects.project_uuid',
@@ -147,6 +147,7 @@ export const documentContentConfiguration: ContentConfiguration = {
                     );
                 }
                 if (!filters.deleted && !filters.sharedWithMe) {
+                    const personal = filters.documents?.personal;
                     void builder.where((visibility) => {
                         void visibility
                             .whereIn(
@@ -157,6 +158,23 @@ export const documentContentConfiguration: ContentConfiguration = {
                                 'documents.document_uuid',
                                 filters.documents?.grantedUuids ?? [],
                             );
+                        if (personal) {
+                            void visibility.orWhere((personalDocuments) => {
+                                void personalDocuments
+                                    .whereNull('documents.space_id')
+                                    .where((viewer) => {
+                                        void viewer
+                                            .where(
+                                                'documents.created_by_user_uuid',
+                                                personal.forUserUuid,
+                                            )
+                                            .orWhereIn(
+                                                'documents.project_uuid',
+                                                personal.adminProjectUuids,
+                                            );
+                                    });
+                            });
+                        }
                     });
                 } else if (!filters.deleted) {
                     void builder.whereIn(
@@ -202,7 +220,9 @@ export const documentContentConfiguration: ContentConfiguration = {
             uuid: value.organization_uuid,
             name: value.organization_name,
         },
-        space: { uuid: value.space_uuid, name: value.space_name },
+        space: value.space_uuid
+            ? { uuid: value.space_uuid, name: value.space_name }
+            : null,
         pinnedList: value.pinned_list_uuid
             ? { uuid: value.pinned_list_uuid }
             : null,

@@ -27,6 +27,7 @@ import {
     type DocumentContent,
     type DocumentList,
     type DocumentQueryReference,
+    type DocumentSummary,
     type DocumentVersionList,
     type DuplicateDocumentRequest,
     type MetricQuery,
@@ -62,7 +63,10 @@ import { resolveDataAppVizBinding } from '../CoderService/dataAppVizBinding';
 import { normalizeFilterIds } from '../CoderService/filterIds';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { ProjectService } from '../ProjectService/ProjectService';
-import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import type {
+    AccessTarget,
+    SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 
 /** Who made a Document change, for analytics. */
 export type DocumentChangeContext = {
@@ -72,6 +76,23 @@ export type DocumentChangeContext = {
 };
 
 const API_CHANGE: DocumentChangeContext = { source: 'api' };
+
+const getAccessTarget = (
+    document: DocumentSummary,
+): Extract<AccessTarget, { type: 'document' | 'personalDocument' }> =>
+    document.spaceUuid === null
+        ? {
+              type: 'personalDocument',
+              organizationUuid: document.organizationUuid,
+              projectUuid: document.projectUuid,
+              createdByUserUuid: document.createdByUserUuid,
+              spaceUuid: null,
+          }
+        : {
+              type: 'document',
+              documentUuid: document.documentUuid,
+              spaceUuid: document.spaceUuid,
+          };
 
 type DocumentServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -125,11 +146,7 @@ export class DocumentService extends BaseService {
         const context =
             await this.dependencies.spacePermissionService.getDocumentDeleteAccessContext(
                 account.user.userUuid,
-                {
-                    type: 'document',
-                    documentUuid,
-                    spaceUuid: document.spaceUuid,
-                },
+                getAccessTarget(document),
             );
         if (
             this.createAuditedAbility(account).cannot(
@@ -291,7 +308,15 @@ export class DocumentService extends BaseService {
         const context =
             await this.dependencies.spacePermissionService.resolveAccess(
                 account.user.userUuid,
-                { type: 'space', spaceUuid: input.spaceUuid },
+                input.spaceUuid === undefined
+                    ? {
+                          type: 'personalDocument',
+                          organizationUuid: project.organizationUuid,
+                          projectUuid,
+                          createdByUserUuid: account.user.userUuid,
+                          spaceUuid: null,
+                      }
+                    : { type: 'space', spaceUuid: input.spaceUuid },
             );
         if (
             context.projectUuid !== projectUuid ||
@@ -306,7 +331,9 @@ export class DocumentService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                'You do not have permission to create Documents in this Space',
+                input.spaceUuid === undefined
+                    ? 'You do not have permission to create Documents'
+                    : 'You do not have permission to create Documents in this Space',
             );
         }
         DocumentService.validateMetadata(input);
@@ -326,6 +353,7 @@ export class DocumentService extends BaseService {
         await this.validateCharts(account, projectUuid, content);
         const created = await this.dependencies.documentModel.create({
             ...input,
+            spaceUuid: input.spaceUuid ?? null,
             content,
             projectUuid,
             createdByUserUuid: account.user.userUuid,
@@ -521,7 +549,8 @@ export class DocumentService extends BaseService {
         if (
             allowedSpaceUuids &&
             allowedSpaceUuids.length > 0 &&
-            !allowedSpaceUuids.includes(document.spaceUuid)
+            (document.spaceUuid === null ||
+                !allowedSpaceUuids.includes(document.spaceUuid))
         ) {
             throw new NotFoundError('Document not found');
         }
@@ -548,11 +577,7 @@ export class DocumentService extends BaseService {
         const context =
             await this.dependencies.spacePermissionService.resolveAccess(
                 account.user.userUuid,
-                {
-                    type: 'document',
-                    documentUuid: document.documentUuid,
-                    spaceUuid: document.spaceUuid,
-                },
+                getAccessTarget(document),
             );
         if (
             this.createAuditedAbility(account).cannot(
@@ -585,13 +610,15 @@ export class DocumentService extends BaseService {
             throw new ParameterError('Documents must belong to a Space');
         }
         const document = await this.get(account, projectUuid, documentUuid);
+        // Moving content out of a Space needs Space access, not a direct grant
+        const source: AccessTarget =
+            document.spaceUuid === null
+                ? getAccessTarget(document)
+                : { type: 'space', spaceUuid: document.spaceUuid };
         const contexts =
             await this.dependencies.spacePermissionService.resolveAccessBatch(
                 account.user.userUuid,
-                [document.spaceUuid, targetSpaceUuid].map((spaceUuid) => ({
-                    type: 'space' as const,
-                    spaceUuid,
-                })),
+                [source, { type: 'space', spaceUuid: targetSpaceUuid }],
                 tx ? { trx: tx } : {},
             );
         const ability = this.createAuditedAbility(account);
@@ -1064,11 +1091,7 @@ export class DocumentService extends BaseService {
                     const contexts =
                         await this.dependencies.spacePermissionService.resolveAccessBatch(
                             account.user.userUuid,
-                            candidates.map((document) => ({
-                                type: 'document' as const,
-                                documentUuid: document.documentUuid,
-                                spaceUuid: document.spaceUuid,
-                            })),
+                            candidates.map(getAccessTarget),
                         );
                     return candidates
                         .filter((document, index) => {
@@ -1506,6 +1529,11 @@ export class DocumentService extends BaseService {
     }
 
     private async toAsCode(document: Document): Promise<DocumentAsCode> {
+        if (document.spaceUuid === null) {
+            throw new ParameterError(
+                'Move this personal Document to a Space before using it as code',
+            );
+        }
         const [space] = await this.dependencies.spaceModel.find({
             projectUuid: document.projectUuid,
             spaceUuids: [document.spaceUuid],
@@ -1547,11 +1575,7 @@ export class DocumentService extends BaseService {
         const context =
             await this.dependencies.spacePermissionService.resolveAccess(
                 account.user.userUuid,
-                {
-                    type: 'document',
-                    documentUuid: document.documentUuid,
-                    spaceUuid: document.spaceUuid,
-                },
+                getAccessTarget(document),
             );
         if (
             this.createAuditedAbility(account).cannot(

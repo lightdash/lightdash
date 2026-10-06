@@ -7,7 +7,8 @@ export type DbDocument = {
     document_id: number;
     document_uuid: string;
     project_uuid: string;
-    space_id: number;
+    /** Null for a personal Document, visible only to its creator and admins. */
+    space_id: number | null;
     slug: string;
     name: string;
     description: string;

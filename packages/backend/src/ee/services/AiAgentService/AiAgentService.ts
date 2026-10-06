@@ -1582,7 +1582,8 @@ export class AiAgentService extends BaseService {
                     );
                     if (
                         allowedSpaces &&
-                        !allowedSpaces.has(document.spaceUuid)
+                        (document.spaceUuid === null ||
+                            !allowedSpaces.has(document.spaceUuid))
                     ) {
                         throw new ForbiddenError(
                             'Pinned Document is outside the embedded space',
