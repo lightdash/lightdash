@@ -45,6 +45,7 @@ const settings: AiIdentityProvisioningSettings = {
         firstRunApprovedByName: null,
     },
     setupSql: null,
+    cleanupSql: null,
     aiRoles: [],
     catalogProjectUuid: 'project',
     defaultWarehouse: 'COMPUTE_WH',

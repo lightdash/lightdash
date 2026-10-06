@@ -148,3 +148,27 @@ export const buildAiIdentityProvisionerSetupSql = ({
         `-- New AI roles added later need the same GRANT OWNERSHIP to ${role}.`,
     ].join('\n');
 };
+
+export const buildAiIdentityProvisionerCleanupSql = ({
+    userName,
+    roleName,
+    aiUserNames,
+}: {
+    userName: string;
+    roleName: string;
+    aiUserNames: readonly string[];
+}): string => {
+    const user = identifier(userName);
+    const role = identifier(roleName);
+    return [
+        '-- Removes the Lightdash provisioner and the AI identities that it created. Run this as ACCOUNTADMIN.',
+        '-- The provisioner role owns these users, so ACCOUNTADMIN gets the role first. Without it, the DROP USER statements fail.',
+        `GRANT ROLE ${role} TO ROLE ACCOUNTADMIN;`,
+        ...[...new Set(aiUserNames.map((name) => identifier(name)))]
+            .sort()
+            .map((name) => `DROP USER IF EXISTS ${name};`),
+        `DROP USER IF EXISTS ${user};`,
+        `DROP ROLE IF EXISTS ${role};`,
+        '-- The AI roles stay. When the provisioner role is dropped, ACCOUNTADMIN becomes their owner.',
+    ].join('\n');
+};

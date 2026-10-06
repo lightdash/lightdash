@@ -95,11 +95,33 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                         Start again
                     </Button>
                 )}
+                {settings.cleanupSql && (
+                    <details>
+                        <summary>
+                            <Text span fz="sm">
+                                Remove the provisioner from Snowflake
+                            </Text>
+                        </summary>
+                        <Stack gap="xs" mt="xs">
+                            <Text fz="sm">
+                                Run this as ACCOUNTADMIN to remove the
+                                provisioner and the AI identities that it
+                                created. The provisioner role owns these users,
+                                so the script gives its role to ACCOUNTADMIN
+                                first.
+                            </Text>
+                            <CodeBlock
+                                code={settings.cleanupSql}
+                                language="sql"
+                            />
+                        </Stack>
+                    </details>
+                )}
                 <MantineModal
                     opened={confirmStartAgain}
                     onClose={() => setConfirmStartAgain(false)}
                     title="Start again?"
-                    description="Delete the provisioner record and key? The Snowflake user and role stay in your account."
+                    description="Delete the provisioner record and key? The Snowflake user and role stay in your account. To remove them, run the script under Remove the provisioner from Snowflake."
                     confirmLabel="Start again"
                     confirmLoading={change.isLoading}
                     onConfirm={() =>

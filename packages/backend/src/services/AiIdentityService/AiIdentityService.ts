@@ -24,6 +24,7 @@ import {
     AiIdentityState,
     AiIdentityStatus,
     buildAiIdentityFixSql,
+    buildAiIdentityProvisionerCleanupSql,
     buildAiIdentityProvisionerSetupSql,
     buildAiTwinProvisioningSql,
     classifyAiIdentityFailure,
@@ -142,14 +143,23 @@ export class AiIdentityService extends BaseService {
             account,
             aiIdentityAccountUuid,
         );
-        const [mode, provisioner, mappings, aiRoles] = await Promise.all([
-            this.args.aiIdentityModel.getProvisioningMode(
-                aiIdentityAccountUuid,
-            ),
-            this.args.aiIdentityModel.getProvisioner(aiIdentityAccountUuid),
-            this.args.aiIdentityModel.getRoleMappings(aiIdentityAccountUuid),
-            this.args.aiIdentityModel.getAiRoles(aiIdentityAccountUuid),
-        ]);
+        const [mode, provisioner, mappings, aiRoles, identities, drops] =
+            await Promise.all([
+                this.args.aiIdentityModel.getProvisioningMode(
+                    aiIdentityAccountUuid,
+                ),
+                this.args.aiIdentityModel.getProvisioner(aiIdentityAccountUuid),
+                this.args.aiIdentityModel.getRoleMappings(
+                    aiIdentityAccountUuid,
+                ),
+                this.args.aiIdentityModel.getAiRoles(aiIdentityAccountUuid),
+                this.args.aiIdentityModel.getProvisioningIdentities(
+                    aiIdentityAccountUuid,
+                ),
+                this.args.aiIdentityModel.listProvisioningDrops(
+                    aiIdentityAccountUuid,
+                ),
+            ]);
         const { projectUuid, credentials } = await this.projectForAccount(
             organizationUuid,
             identityAccount.snowflakeAccount,
@@ -197,6 +207,28 @@ export class AiIdentityService extends BaseService {
                           existingAiRoles: mappings.map(
                               (mapping) => mapping.aiRole,
                           ),
+                      }),
+            cleanupSql:
+                provisioner === null
+                    ? null
+                    : buildAiIdentityProvisionerCleanupSql({
+                          userName: provisioner.userName,
+                          roleName: provisioner.roleName,
+                          aiUserNames: [
+                              ...identities
+                                  .filter(
+                                      (identity) =>
+                                          identity.createdByProvisioner,
+                                  )
+                                  .map(
+                                      (identity) =>
+                                          identity.provisionedUserName,
+                                  )
+                                  .filter(
+                                      (name): name is string => name !== null,
+                                  ),
+                              ...drops.map((drop) => drop.userName),
+                          ],
                       }),
             aiRoles,
             catalogProjectUuid: projectUuid,

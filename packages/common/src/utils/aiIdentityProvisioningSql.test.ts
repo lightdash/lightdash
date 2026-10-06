@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AI_IDENTITY_PROVISIONER_WORST_CASE } from '../types/aiIdentityProvisioning';
 import {
+    buildAiIdentityProvisionerCleanupSql,
     buildAiIdentityProvisionerSetupSql,
     renderProvisioningOperation,
 } from './aiIdentityProvisioningSql';
@@ -157,5 +158,33 @@ describe('buildAiIdentityProvisionerSetupSql', () => {
         );
         expect(sql).not.toContain('CREATE ROLE IF NOT EXISTS EXISTING_AI');
         expect(sql).not.toContain('GRANT SELECT');
+    });
+
+    it('removes the provisioner after giving ACCOUNTADMIN its role', () => {
+        const sql = buildAiIdentityProvisionerCleanupSql({
+            userName: 'PROVISIONER',
+            roleName: 'PROVISIONER_ROLE',
+            aiUserNames: ['PERSON_AI', 'EDITOR_AI', 'PERSON_AI'],
+        });
+        const statements = sql
+            .split('\n')
+            .filter((line) => !line.startsWith('--'));
+        expect(statements).toEqual([
+            'GRANT ROLE PROVISIONER_ROLE TO ROLE ACCOUNTADMIN;',
+            'DROP USER IF EXISTS EDITOR_AI;',
+            'DROP USER IF EXISTS PERSON_AI;',
+            'DROP USER IF EXISTS PROVISIONER;',
+            'DROP ROLE IF EXISTS PROVISIONER_ROLE;',
+        ]);
+    });
+
+    it('refuses unsafe names in the cleanup script', () => {
+        expect(() =>
+            buildAiIdentityProvisionerCleanupSql({
+                userName: 'PROVISIONER',
+                roleName: 'PROVISIONER_ROLE',
+                aiUserNames: ['X; DROP ROLE ACCOUNTADMIN'],
+            }),
+        ).toThrow();
     });
 });

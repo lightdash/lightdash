@@ -111,6 +111,7 @@ export type AiIdentityProvisioningSettings = {
     fallbackReason: string | null;
     provisioner: AiIdentityProvisioner | null;
     setupSql: string | null;
+    cleanupSql: string | null;
     aiRoles: AiIdentityAiRoleDefinition[];
     catalogProjectUuid: string;
     defaultWarehouse: string;
