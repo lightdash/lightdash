@@ -8,10 +8,17 @@ export const GuideOverview = () => (
                 Lightdash does
             </Text>
             <List size="sm" spacing="xs">
-                <List.Item>Generate SQL for you to review and run.</List.Item>
                 <List.Item>
-                    Connect as each person’s AI identity when AI identities are
-                    enabled.
+                    Generate a setup script that your Snowflake admin reviews
+                    and runs one time.
+                </List.Item>
+                <List.Item>
+                    Create each person’s AI identity with its setup role, and
+                    write the exclusions of each AI role for the grant sync.
+                </List.Item>
+                <List.Item>
+                    Connect as each person’s AI identity when AI access
+                    restrictions are on.
                 </List.Item>
                 <List.Item>
                     Run read-only session checks and a masked-column probe.
@@ -24,7 +31,9 @@ export const GuideOverview = () => (
             </Text>
             <List size="sm" spacing="xs">
                 <List.Item>
-                    Run DDL or GRANTs in your Snowflake account.
+                    Use an admin role in your Snowflake account. The setup role
+                    can only create AI identities, and the grant sync changes
+                    only the AI roles in its scope.
                 </List.Item>
                 <List.Item>
                     Use a shared warehouse sign-in as a fallback while
