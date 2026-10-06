@@ -644,4 +644,157 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             expect(await s.thumbnailOf(copy.appUuid)).toBeNull();
         });
     });
+
+    describe('promote', () => {
+        const promote = (s: ReturnType<typeof buildScenario>) =>
+            s.service.promoteApp(makeUser(), PREVIEW_PROJECT_UUID, APP_UUID);
+
+        it('captures the new upstream version in the upstream project, not the preview image', async () => {
+            const s = buildScenario({
+                versions: [
+                    { version: 3, status: 'ready' },
+                    {
+                        appUuid: UPSTREAM_APP_UUID,
+                        version: 6,
+                        status: 'ready',
+                    },
+                ],
+                promotedBefore: true,
+            });
+            await s.captureAutomatically(3);
+
+            const promoted = await promote(s);
+            expect(
+                await s.thumbnailOf(UPSTREAM_APP_UUID, PRODUCTION_PROJECT_UUID),
+            ).toBeNull();
+            await s.runQueuedCaptures();
+
+            expect(promoted).toMatchObject({
+                appUuid: UPSTREAM_APP_UUID,
+                version: 7,
+                action: 'update',
+            });
+            expect(
+                await s.thumbnailOf(UPSTREAM_APP_UUID, PRODUCTION_PROJECT_UUID),
+            ).toBe(
+                renderOf(
+                    UPSTREAM_APP_UUID,
+                    7,
+                    PRODUCTION_PROJECT_UUID,
+                    USER_UUID,
+                ),
+            );
+        });
+
+        it('captures the first version of a newly promoted app', async () => {
+            const s = buildScenario({
+                versions: [{ version: 3, status: 'ready' }],
+            });
+
+            const promoted = await promote(s);
+            await s.runQueuedCaptures();
+
+            expect(promoted.action).toBe('create');
+            expect(
+                await s.thumbnailOf(promoted.appUuid, PRODUCTION_PROJECT_UUID),
+            ).toBe(
+                renderOf(
+                    promoted.appUuid,
+                    1,
+                    PRODUCTION_PROJECT_UUID,
+                    USER_UUID,
+                ),
+            );
+        });
+
+        it('captures nothing while automatic capture is turned off', async () => {
+            const s = buildScenario({
+                versions: [{ version: 3, status: 'ready' }],
+            });
+            s.state.automaticCaptureEnabled = false;
+
+            const promoted = await promote(s);
+            await s.runQueuedCaptures();
+
+            expect(
+                await s.thumbnailOf(promoted.appUuid, PRODUCTION_PROJECT_UUID),
+            ).toBeNull();
+        });
+
+        it.each([
+            ['the capture fails', { renderFails: true }],
+            ['the capture cannot be queued', { queueIsDown: true }],
+        ])('still promotes when %s', async (_name, failure) => {
+            const s = buildScenario({
+                versions: [{ version: 3, status: 'ready' }],
+            });
+            Object.assign(s.state, failure);
+
+            const promoted = await promote(s);
+            await s.runQueuedCaptures();
+
+            expect(promoted).toMatchObject({ version: 1, action: 'create' });
+            expect(
+                await s.thumbnailOf(promoted.appUuid, PRODUCTION_PROJECT_UUID),
+            ).toBeNull();
+        });
+    });
+
+    describe('data apps as code upload', () => {
+        const uploadedVersion: VersionSeed[] = [
+            { version: 1, status: 'ready' },
+            { version: 2, status: 'pending' },
+        ];
+
+        it('captures the uploaded version once its build is ready', async () => {
+            const s = buildScenario({ versions: uploadedVersion });
+
+            const status = await s.buildUploadedVersion(2);
+            await s.runQueuedCaptures();
+
+            expect(status).toBe('ready');
+            expect(await s.thumbnailOf(APP_UUID)).toBe(
+                renderOf(APP_UUID, 2, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
+            );
+        });
+
+        it('captures nothing for an upload whose build fails', async () => {
+            const s = buildScenario({ versions: uploadedVersion });
+            await s.captureAutomatically(1);
+            s.state.buildFails = true;
+
+            const status = await s.buildUploadedVersion(2);
+            await s.runQueuedCaptures();
+
+            expect(status).toBe('error');
+            expect(await s.thumbnailOf(APP_UUID)).toBe(
+                renderOf(APP_UUID, 1, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
+            );
+        });
+
+        it('captures nothing while automatic capture is turned off', async () => {
+            const s = buildScenario({ versions: uploadedVersion });
+            s.state.automaticCaptureEnabled = false;
+
+            const status = await s.buildUploadedVersion(2);
+            await s.runQueuedCaptures();
+
+            expect(status).toBe('ready');
+            expect(await s.thumbnailOf(APP_UUID)).toBeNull();
+        });
+
+        it.each([
+            ['the capture fails', { renderFails: true }],
+            ['the capture cannot be queued', { queueIsDown: true }],
+        ])('leaves the upload ready when %s', async (_name, failure) => {
+            const s = buildScenario({ versions: uploadedVersion });
+            Object.assign(s.state, failure);
+
+            const status = await s.buildUploadedVersion(2);
+            await s.runQueuedCaptures();
+
+            expect(status).toBe('ready');
+            expect(await s.thumbnailOf(APP_UUID)).toBeNull();
+        });
+    });
 });

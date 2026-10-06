@@ -8971,6 +8971,16 @@ export class AppGenerateService extends BaseService {
             );
         }
 
+        // Captured fresh upstream: the preview's thumbnail shows preview data.
+        await this.enqueueThumbnailCapture({
+            organizationUuid: upstreamOrganizationUuid,
+            projectUuid: upstreamProjectUuid,
+            userUuid: user.userUuid,
+            appUuid: targetAppUuid,
+            version: targetVersion,
+            isCustomChartType: isChartType,
+        });
+
         this.analytics.track({
             event: 'data_app.promoted',
             userId: user.userUuid,
@@ -13933,9 +13943,11 @@ export class AppGenerateService extends BaseService {
             versionDeps !== null
                 ? this.lightdashConfig.appRuntime.dependencyRegistryHosts
                 : [];
+        const app = await this.appModel.getApp(appUuid, projectUuid);
 
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
+        let becameReady = false;
         const heartbeat = setInterval(() => {
             void this.appModel
                 .touchVersionIfInProgress(appUuid, version)
@@ -14059,7 +14071,7 @@ export class AppGenerateService extends BaseService {
                 sourceTar,
             );
 
-            await this.appModel.updateVersionStatusIfInProgress(
+            becameReady = await this.appModel.updateVersionStatusIfInProgress(
                 appUuid,
                 version,
                 'ready',
@@ -14073,6 +14085,18 @@ export class AppGenerateService extends BaseService {
             if (sandbox !== undefined && sandboxUuid !== undefined) {
                 await this.suspendSandbox(sandboxUuid, sandbox, appUuid);
             }
+        }
+
+        // Outside the build's try, so a thumbnail can never mark it failed.
+        if (becameReady) {
+            await this.enqueueThumbnailCapture({
+                organizationUuid,
+                projectUuid,
+                userUuid: payload.userUuid,
+                appUuid,
+                version,
+                isCustomChartType: app.template === DATA_APP_VIZ_TEMPLATE,
+            });
         }
     }
 }
