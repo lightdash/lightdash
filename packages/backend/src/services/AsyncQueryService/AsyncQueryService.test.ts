@@ -2165,6 +2165,59 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        test.each([
+            [QueryExecutionContext.AI, true, false],
+            [QueryExecutionContext.AI, false, true],
+            [QueryExecutionContext.EXPLORE, true, true],
+        ])(
+            'cache lookup for %s with flag %s',
+            async (context, enabled, looksUpCache) => {
+                vi.mocked(
+                    serviceWithCache.featureFlagModel.get,
+                ).mockImplementation(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId ===
+                            FeatureFlags.AiAccessSkipResultsCache && enabled,
+                }));
+                vi.mocked(
+                    serviceWithCache.queryHistoryModel.create,
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
+                vi.spyOn(
+                    serviceWithCache,
+                    'runAsyncWarehouseQuery',
+                ).mockResolvedValue(undefined);
+
+                await serviceWithCache['executeAsyncQuery'](
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        context,
+                        queryTags: { query_context: context },
+                        invalidateCache: false,
+                        queryComposer: createQueryComposerMock(),
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid: null,
+                    },
+                    { query: metricQueryMock },
+                );
+
+                expect(serviceWithCache.findResultsCache).toHaveBeenCalledTimes(
+                    looksUpCache ? 1 : 0,
+                );
+                const history = vi.mocked(
+                    serviceWithCache.queryHistoryModel.create,
+                ).mock.calls[0][1];
+                if (context === QueryExecutionContext.AI && enabled) {
+                    expect(history.cacheKey).toMatch(
+                        /^[a-f0-9]{64}\.[a-f0-9-]{36}$/,
+                    );
+                }
+            },
+        );
+
         test('Cache Hit - Complete Flow', async () => {
             // GIVEN: Cache returns a hit with metadata
             const createdAt = new Date();
@@ -3457,6 +3510,67 @@ describe('AsyncQueryService', () => {
 
     describe('executeAsyncMetricQuery', () => {
         test.each([
+            [QueryExecutionContext.AI, true, 'warehouse'],
+            [QueryExecutionContext.AI, false, 'pre_aggregate'],
+            [QueryExecutionContext.EXPLORE, true, 'pre_aggregate'],
+        ] as const)(
+            'routes %s with flag %s to %s',
+            async (context, enabled, target) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                    id: FeatureFlags.AiAccessSkipResultsCache,
+                    enabled,
+                });
+                const decision = {
+                    target: 'pre_aggregate' as const,
+                    preAggregateMetadata: { hit: true },
+                    route: {
+                        mode: 'opportunistic' as const,
+                        sourceExploreName: validExplore.name,
+                        preAggregateName: 'summary',
+                    },
+                };
+                const getRoutingDecision = vi.fn(() => decision);
+                (service as AnyType).preAggregateStrategy = {
+                    getRoutingDecision,
+                };
+                const result = await service[
+                    'getPreAggregationRoutingDecision'
+                ]({
+                    account: sessionAccount,
+                    metricQuery: metricQueryMock,
+                    explore: validExplore,
+                    context,
+                    forceWarehouse: false,
+                });
+                expect(result.target).toBe(target);
+                expect(getRoutingDecision).toHaveBeenCalledTimes(
+                    target === 'warehouse' ? 0 : 1,
+                );
+            },
+        );
+
+        test('refuses a direct pre-aggregate explore for flagged AI access', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AiAccessSkipResultsCache,
+                enabled: true,
+            });
+            await expect(
+                service['getPreAggregationRoutingDecision']({
+                    account: sessionAccount,
+                    metricQuery: metricQueryMock,
+                    explore: {
+                        ...validExplore,
+                        type: ExploreType.PRE_AGGREGATE,
+                    },
+                    context: QueryExecutionContext.AI,
+                    forceWarehouse: false,
+                }),
+            ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
+        });
+
+        test.each([
             'reuse',
             'scope-change',
             'expired',
@@ -3753,6 +3867,27 @@ describe('AsyncQueryService', () => {
                 name: 'rollup',
             });
         });
+    });
+
+    test('agent result retrieval rejects a non-AI query when enabled', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+            id: FeatureFlags.AiAccessSkipResultsCache,
+            enabled: true,
+        });
+        vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue({
+            context: QueryExecutionContext.EXPLORE,
+            status: QueryHistoryStatus.READY,
+        } as QueryHistory);
+
+        await expect(
+            service.getRawAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'non-ai-query',
+                aiAccessOnly: true,
+            }),
+        ).rejects.toThrow('Query was not started by AI access');
     });
 
     describe('getAsyncQueryResults', () => {
