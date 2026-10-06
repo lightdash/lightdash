@@ -84,7 +84,6 @@ export type AppThumbnailCaptureSkipReason =
     | 'no_headless_browser'
     | 'app_not_found'
     | 'custom_chart_type'
-    | 'automatic_capture_disabled'
     | 'version_not_ready'
     | 'manual_thumbnail_exists';
 
@@ -136,11 +135,12 @@ export class AppThumbnails {
         this.access = access;
     }
 
-    /** Whether a version of this app should be captured when it becomes ready. */
-    async isAutomaticCaptureEnabled(
+    /** Whether to enqueue a capture when a version of this app becomes ready. */
+    async shouldCaptureAutomatically(
         app: Pick<ThumbnailApp, 'organizationUuid' | 'isCustomChartType'>,
     ): Promise<boolean> {
-        return (await this.automaticCaptureSkipReason(app)) === null;
+        if (this.uncapturableReason(app) !== null) return false;
+        return this.settings.isAutomaticCaptureEnabled(app.organizationUuid);
     }
 
     /**
@@ -154,7 +154,7 @@ export class AppThumbnails {
             const app = await this.versionStore.findAppByUuid(ref.appUuid);
             if (!app) return { status: 'skipped', reason: 'app_not_found' };
 
-            const skipReason = await this.automaticCaptureSkipReason(app);
+            const skipReason = this.uncapturableReason(app);
             if (skipReason) return { status: 'skipped', reason: skipReason };
 
             const version = await this.versionStore.findVersion(
@@ -191,11 +191,8 @@ export class AppThumbnails {
         }
     }
 
-    /**
-     * Saves an image captured by hand as a version's thumbnail. `version: null`
-     * targets the latest ready version. Returns the version written, or null
-     * for a custom chart type, which keeps a single app-level image.
-     */
+    // `version: null` targets the latest ready version. Returns the version written,
+    // or null for a custom chart type, which keeps a single app-level image.
     async setManualThumbnail(
         user: SessionUser,
         {
@@ -309,15 +306,13 @@ export class AppThumbnails {
         return key ? this.objectStorage.getSignedUrl(key) : null;
     }
 
-    private async automaticCaptureSkipReason(
-        app: Pick<ThumbnailApp, 'organizationUuid' | 'isCustomChartType'>,
-    ): Promise<AppThumbnailCaptureSkipReason | null> {
+    /** Why this app's versions can never be captured; null when they can. */
+    private uncapturableReason(
+        app: Pick<ThumbnailApp, 'isCustomChartType'>,
+    ): AppThumbnailCaptureSkipReason | null {
         if (!this.capture.isAvailable()) return 'no_headless_browser';
         if (app.isCustomChartType) return 'custom_chart_type';
-        const enabled = await this.settings.isAutomaticCaptureEnabled(
-            app.organizationUuid,
-        );
-        return enabled ? null : 'automatic_capture_disabled';
+        return null;
     }
 
     /** The version a manual action applies to; null when none is ready. */

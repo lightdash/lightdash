@@ -2728,7 +2728,7 @@ export class AppGenerateService extends BaseService {
     }): Promise<void> {
         try {
             const enabled =
-                await this.appThumbnails.isAutomaticCaptureEnabled(args);
+                await this.appThumbnails.shouldCaptureAutomatically(args);
             if (!enabled) return;
             await this.schedulerClient.appCaptureThumbnail({
                 organizationUuid: args.organizationUuid,

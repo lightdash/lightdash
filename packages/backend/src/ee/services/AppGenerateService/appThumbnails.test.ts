@@ -181,13 +181,18 @@ const buildScenario = ({
         addVersion,
         statusOf: (version: number, appUuid = APP_UUID) =>
             findRow(appUuid, version)?.status ?? null,
-        /** A build finished: the version is ready and its capture job runs. */
+        /** A build finished: the version is ready, and its capture job runs if one is enqueued. */
         becomeReady: async (seed: Omit<VersionSeed, 'status'>) => {
+            const appUuid = seed.appUuid ?? APP_UUID;
             addVersion({ ...seed, status: 'ready' });
-            await thumbnails.captureVersion({
-                appUuid: seed.appUuid ?? APP_UUID,
-                version: seed.version,
-            });
+            const app = appRows.get(appUuid);
+            if (!app) throw new Error(`No such app: ${appUuid}`);
+            if (await thumbnails.shouldCaptureAutomatically(app)) {
+                await thumbnails.captureVersion({
+                    appUuid,
+                    version: seed.version,
+                });
+            }
         },
         appThumbnail: async (user = viewer, app = APP) =>
             download(await thumbnails.getAppThumbnailUrl(user, app)),
@@ -238,12 +243,22 @@ describe('AppThumbnails', () => {
             await s.becomeReady({ version: 1 });
 
             expect(await s.versionThumbnail(1)).toBeNull();
-            expect(
-                await s.thumbnails.isAutomaticCaptureEnabled({
-                    organizationUuid: ORGANIZATION_UUID,
-                    isCustomChartType: false,
-                }),
-            ).toBe(false);
+        });
+
+        it('still captures a version whose capture was enqueued before automatic capture was turned off', async () => {
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+            });
+            s.state.automaticCaptureEnabled = false;
+
+            await s.thumbnails.captureVersion({
+                appUuid: APP_UUID,
+                version: 1,
+            });
+
+            expect(await s.versionThumbnail(1)).toBe(
+                `render of app-1 v1 as ${CREATOR_UUID}`,
+            );
         });
 
         it('captures nothing when no headless browser is configured', async () => {
@@ -251,21 +266,25 @@ describe('AppThumbnails', () => {
             s.state.headlessBrowserConfigured = false;
 
             await s.becomeReady({ version: 1 });
+            const outcome = await s.thumbnails.captureVersion({
+                appUuid: APP_UUID,
+                version: 1,
+            });
 
+            expect(outcome.status).toBe('skipped');
             expect(await s.versionThumbnail(1)).toBeNull();
-            expect(
-                await s.thumbnails.isAutomaticCaptureEnabled({
-                    organizationUuid: ORGANIZATION_UUID,
-                    isCustomChartType: false,
-                }),
-            ).toBe(false);
         });
 
         it('captures nothing for a custom chart type', async () => {
             const s = buildScenario({ apps: [{ isCustomChartType: true }] });
 
             await s.becomeReady({ version: 1 });
+            const outcome = await s.thumbnails.captureVersion({
+                appUuid: APP_UUID,
+                version: 1,
+            });
 
+            expect(outcome.status).toBe('skipped');
             expect(await s.versionThumbnail(1)).toBeNull();
             expect(await s.appThumbnail()).toBeNull();
         });
