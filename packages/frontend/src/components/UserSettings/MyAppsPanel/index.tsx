@@ -68,6 +68,7 @@ const MoveAppToSpaceModal: FC<{
                 latestVersionNumber: app.lastVersionNumber,
                 latestVersionStatus: app.lastVersionStatus,
             }}
+            previewVersion={null}
             onMoved={() =>
                 queryClient.invalidateQueries({ queryKey: ['myApps'] })
             }
