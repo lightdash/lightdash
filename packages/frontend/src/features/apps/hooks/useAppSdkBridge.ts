@@ -297,7 +297,7 @@ export type UseAppSdkBridgeParams = {
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
-    /** Chart types render host-provided rows and cannot query independently. */
+    /** Enables host-provided subtotals for custom chart types. */
     dataAppVizMode?: boolean;
     /** Saved chart identity supplied by the host for external fetch authorization. */
     chartContext?: ExternalFetchRequest['chartContext'];
@@ -860,7 +860,6 @@ export function useAppSdkBridge({
             // Bridge-only virtual route: the viz posts semantic click intent;
             // the host rewrites it into the real underlying-data request, then
             // the standard pipeline (allowlist, project pinning, auth) applies.
-            let hostRewrittenUnderlyingData = false;
             if (path === APP_SDK_VIZ_UNDERLYING_DATA_PATH) {
                 if (!rewriteVizUnderlyingDataRequest) {
                     respond({
@@ -871,11 +870,6 @@ export function useAppSdkBridge({
                 try {
                     ({ method, path, body } =
                         rewriteVizUnderlyingDataRequest(body));
-                    hostRewrittenUnderlyingData =
-                        method.toUpperCase() === 'POST' &&
-                        /^\/api\/v2\/projects\/[^/]+\/query\/underlying-data$/.test(
-                            path,
-                        );
                 } catch (err) {
                     respond({
                         error:
@@ -977,15 +971,6 @@ export function useAppSdkBridge({
             }
 
             if (!isAllowedAppSdkRoute(method, path)) {
-                respond({ error: `Blocked: ${method} ${path}` });
-                return;
-            }
-
-            if (
-                dataAppVizMode &&
-                /\/query(?:\/|$)/.test(path) &&
-                !hostRewrittenUnderlyingData
-            ) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
             }
