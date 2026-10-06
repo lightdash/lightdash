@@ -30,6 +30,7 @@ import {
 } from '../features/documents/documentNavigation';
 import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
+import SaveDocumentToSpaceButton from '../features/documents/SaveDocumentToSpaceButton';
 import { useCanEditDocument } from '../features/documents/useCanEditDocument';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
@@ -103,6 +104,7 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                                 request={contentReview.pendingRequest}
                             />
                         )}
+                        <SaveDocumentToSpaceButton document={document} />
                         <ActionIcon.Group
                             role="group"
                             aria-label="Document controls"

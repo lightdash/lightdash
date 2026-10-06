@@ -11,6 +11,7 @@ import { lightdashApi } from '../../api';
 export const useDocument = (
     projectUuid: string,
     documentUuidOrSlug: UuidOrSlug,
+    { enabled = true }: { enabled?: boolean } = {},
 ) =>
     useQuery<Document, ApiError>({
         queryKey: ['document', projectUuid, documentUuidOrSlug],
@@ -22,6 +23,7 @@ export const useDocument = (
                 signal,
             }),
         retry: false,
+        enabled,
     });
 
 export const useDocumentChartQuery = (

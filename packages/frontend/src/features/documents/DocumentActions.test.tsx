@@ -250,6 +250,42 @@ describe('Document actions', () => {
             screen.queryByRole('menuitem', { name: 'Pin to homepage' }),
         ).not.toBeInTheDocument();
     });
+    describe('a personal Document', () => {
+        const personal = { ...document, spaceUuid: null };
+        const renderPersonal = () =>
+            render(
+                <MantineProvider>
+                    <DocumentActions
+                        document={personal}
+                        canRequestReview={false}
+                    />
+                </MantineProvider>,
+            );
+
+        it('hides actions that need a space first', async () => {
+            mocks.canEdit = true;
+            mocks.upstreamProjectUuid = 'upstream';
+            renderPersonal();
+            expect(
+                screen.queryByRole('button', { name: /favorites/ }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Document actions' }),
+            );
+            await screen.findByRole('menuitem', { name: 'Export PDF' });
+            [
+                'Share',
+                'Pin to homepage',
+                'Promote document',
+                'View as code',
+            ].forEach((name) =>
+                expect(
+                    screen.queryByRole('menuitem', { name }),
+                ).not.toBeInTheDocument(),
+            );
+        });
+    });
+
     it('exports this Document as a PDF', async () => {
         renderActions();
         fireEvent.click(

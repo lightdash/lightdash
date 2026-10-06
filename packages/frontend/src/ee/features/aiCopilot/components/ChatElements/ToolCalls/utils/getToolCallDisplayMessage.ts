@@ -11,7 +11,13 @@ import { type ToolCallSummary } from './types';
 export type ToolCallDisplayStatus = 'running' | 'done';
 
 type ContentToolArgs = {
-    type?: ReadContentType;
+    type?: ReadContentType | 'document';
+};
+
+// Documents are read and written by the content tools but aren't a readContent type
+const CONTENT_TYPE_LABELS: Record<ReadContentType | 'document', string> = {
+    ...READ_CONTENT_TYPE_LABELS,
+    document: 'document',
 };
 
 const CONTENT_TOOL_LABELS: Partial<
@@ -49,7 +55,7 @@ const getContentToolDisplayMessage = (
 
     const [contentType] = contentTypes;
     return contentType
-        ? labelForTool[status](READ_CONTENT_TYPE_LABELS[contentType])
+        ? labelForTool[status](CONTENT_TYPE_LABELS[contentType])
         : null;
 };
 

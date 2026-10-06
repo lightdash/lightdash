@@ -14,6 +14,7 @@ import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import DocumentRenderer from '../../../../../features/documents/DocumentRenderer';
+import SaveDocumentToSpaceButton from '../../../../../features/documents/SaveDocumentToSpaceButton';
 import { useDocument } from '../../../../../features/documents/useDocument';
 import {
     clearPreview,
@@ -77,6 +78,10 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
                 showContents={false}
                 actions={
                     <Group gap={2} wrap="nowrap">
+                        <SaveDocumentToSpaceButton
+                            document={document}
+                            size="xs"
+                        />
                         <Tooltip label="Open Document">
                             <ActionIcon
                                 component={Link}
