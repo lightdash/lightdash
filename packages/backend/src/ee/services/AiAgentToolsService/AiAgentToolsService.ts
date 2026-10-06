@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AiEgressBlockReason,
+    AiEgressSurface,
     AnyType,
     assertRegisteredAccount,
     assertUnreachable,
@@ -102,6 +104,7 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
+import { logAiEgressBlock } from '../../../utils/aiEgress/logAiEgressBlock';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
@@ -3540,6 +3543,23 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.listWarehouseTables`,
             { projectUuid: context.projectUuid },
             async () => {
+                if (
+                    await this.projectModel.getAiAccessRestrictions(
+                        context.projectUuid,
+                    )
+                ) {
+                    logAiEgressBlock({
+                        surface: AiEgressSurface.WAREHOUSE_METADATA_TOOL,
+                        reason: AiEgressBlockReason.OFF_UNDER_RESTRICTIONS,
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                        userUuid: context.user.userUuid,
+                        detail: 'list_warehouse_tables',
+                    });
+                    throw new ForbiddenError(
+                        'This tool is off under AI access restrictions',
+                    );
+                }
                 const catalog = await this.projectService.getWarehouseTables(
                     context.user,
                     context.projectUuid,
@@ -3562,6 +3582,23 @@ export class AiAgentToolsService extends BaseService {
                 database: database ?? null,
             },
             async () => {
+                if (
+                    await this.projectModel.getAiAccessRestrictions(
+                        context.projectUuid,
+                    )
+                ) {
+                    logAiEgressBlock({
+                        surface: AiEgressSurface.WAREHOUSE_METADATA_TOOL,
+                        reason: AiEgressBlockReason.OFF_UNDER_RESTRICTIONS,
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                        userUuid: context.user.userUuid,
+                        detail: 'describe_warehouse_table',
+                    });
+                    throw new ForbiddenError(
+                        'This tool is off under AI access restrictions',
+                    );
+                }
                 let resolvedSchema = schema?.trim() || null;
                 let resolvedDatabase = database?.trim() || null;
                 if (!resolvedSchema || resolvedDatabase === null) {
@@ -3752,6 +3789,19 @@ export class AiAgentToolsService extends BaseService {
         args: Parameters<SearchFieldValuesFn>[0],
         query: string,
     ): Promise<FieldValueSearchResult<string | boolean> | undefined> {
+        if (
+            await this.projectModel.getAiAccessRestrictions(context.projectUuid)
+        ) {
+            logAiEgressBlock({
+                surface: AiEgressSurface.FIELD_VALUE_SEARCH,
+                reason: AiEgressBlockReason.ROWS_NOT_FETCHED_BY_AI_SIGN_IN,
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+                userUuid: context.user.userUuid,
+                detail: null,
+            });
+            return undefined;
+        }
         let explore: Explore;
         try {
             explore = await this.getExploreForRuntime(context, {

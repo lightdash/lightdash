@@ -1,5 +1,10 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    AiEgressBlockReason,
+    AiEgressSurface,
+    FeatureFlags,
+} from '@lightdash/common';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import Logger from '../../../logging/logger';
 import { MCP_PERMISSION_MESSAGE } from '../ai/utils/mcpErrors';
 import { AiAgentService } from './AiAgentService';
 
@@ -36,6 +41,9 @@ const setup = (
             },
         },
         featureFlagService,
+        projectModel: {
+            getAiAccessRestrictions: vi.fn().mockResolvedValue(false),
+        },
         slackClient: { postMessage },
         userModel: {
             findSessionUserAndOrgByUuid: vi.fn().mockRejectedValue(error),
@@ -118,7 +126,15 @@ describe('Slack error reply', () => {
 });
 
 describe('rejected Slack SQL approval resume', () => {
-    const setupRejectedResume = () => {
+    const setupRejectedResume = ({
+        restricted = false,
+        oauth = true,
+        linkedUserUuid = 'user-1',
+    }: {
+        restricted?: boolean;
+        oauth?: boolean;
+        linkedUserUuid?: string | null;
+    } = {}) => {
         const createToolResults = vi.fn().mockResolvedValue([]);
         const postMessage = vi.fn().mockResolvedValue({ ok: true });
         const slackPrompt = {
@@ -145,6 +161,21 @@ describe('rejected Slack SQL approval resume', () => {
         ];
         const service = new AiAgentService({
             lightdashConfig: lightdashConfigMock,
+            projectModel: {
+                getAiAccessRestrictions: vi.fn().mockResolvedValue(restricted),
+            },
+            slackAuthenticationModel: {
+                getInstallationFromOrganizationUuid: vi
+                    .fn()
+                    .mockResolvedValue({ aiRequireOAuth: oauth }),
+            },
+            openIdIdentityModel: {
+                findIdentityByOpenId: vi
+                    .fn()
+                    .mockResolvedValue(
+                        linkedUserUuid ? { userUuid: linkedUserUuid } : null,
+                    ),
+            },
             slackClient: { postMessage },
             userModel: {
                 findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
@@ -194,8 +225,58 @@ describe('rejected Slack SQL approval resume', () => {
             'replyToSlackPromptWithStatus',
         );
 
-        return { service, reply, createToolResults };
+        return { service, reply, createToolResults, postMessage };
     };
+
+    it.each([
+        [false, null],
+        [true, null],
+        [true, 'installer'],
+    ] as const)(
+        'handles Slack OAuth %s and linked user %s under restrictions',
+        async (oauth, linkedUserUuid) => {
+            const info = vi.spyOn(Logger, 'info');
+            const { service, reply, postMessage } = setupRejectedResume({
+                restricted: true,
+                oauth,
+                linkedUserUuid,
+            });
+            reply.mockResolvedValue(true);
+
+            await service.replyToSlackPrompt('prompt-1');
+
+            expect(reply).not.toHaveBeenCalled();
+            expect(postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    text: 'Connect your own Slack account before you use this agent.',
+                }),
+            );
+            expect(info).toHaveBeenCalledWith(
+                'AI egress blocked under AI access restrictions',
+                expect.objectContaining({
+                    aiEgressSurface: AiEgressSurface.SLACK_AGENT,
+                    aiEgressReason: AiEgressBlockReason.OFF_UNDER_RESTRICTIONS,
+                }),
+            );
+        },
+    );
+
+    it('uses the linked requester under restrictions', async () => {
+        const { service, reply } = setupRejectedResume({ restricted: true });
+        reply.mockResolvedValue(true);
+        await service.replyToSlackPrompt('prompt-1');
+        expect(reply).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the existing installer path when restrictions are off', async () => {
+        const { service, reply } = setupRejectedResume({
+            oauth: false,
+            linkedUserUuid: null,
+        });
+        reply.mockResolvedValue(true);
+        await service.replyToSlackPrompt('prompt-1');
+        expect(reply).toHaveBeenCalledOnce();
+    });
 
     it('persists the rejected result only after the Slack reply succeeds', async () => {
         const { service, reply, createToolResults } = setupRejectedResume();
