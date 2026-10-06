@@ -21451,6 +21451,22 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess__token-string__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppViewContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['builder'] },
+                { dataType: 'enum', enums: ['standalone'] },
+                { dataType: 'enum', enums: ['dashboard'] },
+                { dataType: 'enum', enums: ['chart'] },
+                { dataType: 'enum', enums: ['delivery'] },
+                { dataType: 'enum', enums: ['unknown'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppManifestExternalConnection: {
         dataType: 'refAlias',
         type: {
@@ -85311,6 +85327,12 @@ export function RegisterRoutes(app: Router) {
             name: 'version',
             required: true,
             dataType: 'double',
+        },
+        viewContext: {
+            default: 'unknown',
+            in: 'query',
+            name: 'viewContext',
+            ref: 'DataAppViewContext',
         },
     };
     app.get(

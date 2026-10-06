@@ -1,3 +1,10 @@
+# [2.440.0](https://github.com/lightdash/lightdash/compare/2.439.2...2.440.0) (2026-10-06)
+
+
+### Features
+
+* expose named app loads with preview context ([#30519](https://github.com/lightdash/lightdash/issues/30519)) ([5879536](https://github.com/lightdash/lightdash/commit/58795362561140d9b99ce2d6821631747605fcd3))
+
 ## [2.439.2](https://github.com/lightdash/lightdash/compare/2.439.1...2.439.2) (2026-10-06)
 
 

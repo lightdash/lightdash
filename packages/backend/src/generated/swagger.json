@@ -22792,6 +22792,18 @@
             "ApiPreviewTokenResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__token-string__"
             },
+            "DataAppViewContext": {
+                "type": "string",
+                "enum": [
+                    "builder",
+                    "standalone",
+                    "dashboard",
+                    "chart",
+                    "delivery",
+                    "unknown"
+                ],
+                "description": "Client-supplied context for signed-in app previews; unknown keeps older clients\nunclassified. The separate embed endpoint assigns 'embed' server-side after\nverifying embed access, so it is intentionally excluded from this input type."
+            },
             "DataAppManifestExternalConnection": {
                 "properties": {
                     "connectionSlug": {
@@ -69284,7 +69296,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.439.2",
+        "version": "2.440.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
