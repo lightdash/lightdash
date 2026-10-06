@@ -47,6 +47,9 @@ type Props = {
      *  live preview (browse table, My Apps), which fall back to an invisible
      *  default-state render of the latest ready version. */
     capturePreviewScreenshot?: (() => Promise<File>) | null;
+    /** The version `capturePreviewScreenshot` shows. Null/omitted with it;
+     *  the thumbnail is then saved for the latest ready version. */
+    previewVersion?: number | null;
 };
 
 /** How long the confirm handler waits for the invisible fallback iframe to
@@ -77,6 +80,7 @@ export const MoveAppToSpaceModal: FC<Props> = ({
     onClose,
     onMoved,
     capturePreviewScreenshot,
+    previewVersion,
 }) => {
     const queryClient = useQueryClient();
     const { showToastWarning } = useToaster();
@@ -172,7 +176,14 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                 ? capturePreviewScreenshot()
                 : captureFromFallbackPreview());
             if (closedRef.current) return;
-            await uploadThumbnail({ projectUuid, appUuid: app.uuid, file });
+            await uploadThumbnail({
+                projectUuid,
+                appUuid: app.uuid,
+                version: capturePreviewScreenshot
+                    ? (previewVersion ?? null)
+                    : (app.latestVersionNumber ?? null),
+                file,
+            });
             void queryClient.invalidateQueries({
                 queryKey: ['app-thumbnail', projectUuid, app.uuid],
             });

@@ -22,6 +22,7 @@ type Props = Pick<
     | 'askAiItem'
     | 'captureThumbnail'
     | 'capturePreviewScreenshot'
+    | 'previewVersion'
     | 'upgrade'
     | 'capturedQueryCount'
 > & {

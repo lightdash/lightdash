@@ -682,16 +682,6 @@ const AppGenerate: FC = () => {
         }
         return capture();
     }, []);
-    // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
-    // without attaching a screenshot to the next prompt.
-    const { captureThumbnail, isCapturing: isCapturingThumbnail } =
-        useCaptureThumbnail({
-            app:
-                projectUuid && activeAppUuid
-                    ? { projectUuid, appUuid: activeAppUuid }
-                    : null,
-            capture: capturePreviewScreenshot,
-        });
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
@@ -1155,6 +1145,21 @@ const AppGenerate: FC = () => {
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
 
+    // Header-menu "Capture thumbnail": saves the preview as the thumbnail of
+    // the version on screen, without attaching a screenshot to the next prompt.
+    const { captureThumbnail, isCapturing: isCapturingThumbnail } =
+        useCaptureThumbnail({
+            app:
+                projectUuid && activeAppUuid
+                    ? {
+                          projectUuid,
+                          appUuid: activeAppUuid,
+                          version: previewApp?.version ?? null,
+                      }
+                    : null,
+            capture: capturePreviewScreenshot,
+        });
+
     // The preview refresh handler is declared further down; reach it lazily.
     const refreshPreviewRef = useRef<() => void>(() => {});
     const reloadPreviewForExpiredSources = useCallback(
@@ -1596,6 +1601,7 @@ const AppGenerate: FC = () => {
                     await uploadThumbnail({
                         projectUuid,
                         appUuid: activeAppUuid,
+                        version: previewApp?.version ?? null,
                         file,
                     });
                     void queryClient.invalidateQueries({
@@ -3238,6 +3244,9 @@ const AppGenerate: FC = () => {
                                                 screenshotAvailable
                                                     ? capturePreviewScreenshot
                                                     : null
+                                            }
+                                            previewVersion={
+                                                previewApp?.version ?? null
                                             }
                                             onViewNetwork={() =>
                                                 setNetworkPanelHidden(false)
