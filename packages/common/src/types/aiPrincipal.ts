@@ -188,6 +188,7 @@ export type AiQueryAudit = {
     projectUuid: string;
     warehouseConnectionUuid: string | null;
     userUuid: string | null;
+    personEmail: string | null;
     aiPrincipalUuid: string | null;
     principalKind: AiPrincipalKind;
     principalRef: string;

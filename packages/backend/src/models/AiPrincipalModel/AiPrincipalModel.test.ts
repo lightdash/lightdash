@@ -317,22 +317,67 @@ describe('AiPrincipalModel', () => {
             'on conflict ("query_uuid") do update',
         );
     });
-    test('computes audit pagination and offsets', async () => {
-        tracker.on
-            .select((q) => q.sql.includes('count('))
-            .response([{ total: '21' }]);
-        tracker.on.select('ai_query_audit').response([]);
-        expect(
-            await model.listAudit('project', { page: 2, pageSize: 10 }),
-        ).toEqual({
-            data: [],
-            pagination: {
-                page: 2,
-                pageSize: 10,
-                totalResults: 21,
-                totalPageCount: 3,
-            },
-        });
-        expect(tracker.history.select[1].bindings).toEqual(['project', 10, 10]);
-    });
+    test.each(['user@example.test', null])(
+        'maps audit email %s with pagination and offsets',
+        async (personEmail) => {
+            tracker.on
+                .select((q) => q.sql.includes('count('))
+                .response([{ total: '21' }]);
+            tracker.on.select('ai_query_audit').response([
+                {
+                    query_uuid: 'query',
+                    project_uuid: 'project',
+                    warehouse_connection_uuid: null,
+                    user_uuid: 'user',
+                    person_email: personEmail,
+                    ai_principal_uuid: 'principal',
+                    principal_kind: AiPrincipalKind.GROUP,
+                    principal_ref: 'agent',
+                    transport: AI_DIRECT_TRANSPORT,
+                    probe_ok: true,
+                    probe_checked_at: now,
+                    person_tag: 'user',
+                    created_at: now,
+                },
+            ]);
+            expect(
+                await model.listAudit('project', { page: 2, pageSize: 10 }),
+            ).toEqual({
+                data: [
+                    {
+                        queryUuid: 'query',
+                        projectUuid: 'project',
+                        warehouseConnectionUuid: null,
+                        userUuid: 'user',
+                        personEmail,
+                        aiPrincipalUuid: 'principal',
+                        principalKind: AiPrincipalKind.GROUP,
+                        principalRef: 'agent',
+                        transport: AI_DIRECT_TRANSPORT,
+                        probeOk: true,
+                        probeCheckedAt: now,
+                        personTag: 'user',
+                        createdAt: now,
+                    },
+                ],
+                pagination: {
+                    page: 2,
+                    pageSize: 10,
+                    totalResults: 21,
+                    totalPageCount: 3,
+                },
+            });
+            expect(tracker.history.select[1].sql).toContain(
+                'left join "users" on "users"."user_uuid" = "ai_query_audit"."user_uuid"',
+            );
+            expect(tracker.history.select[1].sql).toContain(
+                '"users"."email" as "person_email"',
+            );
+            expect(tracker.history.select[1].bindings).toEqual([
+                'project',
+                10,
+                10,
+            ]);
+        },
+    );
 });
