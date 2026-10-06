@@ -438,7 +438,6 @@ export class SchedulerAiAugmentationService extends BaseService {
                     projectUuid,
                     queryUuid,
                     maxRows: MAX_ROWS_PER_CHART,
-                    aiAccessOnly: true,
                 });
             return appendCsvSection(
                 acc,

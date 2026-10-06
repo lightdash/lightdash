@@ -711,6 +711,11 @@ type PreparedExploreStream = {
 
 type PreparedMultiConnectionSave = MultiConnectionSave & { warnings: string[] };
 
+type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
+    userWarehouseCredentialsUuid: string | undefined;
+    aiPlan?: AiExecutionPlan;
+};
+
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
@@ -2268,7 +2273,7 @@ export class ProjectService extends BaseService {
         context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         purpose?: 'query' | 'compile';
-    }) {
+    }): Promise<ResolvedWarehouseCredentials> {
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
         const source =
@@ -2325,18 +2330,19 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const aiPlan = context
-            ? await this.aiAccessService.resolvePlan({
-                  projectUuid,
-                  organizationUuid: project.organizationUuid,
-                  warehouseConnectionUuid,
-                  connection: credentials,
-                  context,
-                  userUuid: userId,
-                  isRegisteredUser,
-                  isServiceAccount,
-              })
-            : null;
+        const aiPlan =
+            context && isAiAccessQueryContext(context)
+                ? await this.aiAccessService.resolvePlan({
+                      projectUuid,
+                      organizationUuid: project.organizationUuid,
+                      warehouseConnectionUuid,
+                      connection: credentials,
+                      context,
+                      userUuid: userId,
+                      isRegisteredUser,
+                      isServiceAccount,
+                  })
+                : null;
         if (aiPlan) {
             return {
                 ...aiPlan.credentials,
@@ -2349,7 +2355,6 @@ export class ProjectService extends BaseService {
             return {
                 ...credentials,
                 userWarehouseCredentialsUuid,
-                aiPlan: null as AiExecutionPlan | null,
             };
         }
 
@@ -2459,7 +2464,6 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
-            aiPlan: null as AiExecutionPlan | null,
         };
     }
 
@@ -2823,7 +2827,7 @@ export class ProjectService extends BaseService {
                     warehouseCredentials,
                     warehouseConnectionUuid: null,
                     connectionRoute,
-                    aiPlan,
+                    aiPlan: aiPlan ?? null,
                 };
             }
             case 'extra': {
@@ -2840,7 +2844,7 @@ export class ProjectService extends BaseService {
                     warehouseCredentials,
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
                     connectionRoute,
-                    aiPlan,
+                    aiPlan: aiPlan ?? null,
                 };
             }
             default:
@@ -3006,7 +3010,7 @@ export class ProjectService extends BaseService {
         context?: QueryExecutionContext;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
-    }) {
+    }): Promise<ResolvedWarehouseCredentials> {
         // Use preloaded config if available, otherwise fetch it
         const organizationWarehouseCredentialsUuid =
             preloadedOrgWarehouseCredentialsUuid !== undefined
@@ -3041,7 +3045,6 @@ export class ProjectService extends BaseService {
             return {
                 ...credentials,
                 userWarehouseCredentialsUuid,
-                aiPlan: null as AiExecutionPlan | null,
             };
         }
 
@@ -3062,20 +3065,21 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const aiPlan = context
-            ? await this.aiAccessService.resolvePlan({
-                  projectUuid,
-                  organizationUuid: (
-                      await this.projectModel.getSummary(projectUuid)
-                  ).organizationUuid,
-                  warehouseConnectionUuid: null,
-                  connection: credentials,
-                  context,
-                  userUuid: userId,
-                  isRegisteredUser,
-                  isServiceAccount,
-              })
-            : null;
+        const aiPlan =
+            context && isAiAccessQueryContext(context)
+                ? await this.aiAccessService.resolvePlan({
+                      projectUuid,
+                      organizationUuid: (
+                          await this.projectModel.getSummary(projectUuid)
+                      ).organizationUuid,
+                      warehouseConnectionUuid: null,
+                      connection: credentials,
+                      context,
+                      userUuid: userId,
+                      isRegisteredUser,
+                      isServiceAccount,
+                  })
+                : null;
         if (aiPlan) {
             return {
                 ...aiPlan.credentials,
@@ -3192,7 +3196,6 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
-            aiPlan: null as AiExecutionPlan | null,
         };
     }
 

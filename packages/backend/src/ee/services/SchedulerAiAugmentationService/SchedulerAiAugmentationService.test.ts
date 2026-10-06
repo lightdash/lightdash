@@ -169,7 +169,6 @@ describe('SchedulerAiAugmentationService AI access', () => {
             projectUuid: 'project',
             queryUuid: 'query',
             maxRows: expect.any(Number),
-            aiAccessOnly: true,
         });
         expect(aiService.generateDeliverySummary).toHaveBeenCalledOnce();
     });

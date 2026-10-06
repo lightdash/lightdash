@@ -585,7 +585,6 @@ export class DataAppAnalysisService extends BaseService {
                             projectUuid,
                             queryUuid: source.queryUuid,
                             maxRows: MAX_ROWS_PER_CHART,
-                            aiAccessOnly: true,
                         })
                         .catch((e: unknown) => {
                             if (e instanceof ResultsExpiredError) {

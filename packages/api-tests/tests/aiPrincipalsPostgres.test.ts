@@ -1,6 +1,5 @@
 import {
     FeatureFlags,
-    SEED_PROJECT,
     type AiAccessForUser,
     type AiAccessPolicy,
     type AiPrincipal,
@@ -14,6 +13,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, type Body } from '../helpers/api-client';
 import { login, loginAsEditor } from '../helpers/auth';
 import { pollUntil } from '../helpers/polling';
+import {
+    createAndRefreshProject,
+    deleteProjectsByName,
+    postgresWarehouseConfig,
+} from '../helpers/projects';
 
 /**
  * Exercises Postgres AI principals from group policy and warehouse setup through
@@ -21,8 +25,8 @@ import { pollUntil } from '../helpers/polling';
  * secret rotation. No model is called, and all temporary access is removed.
  */
 
-const projectUuid = SEED_PROJECT.project_uuid;
-const baseUrl = `/api/v2/projects/${projectUuid}/ai-access`;
+let projectUuid: string;
+let baseUrl: string;
 const flagUrl = `/api/v2/feature-flag/${FeatureFlags.AiPrincipals}`;
 const mcpHeaders = { Accept: 'application/json, text/event-stream' };
 const quoteIdentifier = (value: string) => `"${value.replaceAll('"', '""')}"`;
@@ -141,6 +145,8 @@ const queryArgs = (
 describe.sequential('Postgres AI principals', () => {
     const suffix = randomBytes(8).toString('hex');
     const roleName = `ai_e2e_${suffix}`;
+    const projectName = `AI principals e2e ${suffix}`;
+    let projectCreated = false;
     let admin: ApiClient;
     let adminUuid: string;
     let groupUuid: string | null = null;
@@ -154,6 +160,13 @@ describe.sequential('Postgres AI principals', () => {
 
     beforeAll(async () => {
         admin = await login();
+        projectUuid = await createAndRefreshProject(
+            admin,
+            projectName,
+            postgresWarehouseConfig(),
+        );
+        projectCreated = true;
+        baseUrl = `/api/v2/projects/${projectUuid}/ai-access`;
         const user =
             await admin.get<Body<{ userUuid: string }>>('/api/v1/user');
         adminUuid = user.body.results.userUuid;
@@ -171,18 +184,26 @@ describe.sequential('Postgres AI principals', () => {
         );
         groupUuid = group.body.results.uuid;
         const project = await admin.get<
-            Body<{ warehouseConnection: { dbname: string; schema: string } }>
+            Body<{
+                warehouseConnection: {
+                    host: string;
+                    port: number;
+                    dbname: string;
+                    schema: string;
+                };
+            }>
         >(`/api/v1/projects/${projectUuid}`);
-        schema = project.body.results.warehouseConnection.schema;
+        const connection = project.body.results.warehouseConnection;
+        schema = connection.schema;
         warehouse = new Client({
-            host: process.env.PGHOST || 'localhost',
-            port: Number(process.env.PGPORT || 5432),
+            host: connection.host,
+            port: connection.port,
             user: process.env.PGUSER || 'postgres',
-            password: process.env.PGPASSWORD,
-            database: project.body.results.warehouseConnection.dbname,
+            password: process.env.PGPASSWORD || 'password',
+            database: connection.dbname,
         });
         await warehouse.connect();
-    });
+    }, 360_000);
 
     afterAll(async () => {
         for (const { client, uuid } of personalAccessTokens) {
@@ -235,11 +256,19 @@ describe.sequential('Postgres AI principals', () => {
         }
         if (warehouse && roleCreated) {
             await cleanup(() =>
+                warehouse!.query(
+                    `GRANT ${quoteIdentifier(roleName)} TO CURRENT_USER`,
+                ),
+            );
+            await cleanup(() =>
                 warehouse!.query(`DROP OWNED BY ${quoteIdentifier(roleName)}`),
             );
             await cleanup(() =>
                 warehouse!.query(`DROP ROLE ${quoteIdentifier(roleName)}`),
             );
+        }
+        if (projectCreated) {
+            await cleanup(() => deleteProjectsByName(admin, [projectName]));
         }
         if (groupUuid) {
             await cleanup(() => admin.delete(`/api/v1/groups/${groupUuid}`));

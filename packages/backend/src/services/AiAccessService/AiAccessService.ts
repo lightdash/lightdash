@@ -63,6 +63,11 @@ type AiMintCacheEntry = {
 
 type AccessArgs = Omit<ResolvePlanArgs, 'context'>;
 
+type PolicyLookupArgs = Pick<
+    AccessArgs,
+    'projectUuid' | 'organizationUuid' | 'warehouseConnectionUuid' | 'userUuid'
+>;
+
 type AiAccessServiceArguments = {
     lightdashConfig: LightdashConfig;
     aiPrincipalModel: AiPrincipalModel;
@@ -535,7 +540,7 @@ export class AiAccessService extends BaseService {
     }
 
     private async enabledPolicy(
-        args: AccessArgs,
+        args: PolicyLookupArgs,
     ): Promise<AiAccessPolicy | null> {
         const { enabled } = await this.featureFlagModel.get({
             user: {
@@ -715,6 +720,10 @@ export class AiAccessService extends BaseService {
             created,
         );
         return this.aiPrincipalModel.getPrincipal(principal.aiPrincipalUuid);
+    }
+
+    async isPolicyEnabled(args: PolicyLookupArgs): Promise<boolean> {
+        return (await this.enabledPolicy(args)) !== null;
     }
 
     async resolvePlan(args: ResolvePlanArgs): Promise<AiExecutionPlan | null> {

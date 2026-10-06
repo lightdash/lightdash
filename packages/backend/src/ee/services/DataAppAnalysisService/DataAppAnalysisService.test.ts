@@ -259,10 +259,15 @@ describe('DataAppAnalysisService.detect', () => {
         ).not.toHaveBeenCalled();
         expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
     });
-    it('reads saved rows with AI access enforcement when no policy applies', async () => {
+    it('reads saved rows as the person when no policy applies', async () => {
         const { service, asyncQueryService } = buildService();
         await service.detect(buildAccount(), 'proj-1', 'app-1', request);
         expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ queryUuid: expect.any(String) }),
+        );
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalledWith(
             expect.objectContaining({ aiAccessOnly: true }),
         );
     });
