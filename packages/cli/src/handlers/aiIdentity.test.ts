@@ -1,4 +1,5 @@
 import {
+    AiIdentityCreationMode,
     AiIdentityJobKind,
     AiIdentityJobStatus,
     AiIdentityState,
@@ -29,6 +30,8 @@ const account: AiIdentityAccount = {
     twinNameTemplate: null,
     roleTemplate: null,
     lastFullCheckAt: null,
+    effectiveMode: AiIdentityCreationMode.GUIDED,
+    fallbackReason: null,
     counts,
 };
 const job: AiIdentityJob = {
