@@ -169,6 +169,19 @@ Also verify:
   enable unset and preview defaults disabled**. Check the action, not only the menu.
 - Document untested live paths and temporary ENV workarounds in the PR.
 
+## Snowflake AI access flags
+
+`ai-access-restrictions` and `snowflake-ai-sign-in` are organization-scoped and
+off by default. Neither has a custom resolver. Standard ENV and Console
+precedence applies. Console changes take effect on the next backend check;
+ENV changes need a process restart. The frontend may need a refetch.
+
+The project AI access restrictions toggle applies only when
+`ai-access-restrictions` is on. Snowflake AI queries then require the person's
+Snowflake sign-in for AI. An organization must also enable
+`snowflake-ai-sign-in` so people can connect it. Enabling either flag does not
+set up the Snowflake security integration or the project toggle.
+
 ## Code references
 
 - [Flag registration](../packages/common/src/types/featureFlags.ts)

@@ -137,7 +137,10 @@ import { PersistentDownloadFileService } from '../PersistentDownloadFileService/
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import * as analyticsClient from '../ProjectService/analyticsProject/analyticsProjectClient';
 import { type CheckGoogleRefreshToken } from '../ProjectService/previewBigquerySsoCredentials';
-import type { ProjectService } from '../ProjectService/ProjectService';
+import {
+    AiAccessRestrictionsError,
+    type ProjectService,
+} from '../ProjectService/ProjectService';
 import {
     allExplores,
     buildAccount,
@@ -270,6 +273,7 @@ const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
+    getAgentSqlScope: vi.fn(async () => null),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
@@ -3917,6 +3921,27 @@ describe('AsyncQueryService', () => {
             });
         });
 
+        test('omits Snowflake query IDs from the query results API', async () => {
+            const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+            serviceWithCache.queryHistoryModel.get = vi.fn().mockResolvedValue({
+                ...buildPendingAiQueryHistory(sessionAccount.user.id),
+                status: QueryHistoryStatus.ERROR,
+                warehouseQueryId,
+                error: `Snowflake query ${warehouseQueryId} failed`,
+            });
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+            });
+            expect(JSON.stringify(result)).not.toContain('warehouseQueryId');
+            expect(JSON.stringify(result)).not.toContain(warehouseQueryId);
+            expect(result).toMatchObject({
+                error: 'Snowflake query [query id removed] failed',
+            });
+        });
+
         test('allows embedded AI agent JWTs to poll AI queries created by the embed write user', async () => {
             const embedWriteUserUuid = 'embed-write-user-uuid';
             const embedAiAccount = buildEmbedAiAccount(embedWriteUserUuid);
@@ -6116,8 +6141,12 @@ describe('AsyncQueryService', () => {
                 // THEN: _getWarehouseClient called with original credentials
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
                     projectUuid,
-                    originalCredentials,
+                    {
+                        ...originalCredentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    },
                     undefined,
+                    null,
                 );
 
                 // THEN: Warehouse client created with tunneled credentials
@@ -6730,6 +6759,33 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        it('refuses AI raw SQL before opening a warehouse connection', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const warehouse = vi.spyOn(service, '_getWarehouseClient');
+            const resolveCredentials = vi
+                .fn()
+                .mockRejectedValue(new AiAccessRestrictionsError());
+            (
+                service as unknown as {
+                    getWarehouseCredentialsWithConnection: typeof resolveCredentials;
+                }
+            ).getWarehouseCredentialsWithConnection = resolveCredentials;
+
+            await expect(
+                service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.AI,
+                }),
+            ).rejects.toThrow(AiAccessRestrictionsError);
+
+            expect(resolveCredentials).toHaveBeenCalledWith(
+                expect.objectContaining({ rawSql: true }),
+            );
+            expect(warehouse).not.toHaveBeenCalled();
+        });
+
         it('rejects managed analytics SQL before accessing the warehouse', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             projectModel.getSummary.mockResolvedValueOnce({
@@ -6750,9 +6806,14 @@ describe('AsyncQueryService', () => {
             expect(warehouse).not.toHaveBeenCalled();
         });
 
-        it.each([undefined, 'analytics'])(
-            'checks SQL permissions before project restrictions (%s)',
-            async (provisioningSource) => {
+        it.each([
+            [undefined, QueryExecutionContext.SQL_RUNNER],
+            [undefined, QueryExecutionContext.AI],
+            [undefined, QueryExecutionContext.MCP_RUN_SQL],
+            ['analytics', QueryExecutionContext.SQL_RUNNER],
+        ] as const)(
+            'checks SQL permissions before project restrictions (%s, %s)',
+            async (provisioningSource, context) => {
                 projectModel.getSummary.mockResolvedValueOnce({
                     ...projectSummary,
                     provisioningSource,
@@ -6774,7 +6835,7 @@ describe('AsyncQueryService', () => {
                         account: viewerAccount,
                         projectUuid,
                         sql: 'SELECT 1',
-                        context: QueryExecutionContext.SQL_RUNNER,
+                        context,
                     }),
                 ).rejects.toEqual(new ForbiddenError());
             },
@@ -7325,6 +7386,49 @@ describe('AsyncQueryService', () => {
             });
         });
     });
+
+    it.each([
+        [{ sql: 'SELECT 1' }, '', true],
+        [{ savedSqlUuid: 'chart-uuid' }, '', true],
+        [{ slug: 'chart-slug' }, '', true],
+        [{ query: metricQueryMock }, 'sql_query_explorer', true],
+        [{ query: metricQueryMock }, '', false],
+    ] as const)(
+        'keeps raw SQL classification in queued query args for %j',
+        async (requestParameters, exploreName, rawSql) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.queryHistoryModel.getByQueryUuid = vi.fn(
+                async () =>
+                    ({
+                        queryUuid: 'query-uuid',
+                        projectUuid,
+                        organizationUuid:
+                            sessionAccount.organization.organizationUuid,
+                        createdByUserUuid: sessionAccount.user.id,
+                        createdByAccount: null,
+                        createdByActorType: 'session',
+                        context: QueryExecutionContext.AI,
+                        metricQuery: { ...metricQueryMock, exploreName },
+                        requestParameters,
+                        fields: {},
+                        usedParameters: null,
+                        cacheKey: 'cache-key',
+                        compiledSql: 'SELECT 1',
+                        createdAt: new Date(),
+                    }) as QueryHistory,
+            );
+            const internals = service as AnyType;
+            internals.deriveWarehouseCredentialsOverrides = vi.fn(
+                async () => undefined,
+            );
+            internals.isExcludedFromUsage = vi.fn(async () => false);
+            internals.getOnboardingFlow = vi.fn(async () => 'legacy');
+
+            const args = await internals.buildWarehouseQueryArgs('query-uuid');
+
+            expect(args.rawSql).toBe(rawSql);
+        },
+    );
 
     describe('executeAsyncCalculateTotalFromQueryHistory', () => {
         afterEach(() => {
@@ -10189,7 +10293,7 @@ describe('saved chart query result access', () => {
                 getExploreForMetricQueryExecution: () => Promise<unknown>;
                 getExploreWithUserAccessControls: () => Promise<unknown>;
                 prepareMetricQueryAsyncQueryArgs: () => Promise<QueryComposer>;
-                getExtraConnectionWarehouseCredentials: () => Promise<unknown>;
+                getExtraConnectionWarehouseCredentialsWithAudit: () => Promise<unknown>;
                 executeAsyncQuery: (
                     args: unknown,
                     parameters: ExecuteAsyncQueryRequestParams,
@@ -10222,10 +10326,13 @@ describe('saved chart query result access', () => {
                 });
             vi.spyOn(
                 execution,
-                'getExtraConnectionWarehouseCredentials',
+                'getExtraConnectionWarehouseCredentialsWithAudit',
             ).mockResolvedValue({
-                ...warehouseClientMock.credentials,
-                userWarehouseCredentialsUuid: undefined,
+                credentials: {
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                },
+                aiAccessAudit: null,
             });
             const persist = vi
                 .spyOn(execution, 'executeAsyncQuery')

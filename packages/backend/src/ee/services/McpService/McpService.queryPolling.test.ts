@@ -68,6 +68,7 @@ const projectUuid = 'project-uuid';
 const organizationUuid = 'organization-uuid';
 const userUuid = 'user-uuid';
 const queryUuid = '11111111-1111-4111-8111-111111111111';
+const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
 const allowedSpaceUuid = 'allowed-space-uuid';
 const blockedSpaceUuid = 'blocked-space-uuid';
 
@@ -209,6 +210,7 @@ const makeQueryHistory = (
     status,
     context,
     error,
+    warehouseQueryId,
     compiledSql: 'select * from (select 1) limit 10',
     requestParameters: {
         sql: 'select 1',
@@ -818,6 +820,8 @@ describe('MCP async query polling', () => {
                 },
             },
         });
+        expect(JSON.stringify(result)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(result)).not.toContain(warehouseQueryId);
     });
 
     it('rejects inaccessible header project overrides', async () => {
@@ -1484,6 +1488,8 @@ describe('MCP async query polling', () => {
             },
             extra,
         );
+        expect(JSON.stringify(result)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(result)).not.toContain(warehouseQueryId);
 
         expect(result).toMatchObject({
             structuredContent: {
@@ -1604,6 +1610,8 @@ describe('MCP async query polling', () => {
             { queryUuid },
             extra,
         );
+        expect(JSON.stringify(result)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(result)).not.toContain(warehouseQueryId);
 
         expect(result).toMatchObject({
             structuredContent: {
@@ -1941,6 +1949,83 @@ describe('MCP async query polling', () => {
             ]),
         });
         expect(projectService.searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
+    it('keeps Snowflake query IDs out of field value and query errors', async () => {
+        const { asyncQueryService, projectService } = makeMcpService();
+        projectService.searchFieldUniqueValues.mockResolvedValueOnce({
+            results: ['complete'],
+            warehouseQueryId,
+        });
+        const fieldArgs = {
+            table: 'orders',
+            fieldId: 'orders_status',
+            query: 'complete',
+            filters: null,
+        };
+        const fieldSuccess = await getToolCallback(
+            McpToolName.SEARCH_FIELD_VALUES,
+        )(fieldArgs, extra);
+        expect(JSON.stringify(fieldSuccess)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(fieldSuccess)).not.toContain(warehouseQueryId);
+
+        projectService.searchFieldUniqueValues.mockRejectedValueOnce(
+            new Error(`Snowflake query ${warehouseQueryId} failed`),
+        );
+        const fieldResult = await getToolCallback(
+            McpToolName.SEARCH_FIELD_VALUES,
+        )(fieldArgs, extra);
+        expect(JSON.stringify(fieldResult)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(fieldResult)).not.toContain(warehouseQueryId);
+
+        asyncQueryService.executeAsyncSqlQuery.mockRejectedValueOnce(
+            new Error(`Snowflake query ${warehouseQueryId} failed`),
+        );
+        const sqlResult = await getToolCallback(McpToolName.RUN_SQL)(
+            { sql: 'select 1', limit: 10 },
+            extra,
+        );
+        expect(JSON.stringify(sqlResult)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(sqlResult)).not.toContain(warehouseQueryId);
+
+        asyncQueryService.executeAsyncMetricQuery.mockRejectedValueOnce(
+            new Error(`Snowflake query ${warehouseQueryId} failed`),
+        );
+        const metricResult = await getToolCallback(
+            McpToolName.RUN_METRIC_QUERY,
+        )(
+            {
+                title: 'Orders',
+                description: 'Orders count',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: ['orders_count'],
+                    sorts: [],
+                    limit: 10,
+                    customMetrics: null,
+                    tableCalculations: null,
+                    filters: null,
+                },
+                chartConfig: null,
+            },
+            extra,
+        );
+        expect(JSON.stringify(metricResult)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(metricResult)).not.toContain(warehouseQueryId);
+
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(
+            makeQueryHistory(
+                QueryHistoryStatus.ERROR,
+                QueryExecutionContext.MCP_RUN_SQL,
+                `Snowflake query ${warehouseQueryId} failed`,
+            ),
+        );
+        const historyResult = await getToolCallback(
+            McpToolName.GET_QUERY_RESULT,
+        )({ queryUuid }, extra);
+        expect(JSON.stringify(historyResult)).not.toContain(warehouseQueryId);
+        expect(JSON.stringify(historyResult)).not.toContain('warehouseQueryId');
     });
 
     it('normalizes omitted expression search arguments before execution', async () => {

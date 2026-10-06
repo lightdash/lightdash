@@ -49,6 +49,7 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     [QueryExecutionContext.AUTOREFRESHED_DASHBOARD]: QueryTrigger.APPS,
     [QueryExecutionContext.FILTER_AUTOCOMPLETE]: QueryTrigger.APPS,
     [QueryExecutionContext.DATA_APP_SAMPLE]: QueryTrigger.APPS,
+    [QueryExecutionContext.DATA_APP]: QueryTrigger.APPS,
     [QueryExecutionContext.EMBED]: QueryTrigger.APPS,
     [QueryExecutionContext.ALERT]: QueryTrigger.SCHEDULED,
     [QueryExecutionContext.SCHEDULED_DELIVERY]: QueryTrigger.SCHEDULED,

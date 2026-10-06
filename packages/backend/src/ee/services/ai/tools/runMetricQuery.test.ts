@@ -165,6 +165,26 @@ const executeTool = async (
 };
 
 describe('getRunMetricQuery', () => {
+    it('keeps the warehouse query ID out of metric output and errors', async () => {
+        const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValueOnce({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            warehouseQueryId,
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: queryFields,
+        });
+        const output = await executeTool(runAsyncQuery);
+        expect(JSON.stringify(output)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(output)).not.toContain(warehouseQueryId);
+
+        vi.mocked(runAsyncQuery).mockRejectedValueOnce(
+            new Error(`Snowflake query ${warehouseQueryId} failed`),
+        );
+        const failed = await executeTool(runAsyncQuery);
+        expect(JSON.stringify(failed)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(failed)).not.toContain(warehouseQueryId);
+    });
     it('returns the CSV text and the same rows as structured content', async () => {
         const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
             queryUuid: '11111111-1111-4111-8111-111111111111',

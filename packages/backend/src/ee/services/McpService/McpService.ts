@@ -144,7 +144,10 @@ import { ContentVerificationService } from '../../../services/ContentVerificatio
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { OAuthScope } from '../../../services/OAuthService/OAuthService';
-import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    AiAccessRestrictionsError,
+    ProjectService,
+} from '../../../services/ProjectService/ProjectService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
@@ -152,6 +155,7 @@ import {
     validateUserAttributeOverrides,
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
+import { sanitizeSnowflakeQueryError } from '../../../utils/sanitizeSnowflakeQueryError';
 import { VERSION } from '../../../version';
 import { DbMcpClientInfo } from '../../database/entities/mcpToolCall';
 import { McpToolCallModel } from '../../models/McpToolCallModel';
@@ -3420,7 +3424,9 @@ export class McpService extends BaseService {
 
                         if (queryHistory.status !== QueryHistoryStatus.READY) {
                             throw new UnexpectedServerError(
-                                queryHistory.error ??
+                                sanitizeSnowflakeQueryError(
+                                    queryHistory.error ?? '',
+                                ) ||
                                     `Metric query finished with status ${queryHistory.status}`,
                             );
                         }
@@ -3452,8 +3458,9 @@ export class McpService extends BaseService {
                             appliedParametersNote,
                         });
                     } catch (e) {
-                        const errorMessage =
-                            e instanceof Error ? e.message : String(e);
+                        const errorMessage = sanitizeSnowflakeQueryError(
+                            e instanceof Error ? e.message : String(e),
+                        );
                         this.logger.error(
                             `[McpService] Error in run_metric_query tool: ${errorMessage}`,
                         );
@@ -3461,7 +3468,10 @@ export class McpService extends BaseService {
                             content: [
                                 {
                                     type: 'text' as const,
-                                    text: `Error running metric query: ${errorMessage}`,
+                                    text:
+                                        e instanceof AiAccessRestrictionsError
+                                            ? errorMessage
+                                            : `Error running metric query: ${errorMessage}`,
                                 },
                             ],
                             isError: true,
@@ -3525,7 +3535,9 @@ export class McpService extends BaseService {
                                 queryHistory.status !== QueryHistoryStatus.READY
                             ) {
                                 throw new UnexpectedServerError(
-                                    queryHistory.error ??
+                                    sanitizeSnowflakeQueryError(
+                                        queryHistory.error ?? '',
+                                    ) ||
                                         `Query is not ready to render; current status is ${queryHistory.status}`,
                                 );
                             }
@@ -3718,7 +3730,9 @@ export class McpService extends BaseService {
 
                         if (queryHistory.status !== QueryHistoryStatus.READY) {
                             throw new UnexpectedServerError(
-                                queryHistory.error ??
+                                sanitizeSnowflakeQueryError(
+                                    queryHistory.error ?? '',
+                                ) ||
                                     `SQL query finished with status ${queryHistory.status}`,
                             );
                         }
@@ -3739,8 +3753,9 @@ export class McpService extends BaseService {
                             sqlRunnerUrl,
                         });
                     } catch (e) {
-                        const errorMessage =
-                            e instanceof Error ? e.message : String(e);
+                        const errorMessage = sanitizeSnowflakeQueryError(
+                            e instanceof Error ? e.message : String(e),
+                        );
                         this.logger.error(
                             `[McpService] Error in run_sql tool: ${errorMessage}`,
                         );
@@ -3748,7 +3763,10 @@ export class McpService extends BaseService {
                             content: [
                                 {
                                     type: 'text' as const,
-                                    text: `Error running SQL query: ${errorMessage}`,
+                                    text:
+                                        e instanceof AiAccessRestrictionsError
+                                            ? errorMessage
+                                            : `Error running SQL query: ${errorMessage}`,
                                 },
                             ],
                             isError: true,
@@ -3835,15 +3853,20 @@ export class McpService extends BaseService {
                         ) {
                             return await this.buildScopedResponse(
                                 ctx,
-                                queryHistory.error ??
-                                    `Query ${queryHistory.status}`,
+                                sanitizeSnowflakeQueryError(
+                                    queryHistory.error ?? '',
+                                ) || `Query ${queryHistory.status}`,
                                 {
                                     result: {
                                         status: McpService.getPollingStatus(
                                             queryHistory.status,
                                         ),
                                         queryUuid: args.queryUuid,
-                                        error: queryHistory.error ?? null,
+                                        error: queryHistory.error
+                                            ? sanitizeSnowflakeQueryError(
+                                                  queryHistory.error,
+                                              )
+                                            : null,
                                     },
                                 },
                                 projectUuid,
@@ -3918,8 +3941,9 @@ export class McpService extends BaseService {
                             'Query was not started by an MCP query tool',
                         );
                     } catch (e) {
-                        const errorMessage =
-                            e instanceof Error ? e.message : String(e);
+                        const errorMessage = sanitizeSnowflakeQueryError(
+                            e instanceof Error ? e.message : String(e),
+                        );
                         this.logger.error(
                             `[McpService] Error in get_query_result tool: ${errorMessage}`,
                         );
@@ -4852,12 +4876,18 @@ export class McpService extends BaseService {
         const ability = this.createAuditedAbility(user);
 
         if (headerProjectUuid && user.organizationUuid) {
-            return ability.can(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid: headerProjectUuid,
-                }),
+            return (
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', {
+                        organizationUuid: user.organizationUuid,
+                        projectUuid: headerProjectUuid,
+                    }),
+                ) &&
+                (await this.asyncQueryService.canUseAiRawSql(
+                    headerProjectUuid,
+                    user.userUuid,
+                ))
             );
         }
 

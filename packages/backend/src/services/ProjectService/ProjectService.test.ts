@@ -57,6 +57,7 @@ import {
     SnowflakeTokenError,
     SupportedDbtAdapter,
     UserWarehouseCredentialPurpose,
+    VizIndexType,
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
@@ -91,6 +92,7 @@ import {
 } from '@lightdash/common';
 import {
     checkSnowflakeAgentSessionWithToken,
+    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
     SshTunnel,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
@@ -163,7 +165,7 @@ import { UserService } from '../UserService';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
-import { ProjectService } from './ProjectService';
+import { AiAccessRestrictionsError, ProjectService } from './ProjectService';
 import {
     allExplores,
     buildAccount,
@@ -276,6 +278,11 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
     getSummary: vi.fn(async () => projectSummary),
+    getAiAccessRestrictions: vi.fn<ProjectModel['getAiAccessRestrictions']>(
+        async () => false,
+    ),
+    updateAiAccessRestrictions:
+        vi.fn<ProjectModel['updateAiAccessRestrictions']>(),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: 'primary-source-uuid',
         dbtSourceName: 'dbt_project',
@@ -4462,6 +4469,35 @@ describe('ProjectService', () => {
         );
     });
     describe('runExploreQuery', () => {
+        test('passes the AI context into synchronous credential resolution', async () => {
+            const isolated = getMockedProjectService(lightdashConfigMock);
+            const resolveCredentials = vi
+                .fn()
+                .mockRejectedValue(new Error('credential probe'));
+            (
+                isolated as unknown as {
+                    getWarehouseCredentialsWithConnection: typeof resolveCredentials;
+                }
+            ).getWarehouseCredentialsWithConnection = resolveCredentials;
+
+            await expect(
+                isolated.runExploreQuery(
+                    sessionAccount,
+                    metricQueryMock,
+                    projectUuid,
+                    'valid_explore',
+                    null,
+                    undefined,
+                    QueryExecutionContext.DATA_APP_SAMPLE,
+                ),
+            ).rejects.toThrow('credential probe');
+            expect(resolveCredentials).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.DATA_APP_SAMPLE,
+                }),
+            );
+        });
+
         test('should get results with 1 row', async () => {
             const result = await service.runExploreQuery(
                 sessionAccount,
@@ -6864,9 +6900,10 @@ describe('ProjectService', () => {
                 const uploadResults = vi.fn(async () => undefined);
                 Object.assign(flaggedService, {
                     s3CacheClient: { getIfFresh, uploadResults },
-                    getWarehouseCredentials: vi.fn(
-                        async () => warehouseClientMock.credentials,
-                    ),
+                    getWarehouseCredentialsWithConnection: vi.fn(async () => ({
+                        warehouseCredentials: warehouseClientMock.credentials,
+                        aiAccessAudit: null,
+                    })),
                 });
                 vi.mocked(
                     projectModel.getWarehouseClientFromCredentials,
@@ -6954,11 +6991,11 @@ describe('ProjectService', () => {
             }));
             const credentialsSpy = vi.spyOn(
                 service as unknown as {
-                    getWarehouseCredentials: (args: {
+                    getWarehouseCredentialsWithConnection: (args: {
                         context?: QueryExecutionContext;
                     }) => Promise<unknown>;
                 },
-                'getWarehouseCredentials',
+                'getWarehouseCredentialsWithConnection',
             );
             await service.searchFieldUniqueValues(
                 user,
@@ -7128,16 +7165,19 @@ describe('ProjectService', () => {
                 runQuery: runQueryMock,
             }));
 
-            // Mock getWarehouseCredentials to simulate per-user credentials
+            // Mock credential resolution to simulate per-user credentials
             vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
-                'getWarehouseCredentials',
+                'getWarehouseCredentialsWithConnection',
             ).mockImplementation(async (...args: unknown[]) => {
                 const { userId } = args[0] as { userId: string };
                 return {
-                    ...warehouseClientMock.credentials,
-                    userWarehouseCredentialsUuid: `cred-${userId}`,
+                    warehouseCredentials: {
+                        ...warehouseClientMock.credentials,
+                        userWarehouseCredentialsUuid: `cred-${userId}`,
+                    },
+                    aiAccessAudit: null,
                 };
             });
 
@@ -7215,9 +7255,10 @@ describe('ProjectService', () => {
             vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
-                'getWarehouseCredentials',
+                'getWarehouseCredentialsWithConnection',
             ).mockImplementation(async () => ({
-                ...warehouseClientMock.credentials,
+                warehouseCredentials: warehouseClientMock.credentials,
+                aiAccessAudit: null,
             }));
 
             const cacheKeyLookups: string[] = [];
@@ -14045,6 +14086,367 @@ describe('Snowflake AI query credentials', () => {
                 activeRestrictedSessionScopes: null,
             });
     });
+    const snowflake = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'test-account',
+        warehouse: 'test-warehouse',
+        database: 'test-db',
+        schema: 'test-schema',
+        authenticationType: SnowflakeAuthenticationType.SSO,
+        requireUserCredentials: true,
+    } as CreateWarehouseCredentials;
+    it('classifies a data app warehouse query before credential selection', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const appContext = vi
+            .spyOn(winston, 'getAppContext')
+            .mockReturnValue({ app_uuid: 'app-uuid' });
+        const route = vi
+            .spyOn(projectModel, 'resolveWarehouseCredentialReadWithRoute')
+            .mockResolvedValue({
+                route: 'single',
+                target: { kind: 'original' },
+                originalWarehouseConnectionUuid: null,
+            });
+        const getSingleRouteWarehouseCredentials = vi
+            .spyOn(
+                service as unknown as {
+                    getSingleRouteWarehouseCredentials: (
+                        ...args: unknown[]
+                    ) => Promise<{
+                        credentials: CreateWarehouseCredentials;
+                        aiAccessAudit: null;
+                    }>;
+                },
+                'getSingleRouteWarehouseCredentials',
+            )
+            .mockResolvedValue({ credentials: snowflake, aiAccessAudit: null });
+        try {
+            await (
+                service as unknown as {
+                    getWarehouseCredentialsWithConnection: (args: {
+                        projectUuid: string;
+                        binding: { kind: 'original' };
+                        userId: string;
+                        isRegisteredUser: boolean;
+                        context: QueryExecutionContext;
+                    }) => Promise<unknown>;
+                }
+            ).getWarehouseCredentialsWithConnection({
+                projectUuid: projectSummary.projectUuid,
+                binding: { kind: 'original' },
+                userId: 'user-uuid',
+                isRegisteredUser: true,
+                context: QueryExecutionContext.CHART,
+            });
+            expect(getSingleRouteWarehouseCredentials).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.DATA_APP,
+                }),
+            );
+        } finally {
+            getSingleRouteWarehouseCredentials.mockRestore();
+            route.mockRestore();
+            appContext.mockRestore();
+        }
+    });
+
+    it('keeps data app credentials unchanged when restrictions are off', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: false })),
+            } as unknown as FeatureFlagModel,
+        });
+        const identity = await (
+            service as unknown as {
+                resolveAiAccessIdentity: (args: {
+                    projectUuid: string;
+                    userId: string;
+                    isRegisteredUser: boolean;
+                    isServiceAccount: boolean;
+                    context: QueryExecutionContext;
+                    credentials: CreateWarehouseCredentials;
+                }) => Promise<unknown>;
+            }
+        ).resolveAiAccessIdentity({
+            projectUuid: projectSummary.projectUuid,
+            userId: 'user-uuid',
+            isRegisteredUser: true,
+            isServiceAccount: false,
+            context: QueryExecutionContext.DATA_APP_SAMPLE,
+            credentials: snowflake,
+        });
+        expect(identity).toBeNull();
+    });
+    it.each([
+        [QueryExecutionContext.AI, 'ai_agent'],
+        [QueryExecutionContext.AI, 'slack_agent'],
+        [QueryExecutionContext.MCP_RUN_METRIC_QUERY, 'mcp'],
+        [QueryExecutionContext.MCP_SEARCH_FIELD_VALUES, 'mcp'],
+        [QueryExecutionContext.DATA_APP_SAMPLE, 'data_app'],
+        [QueryExecutionContext.DATA_APP, 'data_app'],
+    ] as const)(
+        'audits a missing Snowflake AI sign-in for %s on %s',
+        async (context, aiSurface) => {
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                } as unknown as FeatureFlagModel,
+            });
+            const getRestrictions = vi
+                .spyOn(projectModel, 'getAiAccessRestrictions')
+                .mockResolvedValue(true);
+            const audit = vi
+                .spyOn(winston, 'logAuditEvent')
+                .mockImplementation(vi.fn());
+            const findAiCredentialWithSecrets = vi.fn(async () => undefined);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findAiCredentialWithSecrets: typeof findAiCredentialWithSecrets;
+                    };
+                }
+            ).userWarehouseCredentialsModel = { findAiCredentialWithSecrets };
+            try {
+                await expect(
+                    (
+                        service as unknown as {
+                            resolveAiAccessIdentity: (args: {
+                                projectUuid: string;
+                                userId: string;
+                                isRegisteredUser: boolean;
+                                isServiceAccount: boolean;
+                                context: QueryExecutionContext;
+                                credentials: CreateWarehouseCredentials;
+                                aiSurface: typeof aiSurface;
+                            }) => Promise<unknown>;
+                        }
+                    ).resolveAiAccessIdentity({
+                        projectUuid: projectSummary.projectUuid,
+                        userId: 'user-uuid',
+                        isRegisteredUser: true,
+                        isServiceAccount: false,
+                        context,
+                        credentials: snowflake,
+                        aiSurface,
+                    }),
+                ).rejects.toThrow(
+                    'Connect Snowflake for AI to use AI in this project. Open My warehouse connections and sign in to Snowflake for AI.',
+                );
+                expect(audit).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        action: 'ai_access.query_refused',
+                        status: 'denied',
+                        resource: expect.objectContaining({
+                            projectUuid: projectSummary.projectUuid,
+                            metadata: {
+                                reason: 'no_ai_sign_in',
+                                surface: aiSurface,
+                                warehouseType: WarehouseTypes.SNOWFLAKE,
+                            },
+                        }),
+                    }),
+                );
+            } finally {
+                audit.mockRestore();
+                getRestrictions.mockRestore();
+            }
+        },
+    );
+    it.each(
+        [QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL].flatMap(
+            (context) =>
+                [true, false].flatMap((restrictionsEnabled) =>
+                    [true, false].flatMap((projectSettingEnabled) =>
+                        [true, false].flatMap((signInEnabled) =>
+                            [true, false].map((hasAiCredential) => ({
+                                context,
+                                restrictionsEnabled,
+                                projectSettingEnabled,
+                                signInEnabled,
+                                hasAiCredential,
+                            })),
+                        ),
+                    ),
+                ),
+        ),
+    )(
+        'routes raw SQL by restrictions for $context flag=$restrictionsEnabled setting=$projectSettingEnabled sign-in=$signInEnabled credential=$hasAiCredential',
+        async ({
+            context,
+            restrictionsEnabled,
+            projectSettingEnabled,
+            signInEnabled,
+            hasAiCredential,
+        }) => {
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        enabled:
+                            featureFlagId === FeatureFlags.AiAccessRestrictions
+                                ? restrictionsEnabled
+                                : signInEnabled,
+                    })),
+                } as unknown as FeatureFlagModel,
+            });
+            const getRestrictions = vi
+                .spyOn(projectModel, 'getAiAccessRestrictions')
+                .mockResolvedValue(projectSettingEnabled);
+            const findAiCredentialWithSecrets = vi.fn(async () =>
+                hasAiCredential
+                    ? ({
+                          uuid: 'ai-credential',
+                          credentials: snowflake,
+                      } as UserWarehouseCredentialsWithSecrets)
+                    : undefined,
+            );
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findAiCredentialWithSecrets: typeof findAiCredentialWithSecrets;
+                    };
+                }
+            ).userWarehouseCredentialsModel = { findAiCredentialWithSecrets };
+            (
+                service as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        credentials: CreateWarehouseCredentials,
+                    ) => Promise<CreateWarehouseCredentials>;
+                }
+            ).refreshCredentialsAndPersistRotation = async (credentials) =>
+                credentials;
+            const resolve = () =>
+                (
+                    service as unknown as {
+                        resolveAiAccessIdentity: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            isServiceAccount: boolean;
+                            context: QueryExecutionContext;
+                            credentials: CreateWarehouseCredentials;
+                            rawSql?: boolean;
+                        }) => Promise<unknown>;
+                    }
+                ).resolveAiAccessIdentity({
+                    projectUuid: projectSummary.projectUuid,
+                    userId: 'user-uuid',
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                    context,
+                    credentials: snowflake,
+                    ...(context === QueryExecutionContext.AI
+                        ? { rawSql: true }
+                        : {}),
+                });
+            try {
+                const restricted = restrictionsEnabled && projectSettingEnabled;
+                if (restricted && signInEnabled && hasAiCredential) {
+                    await expect(resolve()).resolves.toMatchObject({
+                        credentials: {
+                            requireAgentSession: true,
+                        },
+                    });
+                } else if (restricted) {
+                    await expect(resolve()).rejects.toBeInstanceOf(
+                        AiAccessRestrictionsError,
+                    );
+                } else {
+                    await expect(resolve()).resolves.toBeNull();
+                }
+                expect(findAiCredentialWithSecrets).toHaveBeenCalledTimes(
+                    restricted && signInEnabled ? 1 : 0,
+                );
+            } finally {
+                getRestrictions.mockRestore();
+            }
+        },
+    );
+
+    it.each(['streamSqlQueryIntoFile', 'pivotQueryWorkerTask'] as const)(
+        'passes AI context and raw SQL to credential resolution in %s',
+        async (method) => {
+            const service = getMockedProjectService(lightdashConfigMock);
+            const resolveCredentials = vi
+                .fn()
+                .mockRejectedValue(new AiAccessRestrictionsError());
+            (
+                service as unknown as {
+                    getWarehouseCredentialsWithConnection: typeof resolveCredentials;
+                }
+            ).getWarehouseCredentialsWithConnection = resolveCredentials;
+
+            await expect(
+                service[method]({
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid: projectSummary.projectUuid,
+                    userUuid: 'user-uuid',
+                    context: QueryExecutionContext.AI,
+                    sql: 'SELECT 1',
+                    indexColumn: {
+                        reference: 'id',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    valuesColumns: [],
+                    groupByColumns: [],
+                    sortBy: [],
+                }),
+            ).rejects.toBeInstanceOf(AiAccessRestrictionsError);
+            expect(resolveCredentials).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    rawSql: true,
+                }),
+            );
+        },
+    );
+
+    it('refuses a restricted Snowflake metric query without an AI sign-in', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getRestrictions = vi
+            .spyOn(projectModel, 'getAiAccessRestrictions')
+            .mockResolvedValue(true);
+        const findAiCredentialWithSecrets = vi.fn(async () => undefined);
+        (
+            service as unknown as {
+                userWarehouseCredentialsModel: {
+                    findAiCredentialWithSecrets: typeof findAiCredentialWithSecrets;
+                };
+            }
+        ).userWarehouseCredentialsModel = { findAiCredentialWithSecrets };
+        try {
+            await expect(
+                (
+                    service as unknown as {
+                        resolveAiAccessIdentity: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            isServiceAccount: boolean;
+                            context: QueryExecutionContext;
+                            credentials: CreateWarehouseCredentials;
+                        }) => Promise<unknown>;
+                    }
+                ).resolveAiAccessIdentity({
+                    projectUuid: projectSummary.projectUuid,
+                    userId: 'user-uuid',
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                    context: QueryExecutionContext.AI,
+                    credentials: snowflake,
+                }),
+            ).rejects.toThrow(
+                'Connect Snowflake for AI to use AI in this project.',
+            );
+            expect(findAiCredentialWithSecrets).toHaveBeenCalledOnce();
+        } finally {
+            getRestrictions.mockRestore();
+        }
+    });
+
     it.each([true, false, 'error'] as const)(
         'checks a refreshed AI token before persistence when activation is %s',
         async (activation) => {
@@ -14129,15 +14531,6 @@ describe('Snowflake AI query credentials', () => {
         },
     );
 
-    const snowflake = {
-        type: WarehouseTypes.SNOWFLAKE,
-        account: 'test-account',
-        warehouse: 'test-warehouse',
-        database: 'test-db',
-        schema: 'test-schema',
-        authenticationType: SnowflakeAuthenticationType.SSO,
-        requireUserCredentials: true,
-    } as CreateWarehouseCredentials;
     const defaultCredential = {
         uuid: 'default-credential',
         credentials: {
@@ -14155,9 +14548,279 @@ describe('Snowflake AI query credentials', () => {
         },
     } as UserWarehouseCredentialsWithSecrets;
 
+    it('explains when Snowflake for AI is not set up and audits the refusal', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    enabled:
+                        featureFlagId === FeatureFlags.AiAccessRestrictions,
+                })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getRestrictions = vi
+            .spyOn(projectModel, 'getAiAccessRestrictions')
+            .mockResolvedValue(true);
+        const audit = vi
+            .spyOn(winston, 'logAuditEvent')
+            .mockImplementation(vi.fn());
+        try {
+            await expect(
+                (
+                    service as unknown as {
+                        resolveAiAccessIdentity: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            isServiceAccount: boolean;
+                            context: QueryExecutionContext;
+                            credentials: CreateWarehouseCredentials;
+                        }) => Promise<unknown>;
+                    }
+                ).resolveAiAccessIdentity({
+                    projectUuid: projectSummary.projectUuid,
+                    userId: 'user-uuid',
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                    context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                    credentials: snowflake,
+                }),
+            ).rejects.toThrow(
+                'AI access restrictions are on, but Snowflake for AI is not set up. Ask an admin to set it up.',
+            );
+            expect(audit).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    status: 'denied',
+                    resource: expect.objectContaining({
+                        metadata: expect.objectContaining({
+                            reason: 'ai_sign_in_not_set_up',
+                            surface: 'mcp',
+                        }),
+                    }),
+                }),
+            );
+        } finally {
+            audit.mockRestore();
+            getRestrictions.mockRestore();
+        }
+    });
+
+    it('audits a rejected Snowflake agent session', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getRestrictions = vi
+            .spyOn(projectModel, 'getAiAccessRestrictions')
+            .mockResolvedValue(true);
+        const audit = vi
+            .spyOn(winston, 'logAuditEvent')
+            .mockImplementation(vi.fn());
+        const warn = vi.spyOn(
+            (
+                service as unknown as {
+                    logger: { warn: (...args: unknown[]) => void };
+                }
+            ).logger,
+            'warn',
+        );
+        const findAiCredentialWithSecrets = vi.fn(async () => aiCredential);
+        (
+            service as unknown as {
+                userWarehouseCredentialsModel: {
+                    findAiCredentialWithSecrets: typeof findAiCredentialWithSecrets;
+                };
+            }
+        ).userWarehouseCredentialsModel = { findAiCredentialWithSecrets };
+        const refresh = vi.fn(
+            async (credentials: CreateWarehouseCredentials) => credentials,
+        );
+        (
+            service as unknown as {
+                refreshCredentialsAndPersistRotation: typeof refresh;
+            }
+        ).refreshCredentialsAndPersistRotation = refresh;
+        try {
+            const identity = await (
+                service as unknown as {
+                    resolveAiAccessIdentity: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                        isServiceAccount: boolean;
+                        context: QueryExecutionContext;
+                        credentials: CreateWarehouseCredentials;
+                    }) => Promise<{
+                        credentials: CreateWarehouseCredentials;
+                        aiAccessAudit: {
+                            organizationUuid: string;
+                            userUuid: string;
+                            surface: string;
+                        };
+                    }>;
+                }
+            ).resolveAiAccessIdentity({
+                projectUuid: projectSummary.projectUuid,
+                userId: 'user-uuid',
+                isRegisteredUser: true,
+                isServiceAccount: false,
+                context: QueryExecutionContext.AI,
+                credentials: snowflake,
+            });
+            expect(identity.aiAccessAudit).toEqual({
+                organizationUuid: projectSummary.organizationUuid,
+                userUuid: 'user-uuid',
+                surface: 'ai_agent',
+            });
+            expect(Object.getOwnPropertySymbols(identity.credentials)).toEqual(
+                [],
+            );
+            const client = (
+                service as unknown as {
+                    withSharedSignInAttribution: <T extends object>(
+                        projectUuid: string,
+                        credentials: CreateWarehouseCredentials,
+                        client: T,
+                        aiAccessAudit: {
+                            organizationUuid: string;
+                            userUuid: string;
+                            surface: string;
+                        } | null,
+                    ) => T;
+                }
+            ).withSharedSignInAttribution(
+                projectSummary.projectUuid,
+                identity.credentials,
+                {
+                    runQuery: async () => {
+                        throw new ForbiddenError(
+                            SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
+                        );
+                    },
+                },
+                identity.aiAccessAudit,
+            );
+            await expect(client.runQuery()).rejects.toBeInstanceOf(
+                ForbiddenError,
+            );
+            expect(warn).toHaveBeenCalledWith('AI access query refused', {
+                projectUuid: projectSummary.projectUuid,
+                userUuid: 'user-uuid',
+                reason: 'agent_session_rejected',
+                surface: 'ai_agent',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            expect(audit).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    action: 'ai_access.query_refused',
+                    status: 'denied',
+                    resource: expect.objectContaining({
+                        metadata: {
+                            reason: 'agent_session_rejected',
+                            surface: 'ai_agent',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                        },
+                    }),
+                }),
+            );
+        } finally {
+            warn.mockRestore();
+            audit.mockRestore();
+            getRestrictions.mockRestore();
+        }
+    });
+
+    it.each([
+        [QueryExecutionContext.AI, 'ai_agent'],
+        [QueryExecutionContext.AI, 'slack_agent'],
+        [QueryExecutionContext.MCP_RUN_METRIC_QUERY, 'mcp'],
+        [QueryExecutionContext.MCP_SEARCH_FIELD_VALUES, 'mcp'],
+        [QueryExecutionContext.DATA_APP_SAMPLE, 'data_app'],
+        [QueryExecutionContext.DATA_APP, 'data_app'],
+    ] as const)(
+        'uses only the AI sign-in for %s on %s with a password project',
+        async (context, aiSurface) => {
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                } as unknown as FeatureFlagModel,
+            });
+            const getRestrictions = vi
+                .spyOn(projectModel, 'getAiAccessRestrictions')
+                .mockResolvedValue(true);
+            const findAiCredentialWithSecrets = vi.fn(async () => aiCredential);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findAiCredentialWithSecrets: typeof findAiCredentialWithSecrets;
+                    };
+                }
+            ).userWarehouseCredentialsModel = { findAiCredentialWithSecrets };
+            const refresh = vi.fn(
+                async (credentials: CreateWarehouseCredentials) => credentials,
+            );
+            (
+                service as unknown as {
+                    refreshCredentialsAndPersistRotation: typeof refresh;
+                }
+            ).refreshCredentialsAndPersistRotation = refresh;
+            try {
+                const identity = await (
+                    service as unknown as {
+                        resolveAiAccessIdentity: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            isServiceAccount: boolean;
+                            context: QueryExecutionContext;
+                            credentials: CreateWarehouseCredentials;
+                            aiSurface: typeof aiSurface;
+                        }) => Promise<{
+                            credentials: CreateSnowflakeCredentials;
+                        }>;
+                    }
+                ).resolveAiAccessIdentity({
+                    projectUuid: projectSummary.projectUuid,
+                    userId: 'user-uuid',
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                    context,
+                    credentials: {
+                        ...snowflake,
+                        authenticationType:
+                            SnowflakeAuthenticationType.PASSWORD,
+                        password: 'dashboard-secret',
+                    } as CreateWarehouseCredentials,
+                    aiSurface,
+                });
+                expect(identity.credentials).toMatchObject({
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    refreshToken: 'ai-refresh',
+                    requireAgentSession: true,
+                });
+                expect(identity.credentials).not.toHaveProperty('password');
+                expect(refresh).toHaveBeenCalledWith(
+                    expect.objectContaining({ refreshToken: 'ai-refresh' }),
+                    'user-uuid',
+                    expect.objectContaining({
+                        purpose: UserWarehouseCredentialPurpose.AI,
+                    }),
+                );
+            } finally {
+                getRestrictions.mockRestore();
+            }
+        },
+    );
+
     it.each([
         [QueryExecutionContext.AI, true, true, 'ai-refresh', true],
-        [QueryExecutionContext.MCP_RUN_SQL, true, true, 'ai-refresh', true],
+        [
+            QueryExecutionContext.MCP_RUN_SQL,
+            true,
+            true,
+            'default-refresh',
+            false,
+        ],
         [QueryExecutionContext.AI, false, true, 'default-refresh', false],
         [QueryExecutionContext.AI, true, false, 'default-refresh', false],
         [QueryExecutionContext.EXPLORE, true, true, 'default-refresh', false],
@@ -14223,6 +14886,7 @@ describe('Snowflake AI query credentials', () => {
                             userId: string;
                             isRegisteredUser: boolean;
                             context?: QueryExecutionContext;
+                            rawSql?: boolean;
                         }) => Promise<{
                             warehouseCredentials: CreateWarehouseCredentials;
                         }>;
@@ -14233,6 +14897,7 @@ describe('Snowflake AI query credentials', () => {
                     userId: 'user-uuid',
                     isRegisteredUser: true,
                     context,
+                    rawSql: context === QueryExecutionContext.MCP_RUN_SQL,
                 });
                 expect(resolved.warehouseCredentials).toMatchObject({
                     token: 'access-token',
@@ -14253,11 +14918,7 @@ describe('Snowflake AI query credentials', () => {
                 expect(
                     credentialModel.findAiCredentialWithSecrets,
                 ).toHaveBeenCalledTimes(
-                    (context === QueryExecutionContext.AI ||
-                        context === QueryExecutionContext.MCP_RUN_SQL) &&
-                        flagEnabled
-                        ? 1
-                        : 0,
+                    context === QueryExecutionContext.AI && flagEnabled ? 1 : 0,
                 );
             } finally {
                 getProjectCredentials.mockRestore();
@@ -14327,5 +14988,342 @@ describe('Snowflake AI query credentials', () => {
         } finally {
             getProjectCredentials.mockRestore();
         }
+    });
+});
+
+describe('AI access restrictions setting', () => {
+    beforeEach(() => {
+        projectModel.updateAiAccessRestrictions.mockClear();
+    });
+
+    it.each([
+        [QueryExecutionContext.SQL_RUNNER, true, true],
+        [QueryExecutionContext.AI, false, true],
+        [QueryExecutionContext.AI, true, false],
+    ])(
+        'keeps credentials unchanged for context %s with flag %s and setting %s',
+        async (context, flagEnabled, settingEnabled) => {
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: flagEnabled })),
+                } as unknown as FeatureFlagModel,
+            });
+            const getRestrictions = vi
+                .spyOn(projectModel, 'getAiAccessRestrictions')
+                .mockResolvedValue(settingEnabled);
+            try {
+                await expect(
+                    (
+                        service as unknown as {
+                            resolveAiAccessIdentity: (args: {
+                                projectUuid: string;
+                                userId: string;
+                                isRegisteredUser: boolean;
+                                isServiceAccount: boolean;
+                                context: QueryExecutionContext;
+                                credentials: CreateWarehouseCredentials;
+                                rawSql: boolean;
+                            }) => Promise<unknown>;
+                        }
+                    ).resolveAiAccessIdentity({
+                        projectUuid: projectSummary.projectUuid,
+                        userId: 'user-uuid',
+                        isRegisteredUser: true,
+                        isServiceAccount: false,
+                        context,
+                        credentials: {
+                            type: WarehouseTypes.POSTGRES,
+                            requireUserCredentials: true,
+                        } as CreateWarehouseCredentials,
+                        rawSql: true,
+                    }),
+                ).resolves.toBeNull();
+            } finally {
+                getRestrictions.mockRestore();
+            }
+        },
+    );
+
+    it('returns and updates the setting when the flag and permission allow it', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const getRestrictions = vi
+            .spyOn(projectModel, 'getAiAccessRestrictions')
+            .mockResolvedValue(true);
+        try {
+            await expect(
+                service.getAiAccessRestrictions(
+                    developerAccount as Parameters<
+                        ProjectService['getAiAccessRestrictions']
+                    >[0],
+                    projectSummary.projectUuid,
+                ),
+            ).resolves.toEqual({ enabled: true });
+            await service.updateAiAccessRestrictions(
+                developerAccount as Parameters<
+                    ProjectService['updateAiAccessRestrictions']
+                >[0],
+                projectSummary.projectUuid,
+                { enabled: false },
+            );
+            expect(
+                projectModel.updateAiAccessRestrictions,
+            ).toHaveBeenCalledWith(projectSummary.projectUuid, false);
+        } finally {
+            getRestrictions.mockRestore();
+        }
+    });
+
+    it('uses the Snowflake AI sign-in on an extra connection', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        const credentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            requireUserCredentials: false,
+        } as CreateWarehouseCredentials;
+        const findForProjectWithSecrets = vi.fn();
+        (
+            service as unknown as {
+                userWarehouseCredentialsModel: {
+                    findForProjectWithSecrets: typeof findForProjectWithSecrets;
+                    findAiCredentialWithSecrets: typeof findForProjectWithSecrets;
+                };
+            }
+        ).userWarehouseCredentialsModel = {
+            findForProjectWithSecrets,
+            findAiCredentialWithSecrets: vi.fn(async () => ({
+                uuid: 'ai-credential',
+                credentials,
+            })),
+        };
+        const refresh = vi.fn(async () => credentials);
+        (
+            service as unknown as {
+                refreshCredentialsAndPersistRotation: typeof refresh;
+            }
+        ).refreshCredentialsAndPersistRotation = refresh;
+        const warehouseConnectionModel = Reflect.get(
+            service,
+            'warehouseConnectionModel',
+        ) as unknown as Record<string, unknown>;
+        Object.assign(warehouseConnectionModel, {
+            getProject: vi.fn(async () => ({
+                projectUuid: projectSummary.projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+            })),
+            getExtraCredentialSource: vi.fn(async () => ({
+                credentials,
+                organizationWarehouseCredentialsUuid: null,
+            })),
+        });
+        const getRestrictions = vi
+            .spyOn(projectModel, 'getAiAccessRestrictions')
+            .mockResolvedValue(true);
+        const getProjectCredentials = vi
+            .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+            .mockResolvedValue(credentials);
+        const route = vi
+            .spyOn(projectModel, 'resolveWarehouseCredentialReadWithRoute')
+            .mockResolvedValue({
+                route: 'multi',
+                target: {
+                    kind: 'extra',
+                    warehouseConnectionUuid: 'extra-uuid',
+                },
+                originalWarehouseConnectionUuid: null,
+            });
+        try {
+            const result = await (
+                service as unknown as {
+                    getWarehouseCredentialsWithConnection: (args: {
+                        projectUuid: string;
+                        binding: {
+                            kind: 'connection';
+                            warehouseConnectionUuid: string;
+                        };
+                        userId: string;
+                        isRegisteredUser: boolean;
+                        context: QueryExecutionContext;
+                    }) => Promise<{
+                        warehouseCredentials: CreateWarehouseCredentials;
+                    }>;
+                }
+            ).getWarehouseCredentialsWithConnection({
+                projectUuid: projectSummary.projectUuid,
+                binding: {
+                    kind: 'connection',
+                    warehouseConnectionUuid: 'extra-uuid',
+                },
+                userId: 'user-uuid',
+                isRegisteredUser: true,
+                context: QueryExecutionContext.AI,
+            });
+            expect(result.warehouseCredentials).toMatchObject({
+                requireAgentSession: true,
+                userWarehouseCredentialsUuid: 'ai-credential',
+            });
+            expect(findForProjectWithSecrets).not.toHaveBeenCalled();
+        } finally {
+            getRestrictions.mockRestore();
+            getProjectCredentials.mockRestore();
+            route.mockRestore();
+            delete warehouseConnectionModel.getProject;
+            delete warehouseConnectionModel.getExtraCredentialSource;
+        }
+    });
+
+    it.each([
+        ['original', { kind: 'original' } as const],
+        [
+            'extra',
+            {
+                kind: 'connection',
+                warehouseConnectionUuid: 'extra-uuid',
+            } as const,
+        ],
+    ])(
+        'refuses an AI field value query on the %s route without falling back',
+        async (_, binding) => {
+            const service = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                } as unknown as FeatureFlagModel,
+            });
+            const credentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                requireUserCredentials: false,
+            } as CreateWarehouseCredentials;
+            const findForProjectWithSecrets = vi.fn();
+            const findAiCredentialWithSecrets = vi.fn(async () => undefined);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: typeof findForProjectWithSecrets;
+                        findAiCredentialWithSecrets: typeof findAiCredentialWithSecrets;
+                    };
+                }
+            ).userWarehouseCredentialsModel = {
+                findForProjectWithSecrets,
+                findAiCredentialWithSecrets,
+            };
+            const warehouseConnectionModel = Reflect.get(
+                service,
+                'warehouseConnectionModel',
+            ) as unknown as Record<string, unknown>;
+            Object.assign(warehouseConnectionModel, {
+                getProject: vi.fn(async () => ({
+                    projectUuid: projectSummary.projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                })),
+                getExtraCredentialSource: vi.fn(async () => ({
+                    credentials,
+                    organizationWarehouseCredentialsUuid: null,
+                })),
+            });
+            const getRestrictions = vi
+                .spyOn(projectModel, 'getAiAccessRestrictions')
+                .mockResolvedValue(true);
+            const getProjectCredentials = vi
+                .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+                .mockResolvedValue(credentials);
+            const route = vi
+                .spyOn(projectModel, 'resolveWarehouseCredentialReadWithRoute')
+                .mockResolvedValue({
+                    route: binding.kind === 'original' ? 'single' : 'multi',
+                    target:
+                        binding.kind === 'original'
+                            ? { kind: 'original' }
+                            : {
+                                  kind: 'extra',
+                                  warehouseConnectionUuid: 'extra-uuid',
+                              },
+                    originalWarehouseConnectionUuid: null,
+                });
+            try {
+                await expect(
+                    (
+                        service as unknown as {
+                            getWarehouseCredentialsWithConnection: (args: {
+                                projectUuid: string;
+                                binding: typeof binding;
+                                userId: string;
+                                isRegisteredUser: boolean;
+                                context: QueryExecutionContext;
+                            }) => Promise<unknown>;
+                        }
+                    ).getWarehouseCredentialsWithConnection({
+                        projectUuid: projectSummary.projectUuid,
+                        binding,
+                        userId: 'user-uuid',
+                        isRegisteredUser: true,
+                        context:
+                            binding.kind === 'original'
+                                ? QueryExecutionContext.AI
+                                : QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+                    }),
+                ).rejects.toThrow(AiAccessRestrictionsError);
+                expect(findAiCredentialWithSecrets).toHaveBeenCalledOnce();
+                expect(findForProjectWithSecrets).not.toHaveBeenCalled();
+            } finally {
+                getRestrictions.mockRestore();
+                getProjectCredentials.mockRestore();
+                route.mockRestore();
+                delete warehouseConnectionModel.getProject;
+                delete warehouseConnectionModel.getExtraCredentialSource;
+            }
+        },
+    );
+
+    it('reports disabled and refuses updates when the flag is off', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: false })),
+            } as unknown as FeatureFlagModel,
+        });
+        projectModel.getAiAccessRestrictions.mockResolvedValueOnce(true);
+        await expect(
+            service.getAiAccessRestrictions(
+                developerAccount as Parameters<
+                    ProjectService['getAiAccessRestrictions']
+                >[0],
+                projectSummary.projectUuid,
+            ),
+        ).resolves.toEqual({ enabled: false });
+        await expect(
+            service.updateAiAccessRestrictions(
+                developerAccount as Parameters<
+                    ProjectService['updateAiAccessRestrictions']
+                >[0],
+                projectSummary.projectUuid,
+                { enabled: true },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(projectModel.updateAiAccessRestrictions).not.toHaveBeenCalled();
+    });
+
+    it('requires project update permission', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: true })),
+            } as unknown as FeatureFlagModel,
+        });
+        await expect(
+            service.updateAiAccessRestrictions(
+                viewerAccount as Parameters<
+                    ProjectService['updateAiAccessRestrictions']
+                >[0],
+                projectSummary.projectUuid,
+                { enabled: true },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(projectModel.updateAiAccessRestrictions).not.toHaveBeenCalled();
     });
 });

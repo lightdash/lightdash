@@ -160,7 +160,10 @@ export enum QueryExecutionContext {
     COMPOSE_SQL_RUNNER = 'composeSqlRunner',
     MULTI_SOURCE_QUERY = 'multiSourceQuery',
     DATA_APP_SAMPLE = 'dataAppSample',
+    DATA_APP = 'dataApp',
 }
+
+export type AiAccessSurface = 'ai_agent' | 'slack_agent' | 'mcp' | 'data_app';
 
 export const isAiAccessQueryContext = (
     context: QueryExecutionContext,
@@ -168,4 +171,6 @@ export const isAiAccessQueryContext = (
     context === QueryExecutionContext.AI ||
     context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
     context === QueryExecutionContext.MCP_RUN_SQL ||
-    context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES;
+    context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES ||
+    context === QueryExecutionContext.DATA_APP_SAMPLE ||
+    context === QueryExecutionContext.DATA_APP;

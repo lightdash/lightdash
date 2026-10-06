@@ -1,5 +1,6 @@
 import type {
     Account,
+    AiAccessSurface,
     ParametersValuesMap,
     PivotConfiguration,
     QueryExecutionContext,
@@ -21,6 +22,7 @@ export type ScanSchemaArgs = {
  * required so a caller decides it explicitly; none of them defaults.
  */
 export type SourceQueryExecutionContext = {
+    aiSurface?: AiAccessSurface;
     /** Parameter values every node resolves its references against. */
     parameters: ParametersValuesMap;
     /**

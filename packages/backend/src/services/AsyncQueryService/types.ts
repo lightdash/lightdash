@@ -8,6 +8,7 @@ import {
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
+    type AiAccessSurface,
     type AndFilterGroup,
     type ApiExecuteAsyncMetricQueryResults,
     type CacheMetadata,
@@ -52,6 +53,7 @@ export type CommonAsyncQueryArgs = {
     invalidateCache?: boolean;
     usePreAggregateCache?: boolean;
     context: QueryExecutionContext;
+    aiSurface?: AiAccessSurface;
     parameters?: ParametersValuesMap;
     userAttributeOverrides?: UserAttributeValueMap;
 };
@@ -193,6 +195,7 @@ export type PreAggregationRoute = {
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
+    aiSurface?: AiAccessSurface;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
     warehouseConnectionUuid?: string | null;
@@ -294,6 +297,7 @@ export type RunAsyncWarehouseQueryArgs = {
     isServiceAccount?: boolean;
     onboardingFlow: OnboardingFlow;
     queryTags: RunQueryTags;
+    rawSql?: boolean;
     fieldsMap: ItemsMap;
     /** Resolved parameter values for this execution — interpolates parameter
      *  placeholders in column format expressions at column-build time. */

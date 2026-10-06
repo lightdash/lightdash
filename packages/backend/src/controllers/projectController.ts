@@ -1634,6 +1634,45 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         };
     }
 
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/aiAccessRestrictions')
+    @OperationId('getAiAccessRestrictions')
+    async getAiAccessRestrictions(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: { enabled: boolean } }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getAiAccessRestrictions(req.account, projectUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/aiAccessRestrictions')
+    @OperationId('updateAiAccessRestrictions')
+    async updateAiAccessRestrictions(
+        @Path() projectUuid: UUID,
+        @Body() body: { enabled: boolean },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateAiAccessRestrictions(req.account, projectUuid, body);
+        return { status: 'ok', results: undefined };
+    }
+
     /**
      * Update the agent SQL scope for a project
      * @summary Update agent SQL scope

@@ -172,6 +172,26 @@ const makeTool = ({
 };
 
 describe('getRunComposerQueries', () => {
+    it('keeps the warehouse query ID out of composer output and errors', async () => {
+        const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const original = await dependencies.runComposerQueries();
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...original,
+            warehouseQueryId,
+            terminal: { ...original.terminal, warehouseQueryId },
+        });
+        const output = await executeTool(tool, makeArgs());
+        expect(JSON.stringify(output)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(output)).not.toContain(warehouseQueryId);
+
+        dependencies.runComposerQueries.mockRejectedValueOnce(
+            new Error(`Snowflake query ${warehouseQueryId} failed`),
+        );
+        const failed = await executeTool(tool, makeArgs());
+        expect(JSON.stringify(failed)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(failed)).not.toContain(warehouseQueryId);
+    });
     it('runs the pipeline, stores a composer artifact and returns the terminal snapshot', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
 

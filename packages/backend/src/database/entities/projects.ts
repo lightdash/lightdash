@@ -49,6 +49,7 @@ export type DbProject = {
     results_cache_ttl_seconds: number | null;
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
+    ai_access_restrictions: boolean;
     playground_bundle_version: string | null;
 };
 
@@ -98,6 +99,7 @@ type UpdateDbProject = Partial<
         | 'results_cache_ttl_seconds'
         | 'provisioning_source'
         | 'agent_sql_scope'
+        | 'ai_access_restrictions'
         | 'playground_bundle_version'
     >
 >;

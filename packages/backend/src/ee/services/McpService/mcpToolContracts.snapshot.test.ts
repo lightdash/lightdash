@@ -136,7 +136,7 @@ const makeMcpService = (
         aiRouterService: {},
         aiWritebackService: {},
         analytics: {},
-        asyncQueryService: {},
+        asyncQueryService: { canUseAiRawSql: vi.fn(async () => true) },
         catalogService: {},
         contentService: {},
         contentVerificationService: {},

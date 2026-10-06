@@ -143,6 +143,19 @@ describe('isSnowflakeAgentActivatedValue', () => {
 });
 
 describe('SnowflakeWarehouseClient', () => {
+    it('does not pass Snowflake query IDs from driver errors to an agent session', () => {
+        const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            requireAgentSession: true,
+        });
+        const error = warehouse.parseError({
+            message: `Snowflake query ${warehouseQueryId} failed`,
+            code: 'COMPILATION',
+        } as never);
+        expect(error.message).toBe('Snowflake could not run this query.');
+        expect(JSON.stringify(error)).not.toContain(warehouseQueryId);
+    });
     beforeEach(() => {
         vi.clearAllMocks();
         executeMock.mockReset();

@@ -121,6 +121,27 @@ const makeTool = ({
 };
 
 describe('getRunSql', () => {
+    it('keeps the warehouse query ID out of SQL output and errors', async () => {
+        const warehouseQueryId = '01b2c3d4-0000-1234-0000-000000000abc';
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runSqlJob.mockResolvedValueOnce({
+            queryUuid: 'query-uuid',
+            warehouseQueryId,
+            rows: [{ answer: 1 }],
+            columns: ['answer'],
+            rowCount: 1,
+        });
+        const output = await executeRunSql(tool);
+        expect(JSON.stringify(output)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(output)).not.toContain(warehouseQueryId);
+
+        dependencies.runSqlJob.mockRejectedValueOnce(
+            new Error(`Snowflake query ${warehouseQueryId} failed`),
+        );
+        const failed = await executeRunSql(tool);
+        expect(JSON.stringify(failed)).not.toContain('warehouseQueryId');
+        expect(JSON.stringify(failed)).not.toContain(warehouseQueryId);
+    });
     it('auto-approves SQL without waiting for human approval', async () => {
         const { tool, dependencies } = makeTool({
             autoApproveSql: true,

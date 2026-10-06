@@ -218,7 +218,10 @@ import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
 import type { DocumentService } from '../../../services/DocumentService/DocumentService';
 import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
-import type { ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    AiAccessRestrictionsError,
+    type ProjectService,
+} from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -6746,6 +6749,7 @@ export class AppGenerateService extends BaseService {
                 });
             return { status: 'available', rows, truncated };
         } catch (error) {
+            if (error instanceof AiAccessRestrictionsError) throw error;
             this.logger.warn(
                 `Sample query failed for chart ${chartUuid}: ${getErrorMessage(error)}`,
             );

@@ -16,6 +16,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import Logger from '../../../../logging/logger';
+import { sanitizeSnowflakeQueryError } from '../../../../utils/sanitizeSnowflakeQueryError';
 import { serializeData } from './serializeData';
 import type { ExecuteToolErrorResult } from './structuredToolResult';
 
@@ -72,7 +73,7 @@ export const toolErrorHandler = (
 
     const errorMessage = `${message}
 
-${serializeData(getErrorMessage(error), 'raw')}
+${serializeData(sanitizeSnowflakeQueryError(getErrorMessage(error)), 'raw')}
 
 Try again if you believe the error can be resolved.
 `;

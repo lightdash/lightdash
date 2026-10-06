@@ -129,7 +129,12 @@ export const getSearchFieldValues = ({
 
                 return {
                     result:
-                        serializeData(results, 'json') +
+                        serializeData(
+                            Array.isArray(results)
+                                ? values
+                                : { results: values, note: results.note },
+                            'json',
+                        ) +
                         (resolved === null
                             ? ''
                             : `\nMatching value for ${JSON.stringify(args.query)}: ${JSON.stringify(resolved)}. Use the original field and filter operator.`) +

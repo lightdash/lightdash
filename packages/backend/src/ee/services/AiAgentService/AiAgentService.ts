@@ -165,6 +165,7 @@ import {
     validateAiAgentSkill,
     type AgentSuggestionTool,
     type AgentToolName,
+    type AiAccessSurface,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiAgentSkill,
@@ -294,7 +295,10 @@ import { DocumentService } from '../../../services/DocumentService/DocumentServi
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
-import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    AiAccessRestrictionsError,
+    ProjectService,
+} from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
@@ -11953,6 +11957,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
+            aiSurface: isSlackPrompt(prompt) ? 'slack_agent' : 'ai_agent',
             tags: runtimeAgentSettings.tags,
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
@@ -12877,6 +12882,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         fieldId,
         prompt,
         scope,
+        aiSurface,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -12884,6 +12890,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         fieldId: string;
         prompt: string;
         scope: AndFilterGroup | undefined;
+        aiSurface: AiAccessSurface;
     }): Promise<string[]> {
         const search = (term: string, limit: number) =>
             this.projectService
@@ -12899,6 +12906,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     undefined,
                     undefined,
                     QueryExecutionContext.AI,
+                    aiSurface,
                 )
                 .then(({ results }) =>
                     results.filter(
@@ -12907,6 +12915,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     ),
                 )
                 .catch((error) => {
+                    if (error instanceof AiAccessRestrictionsError) throw error;
                     Logger.warn(
                         `AI agent value search failed for ${fieldId}: ${getErrorMessage(error)}`,
                     );
@@ -13050,6 +13059,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     artifact,
                                     candidateFieldId,
                                 ),
+                                aiSurface: isSlackPrompt(prompt)
+                                    ? 'slack_agent'
+                                    : 'ai_agent',
                             });
                         const selected = await selectFilterValues({
                             decisions,
@@ -14137,6 +14149,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 )
             ) {
                 canRunSql = false;
+            }
+            if (canRunSql) {
+                canRunSql = await this.asyncQueryService.canUseAiRawSql(
+                    promptProject.projectUuid,
+                    user.userUuid,
+                );
             }
         }
 

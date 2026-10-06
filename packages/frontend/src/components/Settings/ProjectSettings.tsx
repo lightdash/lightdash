@@ -56,6 +56,7 @@ import ProjectPreviewExpiration from '../ProjectPreviewExpiration';
 import ProjectResultsCache from '../ProjectResultsCache';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsAgentDataScope from '../SettingsAgentDataScope';
+import { shouldShowAiAccessRestrictions } from '../SettingsAgentDataScope/aiAccessRestrictionsVisibility';
 import SettingsQueryTimezone from '../SettingsQueryTimezone';
 import SettingsScheduler from '../SettingsScheduler';
 import SettingsUsageAnalytics from '../SettingsUsageAnalytics';
@@ -119,6 +120,9 @@ const ProjectSettings: FC<{
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
         useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
+    const { data: aiAccessRestrictionsFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAccessRestrictions,
+    );
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageExternalConnections =
@@ -356,7 +360,16 @@ const ProjectSettings: FC<{
             },
             // Only registered when the instance has AI agents at all — same
             // gate as the AI agents navigation section.
-            ...(isAiCopilotEnabledOrTrial
+            ...(isAiCopilotEnabledOrTrial ||
+            shouldShowAiAccessRestrictions(
+                aiAccessRestrictionsFlag?.enabled ?? false,
+                !!project &&
+                    (user.data?.ability.can(
+                        'update',
+                        subject('Project', project),
+                    ) ??
+                        false),
+            )
                 ? [
                       {
                           path: `/agentDataScope`,
@@ -367,6 +380,16 @@ const ProjectSettings: FC<{
                               >
                                   <SettingsAgentDataScope
                                       projectUuid={projectUuid}
+                                      showAiAccessRestrictions={shouldShowAiAccessRestrictions(
+                                          aiAccessRestrictionsFlag?.enabled ??
+                                              false,
+                                          !!project &&
+                                              (user.data?.ability.can(
+                                                  'update',
+                                                  subject('Project', project),
+                                              ) ??
+                                                  false),
+                                      )}
                                   />
                               </ProjectSettingsPage>
                           ),
@@ -591,6 +614,8 @@ const ProjectSettings: FC<{
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
         canManageOrgAiAgent,
+        aiAccessRestrictionsFlag?.enabled,
+        project,
     ]);
     const routesElements = useRoutes(routes);
 
