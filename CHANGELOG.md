@@ -1,3 +1,10 @@
+# [2.443.0](https://github.com/lightdash/lightdash/compare/2.442.1...2.443.0) (2026-10-06)
+
+
+### Features
+
+* **documents:** compare a Document version with the current one ([#30440](https://github.com/lightdash/lightdash/issues/30440)) ([ab2a301](https://github.com/lightdash/lightdash/commit/ab2a301c214bcd490d5820a6825366e1ea5b093f))
+
 ## [2.442.1](https://github.com/lightdash/lightdash/compare/2.442.0...2.442.1) (2026-10-06)
 
 
