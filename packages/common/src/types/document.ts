@@ -138,9 +138,11 @@ export type UpdateDocumentMetadataRequest = {
     ownerUserUuid?: string | null;
 };
 
-export type DuplicateDocumentRequest = Pick<CreateDocumentRequest, 'name'> & {
-    spaceUuid: string;
-} & Partial<Pick<CreateDocumentRequest, 'description'>>;
+export type DuplicateDocumentRequest = Pick<
+    CreateDocumentRequest,
+    'name' | 'spaceUuid'
+> &
+    Partial<Pick<CreateDocumentRequest, 'description'>>;
 
 export type UpdateDocumentContentRequest = {
     baseVersionUuid: string;
