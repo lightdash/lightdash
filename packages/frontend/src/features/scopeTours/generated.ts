@@ -40,6 +40,14 @@ export type ScopeTourDefinition = {
     /** Frontend files whose markers produced the steps. */
     sources: string[];
     steps: ScopeTourStepDefinition[];
+    /**
+     * Other scopes this lesson teaches with the same controls
+     * (data-tour-covers). The library shows the lesson once, under this
+     * scope, and completing it completes every scope listed here.
+     */
+    covers?: string[];
+    /** The scope whose lesson this entry is a copy of; the library shows that one. */
+    coveredBy?: string;
 };
 
 export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
@@ -2337,6 +2345,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [],
             },
         ],
+        covers: ['view:ContentVerification'],
     },
     'view:CompiledSql': {
         scope: 'view:CompiledSql',
@@ -5513,6 +5522,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [],
             },
         ],
+        covers: ['manage:CustomSql'],
     },
     'view:ContentVerification': {
         scope: 'view:ContentVerification',
@@ -5605,6 +5615,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [],
             },
         ],
+        coveredBy: 'manage:ContentVerification',
     },
     'manage:CustomSql': {
         scope: 'manage:CustomSql',
@@ -5780,6 +5791,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [],
             },
         ],
+        coveredBy: 'manage:SqlRunner',
     },
     'docs:semantic-layer/metrics': {
         scope: 'docs:semantic-layer/metrics',

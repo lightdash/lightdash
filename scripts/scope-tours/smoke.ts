@@ -449,8 +449,11 @@ const main = async () => {
     const wanted = process.env.SMOKE_SCOPES?.split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-    const scopes = Object.keys(SCOPE_TOURS).filter(
-        (s) => !wanted || wanted.includes(s),
+    // A lesson that covers several scopes is one lesson: by default it runs
+    // once, under the scope it was declared on. Naming a covered scope in
+    // SMOKE_SCOPES still runs it under that name.
+    const scopes = Object.keys(SCOPE_TOURS).filter((s) =>
+        wanted ? wanted.includes(s) : SCOPE_TOURS[s].coveredBy === undefined,
     );
     if (THUMBNAIL_STEP !== null) {
         if (scopes.length === 0)

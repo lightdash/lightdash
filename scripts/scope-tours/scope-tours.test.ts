@@ -246,6 +246,12 @@ const run = async () => {
         assert.ok(covered, 'the taught viewer scope must have a runnable tour');
         assert.deepStrictEqual(covered.steps, primary.steps);
         assert.ok(covered.steps.some((step) => step.advanceOnTargetClick));
+        // Both entries say they are one lesson, so the library shows one
+        // card and a deep link to either scope finds the same tour.
+        assert.deepStrictEqual(primary.covers, ['view:PinnedItems']);
+        assert.strictEqual(primary.coveredBy, undefined);
+        assert.strictEqual(covered.coveredBy, 'manage:PinnedItems');
+        assert.strictEqual(covered.covers, undefined);
         assert.deepStrictEqual(
             checkTours(files).filter((f) => f.level === 'error'),
             [],

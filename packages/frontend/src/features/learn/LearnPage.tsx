@@ -36,6 +36,8 @@ import {
     GROUP_LABELS,
     GROUP_ORDER,
     holds,
+    isComplete,
+    isStarted,
     sortForLearner,
     type LearnModule,
 } from './catalogue';
@@ -64,9 +66,9 @@ const stateOf = (
     started: string[],
     completed: string[],
 ): CardState =>
-    module.available && completed.includes(module.scope)
+    module.available && isComplete(completed, module)
         ? 'done'
-        : module.available && started.includes(module.scope)
+        : module.available && isStarted(started, module)
           ? 'started'
           : 'ready';
 
@@ -275,9 +277,7 @@ const LearnPage: FC = () => {
             ? groups
             : groups.filter((group) => group === groupFilter);
     const available = catalogue.filter((m) => m.available);
-    const doneCount = available.filter((m) =>
-        completed.includes(m.scope),
-    ).length;
+    const doneCount = available.filter((m) => isComplete(completed, m)).length;
     // Training exists to teach what a learner cannot yet do, so the
     // recommendation is the first unfinished walkthrough, held-by-role ones
     // first (sortForRole), rather than nothing for a viewer.
@@ -327,10 +327,10 @@ const LearnPage: FC = () => {
                 // browser has ever recorded progress for.
                 moduleCount: available.length,
                 startedCount: available.filter((module) =>
-                    started.includes(module.scope),
+                    isStarted(started, module),
                 ).length,
                 completedCount: available.filter((module) =>
-                    completed.includes(module.scope),
+                    isComplete(completed, module),
                 ).length,
             },
         });

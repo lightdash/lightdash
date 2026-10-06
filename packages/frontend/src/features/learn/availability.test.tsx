@@ -63,6 +63,7 @@ describe('useLearnAvailability sandbox gate', () => {
             result.current.isOpen({
                 kind: 'scope',
                 scope: 'manage:LearnWorkspace',
+                scopes: ['manage:LearnWorkspace'],
                 title: '',
                 group: 'foundations',
                 gate: 'sandbox',
