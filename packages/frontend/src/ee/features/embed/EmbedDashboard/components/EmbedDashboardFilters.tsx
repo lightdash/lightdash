@@ -148,11 +148,7 @@ const EmbedDashboardFilters: FC<Props> = ({
                             }}
                             styles={{
                                 root: {
-                                    borderLeft: '0px',
-                                    borderStartStartRadius: '0px',
-                                    borderEndStartRadius: '0px',
-                                    borderStartEndRadius: '100px',
-                                    borderEndEndRadius: '100px',
+                                    borderRadius: '100px',
                                     borderStyle: 'dashed',
                                 },
                             }}
