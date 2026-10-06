@@ -104,7 +104,6 @@ import { AiThreadFileService } from './services/AiThreadFileService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
-import { createAppThumbnailSettings } from './services/AppGenerateService/appThumbnailSettings';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
@@ -610,6 +609,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         storage: new AppRuntimeThumbnailStorage({
                             lightdashConfig: context.lightdashConfig,
                         }),
+                        organizationSettingsModel:
+                            models.getOrganizationSettingsModel(),
                     }),
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,

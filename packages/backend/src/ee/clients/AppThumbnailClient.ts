@@ -9,12 +9,15 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     NotFoundError,
     ParameterError,
+    resolveEffectiveOrganizationSettings,
     type AppVersionStatus,
 } from '@lightdash/common';
 import { createObjectUrlSigner } from '../../clients/Aws/ObjectUrlSigner';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type DbApp, type DbAppVersion } from '../../database/entities/apps';
 import { type AppModel } from '../../models/AppModel';
+import { type OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
+import { getOrganizationSettingsInstanceDefaults } from '../../services/OrganizationSettingsService/getInstanceDefaults';
 import { type UnfurlService } from '../../services/UnfurlService/UnfurlService';
 import {
     createAppRuntimeS3,
@@ -62,6 +65,7 @@ export type AppThumbnailClientArgs = {
     >;
     unfurlService: Pick<UnfurlService, 'captureDataAppVersion'>;
     storage: AppThumbnailStorage;
+    organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
 };
 
 export type AppThumbnailCaptureSkipReason =
@@ -204,23 +208,32 @@ export class AppThumbnailClient {
 
     private readonly storage: AppThumbnailStorage;
 
+    private readonly organizationSettingsModel: AppThumbnailClientArgs['organizationSettingsModel'];
+
     constructor({
         lightdashConfig,
         appModel,
         unfurlService,
         storage,
+        organizationSettingsModel,
     }: AppThumbnailClientArgs) {
         this.lightdashConfig = lightdashConfig;
         this.appModel = appModel;
         this.unfurlService = unfurlService;
         this.storage = storage;
+        this.organizationSettingsModel = organizationSettingsModel;
     }
 
     /** Whether to enqueue a capture when a version of this app becomes ready. */
     async shouldCaptureAutomatically(
         app: Pick<ThumbnailApp, 'organizationUuid' | 'isCustomChartType'>,
     ): Promise<boolean> {
-        return this.uncapturableReason(app) === null;
+        if (this.uncapturableReason(app) !== null) return false;
+        const settings = resolveEffectiveOrganizationSettings(
+            await this.organizationSettingsModel.get(app.organizationUuid),
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+        );
+        return settings.dataAppAutomaticThumbnailsEnabled !== false;
     }
 
     /**
