@@ -288,10 +288,28 @@ describe('AiAccessService', () => {
                 ...policy,
                 principalKind: AiPrincipalKind.GROUP,
                 groupMappings: [
-                    { groupUuid: 'group', ref: 'ai_group', priority: 1 },
+                    {
+                        groupUuid: '44444444-4444-4444-8444-444444444444',
+                        ref: 'ai_group',
+                        priority: 1,
+                    },
                 ],
             }),
         ).rejects.toThrow(ParameterError);
+        expect(model.upsertPolicy).not.toHaveBeenCalled();
+    });
+    test('rejects a group mapping without a valid group uuid', async () => {
+        const { service, model, groups } = setup();
+        await expect(
+            service.upsertPolicy(account, 'project', null, {
+                ...policy,
+                principalKind: AiPrincipalKind.GROUP,
+                groupMappings: [
+                    { groupUuid: '', ref: 'ai_group', priority: 1 },
+                ],
+            }),
+        ).rejects.toThrow('A group mapping needs a group.');
+        expect(groups.getGroup).not.toHaveBeenCalled();
         expect(model.upsertPolicy).not.toHaveBeenCalled();
     });
     test('rejects duplicate group refs before writing', async () => {
@@ -300,7 +318,10 @@ describe('AiAccessService', () => {
             service.upsertPolicy(account, 'project', null, {
                 ...policy,
                 principalKind: AiPrincipalKind.GROUP,
-                groupMappings: ['a', 'b'].map((groupUuid) => ({
+                groupMappings: [
+                    '11111111-1111-4111-8111-111111111111',
+                    '22222222-2222-4222-8222-222222222222',
+                ].map((groupUuid) => ({
                     groupUuid,
                     ref: 'same',
                     priority: 1,
@@ -314,7 +335,10 @@ describe('AiAccessService', () => {
         const groupPolicy = {
             ...policy,
             principalKind: AiPrincipalKind.GROUP,
-            groupMappings: ['a', 'b'].map((groupUuid) => ({
+            groupMappings: [
+                '11111111-1111-4111-8111-111111111111',
+                '22222222-2222-4222-8222-222222222222',
+            ].map((groupUuid) => ({
                 groupUuid,
                 groupName: groupUuid,
                 ref: `ai_${groupUuid}`,
@@ -339,7 +363,10 @@ describe('AiAccessService', () => {
         provider.createSecret.mockResolvedValue(secret);
         await service.upsertPolicy(account, 'project', null, groupPolicy);
         expect(model.createPrincipal).toHaveBeenCalledTimes(2);
-        for (const groupUuid of ['a', 'b']) {
+        for (const groupUuid of [
+            '11111111-1111-4111-8111-111111111111',
+            '22222222-2222-4222-8222-222222222222',
+        ]) {
             expect(model.createPrincipal).toHaveBeenCalledWith({
                 aiAccessPolicyUuid: 'policy',
                 kind: AiPrincipalKind.GROUP,
@@ -658,23 +685,28 @@ describe('AiAccessService', () => {
     test('selects the highest group priority and uses names to break ties', async () => {
         const { service, model, groups } = setup();
         groups.findUserGroups.mockResolvedValue([
-            { uuid: 'a', name: 'Alpha' },
-            { uuid: 'b', name: 'Beta' },
-            { uuid: 'c', name: 'Charlie' },
+            { uuid: '11111111-1111-4111-8111-111111111111', name: 'Alpha' },
+            { uuid: '22222222-2222-4222-8222-222222222222', name: 'Beta' },
+            { uuid: '33333333-3333-4333-8333-333333333333', name: 'Charlie' },
         ]);
         model.findPolicy.mockResolvedValue({
             ...policy,
             principalKind: AiPrincipalKind.GROUP,
             groupMappings: [
                 {
-                    groupUuid: 'c',
+                    groupUuid: '33333333-3333-4333-8333-333333333333',
                     groupName: 'Charlie',
                     ref: 'low',
                     priority: 1,
                 },
-                { groupUuid: 'b', groupName: 'Beta', ref: 'beta', priority: 2 },
                 {
-                    groupUuid: 'a',
+                    groupUuid: '22222222-2222-4222-8222-222222222222',
+                    groupName: 'Beta',
+                    ref: 'beta',
+                    priority: 2,
+                },
+                {
+                    groupUuid: '11111111-1111-4111-8111-111111111111',
                     groupName: 'Alpha',
                     ref: 'alpha',
                     priority: 2,
