@@ -55,6 +55,23 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'AI identities')
 export class AiIdentityController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('accounts/{aiIdentityAccountUuid}/provisioning')
+    @OperationId('getAiIdentityProvisioningSettings')
+    async getProvisioningSettings(
+        @Path() aiIdentityAccountUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiAiIdentityProvisioningSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiIdentityService()
+                .getProvisioningSettings(req.account, aiIdentityAccountUuid),
+        };
+    }
+
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
