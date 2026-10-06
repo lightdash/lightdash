@@ -62,6 +62,7 @@ export type GetAsyncQueryResultsArgs = Omit<
 > &
     ResultsPaginationArgs & {
         queryUuid: string;
+        aiAccessOnly?: boolean;
     };
 
 export type DownloadAsyncQueryResultsArgs = Omit<

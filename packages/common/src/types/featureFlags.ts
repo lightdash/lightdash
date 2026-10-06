@@ -109,6 +109,12 @@ export enum FeatureFlags {
     EgressIpNotice = 'egress-ip-notice',
 
     /**
+     * AI access (in-app agent, Slack agent, MCP) skips the results cache,
+     * earlier results and pre-aggregates. Off by default; organization scope.
+     */
+    AiAccessSkipResultsCache = 'ai-access-skip-results-cache',
+
+    /**
      * Per-organization gate for declaring custom npm dependencies in data
      * apps. Disabled by default; self-hosted instances can enable it globally
      * via LIGHTDASH_ENABLE_FEATURE_FLAGS.

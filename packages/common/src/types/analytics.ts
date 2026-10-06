@@ -161,3 +161,11 @@ export enum QueryExecutionContext {
     MULTI_SOURCE_QUERY = 'multiSourceQuery',
     DATA_APP_SAMPLE = 'dataAppSample',
 }
+
+export const isAiAccessQueryContext = (
+    context: QueryExecutionContext,
+): boolean =>
+    context === QueryExecutionContext.AI ||
+    context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
+    context === QueryExecutionContext.MCP_RUN_SQL ||
+    context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES;
