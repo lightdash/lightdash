@@ -10537,6 +10537,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'chart',
         );
     }
 
@@ -10593,6 +10594,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'chart',
         );
     }
 
@@ -10647,6 +10649,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'chart',
         );
     }
 

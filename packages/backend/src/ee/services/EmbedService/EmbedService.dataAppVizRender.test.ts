@@ -612,6 +612,7 @@ describe('EmbedService data app viz rendering', () => {
             ok: true,
             payload: {
                 userUuid: 'embed-user-1',
+                viewContext: 'embed',
                 organizationUuid: ORGANIZATION_UUID,
                 projectUuid: PROJECT_UUID,
             },

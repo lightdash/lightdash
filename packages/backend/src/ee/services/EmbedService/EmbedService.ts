@@ -2046,6 +2046,7 @@ export class EmbedService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'embed',
         );
     }
 
@@ -2177,6 +2178,7 @@ export class EmbedService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'embed',
         );
     }
 

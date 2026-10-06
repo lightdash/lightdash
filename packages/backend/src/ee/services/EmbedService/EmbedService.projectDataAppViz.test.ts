@@ -410,6 +410,7 @@ describe('EmbedService project chart types', () => {
             payload: {
                 appUuid: DATA_APP_VIZ_UUID,
                 userUuid: 'embed-user-1',
+                viewContext: 'embed',
                 organizationUuid: ORGANIZATION_UUID,
                 projectUuid: PROJECT_UUID,
             },
