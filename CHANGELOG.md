@@ -1,3 +1,10 @@
+## [2.444.2](https://github.com/lightdash/lightdash/compare/2.444.1...2.444.2) (2026-10-06)
+
+
+### Bug Fixes
+
+* **learn:** the library shows a lesson once when it covers several permissions (CS-354) ([#30552](https://github.com/lightdash/lightdash/issues/30552)) ([44a1544](https://github.com/lightdash/lightdash/commit/44a15447d16eaf37a7aceffbb208468ef758e704)), closes [#30451](https://github.com/lightdash/lightdash/issues/30451)
+
 ## [2.444.1](https://github.com/lightdash/lightdash/compare/2.444.0...2.444.1) (2026-10-06)
 
 
