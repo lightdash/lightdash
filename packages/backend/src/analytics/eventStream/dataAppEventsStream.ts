@@ -38,6 +38,7 @@ export const dataAppEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'project_id', type: 'VARCHAR' },
     { name: 'app_id', type: 'VARCHAR' },
     { name: 'version', type: 'INTEGER' },
+    { name: 'view_context', type: 'VARCHAR' },
 ];
 
 const projectDataAppEvent = (payload: DataAppStreamEvent): ProjectionResult => {
@@ -49,6 +50,10 @@ const projectDataAppEvent = (payload: DataAppStreamEvent): ProjectionResult => {
             ...buildEnvelope(payload, properties.organizationId),
             project_id: properties.projectId,
             app_id: properties.appUuid,
+            view_context:
+                payload.event === 'data_app.view'
+                    ? (payload.properties.viewContext ?? null)
+                    : null,
             version:
                 payload.event === 'data_app.view' ||
                 payload.event === 'data_app.duplicated' ||

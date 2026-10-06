@@ -4,7 +4,6 @@ import { type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import path from 'path';
 import { validate as isValidUuid } from 'uuid';
-import type { DataAppReachEvent } from '../analytics/eventStream/dataAppReachStream';
 import { createS3ClientFromConfig } from '../clients/Aws/S3BaseClient';
 import {
     type AppRuntimeConfig,
@@ -125,7 +124,6 @@ export const createAppPreviewRouter = (
      */
     frameAncestors: string[],
     onPreviewView?: (payload: PreviewTokenPayload) => void,
-    onReachEvent?: (event: DataAppReachEvent) => void,
 ): Router => {
     const router = express.Router({ strict: true });
 
@@ -327,44 +325,6 @@ export const createAppPreviewRouter = (
         next();
     };
 
-    const recordReach = (
-        payload: PreviewTokenPayload,
-        viewId: string,
-        stage: 'load' | 'sdk_ready' | 'render_error',
-        outcome: 'served' | 'failed' | 'aborted' | null,
-        isReload: boolean | null,
-    ) => {
-        if (!payload.reach) return;
-        try {
-            onReachEvent?.({
-                event: 'data_app.reach',
-                userId:
-                    payload.reach.viewContext === 'embed'
-                        ? undefined
-                        : payload.userUuid,
-                properties: {
-                    ...payload.reach,
-                    organizationId: payload.organizationUuid,
-                    projectId: payload.projectUuid,
-                    appUuid: payload.appUuid,
-                    version: payload.version,
-                    eventId: `${viewId}:${stage}`,
-                    viewId,
-                    stage,
-                    outcome,
-                    isReload,
-                },
-            });
-        } catch {
-            Logger.warn('Failed to record data app reach');
-        }
-    };
-    const validViewId = (value: unknown): value is string =>
-        typeof value === 'string' &&
-        /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
-            value,
-        );
-
     // -- Routes ---------------------------------------------------------
 
     // Redirect to trailing slash so relative asset paths resolve correctly.
@@ -393,28 +353,6 @@ export const createAppPreviewRouter = (
                 .previewTokenPayload as PreviewTokenPayload;
             // Key off the token's version, not the URL's: it is the one the
             // middleware validated and the token authorises.
-            const viewId = req.query.usageViewId;
-            if (previewTokenPayload.reach && validViewId(viewId)) {
-                let recorded = false;
-                const record = (outcome: 'served' | 'failed' | 'aborted') => {
-                    if (recorded) return;
-                    recorded = true;
-                    recordReach(
-                        previewTokenPayload,
-                        viewId,
-                        'load',
-                        outcome,
-                        req.query.usageReload === 'true',
-                    );
-                };
-                res.once('finish', () =>
-                    record(res.statusCode < 400 ? 'served' : 'failed'),
-                );
-                res.once('close', () => {
-                    if (!res.writableFinished) record('aborted');
-                    else record(res.statusCode < 400 ? 'served' : 'failed');
-                });
-            }
             const s3Key = appVersionIndexHtmlKey(
                 previewTokenPayload.appUuid,
                 previewTokenPayload.version,
@@ -425,40 +363,6 @@ export const createAppPreviewRouter = (
                 res.setHeader('Cache-Control', 'no-store');
                 onPreviewView?.(previewTokenPayload);
             });
-        },
-    );
-
-    // The capability already scopes this endpoint to one actor/app/version.
-    router.post(
-        '/:appUuid/versions/:version/t/:token/reach',
-        requireToken,
-        express.text({ type: 'text/plain', limit: '1kb' }),
-        (req, res) => {
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Cache-Control', 'no-store');
-            let body: { viewId?: unknown; stage?: unknown };
-            try {
-                body = JSON.parse(req.body);
-            } catch {
-                res.sendStatus(400);
-                return;
-            }
-            if (
-                !body ||
-                !validViewId(body.viewId) ||
-                (body.stage !== 'sdk_ready' && body.stage !== 'render_error')
-            ) {
-                res.sendStatus(400);
-                return;
-            }
-            recordReach(
-                res.locals.previewTokenPayload as PreviewTokenPayload,
-                body.viewId,
-                body.stage,
-                null,
-                null,
-            );
-            res.sendStatus(204);
         },
     );
 

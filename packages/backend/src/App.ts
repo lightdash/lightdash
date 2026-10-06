@@ -713,10 +713,10 @@ export default class App {
                                 organizationId: p.organizationUuid,
                                 projectId: p.projectUuid,
                                 appUuid: p.appUuid,
+                                viewContext: p.viewContext,
                             },
                         });
                     },
-                    (event) => this.analytics.trackDataAppReach(event),
                 ),
             );
         }

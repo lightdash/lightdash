@@ -876,54 +876,6 @@ export class AppModel {
         return row ?? null;
     }
 
-    async getReachContext(
-        appId: string,
-        version: number | null,
-        userUuid: string,
-    ): Promise<
-        | {
-              created_by_user_uuid: string | null;
-              space_uuid: string | null;
-              template: string | null;
-              is_builder: boolean | null;
-              is_preview_project: boolean;
-              ready_version: number | null;
-              has_other_ready: boolean;
-          }
-        | undefined
-    > {
-        return this.database(`${AppsTableName} as a`)
-            .join(
-                `${ProjectTableName} as p`,
-                'p.project_uuid',
-                'a.project_uuid',
-            )
-            .where('a.app_id', appId)
-            .select('a.created_by_user_uuid', 'a.space_uuid', 'a.template')
-            .select(
-                this.database.raw<{
-                    is_builder: boolean | null;
-                    is_preview_project: boolean;
-                    ready_version: number | null;
-                    has_other_ready: boolean;
-                }>(
-                    `CASE WHEN a.created_by_user_uuid = ? OR EXISTS (
-                SELECT 1 FROM app_versions v WHERE v.app_id = a.app_id AND v.created_by_user_uuid = ?
-            ) THEN true WHEN a.created_by_user_uuid IS NULL OR EXISTS (
-                SELECT 1 FROM app_versions v WHERE v.app_id = a.app_id AND v.created_by_user_uuid IS NULL
-            ) THEN NULL ELSE false END AS is_builder,
-            p.project_type = 'preview' AS is_preview_project,
-            (SELECT MAX(v.version) FROM app_versions v WHERE v.app_id = a.app_id AND v.status = 'ready'
-                AND (?::integer IS NULL OR v.version = ?::integer)) AS ready_version,
-            EXISTS (SELECT 1 FROM app_versions v WHERE v.app_id = a.app_id AND v.status = 'ready'
-                AND v.version <> ?::integer) AS has_other_ready`,
-                    [userUuid, userUuid, version, version, version],
-                ),
-            )
-            .first()
-            .timeout(1_000, { cancel: true });
-    }
-
     async getLatestReadyVersion(
         appId: string,
     ): Promise<DbAppVersionWithThread | null> {

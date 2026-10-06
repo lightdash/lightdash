@@ -98,7 +98,7 @@ export const createS3AnalyticsSourceResolver = ({
                         throw new Error('Unexpected analytics object scope');
                     }
                     const match =
-                        /^stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views|agent_request_events|data_app_reach_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
+                        /^stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views|agent_request_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
                     const userActivity =
@@ -187,10 +187,6 @@ export const createS3AnalyticsSourceResolver = ({
             {
                 name: 'agent_request_events',
                 columns: compactedStreamSchemas.agent_request_events,
-            },
-            {
-                name: 'data_app_reach_events',
-                columns: compactedStreamSchemas.data_app_reach_events,
             },
             { name: 'user_activity', columns: userActivityColumns },
         ];

@@ -166,17 +166,6 @@ export const createAnalyticsExplores = (): Explore[] => {
             ]),
         );
 
-        if (name === 'data_app_reach') {
-            metrics.seven_day_adoption_rate = {
-                ...base,
-                name: 'seven_day_adoption_rate',
-                label: 'Seven day adoption rate',
-                type: MetricType.NUMBER,
-                sql: '1.0 * COUNT(DISTINCT ${adopted_app_id}) / NULLIF(COUNT(DISTINCT ${mature_app_id}), 0)',
-                description:
-                    'Share of mature captured launches with non-builder adoption observed within seven days. Unknown launches and incomplete windows are excluded.',
-            };
-        }
         if (name === 'tool_activity') {
             metrics.error_rate = {
                 ...base,
@@ -291,20 +280,9 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'Captured: direct field references known. Partial: some references omitted or unsupported. Unavailable: SQL-only or capture failed. Not captured: historical query without field capture.';
         }
         if (name === 'data_app_reach') {
-            for (const field of [
-                'org_id',
-                'consumer_id',
-                'returning_consumer_id',
-                'mature_app_id',
-                'adopted_app_id',
-            ])
-                table.dimensions[field].hidden = true;
-            table.dimensions.render_status.description =
-                'SDK started is a startup signal, not proof of successful rendering or human attention. Older bundles cannot report runtime errors.';
-            table.dimensions.is_builder.description =
-                'Creator or version author as of the preview-token snapshot. Later builders do not reclassify past views. Null means unknown.';
-            table.dimensions.launched_at.description =
-                'First captured transition to a ready app in a space, outside preview projects. Creation and project promotion alone are not launches. Earlier launches stay unknown.';
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.view_context.description =
+                'UI surface captured at token creation, not historical builder identity. Older loads have unknown context. Reloads remain included.';
         }
         if (name === 'content_health') {
             table.dimensions.org_id.hidden = true;
@@ -408,7 +386,9 @@ export const createAnalyticsExplores = (): Explore[] => {
         const includeQueryMetadata = name === 'export_events';
         const appTableName = 'lightdash_apps';
         const includeAppMetadata =
-            name === 'data_app_events' || name === 'semantic_usage';
+            name === 'data_app_events' ||
+            name === 'semantic_usage' ||
+            name === 'data_app_reach';
         const appFields = buildDimensionsFromColumns({
             qualifyColumnReferences: true,
             tableName: appTableName,

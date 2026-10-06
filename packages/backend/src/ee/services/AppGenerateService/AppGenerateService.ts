@@ -171,7 +171,6 @@ import {
     type AiKeyManagement,
     type AiUsageOutcome,
 } from '../../../analytics/aiUsage';
-import type { DataAppReachContext } from '../../../analytics/eventStream/dataAppReachStream';
 import {
     LightdashAnalytics,
     type DataAppUploadIdentitySource,
@@ -6544,14 +6543,6 @@ export class AppGenerateService extends BaseService {
         }
         await this.recordGenerationUsage(payload, generationUsage);
 
-        void this.captureDataAppLaunch(
-            appUuid,
-            projectUuid,
-            payload.organizationUuid,
-            version,
-            payload.userUuid,
-        );
-
         this.analytics.track({
             event: 'data_app.version.completed',
             userId: payload.userUuid,
@@ -8233,14 +8224,6 @@ export class AppGenerateService extends BaseService {
             `Restored from version ${sourceVersion}`,
         );
 
-        void this.captureDataAppLaunch(
-            appUuid,
-            projectUuid,
-            user.organizationUuid!,
-            newVersion,
-            user.userUuid,
-        );
-
         this.analytics.track({
             event: 'data_app.version.restored',
             userId: user.userUuid,
@@ -8932,14 +8915,6 @@ export class AppGenerateService extends BaseService {
                 upstreamApp.sandbox_id,
             );
         }
-
-        void this.captureDataAppLaunch(
-            targetAppUuid,
-            upstreamProjectUuid,
-            upstreamOrganizationUuid,
-            targetVersion,
-            user.userUuid,
-        );
 
         this.analytics.track({
             event: 'data_app.promoted',
@@ -11429,25 +11404,6 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        if (app.space_uuid === null) {
-            const captureLaunch = () =>
-                this.captureDataAppLaunch(
-                    appUuid,
-                    projectUuid,
-                    app.organization_uuid,
-                    null,
-                    user.userUuid,
-                    true,
-                );
-            if (tx?.isTransaction) {
-                void (tx as Knex.Transaction).executionPromise
-                    .then(captureLaunch)
-                    .catch(() => {});
-            } else {
-                void captureLaunch();
-            }
-        }
-
         if (trackEvent) {
             this.analytics.track({
                 event: 'data_app.moved',
@@ -11539,83 +11495,6 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    private async getAppReachContext(
-        appUuid: string,
-        version: number,
-        userUuid: string,
-        viewContext: DataAppReachContext['viewContext'],
-    ): Promise<DataAppReachContext | null> {
-        if (!this.lightdashConfig.usageEvents?.enabled) return null;
-        try {
-            const state = await this.appModel.getReachContext(
-                appUuid,
-                version,
-                userUuid,
-            );
-            if (!state || state.template === DATA_APP_VIZ_TEMPLATE) return null;
-            return {
-                viewContext,
-                isBuilder: viewContext === 'embed' ? null : state.is_builder,
-                creatorId: state.created_by_user_uuid,
-                isShared:
-                    state.space_uuid !== null && state.ready_version !== null,
-                isPreviewProject: state.is_preview_project,
-            };
-        } catch {
-            this.logger.warn('Could not capture data app reach context');
-            return null;
-        }
-    }
-
-    private async captureDataAppLaunch(
-        appUuid: string,
-        projectUuid: string,
-        organizationUuid: string,
-        version: number | null,
-        userUuid: string,
-        firstShare = false,
-    ): Promise<void> {
-        if (!this.lightdashConfig.usageEvents?.enabled) return;
-        try {
-            const state = await this.appModel.getReachContext(
-                appUuid,
-                version,
-                userUuid,
-            );
-            if (
-                !state ||
-                state.template === DATA_APP_VIZ_TEMPLATE ||
-                !state.space_uuid ||
-                state.is_preview_project ||
-                state.ready_version === null ||
-                (!firstShare && state.has_other_ready)
-            )
-                return;
-            this.analytics.trackDataAppReach({
-                event: 'data_app.reach',
-                userId: userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    appUuid,
-                    version: state.ready_version,
-                    eventId: `launch:${appUuid}`,
-                    viewId: null,
-                    stage: 'launched',
-                    outcome: null,
-                    isReload: null,
-                    viewContext: 'unknown',
-                    isBuilder: state.is_builder,
-                    creatorId: state.created_by_user_uuid,
-                    isShared: true,
-                    isPreviewProject: false,
-                },
-            });
-        } catch {
-            this.logger.warn('Could not capture data app launch');
-        }
-    }
-
     async getPreviewToken(
         user: SessionUser,
         projectUuid: string,
@@ -11644,12 +11523,7 @@ export class AppGenerateService extends BaseService {
             user.organizationUuid!,
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
-            await this.getAppReachContext(
-                appUuid,
-                version,
-                user.userUuid,
-                viewContext,
-            ),
+            viewContext,
         );
     }
 
@@ -11710,12 +11584,7 @@ export class AppGenerateService extends BaseService {
             app.organization_uuid,
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
-            await this.getAppReachContext(
-                appUuid,
-                latestReady.version,
-                account.user.id,
-                'embed',
-            ),
+            'embed',
         );
 
         return { token, version: latestReady.version };
@@ -14133,13 +14002,6 @@ export class AppGenerateService extends BaseService {
                 'ready',
                 null,
                 null,
-            );
-            void this.captureDataAppLaunch(
-                appUuid,
-                projectUuid,
-                organizationUuid,
-                version,
-                payload.userUuid,
             );
         } catch (err) {
             await this.markError(appUuid, version, err, 'Build failed');

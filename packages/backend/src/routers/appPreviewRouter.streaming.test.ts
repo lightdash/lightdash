@@ -6,7 +6,6 @@ import {
     Agent,
     createServer,
     get,
-    request as httpRequest,
     type IncomingMessage,
     type Server,
     type ServerResponse,
@@ -25,14 +24,6 @@ vi.mock('../logging/logger', () => ({
     default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const VIEW_ID = '22222222-2222-4222-8222-222222222222';
-const REACH = {
-    viewContext: 'standalone' as const,
-    isBuilder: false,
-    creatorId: 'builder',
-    isShared: true,
-    isPreviewProject: false,
-};
 const APP_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
 const SMALL_BODY = 'body { color: green; }';
 const checksum = (body: string) =>
@@ -54,8 +45,6 @@ describe('preview storage connection lifecycle', () => {
     let includeChecksum: boolean;
     let cancelOnStorageHeaders: boolean;
     let previewResponse: express.Response;
-    const recordReach = vi.fn();
-    const recordLegacy = vi.fn();
     const downloads: IncomingMessage[] = [];
 
     const download = async (url: string) =>
@@ -161,8 +150,6 @@ describe('preview storage connection lifecycle', () => {
                 },
                 lightdashConfigMock.lightdashSecrets,
                 ["'self'"],
-                recordLegacy,
-                recordReach,
             ),
         );
         preview = app.listen(0, '127.0.0.1');
@@ -174,8 +161,6 @@ describe('preview storage connection lifecycle', () => {
             'user',
             'org',
             'project',
-            [],
-            REACH,
         );
         baseUrl = `http://127.0.0.1:${(preview.address() as AddressInfo).port}/${APP_UUID}/versions/1/t/${token}/`;
     });
@@ -201,118 +186,6 @@ describe('preview storage connection lifecycle', () => {
         expect(result).toEqual({ status: 200, body: SMALL_BODY });
         expect(Object.values(agent.requests).flat()).toHaveLength(0);
     };
-
-    const postOutcome = async (body: unknown, url = `${baseUrl}reach`) =>
-        new Promise<number>((resolve, reject) => {
-            const req = httpRequest(
-                url,
-                { method: 'POST', headers: { 'Content-Type': 'text/plain' } },
-                (res) => {
-                    res.resume();
-                    res.on('end', () => resolve(res.statusCode!));
-                },
-            );
-            req.on('error', reject);
-            req.end(JSON.stringify(body));
-        });
-
-    it('records one successful HTML load and preserves the existing view callback', async () => {
-        completeDownload = true;
-        const response = await download(
-            `${baseUrl}?usageViewId=${VIEW_ID}&usageReload=true`,
-        );
-        expect(response.status).toBe(200);
-        expect(recordLegacy).toHaveBeenCalledOnce();
-        expect(recordReach).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({
-                userId: 'user',
-                properties: expect.objectContaining({
-                    ...REACH,
-                    viewId: VIEW_ID,
-                    outcome: 'served',
-                    isReload: true,
-                    stage: 'load',
-                }),
-            }),
-        );
-    });
-    it('records a failed HTML response without inventing a successful view', async () => {
-        storageStatus = 404;
-        await download(`${baseUrl}?usageViewId=${VIEW_ID}`);
-        expect(recordReach).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({
-                properties: expect.objectContaining({ outcome: 'failed' }),
-            }),
-        );
-    });
-    it('keeps signed identity authoritative and rejects unsupported outcomes or invalid capabilities', async () => {
-        expect(
-            await postOutcome({
-                viewId: VIEW_ID,
-                stage: 'sdk_ready',
-                userUuid: 'attacker',
-                organizationUuid: 'other',
-            }),
-        ).toBe(204);
-        expect(recordReach).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({
-                userId: 'user',
-                properties: expect.objectContaining({
-                    organizationId: 'org',
-                    projectId: 'project',
-                    appUuid: APP_UUID,
-                    stage: 'sdk_ready',
-                }),
-            }),
-        );
-        expect(await postOutcome({ viewId: VIEW_ID, stage: 'launched' })).toBe(
-            400,
-        );
-        expect(
-            await postOutcome({ viewId: 'unbounded-id', stage: 'sdk_ready' }),
-        ).toBe(400);
-        expect(
-            await postOutcome(
-                { viewId: VIEW_ID, stage: 'sdk_ready' },
-                `${baseUrl.replace(/\/t\/[^/]+/, '/t/invalid')}reach`,
-            ),
-        ).toBe(401);
-    });
-    it('keeps legacy capabilities working without new telemetry', async () => {
-        const legacy = mintPreviewToken(
-            lightdashConfigMock.lightdashSecrets,
-            APP_UUID,
-            1,
-            'user',
-            'org',
-            'project',
-        );
-        const url = baseUrl.replace(/\/t\/[^/]+/, `/t/${legacy}`);
-        completeDownload = true;
-        expect((await download(`${url}?usageViewId=${VIEW_ID}`)).status).toBe(
-            200,
-        );
-        expect(
-            await postOutcome(
-                { viewId: VIEW_ID, stage: 'sdk_ready' },
-                `${url}reach`,
-            ),
-        ).toBe(204);
-        expect(recordReach).not.toHaveBeenCalled();
-        expect(recordLegacy).toHaveBeenCalledOnce();
-    });
-    it('does not fail app loads if the capture callback throws', async () => {
-        completeDownload = true;
-        recordReach.mockImplementationOnce(() => {
-            throw new Error('sink down');
-        });
-        expect(
-            (await download(`${baseUrl}?usageViewId=${VIEW_ID}`)).status,
-        ).toBe(200);
-        expect(Logger.warn).toHaveBeenCalledWith(
-            'Failed to record data app reach',
-        );
-    });
 
     describe.each(['', 'assets/chart.js'])('route %j', (route) => {
         it('releases the storage socket when the browser cancels a checksum-wrapped download', async () => {

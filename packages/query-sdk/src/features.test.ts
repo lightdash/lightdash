@@ -172,23 +172,6 @@ describe('announceSdkManifest', () => {
         expect(targetWindow.postMessage).toHaveBeenCalledTimes(3);
     });
 
-    it('reports runtime failures without retaining error payloads and removes listeners', () => {
-        const targetWindow = { postMessage: vi.fn() } as unknown as Window;
-        cleanup = announceSdkManifest(targetWindow);
-        window.dispatchEvent(
-            new ErrorEvent('error', { message: 'private data' }),
-        );
-        expect(targetWindow.postMessage).toHaveBeenLastCalledWith(
-            { type: 'lightdash:sdk:render-error' },
-            '*',
-        );
-        cleanup();
-        window.dispatchEvent(
-            new ErrorEvent('error', { message: 'private data' }),
-        );
-        expect(targetWindow.postMessage).toHaveBeenCalledTimes(2);
-    });
-
     it('stops re-posting after cleanup', () => {
         const targetWindow = { postMessage: vi.fn() } as unknown as Window;
         cleanup = announceSdkManifest(targetWindow);
