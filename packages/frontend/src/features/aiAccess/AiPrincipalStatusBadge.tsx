@@ -31,6 +31,7 @@ export const AiPrincipalStatusBadge = ({
         maw={400}
     >
         <Badge
+            style={{ textTransform: 'none', maxWidth: 'none' }}
             color={
                 principal.status === AiPrincipalStatus.READY
                     ? 'green'

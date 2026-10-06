@@ -309,7 +309,9 @@ export class AiPrincipalModel {
             .where('ai_principal_uuid', aiPrincipalUuid)
             .delete();
     }
-    async insertAudit(audit: Omit<AiQueryAudit, 'createdAt'>): Promise<void> {
+    async insertAudit(
+        audit: Omit<AiQueryAudit, 'createdAt' | 'personEmail'>,
+    ): Promise<void> {
         await this.database(AiQueryAuditTableName)
             .insert({
                 query_uuid: audit.queryUuid,
@@ -327,12 +329,15 @@ export class AiPrincipalModel {
             .onConflict('query_uuid')
             .merge();
     }
-    private static audit(row: DbAiQueryAudit): AiQueryAudit {
+    private static audit(
+        row: DbAiQueryAudit & { person_email: string | null },
+    ): AiQueryAudit {
         return {
             queryUuid: row.query_uuid,
             projectUuid: row.project_uuid,
             warehouseConnectionUuid: row.warehouse_connection_uuid,
             userUuid: row.user_uuid,
+            personEmail: row.person_email,
             aiPrincipalUuid: row.ai_principal_uuid,
             principalKind: row.principal_kind,
             principalRef: row.principal_ref,
@@ -359,8 +364,10 @@ export class AiPrincipalModel {
             .where('project_uuid', projectUuid)
             .count<{ total: string }[]>('* as total');
         const rows = await this.database(AiQueryAuditTableName)
-            .where('project_uuid', projectUuid)
-            .orderBy('created_at', 'desc')
+            .leftJoin('users', 'users.user_uuid', 'ai_query_audit.user_uuid')
+            .select('ai_query_audit.*', 'users.email as person_email')
+            .where('ai_query_audit.project_uuid', projectUuid)
+            .orderBy('ai_query_audit.created_at', 'desc')
             .limit(args.pageSize)
             .offset((args.page - 1) * args.pageSize);
         const totalResults = Number(count.total);

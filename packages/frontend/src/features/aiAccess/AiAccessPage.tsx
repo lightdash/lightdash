@@ -80,7 +80,14 @@ const Principals = ({
                                     'Last probe',
                                     'Actions',
                                 ].map((label) => (
-                                    <Table.Th key={label}>{label}</Table.Th>
+                                    <Table.Th
+                                        key={label}
+                                        miw={
+                                            label === 'Status' ? 160 : undefined
+                                        }
+                                    >
+                                        {label}
+                                    </Table.Th>
                                 ))}
                             </Table.Tr>
                         </Table.Thead>
@@ -91,7 +98,12 @@ const Principals = ({
                                 return (
                                     <Table.Tr key={principal.aiPrincipalUuid}>
                                         <Table.Td>{principal.ref}</Table.Td>
-                                        <Table.Td>{principal.kind}</Table.Td>
+                                        <Table.Td>
+                                            {principal.kind
+                                                .charAt(0)
+                                                .toUpperCase() +
+                                                principal.kind.slice(1)}
+                                        </Table.Td>
                                         <Table.Td>
                                             <AiPrincipalStatusBadge
                                                 principal={principal}
@@ -255,8 +267,8 @@ const Audit = ({ projectUuid }: { projectUuid: string }) => {
                                         ).toLocaleString()}
                                     </Table.Td>
                                     <Table.Td>
-                                        {row.personTag ||
-                                            row.userUuid ||
+                                        {row.personEmail ??
+                                            row.userUuid ??
                                             'Unknown'}
                                     </Table.Td>
                                     <Table.Td>{row.principalRef}</Table.Td>
