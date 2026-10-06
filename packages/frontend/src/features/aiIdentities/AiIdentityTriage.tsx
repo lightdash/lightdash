@@ -29,6 +29,7 @@ import { AiIdentityTriageSummary } from './AiIdentityTriageSummary';
 import { AiIdentityTriageToolbar } from './AiIdentityTriageToolbar';
 import { aiIdentityApi } from './api';
 import { getAiIdentityListParams } from './params';
+import { refreshAiIdentityCounts } from './refresh';
 
 type Props = {
     account: AiIdentityAccount;
@@ -221,9 +222,7 @@ export const AiIdentityTriage: FC<Props> = ({
                             void aiIdentityApi
                                 .test(row.original.aiIdentityUuid)
                                 .then(() =>
-                                    queryClient.invalidateQueries([
-                                        'ai-identity-list',
-                                    ]),
+                                    refreshAiIdentityCounts(queryClient),
                                 )
                                 .catch(() =>
                                     setRowError(
@@ -336,9 +335,7 @@ export const AiIdentityTriage: FC<Props> = ({
                     setRowError(null);
                     void aiIdentityApi
                         .regenerateKey(keyUuid)
-                        .then(() =>
-                            queryClient.invalidateQueries(['ai-identity-list']),
-                        )
+                        .then(() => refreshAiIdentityCounts(queryClient))
                         .catch(() =>
                             setRowError('Could not create a new key.'),
                         );

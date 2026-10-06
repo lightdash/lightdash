@@ -19,9 +19,10 @@ import {
 
 export const AiIdentityProvisioningReview: FC<{
     settings: AiIdentityProvisioningSettings;
+    hint: string | null;
     mappingsDirty: boolean;
     onJob: (uuid: string) => void;
-}> = ({ settings, mappingsDirty, onJob }) => {
+}> = ({ settings, hint, mappingsDirty, onJob }) => {
     const uuid = settings.aiIdentityAccountUuid;
     const client = useQueryClient();
     const [confirm, setConfirm] = useState(false);
@@ -57,6 +58,11 @@ export const AiIdentityProvisioningReview: FC<{
         <Paper p="md">
             <Stack gap="sm">
                 <Title order={5}>5. Review and run</Title>
+                {hint && (
+                    <Text fz="sm" c="dimmed">
+                        {hint}
+                    </Text>
+                )}
                 {needsApproval ? (
                     <Text fz="sm">
                         Review every statement before the first run.
@@ -68,9 +74,9 @@ export const AiIdentityProvisioningReview: FC<{
                     </Text>
                 )}
                 {mappingsDirty && (
-                    <Callout variant="neutral">
-                        Save the group mappings to review the plan.
-                    </Callout>
+                    <Text fz="sm" c="dimmed">
+                        Save the group mappings first.
+                    </Text>
                 )}
                 {plan.isError && (
                     <Callout variant="danger">Could not load the plan.</Callout>

@@ -1,7 +1,9 @@
 import { type AiIdentityEvent } from '@lightdash/common';
 
 const actionLabels: Record<string, string> = {
+    provision: 'Provisioning run',
     provision_statement: 'Ran in Snowflake',
+    provisioner_verify: 'Provisioner checked',
     tested: 'Tested',
     test: 'Tested',
     bulk_test: 'Tested (bulk)',

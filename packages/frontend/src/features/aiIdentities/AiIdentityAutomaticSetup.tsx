@@ -51,7 +51,9 @@ const CreateProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                     </Callout>
                 )}
                 {settings.aiRoles.length === 0 && (
-                    <Text fz="sm">Define and save an AI role first.</Text>
+                    <Text fz="sm" c="dimmed">
+                        Define and save an AI role first.
+                    </Text>
                 )}
                 <TextInput
                     label="Provisioner user name"
@@ -144,19 +146,41 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
 }) => {
     const uuid = settings.aiIdentityAccountUuid;
     const change = useProvisioningChange(uuid);
+    const [confirmTurnOff, setConfirmTurnOff] = useState(false);
     const status =
         settings.provisioner?.status ?? AiIdentityProvisionerStatus.NOT_SET_UP;
     return (
         <Paper p="md">
             <Stack gap="sm">
                 <Title order={5}>3. Check the provisioner</Title>
+                {settings.mode === AiIdentityCreationMode.AUTOMATIC &&
+                    (settings.effectiveMode ===
+                    AiIdentityCreationMode.AUTOMATIC ? (
+                        <Callout
+                            variant="success"
+                            title="Automatic creation is on"
+                        >
+                            Lightdash creates, updates and drops AI identities
+                            when people join, leave or change groups.
+                        </Callout>
+                    ) : (
+                        <Callout
+                            variant="warning"
+                            title="Automatic creation is paused"
+                        >
+                            {settings.fallbackReason ??
+                                'Check the provisioner to resume.'}
+                        </Callout>
+                    ))}
                 {change.error && (
                     <Callout variant="danger">
                         {change.error.error.message}
                     </Callout>
                 )}
                 {!settings.provisioner && (
-                    <Text fz="sm">Create the provisioner first.</Text>
+                    <Text fz="sm" c="dimmed">
+                        Create the provisioner first.
+                    </Text>
                 )}
                 <Group>
                     <Badge
@@ -195,7 +219,6 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                     </Button>
                     {settings.mode !== AiIdentityCreationMode.AUTOMATIC && (
                         <Button
-                            variant="default"
                             disabled={
                                 status !== AiIdentityProvisionerStatus.READY
                             }
@@ -211,7 +234,33 @@ const CheckProvisioner: FC<{ settings: AiIdentityProvisioningSettings }> = ({
                             Enable automatic creation
                         </Button>
                     )}
+                    {settings.mode === AiIdentityCreationMode.AUTOMATIC && (
+                        <Button
+                            variant="subtle"
+                            loading={change.isLoading}
+                            onClick={() => setConfirmTurnOff(true)}
+                        >
+                            Turn off
+                        </Button>
+                    )}
                 </Group>
+                <MantineModal
+                    opened={confirmTurnOff}
+                    onClose={() => setConfirmTurnOff(false)}
+                    title="Turn off automatic creation?"
+                    description="Lightdash stops creating and dropping AI identities. Existing AI identities and the provisioner stay in Snowflake."
+                    confirmLabel="Turn off"
+                    confirmLoading={change.isLoading}
+                    onConfirm={() =>
+                        change.mutate(
+                            () =>
+                                aiIdentityProvisioningApi.update(uuid, {
+                                    mode: AiIdentityCreationMode.GUIDED,
+                                }),
+                            { onSuccess: () => setConfirmTurnOff(false) },
+                        )
+                    }
+                />
             </Stack>
         </Paper>
     );
@@ -235,32 +284,20 @@ export const AiIdentityAutomaticSetup: FC<{
             <AiIdentityRoleDefinitions settings={settings} />
             <CreateProvisioner settings={settings} />
             <CheckProvisioner settings={settings} />
-            {status !== AiIdentityProvisionerStatus.READY && (
-                <Text fz="sm">
-                    Verify the provisioner before mapping groups.
-                </Text>
-            )}
             <fieldset
                 disabled={status !== AiIdentityProvisionerStatus.READY}
                 style={{ border: 0, padding: 0, margin: 0 }}
             >
                 <AiIdentityRoleMappings
                     settings={settings}
+                    hint={
+                        status === AiIdentityProvisionerStatus.READY
+                            ? null
+                            : 'Check the provisioner first.'
+                    }
                     onDirty={setMappingsDirty}
                 />
             </fieldset>
-            {status !== AiIdentityProvisionerStatus.READY && (
-                <Text fz="sm">
-                    Verify the provisioner before reviewing the plan.
-                </Text>
-            )}
-            {status === AiIdentityProvisionerStatus.READY &&
-                settings.mappings.length === 0 && (
-                    <Text fz="sm">
-                        Save at least one group mapping before reviewing the
-                        plan.
-                    </Text>
-                )}
             <fieldset
                 disabled={
                     status !== AiIdentityProvisionerStatus.READY ||
@@ -271,6 +308,13 @@ export const AiIdentityAutomaticSetup: FC<{
             >
                 <AiIdentityProvisioningReview
                     settings={settings}
+                    hint={
+                        status !== AiIdentityProvisionerStatus.READY
+                            ? 'Check the provisioner first.'
+                            : settings.mappings.length === 0
+                              ? 'Save at least one group mapping first.'
+                              : null
+                    }
                     mappingsDirty={mappingsDirty}
                     onJob={onJob}
                 />

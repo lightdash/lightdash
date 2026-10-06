@@ -25,6 +25,7 @@ import {
     getAiIdentityTab,
     type AiIdentityTab,
 } from './params';
+import { refreshAiIdentityCounts } from './refresh';
 
 export const AiIdentitiesPage: FC = () => {
     const [params, setParams] = useSearchParams();
@@ -89,18 +90,20 @@ export const AiIdentitiesPage: FC = () => {
         setParams(next);
     };
 
+    const jobDone = jobQuery.data?.done;
+    const jobStatus = jobQuery.data?.status;
     useEffect(() => {
+        if (jobStatus === undefined) return;
+        void refreshAiIdentityCounts(queryClient);
         if (
-            jobQuery.data?.status !== AiIdentityJobStatus.DONE &&
-            jobQuery.data?.status !== AiIdentityJobStatus.FAILED
+            jobStatus !== AiIdentityJobStatus.DONE &&
+            jobStatus !== AiIdentityJobStatus.FAILED
         )
             return;
-        void queryClient.invalidateQueries(['ai-identity-accounts']);
-        void queryClient.invalidateQueries(['ai-identity-list']);
         void queryClient.invalidateQueries(['ai-identity-provisioning']);
         void queryClient.invalidateQueries(['ai-identity-provisioning-plan']);
         void queryClient.invalidateQueries(['ai-identity-request-log']);
-    }, [jobQuery.data?.status, queryClient]);
+    }, [jobDone, jobStatus, queryClient]);
 
     const startJob = async (
         kind: 'test' | 'export',

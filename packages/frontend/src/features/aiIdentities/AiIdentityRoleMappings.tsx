@@ -27,8 +27,9 @@ import { useProvisioningChange } from './useProvisioning';
 type MappingRow = UpdateAiIdentityRoleMapping & { id: string };
 export const AiIdentityRoleMappings: FC<{
     settings: AiIdentityProvisioningSettings;
+    hint: string | null;
     onDirty: (dirty: boolean) => void;
-}> = ({ settings, onDirty }) => {
+}> = ({ settings, hint, onDirty }) => {
     const groups = useOrganizationGroups({});
     const change = useProvisioningChange(settings.aiIdentityAccountUuid);
     const [draft, setDraft] = useState<MappingRow[] | null>(null);
@@ -53,6 +54,11 @@ export const AiIdentityRoleMappings: FC<{
         <Paper p="md">
             <Stack gap="sm">
                 <Title order={5}>4. Map groups to AI roles</Title>
+                {hint && (
+                    <Text fz="sm" c="dimmed">
+                        {hint}
+                    </Text>
+                )}
                 <Text fz="sm">
                     Each person gets the AI role of their first matching group.
                     Lightdash never changes these roles.

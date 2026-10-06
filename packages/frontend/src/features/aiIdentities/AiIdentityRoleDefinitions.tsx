@@ -7,6 +7,7 @@ import {
     Group,
     MultiSelect,
     Paper,
+    SimpleGrid,
     Stack,
     Text,
     TextInput,
@@ -63,49 +64,58 @@ export const AiIdentityRoleDefinitions: FC<{
                     </Callout>
                 )}
                 {rows.map((row, index) => (
-                    <Group key={row.id} align="end" grow>
-                        <TextInput
-                            label="AI role name"
-                            value={row.roleName}
-                            onChange={(event) =>
-                                update(index, {
-                                    ...row,
-                                    roleName: event.currentTarget.value,
-                                })
-                            }
-                        />
-                        <TextInput
-                            label="Warehouse"
-                            value={row.warehouse}
-                            onChange={(event) =>
-                                update(index, {
-                                    ...row,
-                                    warehouse: event.currentTarget.value,
-                                })
-                            }
-                        />
-                        <MultiSelect
-                            label="Allowed schemas"
-                            data={schemas}
-                            value={row.schemas}
-                            searchable
-                            onChange={(value) =>
-                                update(index, { ...row, schemas: value })
-                            }
-                        />
-                        <Button
-                            variant="default"
-                            onClick={() =>
-                                setDraft(
-                                    rows.filter(
-                                        (_, rowIndex) => rowIndex !== index,
-                                    ),
-                                )
-                            }
-                        >
-                            Remove
-                        </Button>
-                    </Group>
+                    <Paper key={row.id} withBorder p="sm">
+                        <Stack gap="xs">
+                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                                <TextInput
+                                    label="AI role name"
+                                    value={row.roleName}
+                                    onChange={(event) =>
+                                        update(index, {
+                                            ...row,
+                                            roleName: event.currentTarget.value,
+                                        })
+                                    }
+                                />
+                                <TextInput
+                                    label="Warehouse"
+                                    value={row.warehouse}
+                                    onChange={(event) =>
+                                        update(index, {
+                                            ...row,
+                                            warehouse:
+                                                event.currentTarget.value,
+                                        })
+                                    }
+                                />
+                            </SimpleGrid>
+                            <MultiSelect
+                                label="Allowed schemas"
+                                data={schemas}
+                                value={row.schemas}
+                                searchable
+                                onChange={(value) =>
+                                    update(index, { ...row, schemas: value })
+                                }
+                            />
+                            <Group justify="flex-end">
+                                <Button
+                                    variant="subtle"
+                                    color="red"
+                                    onClick={() =>
+                                        setDraft(
+                                            rows.filter(
+                                                (_, rowIndex) =>
+                                                    rowIndex !== index,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    Remove
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </Paper>
                 ))}
                 <Group justify="space-between">
                     <Button

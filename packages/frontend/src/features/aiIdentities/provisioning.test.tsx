@@ -163,6 +163,7 @@ describe('provisioning helpers', () => {
     });
     it('labels SQL runs and both finding reasons', () => {
         expect(actionLabel('provision_statement')).toBe('Ran in Snowflake');
+        expect(actionLabel('provision')).toBe('Provisioning run');
         expect(
             findingLabels[AiIdentityProvisionerFindingReason.NOT_SERVICE_AGENT],
         ).toBe('Not an AI user (TYPE is not SERVICE_AGENT)');
@@ -196,6 +197,7 @@ it('shows all plan statements and skipped people, and waits for explicit approva
     renderWithClient(
         <AiIdentityProvisioningReview
             settings={settings}
+            hint={null}
             mappingsDirty={false}
             onJob={vi.fn()}
         />,
@@ -228,6 +230,7 @@ it('runs directly after approval has been recorded', async () => {
                     firstRunApprovedAt: new Date(),
                 },
             }}
+            hint={null}
             mappingsDirty={false}
             onJob={vi.fn()}
         />,
@@ -243,6 +246,7 @@ it('blocks runs while mappings are unsaved', () => {
     renderWithClient(
         <AiIdentityProvisioningReview
             settings={settings}
+            hint={null}
             mappingsDirty
             onJob={vi.fn()}
         />,
