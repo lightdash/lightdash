@@ -1,3 +1,10 @@
+# [2.439.0](https://github.com/lightdash/lightdash/compare/2.438.0...2.439.0) (2026-10-06)
+
+
+### Features
+
+* **ai:** say on the AI Credits page when AI is paused or past the allowance, and who to contact ([#30531](https://github.com/lightdash/lightdash/issues/30531)) ([f0fd33b](https://github.com/lightdash/lightdash/commit/f0fd33b54a57d039df7de6a813b9b4f580fc8e67))
+
 # [2.438.0](https://github.com/lightdash/lightdash/compare/2.437.0...2.438.0) (2026-10-06)
 
 
