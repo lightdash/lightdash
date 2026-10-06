@@ -95,6 +95,13 @@ export const sendReviewNotification =
 
             const context = await getReviewContext(deps, payload);
             const notificationLogUuid = randomUUID();
+            // The app may have left or never joined the channel. A failed join
+            // must not block the post: it can already be in a private channel.
+            await deps.slackClient
+                .joinChannels(payload.organizationUuid, [
+                    settings.slackChannelId,
+                ])
+                .catch(() => undefined);
             try {
                 await deps.slackClient.postMessage({
                     organizationUuid: payload.organizationUuid,
