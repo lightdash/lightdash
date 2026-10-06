@@ -63,7 +63,20 @@ const DocumentRenderer = ({
                 <Text c="dimmed">This document is empty.</Text>
             ) : (
                 <DocumentEditorProvider value={target}>
-                    <Box role="presentation" {...mentions}>
+                    <Box
+                        role="presentation"
+                        {...mentions}
+                        // Walkthrough: write a document with a live chart.
+                        // See scripts/scope-tours.
+                        data-tour-scope="manage:Document"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/documents/:documentUuidOrSlug"
+                        data-tour-label="Your document, saved with its chart"
+                        data-tour-docs="explore/documents.mdx#intro:1"
+                        data-tour-return="none"
+                        data-tour-busy='[data-tour-anchor="document-chart-loading"]'
+                        data-tour-resultdocs="explore/documents.mdx#version-history:1"
+                    >
                         <EditorContent
                             editor={editor}
                             className={styles.documentProse}

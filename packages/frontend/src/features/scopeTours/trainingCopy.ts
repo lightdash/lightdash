@@ -1,4 +1,5 @@
 import { type CreateTrainingPreviewResults } from '@lightdash/common';
+import { NavigationType } from 'react-router';
 import { lightdashApi } from '../../api';
 
 /** A learner's own fresh copy of the training project, for one walkthrough. */
@@ -41,3 +42,18 @@ export const LEAVING_COPY_STATE = { leavingTrainingCopy: true } as const;
 export const isLeavingTrainingCopy = (location: { state?: unknown }) =>
     !!(location.state as { leavingTrainingCopy?: boolean } | null)
         ?.leavingTrainingCopy;
+
+/**
+ * Whether an editor's unsaved-changes prompt should let a navigation
+ * through as a walkthrough leaving its copy. Only the walkthrough's own push
+ * or replace counts: Back and Forward restore a saved entry's state, flag
+ * included, and must still ask.
+ */
+export const isWalkthroughLeavingCopy = ({
+    nextLocation,
+    historyAction,
+}: {
+    nextLocation: { state?: unknown };
+    historyAction: NavigationType;
+}) =>
+    historyAction !== NavigationType.Pop && isLeavingTrainingCopy(nextLocation);

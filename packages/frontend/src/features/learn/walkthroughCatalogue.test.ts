@@ -60,8 +60,8 @@ describe('walkthrough catalogue', () => {
     it('offers only walkthroughs as available scope modules', () => {
         const modules = buildLearnCatalogue();
         const scopes = modules.filter((m) => m.kind === 'scope');
-        expect(scopes.filter((m) => m.available)).toHaveLength(42);
-        expect(scopes.filter((m) => !m.available)).toHaveLength(27);
+        expect(scopes.filter((m) => m.available)).toHaveLength(44);
+        expect(scopes.filter((m) => !m.available)).toHaveLength(25);
         expect(modules.filter((m) => m.kind === 'docs')).toHaveLength(
             SANDBOX_LESSONS.length,
         );

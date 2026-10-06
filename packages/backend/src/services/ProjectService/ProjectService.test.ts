@@ -109,6 +109,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type DocumentModel } from '../../models/DocumentModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -193,6 +194,7 @@ import {
     validExplore,
     virtualExplore,
 } from './ProjectService.mock';
+import { TRAINING_SPACE } from './provisionTrainingProject';
 
 // Mock worker_threads so the >500 rows test doesn't need a compiled
 // dist/services/ProjectService/formatRows.js artifact. In production,
@@ -459,6 +461,11 @@ const spaceModel = {
     find: vi.fn(async () => spacesWithSavedCharts),
 };
 
+const documentModel = {
+    create: vi.fn(),
+    getBySlug: vi.fn(),
+};
+
 const userAttributesModel = {
     getAttributeValuesForOrgMember: vi.fn(async () => ({})),
 };
@@ -549,6 +556,7 @@ const getMockedProjectService = (
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
         spaceModel: spaceModel as unknown as SpaceModel,
+        documentModel: documentModel as unknown as DocumentModel,
         sshKeyPairModel: {} as SshKeyPairModel,
         userAttributesModel:
             userAttributesModel as unknown as UserAttributesModel,
@@ -850,6 +858,68 @@ describe('ProjectService', () => {
                 expect(provisionTrainingProject).not.toHaveBeenCalled();
             },
         );
+
+        describe('sample documents in a new training copy', () => {
+            const withDocumentsFlag = (enabled: boolean) =>
+                getMockedProjectService(lightdashConfigMock, {
+                    featureFlagModel: {
+                        get: vi.fn(async ({ featureFlagId }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId === FeatureFlags.Documents
+                                    ? enabled
+                                    : true,
+                        })),
+                    } as unknown as FeatureFlagModel,
+                });
+            const seed = (learnService: ProjectService) =>
+                // eslint-disable-next-line @typescript-eslint/dot-notation
+                learnService['seedSampleDocumentsInCopy'](
+                    learnUser,
+                    'copy',
+                    'creator',
+                );
+
+            beforeEach(() => {
+                documentModel.create.mockReset();
+                documentModel.getBySlug.mockReset();
+                documentModel.getBySlug.mockRejectedValue(
+                    new NotFoundError('Document not found'),
+                );
+                spaceModel.find.mockClear();
+            });
+
+            test('creates the bundle sample in the copy’s seeded space, credited to whoever enabled Learn', async () => {
+                spaceModel.find.mockResolvedValueOnce([
+                    { uuid: 'training-space' },
+                ] as never);
+                await seed(withDocumentsFlag(true));
+                expect(spaceModel.find).toHaveBeenCalledWith({
+                    projectUuid: 'copy',
+                    path: TRAINING_SPACE.path,
+                });
+                expect(documentModel.create).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        projectUuid: 'copy',
+                        spaceUuid: 'training-space',
+                        name: 'Monthly orders review',
+                        createdByUserUuid: 'creator',
+                    }),
+                );
+            });
+
+            test('adds nothing while documents are off', async () => {
+                await seed(withDocumentsFlag(false));
+                expect(spaceModel.find).not.toHaveBeenCalled();
+                expect(documentModel.create).not.toHaveBeenCalled();
+            });
+
+            test('adds nothing when the copy has no seeded space', async () => {
+                spaceModel.find.mockResolvedValueOnce([]);
+                await seed(withDocumentsFlag(true));
+                expect(documentModel.create).not.toHaveBeenCalled();
+            });
+        });
 
         test('forbids creating a training copy without Learn access', async () => {
             const learnService = getMockedProjectService(lightdashConfigMock, {

@@ -124,7 +124,14 @@ const DocumentChartVisualization = ({
             }
         >
             {isLoading ? (
-                <EmptyStateLoader title="Loading live chart data" />
+                // The busy surface a walkthrough's closing step waits on; the
+                // loader's words are the status the step shows meanwhile
+                <Box data-tour-anchor="document-chart-loading">
+                    <EmptyStateLoader
+                        title="Loading live chart data"
+                        data-tour-status="true"
+                    />
+                </Box>
             ) : (
                 <MetricQueryDataProvider
                     tableName={chart.tableName}
@@ -158,7 +165,22 @@ const DocumentChartVisualization = ({
                         <DocumentRenderTargetContext.Provider
                             value={renderTarget}
                         >
-                            <Box h="100%" ref={measureRef}>
+                            <Box
+                                h="100%"
+                                ref={measureRef}
+                                // Walkthrough: read a document. The jump
+                                // from the rail lands on a section's first
+                                // chart, so the walkthrough ends here. See
+                                // scripts/scope-tours.
+                                data-tour-scope="view:Document"
+                                data-tour-step="1"
+                                data-tour-route="/projects/:projectUuid/documents/:documentUuidOrSlug"
+                                data-tour-label="Charts show live results"
+                                data-tour-docs="explore/documents.mdx#intro:1"
+                                data-tour-return="none"
+                                data-tour-busy='[data-tour-anchor="document-chart-loading"]'
+                                data-tour-resultdocs="explore/documents.mdx#intro:3"
+                            >
                                 <LightdashVisualization
                                     enableContextMenu={false}
                                     {...screenshotCallbacks}
