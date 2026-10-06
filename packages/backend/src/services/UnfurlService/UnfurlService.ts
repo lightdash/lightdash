@@ -1274,7 +1274,8 @@ export class UnfurlService extends BaseService {
      * user's identity (one-time login grant). The caller is responsible for
      * verifying the user may see the app. Returns the buffer beside the
      * hosted URL so callers with their own delivery path (e.g. Slack file
-     * upload) don't need to fetch the image back.
+     * upload) don't need to fetch the image back. A `version` that is missing
+     * or not ready renders the page's empty state, never another version.
      */
     async exportDataApp({
         projectUuid,
@@ -1284,6 +1285,7 @@ export class UnfurlService extends BaseService {
         organizationUuid,
         context,
         contextId,
+        version,
     }: {
         projectUuid: UUID;
         appUuid: UUID;
@@ -1292,17 +1294,24 @@ export class UnfurlService extends BaseService {
         organizationUuid: UUID;
         context: ScreenshotContext;
         contextId?: unknown;
+        // Omit to render the latest ready version.
+        version?: number;
     }): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
-        const minimalUrl = new URL(
+        const minimalAppUrl = new URL(
             `/minimal/projects/${projectUuid}/apps/${appUuid}`,
             this.lightdashConfig.headlessBrowser.internalLightdashHost,
-        ).href;
+        );
+        if (version !== undefined) {
+            minimalAppUrl.searchParams.set('version', String(version));
+        }
+        const minimalUrl = minimalAppUrl.href;
 
         this.logger.info(`Exporting data app to hosted image`, {
             userUuid: authUserUuid,
             organizationUuid,
             projectUuid,
             appUuid,
+            version,
             minimalUrl,
         });
 
