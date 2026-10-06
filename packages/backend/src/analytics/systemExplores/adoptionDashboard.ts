@@ -5,9 +5,11 @@ import {
 } from '@lightdash/common';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
-const appReaders: NonNullable<UsageChartSpec['filters']> = [
-    { field: 'data_app_reach_is_qualifying', values: [true] },
-    { field: 'data_app_reach_is_builder', values: [false] },
+const appViewingSurfaces: NonNullable<UsageChartSpec['filters']> = [
+    {
+        field: 'data_app_reach_view_context',
+        values: ['standalone', 'dashboard', 'chart'],
+    },
 ];
 const askAi: NonNullable<UsageChartSpec['filters']> = [
     { field: 'agent_requests_surface', values: ['web_app'] },
@@ -93,30 +95,30 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'adoption-app-audience',
-        name: 'Which apps are people reading?',
+        name: 'Which apps are people loading?',
         description:
-            'Identified readers other than the app creators and version authors. Includes recorded standalone and dashboard use with startup observed; excludes builder previews, reloads and reported runtime errors. Not proof that someone read every part of an app.',
+            'Recorded app loads from standalone pages, dashboards and charts. Reloads and creators using their own apps count. Builder previews, embeds, deliveries and older loads with unknown context are excluded. Loads do not confirm successful rendering or readership.',
         explore: 'data_app_reach',
         dimensions: [
-            'data_app_reach_app_name',
-            'data_app_reach_project_name',
+            'lightdash_apps_name',
+            'lightdash_apps_project_name',
             'data_app_reach_app_id',
             'data_app_reach_project_id',
         ],
         metrics: [
-            'data_app_reach_distinct_consumers',
-            'data_app_reach_qualifying_views',
-            'data_app_reach_last_viewed_at',
+            'data_app_reach_distinct_viewers',
+            'data_app_reach_total_loads',
+            'data_app_reach_last_loaded_at',
         ],
-        filters: appReaders,
+        filters: appViewingSurfaces,
         limit: 30,
         sorts: [
-            { fieldId: 'data_app_reach_distinct_consumers', descending: true },
+            { fieldId: 'data_app_reach_distinct_viewers', descending: true },
         ],
         fieldLabels: {
-            data_app_reach_distinct_consumers: 'Readers',
-            data_app_reach_qualifying_views: 'Recorded reader views',
-            data_app_reach_last_viewed_at: 'Last recorded read',
+            data_app_reach_distinct_viewers: 'Identified viewers',
+            data_app_reach_total_loads: 'App loads',
+            data_app_reach_last_loaded_at: 'Last app load',
         },
     },
     {
@@ -175,32 +177,32 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'adoption-app-reader-trend',
-        name: 'App readers and returning readers',
+        name: 'App loads and viewers each day',
         description:
-            'Distinct non-builder readers each day. Returning readers used the same app on a later UTC day than their first captured read; they are a subset of readers. Missing earlier history can understate returns.',
+            'Recorded loads and distinct identified viewers from standalone pages, dashboards and charts each day. Includes reloads. Older loads with unknown context are shown separately in the surface breakdown. Viewer counts cannot be summed across days.',
         explore: 'data_app_reach',
         dimensions: ['data_app_reach_event_ts_day'],
         metrics: [
-            'data_app_reach_distinct_consumers',
-            'data_app_reach_returning_consumers',
+            'data_app_reach_distinct_viewers',
+            'data_app_reach_total_loads',
         ],
-        filters: appReaders,
+        filters: appViewingSurfaces,
         limit: 5000,
         sorts: [{ fieldId: 'data_app_reach_event_ts_day', descending: false }],
         visualization: 'line',
         fieldLabels: {
-            data_app_reach_distinct_consumers: 'Readers',
-            data_app_reach_returning_consumers: 'Returning readers',
+            data_app_reach_distinct_viewers: 'Identified viewers',
+            data_app_reach_total_loads: 'App loads',
         },
     },
     {
         key: 'adoption-app-reader-detail',
-        name: 'Who reads each app?',
+        name: 'Who loads each app?',
         description:
-            'Named non-builder readers by app and week, with their most recent captured read. The same person can appear across apps and weeks; do not add those rows to count distinct people.',
+            'People loading apps from standalone pages, dashboards and charts, grouped by app and week. Includes reloads and creators viewing their own apps. The same person can appear across apps and weeks; do not sum rows to count distinct people.',
         explore: 'data_app_reach',
         dimensions: [
-            'data_app_reach_app_name',
+            'lightdash_apps_name',
             'lightdash_users_name',
             'data_app_reach_event_ts_week',
             'data_app_reach_app_id',
@@ -208,46 +210,38 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             'data_app_reach_user_id',
         ],
         metrics: [
-            'data_app_reach_qualifying_views',
-            'data_app_reach_last_viewed_at',
+            'data_app_reach_total_loads',
+            'data_app_reach_last_loaded_at',
         ],
-        filters: appReaders,
+        filters: appViewingSurfaces,
         limit: 100,
         sorts: [
             { fieldId: 'data_app_reach_event_ts_week', descending: true },
-            { fieldId: 'data_app_reach_qualifying_views', descending: true },
+            { fieldId: 'data_app_reach_total_loads', descending: true },
         ],
         fieldLabels: {
-            data_app_reach_qualifying_views: 'Recorded reader views',
-            data_app_reach_last_viewed_at: 'Last recorded read',
+            data_app_reach_total_loads: 'App loads',
+            data_app_reach_last_loaded_at: 'Last app load',
             data_app_reach_event_ts_week: 'Week',
         },
     },
     {
         key: 'adoption-app-first-audience',
-        name: 'Have apps found an audience?',
+        name: 'Where are apps being loaded?',
         description:
-            'Apps and their observed first-week adoption, including zero-reader apps. Unknown launch dates and incomplete seven-day windows remain separate. No observed readership is a prompt to investigate, not evidence that an app can safely be deleted.',
+            'All recorded app loads by surface, including builder previews, embeds, deliveries and older loads with unknown context. Embed viewers are unidentified. Historical unknown context cannot separate viewers from embed token issuers. Apps with no captured loads are absent.',
         explore: 'data_app_reach',
-        dimensions: [
-            'data_app_reach_app_name',
-            'data_app_reach_project_name',
-            'data_app_reach_adoption_status',
-            'data_app_reach_is_deleted',
-            'data_app_reach_app_id',
-            'data_app_reach_project_id',
-        ],
+        dimensions: ['data_app_reach_view_context'],
         metrics: [
-            'data_app_reach_distinct_consumers',
-            'data_app_reach_returning_consumers',
+            'data_app_reach_total_loads',
+            'data_app_reach_distinct_viewers',
         ],
         limit: 100,
-        sorts: [
-            { fieldId: 'data_app_reach_distinct_consumers', descending: false },
-        ],
+        sorts: [{ fieldId: 'data_app_reach_total_loads', descending: true }],
         fieldLabels: {
-            data_app_reach_distinct_consumers: 'Readers',
-            data_app_reach_returning_consumers: 'Returning readers',
+            data_app_reach_view_context: 'Surface',
+            data_app_reach_total_loads: 'App loads',
+            data_app_reach_distinct_viewers: 'Identified viewers',
         },
     },
     {
@@ -377,7 +371,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'What are people using?',
                     description:
-                        'Dashboard viewers and app readers are shown separately because their view definitions differ. Their audiences overlap; do not add them together.',
+                        'Dashboard viewers and app loads are shown separately because they measure different activity. Their audiences overlap; do not add them together.',
                     charts: [
                         'adoption-dashboard-audience',
                         'adoption-app-audience',
@@ -396,9 +390,9 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                     charts: ['adoption-apps-created', 'adoption-app-creators'],
                 },
                 {
-                    title: 'Are apps finding regular readers?',
+                    title: 'Who is loading apps, and where?',
                     description:
-                        'Readers exclude known app builders, previews and reloads. First-week adoption needs a captured launch and seven complete days; missing history stays unknown.',
+                        'Trends and named viewers cover standalone pages, dashboards and charts. The surface breakdown also includes builder previews, embeds, deliveries and unknown context. Loads include reloads and do not prove readership.',
                     charts: [
                         'adoption-app-reader-trend',
                         'adoption-app-reader-detail',

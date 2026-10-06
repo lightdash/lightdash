@@ -87,20 +87,19 @@ describe('built-in usage dashboards', () => {
             await db.run(
                 "INSERT INTO agent_request_events SELECT * FROM agent_request_events WHERE event_id='one'",
             );
-            await db.run(`INSERT INTO lightdash_content (org_id,project_id,content_type,content_id,content_name,app_template,is_deleted,snapshot_at) VALUES
-                ('org','project','data_app','app','Sales','dashboard',false,CURRENT_TIMESTAMP),
-                ('org','project','data_app','zero','No reads','dashboard',false,CURRENT_TIMESTAMP)`);
-            await db.run(`INSERT INTO data_app_events (org_id,project_id,app_id,user_id,event_ts,event_name) VALUES
-                ('org','project','app','a','2026-01-05','data_app.created'),
-                ('org','project','app','b','2026-01-05','data_app.view')`);
-            await db.run(`INSERT INTO data_app_reach_events (org_id,project_id,app_id,user_id,event_id,view_id,event_ts,stage,outcome,is_reload,view_context,is_builder,is_shared,is_preview_project) VALUES
-                ('org','project','app','b','reader-load','reader','2026-01-05','load','served',false,'standalone',false,true,false),
-                ('org','project','app','b','reader-ready','reader','2026-01-05','sdk_ready',NULL,false,'standalone',false,true,false),
-                ('org','project','app','a','builder-load','builder','2026-01-05','load','served',false,'standalone',true,true,false),
-                ('org','project','app','a','builder-ready','builder','2026-01-05','sdk_ready',NULL,false,'standalone',true,true,false),
-                ('org','project','app','b','reload-load','reload','2026-01-05','load','served',true,'standalone',false,true,false),
-                ('org','project','app','b','reload-ready','reload','2026-01-05','sdk_ready',NULL,true,'standalone',false,true,false)`);
-            await db.run('UPDATE data_app_reach_events SET version = 1');
+            await db.run(`INSERT INTO lightdash_content (org_id,project_id,content_type,content_id,content_name,is_deleted,snapshot_at) VALUES
+                ('org','project','data_app','app','Sales',false,CURRENT_TIMESTAMP),
+                ('org','project','data_app','zero','No reads',false,CURRENT_TIMESTAMP)`);
+            await db.run(`INSERT INTO data_app_events (org_id,project_id,app_id,user_id,event_ts,event_name,view_context) VALUES
+                ('org','project','app','a','2026-01-05','data_app.created',NULL),
+                ('org','project','app','b','2026-01-05','data_app.view','standalone'),
+                ('org','project','app','b','2026-01-05','data_app.view','standalone'),
+                ('org','project','app','a','2026-01-05','data_app.view','dashboard'),
+                ('org','project','app','a','2026-01-05','data_app.view','builder'),
+                ('org','project','app','b','2026-01-05','data_app.view','chart'),
+                ('org','project','app','issuer','2026-01-05','data_app.view','embed'),
+                ('org','project','app','a','2026-01-05','data_app.view','delivery'),
+                ('org','project','app','historic','2026-01-05','data_app.view',NULL)`);
             const rows = new Map<string, Record<string, unknown>[]>();
             for (const chart of charts.filter(
                 (c) => c.dashboardSlug === 'lightdash-analytics-adoption',
@@ -149,15 +148,45 @@ describe('built-in usage dashboards', () => {
                 expect.objectContaining({
                     lightdash_users_name: 'Alex',
                     data_app_reach_user_id: 'b',
-                    data_app_reach_qualifying_views: 1n,
+                    data_app_reach_total_loads: 3n,
+                }),
+                expect.objectContaining({
+                    lightdash_users_name: 'Alex',
+                    data_app_reach_user_id: 'a',
+                    data_app_reach_total_loads: 1n,
                 }),
             ]);
-            expect(rows.get('app-first-audience')).toEqual(
+            for (const key of ['app-audience', 'app-reader-trend']) {
+                expect(rows.get(key)).toEqual([
+                    expect.objectContaining({
+                        data_app_reach_total_loads: 4n,
+                        data_app_reach_distinct_viewers: 2n,
+                    }),
+                ]);
+            }
+            const surfaces = rows.get('app-first-audience')!;
+            expect(
+                surfaces.reduce(
+                    (total, row) =>
+                        total + Number(row.data_app_reach_total_loads),
+                    0,
+                ),
+            ).toBe(8);
+            expect(surfaces).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        data_app_reach_app_name: 'No reads',
-                        data_app_reach_distinct_consumers: 0n,
-                        data_app_reach_adoption_status: 'Launch unknown',
+                        data_app_reach_view_context: 'embed',
+                        data_app_reach_total_loads: 1n,
+                        data_app_reach_distinct_viewers: 0n,
+                    }),
+                    expect.objectContaining({
+                        data_app_reach_view_context: 'unknown',
+                        data_app_reach_total_loads: 1n,
+                        data_app_reach_distinct_viewers: 1n,
+                    }),
+                    expect.objectContaining({
+                        data_app_reach_view_context: 'builder',
+                        data_app_reach_total_loads: 1n,
                     }),
                 ]),
             );
