@@ -1978,6 +1978,24 @@ describe('background setup checks', () => {
         ).toEqual(['setup_waiting', 'setup_check_result']);
     });
 
+    it('reports a warehouse failure on the setup role step, not as a sign-in failure', async () => {
+        await service.startWaitingForSetup(admin, 'account');
+        vi.mocked(ProvisionerConnection.prototype.currentIdentity)
+            .mockResolvedValueOnce({ user: 'PROVISIONER', role: 'PUBLIC' })
+            .mockRejectedValueOnce(
+                new Error(
+                    'Failed to select Snowflake warehouse "COMPUTE_WH": SQL compilation error',
+                ),
+            );
+        await vi.advanceTimersByTimeAsync(10_000);
+        await service.runSetupCheck('account');
+        expect(provisioner.setupCheck?.checks[0].status).toBe('passed');
+        expect(provisioner.setupCheck?.checks[1]).toMatchObject({
+            status: 'failed',
+            detail: 'The setup role cannot use the warehouse COMPUTE_WH. Run the updated setup script.',
+        });
+    });
+
     it('records the stop once when a failed probe finishes after the deadline', async () => {
         await service.startWaitingForSetup(admin, 'account');
         vi.setSystemTime(new Date('2026-10-06T11:59:59Z'));

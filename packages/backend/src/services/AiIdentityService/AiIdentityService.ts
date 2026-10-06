@@ -107,6 +107,25 @@ const managedScopeFor = (roles: AiIdentityAiRoleDefinition[]) =>
             database: role.schemaRule.database,
         }));
 
+const setupCheckFailureDetail = (
+    key: string,
+    cause: unknown,
+    warehouse: string | null,
+): string => {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    if (/Failed to select Snowflake warehouse/i.test(message))
+        return warehouse === null
+            ? 'The setup role cannot use the project warehouse. Run the updated setup script.'
+            : `The setup role cannot use the warehouse ${warehouse}. Run the updated setup script.`;
+    if (key === 'sign_in')
+        return /JWT token is invalid|does not exist|not found/i.test(message)
+            ? 'The setup user cannot sign in with its key.'
+            : `The setup user cannot sign in: ${message.split('\n')[0]}`;
+    if (key === 'create_identities')
+        return 'The setup role cannot create AI identities.';
+    return `The check failed: ${message.split('\n')[0]}`;
+};
+
 export class AiIdentityService extends BaseService {
     constructor(
         private readonly args: {
@@ -1223,7 +1242,15 @@ export class AiIdentityService extends BaseService {
         ] = state.checks;
         let active: AiIdentitySetupCheckItem = signInCheck;
         let { findings, ungrantedSchemas } = provisioner;
+        let credentialsWarehouse: string | null = null;
         try {
+            credentialsWarehouse =
+                (
+                    await this.projectForAccount(
+                        identityAccount.organizationUuid,
+                        identityAccount.snowflakeAccount,
+                    )
+                ).credentials.warehouse || null;
             const probe = await this.provisionerConnection(
                 aiIdentityAccountUuid,
                 true,
@@ -1346,7 +1373,7 @@ export class AiIdentityService extends BaseService {
                 firstSyncCheck.status = 'failed';
                 firstSyncCheck.detail = 'Check the latest grant sync run.';
             }
-        } catch {
+        } catch (cause) {
             if (
                 state.signedInAt === null &&
                 provisioner.status !== AiIdentityProvisionerStatus.READY
@@ -1395,12 +1422,11 @@ export class AiIdentityService extends BaseService {
                 return;
             }
             active.status = 'failed';
-            active.detail =
-                'The schema check could not confirm the exclusions.';
-            if (active.key === 'sign_in')
-                active.detail = 'The setup user cannot sign in with its key.';
-            if (active.key === 'create_identities')
-                active.detail = 'The setup role cannot create AI identities.';
+            active.detail = setupCheckFailureDetail(
+                active.key,
+                cause,
+                credentialsWarehouse,
+            );
         }
         const failed = state.checks.filter((item) => item.status === 'failed');
         await this.args.aiIdentityModel.saveProvisionerSetupCheck(

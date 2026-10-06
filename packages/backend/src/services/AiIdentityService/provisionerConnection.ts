@@ -37,7 +37,7 @@ export class ProvisionerConnection {
             ...projectCredentials,
             database: '',
             schema: '',
-            warehouse: projectCredentials.warehouse,
+            warehouse: roleName === null ? '' : projectCredentials.warehouse,
             user: userName,
             role: roleName ?? undefined,
             authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
