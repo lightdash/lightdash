@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
@@ -105,6 +107,18 @@ describe('toolErrorHandler', () => {
 });
 
 describe('toolErrorOutput', () => {
+    it('returns only the refusal message and its structured refusal', () => {
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.PRINCIPAL_PENDING,
+        );
+        const output = toolErrorOutput(error, 'Error running query.');
+        expect(output.result).toBe(error.message);
+        expect(output.structuredContent).toEqual({
+            error: error.message,
+            refusal: error.refusal,
+        });
+        expect(output.metadata).toEqual({ status: 'error' });
+    });
     it('mirrors the model-facing text as structured content', () => {
         const output = toolErrorOutput(
             new WarehouseQueryError('bad sql'),
@@ -113,6 +127,7 @@ describe('toolErrorOutput', () => {
 
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.structuredContent.error).toBe(output.result);
+        expect(output.structuredContent.refusal).toBeNull();
         expect(output.result).toContain('bad sql');
         expect(
             toolErrorStructuredContentSchema.safeParse(output.structuredContent)

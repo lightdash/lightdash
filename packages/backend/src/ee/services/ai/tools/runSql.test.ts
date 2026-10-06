@@ -665,3 +665,37 @@ describe('SQL query review', () => {
         expect((await output).result).toContain('advice');
     });
 });
+
+const expectNoWarehouseIdentifiers = (value: unknown): void => {
+    if (value === null || typeof value !== 'object') return;
+    for (const [key, nested] of Object.entries(value)) {
+        expect([
+            'queryId',
+            'queryMetadata',
+            'warehouseQueryId',
+            'jobLocation',
+        ]).not.toContain(key);
+        expectNoWarehouseIdentifiers(nested);
+    }
+};
+
+it('keeps warehouse identifiers out of raw successful SQL structured content at every depth', async () => {
+    const { tool, dependencies } = makeTool({ autoApproveSql: true });
+    dependencies.runSqlJob.mockResolvedValue({
+        queryUuid: 'query',
+        rows: [{ answer: 1 }],
+        columns: ['answer'],
+        rowCount: 1,
+        queryId: 'warehouse-query',
+        warehouseQueryId: 'warehouse-query',
+        queryMetadata: { jobLocation: 'region' },
+    });
+    const output = await tool.execute!(
+        { sql: 'select 1 as answer', limit: 500 },
+        { messages: [], toolCallId: 'call', context: {} },
+    );
+    if (Symbol.asyncIterator in output)
+        throw new Error('Expected non-streaming result');
+    expect(output.metadata.status).toBe('success');
+    expectNoWarehouseIdentifiers(output.structuredContent);
+});

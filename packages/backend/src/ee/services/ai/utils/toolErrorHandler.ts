@@ -1,4 +1,5 @@
 import {
+    AiAccessRefusedError,
     BigqueryTokenError,
     DatabricksTokenError,
     getErrorMessage,
@@ -70,7 +71,10 @@ export const toolErrorHandler = (
         });
     }
 
-    const errorMessage = `${message}
+    const errorMessage =
+        error instanceof AiAccessRefusedError
+            ? error.message
+            : `${message}
 
 ${serializeData(getErrorMessage(error), 'raw')}
 
@@ -95,6 +99,10 @@ export const toolErrorOutput = (
     return {
         result,
         metadata: { status: 'error' },
-        structuredContent: { error: result },
+        structuredContent: {
+            error: result,
+            refusal:
+                error instanceof AiAccessRefusedError ? error.refusal : null,
+        },
     };
 };

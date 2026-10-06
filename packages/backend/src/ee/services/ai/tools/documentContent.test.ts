@@ -224,7 +224,10 @@ describe('AI Agent Document authoring', () => {
             throw new Error('Unexpected streamed output');
         }
         expect(result).toMatchObject({ metadata: { status: 'error' } });
-        expect(result.structuredContent).toEqual({ error: result.result });
+        expect(result.structuredContent).toEqual({
+            error: result.result,
+            refusal: null,
+        });
         expect(toolCreateContentOutputSchema.safeParse(result).success).toBe(
             true,
         );

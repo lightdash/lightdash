@@ -124,6 +124,7 @@ export class QueryHistoryModel {
              */
             externalSourceSalt?: string;
             warehouseConnectionUuid?: string;
+            aiPrincipalUuid?: string;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
@@ -154,6 +155,10 @@ export class QueryHistoryModel {
 
         if (resultsIdentifiers.warehouseConnectionUuid) {
             queryHashKey += `.connection:${resultsIdentifiers.warehouseConnectionUuid}`;
+        }
+
+        if (resultsIdentifiers.aiPrincipalUuid) {
+            queryHashKey += `.principal:${resultsIdentifiers.aiPrincipalUuid}`;
         }
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');

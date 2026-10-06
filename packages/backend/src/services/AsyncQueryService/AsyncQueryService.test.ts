@@ -129,6 +129,7 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { type AiAccessService } from '../AiAccessService/AiAccessService';
+import { aiExecutionPlanMock } from '../AiAccessService/AiAccessService.mock';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { DocumentService } from '../DocumentService/DocumentService';
@@ -1995,6 +1996,7 @@ describe('AsyncQueryService', () => {
                 try {
                     await service['executeAsyncQuery'](
                         {
+                            aiPrincipalUuid: null,
                             account: sessionAccount,
                             projectUuid,
                             context: QueryExecutionContext.EXPLORE,
@@ -2092,6 +2094,7 @@ describe('AsyncQueryService', () => {
 
                 await serviceWithCache['executeAsyncQuery'](
                     {
+                        aiPrincipalUuid: null,
                         account: sessionAccount,
                         projectUuid,
                         context,
@@ -2163,6 +2166,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2252,6 +2256,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2337,6 +2342,7 @@ describe('AsyncQueryService', () => {
             const execute = (warehouseConnectionUuid: string | null) =>
                 serviceWithCache['executeAsyncQuery'](
                     {
+                        aiPrincipalUuid: null,
                         account: sessionAccount,
                         projectUuid,
                         context: QueryExecutionContext.EXPLORE,
@@ -2408,6 +2414,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2452,6 +2459,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2507,6 +2515,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2564,6 +2573,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called with invalidateCache: true
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2648,6 +2658,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2706,6 +2717,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithoutCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2793,6 +2805,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called with missing parameter references
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2863,6 +2876,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -2930,6 +2944,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -3012,6 +3027,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -3101,6 +3117,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
@@ -3408,6 +3425,118 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    test('an execution plan bypasses pre-aggregates and refuses pre-aggregate explores', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.featureFlagModel.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: false,
+            }),
+        );
+        const getRoutingDecision = vi.fn();
+        Object.assign(service, {
+            preAggregateStrategy: { getRoutingDecision },
+        });
+        const args = {
+            account: sessionAccount,
+            metricQuery: metricQueryMock,
+            explore: validExplore,
+            context: QueryExecutionContext.AI,
+            forceWarehouse: false,
+            aiPlan: aiExecutionPlanMock,
+        };
+        await expect(
+            service['getPreAggregationRoutingDecision'](args),
+        ).resolves.toEqual({ target: 'warehouse' });
+        await expect(
+            service['getPreAggregationRoutingDecision']({
+                ...args,
+                explore: { ...validExplore, type: ExploreType.PRE_AGGREGATE },
+            }),
+        ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
+        expect(getRoutingDecision).not.toHaveBeenCalled();
+    });
+
+    test('uses the resolved principal in the metric results cache key', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(
+            service as AnyType,
+            'getWarehouseCredentialsWithConnection',
+        ).mockResolvedValue({
+            warehouseCredentials: warehouseCredentialsMock,
+            warehouseConnectionUuid: null,
+            connectionRoute: {
+                route: 'single',
+                originalWarehouseConnectionUuid: null,
+            },
+            aiPlan: aiExecutionPlanMock,
+        });
+        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
+            {
+                explore: validExplore,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            },
+        );
+        vi.spyOn(
+            service as AnyType,
+            'prepareMetricQueryAsyncQueryArgs',
+        ).mockResolvedValue(createQueryComposerMock());
+        vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+            undefined,
+        );
+        const cacheKey = vi.spyOn(QueryHistoryModel, 'getCacheKey');
+        await service.executeAsyncMetricQuery({
+            account: sessionAccount,
+            projectUuid,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.AI,
+        });
+        expect(cacheKey).toHaveBeenCalledWith(
+            projectUuid,
+            expect.objectContaining({
+                aiPrincipalUuid: aiExecutionPlanMock.principal.aiPrincipalUuid,
+            }),
+        );
+        cacheKey.mockRestore();
+    });
+
+    test.each(['getAsyncQueryResults', 'getRawAsyncQueryResults'] as const)(
+        '%s refuses a non-AI query with only AI principals enabled',
+        async (method) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.AiPrincipals,
+                }),
+            );
+            const history = {
+                context: QueryExecutionContext.EXPLORE,
+                status: QueryHistoryStatus.READY,
+                createdByUserUuid: sessionAccount.user.id,
+                requestParameters: {},
+                projectUuid,
+            } as QueryHistory;
+            vi.spyOn(service, 'getAsyncQueryHistory').mockResolvedValue(
+                history,
+            );
+            vi.mocked(service.queryHistoryModel.get).mockResolvedValue(history);
+            await expect(
+                service[method]({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'non-ai-query',
+                    aiAccessOnly: true,
+                    page: 1,
+                    pageSize: 10,
+                }),
+            ).rejects.toThrow('Query was not started by AI access');
+        },
+    );
+
     describe('executeAsyncMetricQuery', () => {
         test.each([
             [QueryExecutionContext.AI, true, 'warehouse'],
@@ -3442,6 +3571,7 @@ describe('AsyncQueryService', () => {
                     explore: validExplore,
                     context,
                     forceWarehouse: false,
+                    aiPlan: null,
                 });
                 expect(result.target).toBe(target);
                 expect(getRoutingDecision).toHaveBeenCalledTimes(
@@ -3466,6 +3596,7 @@ describe('AsyncQueryService', () => {
                     },
                     context: QueryExecutionContext.AI,
                     forceWarehouse: false,
+                    aiPlan: null,
                 }),
             ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
         });
@@ -3476,6 +3607,7 @@ describe('AsyncQueryService', () => {
             'expired',
             'denied',
             'ordinary',
+            'principal',
         ] as const)(
             'presentation reuse keeps current authorization and compilation: %s',
             async (scenario) => {
@@ -3489,6 +3621,20 @@ describe('AsyncQueryService', () => {
                             intrinsicUserAttributes: {},
                         },
                     });
+                if (scenario === 'principal') {
+                    vi.spyOn(
+                        service as AnyType,
+                        'getWarehouseCredentialsWithConnection',
+                    ).mockResolvedValue({
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid: null,
+                        connectionRoute: {
+                            route: 'single',
+                            originalWarehouseConnectionUuid: null,
+                        },
+                        aiPlan: aiExecutionPlanMock,
+                    });
+                }
                 if (scenario === 'denied')
                     access.mockRejectedValue(new ForbiddenError());
                 service['getWarehouseCredentials'] = vi
@@ -3563,7 +3709,16 @@ describe('AsyncQueryService', () => {
                 expect(execute).toHaveBeenCalledTimes(
                     scenario === 'reuse' ? 0 : 1,
                 );
-                if (scenario === 'ordinary')
+                if (scenario === 'principal') {
+                    expect(execute).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            aiPrincipalUuid:
+                                aiExecutionPlanMock.principal.aiPrincipalUuid,
+                        }),
+                        expect.anything(),
+                    );
+                }
+                if (scenario === 'ordinary' || scenario === 'principal')
                     expect(history).not.toHaveBeenCalled();
                 else
                     expect(history).toHaveBeenCalledWith({
@@ -5722,6 +5877,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.SQL_RUNNER,
@@ -5797,6 +5953,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.SQL_RUNNER,
@@ -6009,6 +6166,91 @@ describe('AsyncQueryService', () => {
             } finally {
                 clock.mockRestore();
                 track.mockRestore();
+            }
+        },
+    );
+
+    test.each([false, true])(
+        'audits before warehouse execution and fails closed on audit failure: %s',
+        async (auditFails) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const recordQuery = vi.fn().mockResolvedValue(undefined);
+            const auditError = new Error('audit unavailable');
+            if (auditFails) recordQuery.mockRejectedValue(auditError);
+            Object.assign(service, { aiAccessService: { recordQuery } });
+            vi.spyOn(
+                service as AnyType,
+                'getWarehouseCredentialsWithConnection',
+            ).mockResolvedValue({
+                warehouseCredentials: warehouseCredentialsMock,
+                warehouseConnectionUuid: null,
+                connectionRoute: {
+                    route: 'single',
+                    originalWarehouseConnectionUuid: null,
+                },
+                aiPlan: aiExecutionPlanMock,
+            });
+            const execute = vi.fn(warehouseClientMock.executeAsyncQuery);
+            vi.spyOn(service, '_getWarehouseClient').mockResolvedValue({
+                warehouseClient: {
+                    ...warehouseClientMock,
+                    executeAsyncQuery: execute,
+                },
+                sshTunnel: mockSshTunnel,
+                tunnelConnectMs: 0,
+            });
+            const markErrored = vi
+                .spyOn(service as AnyType, 'markAsyncQueryErrored')
+                .mockResolvedValue(undefined);
+            await service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT 1',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: {
+                    ...service.getUserQueryTags(sessionAccount),
+                    query_context: QueryExecutionContext.AI,
+                },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'audited-query',
+                cacheKey: 'cache',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+            expect(recordQuery).toHaveBeenCalledExactlyOnceWith({
+                queryUuid: 'audited-query',
+                projectUuid,
+                warehouseConnectionUuid: null,
+                plan: aiExecutionPlanMock,
+            });
+            if (auditFails) {
+                expect(execute).not.toHaveBeenCalled();
+                expect(markErrored).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        errorMessage: auditError.message,
+                    }),
+                );
+            } else {
+                expect(execute).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        tags: expect.objectContaining({
+                            user_uuid: sessionAccount.user.id,
+                            ai_principal: aiExecutionPlanMock.principal.ref,
+                        }),
+                    }),
+                    expect.any(Function),
+                );
+                expect(recordQuery.mock.invocationCallOrder[0]).toBeLessThan(
+                    execute.mock.invocationCallOrder[0],
+                );
+                expect(markErrored).not.toHaveBeenCalled();
             }
         },
     );

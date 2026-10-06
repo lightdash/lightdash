@@ -347,7 +347,10 @@ describe('getGenerateDashboardV2 structured output', () => {
         expect(output.result).toContain(
             'Dashboard generation failed - all visualizations had validation errors',
         );
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
     });
 
@@ -362,6 +365,9 @@ describe('getGenerateDashboardV2 structured output', () => {
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.result).toContain('Error generating dashboard.');
         expect(output.result).toContain('prompt is gone');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
     });
 });

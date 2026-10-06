@@ -11073,7 +11073,8 @@ export class ProjectService extends BaseService {
         const isUserCacheEnabled =
             this.lightdashConfig.results.autocompleteEnabled &&
             !!user.userUuid &&
-            !skipAiAccessCache;
+            !skipAiAccessCache &&
+            aiPlan === null;
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 

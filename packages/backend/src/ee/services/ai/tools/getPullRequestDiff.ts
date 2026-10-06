@@ -67,7 +67,7 @@ const renderDiff = ({
 const errorOutput = (result: string): ExecuteToolErrorResult => ({
     result,
     metadata: { status: 'error' },
-    structuredContent: { error: result },
+    structuredContent: { error: result, refusal: null },
 });
 
 export const getGetPullRequestDiff = ({ getPullRequestDiff }: Dependencies) =>

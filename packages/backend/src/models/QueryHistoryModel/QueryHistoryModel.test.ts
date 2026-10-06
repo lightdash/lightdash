@@ -4,6 +4,30 @@ import { createHash } from 'node:crypto';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
+    test('isolates cached results by principal after the connection segment', () => {
+        const identifiers = {
+            sql: 'SELECT 1',
+            userUuid: null,
+            warehouseConnectionUuid: 'connection',
+        };
+        const human = QueryHistoryModel.getCacheKey('project', identifiers);
+        const first = QueryHistoryModel.getCacheKey('project', {
+            ...identifiers,
+            aiPrincipalUuid: 'first',
+        });
+        const second = QueryHistoryModel.getCacheKey('project', {
+            ...identifiers,
+            aiPrincipalUuid: 'second',
+        });
+        expect(new Set([human, first, second]).size).toBe(3);
+        expect(first).toBe(
+            createHash('sha256')
+                .update(
+                    'v3.project.SELECT 1.connection:connection.principal:first',
+                )
+                .digest('hex'),
+        );
+    });
     describe('getCacheKey', () => {
         const projectUuid = 'test-project-uuid';
         const sql = 'SELECT * FROM test_table';
