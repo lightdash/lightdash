@@ -1590,6 +1590,7 @@ describe('CoderService upsertDashboard tile chart versions', () => {
                     filters: {
                         dimensions: [
                             {
+                                label: 'Order status',
                                 target: {
                                     fieldId: 'orders_status',
                                     tableName: 'orders',
@@ -1601,9 +1602,16 @@ describe('CoderService upsertDashboard tile chart versions', () => {
                         ],
                     },
                     config: {
+                        isDateZoomDisabled: false,
                         dateZoomConfig: {
                             controls: [],
-                            tileTargets: { chart: false },
+                            tileTargets: {
+                                chart: {
+                                    controlUuid: 'zoom-control',
+                                    fieldId: 'orders_order_date',
+                                    tableName: 'orders',
+                                },
+                            },
                         },
                     },
                 },
@@ -1627,9 +1635,16 @@ describe('CoderService upsertDashboard tile chart versions', () => {
                     ],
                 }),
                 config: {
+                    isDateZoomDisabled: false,
                     dateZoomConfig: {
                         controls: [],
-                        tileTargets: { 'commented-tile': false },
+                        tileTargets: {
+                            'commented-tile': {
+                                controlUuid: 'zoom-control',
+                                fieldId: 'orders_order_date',
+                                tableName: 'orders',
+                            },
+                        },
                     },
                 },
             }),
