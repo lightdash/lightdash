@@ -12,6 +12,7 @@ export enum ContentReviewContentType {
     CHART = 'chart',
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sql_chart',
+    DOCUMENT = 'document',
 }
 
 export enum ContentReviewRequestStatus {

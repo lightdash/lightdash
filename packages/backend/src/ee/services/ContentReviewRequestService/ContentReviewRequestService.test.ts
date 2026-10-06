@@ -7,6 +7,7 @@ import {
     DashboardTileTypes,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
+    ForbiddenError,
     MergeJoinType,
     OrganizationMemberRole,
     SpaceMemberRole,
@@ -32,6 +33,7 @@ import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
 import { type DashboardService } from '../../../services/DashboardService/DashboardService';
 import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/DirectAccessFeatureGate';
+import { type DocumentService } from '../../../services/DocumentService/DocumentService';
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -157,6 +159,7 @@ const buildService = () => {
         findChartLocations: vi.fn().mockResolvedValue([chartLocation]),
         findDashboardLocations: vi.fn().mockResolvedValue([]),
         findSqlChartLocations: vi.fn().mockResolvedValue([]),
+        findDocumentLocations: vi.fn().mockResolvedValue([]),
         findSpaceInfo: vi.fn().mockResolvedValue(spaces),
         findPendingByContentUuids: vi.fn().mockResolvedValue(new Map()),
         findPendingByContent: vi.fn().mockResolvedValue(null),
@@ -198,6 +201,10 @@ const buildService = () => {
     const directAccessModel = {
         upsertAccess: vi.fn().mockResolvedValue({}),
         revokeAccess: vi.fn().mockResolvedValue({}),
+    };
+    const documentService = {
+        get: vi.fn(),
+        moveApprovedToSpace: vi.fn().mockResolvedValue(undefined),
     };
     const groupsModel = {
         findUserInGroups: vi.fn().mockResolvedValue([]),
@@ -265,6 +272,7 @@ const buildService = () => {
         directAccessFeatureGate:
             directAccessFeatureGate as unknown as DirectAccessFeatureGate,
         directAccessModel: directAccessModel as unknown as DirectAccessModel,
+        documentService: documentService as unknown as DocumentService,
         groupsModel: groupsModel as unknown as GroupsModel,
         projectModel: projectModel as unknown as ProjectModel,
         savedChartService: savedChartService as unknown as SavedChartService,
@@ -285,6 +293,7 @@ const buildService = () => {
         contentVerificationModel,
         directAccessFeatureGate,
         directAccessModel,
+        documentService,
         groupsModel,
         savedChartService,
         spacePermissionService,
@@ -751,6 +760,117 @@ describe('ContentReviewRequestService', () => {
                 expect.anything(),
             );
             expect(savedChartService.moveToSpace).not.toHaveBeenCalled();
+            expect(contentVerificationModel.verify).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('Documents', () => {
+        const DOCUMENT = 'document-uuid';
+        const documentLocation = {
+            uuid: DOCUMENT,
+            name: 'Q3 review',
+            slug: 'q3-review',
+            spaceUuid: PERSONAL_SPACE,
+            dashboardUuid: null,
+            deleted: false,
+        };
+        const documentRequest: ContentReviewRequest = {
+            ...pendingRequest,
+            contentType: ContentReviewContentType.DOCUMENT,
+            contentUuid: DOCUMENT,
+        };
+        const documentBody = {
+            ...submitBody,
+            contentType: ContentReviewContentType.DOCUMENT,
+            contentUuid: DOCUMENT,
+        };
+
+        const buildDocumentService = () => {
+            const built = buildService();
+            built.contentReviewRequestModel.findDocumentLocations.mockResolvedValue(
+                [documentLocation],
+            );
+            built.contentReviewRequestModel.getByUuid.mockResolvedValue(
+                documentRequest,
+            );
+            built.documentService.get.mockResolvedValue({
+                documentUuid: DOCUMENT,
+            });
+            return built;
+        };
+
+        test('submit shares the Document with reviewers', async () => {
+            const { service, contentReviewRequestModel, directAccessModel } =
+                buildDocumentService();
+
+            await service.submit(requester, PROJECT, documentBody);
+
+            expect(contentReviewRequestModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    contentType: ContentReviewContentType.DOCUMENT,
+                    contentUuid: DOCUMENT,
+                }),
+            );
+            expect(directAccessModel.upsertAccess).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    resourceType: DirectAccessResourceType.DOCUMENT,
+                    resourceUuid: DOCUMENT,
+                }),
+            );
+        });
+
+        test('submit fails without creating a request when Documents are off', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                directAccessModel,
+                documentService,
+            } = buildDocumentService();
+            documentService.get.mockRejectedValue(
+                new ForbiddenError('Documents are not enabled'),
+            );
+
+            await expect(
+                service.submit(requester, PROJECT, documentBody),
+            ).rejects.toThrow('Documents are not enabled');
+            expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
+            expect(contentReviewRequestModel.create).not.toHaveBeenCalled();
+        });
+
+        test('approve moves the Document through its approved-move path and never verifies', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                documentService,
+                contentVerificationModel,
+            } = buildDocumentService();
+
+            const detail = await service.get(
+                verifier,
+                PROJECT,
+                pendingRequest.uuid,
+            );
+            expect(detail.canVerify).toBe(false);
+
+            await service.approve(verifier, PROJECT, pendingRequest.uuid, {
+                verify: false,
+                note: null,
+            });
+
+            expect(documentService.moveApprovedToSpace).toHaveBeenCalledWith(
+                expect.anything(),
+                {
+                    projectUuid: PROJECT,
+                    documentUuid: DOCUMENT,
+                    targetSpaceUuid: SHARED_SPACE,
+                },
+                { tx: 'tx' },
+            );
+            expect(contentReviewRequestModel.approve).toHaveBeenCalledWith(
+                pendingRequest.uuid,
+                expect.objectContaining({ reviewedByUserUuid: REVIEWER }),
+                expect.anything(),
+            );
             expect(contentVerificationModel.verify).not.toHaveBeenCalled();
         });
     });

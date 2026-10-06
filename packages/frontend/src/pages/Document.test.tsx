@@ -1,6 +1,8 @@
 import {
     ChartType,
+    ContentReviewContentType,
     fromDocumentChartBlocks,
+    type ContentReviewRequest,
     type Document,
     type DocumentChartContent,
     type DocumentContent,
@@ -17,6 +19,10 @@ const mocks = vi.hoisted(() => ({
     chartFails: false,
     chart: vi.fn(),
     flag: { data: { enabled: true }, isInitialLoading: false, isError: false },
+    eligibility: vi.fn(),
+    pendingReview: null as ContentReviewRequest | null,
+    canRequestReview: false,
+    actions: vi.fn(),
 }));
 
 vi.unmock('@uiw/react-markdown-preview');
@@ -30,7 +36,22 @@ vi.mock('../features/documents/DocumentEditor', () => ({
     ),
 }));
 vi.mock('../features/documents/DocumentActions', () => ({
-    default: () => null,
+    default: (props: unknown) => {
+        mocks.actions(props);
+        return null;
+    },
+}));
+vi.mock('../ee/features/contentReview', () => ({
+    useContentReviewEligibility: (args: unknown) => {
+        mocks.eligibility(args);
+        return {
+            isAvailable: true,
+            isPersonalContent: true,
+            pendingRequest: mocks.pendingReview,
+            canRequest: mocks.canRequestReview,
+        };
+    },
+    PendingReviewBadge: () => <span>Review pending</span>,
 }));
 vi.mock('../features/documents/DocumentAiAgentContextBridge', () => ({
     default: ({ documentUuid }: { documentUuid: string }) => (
@@ -232,6 +253,10 @@ describe('Document page', () => {
         ).not.toBeInTheDocument();
     });
     beforeEach(() => {
+        mocks.eligibility.mockReset();
+        mocks.actions.mockReset();
+        mocks.pendingReview = null;
+        mocks.canRequestReview = false;
         mocks.chartFails = false;
         mocks.chart.mockReset();
         mocks.api.mockReset();
@@ -241,6 +266,33 @@ describe('Document page', () => {
             isInitialLoading: false,
             isError: false,
         };
+    });
+
+    test('lets the author request a review of this Document', async () => {
+        mocks.canRequestReview = true;
+        renderPage();
+        await screen.findByRole('button', { name: 'Edit document' });
+        expect(mocks.eligibility).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentType: ContentReviewContentType.DOCUMENT,
+                contentUuid: document.documentUuid,
+                spaceUuid: document.spaceUuid,
+            }),
+        );
+        expect(mocks.actions).toHaveBeenLastCalledWith(
+            expect.objectContaining({ canRequestReview: true }),
+        );
+        expect(screen.queryByText('Review pending')).not.toBeInTheDocument();
+    });
+
+    test('shows a pending review outside the document controls', async () => {
+        mocks.pendingReview = { uuid: 'request' } as ContentReviewRequest;
+        renderPage();
+        const controls = await screen.findByRole('group', {
+            name: 'Document controls',
+        });
+        const badge = screen.getByText('Review pending');
+        expect(controls).not.toContainElement(badge);
     });
 
     test('does not request document content while the feature flag loads', () => {

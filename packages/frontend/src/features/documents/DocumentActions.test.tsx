@@ -1,5 +1,6 @@
 import {
     type Document,
+    ContentReviewContentType,
     DirectAccessResourceType,
     PromotionAction,
     type PromotionChanges,
@@ -33,6 +34,8 @@ const mocks = vi.hoisted(() => ({
     promotionDiff: undefined as PromotionChanges | undefined,
     requestDiff: vi.fn(),
     promote: vi.fn(),
+    canRequestReview: false,
+    reviewModal: vi.fn(),
 }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
@@ -132,6 +135,12 @@ vi.mock('../directAccess/hooks/useCanManageDirectAccess', () => ({
 vi.mock('../directAccess/hooks/useDirectAccess', () => ({
     useDirectAccessAvailability: () => ({ isAvailable: mocks.isAvailable }),
 }));
+vi.mock('../../ee/features/contentReview', () => ({
+    RequestReviewModal: (props: unknown) => {
+        mocks.reviewModal(props);
+        return <div>Request review form</div>;
+    },
+}));
 vi.mock('../directAccess/components/DirectAccessModal', () => ({
     default: (props: unknown) => {
         mocks.modal(props);
@@ -192,11 +201,14 @@ describe('Document actions', () => {
         mocks.promotionDiff = undefined;
         mocks.requestDiff.mockReset();
         mocks.promote.mockReset();
+        mocks.canRequestReview = false;
+        mocks.reviewModal.mockReset();
     });
     const renderActions = () =>
         render(
             <MantineProvider>
                 <DocumentActions
+                    canRequestReview={mocks.canRequestReview}
                     document={{
                         ...document,
                         pinnedListUuid: mocks.isPinned ? 'pins' : null,
@@ -325,6 +337,39 @@ describe('Document actions', () => {
         );
     });
 
+    it('requests review of a personal Document', async () => {
+        mocks.canRequestReview = true;
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Request review' }),
+        );
+        expect(
+            await screen.findByText('Request review form'),
+        ).toBeInTheDocument();
+        expect(mocks.reviewModal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project',
+                contentType: ContentReviewContentType.DOCUMENT,
+                contentUuid: 'document',
+                contentName: 'Weekly report',
+            }),
+        );
+    });
+
+    it('does not offer a review request when the Document is not eligible', async () => {
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        await screen.findByRole('menuitem', { name: 'View as code' });
+        expect(
+            screen.queryByRole('menuitem', { name: 'Request review' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('opens version history for a reader', async () => {
         mocks.canManage = false;
         renderActions();
@@ -399,6 +444,7 @@ describe('Document actions', () => {
         view.rerender(
             <MantineProvider>
                 <DocumentActions
+                    canRequestReview={mocks.canRequestReview}
                     document={{
                         ...document,
                         pinnedListUuid: mocks.isPinned ? 'pins' : null,
@@ -484,7 +530,7 @@ describe('Document actions', () => {
         };
         view.rerender(
             <MantineProvider>
-                <DocumentActions document={document} />
+                <DocumentActions document={document} canRequestReview={false} />
             </MantineProvider>,
         );
         fireEvent.click(await screen.findByRole('button', { name: 'Promote' }));

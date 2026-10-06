@@ -1,6 +1,7 @@
 import {
     assignDocumentChartIds,
     ConflictError,
+    ContentReviewContentType,
     Document,
     DOCUMENT_SCHEMA_VERSION,
     DocumentContent,
@@ -33,6 +34,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 
 export type CreateDocument = {
     projectUuid: string;
@@ -217,6 +219,11 @@ export class DocumentModel {
                     deleted_with_space: false,
                     updated_at: now,
                 });
+            await cancelPendingContentReviewRequests(
+                trx,
+                ContentReviewContentType.DOCUMENT,
+                [documentUuid],
+            );
         });
     }
 
@@ -291,6 +298,11 @@ export class DocumentModel {
             await trx(DocumentsTableName)
                 .where('document_id', document.document_id)
                 .delete();
+            await cancelPendingContentReviewRequests(
+                trx,
+                ContentReviewContentType.DOCUMENT,
+                [documentUuid],
+            );
         });
     }
 

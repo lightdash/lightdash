@@ -953,6 +953,94 @@ describe('DocumentService', () => {
         );
     });
 
+    describe('approved review move', () => {
+        test('needs create in the destination but not edit in the requester source', async () => {
+            const { service, documentModel, spacePermissionService } = setup();
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            builder.can('view', 'Project');
+            builder.can('view', 'Document');
+            builder.can('create', 'Document', {
+                inheritsFromOrgOrProject: true,
+            });
+            spacePermissionService.resolveAccessBatch.mockResolvedValue([
+                { context: makeContext([], true) },
+            ]);
+            await service.moveApprovedToSpace(
+                makeAccount(OrganizationMemberRole.MEMBER, builder.build()),
+                {
+                    projectUuid,
+                    documentUuid,
+                    targetSpaceUuid: 'destination',
+                },
+            );
+            expect(
+                spacePermissionService.resolveAccessBatch,
+            ).toHaveBeenCalledWith(
+                userUuid,
+                [{ type: 'space', spaceUuid: 'destination' }],
+                {},
+            );
+            expect(documentModel.moveToSpace).toHaveBeenCalledWith(
+                {
+                    projectUuid,
+                    documentUuid,
+                    sourceSpaceUuid: spaceUuid,
+                    targetSpaceUuid: 'destination',
+                },
+                { tx: undefined },
+            );
+        });
+
+        test('refuses a reviewer without create access in the destination', async () => {
+            const { service, documentModel, spacePermissionService } = setup();
+            spacePermissionService.resolveAccessBatch.mockResolvedValue([
+                { context: makeContext([], false) },
+            ]);
+            await expect(
+                service.moveApprovedToSpace(makeAccount(), {
+                    projectUuid,
+                    documentUuid,
+                    targetSpaceUuid: 'destination',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(documentModel.moveToSpace).not.toHaveBeenCalled();
+        });
+
+        test('rejects a destination in another project', async () => {
+            const { service, documentModel, spacePermissionService } = setup();
+            spacePermissionService.resolveAccessBatch.mockResolvedValue([
+                { context: { ...makeContext(), projectUuid: 'foreign' } },
+            ]);
+            await expect(
+                service.moveApprovedToSpace(
+                    makeAccount(OrganizationMemberRole.ADMIN),
+                    {
+                        projectUuid,
+                        documentUuid,
+                        targetSpaceUuid: 'destination',
+                    },
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(documentModel.moveToSpace).not.toHaveBeenCalled();
+        });
+
+        test('fails closed when Documents are off', async () => {
+            const { service, documentModel, featureFlagModel } = setup();
+            featureFlagModel.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service.moveApprovedToSpace(
+                    makeAccount(OrganizationMemberRole.ADMIN),
+                    {
+                        projectUuid,
+                        documentUuid,
+                        targetSpaceUuid: 'destination',
+                    },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(documentModel.moveToSpace).not.toHaveBeenCalled();
+        });
+    });
+
     test('move rejects a cross-project destination', async () => {
         const { service, documentModel, spacePermissionService } = setup();
         spacePermissionService.resolveAccessBatch.mockResolvedValue([

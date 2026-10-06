@@ -55,6 +55,7 @@ import { type SpaceModel } from '../../../models/SpaceModel';
 import { BaseService } from '../../../services/BaseService';
 import { type DashboardService } from '../../../services/DashboardService/DashboardService';
 import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/DirectAccessFeatureGate';
+import { type DocumentService } from '../../../services/DocumentService/DocumentService';
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -73,6 +74,7 @@ type ContentReviewRequestServiceArguments = {
     dashboardService: DashboardService;
     directAccessFeatureGate: DirectAccessFeatureGate;
     directAccessModel: DirectAccessModel;
+    documentService: DocumentService;
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
     savedChartService: SavedChartService;
@@ -102,6 +104,8 @@ const toDirectAccessResourceType = (
             return DirectAccessResourceType.SQL_CHART;
         case ContentReviewContentType.DASHBOARD:
             return DirectAccessResourceType.DASHBOARD;
+        case ContentReviewContentType.DOCUMENT:
+            return DirectAccessResourceType.DOCUMENT;
         default:
             return assertUnreachable(
                 contentType,
@@ -133,6 +137,8 @@ export class ContentReviewRequestService extends BaseService {
 
     private readonly directAccessModel: DirectAccessModel;
 
+    private readonly documentService: DocumentService;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly projectModel: ProjectModel;
@@ -159,6 +165,7 @@ export class ContentReviewRequestService extends BaseService {
         this.dashboardService = args.dashboardService;
         this.directAccessFeatureGate = args.directAccessFeatureGate;
         this.directAccessModel = args.directAccessModel;
+        this.documentService = args.documentService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
         this.savedChartService = args.savedChartService;
@@ -213,6 +220,10 @@ export class ContentReviewRequestService extends BaseService {
                 );
             case ContentReviewContentType.DASHBOARD:
                 return this.contentReviewRequestModel.findDashboardLocations(
+                    contentUuids,
+                );
+            case ContentReviewContentType.DOCUMENT:
+                return this.contentReviewRequestModel.findDocumentLocations(
                     contentUuids,
                 );
             default:
@@ -407,6 +418,17 @@ export class ContentReviewRequestService extends BaseService {
                     moveArgs,
                     moveOptions,
                 );
+            // Document moves always check access, so approval has its own path
+            case ContentReviewContentType.DOCUMENT:
+                return this.documentService.moveApprovedToSpace(
+                    fromSession(user),
+                    {
+                        projectUuid: moveArgs.projectUuid,
+                        documentUuid: moveArgs.itemUuid,
+                        targetSpaceUuid: moveArgs.targetSpaceUuid,
+                    },
+                    { tx: moveOptions.tx },
+                );
             default:
                 return assertUnreachable(
                     contentType,
@@ -425,6 +447,7 @@ export class ContentReviewRequestService extends BaseService {
             case ContentReviewContentType.DASHBOARD:
                 return ContentType.DASHBOARD;
             case ContentReviewContentType.SQL_CHART:
+            case ContentReviewContentType.DOCUMENT:
                 return null;
             default:
                 return assertUnreachable(
@@ -558,6 +581,7 @@ export class ContentReviewRequestService extends BaseService {
         const chartUuids = uuidsOf(ContentReviewContentType.CHART);
         const sqlChartUuids = uuidsOf(ContentReviewContentType.SQL_CHART);
         const dashboardUuids = uuidsOf(ContentReviewContentType.DASHBOARD);
+        const documentUuids = uuidsOf(ContentReviewContentType.DOCUMENT);
         const spaceUuids = [
             ...new Set(
                 requests.flatMap((r) =>
@@ -567,20 +591,25 @@ export class ContentReviewRequestService extends BaseService {
                 ),
             ),
         ];
-        const [charts, sqlCharts, dashboards, spaces] = await Promise.all([
-            this.contentReviewRequestModel.findChartLocations(chartUuids),
-            this.contentReviewRequestModel.findSqlChartLocations(sqlChartUuids),
-            this.contentReviewRequestModel.findDashboardLocations(
-                dashboardUuids,
-            ),
-            this.contentReviewRequestModel.findSpaceInfo(spaceUuids),
-        ]);
+        const [charts, sqlCharts, dashboards, documents, spaces] =
+            await Promise.all([
+                this.contentReviewRequestModel.findChartLocations(chartUuids),
+                this.contentReviewRequestModel.findSqlChartLocations(
+                    sqlChartUuids,
+                ),
+                this.contentReviewRequestModel.findDashboardLocations(
+                    dashboardUuids,
+                ),
+                this.contentReviewRequestModel.findDocumentLocations(
+                    documentUuids,
+                ),
+                this.contentReviewRequestModel.findSpaceInfo(spaceUuids),
+            ]);
         return {
             locations: new Map(
-                [...charts, ...sqlCharts, ...dashboards].map((location) => [
-                    location.uuid,
-                    location,
-                ]),
+                [...charts, ...sqlCharts, ...dashboards, ...documents].map(
+                    (location) => [location.uuid, location],
+                ),
             ),
             spaces,
         };
@@ -656,6 +685,14 @@ export class ContentReviewRequestService extends BaseService {
         if (content.spaceUuid !== personalSpace.uuid) {
             throw new ParameterError(
                 'Only content in your personal space can be submitted for review',
+            );
+        }
+        // Documents are feature-flagged; this also checks the requester's access
+        if (body.contentType === ContentReviewContentType.DOCUMENT) {
+            await this.documentService.get(
+                fromSession(user),
+                projectUuid,
+                body.contentUuid,
             );
         }
 
