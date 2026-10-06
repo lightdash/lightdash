@@ -43,13 +43,16 @@ export const GuideLimitations = () => (
     <Callout variant="warning" title="What this does not cover">
         <List size="sm" spacing="xs">
             <List.Item>
-                The session scope does not stop a view in an allowed schema from
-                reading an excluded schema. Mask the data itself.
+                The session scope does not cover views in allowed schemas that
+                read excluded schemas. Masking covers them.
             </List.Item>
             <List.Item>
-                The live test showed that the session scope does not block{' '}
-                <Code>RESULT_SCAN</Code> from reading the same person’s earlier
-                results. Raw SQL from AI stays off.
+                Copies of personal data outside the protected schemas are not
+                protected. Keep personal data only in protected, masked schemas.
+            </List.Item>
+            <List.Item>
+                The session scope does not block <Code>RESULT_SCAN</Code> from
+                reading the same person's earlier query results.
             </List.Item>
             <List.Item>
                 A user’s session policy replaces the account policy. Review

@@ -19,8 +19,8 @@ type BoundaryClient = {
 const getValue = (row: Record<string, unknown> | undefined, key: string) =>
     row && key in row ? row[key] : row?.[key.toLowerCase()];
 
-const rawSqlRequirement =
-    'Raw SQL from AI stays off. The live test showed that a Restricted Session Scope does not block RESULT_SCAN of the same person’s earlier results.';
+const resultScanScopeLimit =
+    "The session scope does not block RESULT_SCAN from reading the same person's earlier query results.";
 
 export const getUnavailableSnowflakeAiBoundaryChecks =
     (): SnowflakeAiBoundaryCheck[] => [
@@ -45,7 +45,7 @@ export const getUnavailableSnowflakeAiBoundaryChecks =
         {
             id: 'result_scan_blocked',
             status: 'skipped',
-            detail: `The agent session is unavailable. ${rawSqlRequirement}`,
+            detail: `The agent session is unavailable. ${resultScanScopeLimit}`,
             fixStep: 4,
         },
         {
@@ -113,7 +113,7 @@ export const runSnowflakeAiBoundaryChecks = async ({
                 {
                     id: 'result_scan_blocked',
                     status: 'skipped',
-                    detail: rawSqlRequirement,
+                    detail: resultScanScopeLimit,
                     fixStep: 4,
                 },
                 {
@@ -174,7 +174,7 @@ export const runSnowflakeAiBoundaryChecks = async ({
         results.push({
             id: 'result_scan_blocked',
             status: 'skipped',
-            detail: `Run a chart with your regular Snowflake sign-in, then test again. ${rawSqlRequirement}`,
+            detail: `Run a chart with your regular Snowflake sign-in, then test again. ${resultScanScopeLimit}`,
             fixStep: 4,
         });
     } else {
@@ -189,14 +189,14 @@ export const runSnowflakeAiBoundaryChecks = async ({
             results.push({
                 id: 'result_scan_blocked',
                 status: 'fail',
-                detail: `The agent session can read an earlier result from your regular sign-in. ${rawSqlRequirement}`,
+                detail: `The agent session can read an earlier result from your regular sign-in. ${resultScanScopeLimit}`,
                 fixStep: 4,
             });
         } catch (error) {
             results.push({
                 id: 'result_scan_blocked',
                 status: 'pass',
-                detail: `An earlier query result is unavailable to the agent session. ${rawSqlRequirement} Snowflake said: ${getErrorMessage(error)}`,
+                detail: `An earlier query result is unavailable to the agent session. ${resultScanScopeLimit} Snowflake said: ${getErrorMessage(error)}`,
                 fixStep: 4,
             });
         }

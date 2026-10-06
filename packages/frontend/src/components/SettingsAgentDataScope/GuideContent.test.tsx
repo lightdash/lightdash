@@ -80,26 +80,22 @@ describe('Snowflake AI boundary guide content', () => {
         ).toBeInTheDocument();
         expect(
             screen.getAllByText(
-                /session scope does not stop a view in an allowed schema from reading an excluded schema/,
+                /session scope does not cover views in allowed schemas that read excluded schemas/,
             ),
         ).toHaveLength(2);
         expect(
-            screen.getByText(
-                (_, element) =>
-                    element?.tagName === 'SPAN' &&
-                    element.textContent?.includes(
-                        'session scope does not block RESULT_SCAN',
-                    ) === true,
+            screen.getAllByText(
+                /Copies of personal data outside the protected schemas are not protected/,
             ),
-        ).toBeInTheDocument();
+        ).toHaveLength(2);
         expect(
-            screen.getByText(
+            screen.getAllByText(
                 (_, element) =>
-                    element?.tagName === 'SPAN' &&
+                    (element?.tagName === 'LI' || element?.tagName === 'P') &&
                     element.textContent?.includes(
-                        'Raw SQL from AI stays off.',
+                        "The session scope does not block RESULT_SCAN from reading the same person's earlier query results.",
                     ) === true,
             ),
-        ).toBeInTheDocument();
+        ).toHaveLength(2);
     });
 });

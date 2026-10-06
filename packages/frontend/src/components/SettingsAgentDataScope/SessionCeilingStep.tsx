@@ -4,8 +4,16 @@ import { SqlPanel } from './SqlPanel';
 export const SessionCeilingStep = ({ sql }: { sql: string }) => (
     <Stack gap="sm">
         <Text size="sm">
-            The session scope does not stop a view in an allowed schema from
-            reading an excluded schema. Mask the data itself.
+            The session scope does not cover views in allowed schemas that read
+            excluded schemas. Masking covers them.
+        </Text>
+        <Text size="sm">
+            Copies of personal data outside the protected schemas are not
+            protected. Keep personal data only in protected, masked schemas.
+        </Text>
+        <Text size="sm">
+            The session scope does not block RESULT_SCAN from reading the same
+            person's earlier query results.
         </Text>
         {sql ? (
             <SqlPanel

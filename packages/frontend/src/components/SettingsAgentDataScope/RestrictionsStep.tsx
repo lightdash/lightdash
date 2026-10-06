@@ -72,9 +72,8 @@ const RestrictionsContent = ({
                         </Text>
                     )}
                     <Text size="sm">
-                        Raw SQL from AI stays off. The live test showed that the
-                        session scope does not block RESULT_SCAN of the same
-                        person’s earlier results.
+                        The session scope does not block RESULT_SCAN from
+                        reading the same person's earlier query results.
                     </Text>
                 </Stack>
             </MantineModal>

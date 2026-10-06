@@ -58,8 +58,13 @@ describe('boundary restrictions confirmation', () => {
         expect(summary).toContain('marked as done by Test Admin on 2026-10-05');
         expect(summary).toContain('Checks have not run.');
         expect(summary).toContain(
-            'The session scope does not stop a view in an allowed schema from reading an excluded schema. Mask the data itself.',
+            'The session scope does not cover views in allowed schemas that read excluded schemas. Masking covers them.',
         );
-        expect(summary).toContain('Raw SQL from AI stays off.');
+        expect(summary).toContain(
+            'Copies of personal data outside the protected schemas are not protected. Keep personal data only in protected, masked schemas.',
+        );
+        expect(summary).toContain(
+            "The session scope does not block RESULT_SCAN from reading the same person's earlier query results.",
+        );
     });
 });
