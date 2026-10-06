@@ -1,3 +1,10 @@
+## [2.442.1](https://github.com/lightdash/lightdash/compare/2.442.0...2.442.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **github:** complete update callbacks without an OAuth code ([#30544](https://github.com/lightdash/lightdash/issues/30544)) ([053565c](https://github.com/lightdash/lightdash/commit/053565c5aba6d655dce3b33b0cda064d6e026417))
+
 # [2.442.0](https://github.com/lightdash/lightdash/compare/2.441.0...2.442.0) (2026-10-06)
 
 

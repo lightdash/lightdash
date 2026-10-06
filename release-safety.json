@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.442.0",
-  "previousVersion": "2.441.0",
-  "releaseDate": "2026-10-06T13:14:02.915Z",
+  "version": "2.442.1",
+  "previousVersion": "2.442.0",
+  "releaseDate": "2026-10-06T13:23:26.866Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261005120000_allow_documents_in_content_review_requests.ts",
-        "edition": "core",
-        "tables": [
-          "content_review_requests"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -33,38 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/notifications — added the new `document` enum value to the `results/items/anyOf[#/components/schemas/NotificationContentReview]/allOf[subschema #2]/metadata/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests — added the new `document` enum value to the `results/data/items/allOf[#/components/schemas/ContentReviewRequest]/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests — added the new `document` enum value to the `results/data/items/allOf[#/components/schemas/ContentReviewRequest]/movedContent/items/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests — added the new `document` enum value to the `results/data/items/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/contentType` response property for the response status `201`",
-        "POST /api/v1/projects/{projectUuid}/review-requests — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/movedContent/items/contentType` response property for the response status `201`",
-        "POST /api/v1/projects/{projectUuid}/review-requests — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/contentType` response property for the response status `201`",
-        "POST /api/v1/projects/{projectUuid}/review-requests — added the new `document` enum value to the `results/allOf[subschema #2]/moveSet/items/contentType` response property for the response status `201`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid} — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequest]/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid} — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequest]/movedContent/items/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid} — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/similar — added the new `document` enum value to the `results/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/similar — added the new `document` enum value to the `results/items/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/{requestUuid} — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/{requestUuid} — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/movedContent/items/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/{requestUuid} — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/contentType` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/{requestUuid} — added the new `document` enum value to the `results/allOf[subschema #2]/moveSet/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/approve — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/approve — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/movedContent/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/approve — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/approve — added the new `document` enum value to the `results/allOf[subschema #2]/moveSet/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/cancel — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/cancel — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/movedContent/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/cancel — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/cancel — added the new `document` enum value to the `results/allOf[subschema #2]/moveSet/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/reject — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/reject — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/movedContent/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/reject — added the new `document` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/contentType` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/reject — added the new `document` enum value to the `results/allOf[subschema #2]/moveSet/items/contentType` response property for the response status `200`"
-      ],
-      "advisoryCount": 29
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
