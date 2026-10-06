@@ -39,6 +39,10 @@ export class UnavailableAiCredentialProvider<
         return null;
     }
 
+    async missingPrerequisite(): Promise<null> {
+        return null;
+    }
+
     async mint(): Promise<never> {
         throw new AiAccessRefusedError(
             AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,

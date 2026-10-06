@@ -25,10 +25,7 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
-import {
-    getAiCredentialProvider,
-    type AiCredentialProviderRegistry,
-} from './providers/registry';
+import { type AiCredentialProviderRegistry } from './providers/registry';
 
 export type ResolvePlanArgs = {
     projectUuid: string;
@@ -51,7 +48,7 @@ type AiAccessServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
     userModel: UserModel;
-    providerRegistry?: AiCredentialProviderRegistry;
+    providerRegistry: AiCredentialProviderRegistry;
 };
 
 export class AiAccessService extends BaseService {
@@ -70,7 +67,7 @@ export class AiAccessService extends BaseService {
         groupsModel,
         featureFlagModel,
         userModel,
-        providerRegistry = getAiCredentialProvider,
+        providerRegistry,
     }: AiAccessServiceArguments) {
         super();
         this.aiPrincipalModel = aiPrincipalModel;
@@ -371,6 +368,14 @@ export class AiAccessService extends BaseService {
             let principal = await this.principal(args, policy, email);
             AiAccessService.assertPrincipal(principal);
             principal = await this.ensureSecret(principal, provider);
+            const missingPrerequisite = await provider.missingPrerequisite({
+                connection: args.connection,
+                principal,
+                policy,
+                person: { userUuid: args.userUuid, email },
+            });
+            if (missingPrerequisite !== null)
+                throw new AiAccessRefusedError(missingPrerequisite);
             result.principal = {
                 aiPrincipalUuid: principal.aiPrincipalUuid,
                 ref: principal.ref,
