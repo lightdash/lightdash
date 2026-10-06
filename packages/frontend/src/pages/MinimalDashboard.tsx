@@ -104,6 +104,7 @@ const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
             return (
                 <MarkdownTile
                     key={tile.uuid}
+                    minimal
                     tile={tile}
                     isEditMode={false}
                     onDelete={() => {}}
@@ -114,6 +115,7 @@ const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
             return (
                 <LoomTile
                     key={tile.uuid}
+                    minimal
                     tile={tile}
                     isEditMode={false}
                     onDelete={() => {}}
