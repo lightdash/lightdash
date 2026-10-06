@@ -19,6 +19,7 @@ export type UserAttributeQueryTag = `user_attribute_${string}`;
 export type RunQueryTags = Record<UserAttributeQueryTag, string> & {
     project_uuid?: string;
     user_uuid?: string;
+    ai_principal?: string;
     organization_uuid?: string;
     app_uuid?: string;
     chart_uuid?: string;

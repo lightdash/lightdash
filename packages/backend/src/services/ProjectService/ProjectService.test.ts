@@ -161,6 +161,7 @@ import {
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { type AiAccessService } from '../AiAccessService/AiAccessService';
+import { aiExecutionPlanMock } from '../AiAccessService/AiAccessService.mock';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -6856,12 +6857,13 @@ describe('ProjectService', () => {
 
     describe('searchFieldUniqueValues', () => {
         test.each([
-            [QueryExecutionContext.AI, true, false],
-            [QueryExecutionContext.AI, false, true],
-            [QueryExecutionContext.FILTER_AUTOCOMPLETE, true, true],
+            [QueryExecutionContext.AI, true, false, null],
+            [QueryExecutionContext.AI, false, true, null],
+            [QueryExecutionContext.FILTER_AUTOCOMPLETE, true, true, null],
+            [QueryExecutionContext.AI, false, false, aiExecutionPlanMock],
         ])(
             'autocomplete cache for %s with flag %s',
-            async (context, enabled, usesCache) => {
+            async (context, enabled, usesCache, aiPlan) => {
                 const flaggedService = getMockedProjectService({
                     ...lightdashConfigMock,
                     results: {
@@ -6882,7 +6884,7 @@ describe('ProjectService', () => {
                     s3CacheClient: { getIfFresh, uploadResults },
                     getWarehouseCredentialsWithConnection: vi.fn(async () => ({
                         warehouseCredentials: warehouseClientMock.credentials,
-                        aiPlan: null,
+                        aiPlan,
                     })),
                 });
                 vi.mocked(

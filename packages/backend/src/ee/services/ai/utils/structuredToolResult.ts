@@ -1,4 +1,7 @@
-import type { ToolErrorStructuredContent } from '@lightdash/common';
+import type {
+    AiAccessRefusal,
+    ToolErrorStructuredContent,
+} from '@lightdash/common';
 
 /**
  * Success envelope of an agent tool: the model-facing `result` text, the tool
@@ -19,5 +22,7 @@ export type ExecuteStructuredToolResult<
 export type ExecuteToolErrorResult<TMetadata = { status: 'error' }> = {
     result: string;
     metadata: TMetadata;
-    structuredContent: ToolErrorStructuredContent;
+    structuredContent: ToolErrorStructuredContent & {
+        refusal: AiAccessRefusal | null;
+    };
 };

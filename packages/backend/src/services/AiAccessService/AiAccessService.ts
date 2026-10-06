@@ -80,6 +80,32 @@ export class AiAccessService extends BaseService {
         this.providerRegistry = providerRegistry;
     }
 
+    async recordQuery({
+        queryUuid,
+        projectUuid,
+        warehouseConnectionUuid,
+        plan,
+    }: {
+        queryUuid: string;
+        projectUuid: string;
+        warehouseConnectionUuid: string | null;
+        plan: AiExecutionPlan;
+    }): Promise<void> {
+        await this.aiPrincipalModel.insertAudit({
+            queryUuid,
+            projectUuid,
+            warehouseConnectionUuid,
+            userUuid: plan.audit.personUuid,
+            aiPrincipalUuid: plan.principal.aiPrincipalUuid,
+            principalKind: plan.principal.kind,
+            principalRef: plan.principal.ref,
+            transport: plan.transport,
+            probeOk: plan.principal.lastProbe?.ok ?? false,
+            probeCheckedAt: plan.principal.lastProbe?.checkedAt ?? null,
+            personTag: plan.audit.personUuid,
+        });
+    }
+
     private async enabledPolicy(
         args: AccessArgs,
     ): Promise<AiAccessPolicy | null> {

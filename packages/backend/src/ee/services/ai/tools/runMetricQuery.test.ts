@@ -164,7 +164,35 @@ const executeTool = async (
     return output;
 };
 
+const expectNoWarehouseIdentifiers = (value: unknown): void => {
+    if (value === null || typeof value !== 'object') return;
+    for (const [key, nested] of Object.entries(value)) {
+        expect([
+            'queryId',
+            'queryMetadata',
+            'warehouseQueryId',
+            'jobLocation',
+        ]).not.toContain(key);
+        expectNoWarehouseIdentifiers(nested);
+    }
+};
+
 describe('getRunMetricQuery', () => {
+    it('keeps warehouse identifiers out of successful structured content at every depth', async () => {
+        const output = await executeTool(
+            vi.fn().mockResolvedValue({
+                queryUuid: 'query',
+                rows: [{ a_dim1: 'one', a_met1: 1 }],
+                fields: queryFields,
+                cacheMetadata: { cacheHit: false },
+                queryId: 'warehouse-query',
+                warehouseQueryId: 'warehouse-query',
+                queryMetadata: { jobLocation: 'region' },
+            }),
+        );
+        expect(output.metadata.status).toBe('success');
+        expectNoWarehouseIdentifiers(output.structuredContent);
+    });
     it('returns the CSV text and the same rows as structured content', async () => {
         const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
             queryUuid: '11111111-1111-4111-8111-111111111111',
@@ -231,7 +259,10 @@ describe('getRunMetricQuery', () => {
         expect(output.metadata).toMatchObject({ status: 'error' });
         expect(output.result).toContain('Error running metric query.');
         expect(output.result).toContain('warehouse exploded');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
         expect(toolRunMetricQueryOutputSchema.safeParse(output).success).toBe(
             true,
         );
@@ -248,7 +279,10 @@ describe('getRunMetricQuery', () => {
 
         expect(runAsyncQuery).not.toHaveBeenCalled();
         expect(output.metadata).toMatchObject({ status: 'error' });
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
         expect(toolRunMetricQueryOutputSchema.safeParse(output).success).toBe(
             true,
         );

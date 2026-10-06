@@ -208,6 +208,25 @@ describe('AiPrincipalModel', () => {
             AI_DIRECT_TRANSPORT,
         );
     });
+    test('writes the audit row once per query and updates it on a retry', async () => {
+        tracker.on.insert('ai_query_audit').response([]);
+        await model.insertAudit({
+            queryUuid: 'query',
+            projectUuid: 'project',
+            warehouseConnectionUuid: null,
+            userUuid: 'user',
+            aiPrincipalUuid: 'principal',
+            principalKind: AiPrincipalKind.GROUP,
+            principalRef: 'agent',
+            transport: AI_DIRECT_TRANSPORT,
+            probeOk: true,
+            probeCheckedAt: now,
+            personTag: 'user',
+        });
+        expect(tracker.history.insert[0].sql).toContain(
+            'on conflict ("query_uuid") do update',
+        );
+    });
     test('computes audit pagination and offsets', async () => {
         tracker.on
             .select((q) => q.sql.includes('count('))

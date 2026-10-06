@@ -1,4 +1,5 @@
 import {
+    AiAccessRefusedError,
     AiAgentValidatorError,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
@@ -1727,6 +1728,9 @@ export const getRunQuery = ({
                     },
                 };
             } catch (e) {
+                if (e instanceof AiAccessRefusedError) {
+                    return toolErrorOutput(e, `Error running query.`);
+                }
                 const fieldAdvice =
                     decisions && e instanceof AiAgentUnknownFieldsError
                         ? await suggestSemanticFields({

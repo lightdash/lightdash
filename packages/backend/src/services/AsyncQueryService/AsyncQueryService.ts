@@ -121,6 +121,7 @@ import {
     WarehouseClient,
     WarehouseQueryError,
     WarehouseTypes,
+    type AiExecutionPlan,
     type ApiCompiledMergeQueryResults,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -516,6 +517,7 @@ type ExecuteAsyncQueryArgs = Pick<
     originalColumns?: ResultColumns;
     routingTarget?: PreAggregationRoutingDecision['target'];
     preAggregationRoute?: PreAggregationRoute;
+    aiPrincipalUuid: string | null;
     warehouseCredentials: ResolvedWarehouseCredentials;
     warehouseConnectionUuid: string | null;
     connectionRoute?: ConnectionRouteWithOriginal;
@@ -965,23 +967,38 @@ export class AsyncQueryService extends ProjectService {
         return enabled;
     }
 
+    private async isAiPrincipalsEnabled(account: Account): Promise<boolean> {
+        assertIsAccountWithOrg(account);
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid: account.organization.organizationUuid,
+                ...(account.isRegisteredUser()
+                    ? { userUuid: account.user.id }
+                    : {}),
+            },
+            featureFlagId: FeatureFlags.AiPrincipals,
+        });
+        return enabled;
+    }
+
     private async getPreAggregationRoutingDecision({
         metricQuery,
         explore,
         context,
         forceWarehouse,
         account,
+        aiPlan,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
         forceWarehouse: boolean;
         account: Account;
+        aiPlan: AiExecutionPlan | null;
     }): Promise<PreAggregationRoutingDecision> {
-        const bypassPreAggregates = await this.isAiAccessCacheBypassEnabled(
-            account,
-            context,
-        );
+        const bypassPreAggregates =
+            aiPlan != null ||
+            (await this.isAiAccessCacheBypassEnabled(account, context));
         if (forceWarehouse || bypassPreAggregates) {
             if (
                 bypassPreAggregates &&
@@ -1625,10 +1642,11 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             aiAccessOnly &&
-            (await this.isAiAccessCacheBypassEnabled(
+            ((await this.isAiAccessCacheBypassEnabled(
                 account,
                 QueryExecutionContext.AI,
-            )) &&
+            )) ||
+                (await this.isAiPrincipalsEnabled(account))) &&
             !isAiAccessQueryContext(queryHistory.context)
         ) {
             throw new ForbiddenError('Query was not started by AI access');
@@ -3758,6 +3776,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseClientOverride ? 'pre_aggregate_duckdb' : 'warehouse';
         let queryStartTime = Date.now();
         let projectCredentials: CreateWarehouseCredentials | null = null;
+        let aiQueryTags: Record<string, string> = {};
 
         const connectToWarehouse = async (): Promise<{
             warehouseClient: WarehouseClient;
@@ -3773,7 +3792,17 @@ export class AsyncQueryService extends ProjectService {
                     isRegisteredUser,
                     isServiceAccount,
                 });
-            const { warehouseCredentials } = resolvedCredentials;
+            const { warehouseCredentials, aiPlan } = resolvedCredentials;
+            if (aiPlan) {
+                await this.aiAccessService.recordQuery({
+                    queryUuid,
+                    projectUuid,
+                    warehouseConnectionUuid:
+                        resolvedCredentials.warehouseConnectionUuid,
+                    plan: aiPlan,
+                });
+                aiQueryTags = aiPlan.audit.queryTags;
+            }
 
             warehouseConnectionUuid =
                 resolvedCredentials.warehouseConnectionUuid;
@@ -3916,7 +3945,11 @@ export class AsyncQueryService extends ProjectService {
                         AsyncQueryService.runQueryAndTransformRows({
                             warehouseClient: client,
                             query,
-                            queryTags: { ...queryTags, query_uuid: queryUuid },
+                            queryTags: {
+                                ...queryTags,
+                                ...aiQueryTags,
+                                query_uuid: queryUuid,
+                            },
                             write: resultsStream
                                 ? (rows) => {
                                       hasWrittenRows = true;
@@ -4864,6 +4897,7 @@ export class AsyncQueryService extends ProjectService {
                     routingTarget,
                     preAggregationRoute,
                     warehouseCredentials,
+                    aiPrincipalUuid,
                     warehouseConnectionUuid,
                     connectionRoute,
                 } = args;
@@ -5001,6 +5035,7 @@ export class AsyncQueryService extends ProjectService {
                                     : undefined,
                             warehouseConnectionUuid:
                                 warehouseConnectionUuid ?? undefined,
+                            aiPrincipalUuid: aiPrincipalUuid ?? undefined,
                         },
                     );
 
@@ -5773,7 +5808,12 @@ export class AsyncQueryService extends ProjectService {
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             { explore, userAccessControls: preloadedUserAccessControls },
-            { warehouseCredentials, warehouseConnectionUuid, connectionRoute },
+            {
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+                aiPlan,
+            },
             projectParameters,
         ] = await Promise.all([
             this.getExploreForMetricQueryExecution({
@@ -5922,6 +5962,7 @@ export class AsyncQueryService extends ProjectService {
 
         const routingDecision = await this.getPreAggregationRoutingDecision({
             account,
+            aiPlan,
             metricQuery: effectiveMetricQuery,
             explore,
             context,
@@ -5941,6 +5982,7 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             reuseQueryUuid &&
+            !aiPlan &&
             !invalidateCache &&
             !documentQueryContext &&
             !(await this.isAiAccessCacheBypassEnabled(account, context))
@@ -5995,6 +6037,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -6589,6 +6632,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
             context,
             projectUuid,
@@ -6650,6 +6694,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: 'warehouse',
@@ -6925,6 +6970,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
             context,
             projectUuid,
@@ -6981,6 +7027,7 @@ export class AsyncQueryService extends ProjectService {
 
         const routingDecision = await this.getPreAggregationRoutingDecision({
             account,
+            aiPlan,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -7035,6 +7082,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -7695,7 +7743,12 @@ export class AsyncQueryService extends ProjectService {
 
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
-            { warehouseCredentials, warehouseConnectionUuid, connectionRoute },
+            {
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+                aiPlan,
+            },
             rawDashboardParameters,
             projectParameters,
         ] = await Promise.all([
@@ -7787,6 +7840,7 @@ export class AsyncQueryService extends ProjectService {
 
         const routingDecision = await this.getPreAggregationRoutingDecision({
             account,
+            aiPlan,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -7842,6 +7896,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -7911,6 +7966,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
             context,
             projectUuid,
@@ -8163,6 +8219,7 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
+                    aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                     warehouseConnectionUuid,
                     connectionRoute,
                 },
@@ -8276,6 +8333,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
             queryTags,
             queryComposer,
             originalColumns,
@@ -8307,6 +8365,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -10881,6 +10940,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
             queryComposer: composer,
             parameterReferences: Array.from(compiled.parameterReferences),
             missingParameterReferences: Array.from(
@@ -10921,6 +10981,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
             queryTags,
             metricQuery,
             queryComposer,
@@ -10953,6 +11014,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -11067,6 +11129,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
             queryTags,
             metricQuery,
             queryComposer,
@@ -11112,6 +11175,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -11456,10 +11520,11 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             aiAccessOnly &&
-            (await this.isAiAccessCacheBypassEnabled(
+            ((await this.isAiAccessCacheBypassEnabled(
                 account,
                 QueryExecutionContext.AI,
-            )) &&
+            )) ||
+                (await this.isAiPrincipalsEnabled(account))) &&
             !isAiAccessQueryContext(queryHistory.context)
         ) {
             throw new ForbiddenError('Query was not started by AI access');
@@ -11547,6 +11612,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             warehouseConnectionUuid,
             connectionRoute,
+            aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
             context,
             projectUuid,
@@ -11577,6 +11643,7 @@ export class AsyncQueryService extends ProjectService {
 
         const routingDecision = await this.getPreAggregationRoutingDecision({
             account,
+            aiPlan,
             metricQuery,
             explore,
             context,
@@ -11609,6 +11676,7 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
+                    aiPrincipalUuid: aiPlan?.principal.aiPrincipalUuid ?? null,
                     warehouseConnectionUuid,
                     connectionRoute,
                     routingTarget: routingDecision.target,

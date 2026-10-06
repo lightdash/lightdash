@@ -24,6 +24,7 @@ import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
+import { aiExecutionPlanMock } from './AiAccessService.mock';
 import {
     type AiCreatedSecret,
     type AiCredentialProvider,
@@ -83,6 +84,7 @@ const principal: AiPrincipalWithSecrets = {
 
 const setup = () => {
     const model = {
+        insertAudit: vi.fn(async () => {}),
         findPolicy: vi.fn(async (): Promise<AiAccessPolicy | null> => policy),
         findPrincipalByRef: vi.fn(
             async (): Promise<AiPrincipalWithSecrets | null> => principal,
@@ -169,6 +171,48 @@ const setup = () => {
 };
 
 describe('AiAccessService', () => {
+    test.each([aiExecutionPlanMock.principal.lastProbe, null])(
+        'records the audit with probe %s',
+        async (lastProbe) => {
+            const { service, model } = setup();
+            const plan = {
+                ...aiExecutionPlanMock,
+                principal: { ...aiExecutionPlanMock.principal, lastProbe },
+            };
+            await service.recordQuery({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                warehouseConnectionUuid: 'connection',
+                plan,
+            });
+            expect(model.insertAudit).toHaveBeenCalledExactlyOnceWith({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                warehouseConnectionUuid: 'connection',
+                userUuid: plan.audit.personUuid,
+                aiPrincipalUuid: plan.principal.aiPrincipalUuid,
+                principalKind: plan.principal.kind,
+                principalRef: plan.principal.ref,
+                transport: plan.transport,
+                probeOk: lastProbe?.ok ?? false,
+                probeCheckedAt: lastProbe?.checkedAt ?? null,
+                personTag: plan.audit.personUuid,
+            });
+        },
+    );
+    test('propagates audit storage failures', async () => {
+        const { service, model } = setup();
+        const error = new Error('audit unavailable');
+        model.insertAudit.mockRejectedValue(error);
+        await expect(
+            service.recordQuery({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                warehouseConnectionUuid: null,
+                plan: aiExecutionPlanMock,
+            }),
+        ).rejects.toBe(error);
+    });
     test('creates and reloads a secret before minting', async () => {
         const { service, model, provider } = setup();
         const created = {

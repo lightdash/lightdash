@@ -278,19 +278,22 @@ export class AiPrincipalModel {
             .delete();
     }
     async insertAudit(audit: Omit<AiQueryAudit, 'createdAt'>): Promise<void> {
-        await this.database(AiQueryAuditTableName).insert({
-            query_uuid: audit.queryUuid,
-            project_uuid: audit.projectUuid,
-            warehouse_connection_uuid: audit.warehouseConnectionUuid,
-            user_uuid: audit.userUuid,
-            ai_principal_uuid: audit.aiPrincipalUuid,
-            principal_kind: audit.principalKind,
-            principal_ref: audit.principalRef,
-            transport: audit.transport,
-            probe_ok: audit.probeOk,
-            probe_checked_at: audit.probeCheckedAt,
-            person_tag: audit.personTag,
-        });
+        await this.database(AiQueryAuditTableName)
+            .insert({
+                query_uuid: audit.queryUuid,
+                project_uuid: audit.projectUuid,
+                warehouse_connection_uuid: audit.warehouseConnectionUuid,
+                user_uuid: audit.userUuid,
+                ai_principal_uuid: audit.aiPrincipalUuid,
+                principal_kind: audit.principalKind,
+                principal_ref: audit.principalRef,
+                transport: audit.transport,
+                probe_ok: audit.probeOk,
+                probe_checked_at: audit.probeCheckedAt,
+                person_tag: audit.personTag,
+            })
+            .onConflict('query_uuid')
+            .merge();
     }
     private static audit(row: DbAiQueryAudit): AiQueryAudit {
         return {

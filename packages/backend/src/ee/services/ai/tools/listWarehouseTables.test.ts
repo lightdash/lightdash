@@ -308,7 +308,10 @@ describe('listWarehouseTables tool', () => {
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.result).toContain('Error listing warehouse tables.');
         expect(output.result).toContain('warehouse unreachable');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+            refusal: null,
+        });
         expect(
             toolListWarehouseTablesOutputSchema.safeParse(output).success,
         ).toBe(true);
