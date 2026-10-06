@@ -281,6 +281,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         }
         if (name === 'data_app_reach') {
             table.dimensions.org_id.hidden = true;
+            table.dimensions.event_name.hidden = true;
             table.dimensions.view_context.description =
                 'UI surface captured at token creation, not historical builder identity. Older loads have unknown context. Reloads remain included.';
         }
