@@ -1380,7 +1380,6 @@ export class AppGenerateService extends BaseService {
         return this.lightdashConfig.appRuntime?.dataAppCodingAgent ?? 'claude';
     }
 
-    // Resolved once per build; both levers come from one flag. Codex has neither.
     /** Refuses a build or iteration while AI credits are paused, using the key the coding agent runs on. */
     private async assertDataAppCreditsAvailable(
         user: SessionUser,
@@ -1412,28 +1411,23 @@ export class AppGenerateService extends BaseService {
     private async getCodingAgentConfig(
         organizationUuid: string | null | undefined,
     ): Promise<CodingAgentConfig> {
-        const leversOff = { promptCacheTtl: null, compactLongSessions: false };
+        // Codex has neither cost lever.
         if (this.dataAppCodingAgent === 'codex') {
             const codex =
                 await this.orgAiCopilotConfigResolver.getCodexConfig(
                     organizationUuid,
                 );
-            return { ...codex, ...leversOff };
+            return {
+                ...codex,
+                promptCacheTtl: null,
+                compactLongSessions: false,
+            };
         }
         const claude =
             await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
                 organizationUuid,
             );
-        if (!organizationUuid) return { ...claude, ...leversOff };
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.DataAppAgentCostOptimizations,
-        });
-        return {
-            ...claude,
-            promptCacheTtl: enabled ? '1h' : null,
-            compactLongSessions: enabled,
-        };
+        return { ...claude, promptCacheTtl: '1h', compactLongSessions: true };
     }
 
     private getCodingAgentEnv(
