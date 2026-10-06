@@ -52,13 +52,16 @@ export type AiIdentityAiRoleDefinition = {
     aiIdentityAiRoleUuid: string;
     roleName: string;
     warehouse: string;
+    schemas: string[];
     schemaRule: AiIdentitySchemaRule;
 };
 
-export type UpdateAiIdentityAiRoleDefinition = Pick<
-    AiIdentityAiRoleDefinition,
-    'roleName' | 'warehouse' | 'schemaRule'
->;
+export type UpdateAiIdentityAiRoleDefinition = {
+    roleName: string;
+    warehouse: string;
+    schemas: string[];
+    schemaRule?: AiIdentitySchemaRule;
+};
 
 export type CreateAiIdentityProvisioner = {
     userName: string;

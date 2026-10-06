@@ -351,7 +351,15 @@ export class AiIdentityService extends BaseService {
             warehouse: aiIdentitySnowflakeIdentifier(
                 role.warehouse || credentials.warehouse,
             ),
-            schemaRule: this.normalizeSchemaRule(role.schemaRule),
+            schemaRule: this.normalizeSchemaRule(
+                role.schemaRule ??
+                    (role.schemas.length === 0
+                        ? { mode: AiIdentitySchemaRuleMode.EXISTING_ROLE }
+                        : {
+                              mode: AiIdentitySchemaRuleMode.LIST,
+                              schemas: role.schemas,
+                          }),
+            ),
         }));
         if (
             new Set(normalized.map((role) => role.roleName.toUpperCase()))

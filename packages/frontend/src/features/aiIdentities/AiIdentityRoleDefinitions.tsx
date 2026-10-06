@@ -1,7 +1,7 @@
 import {
     AiIdentitySchemaRuleMode,
     type AiIdentityProvisioningSettings,
-    type UpdateAiIdentityAiRoleDefinition,
+    type AiIdentityAiRoleDefinition,
 } from '@lightdash/common';
 import {
     Button,
@@ -24,7 +24,10 @@ import { useTables } from '../sqlRunner/hooks/useTables';
 import { aiIdentityProvisioningApi } from './api';
 import { useProvisioningChange } from './useProvisioning';
 
-type RoleRow = UpdateAiIdentityAiRoleDefinition & { id: string };
+type RoleRow = Pick<
+    AiIdentityAiRoleDefinition,
+    'roleName' | 'warehouse' | 'schemaRule'
+> & { id: string };
 
 export const AiIdentityRoleDefinitions: FC<{
     settings: AiIdentityProvisioningSettings;
@@ -175,6 +178,11 @@ export const AiIdentityRoleDefinitions: FC<{
                                             }) => ({
                                                 roleName,
                                                 warehouse,
+                                                schemas:
+                                                    schemaRule.mode ===
+                                                    AiIdentitySchemaRuleMode.LIST
+                                                        ? schemaRule.schemas
+                                                        : [],
                                                 schemaRule,
                                             }),
                                         ),

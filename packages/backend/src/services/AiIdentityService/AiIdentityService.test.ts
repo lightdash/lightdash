@@ -1271,7 +1271,12 @@ describe('AI role rule validation', () => {
             | AiIdentitySchemaRuleMode.ONLY_MATCHING;
         database: string;
         patterns: string[];
-    }) => ({ roleName: 'ANALYST_AI', warehouse: 'WH', schemaRule });
+    }) => ({
+        roleName: 'ANALYST_AI',
+        warehouse: 'WH',
+        schemas: [],
+        schemaRule,
+    });
     it.each([
         [
             'invalid pattern',

@@ -1,8 +1,8 @@
 import {
     AI_IDENTITY_PROVISIONER_WORST_CASE,
     AI_IDENTITY_SHOW_USERS_NOTICE,
+    type AiIdentityAiRoleDefinition,
     type AiIdentityProvisioningOperation,
-    type UpdateAiIdentityAiRoleDefinition,
 } from '../types/aiIdentityProvisioning';
 import { AiIdentitySchemaRuleMode } from '../types/aiIdentitySchemaRule';
 import { ParameterError } from '../types/errors';
@@ -117,7 +117,10 @@ export const buildAiIdentityProvisionerSetupSql = ({
     userName: string;
     roleName: string;
     publicKey: string;
-    aiRoles: readonly (UpdateAiIdentityAiRoleDefinition & {
+    aiRoles: readonly (Pick<
+        AiIdentityAiRoleDefinition,
+        'roleName' | 'warehouse' | 'schemaRule'
+    > & {
         allowedSchemas: string[];
         excludedSchemas: string[];
     })[];

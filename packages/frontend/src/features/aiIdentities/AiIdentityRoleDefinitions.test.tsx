@@ -67,6 +67,7 @@ it('requires a name, warehouse and valid rule before saving a new role', async (
         {
             roleName: 'AI_ROLE',
             warehouse: 'WH',
+            schemas: [],
             schemaRule: {
                 mode: AiIdentitySchemaRuleMode.ALL_EXCEPT,
                 database: 'DB',
@@ -108,6 +109,7 @@ it('blocks saving when another role has an invalid pattern or no database', () =
                     aiRoles: [
                         {
                             aiIdentityAiRoleUuid: 'one',
+                            schemas: [],
                             roleName: 'ONE',
                             warehouse: 'WH',
                             schemaRule: {
@@ -117,6 +119,7 @@ it('blocks saving when another role has an invalid pattern or no database', () =
                         },
                         {
                             aiIdentityAiRoleUuid: 'two',
+                            schemas: [],
                             roleName: 'TWO',
                             warehouse: 'WH',
                             schemaRule: {

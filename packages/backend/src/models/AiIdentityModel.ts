@@ -23,7 +23,6 @@ import {
     type AiIdentityAiRoleDefinition,
     type AiIdentityProvisionerFinding,
     type AiIdentityUngrantedSchemas,
-    type UpdateAiIdentityAiRoleDefinition,
     type UpdateAiIdentityRoleMapping,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -866,6 +865,7 @@ export class AiIdentityModel {
             aiIdentityAiRoleUuid: row.ai_identity_ai_role_uuid,
             roleName: row.role_name,
             warehouse: row.warehouse,
+            schemas: row.schemas,
             schemaRule:
                 row.schema_rule ??
                 (row.schemas.length === 0
@@ -879,7 +879,12 @@ export class AiIdentityModel {
 
     async replaceAiRoles(
         aiIdentityAccountUuid: string,
-        roles: UpdateAiIdentityAiRoleDefinition[],
+        roles: Array<
+            Pick<
+                AiIdentityAiRoleDefinition,
+                'roleName' | 'warehouse' | 'schemaRule'
+            >
+        >,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await trx('ai_identity_ai_roles')
