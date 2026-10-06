@@ -52,7 +52,7 @@ export class PostgresAiCredentialProvider implements AiCredentialProvider<Create
                 direct: { available: true },
                 procedure: {
                     available: false,
-                    reason: 'The definer-rights procedure transport for Postgres is not available in this version.',
+                    reason: 'The definer-rights procedure transport for Postgres is coming soon.',
                 },
             },
             setupFormat: AiSetupScriptFormat.SQL,

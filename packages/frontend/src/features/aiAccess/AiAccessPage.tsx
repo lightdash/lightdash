@@ -293,8 +293,18 @@ const ConnectionAccess = ({
     if (policy.isLoading || capabilities.isLoading) return <Loader />;
     if (policy.isError || capabilities.isError)
         return <Alert color="red">Could not load AI access settings.</Alert>;
+    const noModeAvailable = Object.values(capabilities.data.principals).every(
+        (capability) => !capability.available,
+    );
     return (
         <Stack gap="xl">
+            {noModeAvailable && (
+                <Alert color="blue" title="Coming soon">
+                    AI principals for {capabilities.data.warehouseType} are not
+                    available yet. The modes below show what this warehouse will
+                    support.
+                </Alert>
+            )}
             <AiPolicyEditor
                 projectUuid={projectUuid}
                 connection={connection}

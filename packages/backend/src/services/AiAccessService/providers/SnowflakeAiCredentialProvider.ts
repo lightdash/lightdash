@@ -40,7 +40,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             this.deps.lightdashConfig.auth.snowflakeAi;
         const unavailable = {
             available: false as const,
-            reason: 'SERVICE_AGENT principals for Snowflake come in the next version.',
+            reason: 'SERVICE_AGENT principals for Snowflake are coming soon.',
         };
         return {
             warehouseType: this.warehouseType,
@@ -66,7 +66,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 direct: { available: true },
                 procedure: {
                     available: false,
-                    reason: 'The restricted caller procedure transport comes in the next version.',
+                    reason: 'The restricted caller procedure transport is coming soon.',
                 },
             },
             setupFormat: AiSetupScriptFormat.SQL,
