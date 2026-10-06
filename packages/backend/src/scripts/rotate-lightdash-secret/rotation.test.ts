@@ -53,6 +53,7 @@ describe('ciphertext registry', () => {
         expect(
             CIPHERTEXT_REGISTRY.map((e) => `${e.table}.${e.column}`),
         ).toEqual([
+            'ai_principals.encrypted_private_key',
             'projects.dbt_connection',
             'warehouse_credentials.encrypted_credentials',
             'warehouse_connections.encrypted_credentials',
