@@ -24,39 +24,39 @@ export const createAiCredentialProviderRegistry =
             case WarehouseTypes.REDSHIFT:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'AI principals for Redshift are not available in this version.',
+                    'AI principals for Redshift are coming soon.',
                 );
             case WarehouseTypes.DATABRICKS:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'AI principals for Databricks are not available in this version.',
+                    'AI principals for Databricks are coming soon.',
                 );
             case WarehouseTypes.BIGQUERY:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'AI principals for BigQuery are not available in this version.',
+                    'AI principals for BigQuery are coming soon.',
                 );
             case WarehouseTypes.POSTGRES:
                 return new PostgresAiCredentialProvider();
             case WarehouseTypes.CLICKHOUSE:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'AI principals for ClickHouse need a user per principal with certificate or SSH key sign-in and the query cache pinned off. Not available in this version.',
+                    'AI principals for ClickHouse are coming soon. They need a user per principal with certificate or SSH key sign-in and the query cache pinned off.',
                 );
             case WarehouseTypes.TRINO:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'AI principals for Trino need a JWT or certificate sign-in for Lightdash and user impersonation. Lightdash signs in with Basic auth today.',
+                    'AI principals for Trino are coming soon. They need a JWT or certificate sign-in for this instance and user impersonation.',
                 );
             case WarehouseTypes.ATHENA:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'AI principals for Athena need an IAM role and a workgroup per principal. Not available in this version.',
+                    'AI principals for Athena are coming soon. They need an IAM role and a workgroup per principal.',
                 );
             case WarehouseTypes.DUCKDB:
                 return new UnavailableAiCredentialProvider(
                     type,
-                    'DuckDB has no row or column security, so only a shared AI principal on a protected-data-free database is possible. Not available in this version.',
+                    'AI principals for DuckDB are coming soon. DuckDB has no row or column security, so only a shared principal on a database without protected data is possible.',
                 );
             default:
                 return assertUnreachable(type, 'Unknown warehouse type');
