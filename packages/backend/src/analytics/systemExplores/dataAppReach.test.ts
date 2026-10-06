@@ -87,14 +87,9 @@ describe('Data app reach', () => {
         const columns = Object.keys(projected);
         await db.run(
             `INSERT INTO data_app_reach_events (${columns.join(',')}) VALUES (${columns
-                .map((key) => {
-                    const value = projected[key];
-                    if (value == null) return 'NULL';
-                    return typeof value === 'string'
-                        ? `'${value.replace(/'/g, "''")}'`
-                        : String(value);
-                })
+                .map(() => '?')
                 .join(',')})`,
+            columns.map((key) => projected[key] ?? null),
         );
     };
     const view = async (
