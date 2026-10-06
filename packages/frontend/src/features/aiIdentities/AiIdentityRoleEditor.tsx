@@ -70,7 +70,7 @@ export const AiIdentityRoleEditor = ({
     };
     return (
         <Stack gap="sm">
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={10} maw={580}>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={10}>
                 <TextInput
                     aria-label="AI role name"
                     placeholder="AI role name"
