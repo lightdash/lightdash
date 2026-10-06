@@ -1298,46 +1298,24 @@ export class UnfurlService extends BaseService {
         // Omit to render the latest ready version.
         version?: number;
     }): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
-        const minimalAppUrl = new URL(
-            `/minimal/projects/${projectUuid}/apps/${appUuid}`,
-            this.lightdashConfig.headlessBrowser.internalLightdashHost,
-        );
-        if (version !== undefined) {
-            minimalAppUrl.searchParams.set('version', String(version));
-        }
-        const minimalUrl = minimalAppUrl.href;
-
-        this.logger.info(`Exporting data app to hosted image`, {
-            userUuid: authUserUuid,
-            organizationUuid,
+        const imageId = `app-image_${snakeCaseName(appName)}_${useNanoid()}`;
+        const imageBuffer = await this.renderDataApp({
             projectUuid,
             appUuid,
-            version,
-            minimalUrl,
-        });
-
-        const cookie = await this.getUserCookie(authUserUuid);
-        const imageId = `app-image_${snakeCaseName(appName)}_${useNanoid()}`;
-
-        const result = await this.saveScreenshot({
+            appName,
             authUserUuid,
-            imageId,
-            cookie,
-            url: minimalUrl,
-            lightdashPage: LightdashPage.APP,
             organizationUuid,
-            resourceUuid: appUuid,
-            resourceName: appName,
             context,
             contextId,
-            selectedTabs: null,
+            version: version ?? null,
+            imageId,
+            singleAttempt: false,
+            requireReadyIndicator: false,
+            failureMessage: 'Unable to export data app image',
         });
-        if (!result?.imageBuffer) {
-            throw new UnexpectedServerError('Unable to export data app image');
-        }
 
         const imageUrl = await this.hostImage(
-            result.imageBuffer,
+            imageBuffer,
             imageId,
             organizationUuid,
         );
@@ -1345,15 +1323,11 @@ export class UnfurlService extends BaseService {
             userUuid: authUserUuid,
             appUuid,
         });
-        return { imageBuffer: result.imageBuffer, imageUrl };
+        return { imageBuffer, imageUrl };
     }
 
-    /**
-     * Renders one version of a data app to a PNG under the acting user's
-     * identity, without hosting the image. Single attempt, and it fails when
-     * the version never signals it rendered, instead of returning whatever
-     * is on the page. The caller must check the version is ready.
-     */
+    // Unhosted single-attempt render of one version; fails when the version never
+    // signals it rendered. The caller must check the version is ready.
     async captureDataAppVersion({
         projectUuid,
         appUuid,
@@ -1369,32 +1343,90 @@ export class UnfurlService extends BaseService {
         authUserUuid: UUID;
         organizationUuid: UUID;
     }): Promise<Buffer> {
+        return this.renderDataApp({
+            projectUuid,
+            appUuid,
+            appName,
+            authUserUuid,
+            organizationUuid,
+            context: ScreenshotContext.DATA_APP_THUMBNAIL,
+            contextId: `${appUuid}:${version}`,
+            version,
+            imageId: `app-thumbnail_${snakeCaseName(appName)}_${useNanoid()}`,
+            singleAttempt: true,
+            requireReadyIndicator: true,
+            failureMessage: 'Unable to capture data app version',
+        });
+    }
+
+    // The one data app render: the minimal page as the acting user, to a PNG buffer.
+    private async renderDataApp({
+        projectUuid,
+        appUuid,
+        appName,
+        authUserUuid,
+        organizationUuid,
+        context,
+        contextId,
+        version,
+        imageId,
+        singleAttempt,
+        requireReadyIndicator,
+        failureMessage,
+    }: {
+        projectUuid: UUID;
+        appUuid: UUID;
+        appName: string;
+        authUserUuid: UUID;
+        organizationUuid: UUID;
+        context: ScreenshotContext;
+        contextId: unknown;
+        // Null renders the latest ready version.
+        version: number | null;
+        imageId: string;
+        // False retries up to the configured screenshot retry limit.
+        singleAttempt: boolean;
+        // True fails when the ready indicator never appears.
+        requireReadyIndicator: boolean;
+        failureMessage: string;
+    }): Promise<Buffer> {
         const minimalAppUrl = new URL(
             `/minimal/projects/${projectUuid}/apps/${appUuid}`,
             this.lightdashConfig.headlessBrowser.internalLightdashHost,
         );
-        minimalAppUrl.searchParams.set('version', String(version));
+        if (version !== null) {
+            minimalAppUrl.searchParams.set('version', String(version));
+        }
+        const minimalUrl = minimalAppUrl.href;
+
+        this.logger.info(`Rendering data app to image`, {
+            userUuid: authUserUuid,
+            organizationUuid,
+            projectUuid,
+            appUuid,
+            version,
+            context,
+            minimalUrl,
+        });
 
         const cookie = await this.getUserCookie(authUserUuid);
         const result = await this.saveScreenshot({
             authUserUuid,
-            imageId: `app-thumbnail_${snakeCaseName(appName)}_${useNanoid()}`,
+            imageId,
             cookie,
-            url: minimalAppUrl.href,
+            url: minimalUrl,
             lightdashPage: LightdashPage.APP,
             organizationUuid,
             resourceUuid: appUuid,
             resourceName: appName,
-            context: ScreenshotContext.DATA_APP_THUMBNAIL,
-            contextId: `${appUuid}:${version}`,
+            context,
+            contextId,
             selectedTabs: null,
-            retries: 1,
-            requireSuccessfulRender: true,
+            ...(singleAttempt ? { retries: 1 } : {}),
+            requireSuccessfulRender: requireReadyIndicator,
         });
         if (!result?.imageBuffer) {
-            throw new UnexpectedServerError(
-                'Unable to capture data app version',
-            );
+            throw new UnexpectedServerError(failureMessage);
         }
         return result.imageBuffer;
     }
