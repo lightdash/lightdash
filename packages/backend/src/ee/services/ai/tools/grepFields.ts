@@ -501,7 +501,7 @@ const runGrepFields = async (
     // it is, and list the valid explores so the caller can correct the name.
     if (exploreName && !context.exploreNames.has(exploreName)) {
         const available = [...context.exploreNames];
-        const message = `Explore "${exploreName}" not found or not available to this agent. ${
+        const message = `This data is not available to AI. ${
             available.length > 0
                 ? `Available explores: ${available.join(', ')}.`
                 : 'No explores are available.'

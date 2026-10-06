@@ -1285,3 +1285,5 @@ export * from './types/sharedSignIn';
 
 export * from './utils/aiIdentitySql';
 export * from './utils/aiIdentityFailure';
+
+export * from './utils/aiSchemaAccess';

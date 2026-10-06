@@ -108,6 +108,7 @@ function buildService(
         deleteExpiredBatch: vi.fn().mockResolvedValue(0),
     };
     const asyncQueryService = {
+        isAiMetricQueryVisible: vi.fn().mockResolvedValue(true),
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
             context: overrides.queryContext ?? QueryExecutionContext.EXPLORE,
         }),
@@ -220,6 +221,28 @@ describe('DataAppAnalysisService.detect', () => {
         vi.mocked(assertCanViewApp).mockResolvedValue({
             directOnly: false,
         } as never);
+    });
+
+    it('omits hidden sources before sending app data to AI', async () => {
+        const { service, asyncQueryService, aiService } = buildService();
+        asyncQueryService.isAiMetricQueryVisible
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(false);
+        await service.detect(buildAccount(), 'proj-1', 'app-1', {
+            sources: [
+                { queryUuid: 'q1', label: 'Visible chart' },
+                { queryUuid: 'q2', label: 'Hidden model' },
+            ],
+        });
+        const { content } = aiService.detectDataAppAnomalies.mock.calls[0][1];
+        expect(content).toContain('Visible chart');
+        expect(content).not.toContain('Hidden model');
+        expect(content).toContain(
+            'Some charts are not available to AI and were omitted.',
+        );
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).toHaveBeenCalledOnce();
     });
 
     it('grounds anomalies, reports dropped ones, and persists the result', async () => {

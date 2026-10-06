@@ -965,6 +965,7 @@ export class ServiceRepository
             'projectService',
             () =>
                 new ProjectService({
+                    aiIdentityService: this.getAiIdentityService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -1119,6 +1120,7 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    aiIdentityService: this.getAiIdentityService(),
                     getDocumentService: () => this.getDocumentService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,

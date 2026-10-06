@@ -123,6 +123,11 @@ const setup = (spaceAccess: string[] | null = null) => {
             .mockResolvedValue({ projectUuid, slug: projectSlug }),
     };
     const service = new AiAgentToolsService({
+        aiIdentityService: {
+            getAiSchemaAccess: vi
+                .fn()
+                .mockResolvedValue({ type: 'unrestricted' }),
+        },
         projectModel,
         documentService,
         spaceModel,

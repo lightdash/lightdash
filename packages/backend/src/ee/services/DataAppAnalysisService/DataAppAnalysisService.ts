@@ -502,7 +502,6 @@ export class DataAppAnalysisService extends BaseService {
             async (accPromise, source, index) => {
                 const acc = await accPromise;
                 const title = source.label ?? `Query ${index + 1}`;
-                if (acc.remainingChars <= 0) return omitSection(acc, title);
 
                 const history =
                     await this.asyncQueryService.getAsyncQueryHistory({
@@ -518,6 +517,22 @@ export class DataAppAnalysisService extends BaseService {
                         'unsupported_context',
                     );
                 }
+                if (
+                    !(await this.asyncQueryService.isAiMetricQueryVisible(
+                        account,
+                        projectUuid,
+                        history.metricQuery,
+                    ))
+                ) {
+                    return {
+                        ...acc,
+                        parts: [
+                            ...acc.parts,
+                            '[Some charts are not available to AI and were omitted.]',
+                        ],
+                    };
+                }
+                if (acc.remainingChars <= 0) return omitSection(acc, title);
                 const { rows, fields, truncated, displayTimezone } =
                     await this.asyncQueryService
                         .getRawAsyncQueryResults({

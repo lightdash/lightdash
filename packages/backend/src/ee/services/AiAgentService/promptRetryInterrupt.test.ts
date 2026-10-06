@@ -43,6 +43,9 @@ const buildService = (promptState: {
     const deleteAiPromptInterrupt = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
         aiIdentityService: {
+            getAiSchemaAccess: vi
+                .fn()
+                .mockResolvedValue({ type: 'unrestricted' }),
             getAiAccessForUser: vi
                 .fn()
                 .mockResolvedValue({ aiIdentityRequired: false }),

@@ -364,7 +364,8 @@ describe('grepFields output envelope', () => {
         });
 
         const parsed = toolGrepFieldsOutputSchema.parse(output);
-        expect(output.result).toContain('Explore "typo" not found');
+        expect(output.result).toContain('This data is not available to AI.');
+        expect(output.result).not.toContain('typo');
         expect(parsed.structuredContent).toEqual({
             description: output.result,
             exploreName: 'typo',

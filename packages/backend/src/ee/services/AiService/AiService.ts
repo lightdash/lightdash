@@ -16,6 +16,7 @@ import {
     GenerateTooltipRequest,
     getErrorMessage,
     getItemId,
+    isAiContentVisible,
     isField,
     isSummaryExploreError,
     ItemsMap,
@@ -26,6 +27,7 @@ import {
     SuggestedChartTypeFields,
     TableCalculationType,
     UnexpectedServerError,
+    type Explore,
 } from '@lightdash/common';
 import { generateText } from 'ai';
 import NodeCache from 'node-cache';
@@ -168,6 +170,26 @@ export class AiService extends BaseService {
         input: ChartSimilarityInput,
         cachedOnly = false,
     ): Promise<ChartSimilarityMatch[] | undefined> {
+        const visibleExplores = await this.projectService.getAiVisibleExplores(
+            user.userUuid,
+            projectUuid,
+        );
+        const canRead = async (chart: ChartSimilarityInput['source']) =>
+            visibleExplores === null ||
+            (isAiContentVisible(chart, visibleExplores) &&
+                (await this.projectService.isAiMetricQueryVisible(
+                    fromSession(user),
+                    projectUuid,
+                    chart.metricQuery,
+                )));
+        if (!(await canRead(input.source))) return [];
+        const visibility = await Promise.all(input.candidates.map(canRead));
+        const visibleInput = {
+            ...input,
+            candidates: input.candidates.filter(
+                (_, index) => visibility[index],
+            ),
+        };
         const decisions = await resolveAiDecisionClient(
             this.lightdashConfig.ai.decisions,
             () =>
@@ -183,7 +205,7 @@ export class AiService extends BaseService {
                     user.userUuid,
                     projectUuid,
                     decisions?.modelName ?? null,
-                    input,
+                    visibleInput,
                 ]),
             )
             .digest('hex');
@@ -196,7 +218,11 @@ export class AiService extends BaseService {
         if (this.chartSimilarityInFlight.size >= 20) return undefined;
         const operation = (async () => {
             const model = await this.getAmbientAiModel(user, { projectUuid });
-            const matches = await compareChartQueries(model, input, decisions);
+            const matches = await compareChartQueries(
+                model,
+                visibleInput,
+                decisions,
+            );
             if (this.chartSimilarityCache.getStats().keys < 100) {
                 this.chartSimilarityCache.set(key, matches);
             }
@@ -208,6 +234,23 @@ export class AiService extends BaseService {
         } finally {
             this.chartSimilarityInFlight.delete(key);
         }
+    }
+
+    private static getVisibleChartTypeFields(
+        explore: Explore,
+        visibleExplores: Explore[] | null,
+    ) {
+        const fields = getChartTypeFieldCandidates(explore);
+        if (visibleExplores === null) return fields;
+        const visible = visibleExplores.find(
+            (item) => item.name === explore.name,
+        );
+        const ids = new Set(
+            visible
+                ? getChartTypeFieldCandidates(visible).map((field) => field.id)
+                : [],
+        );
+        return fields.filter((field) => ids.has(field.id));
     }
 
     constructor(dependencies: Dependencies) {
@@ -518,6 +561,17 @@ export class AiService extends BaseService {
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
+        const visibleExplores = await this.projectService.getAiVisibleExplores(
+            user.userUuid,
+            projectUuid,
+        );
+        if (
+            visibleExplores !== null &&
+            !visibleExplores.some((item) => item.name === payload.exploreName)
+        ) {
+            throw new ForbiddenError('This data is not available to AI.');
+        }
+
         const explore = await this.projectService.getExplore(
             fromSession(user),
             projectUuid,
@@ -530,7 +584,10 @@ export class AiService extends BaseService {
                 clarifications: payload.clarifications,
                 inputs: payload.fields,
                 exploreLabel: explore.label,
-                candidates: getChartTypeFieldCandidates(explore),
+                candidates: AiService.getVisibleChartTypeFields(
+                    explore,
+                    visibleExplores,
+                ),
             });
 
         this.analytics.track<ChartTypeFieldsSuggested>({
@@ -560,6 +617,10 @@ export class AiService extends BaseService {
             projectUuid,
         });
         const account = fromSession(user);
+        const visibleExplores = await this.projectService.getAiVisibleExplores(
+            user.userUuid,
+            projectUuid,
+        );
         // Same list as the Chart Studio table picker.
         const summaries = (
             await this.projectService.getAllExploresSummary(
@@ -570,6 +631,13 @@ export class AiService extends BaseService {
             )
         )
             .filter((summary) => !isSummaryExploreError(summary))
+            .filter(
+                (summary) =>
+                    visibleExplores === null ||
+                    visibleExplores.some(
+                        (explore) => explore.name === summary.name,
+                    ),
+            )
             .sort((a, b) => a.label.localeCompare(b.label))
             .slice(0, AiService.MAX_CHART_TYPE_EXPLORE_CANDIDATES);
 
@@ -587,7 +655,7 @@ export class AiService extends BaseService {
         const fieldsOf = (name: string) => {
             const explore = loaded[name];
             return explore && !('errors' in explore)
-                ? getChartTypeFieldCandidates(explore)
+                ? AiService.getVisibleChartTypeFields(explore, visibleExplores)
                 : null;
         };
         const candidates: ChartTypeExploreCandidate[] = summaries.map(
@@ -616,12 +684,13 @@ export class AiService extends BaseService {
         if (picked) {
             const pickedFields =
                 fieldsOf(picked.exploreName) ??
-                getChartTypeFieldCandidates(
+                AiService.getVisibleChartTypeFields(
                     await this.projectService.getExplore(
                         account,
                         projectUuid,
                         picked.exploreName,
                     ),
+                    visibleExplores,
                 );
             if (!exploreSatisfiesInputs(payload.fields, pickedFields)) {
                 suggestion = null;

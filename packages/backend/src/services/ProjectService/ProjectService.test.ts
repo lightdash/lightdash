@@ -582,6 +582,11 @@ const getMockedProjectService = (
         userWarehouseCredentialsModel: {
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
+        aiIdentityService: {
+            getAiSchemaAccess: vi
+                .fn()
+                .mockResolvedValue({ type: 'unrestricted' }),
+        },
         aiIdentityModel: overrides.aiIdentityModel ?? ({} as AiIdentityModel),
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         warehouseConnectionModel: {} as WarehouseConnectionModel,
@@ -717,6 +722,68 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
+
+    describe('AI summary query visibility', () => {
+        it('keeps visible queries and omits queries with hidden joined fields', async () => {
+            const restrictedService =
+                getMockedProjectService(lightdashConfigMock);
+            vi.mocked(
+                restrictedService.aiIdentityService.getAiSchemaAccess,
+            ).mockResolvedValue({
+                type: 'schemas',
+                schemas: ['database.schema'],
+            });
+            vi.spyOn(projectModel, 'findExploresFromCache').mockResolvedValue({
+                valid_explore: {
+                    ...validExplore,
+                    tables: {
+                        ...validExplore.tables,
+                        b: { ...validExplore.tables.b, schema: 'private' },
+                    },
+                },
+            } as never);
+            const query = {
+                ...metricQueryMock,
+                dimensions: ['a_dim1'],
+                metrics: ['a_met1'],
+                filters: {},
+                sorts: [],
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            };
+            await expect(
+                restrictedService.isAiMetricQueryVisible(
+                    sessionAccount,
+                    projectSummary.projectUuid,
+                    query,
+                ),
+            ).resolves.toBe(true);
+            await expect(
+                restrictedService.isAiMetricQueryVisible(
+                    sessionAccount,
+                    projectSummary.projectUuid,
+                    {
+                        ...query,
+                        tableCalculations: [
+                            {
+                                name: 'hidden',
+                                displayName: 'Hidden',
+                                sql: '${b.dim1}',
+                            },
+                        ],
+                    },
+                ),
+            ).resolves.toBe(false);
+            await expect(
+                restrictedService.isAiMetricQueryVisible(
+                    sessionAccount,
+                    projectSummary.projectUuid,
+                    { ...query, exploreName: 'hidden_model' },
+                ),
+            ).resolves.toBe(false);
+        });
+    });
 
     describe('Document counts in legacy Space listing', () => {
         it.each([
@@ -9608,7 +9675,7 @@ describe('Snowflake AI twin query routing', () => {
         expect(identityModel.findWithPrivateKey).not.toHaveBeenCalled();
     });
 
-    it('only advertises raw SQL after the Snowflake AI identity is ready', async () => {
+    it('advertises raw SQL when the restricted user has a ready Snowflake AI twin', async () => {
         vi.spyOn(
             projectModel,
             'getWarehouseCredentialsForProject',

@@ -54,6 +54,11 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
         }),
     );
     const service = new AiAgentService({
+        aiIdentityService: {
+            getAiSchemaAccess: vi
+                .fn()
+                .mockResolvedValue({ type: 'unrestricted' }),
+        },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: lightdashConfigMock,
         aiAgentModel,
@@ -85,6 +90,53 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
 
 describe('verified answer retrieval', () => {
     afterEach(() => vi.restoreAllMocks());
+
+    it('keeps visible verified answers and excludes hidden candidates before ranking', async () => {
+        const { service, aiAgentModel, args } = setup();
+        service['aiIdentityService'].getAiSchemaAccess = vi
+            .fn()
+            .mockResolvedValue({ type: 'schemas', schemas: ['DB.PUBLIC'] });
+        Object.assign(service, {
+            projectService: {
+                getAiVisibleExplores: vi
+                    .fn()
+                    .mockResolvedValue([{ name: 'visible' }]),
+            },
+        });
+        const visible = {
+            ...baseline,
+            chartConfig: { queryConfig: { exploreName: 'visible' } },
+        };
+        const hidden = {
+            ...expanded,
+            chartConfig: { queryConfig: { exploreName: 'hidden' } },
+            verifiedQuestion: 'Hidden model',
+        };
+        aiAgentModel.searchArtifactsBySimilarity.mockResolvedValue([
+            visible,
+            hidden,
+        ] as never);
+        vi.spyOn(service, 'getDecisionClient').mockResolvedValue(undefined);
+        await expect(
+            service.getRelevantVerifiedAnswerContextForAgent(user, args),
+        ).resolves.toEqual({ relevantVerifiedAnswers: [visible] });
+        aiAgentModel.findArtifactReferencesByPromptUuid.mockResolvedValue([
+            'baseline',
+            'expanded',
+        ] as never);
+        aiAgentModel.getArtifactVersionsByUuids.mockResolvedValue([
+            visible,
+            hidden,
+        ] as never);
+        await expect(
+            service.retrieveRelevantArtifacts({
+                ...args,
+                organizationUuid: 'org',
+                userUuid: 'user',
+                promptUuid: 'prompt',
+            }),
+        ).resolves.toEqual([visible]);
+    });
 
     it('authorizes agent access before ranking a larger scoped candidate pool', async () => {
         const { service, aiAgentModel, args, getDecisions, authorize } =
@@ -488,6 +540,11 @@ describe('battle profile response preparation', () => {
                 }),
             };
             const service = new AiAgentService({
+                aiIdentityService: {
+                    getAiSchemaAccess: vi
+                        .fn()
+                        .mockResolvedValue({ type: 'unrestricted' }),
+                },
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,
                 },

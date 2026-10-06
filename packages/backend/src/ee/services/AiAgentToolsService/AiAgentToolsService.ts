@@ -4,6 +4,7 @@ import {
     AnyType,
     assertRegisteredAccount,
     assertUnreachable,
+    canAiReadSchema,
     CatalogFilter,
     CatalogType,
     ConflictError,
@@ -14,7 +15,9 @@ import {
     documentAsCodeSchema,
     Explore,
     FeatureFlags,
+    FieldImpactSeverity,
     filterExploreByTags,
+    filterExploresForAi,
     filterStaticFilterAutocompleteValues,
     findFieldByIdInExplore,
     ForbiddenError,
@@ -76,6 +79,7 @@ import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { AiIdentityService } from '../../../services/AiIdentityService/AiIdentityService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -334,6 +338,7 @@ type BuiltInSkillsClient = Pick<
 >;
 
 type AiAgentToolsServiceDependencies = {
+    aiIdentityService: AiIdentityService;
     builtInSkills: BuiltInSkillsClient;
     appModel: AppModel;
     projectModel: ProjectModel;
@@ -399,6 +404,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly querySourceService: QuerySourceService;
+
+    private readonly aiIdentityService: AiIdentityService;
 
     private readonly catalogService: CatalogService;
 
@@ -516,6 +523,7 @@ export class AiAgentToolsService extends BaseService {
         asyncQueryService,
         querySourceService,
         catalogService,
+        aiIdentityService,
         contentVerificationModel,
         searchModel,
         searchService,
@@ -551,6 +559,7 @@ export class AiAgentToolsService extends BaseService {
         this.asyncQueryService = asyncQueryService;
         this.querySourceService = querySourceService;
         this.catalogService = catalogService;
+        this.aiIdentityService = aiIdentityService;
         this.contentVerificationModel = contentVerificationModel;
         this.searchModel = searchModel;
         this.searchService = searchService;
@@ -619,11 +628,23 @@ export class AiAgentToolsService extends BaseService {
                     ),
                 );
 
-                return allExplores
-                    .filter(
-                        (explore): explore is Explore =>
-                            !isExploreError(explore),
-                    )
+                const validExplores = allExplores.filter(
+                    (explore): explore is Explore => !isExploreError(explore),
+                );
+                const access = await this.aiIdentityService.getAiSchemaAccess({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    databases: [
+                        ...new Set(
+                            validExplores.flatMap((explore) =>
+                                Object.values(explore.tables).map(
+                                    (table) => table.database,
+                                ),
+                            ),
+                        ),
+                    ],
+                });
+                return filterExploresForAi(validExplores, access)
                     .filter((explore) =>
                         doesExploreMatchRequiredAttributes(
                             explore.tables[explore.baseTable]
@@ -670,6 +691,68 @@ export class AiAgentToolsService extends BaseService {
             throw new NotFoundError('Explore not found');
         }
         return explore;
+    }
+
+    private async canReadAiContent(
+        context: AiAgentToolsRuntimeContext,
+        type: string,
+        uuid: string,
+    ): Promise<boolean> {
+        const access = await this.aiIdentityService.getAiSchemaAccess({
+            userUuid: context.user.userUuid,
+            projectUuid: context.projectUuid,
+            databases: [],
+        });
+        if (access.type === 'unrestricted' || type === 'space') return true;
+        if (type === 'chart') {
+            const chart = await this.savedChartService
+                .get(uuid, context.account, {
+                    projectUuid: context.projectUuid,
+                })
+                .catch((error: unknown) => {
+                    if (
+                        error instanceof NotFoundError ||
+                        error instanceof ForbiddenError
+                    )
+                        return null;
+                    throw error;
+                });
+            if (!chart) return false;
+            return this.projectService.isAiMetricQueryVisible(
+                context.account,
+                context.projectUuid,
+                chart.metricQuery,
+            );
+        }
+        if (type === 'dashboard') {
+            const dashboard = await this.dashboardService
+                .getByIdOrSlug(context.user, uuid, {
+                    projectUuid: context.projectUuid,
+                })
+                .catch((error: unknown) => {
+                    if (
+                        error instanceof NotFoundError ||
+                        error instanceof ForbiddenError
+                    )
+                        return null;
+                    throw error;
+                });
+            if (!dashboard) return false;
+            const charts = dashboard.tiles.filter(isDashboardChartTileType);
+            const visible = await Promise.all(
+                charts.map((tile) =>
+                    tile.properties.savedChartUuid
+                        ? this.canReadAiContent(
+                              context,
+                              'chart',
+                              tile.properties.savedChartUuid,
+                          )
+                        : false,
+                ),
+            );
+            return visible.length > 0 && visible.every(Boolean);
+        }
+        return false;
     }
 
     createRuntime(
@@ -1245,10 +1328,110 @@ export class AiAgentToolsService extends BaseService {
             args,
             async () => {
                 this.assertCanViewProject(context);
-                return this.savedChartModel.analyzeFieldImpact(
+                const access = await this.aiIdentityService.getAiSchemaAccess({
+                    userUuid: context.user.userUuid,
+                    projectUuid: context.projectUuid,
+                    databases: [],
+                });
+                const explores =
+                    access.type === 'unrestricted'
+                        ? null
+                        : await this.getAvailableExplores({
+                              user: context.user,
+                              projectUuid: context.projectUuid,
+                              availableTags: context.tags,
+                          });
+                const visibleFields = new Set(
+                    explores?.flatMap((explore) =>
+                        Object.keys(getItemMap(explore)),
+                    ),
+                );
+                if (explores !== null && !visibleFields.has(args.fieldId))
+                    throw new ForbiddenError(
+                        'This data is not available to AI.',
+                    );
+                const report = await this.savedChartModel.analyzeFieldImpact(
                     context.projectUuid,
                     args.fieldId,
                 );
+                if (explores === null) return report;
+                const chartVisibility = await Promise.all(
+                    report.charts.map((chart) =>
+                        this.canReadAiContent(context, 'chart', chart.uuid),
+                    ),
+                );
+                const dashboardVisibility = await Promise.all(
+                    report.dashboards.map((dashboard) =>
+                        this.canReadAiContent(
+                            context,
+                            'dashboard',
+                            dashboard.uuid,
+                        ),
+                    ),
+                );
+                const filterVisibility = await Promise.all(
+                    report.dashboardFilterTargets.map((dashboard) =>
+                        this.canReadAiContent(
+                            context,
+                            'dashboard',
+                            dashboard.uuid,
+                        ),
+                    ),
+                );
+                const deliveryVisibility = await Promise.all(
+                    report.scheduledDeliveries.map((delivery) => {
+                        if (delivery.savedChartUuid)
+                            return this.canReadAiContent(
+                                context,
+                                'chart',
+                                delivery.savedChartUuid,
+                            );
+                        if (delivery.dashboardUuid)
+                            return this.canReadAiContent(
+                                context,
+                                'dashboard',
+                                delivery.dashboardUuid,
+                            );
+                        return false;
+                    }),
+                );
+                const charts = report.charts.filter(
+                    (_, index) => chartVisibility[index],
+                );
+                const dashboards = report.dashboards.filter(
+                    (_, index) => dashboardVisibility[index],
+                );
+                const dashboardFilterTargets =
+                    report.dashboardFilterTargets.filter(
+                        (_, index) => filterVisibility[index],
+                    );
+                const scheduledDeliveries = report.scheduledDeliveries.filter(
+                    (_, index) => deliveryVisibility[index],
+                );
+                const metricTreeDependents = report.metricTreeDependents.filter(
+                    (metric) => visibleFields.has(metric.fieldId),
+                );
+                return {
+                    ...report,
+                    charts,
+                    dashboards,
+                    dashboardFilterTargets,
+                    scheduledDeliveries,
+                    metricTreeDependents,
+                    severity:
+                        charts.length ||
+                        dashboardFilterTargets.length ||
+                        metricTreeDependents.length
+                            ? FieldImpactSeverity.Breaking
+                            : FieldImpactSeverity.Safe,
+                    summary: {
+                        charts: charts.length,
+                        dashboards: dashboards.length,
+                        dashboardFilterTargets: dashboardFilterTargets.length,
+                        scheduledDeliveries: scheduledDeliveries.length,
+                        metricTreeDependents: metricTreeDependents.length,
+                    },
+                };
             },
         );
     }
@@ -1439,8 +1622,18 @@ export class AiAgentToolsService extends BaseService {
                     (scopedSpaceUuids === null ||
                         scopedSpaceUuids.has(spaceUuid));
 
-                const contentResults = content.flatMap(
-                    (item): FindContentResult[] => {
+                const visibility = await Promise.all(
+                    content.map((item) =>
+                        this.canReadAiContent(
+                            context,
+                            item.contentType,
+                            item.uuid,
+                        ),
+                    ),
+                );
+                const contentResults = content
+                    .filter((_, index) => visibility[index])
+                    .flatMap((item): FindContentResult[] => {
                         if (isDataAppSearchResult(item)) {
                             if (item.spaceUuid === null) {
                                 return unrestrictedProjectSearch
@@ -1507,8 +1700,7 @@ export class AiAgentToolsService extends BaseService {
                                 space: spaceMetadata,
                             },
                         ];
-                    },
-                );
+                    });
 
                 // Spaces cannot be verified, so they are omitted from
                 // verified-only searches.
@@ -1553,7 +1745,8 @@ export class AiAgentToolsService extends BaseService {
 
                 const documentResults =
                     (context.source === 'mcp' || context.enableDocuments) &&
-                    !verifiedOnly
+                    !verifiedOnly &&
+                    (await this.canReadAiContent(context, 'document', ''))
                         ? await this.findDocumentContent(
                               context,
                               args.searchQuery.label,
@@ -2086,10 +2279,19 @@ export class AiAgentToolsService extends BaseService {
         return { uuid: chart.uuid, includeSampleData: true, linkLive: true };
     }
 
-    private readContent(
+    private async readContent(
         context: AiAgentToolsRuntimeContext,
         args: Parameters<ReadContentFn>[0],
     ): ReturnType<ReadContentFn> {
+        if (
+            !(await this.canReadAiContent(
+                context,
+                args.type,
+                'slug' in args ? args.slug : args.documentUuid,
+            ))
+        ) {
+            throw new ForbiddenError('This data is not available to AI.');
+        }
         if (args.type === 'document') {
             return this.readDocumentContent(context, args, args.chartId);
         }
@@ -3538,7 +3740,23 @@ export class AiAgentToolsService extends BaseService {
                     context.user,
                     context.projectUuid,
                 );
-                return filterWarehouseCatalogToScope(catalog, context.sqlScope);
+                const access = await this.aiIdentityService.getAiSchemaAccess({
+                    userUuid: context.user.userUuid,
+                    projectUuid: context.projectUuid,
+                    databases: Object.keys(catalog),
+                });
+                const allowed = Object.fromEntries(
+                    Object.entries(catalog).flatMap(([database, schemas]) => {
+                        const visible = Object.entries(schemas).filter(
+                            ([schema]) =>
+                                canAiReadSchema(access, database, schema),
+                        );
+                        return visible.length === 0
+                            ? []
+                            : [[database, Object.fromEntries(visible)]];
+                    }),
+                );
+                return filterWarehouseCatalogToScope(allowed, context.sqlScope);
             },
         );
     }
@@ -3572,6 +3790,26 @@ export class AiAgentToolsService extends BaseService {
                     resolvedDatabase =
                         resolvedDatabase ?? defaults.database ?? null;
                 }
+
+                const access = await this.aiIdentityService.getAiSchemaAccess({
+                    userUuid: context.user.userUuid,
+                    projectUuid: context.projectUuid,
+                    databases:
+                        resolvedDatabase === null ? [] : [resolvedDatabase],
+                });
+                if (
+                    access.type !== 'unrestricted' &&
+                    (resolvedDatabase === null ||
+                        resolvedSchema === null ||
+                        !canAiReadSchema(
+                            access,
+                            resolvedDatabase,
+                            resolvedSchema,
+                        ))
+                )
+                    throw new ForbiddenError(
+                        'This data is not available to AI.',
+                    );
 
                 const violation = findWarehouseTableScopeViolation(
                     context.sqlScope,
@@ -3624,13 +3862,24 @@ export class AiAgentToolsService extends BaseService {
                     `Dashboard not found: ${args.dashboardUuid}`,
                 );
 
-                return this.dashboardService.getDashboardCharts(
+                const result = await this.dashboardService.getDashboardCharts(
                     context.user,
                     context.projectUuid,
                     args.dashboardUuid,
                     args.page,
                     args.pageSize,
                 );
+                const visibility = await Promise.all(
+                    result.charts.map((chart) =>
+                        this.canReadAiContent(context, 'chart', chart.uuid),
+                    ),
+                );
+                return {
+                    ...result,
+                    charts: result.charts.filter(
+                        (_, index) => visibility[index],
+                    ),
+                };
             },
         );
     }
@@ -3643,7 +3892,15 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.searchFieldValues`,
             args,
             async () => {
-                if (context.source === 'mcp') {
+                const access = await this.aiIdentityService.getAiSchemaAccess({
+                    userUuid: context.user.userUuid,
+                    projectUuid: context.projectUuid,
+                    databases: [],
+                });
+                if (
+                    context.source === 'mcp' ||
+                    access.type !== 'unrestricted'
+                ) {
                     const explore = await this.getExploreForRuntime(context, {
                         table: args.table,
                     });
@@ -3924,6 +4181,17 @@ export class AiAgentToolsService extends BaseService {
                     throw new NotFoundError(`Chart not found: ${chartUuid}`);
                 }
 
+                if (
+                    !(await this.canReadAiContent(
+                        context,
+                        'chart',
+                        savedChart.uuid,
+                    ))
+                ) {
+                    throw new ForbiddenError(
+                        'This data is not available to AI.',
+                    );
+                }
                 return savedChart;
             },
         );
@@ -4120,7 +4388,7 @@ export class AiAgentToolsService extends BaseService {
     private static assertFieldInExplore(fieldId: string, explore: Explore) {
         const itemMap = getItemMap(explore);
         if (!itemMap[fieldId]) {
-            throw new NotFoundError(`Field not found: ${fieldId}`);
+            throw new NotFoundError('This data is not available to AI.');
         }
     }
 
@@ -4132,7 +4400,7 @@ export class AiAgentToolsService extends BaseService {
         const itemMap = getItemMap(explore, additionalMetrics);
         fieldIds.forEach((fieldId) => {
             if (!itemMap[fieldId]) {
-                throw new NotFoundError(`Field not found: ${fieldId}`);
+                throw new NotFoundError('This data is not available to AI.');
             }
         });
     }
@@ -4248,6 +4516,12 @@ export class AiAgentToolsService extends BaseService {
             { page, pageSize },
         );
 
+        const visibility = await Promise.all(
+            results.data.map((item) =>
+                this.canReadAiContent(context, item.contentType, item.uuid),
+            ),
+        );
+        results.data = results.data.filter((_, index) => visibility[index]);
         const projectSlug = results.data.some(
             (item) => item.contentType === ContentType.DOCUMENT,
         )

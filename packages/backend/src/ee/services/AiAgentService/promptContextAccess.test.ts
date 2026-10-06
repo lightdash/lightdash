@@ -152,6 +152,11 @@ const buildService = (
             ),
     };
     const service = new AiAgentService({
+        aiIdentityService: {
+            getAiSchemaAccess: vi
+                .fn()
+                .mockResolvedValue({ type: 'unrestricted' }),
+        },
         appModel,
         appGenerateService,
         organizationDesignModel,
@@ -177,6 +182,7 @@ const buildService = (
             }
         ).validatePromptContextAccess(user, agent, context, allowedSpaceUuids);
     return {
+        service,
         validate,
         appModel,
         appGenerateService,
@@ -185,6 +191,33 @@ const buildService = (
         aiThreadFileModel,
     };
 };
+
+it('keeps visible pinned charts while omitting hidden charts', async () => {
+    const { service, validate } = buildService([]);
+    service['aiIdentityService'].getAiSchemaAccess = vi
+        .fn()
+        .mockResolvedValue({ type: 'schemas', schemas: ['DB.PUBLIC'] });
+    Object.assign(service, {
+        savedChartService: {
+            hasAccess: vi.fn().mockResolvedValue(undefined),
+            get: vi.fn(async (uuid: string) => ({
+                metricQuery: { exploreName: uuid },
+            })),
+        },
+        projectService: {
+            isAiMetricQueryVisible: vi.fn(
+                async (_account, _project, query) =>
+                    query.exploreName === 'visible',
+            ),
+        },
+    });
+    await expect(
+        validate([
+            { type: 'chart', chartUuid: 'visible' },
+            { type: 'chart', chartUuid: 'hidden' },
+        ]),
+    ).resolves.toEqual([{ type: 'chart', chartUuid: 'visible' }]);
+});
 
 describe('validatePromptContextAccess for data apps', () => {
     it('accepts a data app the user can view', async () => {

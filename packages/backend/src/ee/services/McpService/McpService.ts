@@ -1091,7 +1091,7 @@ export class McpService extends BaseService {
         );
         referencedFieldIds.forEach((fieldId) => {
             if (!itemMap[fieldId]) {
-                throw new NotFoundError(`Field not found: ${fieldId}`);
+                throw new NotFoundError('This data is not available to AI.');
             }
         });
     }

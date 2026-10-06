@@ -366,7 +366,7 @@ const buildFieldNotFoundError = (
         exploreId,
     );
     if (reachableFrom.length === 0) {
-        return `Field "${fieldId}" not found in explore "${exploreId}".`;
+        return 'This data is not available to AI.';
     }
     const shown = reachableFrom.slice(0, REACHABLE_EXPLORES_MAX);
     const overflow =
@@ -400,7 +400,7 @@ export const executeGetMetadata = (
             for (const exploreId of request.exploreIds) {
                 const explore = byName.get(exploreId);
                 if (!explore) {
-                    const error = `Explore "${exploreId}" not found or not available to this agent.`;
+                    const error = 'This data is not available to AI.';
                     textBlocks.push(error);
                     explores.push({
                         exploreId,
@@ -429,7 +429,7 @@ export const executeGetMetadata = (
             for (const { exploreId, fieldId } of request.fields) {
                 const explore = byName.get(exploreId);
                 if (!explore) {
-                    const error = `Explore "${exploreId}" not found, so field "${fieldId}" could not be resolved.`;
+                    const error = 'This data is not available to AI.';
                     textBlocks.push(error);
                     fields.push({
                         exploreId,

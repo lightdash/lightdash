@@ -348,14 +348,29 @@ export class SchedulerAiAugmentationService {
             Promise<SectionAccumulator>
         >(async (accPromise, { chartName, queryUuid }) => {
             const acc = await accPromise;
-            if (acc.remainingChars <= 0) return omitSection(acc, chartName);
-            const { rows, fields, truncated } =
+            const { rows, fields, truncated, metricQuery } =
                 await this.asyncQueryService.getRawAsyncQueryResults({
                     account,
                     projectUuid,
                     queryUuid,
                     maxRows: MAX_ROWS_PER_CHART,
                 });
+            if (
+                !(await this.asyncQueryService.isAiMetricQueryVisible(
+                    account,
+                    projectUuid,
+                    metricQuery,
+                ))
+            ) {
+                return {
+                    ...acc,
+                    parts: [
+                        ...acc.parts,
+                        '[Some charts are not available to AI and were omitted.]',
+                    ],
+                };
+            }
+            if (acc.remainingChars <= 0) return omitSection(acc, chartName);
             return appendCsvSection(
                 acc,
                 chartName,
@@ -376,6 +391,15 @@ export class SchedulerAiAugmentationService {
         projectUuid: string,
     ): Promise<string> {
         if (!scheduler.savedChartUuid) return '';
+        if (
+            !(await this.asyncQueryService.isAiSavedChartVisible(
+                account,
+                projectUuid,
+                scheduler.savedChartUuid,
+            ))
+        ) {
+            return '[Some charts are not available to AI and were omitted.]';
+        }
 
         const { rows, fields } =
             await this.asyncQueryService.executeSavedChartQueryAndGetResults(
@@ -425,6 +449,21 @@ export class SchedulerAiAugmentationService {
         const sections = await chartTiles.reduce<Promise<SectionAccumulator>>(
             async (accPromise, tile) => {
                 const acc = await accPromise;
+                if (
+                    !(await this.asyncQueryService.isAiSavedChartVisible(
+                        account,
+                        dashboard.projectUuid,
+                        tile.properties.savedChartUuid!,
+                    ))
+                ) {
+                    return {
+                        ...acc,
+                        parts: [
+                            ...acc.parts,
+                            '[Some charts are not available to AI and were omitted.]',
+                        ],
+                    };
+                }
                 const chartName = tile.properties.chartName ?? 'Untitled chart';
                 if (acc.remainingChars <= 0) return omitSection(acc, chartName);
                 const chartUuid = tile.properties.savedChartUuid!;

@@ -4793,10 +4793,17 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectTimezone,
         });
 
-        return new QueryComposer(
+        const visibleExplore = await this.filterExploreForAiQuery(
+            account,
+            projectUuid,
+            explore,
+            context,
+        );
+
+        const composer = new QueryComposer(
             { metricQuery, pivotConfiguration, totalConfiguration },
             {
-                explore,
+                explore: visibleExplore,
                 warehouseSqlBuilder,
                 intrinsicUserAttributes,
                 userAttributes,
@@ -4815,6 +4822,14 @@ export class AsyncQueryService extends ProjectService {
                 queryExecutionContext: context,
             },
         );
+        if (visibleExplore !== explore) {
+            try {
+                composer.compile();
+            } catch {
+                throw new ForbiddenError('This data is not available to AI.');
+            }
+        }
+        return composer;
     }
 
     private async assertOrganizationNotBlocked(
@@ -6591,6 +6606,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
+            context,
             metricQuery,
             explore,
             warehouseSqlBuilder,
@@ -6945,6 +6961,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
+            context,
             metricQuery: metricQueryWithLimit,
             explore,
             warehouseSqlBuilder,
@@ -7747,6 +7764,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
+            context,
             metricQuery: metricQueryWithLimit,
             explore,
             dateZoom,
@@ -8112,6 +8130,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
+            context,
             metricQuery: underlyingDataMetricQueryWithLimit,
             explore,
             dateZoom,
@@ -11543,6 +11562,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
+            context,
             metricQuery,
             dateZoom,
             explore,

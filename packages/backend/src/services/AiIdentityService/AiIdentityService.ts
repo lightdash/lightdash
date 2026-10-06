@@ -50,6 +50,7 @@ import {
     type AiIdentityProvisioningSettings,
     type AiIdentitySchemaRule,
     type AiIdentityUngrantedSchemas,
+    type AiSchemaAccess,
     type CreateAiIdentityProvisioner,
     type UpdateAiIdentityAiRoleDefinition,
     type UpdateAiIdentityRoleMapping,
@@ -74,6 +75,7 @@ import {
     missingProvisionerGrants,
     missingSchemas,
 } from './provisioningPlan';
+import { selectAiIdentityRole } from './selectAiIdentityRole';
 import { getSnowflakeLogin } from './snowflakeLogin';
 
 const forEachSequential = async <T>(
@@ -553,40 +555,15 @@ export class AiIdentityService extends BaseService {
             );
             const matches = (name: string | null): boolean =>
                 name?.toUpperCase() === role.roleName.toUpperCase();
-            const selected =
-                ready.find((identity) => matches(identity.provisionedRole)) ??
-                ready.find((identity) => {
-                    if (identity.provisionedRole !== null) return false;
-                    const templateRole =
-                        account.roleTemplate !== null &&
-                        (!account.roleTemplate.includes(
-                            SNOWFLAKE_LOGIN_PLACEHOLDER,
-                        ) ||
-                            identity.snowflakeLogin !== null) &&
-                        (!account.roleTemplate.includes(
-                            AI_IDENTITY_NAME_PLACEHOLDER,
-                        ) ||
-                            identity.twinName !== null)
-                            ? resolveAiIdentityRole(
-                                  account.roleTemplate,
-                                  identity.snowflakeLogin,
-                                  identity.twinName,
-                              )
-                            : null;
-                    const mapping = mappings
-                        .filter((item) =>
-                            identity.groupUuids.includes(item.groupUuid),
-                        )
-                        .sort(
-                            (a, b) =>
-                                a.priority - b.priority ||
-                                a.groupUuid.localeCompare(b.groupUuid),
-                        )[0];
-                    return (
-                        matches(templateRole) ||
-                        matches(mapping?.aiRole ?? null)
-                    );
-                });
+            const selected = ready.find((identity) =>
+                matches(
+                    selectAiIdentityRole(
+                        identity,
+                        mappings,
+                        account.roleTemplate,
+                    ),
+                ),
+            );
             if (!selected) {
                 const prior = previousFor(role.roleName);
                 if (prior) results.push(prior);
@@ -1747,6 +1724,105 @@ export class AiIdentityService extends BaseService {
         await this.log(account, organizationUuid, 'list', null, null);
         return result;
     }
+    private readonly schemaCache = new Map<
+        string,
+        { expiresAt: number; schemas: string[] }
+    >();
+
+    async getAiSchemaAccess({
+        userUuid,
+        projectUuid,
+        databases,
+    }: {
+        userUuid: string;
+        projectUuid: string;
+        databases: string[];
+    }): Promise<AiSchemaAccess> {
+        const project = await this.args.projectModel.getSummary(projectUuid);
+        const flag = await this.args.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AiAccessRestrictions,
+            user: { organizationUuid: project.organizationUuid, userUuid },
+        });
+        if (
+            !flag.enabled ||
+            !(await this.args.projectModel.getAiAccessRestrictions(projectUuid))
+        )
+            return { type: 'unrestricted' };
+        const denied: AiSchemaAccess = { type: 'schemas', schemas: [] };
+        try {
+            const credentials =
+                await this.getOriginalConnectionCredentials(projectUuid);
+            if (credentials.type !== WarehouseTypes.SNOWFLAKE) return denied;
+            const account = await this.args.aiIdentityModel.getOrCreateAccount(
+                project.organizationUuid,
+                normalizeSnowflakeAccount(credentials.account),
+            );
+            const [identities, mappings, roles] = await Promise.all([
+                this.args.aiIdentityModel.getProvisioningIdentities(
+                    account.aiIdentityAccountUuid,
+                ),
+                this.args.aiIdentityModel.getRoleMappings(
+                    account.aiIdentityAccountUuid,
+                ),
+                this.args.aiIdentityModel.getAiRoles(
+                    account.aiIdentityAccountUuid,
+                ),
+            ]);
+            const identity = identities.find(
+                (item) => item.userUuid === userUuid,
+            );
+            if (!identity || identity.state !== AiIdentityState.READY)
+                return denied;
+            const roleName = selectAiIdentityRole(
+                identity,
+                mappings,
+                account.roleTemplate,
+            );
+            if (roleName === null) return denied;
+            const definitions = roles.filter(
+                (role) =>
+                    role.roleName.toUpperCase() === roleName.toUpperCase(),
+            );
+            if (definitions.length > 1) return denied;
+            const definition = definitions[0];
+            if (definition)
+                return { type: 'rule', rule: definition.schemaRule };
+            const key = JSON.stringify([
+                identity.aiIdentityUuid,
+                roleName,
+                [...databases].sort(),
+            ]);
+            const cached = this.schemaCache.get(key);
+            if (cached && cached.expiresAt > Date.now())
+                return { type: 'schemas', schemas: cached.schemas };
+            const privateIdentity =
+                await this.args.aiIdentityModel.findByUuidWithPrivateKey(
+                    identity.aiIdentityUuid,
+                );
+            if (!privateIdentity?.privateKey || !privateIdentity.twinName)
+                return denied;
+            const schemas = await listAiTwinSchemas(
+                buildAiTwinCredentials({
+                    projectCredentials: credentials,
+                    twinName: privateIdentity.twinName,
+                    privateKey: privateIdentity.privateKey,
+                }),
+                databases,
+            );
+            for (const [cacheKey, entry] of this.schemaCache) {
+                if (entry.expiresAt <= Date.now())
+                    this.schemaCache.delete(cacheKey);
+            }
+            this.schemaCache.set(key, {
+                schemas,
+                expiresAt: Date.now() + 30_000,
+            });
+            return { type: 'schemas', schemas };
+        } catch {
+            return denied;
+        }
+    }
+
     async getAiAccessForUser({
         account,
         projectUuid,
@@ -1823,9 +1899,7 @@ export class AiIdentityService extends BaseService {
                 state === null || state === AiIdentityState.READY
                     ? null
                     : getAiIdentityPersonMessage(state),
-            rawSqlAllowed:
-                !restrictionsOn ||
-                (aiIdentityRequired && state === AiIdentityState.READY),
+            rawSqlAllowed: !restrictionsOn,
         };
     }
     async runJob(jobUuid: string): Promise<void> {

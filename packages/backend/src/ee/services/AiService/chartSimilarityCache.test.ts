@@ -1,4 +1,5 @@
 import { type SessionUser } from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import {
     compareChartQueries,
@@ -13,7 +14,11 @@ vi.mock('../ai/models', () => ({
     getModel: () => ({ model: 'test', keyManagement: null }),
 }));
 
-const user = { organizationUuid: 'org', userUuid: 'user' } as SessionUser;
+const user: SessionUser = {
+    ...defaultSessionUser,
+    organizationUuid: 'org',
+    userUuid: 'user',
+};
 const input: ChartSimilarityInput = {
     source: {
         name: 'Revenue',
@@ -38,6 +43,9 @@ const setup = () => {
         getAccessibleModelIds: vi.fn(),
     };
     const service = new AiService({
+        projectService: {
+            getAiVisibleExplores: vi.fn().mockResolvedValue(null),
+        },
         lightdashConfig: lightdashConfigMock,
         featureFlagService,
         orgAiCopilotConfigResolver,

@@ -97,6 +97,7 @@ import {
     fillOmittedSecrets,
     FilterableDimension,
     FilterAutocompleteValue,
+    filterExploresForAi,
     findReplaceableCustomMetrics,
     ForbiddenError,
     formatRows,
@@ -451,6 +452,7 @@ import {
 } from '../../utils/sharedSignInExpiry';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { AiIdentityService } from '../AiIdentityService/AiIdentityService';
 import {
     buildAiTwinCredentials,
     checkAiTwinConnection,
@@ -603,6 +605,7 @@ export type ProjectServiceArguments = {
     emailModel: EmailModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     aiIdentityModel: AiIdentityModel;
+    aiIdentityService: Pick<AiIdentityService, 'getAiSchemaAccess'>;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
@@ -796,6 +799,7 @@ export class ProjectService extends BaseService {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     aiIdentityModel: AiIdentityModel;
+    aiIdentityService: Pick<AiIdentityService, 'getAiSchemaAccess'>;
 
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
@@ -895,6 +899,7 @@ export class ProjectService extends BaseService {
         dashboardModel,
         userWarehouseCredentialsModel,
         aiIdentityModel,
+        aiIdentityService,
         warehouseAvailableTablesModel,
         warehouseConnectionModel,
         warehouseConnectionCompileModel,
@@ -951,6 +956,7 @@ export class ProjectService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.aiIdentityModel = aiIdentityModel;
+        this.aiIdentityService = aiIdentityService;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
         this.warehouseConnectionIdentityModel =
@@ -10707,6 +10713,7 @@ export class ProjectService extends BaseService {
             'ProjectService.runMetricQuery',
             {},
             async (span) => {
+                let schemaFiltered = false;
                 try {
                     assertIsAccountWithOrg(account);
 
@@ -10750,13 +10757,20 @@ export class ProjectService extends BaseService {
                         maxLimit,
                     );
 
-                    const explore =
+                    const originalExplore =
                         loadedExplore ??
                         (await this.getExplore(
                             account,
                             projectUuid,
                             exploreName,
                         ));
+                    const explore = await this.filterExploreForAiQuery(
+                        account,
+                        projectUuid,
+                        originalExplore,
+                        context,
+                    );
+                    schemaFiltered = explore !== originalExplore;
 
                     const {
                         warehouseCredentials,
@@ -10768,6 +10782,7 @@ export class ProjectService extends BaseService {
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
+                        context,
                     });
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
@@ -10958,6 +10973,10 @@ export class ProjectService extends BaseService {
                         code: 2, // ERROR
                         message: getErrorMessage(e),
                     });
+                    if (schemaFiltered)
+                        throw new ForbiddenError(
+                            'This data is not available to AI.',
+                        );
                     throw e;
                 } finally {
                     span.end();
@@ -12540,6 +12559,116 @@ export class ProjectService extends BaseService {
         }
 
         return visibleExploreSummaries;
+    }
+
+    async getAiVisibleExplores(
+        userUuid: string,
+        projectUuid: string,
+    ): Promise<Explore[] | null> {
+        const initialAccess = await this.aiIdentityService.getAiSchemaAccess({
+            userUuid,
+            projectUuid,
+            databases: [],
+        });
+        if (initialAccess.type === 'unrestricted') return null;
+        const explores = Object.values(
+            await this.projectModel.findExploresFromCache(projectUuid, 'name'),
+        ).filter((explore): explore is Explore => !isExploreError(explore));
+        const access = await this.aiIdentityService.getAiSchemaAccess({
+            userUuid,
+            projectUuid,
+            databases: [
+                ...new Set(
+                    explores.flatMap((explore) =>
+                        Object.values(explore.tables).map(
+                            (table) => table.database,
+                        ),
+                    ),
+                ),
+            ],
+        });
+        return filterExploresForAi(explores, access);
+    }
+
+    async isAiSavedChartVisible(
+        account: Account,
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<boolean> {
+        const chart = await this.savedChartModel.get(chartUuid);
+        return (
+            chart.projectUuid === projectUuid &&
+            this.isAiMetricQueryVisible(account, projectUuid, chart.metricQuery)
+        );
+    }
+
+    async isAiMetricQueryVisible(
+        account: Account,
+        projectUuid: string,
+        metricQuery: MetricQuery,
+    ): Promise<boolean> {
+        const explores = await this.getAiVisibleExplores(
+            account.user.id,
+            projectUuid,
+        );
+        if (explores === null) return true;
+        const explore = explores.find(
+            (item) => item.name === metricQuery.exploreName,
+        );
+        if (!explore) return false;
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            {
+                kind: 'explore',
+                exploreName: explore.name,
+            },
+        );
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes({ account });
+        try {
+            new QueryComposer(
+                { metricQuery },
+                {
+                    explore,
+                    warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                        settings.type,
+                        settings.startOfWeek,
+                    ),
+                    userAttributes,
+                    intrinsicUserAttributes,
+                    availableParameterDefinitions:
+                        await this.getAvailableParameters(projectUuid, explore),
+                },
+            ).compile();
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    protected async filterExploreForAiQuery(
+        account: Account,
+        projectUuid: string,
+        explore: Explore,
+        context: QueryExecutionContext | undefined,
+    ): Promise<Explore> {
+        if (context === undefined || !isAiAccessQueryContext(context))
+            return explore;
+        const access = await this.aiIdentityService.getAiSchemaAccess({
+            userUuid: account.user.id,
+            projectUuid,
+            databases: [
+                ...new Set(
+                    Object.values(explore.tables).map(
+                        (table) => table.database,
+                    ),
+                ),
+            ],
+        });
+        const [visible] = filterExploresForAi([explore], access);
+        if (!visible)
+            throw new ForbiddenError('This data is not available to AI.');
+        return visible;
     }
 
     async getExplore(

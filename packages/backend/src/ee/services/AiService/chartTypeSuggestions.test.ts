@@ -86,6 +86,7 @@ const inputs: DataAppVizField[] = [
 
 const setup = ({ ambientEnabled = true } = {}) => {
     const projectService = {
+        getAiVisibleExplores: vi.fn().mockResolvedValue(null),
         getProject: vi.fn().mockResolvedValue({ organizationUuid: 'org' }),
         getExplore: vi.fn(),
         getAllExploresSummary: vi.fn(),
@@ -336,4 +337,19 @@ describe('suggestChartTypeExplore', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
     });
+});
+
+it('summarises the filtered delivery content without a blanket refusal', async () => {
+    const { service } = setup();
+    vi.mocked(generateText).mockResolvedValue({
+        text: 'Visible summary',
+    } as never);
+    await expect(
+        service.generateDeliverySummary(makeUser(), {
+            projectUuid: 'project',
+            prompt: 'Summarise',
+            content: 'Visible data',
+        }),
+    ).resolves.toBe('Visible summary');
+    expect(generateText).toHaveBeenCalled();
 });

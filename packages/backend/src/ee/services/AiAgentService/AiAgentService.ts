@@ -71,6 +71,7 @@ import {
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    canAiReadSchema,
     CatalogType,
     CommercialFeatureFlags,
     ConflictError,
@@ -121,6 +122,7 @@ import {
     isAiAgentSqlArtifactVizQuery,
     isAiAppThreadCreatedFrom,
     isAiComposerChartArtifactConfig,
+    isAiContentVisible,
     isAiDeepResearchRunTerminal,
     isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
@@ -806,7 +808,10 @@ type AiAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
     openIdIdentityModel: OpenIdIdentityModel;
     aiIdentityModel: AiIdentityModel;
-    aiIdentityService: Pick<AiIdentityService, 'getAiAccessForUser'>;
+    aiIdentityService: Pick<
+        AiIdentityService,
+        'getAiAccessForUser' | 'getAiSchemaAccess'
+    >;
     projectService: ProjectService;
     schedulerClient: CommercialSchedulerClient;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
@@ -1151,7 +1156,7 @@ export class AiAgentService extends BaseService {
 
     private readonly aiIdentityService: Pick<
         AiIdentityService,
-        'getAiAccessForUser'
+        'getAiAccessForUser' | 'getAiSchemaAccess'
     >;
 
     private readonly projectService: ProjectService;
@@ -1635,7 +1640,54 @@ export class AiAgentService extends BaseService {
             }),
         );
 
-        return deduped;
+        if (
+            await this.canUseUnscopedAiContext(user.userUuid, agent.projectUuid)
+        )
+            return deduped;
+        const visible = await Promise.all(
+            deduped.map(async (item) => {
+                if (item.type === 'chart') {
+                    const chart = await this.savedChartService.get(
+                        item.chartUuid,
+                        fromSession(user),
+                        { projectUuid: agent.projectUuid },
+                    );
+                    return this.projectService.isAiMetricQueryVisible(
+                        fromSession(user),
+                        agent.projectUuid,
+                        chart.metricQuery,
+                    );
+                }
+                if (item.type === 'dashboard') {
+                    const dashboard = await this.dashboardService.getByIdOrSlug(
+                        user,
+                        item.dashboardUuid,
+                        { projectUuid: agent.projectUuid },
+                    );
+                    const charts = dashboard.tiles.filter(
+                        isDashboardChartTileType,
+                    );
+                    const visibility = await Promise.all(
+                        charts.map(async (tile) => {
+                            if (!tile.properties.savedChartUuid) return false;
+                            const chart = await this.savedChartService.get(
+                                tile.properties.savedChartUuid,
+                                fromSession(user),
+                                { projectUuid: agent.projectUuid },
+                            );
+                            return this.projectService.isAiMetricQueryVisible(
+                                fromSession(user),
+                                agent.projectUuid,
+                                chart.metricQuery,
+                            );
+                        }),
+                    );
+                    return visibility.length > 0 && visibility.every(Boolean);
+                }
+                return item.type === 'skill' || item.type === 'design';
+            }),
+        );
+        return deduped.filter((_item, index) => visible[index]);
     }
 
     // A pinned thread may live in another project (e.g. verifying a fix in a
@@ -2724,6 +2776,57 @@ export class AiAgentService extends BaseService {
         return this.withEmbedViewableAvatar(agent);
     }
 
+    private async canUseUnscopedAiContext(
+        userUuid: string,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const access = await this.aiIdentityService.getAiSchemaAccess({
+            userUuid,
+            projectUuid,
+            databases: [],
+        });
+        return access.type === 'unrestricted';
+    }
+
+    private async filterAiArtifacts<
+        T extends { chartConfig: Record<string, unknown> },
+    >(userUuid: string, projectUuid: string, artifacts: T[]): Promise<T[]> {
+        if (await this.canUseUnscopedAiContext(userUuid, projectUuid))
+            return artifacts;
+        const explores = await this.projectService.getAiVisibleExplores(
+            userUuid,
+            projectUuid,
+        );
+        return explores === null
+            ? artifacts
+            : artifacts.filter((artifact) =>
+                  isAiContentVisible(artifact.chartConfig, explores),
+              );
+    }
+
+    private async getVisibleVerifiedQuestions(
+        userUuid: string,
+        projectUuid: string,
+        agentUuid: string,
+    ) {
+        const questions =
+            await this.aiAgentModel.getVerifiedQuestions(agentUuid);
+        if (await this.canUseUnscopedAiContext(userUuid, projectUuid))
+            return questions;
+        const artifacts = await this.aiAgentModel.getArtifactVersionsByUuids(
+            questions.map((question) => question.uuid),
+        );
+        const visible = await this.filterAiArtifacts(
+            userUuid,
+            projectUuid,
+            artifacts,
+        );
+        const ids = new Set(
+            visible.map((artifact) => artifact.artifactVersionUuid),
+        );
+        return questions.filter((question) => ids.has(question.uuid));
+    }
+
     async getAvailableExplores(
         user: SessionUser,
         projectUuid: string,
@@ -2908,8 +3011,11 @@ export class AiAgentService extends BaseService {
                 ? await this.getSuggestionWarehouseTables(user, projectUuid)
                 : [];
 
-        const verifiedQuestionsData =
-            await this.aiAgentModel.getVerifiedQuestions(agentUuid);
+        const verifiedQuestionsData = await this.getVisibleVerifiedQuestions(
+            user.userUuid,
+            projectUuid,
+            agentUuid,
+        );
         const verifiedQuestions = verifiedQuestionsData
             .slice(0, 6)
             .map((q) => q.question);
@@ -3166,12 +3272,19 @@ export class AiAgentService extends BaseService {
                 user,
                 projectUuid,
             );
+            const access = await this.aiIdentityService.getAiSchemaAccess({
+                userUuid: user.userUuid,
+                projectUuid,
+                databases: Object.keys(catalog),
+            });
             const tables: string[] = [];
             for (const [database, schemas] of Object.entries(catalog)) {
                 for (const [schema, schemaTables] of Object.entries(schemas)) {
-                    for (const table of Object.keys(schemaTables)) {
-                        tables.push(`${database}.${schema}.${table}`);
-                        if (tables.length >= 50) return tables;
+                    if (canAiReadSchema(access, database, schema)) {
+                        for (const table of Object.keys(schemaTables)) {
+                            tables.push(`${database}.${schema}.${table}`);
+                            if (tables.length >= 50) return tables;
+                        }
                     }
                 }
             }
@@ -3368,14 +3481,63 @@ export class AiAgentService extends BaseService {
                     user,
                     projectUuid,
                 );
-            return items.slice(0, 10).map((item) => {
-                const isDashboard = 'spaceUuid' in item && 'tiles' in item;
-                return {
-                    title: item.name,
-                    type: isDashboard ? 'dashboard' : 'chart',
-                    description: item.description ?? null,
-                };
-            });
+            const unrestricted = await this.canUseUnscopedAiContext(
+                user.userUuid,
+                projectUuid,
+            );
+            const visibility = await Promise.all(
+                items.map(async (item) => {
+                    if (unrestricted) return true;
+                    if ('dashboardUuid' in item) {
+                        if (item.source === 'sql') return false;
+                        const chart = await this.savedChartService.get(
+                            item.uuid,
+                            fromSession(user),
+                            { projectUuid },
+                        );
+                        return this.projectService.isAiMetricQueryVisible(
+                            fromSession(user),
+                            projectUuid,
+                            chart.metricQuery,
+                        );
+                    }
+                    const dashboard = await this.dashboardService.getByIdOrSlug(
+                        user,
+                        item.uuid,
+                        { projectUuid },
+                    );
+                    const charts = dashboard.tiles.filter(
+                        isDashboardChartTileType,
+                    );
+                    const visible = await Promise.all(
+                        charts.map(async (tile) => {
+                            if (!tile.properties.savedChartUuid) return false;
+                            const chart = await this.savedChartService.get(
+                                tile.properties.savedChartUuid,
+                                fromSession(user),
+                                { projectUuid },
+                            );
+                            return this.projectService.isAiMetricQueryVisible(
+                                fromSession(user),
+                                projectUuid,
+                                chart.metricQuery,
+                            );
+                        }),
+                    );
+                    return visible.length > 0 && visible.every(Boolean);
+                }),
+            );
+            return items
+                .filter((_item, index) => visibility[index])
+                .slice(0, 10)
+                .map((item) => {
+                    const isDashboard = !('dashboardUuid' in item);
+                    return {
+                        title: item.name,
+                        type: isDashboard ? 'dashboard' : 'chart',
+                        description: item.description ?? null,
+                    };
+                });
         } catch (error) {
             Logger.warn(
                 `[AiAgentService] Failed to fetch verified content for suggestions: ${String(
@@ -9862,7 +10024,11 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Cannot view agent questions');
         }
 
-        return this.aiAgentModel.getVerifiedQuestions(agentUuid);
+        return this.getVisibleVerifiedQuestions(
+            user.userUuid,
+            agent.projectUuid,
+            agentUuid,
+        );
     }
 
     /**
@@ -9882,8 +10048,11 @@ export class AiAgentService extends BaseService {
             (explore) => explore.label || explore.name,
         );
 
-        const verifiedQuestionsData =
-            await this.aiAgentModel.getVerifiedQuestions(agent.uuid);
+        const verifiedQuestionsData = await this.getVisibleVerifiedQuestions(
+            user.userUuid,
+            agent.projectUuid,
+            agent.uuid,
+        );
         const verifiedQuestions = verifiedQuestionsData.map((q) => q.question);
 
         return {
@@ -10122,7 +10291,13 @@ export class AiAgentService extends BaseService {
             );
 
         if (existingRefs.length > 0) {
-            return this.aiAgentModel.getArtifactVersionsByUuids(existingRefs);
+            return this.filterAiArtifacts(
+                userUuid ?? '',
+                projectUuid,
+                await this.aiAgentModel.getArtifactVersionsByUuids(
+                    existingRefs,
+                ),
+            );
         }
 
         const { relevantVerifiedAnswers } =
@@ -10242,7 +10417,7 @@ export class AiAgentService extends BaseService {
             modelName,
         } = embeddingResult;
 
-        const verifiedArtifacts =
+        const retrievedArtifacts =
             await this.aiAgentModel.searchArtifactsBySimilarity({
                 organizationUuid,
                 projectUuid,
@@ -10254,6 +10429,11 @@ export class AiAgentService extends BaseService {
                 ...(decisions ? { semanticCandidates: true } : {}),
             });
 
+        const verifiedArtifacts = await this.filterAiArtifacts(
+            userUuid ?? '',
+            projectUuid,
+            retrievedArtifacts,
+        );
         return {
             relevantVerifiedAnswers: decisions
                 ? await selectVerifiedAnswers({
@@ -12850,8 +13030,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 organizationUuid: user.organizationUuid,
                 userUuid: user.userUuid,
             });
+        const filteredExplores = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            null,
+        );
         const { data } = await this.catalogService.searchCatalog({
             projectUuid,
+            filteredExplores,
             userAttributes,
             catalogSearch: { searchQuery: prompt, type: CatalogType.Field },
             context: CatalogSearchContext.AI_AGENT,

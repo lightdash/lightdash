@@ -1167,7 +1167,7 @@ describe('AiIdentityService', () => {
         );
     });
 
-    it('shows the person one sign-in action and blocks raw SQL until ready', async () => {
+    it('shows the person one sign-in action and blocks unscoped raw SQL', async () => {
         model.find.mockResolvedValueOnce({
             ...identity,
             snowflakeLogin: null,
@@ -1197,7 +1197,7 @@ describe('AiIdentityService', () => {
         ).resolves.toMatchObject({
             state: AiIdentityState.READY,
             action: null,
-            rawSqlAllowed: true,
+            rawSqlAllowed: false,
         });
     });
 });
@@ -1684,5 +1684,120 @@ describe('schema grant check failure', () => {
                     'Could not check schema grants for ANALYST_AI: Snowflake unavailable',
             }),
         );
+    });
+});
+
+describe('AI schema access', () => {
+    const request = {
+        userUuid: 'user',
+        projectUuid: 'project',
+        databases: ['ANALYTICS'],
+    };
+    const readyIdentity = {
+        ...identity,
+        state: AiIdentityState.READY,
+        provisionedRole: 'ANALYST_AI',
+        createdByProvisioner: true,
+        provisionedUserName: 'PERSON_AI',
+        provisionedPublicKeyFingerprint: null,
+        groupUuids: [],
+    };
+    beforeEach(() => {
+        model.getProvisioningIdentities.mockResolvedValue([readyIdentity]);
+        projects.getAiAccessRestrictions.mockResolvedValue(true);
+    });
+    it('does not restrict ordinary projects', async () => {
+        projects.getAiAccessRestrictions.mockResolvedValueOnce(false);
+        expect(await service.getAiSchemaAccess(request)).toEqual({
+            type: 'unrestricted',
+        });
+    });
+    it('fails closed without an identity', async () => {
+        model.getProvisioningIdentities.mockResolvedValueOnce([]);
+        expect(await service.getAiSchemaAccess(request)).toEqual({
+            type: 'schemas',
+            schemas: [],
+        });
+    });
+    it('fails closed without a known role', async () => {
+        model.getProvisioningIdentities.mockResolvedValueOnce([
+            { ...readyIdentity, provisionedRole: null },
+        ]);
+        expect(await service.getAiSchemaAccess(request)).toEqual({
+            type: 'schemas',
+            schemas: [],
+        });
+    });
+    it('fails closed when several mapped roles apply', async () => {
+        model.getProvisioningIdentities.mockResolvedValueOnce([
+            {
+                ...readyIdentity,
+                provisionedRole: null,
+                groupUuids: ['one', 'two'],
+            },
+        ]);
+        model.getRoleMappings.mockResolvedValueOnce(
+            ['one', 'two'].map((groupUuid) => ({
+                aiIdentityRoleMappingUuid: groupUuid,
+                groupUuid,
+                groupName: groupUuid,
+                aiRole: groupUuid,
+                priority: 0,
+            })),
+        );
+        expect(await service.getAiSchemaAccess(request)).toEqual({
+            type: 'schemas',
+            schemas: [],
+        });
+    });
+    it('uses the role rule without querying the warehouse', async () => {
+        const schemaRule = {
+            database: 'ANALYTICS',
+            excludePatterns: ['PII_*'],
+        };
+        model.getAiRoles.mockResolvedValueOnce([
+            {
+                aiIdentityAiRoleUuid: 'role',
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemaRule,
+            },
+        ]);
+        expect(await service.getAiSchemaAccess(request)).toEqual({
+            type: 'rule',
+            rule: schemaRule,
+        });
+        expect(listAiTwinSchemas).not.toHaveBeenCalled();
+    });
+    it('fails closed when the schema list cannot be loaded', async () => {
+        vi.mocked(listAiTwinSchemas).mockRejectedValueOnce(
+            new Error('unavailable'),
+        );
+        expect(
+            await service.getAiSchemaAccess({
+                ...request,
+                databases: ['UNAVAILABLE'],
+            }),
+        ).toEqual({ type: 'schemas', schemas: [] });
+    });
+    it('caches a visible schema list briefly per identity and database set', async () => {
+        vi.useFakeTimers();
+        try {
+            vi.mocked(listAiTwinSchemas).mockResolvedValue([
+                'ANALYTICS.PUBLIC',
+            ]);
+            const cachedRequest = { ...request, databases: ['CACHE_TEST'] };
+            expect(await service.getAiSchemaAccess(cachedRequest)).toEqual({
+                type: 'schemas',
+                schemas: ['ANALYTICS.PUBLIC'],
+            });
+            await service.getAiSchemaAccess(cachedRequest);
+            expect(listAiTwinSchemas).toHaveBeenCalledTimes(1);
+            vi.advanceTimersByTime(30_001);
+            await service.getAiSchemaAccess(cachedRequest);
+            expect(listAiTwinSchemas).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

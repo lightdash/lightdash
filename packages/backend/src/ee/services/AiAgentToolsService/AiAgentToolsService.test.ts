@@ -89,6 +89,7 @@ const makeExplore = ({
     }) as unknown as Explore;
 
 const makeService = ({
+    aiSchemaAccess = { type: 'unrestricted' },
     explores = {},
     userAttributes = {},
     searchCatalog = vi.fn(),
@@ -121,6 +122,7 @@ const makeService = ({
     savedChartModel = {},
     dashboardModel = {},
 }: {
+    aiSchemaAccess?: import('@lightdash/common').AiSchemaAccess;
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
     searchCatalog?: import('vitest').Mock;
@@ -150,6 +152,9 @@ const makeService = ({
     dashboardModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
+        aiIdentityService: {
+            getAiSchemaAccess: vi.fn().mockResolvedValue(aiSchemaAccess),
+        },
         builtInSkills: {
             getAiAgentSkills: vi.fn(),
             getAiAgentSkill: vi.fn(),
@@ -334,6 +339,53 @@ describe('AiAgentToolsService', () => {
         expect(getLatestRenderableDataAppVizVersion).toHaveBeenCalledWith(
             'viz-uuid',
         );
+    });
+
+    it('lists only visible saved charts under AI restrictions', async () => {
+        const service = makeService({
+            aiSchemaAccess: { type: 'schemas', schemas: ['DB.PUBLIC'] },
+            projectSpaces: [makeProjectSpace('space', 'sales', 'Sales')],
+            searchService: {
+                findContent: vi.fn().mockResolvedValue({
+                    content: [
+                        {
+                            uuid: 'visible',
+                            name: 'Visible chart',
+                            contentType: 'chart',
+                            spaceUuid: 'space',
+                        },
+                        {
+                            uuid: 'hidden',
+                            name: 'Hidden model',
+                            contentType: 'chart',
+                            spaceUuid: 'space',
+                        },
+                    ],
+                }),
+            },
+            savedChartService: {
+                get: vi.fn(async (uuid: string) => ({
+                    metricQuery: { exploreName: uuid },
+                })),
+            },
+            projectService: {
+                isAiMetricQueryVisible: vi.fn(
+                    async (_account, _project, query) =>
+                        query.exploreName === 'visible',
+                ),
+            },
+        });
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .findContent({
+                searchQuery: { label: 'chart' },
+                spaceSlug: null,
+                verifiedOnly: true,
+            });
+        expect(result.content).toEqual([
+            expect.objectContaining({ uuid: 'visible' }),
+        ]);
+        expect(JSON.stringify(result)).not.toContain('Hidden model');
     });
 
     it('finds Space and personal Data Apps in unrestricted project search', async () => {
@@ -1278,6 +1330,35 @@ describe('AiAgentToolsService', () => {
             }),
         ).rejects.toThrow('full-column scan');
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
+    it('hides inaccessible models from both agent and MCP discovery and refuses without their names', async () => {
+        const service = makeService({
+            aiSchemaAccess: { type: 'schemas', schemas: [] },
+            explores: { secret_model: makeExplore({ name: 'secret_model' }) },
+        });
+        expect(
+            await service.getAvailableExplores({
+                user,
+                projectUuid,
+                availableTags: null,
+            }),
+        ).toEqual([]);
+        await expect(
+            service.getExplore({
+                user,
+                projectUuid,
+                availableTags: null,
+                exploreName: 'secret_model',
+            }),
+        ).rejects.toThrow('Explore not found');
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'mcp' }),
+        );
+        const result = await runtime.getExplore({ table: 'secret_model' });
+        expect(result.status).toBe('error');
+        if (result.status === 'error')
+            expect(String(result.error)).not.toContain('secret_model');
     });
 
     it('filters explores by tags and merged user attribute overrides', async () => {

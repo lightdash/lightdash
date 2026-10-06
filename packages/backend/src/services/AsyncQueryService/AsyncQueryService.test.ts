@@ -10,6 +10,7 @@ import {
     BigqueryTokenError,
     ChartType,
     CreateWarehouseCredentials,
+    CustomDimensionType,
     DashboardTileTypes,
     DimensionType,
     DownloadFileType,
@@ -393,6 +394,11 @@ const getMockedAsyncQueryService = (
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        aiIdentityService: {
+            getAiSchemaAccess: vi
+                .fn()
+                .mockResolvedValue({ type: 'unrestricted' }),
+        },
         aiIdentityModel: {} as AiIdentityModel,
         getDocumentService: () =>
             ({
@@ -3411,6 +3417,168 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        test('allows calculations over visible fields and refuses hidden references', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const base = validExplore.tables[validExplore.baseTable];
+            vi.mocked(
+                service.aiIdentityService.getAiSchemaAccess,
+            ).mockResolvedValue({
+                type: 'schemas',
+                schemas: [`${base.database}.${base.schema}`],
+            });
+            vi.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue({
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    b: { ...validExplore.tables.b, schema: 'private' },
+                },
+            });
+            const execute = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+            service['executeAsyncQuery'] = execute;
+            const readableQuery = {
+                ...metricQueryMock,
+                metrics: ['a_met1'],
+                dimensions: ['a_dim1'],
+                filters: {},
+                sorts: [],
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            };
+
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: readableQuery,
+                    context: QueryExecutionContext.AI,
+                }),
+            ).resolves.toMatchObject({ queryUuid: 'queryUuid' });
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: {
+                        ...readableQuery,
+                        tableCalculations: [
+                            {
+                                name: 'visible_value',
+                                displayName: 'Value',
+                                sql: '${a.met1} * 2',
+                            },
+                        ],
+                    },
+                    context: QueryExecutionContext.AI,
+                }),
+            ).resolves.toMatchObject({ queryUuid: 'queryUuid' });
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: {
+                        ...readableQuery,
+                        tableCalculations: [
+                            {
+                                name: 'value',
+                                displayName: 'Value',
+                                sql: '${b.dim1}',
+                            },
+                        ],
+                    },
+                    context: QueryExecutionContext.AI,
+                }),
+            ).rejects.toEqual(
+                new ForbiddenError('This data is not available to AI.'),
+            );
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    metricQuery: {
+                        ...readableQuery,
+                        tableCalculations: [
+                            {
+                                name: 'sql_value',
+                                displayName: 'Value',
+                                sql: '(select 1)',
+                            },
+                        ],
+                    },
+                }),
+            ).resolves.toMatchObject({ queryUuid: 'queryUuid' });
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    metricQuery: {
+                        ...readableQuery,
+                        dimensions: ['a_custom_value'],
+                        customDimensions: [
+                            {
+                                id: 'a_custom_value',
+                                name: 'Custom value',
+                                table: 'a',
+                                type: CustomDimensionType.SQL,
+                                sql: '1',
+                                dimensionType: DimensionType.NUMBER,
+                            },
+                        ],
+                        metrics: ['a_custom_sum'],
+                        additionalMetrics: [
+                            {
+                                name: 'custom_sum',
+                                table: 'a',
+                                type: MetricType.SUM,
+                                sql: '1',
+                            },
+                        ],
+                    },
+                }),
+            ).resolves.toMatchObject({ queryUuid: 'queryUuid' });
+            expect(execute).toHaveBeenCalledTimes(4);
+        });
+
+        test('blocks the AI query while the same person can run the dashboard query', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const access = vi.mocked(
+                service.aiIdentityService.getAiSchemaAccess,
+            );
+            access.mockResolvedValue({ type: 'schemas', schemas: [] });
+            vi.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue(
+                validExplore,
+            );
+            const execute = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+            service['executeAsyncQuery'] = execute;
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.AI,
+                }),
+            ).rejects.toThrow('This data is not available to AI.');
+            expect(execute).not.toHaveBeenCalled();
+            access.mockClear();
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.DASHBOARD,
+                }),
+            ).resolves.toMatchObject({ queryUuid: 'queryUuid' });
+            expect(execute).toHaveBeenCalledOnce();
+            expect(access).not.toHaveBeenCalled();
+        });
+
         test.each([
             [QueryExecutionContext.AI, true, 'warehouse'],
             [QueryExecutionContext.AI, false, 'pre_aggregate'],
@@ -6777,32 +6945,57 @@ describe('AsyncQueryService', () => {
             },
         );
 
-        it('refuses AI raw SQL before opening a warehouse connection', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
-            const warehouse = vi.spyOn(service, '_getWarehouseClient');
-            const resolveCredentials = vi
-                .fn()
-                .mockRejectedValue(new AiAccessRestrictionsError());
-            (
-                service as unknown as {
-                    getWarehouseCredentialsWithConnection: typeof resolveCredentials;
-                }
-            ).getWarehouseCredentialsWithConnection = resolveCredentials;
-
-            await expect(
-                service.executeAsyncSqlQuery({
-                    account: sessionAccount,
+        it.each([QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL])(
+            'runs raw SQL with twin credentials under metadata restrictions (%s)',
+            async (context) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                vi.mocked(
+                    service.aiIdentityService.getAiSchemaAccess,
+                ).mockResolvedValue({ type: 'schemas', schemas: [] });
+                const twinCredentials = {
+                    ...warehouseCredentialsMock,
+                    user: 'PERSON_AI',
+                };
+                const resolveCredentials = vi.fn().mockResolvedValue({
+                    warehouseCredentials: twinCredentials,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: 'legacy',
+                });
+                Object.assign(service, {
+                    getWarehouseCredentialsWithConnection: resolveCredentials,
+                });
+                const warehouse = vi
+                    .spyOn(service, '_getWarehouseClient')
+                    .mockResolvedValue({
+                        warehouseClient: warehouseClientMock,
+                        sshTunnel: mockSshTunnel,
+                        tunnelConnectMs: null,
+                    });
+                service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                    queryUuid: 'queryUuid',
+                    cacheMetadata: { cacheHit: false },
+                });
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: 'SELECT 1',
+                        context,
+                    }),
+                ).resolves.toMatchObject({ queryUuid: 'queryUuid' });
+                expect(resolveCredentials).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        context,
+                        rawSql: true,
+                        userId: sessionAccount.user.id,
+                    }),
+                );
+                expect(warehouse).toHaveBeenCalledWith(
                     projectUuid,
-                    sql: 'SELECT 1',
-                    context: QueryExecutionContext.AI,
-                }),
-            ).rejects.toThrow(AiAccessRestrictionsError);
-
-            expect(resolveCredentials).toHaveBeenCalledWith(
-                expect.objectContaining({ rawSql: true }),
-            );
-            expect(warehouse).not.toHaveBeenCalled();
-        });
+                    twinCredentials,
+                );
+            },
+        );
 
         it('rejects managed analytics SQL before accessing the warehouse', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);

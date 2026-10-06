@@ -228,9 +228,7 @@ describe('getMetadata explore field listing', () => {
         ]);
 
         expect(result.metadata).toEqual({ status: 'success' });
-        expect(result.result).toBe(
-            'Field "orders_secret" not found in explore "sales".',
-        );
+        expect(result.result).toBe('This data is not available to AI.');
     });
 
     it('redirects to explores where a missing field is actually reachable', async () => {
@@ -591,7 +589,7 @@ describe('getMetadata structured output', () => {
                 {
                     exploreId: 'missing',
                     status: 'not_found',
-                    error: 'Explore "missing" not found or not available to this agent.',
+                    error: 'This data is not available to AI.',
                 },
             ],
             fields: [
@@ -616,7 +614,7 @@ describe('getMetadata structured output', () => {
                     exploreId: 'sales',
                     fieldId: 'orders_nope',
                     status: 'not_found',
-                    error: 'Field "orders_nope" not found in explore "sales".',
+                    error: 'This data is not available to AI.',
                 },
             ],
         });
@@ -624,16 +622,12 @@ describe('getMetadata structured output', () => {
         // The text and the structured content are one computation rendered twice.
         expect(output.result).toContain('Explore: sales (Sales)');
         expect(output.result).toContain('base dimensions (1): orders_status');
-        expect(output.result).toContain(
-            'Explore "missing" not found or not available to this agent.',
-        );
+        expect(output.result).toContain('This data is not available to AI.');
         expect(output.result).toContain(
             'sales/orders_status  [dimension string]',
         );
         expect(output.result).toContain('description: Order status');
-        expect(output.result).toContain(
-            'Field "orders_nope" not found in explore "sales".',
-        );
+        expect(output.result).toContain('This data is not available to AI.');
     });
 
     it('returns { error } as structuredContent when execution throws', async () => {

@@ -13,6 +13,11 @@ describe('AiAgentService getAgentSuggestions', () => {
         });
         const get = vi.fn<SavedChartService['get']>();
         const service = new AiAgentService({
+            aiIdentityService: {
+                getAiSchemaAccess: vi
+                    .fn()
+                    .mockResolvedValue({ type: 'unrestricted' }),
+            },
             savedChartService: { hasAccess, get },
         } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
         vi.spyOn(service, 'getAgent').mockResolvedValue({

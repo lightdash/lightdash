@@ -67,6 +67,11 @@ describe('Csv service', () => {
             analytics: analyticsMock,
             analyticsModel: {} as AnalyticsModel,
             dashboardModel: {} as DashboardModel,
+            aiIdentityService: {
+                getAiSchemaAccess: vi
+                    .fn()
+                    .mockResolvedValue({ type: 'unrestricted' }),
+            },
             aiIdentityModel: {} as AiIdentityModel,
             emailClient: {} as EmailClient,
             jobModel: {} as JobModel,
