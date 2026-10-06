@@ -166,6 +166,7 @@ import {
     isAnyChartTile,
     withTileWarnings,
 } from './dashboardReferences';
+import { preserveDashboardTileUuids } from './dashboardTileIdentity';
 import { resolveDataAppVizBinding } from './dataAppVizBinding';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import {
@@ -4974,12 +4975,16 @@ export class CoderService extends BaseService {
             ...dashboardWithDefaults,
             tabs: tabsWithUuids,
         };
-        const { tiles: tilesWithUuids, warnings: tileWarnings } =
+        const { tiles: resolvedTiles, warnings: tileWarnings } =
             await this.convertTileWithSlugsToUuids(
                 projectUuid,
                 dashboardWithResolvedTabs.tiles,
                 tabUuidsBySlug,
             );
+        const tilesWithUuids = preserveDashboardTileUuids(
+            resolvedTiles,
+            existingDashboard?.tiles ?? [],
+        );
         await this.assertTileChartsViewAccess({
             userUuid: user.userUuid,
             auditedAbility,

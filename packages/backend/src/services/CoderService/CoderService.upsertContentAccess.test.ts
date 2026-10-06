@@ -9,6 +9,7 @@ import {
     DashboardDAO,
     DashboardTileTypes,
     DimensionType,
+    FilterOperator,
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
@@ -1482,8 +1483,25 @@ describe.each(['create', 'manage'] as const)(
 );
 
 describe('CoderService upsertDashboard tile chart versions', () => {
-    it('does not re-version unchanged tile charts on a forced dashboard upload', async () => {
+    it('preserves tile identities and references without re-versioning charts on a forced upload', async () => {
         const service = buildService();
+        const existingTile: DashboardChartTile = {
+            uuid: 'commented-tile',
+            type: DashboardTileTypes.SAVED_CHART,
+            x: 0,
+            y: 0,
+            w: 6,
+            h: 5,
+            tabUuid: null,
+            properties: { savedChartUuid: 'chart-uuid', chartSlug: 'chart' },
+        };
+        vi.mocked(service.savedChartModel.find).mockResolvedValue([
+            {
+                uuid: 'chart-uuid',
+                slug: 'chart',
+                spaceUuid: SPACE_UUID,
+            } as AnyType,
+        ]);
         vi.mocked(service.dashboardModel.find).mockResolvedValue([
             { uuid: 'dashboard-uuid' } as AnyType,
         ]);
@@ -1493,6 +1511,7 @@ describe('CoderService upsertDashboard tile chart versions', () => {
             name: 'Dashboard',
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [existingTile],
         } as AnyType);
         vi.mocked(
             service.promoteService.getPromotedDashboard,
@@ -1540,6 +1559,7 @@ describe('CoderService upsertDashboard tile chart versions', () => {
         ] as AnyType);
         const user = makeSessionUser([
             { subject: 'ContentAsCode', action: 'create' },
+            { subject: 'SavedChart', action: 'view' },
             {
                 subject: 'Dashboard',
                 action: 'update',
@@ -1557,12 +1577,79 @@ describe('CoderService upsertDashboard tile chart versions', () => {
                 user,
                 PROJECT_UUID,
                 dashboardAsCode.slug,
-                dashboardAsCode,
+                {
+                    ...dashboardAsCode,
+                    tiles: [
+                        {
+                            ...existingTile,
+                            uuid: undefined,
+                            tileSlug: 'chart',
+                            properties: { chartSlug: 'chart' },
+                        },
+                    ],
+                    filters: {
+                        dimensions: [
+                            {
+                                label: 'Order status',
+                                target: {
+                                    fieldId: 'orders_status',
+                                    tableName: 'orders',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                                tileTargets: { chart: false },
+                            },
+                        ],
+                    },
+                    config: {
+                        isDateZoomDisabled: false,
+                        dateZoomConfig: {
+                            controls: [],
+                            tileTargets: {
+                                chart: {
+                                    controlUuid: 'zoom-control',
+                                    fieldId: 'orders_order_date',
+                                    tableName: 'orders',
+                                },
+                            },
+                        },
+                    },
+                },
                 { force: true },
             ),
         ).resolves.toMatchObject({
             dashboards: [{ action: PromotionAction.UPDATE }],
         });
+
+        expect(
+            service.promoteService.getPromotedDashboard,
+        ).toHaveBeenCalledWith(
+            user,
+            expect.objectContaining({
+                tiles: [expect.objectContaining({ uuid: 'commented-tile' })],
+                filters: expect.objectContaining({
+                    dimensions: [
+                        expect.objectContaining({
+                            tileTargets: { 'commented-tile': false },
+                        }),
+                    ],
+                }),
+                config: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: {
+                        controls: [],
+                        tileTargets: {
+                            'commented-tile': {
+                                controlUuid: 'zoom-control',
+                                fieldId: 'orders_order_date',
+                                tableName: 'orders',
+                            },
+                        },
+                    },
+                },
+            }),
+            PROJECT_UUID,
+        );
 
         // The forced upload updates the dashboard but must not write a second
         // version of tile charts already handled by the chart upload path.
