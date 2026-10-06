@@ -30,6 +30,8 @@ import FilterGroupSeparator from '../dashboardFilters/FilterGroupSeparator';
 import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/FilterRequirementsButton';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
+import { AddFilter } from './AddFilter';
+import { FilterPills } from './FilterPills';
 
 type Props = ComponentProps<typeof DashboardFiltersBar>;
 
@@ -127,10 +129,19 @@ export const FilterBar: FC<Props> = ({
                                     }
                                 />
                             )}
-                            <DashboardFilters
-                                isEditMode={isEditMode}
-                                activeTabUuid={activeTabUuid}
-                            />
+                            {isEditMode ? (
+                                <>
+                                    <AddFilter activeTabUuid={activeTabUuid} />
+                                    <FilterPills
+                                        activeTabUuid={activeTabUuid}
+                                    />
+                                </>
+                            ) : (
+                                <DashboardFilters
+                                    isEditMode={isEditMode}
+                                    activeTabUuid={activeTabUuid}
+                                />
+                            )}
 
                             {isEditMode && <FilterRequirementsButton />}
 

@@ -1,0 +1,27 @@
+.root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.footer {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.selectedPill {
+    border-color: var(--mantine-primary-color-filled);
+    border-width: 2px;
+}

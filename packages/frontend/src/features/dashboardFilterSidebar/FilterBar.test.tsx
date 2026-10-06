@@ -29,6 +29,12 @@ vi.mock(
     () => ({ default: () => <button>Required</button> }),
 );
 
+vi.mock('./AddFilter', () => ({
+    AddFilter: () => <button>Add filter (edit)</button>,
+}));
+vi.mock('./FilterPills', () => ({
+    FilterPills: () => <div data-testid="filter-pills" />,
+}));
 vi.mock('../parameters', () => ({
     Parameters: () => <div data-testid="parameters" />,
 }));
@@ -93,6 +99,13 @@ describe('FilterBar', () => {
         expect(
             screen.getByRole('button', { name: 'Required' }),
         ).toBeInTheDocument();
+        expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Add filter (edit)' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add filter' }),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', {
                 name: 'Toggle date zoom visibility for viewers',

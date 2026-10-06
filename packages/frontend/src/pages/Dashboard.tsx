@@ -59,6 +59,7 @@ import {
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
+import { FilterSidebarPage } from '../features/dashboardFilterSidebar/FilterSidebarPage';
 import DashboardTabs from '../features/dashboardTabs';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
@@ -935,6 +936,11 @@ const Dashboard: FC = () => {
     );
     const isChartEditorEnabled =
         authoringEnabled && chartEditorFlag.data?.enabled === true;
+    const filterSidebarFlag = useServerFeatureFlag(
+        FeatureFlags.DashboardFilterSidebar,
+    );
+    const isFilterSidebarEnabled = filterSidebarFlag.data?.enabled === true;
+    const DashboardPage = isFilterSidebarEnabled ? FilterSidebarPage : Page;
     const dashboardCustomMetricsFlag = useServerFeatureFlag(
         FeatureFlags.DashboardCustomMetrics,
     );
@@ -1469,7 +1475,7 @@ const Dashboard: FC = () => {
                 )}
             </MantineModal>
 
-            <Page
+            <DashboardPage
                 title={dashboard.name}
                 noContentPadding
                 withFullHeight
@@ -1610,7 +1616,7 @@ const Dashboard: FC = () => {
                         onConfirm={duplicateModalHandlers.close}
                     />
                 )}
-            </Page>
+            </DashboardPage>
         </>
     );
 };
