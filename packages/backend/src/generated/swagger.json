@@ -34757,6 +34757,9 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
+                    "requireAgentSession": {
+                        "type": "boolean"
+                    },
                     "authenticationType": {
                         "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     },
@@ -36356,6 +36359,9 @@
                     },
                     "privateKey": {
                         "type": "string"
+                    },
+                    "requireAgentSession": {
+                        "type": "boolean"
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
@@ -46641,6 +46647,10 @@
                 "required": ["name"],
                 "type": "object"
             },
+            "UserWarehouseCredentialPurpose": {
+                "enum": ["default", "ai"],
+                "type": "string"
+            },
             "Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_": {
                 "properties": {
                     "type": {
@@ -46806,6 +46816,9 @@
                     "userUuid": {
                         "type": "string"
                     },
+                    "purpose": {
+                        "$ref": "#/components/schemas/UserWarehouseCredentialPurpose"
+                    },
                     "uuid": {
                         "type": "string"
                     }
@@ -46817,6 +46830,7 @@
                     "createdAt",
                     "name",
                     "userUuid",
+                    "purpose",
                     "uuid"
                 ],
                 "type": "object"
@@ -47003,6 +47017,9 @@
                         "type": "string"
                     },
                     "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "requireAgentSession": {
                         "type": "boolean"
                     },
                     "authenticationType": {

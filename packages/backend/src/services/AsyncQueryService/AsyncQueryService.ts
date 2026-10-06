@@ -3790,7 +3790,6 @@ export class AsyncQueryService extends ProjectService {
                     userId: userUuid,
                     isRegisteredUser,
                     isServiceAccount,
-                    context: queryTags.query_context,
                 });
             const { warehouseCredentials, aiPlan } = resolvedCredentials;
             if (aiPlan) {
@@ -5837,7 +5836,6 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
-                context,
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -6635,7 +6633,6 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
-            context,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -6974,7 +6971,6 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
-            context,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -7757,7 +7753,6 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
-                context,
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -7967,7 +7962,6 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
-            context,
             projectUuid,
             binding: {
                 kind: 'query',
@@ -10746,7 +10740,6 @@ export class AsyncQueryService extends ProjectService {
             { userAttributes: baseUserAttributes, intrinsicUserAttributes },
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
-                context,
                 projectUuid,
                 binding: chartUuid
                     ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
@@ -11615,7 +11608,6 @@ export class AsyncQueryService extends ProjectService {
             connectionRoute,
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
-            context,
             projectUuid,
             binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,
