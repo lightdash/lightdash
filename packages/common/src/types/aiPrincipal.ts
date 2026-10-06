@@ -88,6 +88,7 @@ export type AiProbeResult =
     | { ok: true; checkedAt: Date; observed: AiProbeObserved }
     | {
           ok: false;
+          transient: boolean;
           checkedAt: Date;
           reason: AiPrincipalFailureReason;
           message: string;
@@ -106,6 +107,7 @@ export const aiProbeResultSchema = z.discriminatedUnion('ok', [
     }),
     z.object({
         ok: z.literal(false),
+        transient: z.boolean(),
         checkedAt: aiProbeCheckedAtSchema,
         reason: z.nativeEnum(AiPrincipalFailureReason),
         message: z.string(),
@@ -249,6 +251,7 @@ export enum AiAccessRefusalReason {
     TRANSPORT_UNAVAILABLE = 'transport_unavailable',
     WAREHOUSE_NOT_SUPPORTED = 'warehouse_not_supported',
     SERVICE_ACCOUNT = 'service_account',
+    EMBED_NOT_SUPPORTED = 'embed_not_supported',
 }
 
 export enum AiAccessRefusalAction {
@@ -284,6 +287,8 @@ export const getAiAccessRefusalMessage = (
             return 'The procedure that AI queries go through is not available. Ask an admin to check it.';
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
             return 'AI principals are not available for this warehouse yet.';
+        case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
+            return 'AI access runs as a signed-in person. Embedded viewers cannot use it on this connection.';
         case AiAccessRefusalReason.SERVICE_ACCOUNT:
             return 'AI access runs as a person. Service accounts cannot use it on this connection.';
         default: {
@@ -305,6 +310,7 @@ export const getAiAccessRefusalAction = (
         case AiAccessRefusalReason.NO_GROUP_MAPPING:
         case AiAccessRefusalReason.TRANSPORT_UNAVAILABLE:
             return AiAccessRefusalAction.ASK_ADMIN;
+        case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
         case AiAccessRefusalReason.SERVICE_ACCOUNT:
             return null;

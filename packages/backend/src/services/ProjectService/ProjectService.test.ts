@@ -97,6 +97,7 @@ import {
     checkSnowflakeAgentSessionWithToken,
     SshTunnel,
     warehouseClientFromCredentials,
+    type WarehouseClient,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { Readable } from 'stream';
@@ -14208,6 +14209,57 @@ describe('AI principal credential routing', () => {
             binding: { kind: 'original' },
         });
 
+    test('passes the AI context to table discovery and avoids the person catalog cache', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce(credentials);
+        const resolve = vi
+            .spyOn(configured.aiAccessService, 'resolvePlan')
+            .mockResolvedValue(plan);
+        const getAllTables = vi.fn().mockResolvedValue([]);
+        const disconnect = vi.fn();
+        vi.spyOn(configured, '_getWarehouseClient').mockResolvedValue({
+            warehouseClient: { getAllTables } as unknown as WarehouseClient,
+            sshTunnel: {
+                disconnect,
+            } as unknown as SshTunnel<CreateWarehouseCredentials>,
+            tunnelConnectMs: null,
+        });
+        await expect(
+            configured.getWarehouseTables(
+                user,
+                projectUuid,
+                QueryExecutionContext.AI,
+            ),
+        ).resolves.toEqual({});
+        expect(resolve).toHaveBeenCalledWith(
+            expect.objectContaining({ context: QueryExecutionContext.AI }),
+        );
+        expect(getAllTables).toHaveBeenCalledOnce();
+        expect(disconnect).toHaveBeenCalledOnce();
+    });
+    test('invalidates AI credentials when a warehouse call fails', async () => {
+        const configured = getMockedProjectService(lightdashConfigMock);
+        const invalidate = vi.fn();
+        configured.aiAccessService.invalidateCredentials = invalidate;
+        vi.mocked(
+            projectModel.getWarehouseClientFromCredentials,
+        ).mockReturnValue({
+            ...warehouseClientMock,
+            runQuery: vi.fn(async () => resultsWith1Row),
+            getAllTables: vi.fn().mockRejectedValue(new Error('expired token')),
+        });
+        const { warehouseClient, sshTunnel } =
+            await configured._getWarehouseClient(projectUuid, credentials, {
+                aiPlan: plan,
+            });
+        await expect(warehouseClient.getAllTables()).rejects.toThrow(
+            'expired token',
+        );
+        expect(invalidate).toHaveBeenCalledWith('ai-one');
+        await sshTunnel.disconnect();
+    });
     test('uses the AI credentials before looking up personal credentials', async () => {
         const configured = getMockedProjectService(lightdashConfigMock);
         vi.mocked(

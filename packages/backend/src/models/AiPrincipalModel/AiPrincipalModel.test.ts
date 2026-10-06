@@ -4,6 +4,7 @@ import {
     AiPrincipalKind,
     AiPrincipalStatus,
     NotFoundError,
+    ParameterError,
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
@@ -65,6 +66,64 @@ beforeEach(() => {
 afterAll(async () => database.destroy());
 
 describe('AiPrincipalModel', () => {
+    test('translates a person uniqueness violation', async () => {
+        tracker.on
+            .insert('ai_principals')
+            .simulateError(
+                Object.assign(new Error('unique violation'), { code: '23505' }),
+            );
+        await expect(
+            model.createPrincipal({
+                aiAccessPolicyUuid: 'policy',
+                kind: AiPrincipalKind.PERSON,
+                ref: 'new',
+                userUuid: 'user',
+                groupUuid: null,
+            }),
+        ).rejects.toThrow(
+            new ParameterError(
+                'This person already has an AI principal on this policy with another reference.',
+            ),
+        );
+    });
+    test.each([
+        AiPrincipalStatus.READY,
+        AiPrincipalStatus.PENDING,
+        AiPrincipalStatus.FAILED,
+    ])(
+        'keeps %s status and failure reason on a transient probe',
+        async (status) => {
+            const probe = {
+                ok: false as const,
+                transient: true,
+                checkedAt: now,
+                reason: AiPrincipalFailureReason.UNKNOWN,
+                message: 'Temporary failure',
+                observed: {},
+            };
+            tracker.on.update('ai_principals').response([
+                {
+                    ...principal,
+                    status,
+                    failure_reason: AiPrincipalFailureReason.WRONG_PRINCIPAL,
+                    last_probe: probe,
+                    status_message: probe.message,
+                },
+            ]);
+            expect(await model.recordProbe('principal', probe)).toMatchObject({
+                status,
+                failureReason: AiPrincipalFailureReason.WRONG_PRINCIPAL,
+                statusMessage: probe.message,
+                lastProbe: probe,
+            });
+            expect(tracker.history.update[0].sql).not.toContain('"status" =');
+            expect(tracker.history.update[0].sql).not.toContain(
+                '"failure_reason" =',
+            );
+            expect(tracker.history.update[0].bindings).toContain(probe.message);
+        },
+    );
+
     test('findPolicy returns null for a missing policy', async () => {
         tracker.on.select('ai_access_policies').response([]);
         expect(await model.findPolicy('project', null)).toBeNull();
@@ -152,6 +211,7 @@ describe('AiPrincipalModel', () => {
             ? { ok: true as const, checkedAt: now, observed: {} }
             : {
                   ok: false as const,
+                  transient: false,
                   checkedAt: now,
                   observed: {},
                   reason: AiPrincipalFailureReason.WRONG_PRINCIPAL,

@@ -83,6 +83,7 @@ function convertDbQueryHistoryToQueryHistory(
         preAggregateExecution: queryHistory.pre_aggregate_execution,
         preAggregateFallbackReason: queryHistory.pre_aggregate_fallback_reason,
         processingStartedAt: queryHistory.processing_started_at,
+        warehouseConnectionUuid: queryHistory.warehouse_connection_uuid ?? null,
     };
 }
 

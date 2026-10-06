@@ -725,7 +725,8 @@ export class AiAgentToolsService extends BaseService {
             runSqlJob: (args) => this.runSqlJob(context, args),
             runComposerQueries: (args) =>
                 this.runComposerQueries(context, args),
-            listWarehouseTables: () => this.listWarehouseTables(context),
+            listWarehouseTables: (queryContext) =>
+                this.listWarehouseTables(context, queryContext),
             describeWarehouseTable: (args) =>
                 this.describeWarehouseTable(context, args),
             listContent: (args) => this.listContent(context, args),
@@ -3527,6 +3528,7 @@ export class AiAgentToolsService extends BaseService {
 
     private listWarehouseTables(
         context: AiAgentToolsRuntimeContext,
+        queryContext: QueryExecutionContext = QueryExecutionContext.AI,
     ): ReturnType<ListWarehouseTablesFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.listWarehouseTables`,
@@ -3535,6 +3537,9 @@ export class AiAgentToolsService extends BaseService {
                 const catalog = await this.projectService.getWarehouseTables(
                     context.user,
                     context.projectUuid,
+                    context.source === 'mcp'
+                        ? context.defaultQueryExecutionContext
+                        : queryContext,
                 );
                 return filterWarehouseCatalogToScope(catalog, context.sqlScope);
             },

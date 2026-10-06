@@ -152,6 +152,7 @@ const disableSnowflakeCachedResult = async (
 
 export const checkSnowflakeAgentSession = async (
     connection: Connection,
+    options: { throwOnError?: boolean } = {},
 ): Promise<SnowflakeAgentSessionCheck> => {
     try {
         const rows = await new Promise<unknown[]>((resolve, reject) => {
@@ -188,7 +189,8 @@ export const checkSnowflakeAgentSession = async (
                     ? activeRestrictedSessionScopes
                     : null,
         };
-    } catch {
+    } catch (error) {
+        if (options.throwOnError) throw error;
         return inactiveAgentSession();
     }
 };
@@ -196,6 +198,7 @@ export const checkSnowflakeAgentSession = async (
 export const checkSnowflakeAgentSessionWithToken = async (
     account: string,
     token: string,
+    options: { throwOnError?: boolean } = {},
 ): Promise<SnowflakeAgentSessionCheck> => {
     let connection: Connection | null = null;
     try {
@@ -205,11 +208,12 @@ export const checkSnowflakeAgentSessionWithToken = async (
             token,
         });
         await Util.promisify(connection.connect.bind(connection))();
-        const session = await checkSnowflakeAgentSession(connection);
+        const session = await checkSnowflakeAgentSession(connection, options);
         if (!session.agentActivated) return session;
         await disableSnowflakeCachedResult(connection);
         return session;
-    } catch {
+    } catch (error) {
+        if (options.throwOnError) throw error;
         return inactiveAgentSession();
     } finally {
         if (connection) {

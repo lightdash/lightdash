@@ -11,6 +11,7 @@ import {
     AiTransport,
     aiTransportSchema,
     NotFoundError,
+    ParameterError,
     UpsertAiAccessPolicy,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -225,7 +226,20 @@ export class AiPrincipalModel {
             })
             .onConflict(['ai_access_policy_uuid', 'ref'])
             .ignore()
-            .returning('*');
+            .returning('*')
+            .catch((error: unknown) => {
+                if (
+                    typeof error === 'object' &&
+                    error !== null &&
+                    'code' in error &&
+                    error.code === '23505'
+                ) {
+                    throw new ParameterError(
+                        'This person already has an AI principal on this policy with another reference.',
+                    );
+                }
+                throw error;
+            });
         if (row) return AiPrincipalModel.principal(row);
         const existing = await this.database(AiPrincipalsTableName)
             .where({
@@ -260,10 +274,14 @@ export class AiPrincipalModel {
         const [row] = await this.database(AiPrincipalsTableName)
             .where('ai_principal_uuid', aiPrincipalUuid)
             .update({
-                status: probe.ok
-                    ? AiPrincipalStatus.READY
-                    : AiPrincipalStatus.FAILED,
-                failure_reason: probe.ok ? null : probe.reason,
+                ...(probe.ok || !probe.transient
+                    ? {
+                          status: probe.ok
+                              ? AiPrincipalStatus.READY
+                              : AiPrincipalStatus.FAILED,
+                          failure_reason: probe.ok ? null : probe.reason,
+                      }
+                    : {}),
                 status_message: probe.ok ? null : probe.message,
                 last_probe: probe,
                 updated_at: new Date(),

@@ -2,9 +2,11 @@ import {
     AiAccessRefusalReason,
     AiCredentialMethod,
     AiPrincipalFailureReason,
+    AiPrincipalStatus,
     AiSetupScriptFormat,
     UnexpectedServerError,
     WarehouseTypes,
+    type CreatePostgresCredentials,
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { type UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -16,9 +18,25 @@ import {
 } from './PostgresAiCredentialProvider.mock';
 import { createAiCredentialProviderRegistry } from './registry';
 
-const { runQuery } = vi.hoisted(() => ({ runQuery: vi.fn() }));
+const { runQuery, connect, disconnect, clientCredentials } = vi.hoisted(() => ({
+    runQuery: vi.fn(),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    clientCredentials: vi.fn(),
+}));
 vi.mock('@lightdash/warehouses', () => ({
+    SshTunnel: class {
+        constructor(private readonly credentials: CreatePostgresCredentials) {}
+        async connect() {
+            connect(this.credentials);
+            return { ...this.credentials, host: 'tunnel-host' };
+        }
+        disconnect = disconnect;
+    },
     PostgresWarehouseClient: class {
+        constructor(credentials: CreatePostgresCredentials) {
+            clientCredentials(credentials);
+        }
         runQuery = runQuery;
     },
 }));
@@ -35,6 +53,65 @@ const assurances = [
 ];
 
 describe('PostgresAiCredentialProvider', () => {
+    test.each([true, false])(
+        'disconnects the SSH tunnel after a probe, success=%s',
+        async (success) => {
+            if (success)
+                runQuery.mockResolvedValue({
+                    rows: [
+                        {
+                            session_user: principal.ref,
+                            current_user: principal.ref,
+                        },
+                    ],
+                });
+            else
+                runQuery.mockRejectedValue(
+                    new Error('connection refused at private.example.test'),
+                );
+            const credentials = { ...connection, useSshTunnel: true };
+            const result = await provider.probe(credentials, assurances);
+            expect(connect).toHaveBeenCalledWith(credentials);
+            expect(clientCredentials).toHaveBeenCalledWith({
+                ...credentials,
+                host: 'tunnel-host',
+            });
+            expect(connect.mock.invocationCallOrder[0]).toBeLessThan(
+                runQuery.mock.invocationCallOrder[0],
+            );
+            expect(runQuery.mock.invocationCallOrder[0]).toBeLessThan(
+                disconnect.mock.invocationCallOrder[0],
+            );
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(JSON.stringify(result)).not.toContain(
+                'private.example.test',
+            );
+        },
+    );
+    test.each([AiPrincipalStatus.READY, AiPrincipalStatus.FAILED])(
+        'hides passwords after setup in %s state',
+        (status) => {
+            const script = provider.setupScript({
+                ...mintArgs,
+                principal: { ...mintArgs.principal, status },
+            });
+            expect(script.parts[0].body).not.toContain('ai-password');
+            expect(script.parts[0].body).toContain(
+                "PASSWORD '<held by this instance; regenerate the secret to see a new one>'",
+            );
+        },
+    );
+    test('hides passwords after a pending principal has been probed', () => {
+        const script = provider.setupScript({
+            ...mintArgs,
+            principal: {
+                ...mintArgs.principal,
+                lastProbe: { ok: true, checkedAt: new Date(), observed: {} },
+            },
+        });
+        expect(script.parts[0].body).not.toContain('ai-password');
+    });
+
     beforeEach(() => vi.resetAllMocks());
 
     test('registers Postgres with supported capabilities', () => {
@@ -135,7 +212,8 @@ describe('PostgresAiCredentialProvider', () => {
         expect(await provider.probe(connection, assurances)).toMatchObject({
             ok: false,
             reason: AiPrincipalFailureReason.WRONG_PRINCIPAL,
-            message: `Postgres signed in as ${observed.session_user}, not ${principal.ref}.`,
+            message: 'Postgres signed in as a different principal.',
+            transient: false,
             observed,
         });
     });
@@ -170,7 +248,10 @@ describe('PostgresAiCredentialProvider', () => {
             checkedAt: expect.any(Date),
         });
         if (result.ok) throw new Error('Expected a failed probe');
-        expect(result.message).toContain(message);
+        expect(result.transient).toBe(
+            reason === AiPrincipalFailureReason.UNKNOWN,
+        );
+        expect(result.message).not.toContain(connection.host);
         expect(result.message).not.toContain(connection.password);
     });
 

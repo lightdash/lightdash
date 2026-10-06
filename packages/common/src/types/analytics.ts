@@ -166,6 +166,7 @@ export enum QueryExecutionContext {
 export const isAiAccessQueryContext = (
     context: QueryExecutionContext,
 ): boolean =>
+    context === QueryExecutionContext.DATA_APP_SAMPLE ||
     context === QueryExecutionContext.AI ||
     context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
     context === QueryExecutionContext.MCP_RUN_SQL ||

@@ -107,6 +107,9 @@ function buildService(
         deleteDailyCountersBefore: vi.fn().mockResolvedValue(0),
         deleteExpiredBatch: vi.fn().mockResolvedValue(0),
     };
+    const aiAccessService = {
+        getAiAccessForUser: vi.fn().mockResolvedValue({ enabled: false }),
+    };
     const asyncQueryService = {
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
             context: overrides.queryContext ?? QueryExecutionContext.EXPLORE,
@@ -158,6 +161,16 @@ function buildService(
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const analytics = { track: vi.fn() };
     const service = new DataAppAnalysisService({
+        projectModel: {
+            getSummary: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: 'org-1' }),
+            getWarehouseCredentialsForProject: vi.fn().mockResolvedValue({}),
+        },
+        warehouseConnectionModel: {
+            getProject: vi.fn().mockResolvedValue({}),
+            getCredentials: vi.fn().mockResolvedValue({}),
+        },
         dataAppAnalysisModel,
         appModel,
         externalConnectionModel: {
@@ -181,6 +194,7 @@ function buildService(
         spacePermissionService: {
             resolveAccess: vi.fn().mockResolvedValue({}),
         },
+        aiAccessService,
         asyncQueryService,
         aiService,
         aiAgentService: {
@@ -199,6 +213,7 @@ function buildService(
     return {
         service,
         dataAppAnalysisModel,
+        aiAccessService,
         asyncQueryService,
         aiService,
         appModel,
@@ -216,6 +231,42 @@ const completedEvent = (analytics: { track: ReturnType<typeof vi.fn> }) =>
 const request = { sources: [{ queryUuid: 'q1', label: 'Orders by status' }] };
 
 describe('DataAppAnalysisService.detect', () => {
+    it('refuses saved rows on an enabled AI principal policy before reading them', async () => {
+        const { service, aiAccessService, asyncQueryService, aiService } =
+            buildService();
+        aiAccessService.getAiAccessForUser.mockResolvedValue({ enabled: true });
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
+            context: QueryExecutionContext.EXPLORE,
+            warehouseConnectionUuid: 'connection',
+        });
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: 'no_policy',
+                message:
+                    'AI analysis of saved results is off while AI access runs as a separate principal.',
+            },
+        });
+        expect(aiAccessService.getAiAccessForUser).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'proj-1',
+                warehouseConnectionUuid: 'connection',
+            }),
+        );
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+    it('reads saved rows with AI access enforcement when no policy applies', async () => {
+        const { service, asyncQueryService } = buildService();
+        await service.detect(buildAccount(), 'proj-1', 'app-1', request);
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ aiAccessOnly: true }),
+        );
+    });
+
     beforeEach(() => {
         vi.mocked(assertCanViewApp).mockResolvedValue({
             directOnly: false,

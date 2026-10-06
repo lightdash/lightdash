@@ -248,6 +248,33 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
+    it('preserves the AI and MCP contexts when listing warehouse tables', async () => {
+        const getWarehouseTables = vi.fn().mockResolvedValue({});
+        const service = makeService({ projectService: { getWarehouseTables } });
+        await service
+            .createRuntime(makeRuntimeContext())
+            .listWarehouseTables(QueryExecutionContext.AI);
+        expect(getWarehouseTables).toHaveBeenLastCalledWith(
+            user,
+            projectUuid,
+            QueryExecutionContext.AI,
+        );
+        await service
+            .createRuntime(
+                makeRuntimeContext({
+                    source: 'mcp',
+                    defaultQueryExecutionContext:
+                        QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                }),
+            )
+            .listWarehouseTables(QueryExecutionContext.AI);
+        expect(getWarehouseTables).toHaveBeenLastCalledWith(
+            user,
+            projectUuid,
+            QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+        );
+    });
+
     const makeProjectSpace = (uuid: string, path: string, name: string) => ({
         uuid,
         path,

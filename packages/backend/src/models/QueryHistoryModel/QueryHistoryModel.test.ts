@@ -1,7 +1,36 @@
 import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
-import type { Knex } from 'knex';
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
+import { buildAccount } from '../../auth/account/account.mock';
 import { QueryHistoryModel } from './QueryHistoryModel';
+
+describe('QueryHistoryModel connection attribution', () => {
+    test.each(['connection', null])(
+        'returns the stored warehouse connection %s',
+        async (connection) => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            tracker.reset();
+            const account = buildAccount();
+            tracker.on.select('query_history').response({
+                query_uuid: 'query',
+                project_uuid: 'project',
+                created_by_user_uuid: account.user.id,
+                warehouse_connection_uuid: connection,
+            });
+            try {
+                const model = new QueryHistoryModel({ database });
+                expect(
+                    await model.get('query', 'project', account),
+                ).toMatchObject({ warehouseConnectionUuid: connection });
+            } finally {
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
+});
 
 describe('QueryHistoryModel', () => {
     test('isolates cached results by principal after the connection segment', () => {

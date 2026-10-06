@@ -964,7 +964,7 @@ export const useSettingsNavigation = (
 
             if (
                 aiPrincipalsEnabled &&
-                ability?.can('update', subject('Project', project))
+                ability?.can('manage', subject('Project', project))
             ) {
                 projectItems.push({
                     label: 'AI access',
