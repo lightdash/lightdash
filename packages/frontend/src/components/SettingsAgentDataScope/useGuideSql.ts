@@ -1,4 +1,6 @@
 import {
+    getAiQueryProcedureSql,
+    getAiQueryProcedureSettingValue,
     getAgenticEnvBlock,
     getAgenticIntegrationSql,
     getAgentMaskingSql,
@@ -14,7 +16,19 @@ export const useGuideSql = ({
     tagDatabase,
     tagSchema,
     protectedSchemas,
+    aiQueryProcedureEnabled,
+    procedureDatabase,
+    procedureSchema,
+    procedureName,
+    procedureOwnerRole,
+    allowedSchemas,
 }: {
+    aiQueryProcedureEnabled: boolean;
+    procedureDatabase: string;
+    procedureSchema: string;
+    procedureName: string;
+    procedureOwnerRole: string;
+    allowedSchemas: { database: string; schema: string }[];
     integrationName: string;
     redirectUri: string;
     roles: string;
@@ -55,16 +69,52 @@ export const useGuideSql = ({
             return '';
         }
     }, [tagDatabase, tagSchema, protectedSchemas]);
+    const procedure = useMemo(() => {
+        if (!aiQueryProcedureEnabled) return null;
+        try {
+            const options = {
+                database: procedureDatabase,
+                schema: procedureSchema,
+                name: procedureName,
+                ownerRole: procedureOwnerRole,
+                aiRoles: roles
+                    .split(',')
+                    .map((role) => role.trim())
+                    .filter(Boolean),
+                allowedSchemas,
+            };
+            return {
+                sql: getAiQueryProcedureSql(options),
+                settingValue: getAiQueryProcedureSettingValue(options),
+            };
+        } catch {
+            return null;
+        }
+    }, [
+        aiQueryProcedureEnabled,
+        procedureDatabase,
+        procedureSchema,
+        procedureName,
+        procedureOwnerRole,
+        roles,
+        allowedSchemas,
+    ]);
     const ceilingSql = useMemo(() => {
         try {
             return getSessionCeilingSql({
                 database: tagDatabase,
                 schema: tagSchema,
                 blockedRoles: [],
+                programUsageSchema: procedure
+                    ? {
+                          database: procedureDatabase,
+                          schema: procedureSchema,
+                      }
+                    : undefined,
             });
         } catch {
             return '';
         }
-    }, [tagDatabase, tagSchema]);
-    return { integrationSql, envBlock, maskingSql, ceilingSql };
+    }, [tagDatabase, tagSchema, procedure, procedureDatabase, procedureSchema]);
+    return { integrationSql, envBlock, maskingSql, ceilingSql, procedure };
 };

@@ -2,11 +2,12 @@ import {
     normalizeWarehouseCredentials,
     NotFoundError,
     ParameterError,
+    parseSnowflakeProcedureName,
     UnexpectedServerError,
     UserWarehouseCredentialPurpose,
+    WarehouseTypes,
     type CreateWarehouseCredentials,
     type WarehouseConnection,
-    type WarehouseTypes,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
@@ -321,6 +322,16 @@ export class WarehouseConnectionModel {
     }
 
     private toCredentialColumns(source: WarehouseConnectionCredentialSource) {
+        if (
+            source.kind === 'project' &&
+            source.credentials.type === WarehouseTypes.SNOWFLAKE &&
+            source.credentials.aiQueryProcedure?.trim() &&
+            !parseSnowflakeProcedureName(source.credentials.aiQueryProcedure)
+        ) {
+            throw new ParameterError(
+                'Enter the AI query procedure as database.schema.procedure',
+            );
+        }
         return source.kind === 'project'
             ? {
                   encrypted_credentials: this.encryptionUtil.encrypt(

@@ -1,4 +1,6 @@
 import {
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     BigqueryTokenError,
     DatabricksTokenError,
     getErrorMessage,
@@ -53,6 +55,12 @@ export const toolErrorHandler = (
     message: string,
     options: { captureToSentry?: boolean } = {},
 ) => {
+    if (
+        error instanceof AiQueryRefusedError ||
+        error instanceof AiQueryProcedureUnavailableError
+    ) {
+        return error.message;
+    }
     const captureToSentry =
         options.captureToSentry ?? !isAgentRecoverableError(error);
     if (captureToSentry) {

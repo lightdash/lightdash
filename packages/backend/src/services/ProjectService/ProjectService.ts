@@ -3,7 +3,10 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE,
     AiAccessSurface,
+    AiQueryProcedureUnavailableError,
+    AiQueryRefusedError,
     allowsOptionalUserCredentials,
     AlreadyExistsError,
     AndFilterGroup,
@@ -191,6 +194,7 @@ import {
     omitDisallowedParameterValues,
     OpenIdIdentityIssuerType,
     ParameterError,
+    parseSnowflakeProcedureName,
     parseTableCalculationFunctions,
     PersonSignInProvider,
     PivotChartData,
@@ -774,7 +778,21 @@ type ExtraConnectionCredentialsArgs = {
 type AiAccessAuditReason =
     | 'no_ai_sign_in'
     | 'ai_sign_in_not_set_up'
-    | 'agent_session_rejected';
+    | 'agent_session_rejected'
+    | 'reads_earlier_results'
+    | 'ai_query_procedure_unavailable'
+    | 'ai_query_procedure_bind_values';
+
+const getAiQueryProcedureRefusalReason = (
+    error: unknown,
+): AiAccessAuditReason | null => {
+    if (error instanceof AiQueryProcedureUnavailableError)
+        return 'ai_query_procedure_unavailable';
+    if (!(error instanceof AiQueryRefusedError)) return null;
+    return error.message === AI_QUERY_PROCEDURE_BIND_VALUES_MESSAGE
+        ? 'ai_query_procedure_bind_values'
+        : 'reads_earlier_results';
+};
 
 const logAiAccessRefusal = ({
     projectUuid,
@@ -2501,6 +2519,20 @@ export class ProjectService extends BaseService {
             credentials: {
                 ...refreshedCredentials,
                 requireAgentSession: true,
+                aiQueryProcedure:
+                    restrictionsEnabled &&
+                    credentials.aiQueryProcedure?.trim() &&
+                    (
+                        await this.featureFlagModel.get({
+                            user: {
+                                userUuid: userId,
+                                organizationUuid: resolvedOrganizationUuid,
+                            },
+                            featureFlagId: FeatureFlags.AiQueryProcedure,
+                        })
+                    ).enabled
+                        ? credentials.aiQueryProcedure.trim()
+                        : undefined,
             },
             aiAccessAudit: {
                 organizationUuid: resolvedOrganizationUuid,
@@ -3711,6 +3743,25 @@ export class ProjectService extends BaseService {
     ): T {
         if (aiAccessAudit !== null) {
             return attributeClientErrors(client, async (error) => {
+                const procedureReason = getAiQueryProcedureRefusalReason(error);
+                if (procedureReason) {
+                    this.logger.warn('AI access query refused', {
+                        projectUuid,
+                        userUuid: aiAccessAudit.userUuid,
+                        reason: procedureReason,
+                        surface: aiAccessAudit.surface,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    });
+                    logAiAccessRefusal({
+                        projectUuid,
+                        organizationUuid: aiAccessAudit.organizationUuid,
+                        userUuid: aiAccessAudit.userUuid,
+                        isServiceAccount: false,
+                        reason: procedureReason,
+                        surface: aiAccessAudit.surface,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    });
+                }
                 if (
                     error instanceof ForbiddenError &&
                     error.message === SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE
@@ -5852,12 +5903,27 @@ export class ProjectService extends BaseService {
     since each user then connects with their own credentials and the
     project-level authentication type is never used to connect.
     */
+    private static assertValidAiQueryProcedure(
+        credentials: CreateWarehouseCredentials | undefined,
+    ): void {
+        if (
+            credentials?.type === WarehouseTypes.SNOWFLAKE &&
+            credentials.aiQueryProcedure?.trim() &&
+            !parseSnowflakeProcedureName(credentials.aiQueryProcedure)
+        ) {
+            throw new ParameterError(
+                'Enter the AI query procedure as database.schema.procedure',
+            );
+        }
+    }
+
     private static assertPersistableSnowflakeAuthentication(
         credentials: CreateWarehouseCredentials | undefined,
     ): void {
         if (credentials?.type !== WarehouseTypes.SNOWFLAKE) {
             return;
         }
+        ProjectService.assertValidAiQueryProcedure(credentials);
         if (
             credentials.authenticationType ===
             SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE
@@ -6025,6 +6091,7 @@ export class ProjectService extends BaseService {
             data.warehouseConnection,
         );
         ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
+        ProjectService.assertValidAiQueryProcedure(data.warehouseConnection);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
@@ -6208,6 +6275,7 @@ export class ProjectService extends BaseService {
             data.warehouseConnection,
         );
         ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
+        ProjectService.assertValidAiQueryProcedure(data.warehouseConnection);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
@@ -15879,9 +15947,13 @@ export class ProjectService extends BaseService {
     ): Promise<SnowflakeAiBoundaryGuideConfig> {
         await this.assertSnowflakeAiBoundaryGuideAccess(account, projectUuid);
         if (
-            !['prerequisites', 'masking', 'session_policy', 'oauth'].includes(
-                update.section,
-            )
+            ![
+                'prerequisites',
+                'masking',
+                'session_policy',
+                'oauth',
+                'query_procedure',
+            ].includes(update.section)
         ) {
             throw new ParameterError(
                 'This section is verified by the server and cannot be marked as done',

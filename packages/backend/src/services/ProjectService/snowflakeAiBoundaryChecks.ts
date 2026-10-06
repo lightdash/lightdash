@@ -266,6 +266,7 @@ export const getSnowflakeAiBoundaryStatuses = ({
             ]) ?? marked('session_policy'),
         sign_in: signInStatus,
         oauth: aiSignInEnabled ? 'verified' : marked('oauth'),
+        query_procedure: marked('query_procedure'),
         checks:
             checkStatus([
                 'agent_active',

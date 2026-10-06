@@ -147,6 +147,7 @@ export * from './types/dbtSemanticLayer';
 export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
+export * from './utils/snowflakeAiQueryProcedure';
 export * from './types/explore';
 export * from './types/externalSources';
 export * from './types/favorites';

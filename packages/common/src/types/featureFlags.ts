@@ -9,6 +9,8 @@ export enum FeatureFlags {
     AiAccessRestrictions = 'ai-access-restrictions',
     /** Off by default; organization scope; no handler. Enables Snowflake AI sign-in. */
     SnowflakeAiSignIn = 'snowflake-ai-sign-in',
+    /** Off by default; organization scope; no handler. Sends AI Snowflake queries through the connection's AI query procedure. */
+    AiQueryProcedure = 'ai-query-procedure',
     SnowflakeAiBoundaryGuide = 'snowflake-ai-boundary-guide',
     MultiConnectionProjects = 'multi-connection-projects',
     /** Independent Documents containing narrative and saved chart definitions. */

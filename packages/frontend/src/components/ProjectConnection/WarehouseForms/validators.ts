@@ -1,4 +1,5 @@
 import {
+    parseSnowflakeProcedureName,
     AthenaAuthenticationType,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
@@ -21,6 +22,11 @@ type Validator = (
     value: string,
     values: ProjectConnectionForm,
 ) => string | undefined;
+
+const aiQueryProcedureValidator = (value: string) =>
+    !value || parseSnowflakeProcedureName(value) !== null
+        ? undefined
+        : 'Enter database.schema.procedure';
 
 const sshTunnelEnabled = (values: ProjectConnectionForm) =>
     (values.warehouse.type === WarehouseTypes.POSTGRES ||
@@ -98,6 +104,7 @@ export const warehouseValueValidators: Record<
         sshTunnelPublicKey: sshTunnelPublicKeyValidator,
     },
     [WarehouseTypes.SNOWFLAKE]: {
+        aiQueryProcedure: aiQueryProcedureValidator,
         schema: hasNoWhiteSpaces('Schema'),
         account: hasNoWhiteSpaces('Account'),
         user: hasNoWhiteSpaces('User'),
@@ -252,6 +259,7 @@ export const createWarehouseValueValidators: Record<
         ),
     },
     [WarehouseTypes.SNOWFLAKE]: {
+        aiQueryProcedure: aiQueryProcedureValidator,
         schema: required('Schema', hasNoWhiteSpaces),
         account: required('Account', hasNoWhiteSpaces),
         user: requiredWhen(
