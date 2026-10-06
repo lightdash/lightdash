@@ -40,7 +40,7 @@ export const buildAiIdentityAutomaticSyncSetupSql = ({
     governanceSchema?: string;
     schedule?: string;
 }): string => {
-    const grantor = aiIdentitySnowflakeIdentifier(grantorRole);
+    const grantor = aiIdentitySnowflakeIdentifier(grantorRole).toUpperCase();
     const provisioner = aiIdentitySnowflakeIdentifier(provisionerRole);
     const provisionerWarehouse = aiIdentitySnowflakeIdentifier(warehouse);
     const database = aiIdentitySnowflakeIdentifier(governanceDatabase);
@@ -156,7 +156,9 @@ BEGIN
     dq := LAST_QUERY_ID();
     SELECT COUNT(*) INTO :n FROM TABLE(RESULT_SCAN(:dq))
       WHERE "grant_on" IN ('TABLE','VIEW','MATERIALIZED_VIEW','DYNAMIC_TABLE','EXTERNAL_TABLE','ICEBERG_TABLE','EVENT_TABLE')
-        AND "grantee_name" <> :ai;
+        AND "grantee_name" <> :ai
+        AND "grantee_name" <> __GRANTOR__
+        AND "grantee_name" NOT IN (SELECT ai_role FROM __NAMESPACE__.AI_GRANT_SCOPE);
     eff_mode := IFF(n > 0 OR fmode = 'DATABASE', 'DATABASE', 'SCHEMA');
     IF (fmode = 'SCHEMA' AND n > 0) THEN
       msg := 'future_mode SCHEMA overridden to DATABASE: ' || n || ' database-level future grants exist in ' || db;
@@ -379,32 +381,73 @@ EXCEPTION
     DELETE FROM __NAMESPACE__.AI_GRANT_DECISIONS WHERE run_id = :run_id;
     RETURN OBJECT_CONSTRUCT('status', 'UNSAFE', 'error', err, 'stmt', stmt, 'run_id', run_id);
 END;
-$$;`.replaceAll('__NAMESPACE__', namespace);
-    const watermark = `CREATE OR REPLACE PROCEDURE ${namespace}.SCHEMA_WATERMARK()
-RETURNS TIMESTAMP_LTZ
+$$;`
+            .replaceAll('__NAMESPACE__', namespace)
+            .replaceAll('__GRANTOR__', aiIdentitySnowflakeString(grantor));
+    const exposureCheck =
+        String.raw`CREATE OR REPLACE PROCEDURE __NAMESPACE__.AI_EXPOSURE_CHECK()
+RETURNS VARIANT
 LANGUAGE SQL
 EXECUTE AS OWNER
 AS
 $$
 DECLARE
-  latest TIMESTAMP_LTZ;
-  observed TIMESTAMP_LTZ;
-  stmt STRING;
-  query_id STRING;
-  scoped CURSOR FOR SELECT DISTINCT database_name FROM ${namespace}.AI_GRANT_SCOPE;
+  started TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP();
+  stmt    STRING DEFAULT '';
+  gq      STRING;
+  ai      STRING;
+  qrole   STRING;
+  exposed ARRAY DEFAULT ARRAY_CONSTRUCT();
+  found   ARRAY;
+  role_cur CURSOR FOR
+    SELECT DISTINCT ai_role FROM __NAMESPACE__.AI_GRANT_SCOPE
+    WHERE ai_role NOT IN ('PUBLIC', 'ACCOUNTADMIN', 'SECURITYADMIN', 'SYSADMIN', 'USERADMIN', 'ORGADMIN');
 BEGIN
-  FOR db IN scoped DO
-    stmt := 'SELECT MAX(COALESCE(LAST_ALTERED, CREATED)) AS WATERMARK FROM "' || REPLACE(db.database_name, '"', '""') || '".INFORMATION_SCHEMA.SCHEMATA';
+  FOR ar IN role_cur DO
+    ai := ar.ai_role;
+    qrole := '"' || REPLACE(ai, '"', '""') || '"';
+    stmt := 'SHOW GRANTS TO ROLE ' || qrole;
     EXECUTE IMMEDIATE :stmt;
-    query_id := LAST_QUERY_ID();
-    SELECT "WATERMARK" INTO :observed FROM TABLE(RESULT_SCAN(:query_id));
-    IF (observed IS NOT NULL AND (latest IS NULL OR observed > latest)) THEN
-      latest := observed;
-    END IF;
+    gq := LAST_QUERY_ID();
+    SELECT ARRAY_AGG(DISTINCT x.item) INTO :found FROM (
+      WITH
+      g AS (
+        SELECT DISTINCT "granted_on" AS gon, "name" AS nm FROM TABLE(RESULT_SCAN(:gq))
+        WHERE "privilege" <> 'OWNERSHIP' AND "granted_on" IN ('SCHEMA', 'ROLE')
+      ),
+      p AS (
+        SELECT nm,
+               IFF(REGEXP_LIKE(nm, '[A-Z_][A-Z0-9_$]*[.][A-Z_][A-Z0-9_$]*'), SPLIT_PART(nm, '.', 1), NULL) AS db,
+               IFF(REGEXP_LIKE(nm, '[A-Z_][A-Z0-9_$]*[.][A-Z_][A-Z0-9_$]*'), SPLIT_PART(nm, '.', 2), NULL) AS sch
+        FROM g WHERE gon = 'SCHEMA'
+      ),
+      ev AS (
+        SELECT p.nm,
+               MAX(CASE WHEN (UPPER(r.mode) = 'EXCLUDE' AND NOT REGEXP_LIKE(p.sch, r.pattern_regex, 'i'))
+                          OR (UPPER(r.mode) = 'INCLUDE' AND REGEXP_LIKE(p.sch, r.pattern_regex, 'i')) THEN 1 ELSE 0 END) AS allow_hit,
+               MAX(CASE WHEN UPPER(r.mode) NOT IN ('EXCLUDE', 'INCLUDE')
+                          OR (UPPER(r.mode) = 'EXCLUDE' AND REGEXP_LIKE(p.sch, r.pattern_regex, 'i')) THEN 1 ELSE 0 END) AS veto
+        FROM p
+        JOIN __NAMESPACE__.AI_GRANT_SCOPE s ON s.ai_role = :ai AND s.database_name = p.db
+        JOIN __NAMESPACE__.AI_GRANT_RULES r ON r.ai_role = :ai AND r.database_name = p.db
+        WHERE p.sch IS NOT NULL AND p.sch <> 'INFORMATION_SCHEMA'
+        GROUP BY p.nm
+      )
+      SELECT 'SCHEMA ' || p.nm AS item FROM p
+      LEFT JOIN ev ON ev.nm = p.nm
+      WHERE ev.nm IS NULL OR ev.allow_hit = 0 OR ev.veto = 1
+      UNION ALL
+      SELECT 'ROLE ' || nm FROM g WHERE gon = 'ROLE'
+    ) x;
+    exposed := ARRAY_CAT(exposed, COALESCE(found, ARRAY_CONSTRUCT()));
   END FOR;
-  RETURN latest;
+  RETURN OBJECT_CONSTRUCT('status', IFF(ARRAY_SIZE(exposed) = 0, 'OK', 'UNSAFE'), 'exposed', exposed,
+                          'checked_at', CURRENT_TIMESTAMP(), 'elapsed_ms', DATEDIFF('millisecond', started, CURRENT_TIMESTAMP()));
+EXCEPTION
+  WHEN OTHER THEN
+    RETURN OBJECT_CONSTRUCT('status', 'UNSAFE', 'error', SQLERRM, 'stmt', stmt);
 END;
-$$;`;
+$$;`.replaceAll('__NAMESPACE__', namespace);
     const viewWarnings =
         String.raw`CREATE OR REPLACE PROCEDURE __NAMESPACE__.VIEW_DEPENDENCY_WARNINGS()
 RETURNS VARIANT
@@ -435,6 +478,7 @@ while (scope.next()) {
         try {
             var names = schema.split('.');
             if (names.length !== 2 || !plain(names[1])) return;
+            query('GRANT SELECT ON ALL VIEWS IN SCHEMA ' + quote(names[0]) + '.' + quote(names[1]) + ' TO ROLE ' + quote('__GRANTOR__'));
             var views = query('SHOW VIEWS IN SCHEMA ' + quote(names[0]) + '.' + quote(names[1]));
             while (views.next()) {
                 var viewName = String(views.getColumnValue('name'));
@@ -455,7 +499,9 @@ while (scope.next()) {
     });
 }
 return warnings;
-$$;`.replaceAll('__NAMESPACE__', namespace);
+$$;`
+            .replaceAll('__NAMESPACE__', namespace)
+            .replaceAll('__GRANTOR__', grantor);
     return [
         'USE ROLE ACCOUNTADMIN;',
         `CREATE ROLE IF NOT EXISTS ${grantor};`,
@@ -492,13 +538,12 @@ $$;`.replaceAll('__NAMESPACE__', namespace);
                 `GRANT USAGE ON DATABASE ${scopedDatabase} TO ROLE ${grantor};`,
                 `GRANT USAGE ON ALL SCHEMAS IN DATABASE ${scopedDatabase} TO ROLE ${grantor};`,
                 `GRANT USAGE ON FUTURE SCHEMAS IN DATABASE ${scopedDatabase} TO ROLE ${grantor};`,
-                `GRANT SELECT ON ALL VIEWS IN DATABASE ${scopedDatabase} TO ROLE ${grantor};`,
-                `GRANT SELECT ON FUTURE VIEWS IN DATABASE ${scopedDatabase} TO ROLE ${grantor};`,
+                `REVOKE SELECT ON FUTURE VIEWS IN DATABASE ${scopedDatabase} FROM ROLE ${grantor};`,
                 `USE ROLE ${grantor};`,
             ],
         ),
         procedure,
-        watermark,
+        exposureCheck,
         viewWarnings,
         `CREATE OR REPLACE TASK ${namespace}.SYNC_AI_GRANTS_TASK SCHEDULE = '${schedule}' USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 'XSMALL' STATEMENT_TIMEOUT_IN_SECONDS = 3600 USER_TASK_TIMEOUT_MS = 3600000 AS CALL ${namespace}.SYNC_AI_GRANTS();`,
         `ALTER TASK ${namespace}.SYNC_AI_GRANTS_TASK RESUME;`,
@@ -509,7 +554,7 @@ $$;`.replaceAll('__NAMESPACE__', namespace);
         `GRANT SELECT ON TABLE ${namespace}.AI_GRANT_SCOPE TO ROLE ${provisioner};`,
         `GRANT SELECT ON TABLE ${namespace}.AI_GRANT_LOG TO ROLE ${provisioner};`,
         `GRANT USAGE ON PROCEDURE ${namespace}.SYNC_AI_GRANTS() TO ROLE ${provisioner};`,
-        `GRANT USAGE ON PROCEDURE ${namespace}.SCHEMA_WATERMARK() TO ROLE ${provisioner};`,
+        `GRANT USAGE ON PROCEDURE ${namespace}.AI_EXPOSURE_CHECK() TO ROLE ${provisioner};`,
         `GRANT USAGE ON PROCEDURE ${namespace}.VIEW_DEPENDENCY_WARNINGS() TO ROLE ${provisioner};`,
         `EXECUTE TASK ${namespace}.SYNC_AI_GRANTS_TASK;`,
     ].join('\n');

@@ -1,8 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_MESSAGE,
     AI_IDENTITY_NOT_READY_CODE,
-    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
     AI_IDENTITY_SYNC_UNSAFE_CODE,
     AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiAgentWithContext,
@@ -4655,8 +4656,11 @@ export class McpService extends BaseService {
         });
         if (access.aiIdentityRequired && access.automaticSyncRefusal)
             return this.aiAutomaticSyncErrorResult(
-                access.message === AI_IDENTITY_SCHEMA_CHANGED_MESSAGE
-                    ? access.message
+                [
+                    AI_IDENTITY_EXPOSURE_MESSAGE,
+                    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+                ].includes(access.message ?? '')
+                    ? (access.message ?? undefined)
                     : undefined,
             );
         return access.aiIdentityRequired &&

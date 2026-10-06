@@ -73,7 +73,9 @@ BEGIN
     dq := LAST_QUERY_ID();
     SELECT COUNT(*) INTO :n FROM TABLE(RESULT_SCAN(:dq))
       WHERE "grant_on" IN ('TABLE','VIEW','MATERIALIZED_VIEW','DYNAMIC_TABLE','EXTERNAL_TABLE','ICEBERG_TABLE','EVENT_TABLE')
-        AND "grantee_name" <> :ai;
+        AND "grantee_name" <> :ai
+        AND "grantee_name" <> 'LIGHTDASH_AI_GRANTOR'
+        AND "grantee_name" NOT IN (SELECT ai_role FROM LD_AI_TEST_GRANTS_GOV.AI_GRANTS.AI_GRANT_SCOPE);
     eff_mode := IFF(n > 0 OR fmode = 'DATABASE', 'DATABASE', 'SCHEMA');
     IF (fmode = 'SCHEMA' AND n > 0) THEN
       msg := 'future_mode SCHEMA overridden to DATABASE: ' || n || ' database-level future grants exist in ' || db;

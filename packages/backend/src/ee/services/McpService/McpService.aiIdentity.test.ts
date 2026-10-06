@@ -1,4 +1,6 @@
 import {
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_MESSAGE,
     AI_IDENTITY_SYNC_UNSAFE_CODE,
     AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiIdentityNotReadyError,
@@ -443,4 +445,27 @@ it('preserves a query-path refusal from the registered SQL handler', async () =>
         },
     });
     expect(asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledOnce();
+});
+
+it.each([
+    AI_IDENTITY_EXPOSURE_MESSAGE,
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+])('returns the exposure refusal through MCP: %s', async (message) => {
+    const { internals, aiIdentityService } = makeService();
+    aiIdentityService.getAiAccessForUser.mockResolvedValue({
+        ...access,
+        state: AiIdentityState.READY,
+        automaticSyncRefusal: true,
+        message,
+    });
+    const handler = vi.fn<Callback>();
+    const result = await internals.wrapToolCallback(
+        McpToolName.RUN_SQL,
+        handler,
+    )({ projectUuid: 'project' }, extra);
+    expect(handler).not.toHaveBeenCalled();
+    expect(result.content).toEqual([{ type: 'text', text: message }]);
+    expect(result.structuredContent).toMatchObject({
+        error: { code: AI_IDENTITY_SYNC_UNSAFE_CODE, message },
+    });
 });

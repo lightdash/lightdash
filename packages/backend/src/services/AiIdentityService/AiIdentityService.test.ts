@@ -1,5 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_MESSAGE,
+    AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiIdentityCreationMode,
     AiIdentityFailureReason,
     AiIdentityJobKind,
@@ -12,10 +15,12 @@ import {
     ForbiddenError,
     ParameterError,
     PossibleAbilities,
+    SCHEDULER_TASKS,
     WarehouseTypes,
     type AiIdentity,
     type AiIdentitySetupCheck,
 } from '@lightdash/common';
+import { SnowflakeWarehouseClient } from '@lightdash/warehouses';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
@@ -1386,6 +1391,60 @@ describe('AI role rule validation', () => {
             },
         );
     });
+    it.each([false, true])(
+        'queues a rule-change sync only after rule writes succeed (failure=%s)',
+        async (fails) => {
+            model.getProvisioner.mockResolvedValue({
+                status: AiIdentityProvisionerStatus.READY,
+                firstRunApprovedAt: null,
+                userName: 'PROVISIONER',
+                roleName: 'PROVISIONER_ROLE',
+                publicKey: 'YWJj',
+                privateKey: 'PRIVATE',
+                findings: [],
+                ungrantedSchemas: [],
+            });
+            const role = {
+                roleName: 'ANALYST_AI',
+                warehouse: 'WH',
+                schemaRule: { database: 'DB', excludePatterns: [] as string[] },
+            };
+            model.getAiRoles.mockResolvedValue([role]);
+            const execute = vi.spyOn(
+                ProvisionerConnection.prototype,
+                'execute',
+            );
+            if (fails)
+                execute.mockRejectedValue(new Error('Rule write failed'));
+            else execute.mockResolvedValue('');
+            await service.replaceAiRoles(admin, 'account', [
+                {
+                    ...role,
+                    schemas: [],
+                    schemaRule: { database: 'DB', excludePatterns: ['PII_*'] },
+                },
+            ]);
+            expect(execute).toHaveBeenCalledWith(
+                expect.objectContaining({ kind: 'write_rule' }),
+            );
+            expect(execute).not.toHaveBeenCalledWith({ kind: 'sync_grants' });
+            if (fails) {
+                expect(model.createJob).not.toHaveBeenCalled();
+                expect(scheduler.scheduleTask).not.toHaveBeenCalled();
+            } else {
+                expect(model.createJob).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        kind: AiIdentityJobKind.GRANT_SYNC,
+                    }),
+                );
+                expect(scheduler.scheduleTask).toHaveBeenCalledWith(
+                    SCHEDULER_TASKS.AI_IDENTITY_JOB,
+                    { jobUuid: 'job' },
+                );
+            }
+        },
+    );
+
     it('can replace a fail-closed legacy role with no database', async () => {
         model.getAiRoles.mockResolvedValue([
             {
@@ -1879,6 +1938,30 @@ describe('background setup checks', () => {
             model.addEvent.mock.calls.map(([event]) => event.action),
         ).toEqual(['setup_waiting', 'setup_check_result']);
     });
+    it('enqueues the first grant sync without running it during setup verification', async () => {
+        vi.mocked(
+            ProvisionerConnection.prototype.currentIdentity,
+        ).mockResolvedValue({ user: 'PROVISIONER', role: 'PROVISIONER_ROLE' });
+        const execute = vi
+            .spyOn(ProvisionerConnection.prototype, 'execute')
+            .mockResolvedValue('');
+        await service.verifyProvisioner(admin, 'account');
+        expect(model.createJob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: AiIdentityJobKind.GRANT_SYNC,
+                aiIdentityAccountUuid: 'account',
+                createdByUserUuid: null,
+            }),
+        );
+        expect(scheduler.scheduleTask).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.AI_IDENTITY_JOB,
+            { jobUuid: 'job' },
+        );
+        expect(execute).not.toHaveBeenCalledWith({ kind: 'sync_grants' });
+        await service.verifyProvisioner(admin, 'account');
+        expect(model.createJob).toHaveBeenCalledTimes(1);
+    });
+
     it('shows the grant sync as installed and the first run as complete', async () => {
         model.getAutomaticSync.mockResolvedValue({
             pending: false,
@@ -2030,5 +2113,233 @@ describe('background setup checks', () => {
         expect(provisioner.setupCheck.checks[0].detail).toBe(
             'The setup user cannot sign in with its key.',
         );
+    });
+});
+
+describe('automatic exposure access gate', () => {
+    const now = new Date('2026-10-06T10:00:00Z');
+    const safeRun = {
+        status: AiIdentitySyncStatus.OK,
+        hasLog: true,
+        hasOkRun: true,
+        lastRunAt: new Date('2026-10-06T09:59:00Z'),
+        exposure: { status: 'OK' as const, exposed: [], error: null },
+        managedScope: [],
+        issues: [],
+        progress: 0,
+    };
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+        model.find.mockResolvedValue({
+            ...identity,
+            state: AiIdentityState.READY,
+        });
+        vi.spyOn(
+            ProvisionerConnection.prototype,
+            'readAutomaticSync',
+        ).mockResolvedValue(safeRun);
+    });
+    afterEach(() => vi.useRealTimers());
+    it.each([
+        ['rename into the pattern', ['SCHEMA DATA.MART_27_CLEAR']],
+        [
+            'SWAP WITH',
+            ['SCHEMA DATA.PAYMENTS_CLEAR', 'SCHEMA DATA.LEGAL_CLEAR'],
+        ],
+        ['revoked-grantor rename', ['SCHEMA DATA.MART_26_CLEAR']],
+        ['rename out of scope', ['SCHEMA DB2.MART_29_CLEAR']],
+    ])('refuses %s without disclosing schema names', async (_name, exposed) => {
+        vi.mocked(
+            ProvisionerConnection.prototype.readAutomaticSync,
+        ).mockResolvedValue({
+            ...safeRun,
+            exposure: { status: 'UNSAFE', exposed, error: null },
+        });
+        const result = await service.getAiAccessForUser({
+            account: projectViewer,
+            projectUuid: 'project',
+        });
+        expect(result).toMatchObject({
+            automaticSyncRefusal: true,
+            rawSqlAllowed: false,
+            action: 'ask_admin',
+            message: AI_IDENTITY_EXPOSURE_MESSAGE,
+        });
+        for (const item of exposed)
+            expect(result.message).not.toContain(item.split('.').at(-1));
+    });
+    it('refuses a failed check without disclosing the warehouse error', async () => {
+        vi.mocked(
+            ProvisionerConnection.prototype.readAutomaticSync,
+        ).mockResolvedValue({
+            ...safeRun,
+            exposure: {
+                status: 'UNSAFE',
+                exposed: [],
+                error: 'Cannot inspect DATA.SECRET',
+            },
+        });
+        const result = await service.getAiAccessForUser({
+            account: projectViewer,
+            projectUuid: 'project',
+        });
+        expect(result).toMatchObject({
+            automaticSyncRefusal: true,
+            rawSqlAllowed: false,
+            message: AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+        });
+        expect(result.message).not.toContain('SECRET');
+    });
+    it.each(['fresh OK run', 'dbt-like load', 'CREATE SCHEMA'])(
+        'allows exposure OK after %s',
+        async () => {
+            await expect(
+                service.getAiAccessForUser({
+                    account: projectViewer,
+                    projectUuid: 'project',
+                }),
+            ).resolves.toMatchObject({
+                automaticSyncRefusal: false,
+                rawSqlAllowed: true,
+                message: null,
+            });
+        },
+    );
+    it.each(['stale run', 'no OK run', 'pending change'])(
+        'refuses exposure OK with %s',
+        async (kind) => {
+            if (kind === 'stale run')
+                vi.mocked(
+                    ProvisionerConnection.prototype.readAutomaticSync,
+                ).mockResolvedValue({
+                    ...safeRun,
+                    lastRunAt: new Date('2026-10-06T08:00:00Z'),
+                });
+            if (kind === 'no OK run')
+                vi.mocked(
+                    ProvisionerConnection.prototype.readAutomaticSync,
+                ).mockResolvedValue({ ...safeRun, hasOkRun: false });
+            if (kind === 'pending change')
+                model.getAutomaticSync.mockResolvedValue({
+                    pending: true,
+                    status: AiIdentitySyncStatus.OK,
+                    lastRunAt: safeRun.lastRunAt,
+                });
+            await expect(
+                service.getAiAccessForUser({
+                    account: projectViewer,
+                    projectUuid: 'project',
+                }),
+            ).resolves.toMatchObject({
+                automaticSyncRefusal: true,
+                rawSqlAllowed: false,
+                message: AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
+            });
+            expect(model.setAutomaticSyncPending).not.toHaveBeenCalledWith(
+                'account',
+                false,
+            );
+        },
+    );
+    it('clears a pending change only after a newer OK run', async () => {
+        model.getAutomaticSync.mockResolvedValue({
+            pending: true,
+            status: AiIdentitySyncStatus.OK,
+            lastRunAt: new Date('2026-10-06T09:58:00Z'),
+        });
+        await expect(
+            service.getAiAccessForUser({
+                account: projectViewer,
+                projectUuid: 'project',
+            }),
+        ).resolves.toMatchObject({
+            automaticSyncRefusal: false,
+            rawSqlAllowed: true,
+        });
+        expect(model.setAutomaticSyncPending).toHaveBeenCalledWith(
+            'account',
+            false,
+        );
+    });
+    it('keeps a cancelled Lightdash job separate from the healthy scheduled run', async () => {
+        model.getJob.mockResolvedValue({
+            jobUuid: 'job',
+            kind: AiIdentityJobKind.GRANT_SYNC,
+            status: AiIdentityJobStatus.QUEUED,
+            aiIdentityAccountUuid: 'account',
+            organizationUuid,
+        });
+        vi.spyOn(ProvisionerConnection.prototype, 'execute').mockRejectedValue(
+            new Error('Statement cancelled'),
+        );
+        await service.runJob('job');
+        expect(model.updateJob).toHaveBeenLastCalledWith('job', {
+            status: AiIdentityJobStatus.FAILED,
+            error: 'Statement cancelled',
+        });
+        expect(model.updateProvisioner).not.toHaveBeenCalled();
+        expect(model.recordAutomaticSync).not.toHaveBeenCalled();
+        expect(model.updateStatus).not.toHaveBeenCalled();
+        await expect(
+            service.getAiAccessForUser({
+                account: projectViewer,
+                projectUuid: 'project',
+            }),
+        ).resolves.toMatchObject({
+            automaticSyncRefusal: false,
+            rawSqlAllowed: true,
+        });
+    });
+});
+
+describe('grant sync scheduler job', () => {
+    it('runs the sync with a 3600 second warehouse timeout only in the job', async () => {
+        const queries: Array<{ sql: string; timeout: number | undefined }> = [];
+        vi.spyOn(
+            SnowflakeWarehouseClient.prototype,
+            'runQuery',
+        ).mockImplementation(
+            async function capture(this: SnowflakeWarehouseClient, sql) {
+                queries.push({ sql, timeout: this.credentials.timeoutSeconds });
+                return { rows: [], fields: {} };
+            },
+        );
+        model.getJob.mockResolvedValue({
+            jobUuid: 'job',
+            kind: AiIdentityJobKind.GRANT_SYNC,
+            status: AiIdentityJobStatus.QUEUED,
+            aiIdentityAccountUuid: 'account',
+            organizationUuid,
+        });
+        await service.runJob('job');
+        expect(queries).toEqual([
+            {
+                sql: 'CALL LIGHTDASH_GOVERNANCE.AI_GRANTS.SYNC_AI_GRANTS();',
+                timeout: 3600,
+            },
+        ]);
+        expect(model.updateJob).toHaveBeenLastCalledWith('job', {
+            status: AiIdentityJobStatus.DONE,
+        });
+        const connection = new ProvisionerConnection(
+            {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                warehouse: 'WH',
+                user: 'PROJECT',
+                database: 'DATA',
+                schema: 'PUBLIC',
+            },
+            'PROVISIONER',
+            'ROLE',
+            'PRIVATE',
+            { mappedRoles: new Set(), lightdashCreatedUsers: new Set() },
+        );
+        await connection.users();
+        expect(queries.at(-1)).toEqual({
+            sql: 'SHOW USERS',
+            timeout: undefined,
+        });
     });
 });

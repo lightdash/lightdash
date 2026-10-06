@@ -1,21 +1,22 @@
 import {
     AI_IDENTITY_SYNC_MAX_AGE_MINUTES,
     AiIdentitySyncStatus,
+    type AiIdentityExposureCheck,
     type AiIdentitySyncUnsafeReason,
 } from '../types/aiIdentityAutomaticSync';
 
 type Run = {
     status: AiIdentitySyncStatus;
     lastRunAt: Date;
-    lastOkStartedAt?: Date | null;
-    schemaWatermark?: Date | null;
+    hasOkRun: boolean;
+    exposure: AiIdentityExposureCheck;
 };
 
 export const aiIdentityAutomaticSyncUnsafeReason = (
     run: Run,
     now: Date,
 ): AiIdentitySyncUnsafeReason | null => {
-    if (run.status !== AiIdentitySyncStatus.OK || !run.lastOkStartedAt)
+    if (run.status !== AiIdentitySyncStatus.OK || !run.hasOkRun)
         return 'no_ok_run';
     const age = now.getTime() - run.lastRunAt.getTime();
     if (
@@ -24,9 +25,8 @@ export const aiIdentityAutomaticSyncUnsafeReason = (
         age > AI_IDENTITY_SYNC_MAX_AGE_MINUTES * 60_000
     )
         return 'stale_run';
-    if (!run.schemaWatermark || Number.isNaN(run.schemaWatermark.getTime()))
-        return 'schema_changed';
-    if (run.schemaWatermark > run.lastOkStartedAt) return 'schema_changed';
+    if (run.exposure.error) return 'exposure_check_failed';
+    if (run.exposure.status === 'UNSAFE') return 'exposure';
     return null;
 };
 
@@ -40,7 +40,7 @@ export const aiIdentityAutomaticSyncGate = (
     | { status: 'OK'; reason: null }
     | { status: 'PROGRESS'; reason: 'no_ok_run' }
     | { status: 'UNSAFE'; reason: AiIdentitySyncUnsafeReason } => {
-    if (run.status === AiIdentitySyncStatus.RUNNING && !run.lastOkStartedAt) {
+    if (run.status === AiIdentitySyncStatus.RUNNING && !run.hasOkRun) {
         const age = now.getTime() - run.lastRunAt.getTime();
         if (age >= 0 && age < AI_IDENTITY_SYNC_MAX_AGE_MINUTES * 60_000)
             return { status: 'PROGRESS', reason: 'no_ok_run' };

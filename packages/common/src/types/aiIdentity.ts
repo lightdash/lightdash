@@ -139,6 +139,7 @@ export enum AiIdentityJobKind {
     EXPORT = 'export',
     SYNC = 'sync',
     PROVISION = 'provision',
+    GRANT_SYNC = 'grant_sync',
 }
 
 export enum AiIdentityJobStatus {

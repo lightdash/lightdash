@@ -50,10 +50,12 @@ describe('automatic grant sync setup', () => {
             new URL('./fixtures/aiIdentitySyncProcedure.sql', import.meta.url),
             'utf8',
         );
-        const expected = fixture.replaceAll(
-            'LD_AI_TEST_GRANTS_GOV.AI_GRANTS',
-            'CUSTOM_GOV.CUSTOM_GRANTS',
-        );
+        const expected = fixture
+            .replaceAll(
+                'LD_AI_TEST_GRANTS_GOV.AI_GRANTS',
+                'CUSTOM_GOV.CUSTOM_GRANTS',
+            )
+            .replaceAll('LIGHTDASH_AI_GRANTOR', 'GRANTOR');
         const sql = buildAiIdentityAutomaticSyncSetupSql({
             managedScope: [],
             provisionerRole: 'PROVISIONER',
@@ -74,20 +76,72 @@ describe('automatic grant sync setup', () => {
         );
     });
 
-    it('keeps the grantor as owner and grants the provisioner only the procedure watermark', () => {
-        const sql = setup();
-        expect(sql).toContain(
-            "AI_GRANT_SCOPE (AI_ROLE, DATABASE_NAME) VALUES ('ANALYST_AI', 'DATA')",
+    it('emits the live-tested exposure check without a floor', () => {
+        const fixture = readFileSync(
+            new URL('./fixtures/aiIdentityExposureCheck.sql', import.meta.url),
+            'utf8',
+        );
+        const generated = setup();
+        const start = generated.indexOf(
+            'CREATE OR REPLACE PROCEDURE LIGHTDASH_GOVERNANCE.AI_GRANTS.AI_EXPOSURE_CHECK()',
+        );
+        const end = generated.indexOf('$$;', start) + 3;
+        expect(normalise(generated.slice(start, end))).toBe(normalise(fixture));
+        expect(generated).toContain(
+            'GRANT USAGE ON PROCEDURE LIGHTDASH_GOVERNANCE.AI_GRANTS.AI_EXPOSURE_CHECK() TO ROLE LIGHTDASH_PROVISIONER_ROLE;',
+        );
+        expect(generated).not.toContain('SCHEMA_WATERMARK');
+        expect(generated).not.toMatch(
+            /GRANT SELECT ON FUTURE VIEWS IN DATABASE/,
+        );
+    });
+
+    it('creates the exposure check as the grantor and grants usage only to the provisioner', () => {
+        const sql = buildAiIdentityAutomaticSyncSetupSql({
+            managedScope: [{ roleName: 'ANALYST_AI', database: 'DATA' }],
+            provisionerRole: 'PROVISIONER',
+            warehouse: 'WH',
+            grantorRole: 'custom_grantor',
+            governanceDatabase: 'CUSTOM_GOV',
+            governanceSchema: 'CUSTOM_GRANTS',
+        });
+        const start = sql.indexOf(
+            'CREATE OR REPLACE PROCEDURE CUSTOM_GOV.CUSTOM_GRANTS.AI_EXPOSURE_CHECK()',
+        );
+        const body = sql.slice(start, sql.indexOf('$$;', start) + 3);
+        const fixture = readFileSync(
+            new URL('./fixtures/aiIdentityExposureCheck.sql', import.meta.url),
+            'utf8',
+        ).replaceAll(
+            'LIGHTDASH_GOVERNANCE.AI_GRANTS',
+            'CUSTOM_GOV.CUSTOM_GRANTS',
+        );
+        expect(normalise(body)).toBe(normalise(fixture));
+        expect(body).toContain('EXECUTE AS OWNER');
+        expect(
+            sql
+                .slice(0, start)
+                .match(/USE ROLE [^;]+;/g)
+                ?.at(-1),
+        ).toBe('USE ROLE CUSTOM_GRANTOR;');
+        expect(
+            sql.match(
+                /GRANT USAGE ON PROCEDURE [^;]*AI_EXPOSURE_CHECK\(\)[^;]*;/g,
+            ),
+        ).toEqual([
+            'GRANT USAGE ON PROCEDURE CUSTOM_GOV.CUSTOM_GRANTS.AI_EXPOSURE_CHECK() TO ROLE PROVISIONER;',
+        ]);
+        expect(sql).not.toContain('AI_GRANT_FLOOR');
+        expect(sql).not.toContain('SCHEMA_WATERMARK');
+        expect(sql).not.toMatch(
+            /GRANT .*FUTURE VIEWS IN DATABASE .* TO ROLE CUSTOM_GRANTOR/,
         );
         expect(sql).toContain(
-            'CREATE OR REPLACE PROCEDURE LIGHTDASH_GOVERNANCE.AI_GRANTS.SCHEMA_WATERMARK()',
+            'REVOKE SELECT ON FUTURE VIEWS IN DATABASE DATA FROM ROLE CUSTOM_GRANTOR;',
         );
-        expect(sql).toContain('INFORMATION_SCHEMA.SCHEMATA');
-        expect(sql).toContain(
-            'GRANT USAGE ON PROCEDURE LIGHTDASH_GOVERNANCE.AI_GRANTS.SCHEMA_WATERMARK() TO ROLE LIGHTDASH_PROVISIONER_ROLE;',
+        expect(normalise(sql)).toContain(
+            `AND "grantee_name" <> :ai AND "grantee_name" <> 'CUSTOM_GRANTOR' AND "grantee_name" NOT IN (SELECT ai_role FROM CUSTOM_GOV.CUSTOM_GRANTS.AI_GRANT_SCOPE)`,
         );
-        expect(sql).toContain("SCHEDULE = '10 MINUTES'");
-        expect(sql).toContain('USER_TASK_TIMEOUT_MS = 3600000');
     });
 
     it('installs exclusion rules before the first scheduled sync', () => {

@@ -9,7 +9,8 @@ import {
     type AiIdentityProvisioner,
     AiIdentityProvisionerStatus,
     AiIdentitySyncStatus,
-    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_MESSAGE,
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
     type AiIdentityAiRoleExpansion,
     DEFAULT_AI_IDENTITY_PROVISIONER_USER,
     DEFAULT_AI_IDENTITY_PROVISIONER_ROLE,
@@ -67,21 +68,46 @@ const checklistIcon = (status: AiIdentitySetupCheckItem['status']) => {
     }
 };
 
-const AiIdentityGrantSyncStatus: FC<{
-    sync: AiIdentityProvisioningSettings['automaticSync'];
-}> = ({ sync }) => {
+type AutomaticSync = AiIdentityProvisioningSettings['automaticSync'];
+
+const getGrantSyncPausedMessage = (
+    sync: AutomaticSync,
+    runningWithinWindow: boolean,
+): string => {
+    if (runningWithinWindow) {
+        return `Grant sync is running. ${sync.progress} schemas processed. AI queries resume after a successful scheduled run.`;
+    }
+    if (sync.unsafeReason === 'exposure') return AI_IDENTITY_EXPOSURE_MESSAGE;
+    if (sync.unsafeReason === 'exposure_check_failed') {
+        return AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE;
+    }
+    return 'AI queries are paused. Check the latest Snowflake grant sync run.';
+};
+
+const getGrantSyncBadge = (
+    sync: AutomaticSync,
+): { color: string; label: string } => {
+    if (sync.lastRunAt === null) return { color: 'gray', label: 'Not set up' };
+    return {
+        color: sync.status === AiIdentitySyncStatus.OK ? 'green' : 'yellow',
+        label: sync.status ?? 'No run',
+    };
+};
+
+const AiIdentityGrantSyncStatus: FC<{ sync: AutomaticSync }> = ({ sync }) => {
     const lastRunAge =
         sync.lastRunAt === null
             ? NaN
             : Date.now() - new Date(sync.lastRunAt).getTime();
-    const syncSafe =
-        sync.status === AiIdentitySyncStatus.OK &&
+    const withinWindow =
         lastRunAge >= 0 &&
         lastRunAge <= AI_IDENTITY_SYNC_MAX_AGE_MINUTES * 60_000;
+    const syncSafe = sync.status === AiIdentitySyncStatus.OK && withinWindow;
     const runningWithinWindow =
         sync.status === AiIdentitySyncStatus.RUNNING &&
         lastRunAge >= 0 &&
         lastRunAge < AI_IDENTITY_SYNC_MAX_AGE_MINUTES * 60_000;
+    const badge = getGrantSyncBadge(sync);
     const issues = [
         ...new Map(
             sync.issues.map((issue) => [JSON.stringify(issue), issue]),
@@ -90,28 +116,12 @@ const AiIdentityGrantSyncStatus: FC<{
     return (
         <>
             <Group>
-                <Badge
-                    color={
-                        sync.lastRunAt === null
-                            ? 'gray'
-                            : sync.status === AiIdentitySyncStatus.OK
-                              ? 'green'
-                              : 'yellow'
-                    }
-                >
-                    {sync.lastRunAt === null
-                        ? 'Not set up'
-                        : (sync.status ?? 'No run')}
-                </Badge>
+                <Badge color={badge.color}>{badge.label}</Badge>
                 <RelativeTime value={sync.lastRunAt} />
             </Group>
             {!syncSafe && (
                 <Callout variant="warning">
-                    {runningWithinWindow
-                        ? `Grant sync is running. ${sync.progress} schemas processed. AI queries resume after a successful scheduled run.`
-                        : sync.unsafeReason === 'schema_changed'
-                          ? AI_IDENTITY_SCHEMA_CHANGED_MESSAGE
-                          : 'AI queries are paused. Check the latest Snowflake grant sync run.'}
+                    {getGrantSyncPausedMessage(sync, runningWithinWindow)}
                 </Callout>
             )}
             {issues.length > 0 && (

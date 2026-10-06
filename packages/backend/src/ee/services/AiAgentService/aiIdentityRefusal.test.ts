@@ -1,4 +1,6 @@
 import {
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_MESSAGE,
     AI_IDENTITY_NOT_READY_CODE,
     AI_IDENTITY_SYNC_UNSAFE_CODE,
     AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
@@ -57,5 +59,23 @@ describe('AI identity prompt refusal', () => {
         expect(
             getAiIdentityRefusal({ ...access, aiIdentityRequired: false }),
         ).toBeNull();
+    });
+});
+
+it.each([
+    AI_IDENTITY_EXPOSURE_MESSAGE,
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+])('preserves the safe refusal message: %s', (message) => {
+    expect(
+        getAiIdentityRefusal({
+            ...access,
+            state: AiIdentityState.READY,
+            automaticSyncRefusal: true,
+            message,
+        }),
+    ).toEqual({
+        code: AI_IDENTITY_SYNC_UNSAFE_CODE,
+        state: AiIdentityState.PENDING,
+        message,
     });
 });

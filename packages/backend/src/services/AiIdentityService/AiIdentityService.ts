@@ -1,9 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_MESSAGE,
     AI_IDENTITY_NAME_PLACEHOLDER,
     AI_IDENTITY_PROVISIONER_WORST_CASE,
-    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
     AI_IDENTITY_SHOW_USERS_NOTICE,
     AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiAccessForUser,
@@ -363,7 +364,7 @@ export class AiIdentityService extends BaseService {
             provisioner !== null &&
             mode === AiIdentityCreationMode.AUTOMATIC &&
             effectiveMode === AiIdentityCreationMode.GUIDED
-                ? `Lightdash pauses automatic creation until the setup check passes. ${(provisioner?.statusMessage ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
+                ? `Automatic creation is paused until the setup check passes. ${(provisioner?.statusMessage ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
                 : null;
         const setupCheck = provisioner?.setupCheck ?? null;
         const syncTotal = aiRoleExpansions.reduce(
@@ -691,10 +692,10 @@ export class AiIdentityService extends BaseService {
         const provisioner = await this.args.aiIdentityModel.getProvisioner(
             aiIdentityAccountUuid,
         );
-        if (
+        let readyForSync =
             provisioner?.status === AiIdentityProvisionerStatus.READY &&
-            !requiresSetup
-        ) {
+            !requiresSetup;
+        if (readyForSync) {
             try {
                 await this.syncAutomaticRules(
                     aiIdentityAccountUuid,
@@ -706,6 +707,7 @@ export class AiIdentityService extends BaseService {
                     previousRoles,
                 );
             } catch {
+                readyForSync = false;
                 await this.args.aiIdentityModel.updateProvisioner(
                     aiIdentityAccountUuid,
                     {
@@ -716,6 +718,7 @@ export class AiIdentityService extends BaseService {
                 );
             }
         }
+        if (readyForSync) await this.scheduleGrantSync(aiIdentityAccountUuid);
         return this.getProvisioningSettings(account, aiIdentityAccountUuid);
     }
 
@@ -810,6 +813,7 @@ export class AiIdentityService extends BaseService {
         aiIdentityAccountUuid: string,
         probe = false,
         previousRoles: string[] = [],
+        syncTimeoutSeconds?: number,
     ): Promise<ProvisionerConnection> {
         const identityAccount = await this.args.aiIdentityModel.getAccount(
             aiIdentityAccountUuid,
@@ -852,6 +856,7 @@ export class AiIdentityService extends BaseService {
                     ...aiRoles.map((role) => role.roleName),
                     ...previousRoles,
                 ]),
+                syncTimeoutSeconds,
                 lightdashCreatedUsers: new Set([
                     ...identities
                         .filter((identity) => identity.createdByProvisioner)
@@ -1433,6 +1438,12 @@ export class AiIdentityService extends BaseService {
                 detail: failed.map((item) => item.detail).join(' ') || null,
             },
         );
+        if (
+            createCheck.status === 'passed' &&
+            sync.lastRunAt === null &&
+            previous?.signedInAt == null
+        )
+            await this.scheduleGrantSync(aiIdentityAccountUuid);
     }
 
     async replaceProvisioningMappings(
@@ -1594,6 +1605,36 @@ export class AiIdentityService extends BaseService {
             null,
             null,
             'provision',
+        );
+    }
+
+    private async scheduleGrantSync(
+        aiIdentityAccountUuid: string,
+    ): Promise<void> {
+        const identityAccount = await this.args.aiIdentityModel.getAccount(
+            aiIdentityAccountUuid,
+        );
+        if (!identityAccount)
+            throw new NotFoundError('AI identity account not found');
+        const job = await this.args.aiIdentityModel.createJob({
+            organizationUuid: identityAccount.organizationUuid,
+            aiIdentityAccountUuid,
+            kind: AiIdentityJobKind.GRANT_SYNC,
+            filter: {
+                aiIdentityAccountUuid,
+                states: [],
+                reasons: [],
+                projectUuid: null,
+                search: null,
+                staleOnly: false,
+            },
+            format: null,
+            roleForTwin: null,
+            createdByUserUuid: null,
+        });
+        await this.args.schedulerClient.scheduleTask(
+            SCHEDULER_TASKS.AI_IDENTITY_JOB,
+            { jobUuid: job.jobUuid },
         );
     }
 
@@ -2510,8 +2551,11 @@ export class AiIdentityService extends BaseService {
                 automaticSyncRefusal =
                     (sync.pending && !completedAfterChange) ||
                     unsafeReason !== null;
-                if (unsafeReason === 'schema_changed')
-                    automaticSyncReason = AI_IDENTITY_SCHEMA_CHANGED_MESSAGE;
+                if (unsafeReason === 'exposure')
+                    automaticSyncReason = AI_IDENTITY_EXPOSURE_MESSAGE;
+                if (unsafeReason === 'exposure_check_failed')
+                    automaticSyncReason =
+                        AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE;
             } catch {
                 automaticSyncRefusal = true;
             }
@@ -2557,6 +2601,15 @@ export class AiIdentityService extends BaseService {
         try {
             let peopleAffected: number | null = null;
             if (job.kind === AiIdentityJobKind.SYNC) await this.runSync(job);
+            if (job.kind === AiIdentityJobKind.GRANT_SYNC) {
+                const connection = await this.provisionerConnection(
+                    job.aiIdentityAccountUuid,
+                    false,
+                    [],
+                    3600,
+                );
+                await connection.execute({ kind: 'sync_grants' });
+            }
             if (job.kind === AiIdentityJobKind.PROVISION)
                 peopleAffected = await this.runProvisioningJob(job);
             if (job.kind === AiIdentityJobKind.TEST) {
@@ -2571,6 +2624,7 @@ export class AiIdentityService extends BaseService {
             await this.args.aiIdentityModel.updateJob(jobUuid, {
                 status: AiIdentityJobStatus.DONE,
             });
+            if (job.kind === AiIdentityJobKind.GRANT_SYNC) return;
             const finished = await this.args.aiIdentityModel.getJob(jobUuid);
             await this.args.aiIdentityModel.addEvent({
                 organizationUuid: job.organizationUuid,
@@ -2589,6 +2643,10 @@ export class AiIdentityService extends BaseService {
                 status: AiIdentityJobStatus.FAILED,
                 error: error instanceof Error ? error.message : String(error),
             });
+            if (job.kind === AiIdentityJobKind.GRANT_SYNC) {
+                this.logger.warn('Lightdash grant sync failed', { error });
+                return;
+            }
             await this.args.aiIdentityModel.addEvent({
                 organizationUuid: job.organizationUuid,
                 aiIdentityAccountUuid: job.aiIdentityAccountUuid,

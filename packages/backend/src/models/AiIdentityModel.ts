@@ -223,7 +223,7 @@ export class AiIdentityModel {
                 provisioner !== undefined &&
                 row.creation_mode === AiIdentityCreationMode.AUTOMATIC &&
                 effectiveMode === AiIdentityCreationMode.GUIDED
-                    ? `Lightdash pauses automatic creation until the setup check passes. ${(provisioner?.status_message ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
+                    ? `Automatic creation is paused until the setup check passes. ${(provisioner?.status_message ?? 'The setup is not ready.').replace(/\.*$/, '.')}`
                     : null,
             counts,
         };

@@ -1,4 +1,6 @@
 import {
+    AI_IDENTITY_EXPOSURE_MESSAGE,
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
     AiIdentityCreationMode,
     AiIdentityProvisionerStatus,
     AiIdentitySyncStatus,
@@ -433,4 +435,20 @@ it('does not show automatic creation as paused before a setup exists', () => {
     expect(
         screen.queryByText('Automatic creation is paused'),
     ).not.toBeInTheDocument();
+});
+
+it.each([
+    ['exposure', AI_IDENTITY_EXPOSURE_MESSAGE],
+    ['exposure_check_failed', AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE],
+] as const)('shows the %s refusal message', (unsafeReason, message) => {
+    renderSetup({
+        ...settings,
+        automaticSync: {
+            ...settings.automaticSync,
+            status: AiIdentitySyncStatus.UNSAFE,
+            lastRunAt: new Date(),
+            unsafeReason,
+        },
+    });
+    expect(screen.getByText(message)).toBeInTheDocument();
 });

@@ -27,10 +27,13 @@ const operation = {
     comment: 'AI user',
 };
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+});
 
 describe('ProvisionerConnection', () => {
-    it('reads the SQL procedure log and the schema watermark', async () => {
+    it('reads the SQL procedure log and the exposure check', async () => {
         const connection = new ProvisionerConnection(
             credentials,
             'PROVISIONER',
@@ -57,8 +60,7 @@ describe('ProvisionerConnection', () => {
         query.mockResolvedValueOnce({
             rows: [
                 {
-                    FINISHED_AT: '2026-10-06T10:00:00.000+00:00',
-                    ELAPSED_MS: 60000,
+                    HAS_OK_RUN: 1,
                 },
             ],
             fields: {},
@@ -68,19 +70,23 @@ describe('ProvisionerConnection', () => {
             fields: {},
         });
         query.mockResolvedValueOnce({
-            rows: [{ SCHEMA_WATERMARK: '2026-10-06T09:58:00.000+00:00' }],
+            rows: [{ AI_EXPOSURE_CHECK: { status: 'OK', exposed: [] } }],
             fields: {},
         });
         const run = await connection.readAutomaticSync();
         expect(run.status).toBe(AiIdentitySyncStatus.OK);
         expect(run.progress).toBe(12);
-        expect(run.lastOkStartedAt).toEqual(new Date('2026-10-06T09:58:00Z'));
-        expect(run.schemaWatermark).toEqual(new Date('2026-10-06T09:58:00Z'));
+        expect(run.hasOkRun).toBe(true);
+        expect(run.exposure).toEqual({
+            status: 'OK',
+            exposed: [],
+            error: null,
+        });
         expect(run.managedScope).toEqual([
             { roleName: 'ANALYST_AI', database: 'DATA' },
         ]);
         expect(String(query.mock.calls[3][0])).toContain(
-            'CALL LIGHTDASH_GOVERNANCE.AI_GRANTS.SCHEMA_WATERMARK()',
+            'CALL LIGHTDASH_GOVERNANCE.AI_GRANTS.AI_EXPOSURE_CHECK()',
         );
     });
 
@@ -95,7 +101,7 @@ describe('ProvisionerConnection', () => {
         vi.spyOn(SnowflakeWarehouseClient.prototype, 'runQuery')
             .mockResolvedValueOnce({ rows: [], fields: {} })
             .mockResolvedValueOnce({
-                rows: [{ FINISHED_AT: null, ELAPSED_MS: null }],
+                rows: [],
                 fields: {},
             })
             .mockResolvedValueOnce({
@@ -103,12 +109,12 @@ describe('ProvisionerConnection', () => {
                 fields: {},
             })
             .mockResolvedValueOnce({
-                rows: [{ SCHEMA_WATERMARK: '2026-10-06T09:58:00.000+00:00' }],
+                rows: [{ AI_EXPOSURE_CHECK: { status: 'OK', exposed: [] } }],
                 fields: {},
             });
         const run = await connection.readAutomaticSync();
         expect(run.status).toBe(AiIdentitySyncStatus.RUNNING);
-        expect(run.lastOkStartedAt).toBeNull();
+        expect(run.hasOkRun).toBe(false);
     });
 
     it('reads view dependency warnings without changing sync status', async () => {
@@ -199,3 +205,133 @@ it('does not select the setup role during the sign-in probe', async () => {
     expect(options[0].role).toBeUndefined();
     expect(options[0].username).toBe('PROVISIONER');
 });
+
+describe('readAiExposure', () => {
+    let sequence = 0;
+    const makeConnection = () => {
+        sequence += 1;
+        return new ProvisionerConnection(
+            credentials,
+            'PROVISIONER',
+            `EXPOSURE_${sequence}`,
+            'PRIVATE',
+            { mappedRoles: new Set(), lightdashCreatedUsers: new Set() },
+        );
+    };
+    it.each([
+        { status: 'OK', exposed: [], format: 'object' },
+        { status: 'OK', exposed: [], format: 'JSON' },
+        { status: 'UNSAFE', exposed: ['SCHEMA DATA.SECRET'], format: 'object' },
+        { status: 'UNSAFE', exposed: ['SCHEMA DATA.SECRET'], format: 'JSON' },
+    ])('parses $format results for $status', async ({ format, ...result }) => {
+        const raw = format === 'JSON' ? JSON.stringify(result) : result;
+        vi.spyOn(
+            SnowflakeWarehouseClient.prototype,
+            'runQuery',
+        ).mockResolvedValue({ rows: [{ AI_EXPOSURE_CHECK: raw }], fields: {} });
+        await expect(makeConnection().readAiExposure()).resolves.toEqual({
+            ...result,
+            error: null,
+        });
+    });
+    it.each(['OK', 'UNSAFE'] as const)(
+        'caches %s results for exactly 60 seconds',
+        async (status) => {
+            vi.useFakeTimers();
+            const connection = makeConnection();
+            const query = vi
+                .spyOn(SnowflakeWarehouseClient.prototype, 'runQuery')
+                .mockResolvedValue({
+                    rows: [{ AI_EXPOSURE_CHECK: { status, exposed: [] } }],
+                    fields: {},
+                });
+            await connection.readAiExposure();
+            await vi.advanceTimersByTimeAsync(59_999);
+            await connection.readAiExposure();
+            expect(query).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(1);
+            await connection.readAiExposure();
+            expect(query).toHaveBeenCalledTimes(2);
+        },
+    );
+    it.each(['rejected call', 'SQL error', 'invalid JSON', 'invalid shape'])(
+        'caches %s failures for only 10 seconds and recovers',
+        async (kind) => {
+            vi.useFakeTimers();
+            const connection = makeConnection();
+            const query = vi.spyOn(
+                SnowflakeWarehouseClient.prototype,
+                'runQuery',
+            );
+            if (kind === 'rejected call')
+                query.mockRejectedValueOnce(
+                    new Error('Cannot inspect DATA.SECRET'),
+                );
+            else {
+                const responses = {
+                    'SQL error': {
+                        status: 'UNSAFE',
+                        error: 'Cannot inspect DATA.SECRET',
+                    },
+                    'invalid JSON': '{',
+                    'invalid shape': { status: 'UNKNOWN' },
+                };
+                query.mockResolvedValueOnce({
+                    rows: [
+                        {
+                            AI_EXPOSURE_CHECK:
+                                responses[kind as keyof typeof responses],
+                        },
+                    ],
+                    fields: {},
+                });
+            }
+            query.mockResolvedValue({
+                rows: [{ AI_EXPOSURE_CHECK: { status: 'OK' } }],
+                fields: {},
+            });
+            const failure = await connection.readAiExposure();
+            expect(failure).toEqual({
+                status: 'UNSAFE',
+                exposed: [],
+                error: expect.any(String),
+            });
+            await vi.advanceTimersByTimeAsync(9_999);
+            expect(await connection.readAiExposure()).toEqual(failure);
+            expect(query).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(1);
+            await expect(connection.readAiExposure()).resolves.toEqual({
+                status: 'OK',
+                exposed: [],
+                error: null,
+            });
+            expect(query).toHaveBeenCalledTimes(2);
+        },
+    );
+});
+
+it.each([undefined, 120])(
+    'preserves the normal provisioner timeout %s',
+    async (timeoutSeconds) => {
+        const timeouts: Array<number | undefined> = [];
+        vi.spyOn(
+            SnowflakeWarehouseClient.prototype,
+            'runQuery',
+        ).mockImplementation(
+            async function capture(this: SnowflakeWarehouseClient) {
+                timeouts.push(this.credentials.timeoutSeconds);
+                return { rows: [], fields: {} };
+            },
+        );
+        const connection = new ProvisionerConnection(
+            { ...credentials, timeoutSeconds },
+            'PROVISIONER',
+            'ROLE',
+            'PRIVATE',
+            { mappedRoles: new Set(), lightdashCreatedUsers: new Set() },
+        );
+        await connection.users();
+        await connection.grantsToRole('ROLE');
+        expect(timeouts).toEqual([timeoutSeconds, timeoutSeconds]);
+    },
+);

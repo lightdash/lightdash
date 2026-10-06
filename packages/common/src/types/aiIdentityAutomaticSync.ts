@@ -30,12 +30,21 @@ export type AiIdentityManagedScope = {
 };
 
 export type AiIdentitySyncUnsafeReason =
-    | 'schema_changed'
+    | 'exposure'
+    | 'exposure_check_failed'
     | 'no_ok_run'
     | 'stale_run';
 
-export const AI_IDENTITY_SCHEMA_CHANGED_MESSAGE =
-    'A schema changed after the last sync. AI is paused until the next sync.';
+export type AiIdentityExposureCheck = {
+    status: 'OK' | 'UNSAFE';
+    exposed: string[];
+    error: string | null;
+};
+
+export const AI_IDENTITY_EXPOSURE_MESSAGE =
+    'AI is paused. An AI role can read a schema that its exclusions do not allow. AI starts again after the next grant sync.';
+export const AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE =
+    'AI is paused. The AI role grants in Snowflake could not be checked.';
 
 export type AiIdentityAutomaticSync = {
     pending: boolean;

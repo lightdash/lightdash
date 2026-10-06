@@ -4,9 +4,11 @@ import {
     type AiIdentityState,
 } from './aiIdentity';
 import {
-    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_MESSAGE,
     AI_IDENTITY_SYNC_UNSAFE_CODE,
     AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
+    type AiIdentitySyncUnsafeReason,
 } from './aiIdentityAutomaticSync';
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
@@ -79,11 +81,13 @@ export class AiIdentityNotReadyError extends ForbiddenError {
 }
 
 export class AiIdentityAutomaticSyncRefusalError extends ForbiddenError {
-    constructor(reason?: 'schema_changed' | 'no_ok_run' | 'stale_run') {
+    constructor(reason?: AiIdentitySyncUnsafeReason) {
+        const messages: Partial<Record<AiIdentitySyncUnsafeReason, string>> = {
+            exposure: AI_IDENTITY_EXPOSURE_MESSAGE,
+            exposure_check_failed: AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+        };
         super(
-            reason === 'schema_changed'
-                ? AI_IDENTITY_SCHEMA_CHANGED_MESSAGE
-                : AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
+            messages[reason ?? 'no_ok_run'] ?? AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
             {
                 code: AI_IDENTITY_SYNC_UNSAFE_CODE,
                 reason,

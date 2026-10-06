@@ -4,6 +4,7 @@ import {
     AiIdentitySyncStatus,
     renderProvisioningOperation,
     SnowflakeAuthenticationType,
+    type AiIdentityExposureCheck,
     type AiIdentityManagedScope,
     type AiIdentityProvisioningOperation,
     type AiIdentitySyncIssue,
@@ -14,7 +15,10 @@ import { z } from 'zod';
 
 export type SnowflakeProvisionerRow = Record<string, unknown>;
 
-const watermarkCache = new Map<string, { value: Date; expiresAt: number }>();
+const exposureCache = new Map<
+    string,
+    { value: AiIdentityExposureCheck; expiresAt: number }
+>();
 
 export class ProvisionerConnection {
     private readonly client: SnowflakeWarehouseClient;
@@ -29,6 +33,7 @@ export class ProvisionerConnection {
         private readonly context: {
             mappedRoles: ReadonlySet<string>;
             lightdashCreatedUsers: Set<string>;
+            syncTimeoutSeconds?: number;
         },
     ) {
         this.account = projectCredentials.account;
@@ -49,6 +54,8 @@ export class ProvisionerConnection {
             requireUserCredentials: false,
             requireAgentSession: false,
             expectedCurrentUser: userName,
+            timeoutSeconds:
+                context.syncTimeoutSeconds ?? projectCredentials.timeoutSeconds,
         });
     }
 
@@ -86,20 +93,43 @@ export class ProvisionerConnection {
         return sql;
     }
 
-    private async readSchemaWatermark(): Promise<Date> {
+    async readAiExposure(): Promise<AiIdentityExposureCheck> {
         const key = `${this.account}:${this.roleName}`;
-        const cached = watermarkCache.get(key);
+        const cached = exposureCache.get(key);
         if (cached && cached.expiresAt > Date.now()) return cached.value;
-        const namespace = `${AI_IDENTITY_GOVERNANCE_DATABASE}.${AI_IDENTITY_GOVERNANCE_SCHEMA}`;
-        const result = await this.client.runQuery(
-            `CALL ${namespace}.SCHEMA_WATERMARK()`,
-        );
-        const raw = result.rows[0]?.SCHEMA_WATERMARK;
-        const value = new Date(String(raw));
-        if (Number.isNaN(value.getTime()))
-            throw new Error('Invalid schema watermark.');
-        watermarkCache.set(key, { value, expiresAt: Date.now() + 60_000 });
-        return value;
+        try {
+            const namespace = `${AI_IDENTITY_GOVERNANCE_DATABASE}.${AI_IDENTITY_GOVERNANCE_SCHEMA}`;
+            const result = await this.client.runQuery(
+                `CALL ${namespace}.AI_EXPOSURE_CHECK()`,
+            );
+            const raw = result.rows[0]?.AI_EXPOSURE_CHECK;
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            const value = z
+                .object({
+                    status: z.enum(['OK', 'UNSAFE']),
+                    exposed: z.array(z.string()).default([]),
+                    error: z.string().nullable().default(null),
+                })
+                .parse(parsed);
+            const exposure = {
+                status: value.status,
+                exposed: value.exposed,
+                error: value.error,
+            };
+            exposureCache.set(key, {
+                value: exposure,
+                expiresAt: Date.now() + (exposure.error ? 10_000 : 60_000),
+            });
+            return exposure;
+        } catch (cause) {
+            const value: AiIdentityExposureCheck = {
+                status: 'UNSAFE',
+                exposed: [],
+                error: cause instanceof Error ? cause.message : String(cause),
+            };
+            exposureCache.set(key, { value, expiresAt: Date.now() + 10_000 });
+            return value;
+        }
     }
 
     async readViewDependencyWarnings(): Promise<AiIdentitySyncIssue[]> {
@@ -138,8 +168,8 @@ export class ProvisionerConnection {
         status: AiIdentitySyncStatus;
         hasLog: boolean;
         lastRunAt: Date;
-        lastOkStartedAt: Date | null;
-        schemaWatermark: Date;
+        hasOkRun: boolean;
+        exposure: AiIdentityExposureCheck;
         managedScope: AiIdentityManagedScope[];
         issues: AiIdentitySyncIssue[];
         progress: number;
@@ -164,23 +194,9 @@ export class ProvisionerConnection {
             status = AiIdentitySyncStatus.UNSAFE;
         else status = AiIdentitySyncStatus.RUNNING;
         const ok = await this.client.runQuery(
-            `SELECT TO_VARCHAR(RUN_AT, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') AS FINISHED_AT, TRY_TO_NUMBER(REGEXP_SUBSTR(MESSAGE, 'ms=([0-9]+)', 1, 1, 'e', 1)) AS ELAPSED_MS FROM ${namespace}.AI_GRANT_LOG WHERE INVOKED_BY = 'SYSTEM' AND MESSAGE LIKE 'status=OK %' ORDER BY RUN_AT DESC LIMIT 1`,
+            `SELECT 1 AS HAS_OK_RUN FROM ${namespace}.AI_GRANT_LOG WHERE INVOKED_BY = 'SYSTEM' AND MESSAGE LIKE 'status=OK %' ORDER BY RUN_AT DESC LIMIT 1`,
         );
-        const finishedAt = ok.rows[0]?.FINISHED_AT;
-        const elapsedMs = Number(ok.rows[0]?.ELAPSED_MS);
-        const lastOkStartedAt =
-            finishedAt &&
-            ok.rows[0]?.ELAPSED_MS != null &&
-            Number.isFinite(elapsedMs) &&
-            elapsedMs >= 0
-                ? new Date(
-                      new Date(String(finishedAt)).getTime() -
-                          elapsedMs -
-                          60_000,
-                  )
-                : null;
-        if (lastOkStartedAt && Number.isNaN(lastOkStartedAt.getTime()))
-            throw new Error('Invalid OK run start.');
+        const hasOkRun = ok.rows.length > 0;
         const scope = await this.client.runQuery(
             `SELECT AI_ROLE, DATABASE_NAME FROM ${namespace}.AI_GRANT_SCOPE ORDER BY AI_ROLE, DATABASE_NAME`,
         );
@@ -208,8 +224,8 @@ export class ProvisionerConnection {
             status,
             hasLog: latest !== undefined,
             lastRunAt,
-            lastOkStartedAt,
-            schemaWatermark: await this.readSchemaWatermark(),
+            hasOkRun,
+            exposure: await this.readAiExposure(),
             managedScope: scopeRows.map((row) => ({
                 roleName: row.AI_ROLE,
                 database: row.DATABASE_NAME,

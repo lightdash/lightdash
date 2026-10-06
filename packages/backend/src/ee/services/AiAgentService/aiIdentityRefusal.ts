@@ -1,6 +1,7 @@
 import {
+    AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+    AI_IDENTITY_EXPOSURE_MESSAGE,
     AI_IDENTITY_NOT_READY_CODE,
-    AI_IDENTITY_SCHEMA_CHANGED_MESSAGE,
     AI_IDENTITY_SYNC_UNSAFE_CODE,
     AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
     AiIdentityState,
@@ -25,10 +26,12 @@ export const getAiIdentityRefusal = (
         return {
             code: AI_IDENTITY_SYNC_UNSAFE_CODE,
             state: AiIdentityState.PENDING,
-            message:
-                access.message === AI_IDENTITY_SCHEMA_CHANGED_MESSAGE
-                    ? access.message
-                    : AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
+            message: [
+                AI_IDENTITY_EXPOSURE_MESSAGE,
+                AI_IDENTITY_EXPOSURE_CHECK_FAILED_MESSAGE,
+            ].includes(access.message ?? '')
+                ? (access.message ?? AI_IDENTITY_SYNC_UNSAFE_MESSAGE)
+                : AI_IDENTITY_SYNC_UNSAFE_MESSAGE,
         };
     if (access.state === AiIdentityState.READY) return null;
     const state = access.state ?? AiIdentityState.PENDING;

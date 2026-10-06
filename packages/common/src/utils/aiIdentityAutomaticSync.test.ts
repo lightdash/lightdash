@@ -10,27 +10,34 @@ const now = new Date('2026-10-06T10:00:00Z');
 const run = {
     status: AiIdentitySyncStatus.OK,
     lastRunAt: new Date('2026-10-06T09:59:00Z'),
-    lastOkStartedAt: new Date('2026-10-06T09:58:00Z'),
-    schemaWatermark: new Date('2026-10-06T09:57:00Z'),
+    hasOkRun: true,
+    exposure: { status: 'OK' as const, exposed: [], error: null },
 };
 
 describe('automatic sync gate', () => {
-    it('allows an older schema watermark', () => {
+    it('allows safe exposure', () => {
         expect(isAiIdentityAutomaticSyncSafe(run, now)).toBe(true);
         expect(aiIdentityAutomaticSyncUnsafeReason(run, now)).toBeNull();
     });
-    it('pauses after a newer schema watermark with a typed reason', () => {
+    it('pauses on exposure with a typed reason', () => {
         expect(
             aiIdentityAutomaticSyncUnsafeReason(
-                { ...run, schemaWatermark: new Date('2026-10-06T09:58:01Z') },
+                {
+                    ...run,
+                    exposure: {
+                        status: 'UNSAFE',
+                        exposed: ['SCHEMA DATA.SECRET'],
+                        error: null,
+                    },
+                },
                 now,
             ),
-        ).toBe('schema_changed');
+        ).toBe('exposure');
     });
     it('pauses when there is no OK run', () => {
         expect(
             aiIdentityAutomaticSyncUnsafeReason(
-                { ...run, lastOkStartedAt: null },
+                { ...run, hasOkRun: false },
                 now,
             ),
         ).toBe('no_ok_run');
@@ -39,7 +46,7 @@ describe('automatic sync gate', () => {
         const first = {
             ...run,
             status: AiIdentitySyncStatus.RUNNING,
-            lastOkStartedAt: null,
+            hasOkRun: false,
         };
         expect(aiIdentityAutomaticSyncGate(first, now)).toEqual({
             status: 'PROGRESS',
@@ -53,7 +60,7 @@ describe('automatic sync gate', () => {
                 {
                     ...run,
                     status: AiIdentitySyncStatus.RUNNING,
-                    lastOkStartedAt: null,
+                    hasOkRun: false,
                     lastRunAt: new Date('2026-10-06T08:00:00Z'),
                 },
                 now,
@@ -67,5 +74,52 @@ describe('automatic sync gate', () => {
                 now,
             ),
         ).toBe('stale_run');
+    });
+});
+
+describe('live exposure results from 2026-10-06', () => {
+    it.each([
+        ['rename into the pattern', 'SCHEMA DATA.MART_27_CLEAR'],
+        ['SWAP WITH', 'SCHEMA DATA.PAYMENTS_CLEAR'],
+        ['revoked-grantor rename', 'SCHEMA DATA.MART_26_CLEAR'],
+        ['rename out of scope', 'SCHEMA DB2.MART_29_CLEAR'],
+    ])('refuses %s despite a fresh successful sync', (_name, exposed) => {
+        expect(
+            aiIdentityAutomaticSyncGate(
+                {
+                    ...run,
+                    exposure: {
+                        status: 'UNSAFE',
+                        exposed: [exposed],
+                        error: null,
+                    },
+                },
+                now,
+            ),
+        ).toEqual({ status: 'UNSAFE', reason: 'exposure' });
+    });
+    it.each(['dbt-like load', 'CREATE SCHEMA'])(
+        'allows %s with no exposure',
+        () => {
+            expect(aiIdentityAutomaticSyncGate(run, now)).toEqual({
+                status: 'OK',
+                reason: null,
+            });
+        },
+    );
+    it('refuses a failed exposure check', () => {
+        expect(
+            aiIdentityAutomaticSyncGate(
+                {
+                    ...run,
+                    exposure: {
+                        status: 'UNSAFE',
+                        exposed: [],
+                        error: 'Cannot inspect DATA.SECRET',
+                    },
+                },
+                now,
+            ),
+        ).toEqual({ status: 'UNSAFE', reason: 'exposure_check_failed' });
     });
 });
